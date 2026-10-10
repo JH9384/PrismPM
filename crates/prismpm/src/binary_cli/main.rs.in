@@ -1,0 +1,114 @@
+// Generated only from the closed Foundation.Binary.V1.Model adapter contract.
+// The core may abort on allocator failure. Only adapter allocations are fallible.
+use std::ffi::OsString;
+use std::io::{Read, Write};
+use std::path::Path;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AdapterFailure {
+    InvalidArguments, InputOpen, InputType, InputRead, InputLimit,
+    AdapterAllocation, ComputeFailure, OutputLimit, OutputExists, OutputOpen, OutputWrite,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PublicationOutcome { NotPublished, Published, Unknown }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct AdapterFailureResult { failure: AdapterFailure, publication: PublicationOutcome }
+fn failure(failure: AdapterFailure) -> AdapterFailureResult {
+    AdapterFailureResult { failure, publication: PublicationOutcome::NotPublished }
+}
+fn write_failure() -> AdapterFailureResult {
+    AdapterFailureResult { failure: AdapterFailure::OutputWrite, publication: PublicationOutcome::Unknown }
+}
+trait Computed { fn computed(self) -> Result<Vec<u8>, AdapterFailureResult>; }
+impl Computed for Vec<u8> { fn computed(self) -> Result<Vec<u8>, AdapterFailureResult> { Ok(self) } }
+impl<E> Computed for Result<Vec<u8>, E> {
+    fn computed(self) -> Result<Vec<u8>, AdapterFailureResult> { self.map_err(|_| failure(AdapterFailure::ComputeFailure)) }
+}
+fn arguments() -> Result<(OsString, OsString), AdapterFailureResult> {
+    let mut args = std::env::args_os().skip(1);
+    let flag1 = args.next(); let input = args.next();
+    let flag2 = args.next(); let output = args.next();
+    if flag1.as_deref() != Some(std::ffi::OsStr::new("--input"))
+        || flag2.as_deref() != Some(std::ffi::OsStr::new("--output")) || args.next().is_some() {
+        return Err(failure(AdapterFailure::InvalidArguments));
+    }
+    let (Some(input),Some(output)) = (input,output) else { return Err(failure(AdapterFailure::InvalidArguments)); };
+    if input.is_empty() || output.is_empty() { return Err(failure(AdapterFailure::InvalidArguments)); }
+    Ok((input,output))
+}
+fn reserve_input(cap: usize) -> Result<Vec<u8>, AdapterFailureResult> {
+    let mut bytes = Vec::new();
+    bytes.try_reserve_exact(cap).map_err(|_| failure(AdapterFailure::AdapterAllocation))?;
+    Ok(bytes)
+}
+fn bounded_read(reader: &mut dyn Read) -> Result<Vec<u8>, AdapterFailureResult> {
+    let cap = usize::try_from(@REQUEST_MAXIMUM@u32).ok().and_then(|n| n.checked_add(1))
+        .ok_or_else(|| failure(AdapterFailure::AdapterAllocation))?;
+    let mut bytes = reserve_input(cap)?;
+    let mut chunk = [0u8;8192];
+    while bytes.len() < cap {
+        let remaining = cap - bytes.len();
+        let count = match reader.read(&mut chunk[..remaining.min(8192)]) {
+            Ok(count) => count,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => return Err(failure(AdapterFailure::InputRead)),
+        };
+        if count == 0 { break; }
+        bytes.extend_from_slice(&chunk[..count]);
+    }
+    if bytes.len() > @REQUEST_MAXIMUM@usize { return Err(failure(AdapterFailure::InputLimit)); }
+    Ok(bytes)
+}
+fn input(path: &std::ffi::OsStr) -> Result<Vec<u8>, AdapterFailureResult> {
+    if path == "-" { return bounded_read(&mut std::io::stdin().lock()); }
+    let metadata = std::fs::symlink_metadata(path).map_err(|_| failure(AdapterFailure::InputOpen))?;
+    if !metadata.file_type().is_file() { return Err(failure(AdapterFailure::InputType)); }
+    let mut options = std::fs::OpenOptions::new(); options.read(true);
+    // Installed Linux SDK: avoid blocking FIFO substitution and following a last-component symlink.
+    #[cfg(target_os = "linux")]
+    { use std::os::unix::fs::OpenOptionsExt; options.custom_flags(0x800 | 0x20000); }
+    let mut file = options.open(path).map_err(|_| failure(AdapterFailure::InputOpen))?;
+    if !file.metadata().map_err(|_| failure(AdapterFailure::InputType))?.file_type().is_file() {
+        return Err(failure(AdapterFailure::InputType));
+    }
+    bounded_read(&mut file)
+}
+fn publish(path: &std::ffi::OsStr, bytes: &[u8]) -> Result<PublicationOutcome, AdapterFailureResult> {
+    if path == "-" {
+        let mut output = std::io::stdout().lock();
+        output.write_all(bytes).and_then(|()| output.flush()).map_err(|_| write_failure())?;
+    } else {
+        let mut output = std::fs::OpenOptions::new().write(true).create_new(true).open(Path::new(path))
+            .map_err(|error| failure(if error.kind() == std::io::ErrorKind::AlreadyExists { AdapterFailure::OutputExists } else { AdapterFailure::OutputOpen }))?;
+        // A failed write/flush/sync may leave a partial file. Never claim rollback or success.
+        output.write_all(bytes).and_then(|()| output.flush()).and_then(|()| output.sync_all()).map_err(|_| write_failure())?;
+    }
+    Ok(PublicationOutcome::Published)
+}
+fn run() -> Result<PublicationOutcome, AdapterFailureResult> {
+    let (input_path,output_path) = arguments()?;
+    let bytes = input(&input_path)?;
+    // Generated Result failures are typed. Panics/aborts remain unsuccessful processes;
+    // no catch_unwind can make the core allocator universally recoverable.
+    let output = prism_binary_core::@ENTRY@(bytes).computed()?;
+    if output.len() > @RESPONSE_MAXIMUM@usize { return Err(failure(AdapterFailure::OutputLimit)); }
+    publish(&output_path,&output)
+}
+fn main() -> std::process::ExitCode {
+    match run() {
+        Ok(PublicationOutcome::Published) => std::process::ExitCode::SUCCESS,
+        Ok(_) => std::process::ExitCode::FAILURE,
+        Err(error) => { let _ = writeln!(std::io::stderr().lock(),"{:?}:{:?}",error.failure,error.publication); std::process::ExitCode::FAILURE }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn adapter_allocation_maps_real_capacity_overflow() {
+        // The real standard-library capacity limit fails deterministically without
+        // exhausting host memory. Physical allocator exhaustion remains unmeasured.
+        assert_eq!(super::reserve_input(usize::MAX).unwrap_err(),
+            super::failure(super::AdapterFailure::AdapterAllocation));
+    }
+}

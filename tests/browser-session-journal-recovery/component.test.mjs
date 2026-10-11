@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
-import {linkSync, lstatSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from 'node:fs';
+import {linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'node:test';
 import {recoveryCorpus} from './corpus.mjs';
 import {sourceClosure, frozenInputs, assertCapturedRecoverySources, assertCompilerOwner,
-  captureCompilerTool, verifyCompilerTool, verifyCapturedInputBytes, sha} from './compile.mjs';
+  captureCompilerTool, verifyCompilerTool, verifyCapturedInputBytes,
+  captureExtractedCompilerArchive, verifyPrivateCompilerTree, sha} from './compile.mjs';
 import {componentMutations, mutateComponentSource} from './mutations.mjs';
 import {metadataCorpus} from '../browser-session-journal/metadata-corpus.mjs';
 import {verifyNativeInventory} from './checks.mjs';
@@ -108,4 +109,48 @@ test('byte-equivalent closure verification rejects planted imports, manifests an
   unlinkSync(join(work, 'compiler.rs')); symlinkSync('owner.mjs', join(work, 'compiler.rs'));
   assert.throws(() => verifyCapturedInputBytes(inputs, work), /unaliased compiler input/);
   assert.throws(() => verifyCapturedInputBytes({}, work), /nonempty captured compiler closure/);
+
+  const tree = join(work, 'archive-tree'), archive = join(work, 'source.tar');
+  mkdirSync(join(tree, 'nested', 'empty'), {recursive: true, mode: 0o700});
+  const file = join(tree, 'nested', 'source.txt');
+  writeFileSync(file, 'pinned compiler source\n', {flag: 'wx', mode: 0o600});
+  const pack = arguments_ => execFileSync('tar', ['-cf', archive, '-C', tree, ...arguments_]);
+  pack(['nested']);
+  const captured = captureExtractedCompilerArchive(archive, tree, work);
+  assert.deepEqual(captured.directories, ['nested', 'nested/empty']);
+  assert.deepEqual(captured.files, {'nested/source.txt': sha(readFileSync(file))});
+  verifyPrivateCompilerTree(tree, captured.files, captured.directories);
+  writeFileSync(join(tree, 'extra.txt'), 'unlisted', {flag: 'wx'});
+  assert.throws(() => verifyPrivateCompilerTree(tree, captured.files, captured.directories), /complete privately staged/);
+  unlinkSync(join(tree, 'extra.txt'));
+  writeFileSync(file, 'changed source\n');
+  assert.throws(() => captureExtractedCompilerArchive(archive, tree, work), /actual extracted pinned compiler source/);
+  writeFileSync(file, 'pinned compiler source\n');
+  for (const arguments_ of [['nested', 'nested'], ['.'],
+    ['--transform=s|nested|../nested|', 'nested'], ['--transform=s|nested|/nested|', 'nested'],
+    ['--transform=s|nested|nested//alias|', 'nested']]) {
+    pack(arguments_);
+    assert.throws(() => captureExtractedCompilerArchive(archive, tree, work), /unique typed|canonical compiler/);
+  }
+  const aliasPath = join(tree, 'nested', 'alias.txt');
+  symlinkSync('source.txt', aliasPath); pack(['nested']);
+  assert.throws(() => captureExtractedCompilerArchive(archive, tree, work), /unaliased extracted/);
+  unlinkSync(aliasPath); linkSync(file, aliasPath); pack(['nested']);
+  assert.throws(() => captureExtractedCompilerArchive(archive, tree, work), /regular singly linked/);
+  unlinkSync(aliasPath); pack(['nested']);
+  verifyPrivateCompilerTree(tree, captured.files, captured.directories);
+  const special = join(tree, '__proto__'); writeFileSync(special, 'own source entry', {flag: 'wx'});
+  pack(['nested', '__proto__']);
+  const specialCapture = captureExtractedCompilerArchive(archive, tree, work);
+  assert.equal(Object.hasOwn(specialCapture.files, '__proto__'), true);
+  assert.equal(specialCapture.files.__proto__, sha(readFileSync(special)));
+  verifyPrivateCompilerTree(tree, specialCapture.files, specialCapture.directories);
+  assert.throws(() => verifyPrivateCompilerTree(tree, captured.files, captured.directories), /complete privately staged/);
+  unlinkSync(special);
+  const pinnedTree = join(work, 'pinned-tree'); mkdirSync(pinnedTree, {mode: 0o700});
+  const pinnedArchive = new URL('../../vendor/lean4-prod/lean.tar', import.meta.url);
+  execFileSync('tar', ['--no-same-owner', '--no-same-permissions', '-xf', pinnedArchive.pathname, '-C', pinnedTree]);
+  const pinned = captureExtractedCompilerArchive(pinnedArchive.pathname, pinnedTree, work);
+  assert.ok(pinned.directories.includes('Conformance') && pinned.files['Conformance.lean']);
+  verifyPrivateCompilerTree(pinnedTree, pinned.files, pinned.directories);
 });

@@ -101,7 +101,7 @@ function regularBytes(path, owned = false) {
   return readFileSync(path);
 }
 function privateTree(directory, omittedRootDirectory = null) {
-  const files = {}, directories = [];
+  const files = new Map(), directories = [];
   function visit(relative) {
     const path = relative ? join(directory, relative) : directory, stat = lstatSync(path);
     assert.equal(realpathSync(path), path, 'unaliased private compiler directory');
@@ -111,18 +111,49 @@ function privateTree(directory, omittedRootDirectory = null) {
       if (!relative && name === omittedRootDirectory) continue;
       const child = relative ? relative + '/' + name : name, absolute = join(directory, child);
       if (lstatSync(absolute).isDirectory()) visit(child);
-      else files[child] = sha(regularBytes(absolute, true));
+      else files.set(child, sha(regularBytes(absolute, true)));
     }
   }
-  visit(''); return Object.freeze({files: Object.freeze(files), directories: Object.freeze(directories.sort())});
+  visit(''); return Object.freeze({files: Object.freeze(Object.fromEntries(files)), directories: Object.freeze(directories.sort())});
 }
-function declaredTree(files) {
-  const directories = new Set(['']);
-  for (const path of Object.keys(files)) {
+function declaredTree(files, explicitDirectories = []) {
+  const directories = new Set(['', ...explicitDirectories]);
+  for (const path of [...Object.keys(files), ...explicitDirectories]) {
     let parent = dirname(path);
     while (parent !== '.') {directories.add(parent); parent = dirname(parent);}
   }
   return {files, directories: [...directories].sort()};
+}
+export function verifyPrivateCompilerTree(directory, files, directories = [], omittedRootDirectory = null) {
+  assert.deepEqual(privateTree(directory, omittedRootDirectory), declaredTree(files, directories),
+    'complete privately staged compiler file/directory inventory');
+}
+// Tar directory names have one terminal slash. It is a type marker, not an
+// empty path component: retain it in the archive lookup, but never in the
+// canonical filesystem inventory. No other normalization is permitted.
+export function captureExtractedCompilerArchive(archive, directory, work) {
+  const listing = run('tar', ['-tf', archive], work).trimEnd();
+  assert.ok(listing.length > 0, 'nonempty pinned compiler archive');
+  const files = new Map(), directories = [], seen = new Set();
+  for (const member of listing.split('\n')) {
+    const isDirectory = member.endsWith('/'), path = isDirectory ? member.slice(0, -1) : member;
+    assert.match(path, /^[A-Za-z0-9_./-]+$/);
+    assert.ok(!path.startsWith('/') && !path.split('/').some(part => !part || part === '.' || part === '..'),
+      'canonical compiler archive member');
+    assert.ok(!seen.has(path), 'unique typed compiler archive member'); seen.add(path);
+    const absolute = join(directory, path), stat = lstatSync(absolute);
+    assert.equal(realpathSync(absolute), absolute, 'unaliased extracted compiler member');
+    if (isDirectory) {
+      assert.ok(stat.isDirectory() && stat.uid === process.getuid(), 'owned extracted compiler directory');
+      directories.push(path);
+    } else {
+      const bytes = regularBytes(absolute, true);
+      assert.deepEqual(bytes, Buffer.from(run('tar', ['-xOf', archive, member], work)),
+        'actual extracted pinned compiler source');
+      files.set(path, sha(bytes));
+    }
+  }
+  return Object.freeze({files: Object.freeze(Object.fromEntries(files)), directories: Object.freeze(directories.sort())});
 }
 // Capturing a tool file does not mint compiler authority. Only a genuine private
 // build can mint the WeakSet handle below. Reuse verifies bytes without running
@@ -192,15 +223,8 @@ function createCompilerOwner(inputs) {
   const archive = join(exporter.dir, '.source-lean.tar');
   assert.equal(sha(regularBytes(archive, true)), inputs['vendor/lean4-prod/lean.tar']);
   staged.set('exporter/.source-lean.tar', inputs['vendor/lean4-prod/lean.tar']);
-  const extracted = run('tar', ['-tf', archive], work).trimEnd().split('\n');
-  assert.equal(new Set(extracted).size, extracted.length);
-  for (const path of extracted) {
-    assert.match(path, /^[A-Za-z0-9_./-]+$/);
-    assert.ok(!path.startsWith('/') && !path.split('/').some(part => !part || part === '.' || part === '..'));
-    const bytes = regularBytes(join(exporter.dir, path), true);
-    assert.deepEqual(bytes, Buffer.from(run('tar', ['-xOf', archive, path], work)), 'actual extracted pinned compiler source');
-    staged.set('exporter/' + path, sha(bytes));
-  }
+  const extracted = captureExtractedCompilerArchive(archive, exporter.dir, work);
+  for (const [path, digest] of Object.entries(extracted.files)) staged.set('exporter/' + path, digest);
   const exporterRuntime = privateTree(join(exporter.dir, '.lake'));
   let closed = false, using = false, uses = 0;
   const invocationTimings = [];
@@ -211,8 +235,8 @@ function createCompilerOwner(inputs) {
     for (const prefix of ['vendor/lexlean', 'vendor/lean4-prod/rust', 'tests/browser-session-journal-recovery/driver', 'exporter']) {
       const expected = Object.fromEntries([...staged].filter(([path]) => path.startsWith(prefix + '/'))
         .map(([path, digest]) => [path.slice(prefix.length + 1), digest]));
-      assert.deepEqual(privateTree(join(work, prefix), prefix === 'exporter' ? '.lake' : null), declaredTree(expected),
-        'complete privately staged compiler file/directory inventory ' + prefix);
+      verifyPrivateCompilerTree(join(work, prefix), expected,
+        prefix === 'exporter' ? extracted.directories : [], prefix === 'exporter' ? '.lake' : null);
     }
     if (!closed) assert.deepEqual(privateTree(join(exporter.dir, '.lake')), exporterRuntime,
       'immutable private exporter runtime library inventory');

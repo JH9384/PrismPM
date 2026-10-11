@@ -2717,7 +2717,15 @@ fn verify_template(root: &Path, id: &str) {
             );
         }
         "TM-03" => {
-            verify_node_suite(root, id, &["action/entrypoint.test.mjs"], 19, "120000");
+            node_suite::verify_exact(
+                root,
+                id,
+                &[
+                    ("action/entrypoint.test.mjs", 19),
+                    ("scripts/ci-capacity.test.mjs", 10),
+                ],
+                "120000",
+            );
             assert!(prismpm::template::check(temp.path()).is_ok());
             std::fs::write(
                 temp.path().join(".github/workflows/bootstrap.yml"),

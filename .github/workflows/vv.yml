@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: vv-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: vv-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   vv:

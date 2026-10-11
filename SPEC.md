@@ -3019,6 +3019,19 @@ defects. Its devcontainer uses the exact SDK image digest and its workflows call
 a full-commit-pinned thin action/reusable workflow that executes the same CLI.
 There is no copied validation, generation, publication or deployment logic.
 
+The reusable SDK's optional `invocation-key` identifies one caller job/project
+within its workflow. Callers opting into read-only CI supersession MUST use a
+distinct, stable lowercase ASCII key for each independent invocation. Keys are
+1–64 characters, start with a letter or digit, and contain only lowercase
+letters, digits, dots, underscores and hyphens. This prevents case-insensitive
+GitHub concurrency aliases. Only `check`, `build`,
+`verify` and `test` with a nonempty key can supersede earlier work on the same
+repository, caller workflow file and ref. Existing callers without a key retain independent
+execution. Deployment, promotion, recovery and other operations never enter
+this cancellation group. All existing SDK inputs and outputs are preserved.
+The key is validated in a separate, non-concurrent job before the execution
+job can enter its group; invalid keys cannot cancel a valid invocation.
+
 The shared Action exposes `export-browser` with `reference` and `output` inputs
 passed unchanged to the SDK's existing command. The SDK owns immutable-reference,
 release-evidence and new direct-child destination validation. Export executes

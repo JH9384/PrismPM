@@ -1,19 +1,23 @@
 name: Reproducibility Gate
 
-# Included in both complete vv.yml passes; retained for explicit diagnosis.
+# Also included in both complete vv.yml passes; these checks remain additive.
 on:
   workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: reproducibility-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: reproducibility-${{ github.repository }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   reproducibility:
     runs-on: ubuntu-24.04
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Compare complete platform-independent outputs in two absolute roots

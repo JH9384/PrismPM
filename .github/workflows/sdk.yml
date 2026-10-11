@@ -54,25 +54,100 @@ on:
       environment:
         default: ""
         type: string
+      invocation-key:
+        description: Optional stable lowercase ASCII caller job/project key (1-64 letters, digits, dots, underscores or hyphens), unique within its workflow; read-only supersession only
+        default: ""
+        type: string
     outputs:
       release-digest:
-        value: ${{ jobs.invoke.outputs.release-digest }}
+        value: ${{ jobs.invoke-readonly.outputs.release-digest || jobs.invoke.outputs.release-digest }}
       plan-digest:
-        value: ${{ jobs.invoke.outputs.plan-digest }}
+        value: ${{ jobs.invoke-readonly.outputs.plan-digest || jobs.invoke.outputs.plan-digest }}
       evidence-digest:
-        value: ${{ jobs.invoke.outputs.evidence-digest }}
+        value: ${{ jobs.invoke-readonly.outputs.evidence-digest || jobs.invoke.outputs.evidence-digest }}
       policy-path:
-        value: ${{ jobs.invoke.outputs.policy-path }}
+        value: ${{ jobs.invoke-readonly.outputs.policy-path || jobs.invoke.outputs.policy-path }}
       trusted-root-path:
-        value: ${{ jobs.invoke.outputs.trusted-root-path }}
+        value: ${{ jobs.invoke-readonly.outputs.trusted-root-path || jobs.invoke.outputs.trusted-root-path }}
       signature-referrer:
-        value: ${{ jobs.invoke.outputs.signature-referrer }}
+        value: ${{ jobs.invoke-readonly.outputs.signature-referrer || jobs.invoke.outputs.signature-referrer }}
 
 permissions: {}
 
 jobs:
-  invoke:
+  validate-invocation-key:
+    if: contains(fromJSON('["check", "build", "verify", "test"]'), inputs.command) && inputs.invocation-key != ''
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      key: ${{ steps.validate.outputs.key }}
+    steps:
+      - id: validate
+        env:
+          LC_ALL: C
+          INVOCATION_KEY: ${{ inputs.invocation-key }}
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_KEY" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]]
+          printf 'key=%s\n' "$INVOCATION_KEY" >> "$GITHUB_OUTPUT"
+  invoke-readonly:
+    needs: validate-invocation-key
+    if: needs.validate-invocation-key.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    # Namespace separately from the caller: reusable workflows inherit its
+    # workflow name. The caller explicitly identifies a supersedable job;
+    # existing callers and sibling jobs are never grouped implicitly.
+    concurrency:
+      group: prismpm-sdk-readonly-${{ github.repository }}-${{ github.workflow_ref }}-${{ github.ref }}-${{ needs.validate-invocation-key.outputs.key }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+    outputs:
+      release-digest: ${{ steps.prism.outputs.release-digest }}
+      plan-digest: ${{ steps.prism.outputs.plan-digest }}
+      evidence-digest: ${{ steps.prism.outputs.evidence-digest }}
+      policy-path: ${{ steps.prism.outputs.policy-path }}
+      trusted-root-path: ${{ steps.prism.outputs.trusted-root-path }}
+      signature-referrer: ${{ steps.prism.outputs.signature-referrer }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Fetch locked SDK inputs
+        uses: UOR-Foundation/PrismPM/action@f785ee46d794886c29b7efe80c2b261e48733a15
+        with:
+          sdk-image: ${{ inputs.sdk-image }}
+          command: fetch
+          context: ${{ inputs.context }}
+      - id: prism
+        uses: UOR-Foundation/PrismPM/action@f785ee46d794886c29b7efe80c2b261e48733a15
+        with:
+          sdk-image: ${{ inputs.sdk-image }}
+          command: ${{ inputs.command }}
+          context: ${{ inputs.context }}
+          reference: ${{ inputs.reference }}
+          release: ${{ inputs.release }}
+          target: ${{ inputs.target }}
+          plan: ${{ inputs.plan }}
+          backup: ${{ inputs.backup }}
+          restore-target: ${{ inputs.restore-target }}
+          detach: ${{ inputs.detach }}
+          authorized: ${{ inputs.authorized }}
+          secret-directory: ${{ inputs.secret-directory }}
+          bundle: ${{ inputs.bundle }}
+          trusted-root: ${{ inputs.trusted-root }}
+          policy: ${{ inputs.policy }}
+          promotion-to: ${{ inputs.promotion-to }}
+          environment: ${{ inputs.environment }}
+  invoke:
+    # Deployment, promotion, recovery and all other operations retain their
+    # original lifecycle. GitHub concurrency can discard pending jobs, so it
+    # must not be used to serialize authorized mutations.
+    if: ${{ !(contains(fromJSON('["check", "build", "verify", "test"]'), inputs.command) && inputs.invocation-key != '') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
     permissions:
       contents: read
     outputs:

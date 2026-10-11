@@ -969,6 +969,20 @@ excluding compiler-slot wait. It is emitted only after every original completion
 check passes, before libtest's summary, without dumping child output or private
 paths. Diagnostic write failure cannot alter acceptance. These timings are not
 acceptance receipts or evidence of a speedup without comparable measurements.
+Bounded compiler-phase diagnostics separately count actual calls, failures and
+elapsed milliseconds under closed phase labels. They preserve every command,
+argument, timeout, source/tool custody check and test outcome; absent, malformed
+or truncated diagnostics never qualify acceptance or supply missing timings.
+The existing workspace-model and journal process wrappers report the same
+closed phase observations without changing their process contracts. Successful
+Rust diagnostic records are formatted before transport and bounded to 4096
+UTF-8 bytes; diagnostic loss is never inferred to be a successful measurement.
+Rust conformance owners separately report compiler-slot admission wait and
+subsequent owner-body wall time, including unwinding. These closed numeric
+diagnostics are not CPU timings, acceptance receipts or final test outcomes.
+Later shared-initialization waits and nested owners remain within body time;
+optional diagnostic transport contention is excluded. Original assertions,
+panic payloads, scheduling, full-gate commands and qualification remain intact.
 
 Browser compiler fixtures never accept the existence of a cached executable as
 compiler evidence. The shared exporter helper captures and verifies the selected
@@ -3031,6 +3045,12 @@ execution. Deployment, promotion, recovery and other operations never enter
 this cancellation group. All existing SDK inputs and outputs are preserved.
 The key is validated in a separate, non-concurrent job before the execution
 job can enter its group; invalid keys cannot cancel a valid invocation.
+The existing `TM-03` owner runs all 19 Action controls and all 10 CI-capacity
+controls together. The full source audit additionally owns all 26 diagnostic
+transport controls; its previous file inventory and compiler-phase controls
+remain selected. CI-capacity controls preserve all six current SDK-candidate
+lanes, including input policy, unpublished construction and archive integrity,
+without treating any diagnostic or construction lane as SDK acceptance.
 
 The shared Action exposes `export-browser` with `reference` and `output` inputs
 passed unchanged to the SDK's existing command. The SDK owns immutable-reference,

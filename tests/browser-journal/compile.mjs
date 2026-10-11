@@ -9,7 +9,7 @@ export const draft=dirname(fileURLToPath(import.meta.url));
 export const repository=resolve(draft,'../..');
 export const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 export {createPrivateDriverTarget, ensureProdExport} from '../browser-view/compile.mjs';
-import {createPrivateDriverTarget, ensureProdExport} from '../browser-view/compile.mjs';
+import {createPrivateDriverTarget, ensureProdExport, observeCompilerPhase} from '../browser-view/compile.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 function verifyPins(){
   const artifacts=readFileSync(join(repository,'model/dependencies.toml'),'utf8').split('[[dependency.artifact]]').slice(1).map(section=>{
@@ -88,14 +88,19 @@ function execute(program,args,cwd,env={}) {
     'compiler command must be SDK-owned or an exact generated executable');
   if (Object.hasOwn(env,'LEAN_PATH')) assert.ok(executable.endsWith('/prod-export'),
     'LEAN_PATH belongs only to the exact generated exporter');
-  const result = spawnSync('/usr/bin/timeout',
-    ['--signal=TERM','--kill-after=5s','360s',executable,...args],
-    {cwd,detached:true,encoding:'utf8',timeout:370000,killSignal:'SIGKILL',
-      maxBuffer:32*1024*1024,env:childEnvironment});
-  terminateOwnedGroup(result.pid);
-  assert.ifError(result.error);
-  assert.equal(result.status,0,program+' '+args.join(' ')+'\n'+result.stdout+'\n'+result.stderr);
-  return result.stdout;
+  const started = performance.now(); let success = false;
+  try {
+    const result = spawnSync('/usr/bin/timeout',
+      ['--signal=TERM','--kill-after=5s','360s',executable,...args],
+      {cwd,detached:true,encoding:'utf8',timeout:370000,killSignal:'SIGKILL',
+        maxBuffer:32*1024*1024,env:childEnvironment});
+    terminateOwnedGroup(result.pid);
+    assert.ifError(result.error);
+    assert.equal(result.status,0,program+' '+args.join(' ')+'\n'+result.stdout+'\n'+result.stderr);
+    success = true; return result.stdout;
+  } finally {
+    observeCompilerPhase(program,args,started,success);
+  }
 }
 export function verifyCompilerTools() {
   const {rust, lean, triple} = toolchainPins();

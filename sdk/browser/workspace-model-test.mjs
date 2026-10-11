@@ -9,7 +9,7 @@ import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {test} from 'node:test';
-import {createPrivateDriverTarget, ensureProdExport} from '../../tests/browser-view/compile.mjs';
+import {createPrivateDriverTarget, ensureProdExport, observeCompilerPhase} from '../../tests/browser-view/compile.mjs';
 
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const moduleName = 'Foundation.Browser.V1.Workspace';
@@ -45,14 +45,19 @@ test('large byte mismatches fail with bounded diagnostics and exact equality', (
 });
 
 function run(program, args, cwd, extraEnv = {}) {
-  const result = spawnSync(program, args, {
-    cwd, encoding: 'utf8', timeout: 300_000, maxBuffer: 16 * 1024 * 1024,
-    env: {...process.env, CARGO_NET_OFFLINE: 'true', ...extraEnv},
-  });
-  assert.ifError(result.error);
-  assert.equal(result.status, 0,
-    `${program} ${args.join(' ')}\n${result.stdout}\n${result.stderr}`);
-  return result.stdout;
+  const started = performance.now(); let success = false;
+  try {
+    const result = spawnSync(program, args, {
+      cwd, encoding: 'utf8', timeout: 300_000, maxBuffer: 16 * 1024 * 1024,
+      env: {...process.env, CARGO_NET_OFFLINE: 'true', ...extraEnv},
+    });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0,
+      `${program} ${args.join(' ')}\n${result.stdout}\n${result.stderr}`);
+    success = true; return result.stdout;
+  } finally {
+    observeCompilerPhase(program,args,started,success);
+  }
 }
 
 function verifyPins() {

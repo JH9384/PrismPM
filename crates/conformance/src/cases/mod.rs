@@ -14,6 +14,7 @@ mod native_lease;
 mod native_library;
 mod node_suite;
 mod organization_lifecycle;
+mod owner_timing;
 mod saved_recovery;
 mod scoped_administration;
 
@@ -358,7 +359,9 @@ pub fn run_at(root: &Path, id: &str) {
         "{id} must be level build"
     );
 
+    let queued = std::time::Instant::now();
     let _compiler_slot = scheduling::for_owner(id);
+    let _owner_timing = owner_timing::OwnerTiming::after_admission(id, queued.elapsed());
     match id {
         "RP-01" => verify_rp_01(root),
         "RP-02" => verify_rp_02(root),

@@ -298,6 +298,7 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "scripts/qualify-debian-browser-inputs.test.mjs",
             "scripts/compiler-driver-cache.test.mjs",
             "scripts/compiler-phase-observation.test.mjs",
+            "scripts/compiler-phase-transport.test.mjs",
             "tests/browser-view/compiler-artifact.test.mjs",
             "tests/browser-view/generated-package.test.mjs",
             "tests/browser-view/file-custody.test.mjs",

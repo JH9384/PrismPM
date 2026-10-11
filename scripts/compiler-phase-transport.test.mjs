@@ -112,7 +112,7 @@ test('actual diagnostic hook preserves valid bounded JSON while stdout and stder
     import{observeCompilerPhase}from ${JSON.stringify(new URL('../tests/browser-view/compile.mjs',import.meta.url).href)};
     for(let i=0;i<512;i++){
       writeSync(1,'concurrent stdout '+i+'\\n');
-      observeCompilerPhase('/private/driver-execution',['verify'],performance.now(),i%2===0);
+      observeCompilerPhase('/private/driver-target/debug/browser-session-driver',['verify'],performance.now(),i%2===0);
     }`;
   const environment={...process.env};delete environment.NODE_TEST_CONTEXT;
   const child=spawnSync(process.execPath,['--input-type=module','-e',program],

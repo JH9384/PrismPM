@@ -21,8 +21,8 @@ const mutations = [
   ['final-barrier-sweep', 'for (const [path, row] of rows) {', 'for (const [path, row] of []) {',
     'final barrier sweep rejects late mutations'],
   ['fresh-execution-barriers',
-    'compilerReadBarrier(verify);\n      try {return run(path, arguments_, cwd, environment);} finally {compilerReadBarrier(verify);}',
-    'verify();\n      try {return run(path, arguments_, cwd, environment);} finally {verify();}',
+    'compilerReadBarrier(verify);\n      try {return run(path, arguments_, cwd, environment, owner);} finally {compilerReadBarrier(verify);}',
+    'verify();\n      try {return run(path, arguments_, cwd, environment, owner);} finally {verify();}',
     'nested actual executions never revive pre-child measurements'],
 ];
 

@@ -20,7 +20,7 @@ class BoundaryControls(unittest.TestCase):
     def descriptor(self):
         # Parser/control fixture only. Actual ELF and actual file measurements
         # below must not be interpreted as installed SDK qualification.
-        contents = boundary.read_regular(Path(EXE))
+        contents = boundary.read_executable(Path(EXE))
         return {"source_root": "/workspaces/PrismPM", "source": [{"path": "model", "kind": "directory"}],
                 "fixture_inputs": [{"path": "model", "kind": "directory"}],
                 "executable_bytes": len(contents), "executable_sha256": boundary.sha(contents),
@@ -91,6 +91,48 @@ class BoundaryControls(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 boundary.read_regular(file, 1)
 
+    def test_actual_elf_has_a_separate_bounded_transfer(self):
+        contents = boundary.read_executable(Path(EXE))
+        self.assertTrue(contents.startswith(b"\x7fELF"))
+        self.assertLessEqual(len(contents), boundary.MAX_ELF)
+        self.assertEqual(boundary.MAX_FILE, 256 * boundary.MIB)
+        self.assertEqual(boundary.MAX_ELF, 512 * boundary.MIB)
+        self.assertEqual(boundary.MAX_TREE, 512 * boundary.MIB)
+        self.assertEqual(boundary.MAX_JSON, 32 * boundary.MIB)
+        if len(contents) > boundary.MAX_FILE:
+            with self.assertRaises(RuntimeError):
+                boundary.read_regular(Path(EXE))
+        else:
+            self.assertEqual(boundary.read_regular(Path(EXE)), contents)
+        with tempfile.TemporaryDirectory() as owner:
+            oversize = Path(owner) / "oversize-executable"
+            with oversize.open("xb") as stream:
+                stream.truncate(boundary.MAX_ELF + 1)
+            with self.assertRaises(RuntimeError):
+                boundary.read_executable(oversize)
+        read_fd, write_fd = os.pipe()
+        def send():
+            with os.fdopen(write_fd, "wb", buffering=0) as stream:
+                boundary.write_bounded(stream, contents, time.monotonic() + 30)
+        sender = threading.Thread(target=send)
+        sender.start()
+        try:
+            with os.fdopen(read_fd, "rb", buffering=0) as stream:
+                reader = boundary.Reader(stream, time.monotonic() + 30)
+                for length in (True, -1, boundary.MAX_FILE + 1):
+                    with self.assertRaises(RuntimeError):
+                        reader.exact(length)
+                for length in (True, -1, boundary.MAX_ELF + 1):
+                    with self.assertRaises(RuntimeError):
+                        reader.executable(length)
+                transferred = reader.executable(len(contents))
+                self.assertEqual(transferred, contents)
+                self.assertEqual(boundary.sha(transferred), boundary.sha(contents))
+                reader.exhausted()
+        finally:
+            sender.join(timeout=30)
+        self.assertFalse(sender.is_alive())
+
     def test_closed_inventory_refuses_escapes_chains_duplicates_and_open_fields(self):
         valid = [{"path": "dir", "kind": "directory"},
                  {"path": "dir/file", "kind": "file", "bytes": 1, "sha256": "1" * 64, "executable": False},
@@ -135,6 +177,7 @@ class BoundaryControls(unittest.TestCase):
         boundary.checked_descriptor(descriptor)
         for key, value in (("extra", True), ("source_root", "/tmp/arbitrary"), ("source", []),
                            ("fixture_inputs", []), ("executable_bytes", True), ("executable_bytes", 0),
+                           ("executable_bytes", boundary.MAX_ELF + 1),
                            ("executable_sha256", "not-a-hash"), ("listing_sha256", None),
                            ("test_count", True), ("test_count", 0), ("inventory_sha256", "not-a-hash"),
                            ("capture_seconds", True), ("capture_seconds", 0), ("capture_seconds", 2401),

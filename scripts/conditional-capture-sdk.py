@@ -28,6 +28,10 @@ INVENTORY = Path("/opt/prismpm/share/inventory.json")
 LABEL = "org.prismpm.conditional-capture-owner"
 MIB = 1024 * 1024
 MAX_FILE = 256 * MIB
+# Cargo's unchanged default-debug libtest ELF exceeds the retained-file bound.
+# Its sealed, singly linked transfer has a separate finite allowance; source
+# files, capture records and complete retained trees keep their original caps.
+MAX_ELF = 512 * MIB
 MAX_TREE = 512 * MIB
 MAX_JSON = 32 * MIB
 DEADLINE_SECONDS = 2400
@@ -111,6 +115,10 @@ def read_regular(path, limit=MAX_FILE):
         return b"".join(chunks)
     finally:
         os.close(fd)
+
+
+def read_executable(path):
+    return read_regular(path, MAX_ELF)
 
 
 def row(root, name, capture=False):
@@ -298,8 +306,14 @@ class Reader:
         self.buffer.extend(body)
 
     def exact(self, length):
+        return self._exact(length, MAX_FILE)
+
+    def executable(self, length):
+        return self._exact(length, MAX_ELF)
+
+    def _exact(self, length, limit):
         require(time.monotonic() < self.deadline, "capture owner deadline")
-        require(type(length) is int and 0 <= length <= MAX_FILE, "bounded protocol bytes")
+        require(type(length) is int and 0 <= length <= limit, "bounded protocol bytes")
         result = bytearray()
         while len(result) < length:
             if not self.buffer:
@@ -355,7 +369,7 @@ def checked_descriptor(value):
     require(type(value["test_count"]) is int and 1 <= value["test_count"] <= 100000, "actual test inventory count")
     require(type(value["capture_seconds"]) is int and 0 < value["capture_seconds"] <= DEADLINE_SECONDS,
             "bounded remaining actual capture time")
-    require(type(value["executable_bytes"]) is int and 0 < value["executable_bytes"] <= MAX_FILE,
+    require(type(value["executable_bytes"]) is int and 0 < value["executable_bytes"] <= MAX_ELF,
             "bounded nonempty test ELF")
     for key in ("executable_sha256", "listing_sha256"):
         require(isinstance(value[key], str) and re.fullmatch(r"[0-9a-f]{64}", value[key]), "sealed ELF identity")
@@ -469,7 +483,7 @@ def guest():
             "capture volume lacks conservative build headroom")
     work.mkdir(mode=0o700)
     executable = work / "current-test-elf"
-    body = reader.exact(descriptor["executable_bytes"])
+    body = reader.executable(descriptor["executable_bytes"])
     require(sha(body) == descriptor["executable_sha256"] and body.startswith(b"\x7fELF"), "transferred ELF differs")
     with executable.open("xb") as target:
         target.write(body)
@@ -503,7 +517,7 @@ def guest():
     result = json.loads(read_regular(work / "command-result.json", MIB))
     stdout = read_regular(work / "stdout", 32 * MIB)
     stderr = read_regular(work / "stderr", 32 * MIB)
-    require(read_regular(executable) == body and read_regular(INVENTORY, 8 * MIB) == inventory,
+    require(read_executable(executable) == body and read_regular(INVENTORY, 8 * MIB) == inventory,
             "capture executable or SDK inventory changed")
     require([row(SDK_ROOT, r["path"]) for r in descriptor["source"]] == descriptor["source"],
             "immutable SDK inputs changed during capture")
@@ -574,7 +588,7 @@ def parent(source, executable):
     complete_deadline = time.monotonic() + DEADLINE_SECONDS
     source = alias_root(source)
     require(source.resolve() == source, "compiled source is aliased")
-    body = read_regular(executable)
+    body = read_executable(executable)
     require(body.startswith(b"\x7fELF"), "actual Cargo test ELF required")
     descriptor = {"source_root": str(source), "source": source_rows(source),
         "executable_bytes": len(body), "executable_sha256": sha(body), "listing_sha256": listing(executable),
@@ -690,7 +704,7 @@ def parent(source, executable):
             if record["kind"] == "link":
                 os.symlink(record["target"], output / record["path"])
         require(tree(output) == rows, "complete actual capture readback differs")
-        require(source_rows(source) == descriptor["source"] and read_regular(executable) == body
+        require(source_rows(source) == descriptor["source"] and read_executable(executable) == body
                 and fixture_rows(source) == descriptor["fixture_inputs"],
                 "outer compiled source, recursive fixture inputs or executable changed")
         write_bounded(attached.stdin, encoded({"retire": True}), deadline)

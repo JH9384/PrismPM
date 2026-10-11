@@ -277,7 +277,7 @@ max_child_output_bytes = 16777216
 child_timeout_ms = 300000
 `, {flag: 'wx'});
   const driverTarget = createPrivateDriverTarget(work);
-  run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0', '--config', 'build.incremental=false', '--manifest-path',
+  run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0', '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path',
     join(repository, 'tests/browser-workspace/Cargo.toml')], repository, {CARGO_TARGET_DIR: driverTarget});
   const driver = join(driverTarget, 'debug/browser-workspace-model-driver');
   run('lake', ['update'], project);

@@ -1,28 +1,79 @@
 // Numeric diagnostic infrastructure only, not compiler or model acceptance.
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
-import {mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
+import {chmodSync,copyFileSync,mkdtempSync,readFileSync,readdirSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'node:test';
 import {phaseCollector} from './owning-node-reporter.mjs';
-import {compilerPhase} from '../tests/browser-view/compile.mjs';
+import {compilerPhase,repository} from '../tests/browser-view/compile.mjs';
+import {captureCompilerArtifact} from '../tests/browser-view/compiler-artifact.mjs';
 const prefix='# prismpm-compiler-phase ';
 const row=(phase='kernel-export',elapsed_ms=12,success=true)=>({phase,elapsed_ms,success});
 const encoded=value=>prefix+JSON.stringify(value)+'\n';
 test('classifications are closed labels, not private paths or arguments',()=>{
+  const driver='/private/driver-target/debug/browser-workspace-view-driver';
   const cases=[['cargo',['--version'],'toolchain-check'],['cargo',['build'],'rust-compilation'],
     ['tar',['-xf','/private/archive'],'archive-extraction'],['lake',['update'],'lake-update'],
     ['lake',['build','prod-export'],'exporter-construction'],['lake',['build','PrismGenerated'],'generated-module-build'],
-    ['/private/prod-export',[],'kernel-export'],['/private/driver-execution',['verify'],'lexlean-verification'],
-    ['/private/driver-execution',['native'],'native-code-generation'],['/private/driver-execution',['wasm'],'wasm-code-generation'],
-    ['/private/driver-execution',['generate'],'native-code-generation'],['/private/driver-execution',['generate-wasm'],'wasm-code-generation'],
+    ['/private/prod-export',[],'kernel-export'],[driver,['verify'],'lexlean-verification'],
+    [driver,['native'],'native-code-generation'],[driver,['wasm'],'wasm-code-generation'],
+    [driver,['generate'],'native-code-generation'],[driver,['generate-wasm'],'wasm-code-generation'],
     ['cargo',['clean'],'artifact-cleanup'],['lake',['clean'],'artifact-cleanup'],['cargo',['run'],'unclassified-execution'],
     ['/private/runner',['native'],'unclassified-execution'],['lake',['unknown'],'unclassified-execution'],
-    ['/private/runner',['private-payload'],'unclassified-execution']];
+    ['/private/runner',['private-payload'],'unclassified-execution'],
+    ['/private/driver-execution',['verify'],'unclassified-execution'],
+    ['/private/browser-workspace-view-driver',['verify'],'unclassified-execution'],
+    ['/private/driver-target/debug/substituted-driver',['verify'],'unclassified-execution']];
   for(const [program,args,phase]of cases)assert.equal(compilerPhase(program,args),phase);
-  for(const mode of ['labels','intent','secret','route','sink','maxroute','maxsink','maxfield','maxsecret','progress','maxprogress'])
-    assert.equal(compilerPhase('/private/driver-execution',[mode]),'wasm-code-generation');
+  for(const mode of ['guest','journal','partition','generate-journal-wasm','generate-probe-wasm',
+    'labels','intent','secret','route','sink','maxroute','maxsink','maxfield','maxsecret','progress','maxprogress'])
+    assert.equal(compilerPhase(driver,[mode]),'wasm-code-generation');
+  assert.equal(compilerPhase(driver,['unknown-mode']),'unclassified-execution');
+});
+test('every current private compiler basename is observed without classifying arbitrary applications',()=>{
+  const names=[];
+  for(const directory of readdirSync(join(repository,'tests'))) {
+    for(const subdirectory of ['driver','reservation-driver']) {
+      let text;
+      try{text=readFileSync(join(repository,'tests',directory,subdirectory,'Cargo.toml'),'utf8');}
+      catch(error){if(error.code==='ENOENT'||error.code==='ENOTDIR')continue;throw error;}
+      const name=/^name = "([a-z0-9-]+)"$/m.exec(text)?.[1];assert(name);names.push(name);
+    }
+  }
+  const model=readFileSync(join(repository,'sdk/browser/workspace-model-test.mjs'),'utf8');
+  const name=/debug\/(browser-workspace-model-driver)/.exec(model)?.[1];assert(name);names.push(name);
+  assert.equal(names.length,28);assert.equal(new Set(names).size,27);
+  assert.equal(names.filter(name=>name==='browser-session-journal-driver').length,2);
+  const originalNames=['browser-budget-driver','browser-workspace-command-driver','browser-custody-driver',
+    'browser-effects-driver','browser-workspace-envelope-driver','browser-workspace-journal-driver',
+    'browser-operation-journal-driver','browser-presentation-driver','browser-workspace-query-driver',
+    'browser-workspace-view-driver','publication-admission-driver','browser-workspace-model-driver'];
+  assert.equal(originalNames.length,12);assert.equal(new Set(originalNames).size,12);
+  for(const name of originalNames)assert(names.includes(name),'original compiler owner remains registered: '+name);
+  for(const name of names) {
+    const driver='/private/driver-target/debug/'+name;
+    assert.equal(compilerPhase(driver,['verify']),'lexlean-verification');
+    assert.equal(compilerPhase('/private/'+name,['verify']),'unclassified-execution');
+    assert.equal(compilerPhase(driver,['unknown-mode']),'unclassified-execution');
+  }
+});
+test('all current generation modes retain raw and captured ownership with no basename-only admission',t=>{
+  const work=mkdtempSync(join(tmpdir(),'prismpm-phase-driver-'));t.after(()=>rmSync(work,{recursive:true}));
+  const original=join(work,'original');copyFileSync('/bin/true',original);chmodSync(original,0o700);
+  const owner=captureCompilerArtifact(work,original,'driver');
+  assert.equal(compilerPhase(owner.path,['verify']),'unclassified-execution');
+  assert.equal(compilerPhase(owner.path,['verify'],{...owner}),'unclassified-execution');
+  assert.equal(compilerPhase(original,['verify'],owner),'unclassified-execution');
+  assert.equal(compilerPhase(owner.path,['verify'],owner),'lexlean-verification');
+  for(const mode of ['guest','journal','partition','generate-journal-wasm','generate-probe-wasm',
+    'predecessor','session','observation','descriptor','reservation','retention','layout','tail','parity',
+    'context','recovery','metadata','signed-context','account-genesis','context-fields-wasm','admission-wasm',
+    'wire','semantic','designs','predicates','catalogue']) {
+    assert.equal(compilerPhase('/private/driver-target/debug/browser-workspace-view-driver',[mode]),'wasm-code-generation');
+    assert.equal(compilerPhase(owner.path,[mode],owner),'wasm-code-generation');
+  }
+  assert.equal(compilerPhase(owner.path,['unknown-mode'],owner),'unclassified-execution');
 });
 test('arbitrary chunks and interleaved files preserve exact numeric totals',()=>{
   const c=phaseCollector(),a=encoded(row()),b=encoded(row('kernel-export',8,false));

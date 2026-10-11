@@ -7,6 +7,7 @@ import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {retireCompletedCompilerCaches} from './driver-cache.mjs';
 import {requireCompilerOwner} from './compiler-owner.mjs';
+import {isCapturedCompilerDriver} from './compiler-artifact.mjs';
 export const draft=dirname(fileURLToPath(import.meta.url));
 export const repository=resolve(draft,'../..');
 export const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -91,7 +92,20 @@ function terminateOwnedGroup(pid) {
   signal('SIGKILL');
 }
 // Diagnostics only: no command, argument, path, payload or environment is logged.
-export function compilerPhase(program,args) {
+const compilerDriverNames = new Set([
+  'browser-account-genesis-driver', 'browser-budget-driver', 'browser-custody-driver',
+  'browser-dynamic-choice-driver', 'browser-effects-driver', 'browser-operation-journal-driver',
+  'browser-p256-driver', 'browser-pkce-driver', 'browser-presentation-driver',
+  'browser-semantic-presentation-driver', 'browser-session-driver', 'browser-session-journal-driver',
+  'browser-session-journal-recovery-driver', 'browser-session-journal-retention-driver',
+  'browser-session-operation-driver', 'browser-session-payloads-driver',
+  'browser-session-recovery-frames-driver', 'browser-signed-context-driver',
+  'browser-workspace-command-driver', 'browser-workspace-envelope-driver',
+  'browser-workspace-journal-driver', 'browser-workspace-model-driver',
+  'browser-workspace-query-driver', 'browser-workspace-view-driver',
+  'holo-primary-component-driver', 'publication-admission-driver', 'publication-context-linkage-driver',
+]);
+export function compilerPhase(program,args,artifact) {
   if (['cargo','rustc','lean','lake'].includes(program) && args[0]?.startsWith('--version')) return 'toolchain-check';
   if (program === 'tar') return 'archive-extraction';
   if (['cargo','lake'].includes(program) && args[0] === 'clean') return 'artifact-cleanup';
@@ -102,21 +116,26 @@ export function compilerPhase(program,args) {
     return 'unclassified-execution';
   }
   if (program.endsWith('/prod-export')) return 'kernel-export';
-  // The actual compiler artifact has this owner-created private basename.
-  // Never interpret arbitrary generated applications' payload as a tool mode.
-  if (program.endsWith('/driver-execution')) {
+  // Raw registered compiler paths and actual privately captured driver owners
+  // are diagnostic sources. A generic basename alone is not an owner receipt.
+  const raw = /\/driver-target\/debug\/([^/]+)$/.exec(program);
+  if ((raw && compilerDriverNames.has(raw[1])) || isCapturedCompilerDriver(artifact,program)) {
     if (['verify','check'].includes(args[0])) return 'lexlean-verification';
     if (['native','generate'].includes(args[0])) return 'native-code-generation';
     if (['wasm','generate-wasm','fixture','size','p256','point','pkce','labels','intent','secret','route','sink',
-      'maxroute','maxsink','maxfield','maxsecret','progress','maxprogress'].includes(args[0])) return 'wasm-code-generation';
+      'maxroute','maxsink','maxfield','maxsecret','progress','maxprogress','guest','journal','partition',
+      'generate-journal-wasm','generate-probe-wasm','predecessor','session','observation','descriptor',
+      'reservation','retention','layout','tail','parity','context','recovery','metadata','signed-context',
+      'account-genesis','context-fields-wasm','admission-wasm','wire','semantic','designs','predicates',
+      'catalogue'].includes(args[0])) return 'wasm-code-generation';
   }
   return 'unclassified-execution';
 }
-export function observeCompilerPhase(program,args,started,success) {
+export function observeCompilerPhase(program,args,started,success,artifact) {
   // Diagnostic loss cannot change the actual compiler or test outcome.
   try {
     const record=Buffer.from('# prismpm-compiler-phase ' + JSON.stringify({
-      phase:compilerPhase(program,args),elapsed_ms:Math.ceil(performance.now()-started),success}) + '\n');
+      phase:compilerPhase(program,args,artifact),elapsed_ms:Math.ceil(performance.now()-started),success}) + '\n');
     if(record.length>256)return;
     // Pipes may briefly reject a write even while their reader is active.
     // Account for byte progress and yield on transient backpressure, with
@@ -140,7 +159,7 @@ export function observeCompilerPhase(program,args,started,success) {
   }
   catch { /* No acceptance depends on this optional observation. */ }
 }
-function execute(program,args,cwd,env={}) {
+function execute(program,args,cwd,env={},artifact) {
   const childEnvironment = compilerEnvironment(env);
   const tools = {cargo:'/usr/local/cargo/bin/cargo',rustc:'/usr/local/cargo/bin/rustc',
     lean:'/usr/local/elan/bin/lean',lake:'/usr/local/elan/bin/lake',node:process.execPath,tar:'/usr/bin/tar'};
@@ -160,7 +179,7 @@ function execute(program,args,cwd,env={}) {
     assert.equal(result.status,0,program+' '+args.join(' ')+'\n'+result.stdout+'\n'+result.stderr);
     success = true; return result.stdout;
   } finally {
-    observeCompilerPhase(program,args,started,success);
+    observeCompilerPhase(program,args,started,success,artifact);
   }
 }
 export function verifyCompilerTools() {
@@ -187,11 +206,11 @@ export function verifyCompilerTools() {
 }
 
 let compilerToolsVerified = false;
-export function run(program,args,cwd,env={}) {
+export function run(program,args,cwd,env={},artifact) {
   // Refuse overrides before even the tool-version subprocesses are executed.
   compilerEnvironment(env);
   if (!compilerToolsVerified) { verifyCompilerTools(); compilerToolsVerified = true; }
-  return execute(program,args,cwd,env);
+  return execute(program,args,cwd,env,artifact);
 }
 
 // Closed long-running owner: a fresh source-built Rust test performs actual

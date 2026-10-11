@@ -7,7 +7,7 @@ import {closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readSyn
 import {dirname, join, relative, resolve, sep} from 'node:path';
 import {run} from './compile.mjs';
 
-const maximum = 268435456, owners = new WeakSet();
+const maximum = 268435456, owners = new WeakSet(), driverOwners = new WeakSet();
 let observations;
 
 function sweep(rows) {
@@ -149,9 +149,15 @@ export function captureCompilerArtifact(work, original, name) {
   const owner = Object.freeze({path, evidence, verify,
     run(arguments_, cwd, environment = {}) {
       compilerReadBarrier(verify);
-      try {return run(path, arguments_, cwd, environment);} finally {compilerReadBarrier(verify);}
+      try {return run(path, arguments_, cwd, environment, owner);} finally {compilerReadBarrier(verify);}
     }});
-  owners.add(owner); verify(); return owner;
+  owners.add(owner); if (name === 'driver') driverOwners.add(owner); verify(); return owner;
+}
+
+// Numeric diagnostics only. This identity never grants execution authority or
+// replaces requireCompilerArtifact, fresh source reads, or pre/post barriers.
+export function isCapturedCompilerDriver(owner, path) {
+  return driverOwners.has(owner) && owner.path === path;
 }
 
 export function requireCompilerArtifact(owner) {

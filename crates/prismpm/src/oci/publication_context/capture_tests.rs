@@ -124,6 +124,35 @@ fn graph_refusals(root: &Path, reference: &str, subjects: &[(String, Vec<u8>)]) 
 
 #[test]
 fn actual_source_free_capture_constructs_complete_conditional_context() {
+    // The complete Cargo gate runs in the tools container. This one test
+    // requires the already-built immutable runtime; do not filter the gate,
+    // copy an inventory into tools, or compile a second test executable.
+    let _compiler = crate::test_compiler::acquire();
+    if !Path::new("/etc/profile.d/prismpm-sdk.sh").exists()
+        && !Path::new("/opt/prismpm/share/inventory.json").exists()
+    {
+        assert!(
+            std::env::var_os("PRISMPM_OC10_SDK_CHILD").is_none(),
+            "SDK child lost its installed inventory"
+        );
+        let repository = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let result = std::process::Command::new("/usr/bin/python3")
+            .args(["-I", "-B"])
+            .arg(repository.join("scripts/conditional-capture-sdk.py"))
+            .arg("parent")
+            .arg(repository)
+            .arg(std::env::current_exe().unwrap())
+            .status()
+            .expect("start the exact capture executable's immutable SDK owner");
+        assert!(
+            result.success(),
+            "conditional SDK capture or its retirement failed"
+        );
+        return;
+    }
     let started = std::time::Instant::now();
     let output = std::env::var_os("PRISMPM_OC10_CAPTURE_OUTPUT")
         .map(std::path::PathBuf::from)
@@ -131,6 +160,7 @@ fn actual_source_free_capture_constructs_complete_conditional_context() {
     assert!(output.is_absolute());
     assert!(std::fs::read_dir(&output).unwrap().next().is_none());
     let inventory = crate::sdk::inventory_path().expect("actual installed SDK inventory required");
+    assert_eq!(inventory, Path::new("/opt/prismpm/share/inventory.json"));
     let inventory = std::fs::read(inventory).unwrap();
     let executable = std::fs::read(std::env::current_exe().unwrap()).unwrap();
     let sdk_image =
@@ -439,4 +469,24 @@ fn actual_source_free_capture_constructs_complete_conditional_context() {
         "PASS complete actual conditional publication capture: {}",
         output.display()
     );
+}
+
+#[test]
+fn conditional_sdk_boundary_controls_use_actual_files_processes_and_test_inventory() {
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .unwrap();
+    let result = std::process::Command::new("/usr/bin/python3")
+        .args(["-I", "-B"])
+        .arg(repository.join("scripts/conditional-capture-sdk.test.py"))
+        .arg(std::env::current_exe().unwrap())
+        .status()
+        .expect("start actual conditional SDK boundary controls");
+    assert!(result.success(), "conditional SDK boundary controls failed");
+}
+
+#[test]
+fn conditional_sdk_boundary_libtest_printing_probe() {
+    println!("actual nocapture printing control");
 }

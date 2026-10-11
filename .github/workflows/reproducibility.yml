@@ -1,11 +1,8 @@
 name: Reproducibility Gate
 
-# Also included in both complete vv.yml passes; these checks remain additive.
+# Automatic acceptance runs both complete vv.yml passes; this is a manual diagnostic.
 on:
   workflow_dispatch:
-  pull_request:
-  push:
-    branches: [main]
 
 permissions:
   contents: read

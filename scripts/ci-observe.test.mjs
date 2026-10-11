@@ -408,8 +408,8 @@ test('one normative workflow owns automatic complete acceptance on PRs and main'
     for (const event of ['pull_request', 'push']) assert.deepEqual(normative.on[event], {branches: ['main']});
     assert.deepEqual(normative.permissions, {contents: 'read'});
     assert.deepEqual(normative.concurrency, {
-      group: 'vv-${{ github.ref }}',
-      'cancel-in-progress': "${{ github.event_name == 'pull_request' }}",
+      group: 'vv-${{ github.repository }}-${{ github.ref }}',
+      'cancel-in-progress': true,
     });
     assert.equal(normative.jobs.vv.if, undefined);
     assert.equal(normative.jobs.vv['continue-on-error'], undefined);
@@ -439,7 +439,9 @@ test('one normative workflow owns automatic complete acceptance on PRs and main'
     value => { value.jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd = value.jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd.replace('--with-sdk', '--without-sdk'); },
     value => { value.jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd += 'true\n'; },
     value => { value.jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd = value.jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd.replace('just vv', 'just validate'); },
-    value => { value.concurrency['cancel-in-progress'] = true; },
+    value => { value.concurrency['cancel-in-progress'] = false; },
+    value => { value.concurrency.group = 'vv-${{ github.ref }}'; },
+    value => { value.concurrency.group = 'vv-${{ github.repository }}-${{ github.run_id }}'; },
     value => { value.jobs.vv.steps.find(step => step.uses?.startsWith('actions/checkout@')).with['fetch-depth'] = 1; },
   ]) {
     const changed = structuredClone(normative); alter(changed);

@@ -25,6 +25,7 @@ const commands = [
 ];
 
 function parallelContract(value) {
+  assert.deepEqual(Object.keys(value.on), ['workflow_dispatch']);
   assert.deepEqual(Object.keys(value.jobs), ['gate']);
   const job = value.jobs.gate;
   assert.equal(job.name, '${{ matrix.name }}');
@@ -64,6 +65,8 @@ test('parallel policy refuses missing, duplicated, weakened or unbounded executi
     v => v.jobs.gate['timeout-minutes'] = 10,
     v => v.jobs.gate.if = 'false',
     v => v.jobs.extra = v.jobs.gate,
+    v => v.on.pull_request = {},
+    v => v.on.push = {branches: ['main']},
   ]) {
     const value = structuredClone(original); mutate(value);
     assert.throws(() => parallelContract(value));
@@ -73,10 +76,10 @@ test('parallel policy refuses missing, duplicated, weakened or unbounded executi
 test('read-only source workflows supersede by repository and ref, never unique run ID', () => {
   for (const name of ['ci-parallel', 'vv', 'bootstrap', 'reproducibility', 'honesty']) {
     const value = workflow(name);
-    if (['ci-parallel', 'reproducibility', 'honesty'].includes(name)) {
-      // Stacked PRs must run the same source checks before their parent merges.
-      assert.equal(value.on.pull_request, null);
-      assert.deepEqual(value.on.push.branches, ['main']);
+    if (name !== 'vv') {
+      // All original commands remain available for manual diagnosis; the two
+      // complete normative passes alone own automatic aggregate acceptance.
+      assert.deepEqual(Object.keys(value.on), ['workflow_dispatch']);
     }
     assert.equal(value.concurrency['cancel-in-progress'], true);
     assert(value.concurrency.group.includes('github.repository'));

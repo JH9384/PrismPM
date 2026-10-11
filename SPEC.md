@@ -1682,13 +1682,30 @@ The fixed interpreter is admitted from each digest-pinned image: Bookworm
 Python 3.11.2 or Noble Python 3.12.3, using isolated execution with no host
 fallback. Source binding includes both private supervisor files. Original
 command, file, actor and two-run deadlines remain unchanged.
+Source full V&V and desktop/browser conformance additionally execute the six
+original standalone Session file pairs: Projection (7+1), Reservation (10+23),
+Payload (4+30), Recovery Frames (3+1), Journal Recovery (7+1), Retention (3+18).
+Installed browser qualification preserves all26 original owners and both
+fixed-null fallbacks, then executes these same108 additional cases. Each
+original selected file must report its exact count with no omitted, failed,
+skipped, cancelled or TODO tests. Five groups retain their3600000ms file and
+process bounds; Journal Recovery retains5500000ms with its5400000ms owner.
+Registered DK execution or inclusion of source bytes cannot replace these
+separate pairs. The original19 product boundary units also run in the source
+audit; synthetic unit inputs never qualify installed products or deployment.
+Standalone groups use the same pinned private subreaper: TERM then KILL within
+the original five-second retirement bound. A zero leader exit or passing TAP
+cannot repair timeout, overflow, abort, interruption or orphaned trailing work.
+Exact cwd, environment and argv remain intact; descendant exhaustion and clean
+supervisor completion are required before test results can qualify.
 The release's outer SDK owner executes in the existing source-independent thin
 tools stage, not host Python. Its current image ID, original Docker metadata,
 source readbacks, command output, terminal state and exact-ID cleanup are
 retained alongside—not substituted for—the original two full V&V records.
 The existing native registry CI reuses its immutable thin tools image for the
 complete original 71 process/construction cases, two new normal-exit cases,
-one complete outer-launcher lifecycle unit, twelve real supervisor controls and
+one complete outer-launcher lifecycle unit, the original twelve real supervisor
+controls plus two exact-cwd/interruption controls, and
 all 17 registry-process cases on both native platforms, with the
 original file deadline, source readbacks, raw results, cgroup observations and
 observed owned-container/network retirement. These unit results do not qualify

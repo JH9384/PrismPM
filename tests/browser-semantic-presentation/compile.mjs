@@ -37,6 +37,7 @@ export function frozenInputs() {
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
     'model/browser-semantic-presentation-oracles.json', 'model/browser-semantic-presentation-diagnostics.json',
     'scripts/browser-api-sdk-check.mjs', 'sdk/account-genesis-artifact.mjs', 'scripts/owning-node-reporter.mjs',
+    'scripts/sdk-command-owner.mjs', 'scripts/sdk-command-owner.py',
     'vendor/lean4-prod/lean.tar', 'vendor/lean4-prod/rust/MANIFEST.sha256', 'vendor/lexlean/MANIFEST.sha256',
   ]);
   for (const tree of ['vendor/lexlean', 'vendor/lean4-prod/rust']) {

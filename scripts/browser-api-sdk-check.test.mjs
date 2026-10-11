@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import {spawnSync,execFileSync} from 'node:child_process';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,renameSync,symlinkSync,openSync,closeSync,ftruncateSync} from 'node:fs';
+import {existsSync,mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,renameSync,symlinkSync,openSync,closeSync,ftruncateSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname,join,relative,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 import {test} from 'node:test';
-import {capture,verifySource,verifyImage,verifyTap,verifyFileCompletions,runSuites,sourceRoots,suites,fallbackSuites} from './browser-api-sdk-check.mjs';
+import {capture,verifySource,verifyImage,verifyTap,verifyFileCompletions,runSuites,runStandaloneSuites,sourceRoots,suites,fallbackSuites,standaloneSuites} from './browser-api-sdk-check.mjs';
 import * as browserGate from './browser-api-sdk-check.mjs';
 
 const hostModules = ['identity', 'store', 'peer', 'journal', 'commands', 'queries',
@@ -49,7 +50,7 @@ function registeredIndependentOwners(source) {
  return [1,5].map(index=>({id:row[index],construction:'independent',files:[row[index+1]],minimum:Number(row[index+2]),deadline:Number(row[index+3])}));
 }
 
-test('independent construction owners are separately registered with unchanged complete files and deadlines',()=>{
+test('independent construction owners are separately registered with unchanged complete files and deadlines',async ()=>{
  assert.deepEqual(fallbackSuites,independentOwners);
  assert.ok(Object.isFrozen(fallbackSuites));
  for(const owner of fallbackSuites){assert.ok(Object.isFrozen(owner));assert.ok(Object.isFrozen(owner.files));}
@@ -119,7 +120,7 @@ test('operation journal source closure binds every static and admitted dynamic m
  for(const file of required){const omitted=new Set(paths);omitted.delete(file);assert.throws(()=>verify(omitted),/omitted effective journal input/);}
 });
 
-test('private prerequisites retain exact registered source files minima deadlines and host inventory',()=>{
+test('private prerequisites retain exact registered source files minima deadlines and host inventory',async ()=>{
  const source=sdkSource('crates/conformance/src/cases/mod.rs');
  for(const owner of additionalOwners){
   assert.deepEqual(suites.find(row=>row.id===owner.id),owner,'mandatory installed '+owner.id);
@@ -129,7 +130,7 @@ test('private prerequisites retain exact registered source files minima deadline
  assert.deepEqual(browserGate.hostModules,hostModules,'only the exact registered private host modules are installed');
 });
 
-test('private prerequisite source closure includes complete fixture directories and shared compiler lifecycle',()=>{
+test('private prerequisite source closure includes complete fixture directories and shared compiler lifecycle',async ()=>{
  for(const path of ['tests/browser-budget','tests/browser-contextual-effects','tests/browser-dynamic-choice','tests/browser-signed-context','tests/browser-session-operation','tests/browser-pkce','tests/holo-primary-component','tests/browser-view','stdlib/src'])
   assert.ok(sourceRoots.includes(path),'required installed private prerequisite source '+path);
 });
@@ -137,12 +138,16 @@ test('private prerequisite source closure includes complete fixture directories 
 test('installed source roots cover every actual frozen private prerequisite compiler input',async()=>{
  for(const path of ['tests/browser-budget/compile.mjs','tests/browser-contextual-effects/checks.mjs','tests/browser-dynamic-choice/compile.mjs','tests/browser-signed-context/compile.mjs','tests/browser-session-operation/compile.mjs','tests/browser-pkce/compile.mjs','tests/holo-primary-component/compile.mjs','tests/browser-presentation/compile.mjs','tests/browser-session/compile.mjs','tests/browser-semantic-presentation/compile.mjs']){
   const {frozenInputs}=await import(new URL('../'+path,import.meta.url));
-  for(const input of Object.keys(frozenInputs()))
+  const inputs=frozenInputs();
+  if(Object.hasOwn(inputs,'scripts/browser-api-sdk-check.mjs'))
+   for(const dependency of ['scripts/sdk-command-owner.mjs','scripts/sdk-command-owner.py','sdk/account-genesis-artifact.mjs'])
+    assert(Object.hasOwn(inputs,dependency),'frozen browser helper dependency: '+path+' '+dependency);
+  for(const input of Object.keys(inputs))
    assert.ok(sourceRoots.some(root=>input===root||input.startsWith(root+'/')),'unbound actual private prerequisite input '+input);
  }
 });
 
-test('private prerequisite comparisons reject actual registered file minimum and deadline substitutions',()=>{
+test('private prerequisite comparisons reject actual registered file minimum and deadline substitutions',async ()=>{
  const source=sdkSource('crates/conformance/src/cases/mod.rs');
  for(const owner of additionalOwners){
   assert.deepEqual(registeredAdditionalOwner(source,owner.id),owner);
@@ -155,7 +160,7 @@ test('private prerequisite comparisons reject actual registered file minimum and
  }
 });
 
-test('installed module inventory includes every accepted private browser prerequisite without opening the runtime', () => {
+test('installed module inventory includes every accepted private browser prerequisite without opening the runtime', async () => {
  assert.deepEqual(browserGate.hostModules, hostModules);
  assert.deepEqual(browserGate.hostArtifacts, ['account-genesis.wasm']);
  const recipe = sdkSource('sdk/Dockerfile');
@@ -175,7 +180,7 @@ test('installed module inventory includes every accepted private browser prerequ
  assert.equal(hostModules.filter(name => name === 'operation-journal').length, 1);
 });
 
-test('installed browser closure includes complete new owning fixtures and actual Rust refusal owners', () => {
+test('installed browser closure includes complete new owning fixtures and actual Rust refusal owners', async () => {
  for (const path of ['tests/browser-effects', 'tests/browser-presentation', 'tests/browser-custody', 'tests/browser-operation-journal', 'tests/browser-session','tests/browser-account-genesis',
   'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
   'tests/browser-budget', 'tests/browser-contextual-effects','tests/browser-semantic-presentation','tests/browser-dynamic-choice',
@@ -201,7 +206,7 @@ test('installed browser closure includes complete new owning fixtures and actual
  assert.match(launcher, /--target registry_qualification_tools/);
 });
 
-test('new installed Node suites retain exact complete owning files and deadlines', () => {
+test('new installed Node suites retain exact complete owning files and deadlines', async () => {
  const effects = suites.find(row => row.id === 'DK-20'), view = suites.find(row => row.id === 'DK-23');
  assert.deepEqual(effects?.files, ['sdk/browser/effects-wire.test.mjs', 'sdk/browser/effects-module.test.mjs', 'sdk/browser/effects-test.mjs']);
  assert.equal(effects?.minimum, 18);
@@ -230,7 +235,7 @@ test('new installed Node suites retain exact complete owning files and deadlines
  assert.equal(Number(sessionOwner[2]), session.minimum); assert.equal(Number(sessionOwner[3]), session.deadline);
 });
 
-test('installed session kernel preserves its exact registered owner, complete sources and private scope', () => {
+test('installed session kernel preserves its exact registered owner, complete sources and private scope', async () => {
  const session = suites.find(row => row.id === 'DK-26');
  assert.ok(session, 'installed DK-26 owner is required');
  assert.deepEqual(session.files, ['sdk/browser/session-model-test.mjs', 'tests/browser-session/wire.test.mjs','tests/browser-session/provenance.test.mjs']);
@@ -247,7 +252,7 @@ test('installed session kernel preserves its exact registered owner, complete so
  assert.ok(!browserGate.hostModules.includes('session'), 'pure kernel is not an implemented public session host');
 });
 
-test('semantic owner registration preserves actual Rust files, minimum and deadline', () => {
+test('semantic owner registration preserves actual Rust files, minimum and deadline', async () => {
  const semantic = suites.find(row => row.id === 'DK-38');
  assert.ok(semantic); assert.equal(semantic.minimum, 29); assert.equal(semantic.deadline, 3600000);
  const source = sdkSource('crates/conformance/src/cases/mod.rs');
@@ -266,12 +271,12 @@ const temporary=t=>{const root=mkdtempSync(join(tmpdir(),'prismpm-sdk-binding-')
 const put=(root,path,bytes)=>{mkdirSync(dirname(join(root,path)),{recursive:true});writeFileSync(join(root,path),bytes);};
 function stageGate(root,helper) {
  put(root,'scripts/browser-api-sdk-check.mjs',helper);
- for(const name of ['browser-api-sdk-check.test.mjs','owning-node-reporter.mjs'])
+ for(const name of ['browser-api-sdk-check.test.mjs','owning-node-reporter.mjs','sdk-command-owner.mjs','sdk-command-owner.py'])
   put(root,'scripts/'+name,readFileSync(new URL('./'+name,import.meta.url)));
  put(root,'sdk/account-genesis-artifact.mjs',sdkSource('sdk/account-genesis-artifact.mjs'));
  return join(root,'scripts/browser-api-sdk-check.test.mjs');
 }
-test('actual installed module trees reject missing extra changed and aliased module bytes', t => {
+test('actual installed module trees reject missing extra changed and aliased module bytes', async t => {
  assert.equal(typeof browserGate.verifyModules, 'function');
  const source = temporary(t), installed = temporary(t);
  for (const module of hostModules) {
@@ -320,7 +325,7 @@ function inspected(){return[{Os:'linux',Architecture:'amd64',RepoDigests:[image]
  'org.opencontainers.image.version':'0.3.0',
 }}}];}
 
-test('current SDK source closure binds helper, compiler, suite and every selected byte',t=>{
+test('current SDK source closure binds helper, compiler, suite and every selected byte',async t=>{
  const root=temporary(t);source(root);const expected=capture(root,revision);verifySource(root,expected);
  for(const path of['scripts/browser-api-sdk-check.mjs','LICENSE-MIT','LICENSE-APACHE','sdk/browser/source.txt','vendor/lexlean/source.txt','tests/browser-api/source.txt',
   'tests/browser-effects/source.txt','tests/browser-presentation/source.txt','tests/browser-custody/source.txt',
@@ -343,7 +348,7 @@ test('current SDK source closure binds helper, compiler, suite and every selecte
  put(root,'tests/browser-api/nested/target/ordinary','keep');assert.throws(()=>verifySource(root,expected));
 });
 
-test('source binding rejects missing, aliased, nonregular and oversized inputs',t=>{
+test('source binding rejects missing, aliased, nonregular and oversized inputs',async t=>{
  const root=temporary(t);source(root);const expected=capture(root,revision);
  const path=join(root,'sdk/browser/source.txt'),saved=readFileSync(path);rmSync(path);assert.throws(()=>verifySource(root,expected));
  symlinkSync('../stdlib-sources.tar',path);assert.throws(()=>capture(root,revision));rmSync(path);put(root,'sdk/browser/source.txt',saved);
@@ -352,7 +357,7 @@ test('source binding rejects missing, aliased, nonregular and oversized inputs',
  const fd=openSync(path,'wx');try{ftruncateSync(fd,64*1024*1024+1);}finally{closeSync(fd);}assert.throws(()=>capture(root,revision),/bounded regular/);
 });
 
-test('SDK identity is immutable, exact-source and native-platform bound',()=>{
+test('SDK identity is immutable, exact-source and native-platform bound',async ()=>{
  verifyImage(inspected(),image,'amd64',revision);
  for(const mutate of[
   value=>value[0].Os='windows',value=>value[0].Architecture='arm64',value=>value[0].RepoDigests=[],value=>value[0].RepoDigests=image,
@@ -367,9 +372,193 @@ test('SDK identity is immutable, exact-source and native-platform bound',()=>{
 });
 
 const testSource=(count,skip=false)=>"import {test} from 'node:test';\n"+Array.from({length:count},(_,index)=>`test('case ${index}',${skip&&index===0?'{skip:true},':''}()=>{});\n`).join('');
-function testFixtures(root){for(const suite of [...suites,...fallbackSuites])for(const file of suite.files)put(root,file,testSource(suite.minimum));}
+function testFixtures(root){for(const suite of [...suites,...fallbackSuites,...standaloneSuites])for(const [index,file] of suite.files.entries())put(root,file,testSource(suite.exactTests?.[index]??suite.minimum));}
 
-for(const owner of independentOwners)test('independent '+owner.id+' execution refuses missing aliased incomplete and forged completion',t=>{
+test('standalone registry retains all six original inventories and distinct deadlines',async ()=>{
+ const expected=[
+  ['Session Projection',3600000,['tests/browser-session-journal/projection.test.mjs','tests/browser-session-journal/projection-owner.test.mjs'],[7,1]],
+  ['Session Reservation',3600000,['tests/browser-session-journal/reservation.test.mjs','tests/browser-session-journal/reservation-owner.test.mjs'],[10,23]],
+  ['Session Payload',3600000,['tests/browser-session-payloads/component.test.mjs','tests/browser-session-payloads/owner.test.mjs'],[4,30]],
+  ['Session Recovery Frames',3600000,['tests/browser-session-recovery-frames/wire.test.mjs','tests/browser-session-recovery-frames/owner.test.mjs'],[3,1]],
+  ['Session Journal Recovery',5500000,['tests/browser-session-journal-recovery/component.test.mjs','tests/browser-session-journal-recovery/owner.test.mjs'],[7,1]],
+  ['Session Retention',3600000,['tests/browser-session-journal-retention/component.test.mjs','tests/browser-session-journal-retention/owner.test.mjs'],[3,18]],
+ ];
+ assert.deepEqual(standaloneSuites.map(row=>[row.id,row.deadline,row.files,row.exactTests]),expected);
+ assert(Object.isFrozen(standaloneSuites));
+ for(const row of standaloneSuites){
+  assert(Object.isFrozen(row)&&Object.isFrozen(row.files)&&Object.isFrozen(row.exactTests));
+  assert.equal(row.minimum,row.exactTests.reduce((a,b)=>a+b,0));
+  for(const file of row.files)assert(sourceRoots.some(path=>file.startsWith(path+'/')));
+  assert.match(sdkSource(row.files[1]),row.id==='Session Journal Recovery'?/timeout: 5400000/:/timeout:\s*3500000/);
+ }
+ assert.equal(standaloneSuites.reduce((sum,row)=>sum+row.minimum,0),108);
+ assert.equal(suites.length,26);assert.deepEqual(fallbackSuites,independentOwners);
+});
+
+test('complete source gates register standalone execution and all original product boundary units',async ()=>{
+ const source=sdkSource('xtask/src/main.rs');
+ const vv=source.slice(source.indexOf('fn run_vv('),source.indexOf('fn verify_examples('));
+ assert.equal(vv.split('verify_standalone_browser_owners(root)?;').length,2);
+ assert(vv.indexOf('verify_standalone_browser_owners(root)?;')>vv.indexOf('VV gate 6/15:'));
+ assert(vv.indexOf('verify_standalone_browser_owners(root)?;')<vv.indexOf('VV gate 7/15:'));
+ const conformance=source.slice(source.indexOf('fn run_conformance('),source.indexOf('fn run_unit_tests('));
+ assert.match(conformance,/if matches!\(category, "all" \| "desktop-browser"\) \{\s*verify_standalone_browser_owners\(root\)\?;/);
+ assert.match(conformance,/fn verify_standalone_browser_owners\(root: &Path\) -> Result<\(\), Fail> \{\s*command\(\s*root,\s*"node",\s*&\["scripts\/browser-api-sdk-check.mjs", "standalone"\],\s*\)/);
+ const audit=source.slice(source.indexOf('fn audit_all('),source.indexOf('fn command('));
+ assert.equal(audit.split('"scripts/product-sdk-check.test.mjs"').length,2);
+ assert.equal((sdkSource('scripts/product-sdk-check.test.mjs').match(/^test\(/gm)??[]).length,19);
+ assert(sourceRoots.includes('xtask/src/main.rs'));
+});
+
+test('standalone execution invokes every full file pair with its exact process and file bounds',async t=>{
+ const root=temporary(t);testFixtures(root);const calls=[];
+ const launch=(program,args,options)=>{calls.push({program,args,options});return spawnSync(program,args,options);};
+ const completed=(await runStandaloneSuites(root,launch,()=>{}));
+ assert.deepEqual(completed,standaloneSuites.map(row=>({id:row.id,tests:row.minimum})));
+ assert.equal(calls.length,6);
+ for(const [index,call] of calls.entries()){
+  const row=standaloneSuites[index];assert.equal(call.program,process.execPath);
+  assert.deepEqual(call.args.slice(0,2),['--test','--test-concurrency=1']);
+  assert(call.args[2].startsWith('--test-reporter=data:text/javascript;base64,'));
+  assert.equal(call.args[3],'--test-timeout='+row.deadline);assert.deepEqual(call.args.slice(4),row.files);
+  assert.equal(call.options.timeout,row.deadline);assert.equal(call.options.maxBuffer,64*1024*1024);
+  assert.equal(call.options.cwd,root);assert.equal(call.options.env.NODE_TEST_CONTEXT,undefined);
+  assert.equal(call.options.owned,true);
+ }
+});
+
+test('standalone default launch owns all six exact file pairs without accepting a fixture as application evidence',async t=>{
+ const root=temporary(t);testFixtures(root);
+ assert.deepEqual(await runStandaloneSuites(root,undefined,()=>{}),standaloneSuites.map(row=>({id:row.id,tests:row.minimum})));
+ for(const file of ['scripts/sdk-command-owner.mjs','scripts/sdk-command-owner.py'])assert(sourceRoots.includes(file));
+});
+
+test('standalone launch rejects zero-exit TAP with stubborn escaped trailing work and proves retirement',async t=>{
+ const root=mkdtempSync(join(tmpdir(),'prismpm-owned-standalone-'));testFixtures(root);
+ const marker=join(root,'escaped.json'),termed=join(root,'termed.json');
+ const token='original-standalone-control-'+process.pid;
+ t.after(async()=>{
+  try{
+   if(!existsSync(marker))return;
+   const row=JSON.parse(readFileSync(marker));assert.equal(row.token,token);
+   assert(Number.isSafeInteger(row.pid)&&row.pid>1);
+   if(!existsSync('/proc/'+row.pid))return;
+   const argv=readFileSync('/proc/'+row.pid+'/cmdline','utf8').split('\0');
+   assert(argv.includes(marker)&&argv.includes(token),'only identified isolated test work may be cleaned');
+   process.kill(row.pid,'SIGKILL');const deadline=performance.now()+5000;
+   while(existsSync('/proc/'+row.pid)&&performance.now()<deadline)await new Promise(resolve=>setTimeout(resolve,10));
+   assert(!existsSync('/proc/'+row.pid),'bounded safety cleanup cannot repair failed retirement proof');
+  }finally{rmSync(root,{recursive:true,force:true});}
+ });
+ const child="const fs=require('node:fs');fs.writeFileSync(process.argv[1],JSON.stringify({pid:process.pid,token:process.argv[2]}),{flag:'wx'});"
+  +"process.on('SIGTERM',()=>fs.writeFileSync(process.argv[3],JSON.stringify({pid:process.pid,token:process.argv[2]})));setInterval(()=>{},1000);";
+ const file=standaloneSuites[0].files[0];
+ put(root,file,"import {spawn} from 'node:child_process';import {existsSync} from 'node:fs';import {test} from 'node:test';\n"
+  +testSource(7).split('\n').slice(1).join('\n')
+  +`const child=spawn(process.execPath,['-e',${JSON.stringify(child)},${JSON.stringify(marker)},${JSON.stringify(token)},${JSON.stringify(termed)}],{detached:true,stdio:'ignore'});child.unref();\n`
+  +`while(!existsSync(${JSON.stringify(marker)}))await new Promise(resolve=>setTimeout(resolve,5));\n`);
+ // Only this isolated controller fixture shortens the clock. The production
+ // registry and all original application/file deadlines remain unchanged.
+ const original=sdkSource('scripts/browser-api-sdk-check.mjs');
+ const clock='const deadline=execution.deadline;';assert.equal(original.split(clock).length,2);
+ stageGate(root,original.replace(clock,'const deadline=1000;'));
+ put(root,'scripts/owning-node-reporter.mjs',sdkSource('scripts/owning-node-reporter.mjs')+"\nprocess.stderr.write('OWNED-STANDALONE-STDERR\\n');\n");
+ const run=(await import(pathToFileURL(join(root,'scripts/browser-api-sdk-check.mjs')).href)).runStandaloneSuites;
+ const start=performance.now(),logs=[];let failure;
+ await assert.rejects(()=>run(root,undefined,text=>logs.push(text)),error=>{
+  failure=error;
+  assert.match(error.message,/standalone timedOut/);assert.equal(error.result.status,0);
+  assert.equal(error.result.retirement.descendants_absent,true);return true;
+ });
+ assert.equal(failure.result.stderr.toString(),'OWNED-STANDALONE-STDERR\n');
+ assert.equal(logs.join(''),'SDK browser suite Session Projection\n'+failure.result.stdout+failure.result.stderr,
+  'complete actual failed stdout and stderr remain diagnostic, never acceptance');
+ assert(performance.now()-start<6500,'original deadline plus bounded retirement, not SIGTERM-only waiting');
+ const row=JSON.parse(readFileSync(marker));assert.equal(row.token,token);
+ assert.deepEqual(JSON.parse(readFileSync(termed)),row,'actual TERM precedes forced retirement');
+ assert.throws(()=>readFileSync('/proc/'+row.pid+'/stat'),{code:'ENOENT'},'owned escaped child absent before safety cleanup');
+});
+
+test('standalone escaped-work oracle kills removal of the actual owned launch path',async t=>{
+ const original=sdkSource('scripts/browser-api-sdk-check.mjs');
+ const guard='if(!options.owned)return spawnSync(program,args,options);';
+ assert.equal(original.split(guard).length,2);
+ const root=temporary(t),selected=stageGate(root,original.replace(guard,'if(true)return spawnSync(program,args,options);'));
+ const env={...process.env};delete env.NODE_TEST_CONTEXT;
+ const result=spawnSync(process.execPath,['--test','--test-name-pattern=^standalone launch rejects',selected],{encoding:'utf8',env,timeout:15000,maxBuffer:1024*1024});
+ assert.equal(result.error,undefined);assert.equal(result.status,1);assert.match(result.stdout,/Missing expected rejection/);
+});
+
+test('standalone preflight rejects absent aliased and nonregular last-group files before any dispatch',async t=>{
+ const root=temporary(t);testFixtures(root);const file=standaloneSuites.at(-1).files[1],path=join(root,file);
+ for(const defect of ['missing','alias','directory']){
+  rmSync(path,{recursive:true});
+  if(defect==='alias')symlinkSync('missing.test.mjs',path);
+  if(defect==='directory')mkdirSync(path);
+  let calls=0;
+  await assert.rejects(()=>runStandaloneSuites(root,()=>{calls++;throw Error('must not dispatch');},()=>{}));
+  assert.equal(calls,0);rmSync(path,{recursive:true,force:true});put(root,file,testSource(18));
+ }
+});
+
+test('standalone file counts reject coherent redistribution even when the aggregate still passes',async t=>{
+ const root=temporary(t);testFixtures(root);
+ for(const row of standaloneSuites){
+  const [first,second]=row.files,[one,two]=row.exactTests;
+  put(root,first,testSource(one-1));put(root,second,testSource(two+1));
+  await assert.rejects(()=>runStandaloneSuites(root,spawnSync,()=>{}),/exact original standalone file test count/);
+  put(root,first,testSource(one));put(root,second,testSource(two));
+ }
+ assert.equal((await runStandaloneSuites(root,spawnSync,()=>{})).reduce((sum,row)=>sum+row.tests,0),108);
+});
+
+test('standalone unsuccessful original file completion cannot satisfy a passing aggregate',async t=>{
+ const root=temporary(t);testFixtures(root);const row=standaloneSuites[0],file=row.files[0];
+ put(root,file,testSource(row.exactTests[0],true));
+ await assert.rejects(()=>runStandaloneSuites(root,spawnSync,()=>{}),/incomplete pass set|skipped/);
+ put(root,file,testSource(row.exactTests[0]));
+ for(const defect of ['missing','duplicate','cancelled','wrong-file']){
+  const launch=(program,args,options)=>{
+   const result=spawnSync(program,args,options);
+   if(args.includes(file)){
+    const prefix='# prismpm-owning-file ',line=result.stdout.split('\n').find(line=>line.startsWith(prefix));
+    if(defect==='missing')result.stdout=result.stdout.replace(line+'\n','');
+    if(defect==='duplicate')result.stdout+=line+'\n';
+    if(defect==='cancelled')result.stdout=result.stdout.replace('# cancelled 0','# cancelled 1');
+    if(defect==='wrong-file')result.stdout=result.stdout.replaceAll(join(root,file),join(root,file)+'.wrong');
+   }
+   return result;
+  };
+  await assert.rejects(()=>runStandaloneSuites(root,launch,()=>{}),undefined,defect);
+ }
+});
+
+test('standalone owning inventory controls kill actual source count deadline and file omissions',async t=>{
+ const original=sdkSource('scripts/browser-api-sdk-check.mjs');
+ for(const [before,after] of [
+  ["id:'Session Projection',deadline:3600000","id:'Session Projection',deadline:3600001"],
+  ['exactTests:[7,1]','exactTests:[6,1]'],
+  ['tests/browser-session-journal/projection-owner.test.mjs','tests/browser-session-journal/projection-owner.test.mjs.changed'],
+  ["id:'Session Retention'","id:'Session Retention omitted'"],
+ ]){
+  assert(original.includes(before));const root=temporary(t),selected=stageGate(root,original.replace(before,after));
+  const env={...process.env};delete env.NODE_TEST_CONTEXT;
+  const result=spawnSync(process.execPath,['--test','--test-name-pattern=standalone registry retains',selected],{encoding:'utf8',env,timeout:15000,maxBuffer:1024*1024});
+  assert.equal(result.error,undefined);assert.equal(result.status,1);assert.match(result.stdout,/AssertionError/);
+ }
+});
+
+test('standalone coherent-count oracle kills removal of the actual per-file exact-count guard',async t=>{
+ const original=sdkSource('scripts/browser-api-sdk-check.mjs');
+ const guard="if(exactTests!==undefined)assert.equal(row.tests,exactTests[files.indexOf(row.file)],'exact original standalone file test count');";
+ assert.equal(original.split(guard).length,2);
+ const root=temporary(t),selected=stageGate(root,original.replace(guard,''));
+ const env={...process.env};delete env.NODE_TEST_CONTEXT;
+ const result=spawnSync(process.execPath,['--test','--test-name-pattern=standalone file counts reject',selected],{encoding:'utf8',env,timeout:15000,maxBuffer:1024*1024});
+ assert.equal(result.error,undefined);assert.equal(result.status,1);assert.match(result.stdout,/Missing expected rejection/);
+});
+
+for(const owner of independentOwners)test('independent '+owner.id+' execution refuses missing aliased incomplete and forged completion',async t=>{
  const root=temporary(t);testFixtures(root);const file=owner.files[0],path=join(root,file);
  for(const defect of ['missing','alias','empty','under-count','skip','failure','cancelled','wrong-file','forged']){
   put(root,file,testSource(owner.minimum));let calls=0;
@@ -386,13 +575,13 @@ for(const owner of independentOwners)test('independent '+owner.id+' execution re
    if(args.includes(file)&&defect==='wrong-file')result.stdout=result.stdout.replaceAll(path,path+'.wrong');
    return result;
   };
-  assert.throws(()=>runSuites(root,launch,()=>{}),undefined,defect);
+  await assert.rejects(()=>runSuites(root,launch,()=>{}),undefined,defect);
   if(['missing','alias'].includes(defect))assert.equal(calls,0,'all constructions preflight before dispatch');
   rmSync(path,{force:true});
  }
 });
 
-test('installed DK23 gate requires every wire, DOM, replay, provenance and full-owner check', t => {
+test('installed DK23 gate requires every wire, DOM, replay, provenance and full-owner check', async t => {
  const root = temporary(t); testFixtures(root);
  const view = suites.find(row => row.id === 'DK-23');
  assert.equal(view.files.length, 5);
@@ -401,53 +590,53 @@ test('installed DK23 gate requires every wire, DOM, replay, provenance and full-
  for (const [index, count] of counts.entries()) put(root, view.files[index], testSource(count));
  for (const [index, count] of counts.entries()) {
   put(root, view.files[index], testSource(count - 1));
-  assert.throws(() => runSuites(root, spawnSync, () => {}), /incomplete test suite/, view.files[index]);
+  await assert.rejects(() => runSuites(root, spawnSync, () => {}), /incomplete test suite/, view.files[index]);
   put(root, view.files[index], testSource(count));
  }
- const accepted = runSuites(root, spawnSync, () => {}).find(row => row.id === 'DK-23');
+ const accepted = (await runSuites(root, spawnSync, () => {})).find(row => row.id === 'DK-23');
  assert.deepEqual(accepted, {id: 'DK-23', tests: 39});
 });
 
-test('private prerequisite missing selected files reject before any suite is dispatched',t=>{
+test('private prerequisite missing selected files reject before any suite is dispatched',async t=>{
  const root=temporary(t);testFixtures(root);
  for(const owner of additionalOwners)for(const file of owner.files)put(root,file,testSource(owner.minimum));
  for(const owner of additionalOwners)for(const file of owner.files){
   const bytes=readFileSync(join(root,file));rmSync(join(root,file));let calls=0;
-  assert.throws(()=>runSuites(root,()=>{calls++;throw Error('must not dispatch');},()=>{}),/ENOENT/);
+  await assert.rejects(()=>runSuites(root,()=>{calls++;throw Error('must not dispatch');},()=>{}),/ENOENT/);
   assert.equal(calls,0,'preflight all private prerequisite files before execution');put(root,file,bytes);
  }
 });
 
 // Small real Node fixtures test the runner boundary, never the model kernels.
-test('private prerequisite actual Node owners reject below-minimum and empty sibling completion',t=>{
+test('private prerequisite actual Node owners reject below-minimum and empty sibling completion',async t=>{
  const root=temporary(t);testFixtures(root);
  for(const owner of additionalOwners){
   assert.ok(suites.some(row=>row.id===owner.id),'mandatory installed '+owner.id);
   const restore=()=>owner.files.forEach((file,index)=>put(root,file,testSource(index?1:owner.minimum-owner.files.length+1)));
   restore();put(root,owner.files[0],testSource(owner.minimum-owner.files.length));
-  assert.throws(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/);restore();
+  await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/);restore();
   if(owner.files.length>1){
    put(root,owner.files[0],testSource(owner.minimum));put(root,owner.files[1],'');
-   assert.throws(()=>runSuites(root,spawnSync,()=>{}),/nonempty registered tests|complete selected test file summaries|complete sequential outer test numbering/);restore();
+   await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/nonempty registered tests|complete selected test file summaries|complete sequential outer test numbering/);restore();
   }
  }
- assert.equal(runSuites(root,spawnSync,()=>{}).length,suites.length+fallbackSuites.length);
+ assert.equal((await runSuites(root,spawnSync,()=>{})).length,suites.length+fallbackSuites.length+standaloneSuites.length);
 });
 
-test('semantic suite refuses missing or empty siblings even with surplus real passing tests', t => {
+test('semantic suite refuses missing or empty siblings even with surplus real passing tests', async t => {
  const semantic = suites.find(row => row.id === 'DK-38');
  for (const file of semantic.files) {
   const root = temporary(t); testFixtures(root);
   rmSync(join(root, file));
-  assert.throws(() => runSuites(root, spawnSync, () => {}), /ENOENT/);
+  await assert.rejects(() => runSuites(root, spawnSync, () => {}), /ENOENT/);
   put(root, file, '');
-  assert.throws(() => runSuites(root, spawnSync, () => {}), /complete selected test file summaries|complete sequential outer test numbering/);
+  await assert.rejects(() => runSuites(root, spawnSync, () => {}), /complete selected test file summaries|complete sequential outer test numbering/);
   put(root, file, testSource(1));
-  assert.equal(runSuites(root, spawnSync, () => {}).find(row => row.id === 'DK-38').tests, semantic.minimum * 2 + 1);
+  assert.equal((await runSuites(root, spawnSync, () => {})).find(row => row.id === 'DK-38').tests, semantic.minimum * 2 + 1);
  }
 });
 
-test('semantic registry regression kills owner, minimum and deadline substitutions', t => {
+test('semantic registry regression kills owner, minimum and deadline substitutions', async t => {
  const original = sdkSource('scripts/browser-api-sdk-check.mjs');
  const row = original.split('\n').find(line => line.includes("{id:'DK-38'")); assert.ok(row);
  const changes = [row.replace('minimum:29', 'minimum:28'),
@@ -468,7 +657,7 @@ test('semantic registry regression kills owner, minimum and deadline substitutio
  }
 });
 
-test('installed semantic gate rejects omission of each false-evidence safeguard', t => {
+test('installed semantic gate rejects omission of each false-evidence safeguard', async t => {
  const root = temporary(t); testFixtures(root);
  const semantic = suites.find(row => row.id === 'DK-38');
  const safeguards = ['missing oracle', 'launcher failure', 'closed page', 'no-op mutation', 'wrong semantic check'];
@@ -486,18 +675,18 @@ test('installed semantic gate rejects omission of each false-evidence safeguard'
  const write = (index, omitted) => put(root, semantic.files[index], "import {test} from 'node:test';\n"
   + fixtures[index].filter(name => name !== omitted).map(name => `test(${JSON.stringify(name)},()=>{});\n`).join(''));
  fixtures.forEach((_, index) => write(index));
- assert.deepEqual(runSuites(root, spawnSync, () => {}).find(row => row.id === 'DK-38'),
+ assert.deepEqual((await runSuites(root, spawnSync, () => {})).find(row => row.id === 'DK-38'),
   {id: 'DK-38', tests: 29});
  for (const [index, required] of [[0, observations], [1, safeguards], [2, engineChecks]]) {
   for (const omitted of required) {
    write(index, omitted);
-   assert.throws(() => runSuites(root, spawnSync, () => {}), /incomplete test suite/, omitted);
+   await assert.rejects(() => runSuites(root, spawnSync, () => {}), /incomplete test suite/, omitted);
    write(index);
   }
  }
 });
 
-test('installed DK23 gate rejects omission of the ninth secret-input test', t => {
+test('installed DK23 gate rejects omission of the ninth secret-input test', async t => {
  const root = temporary(t); testFixtures(root);
  const view = suites.find(row => row.id === 'DK-23');
  assert.equal(view.files.length, 5);
@@ -506,27 +695,27 @@ test('installed DK23 gate rejects omission of the ninth secret-input test', t =>
  for (const [index, count] of counts.entries()) put(root, view.files[index], testSource(count));
  for (const [index, count] of counts.entries()) {
   put(root, view.files[index], testSource(count - 1));
-  assert.throws(() => runSuites(root, spawnSync, () => {}), /incomplete test suite/, view.files[index]);
+  await assert.rejects(() => runSuites(root, spawnSync, () => {}), /incomplete test suite/, view.files[index]);
   put(root, view.files[index], testSource(count));
  }
- const accepted = runSuites(root, spawnSync, () => {}).find(row => row.id === 'DK-23');
+ const accepted = (await runSuites(root, spawnSync, () => {})).find(row => row.id === 'DK-23');
  assert.deepEqual(accepted, {id: 'DK-23', tests: 39});
 });
 
-test('installed DK26 gate requires every session kernel, canonical wire and custody check',t=>{
+test('installed DK26 gate requires every session kernel, canonical wire and custody check',async t=>{
  const root=temporary(t);testFixtures(root);
  const owner=suites.find(row=>row.id==='DK-26'),counts=[28,6,5];
  assert.equal(owner.files.length,counts.length);
  for(const [index,count] of counts.entries())put(root,owner.files[index],testSource(count));
  for(const [index,count] of counts.entries()){
   put(root,owner.files[index],testSource(count-1));
-  assert.throws(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/,owner.files[index]);
+  await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/,owner.files[index]);
   put(root,owner.files[index],testSource(count));
  }
- assert.deepEqual(runSuites(root,spawnSync,()=>{}).find(row=>row.id==='DK-26'),{id:'DK-26',tests:39});
+ assert.deepEqual((await runSuites(root,spawnSync,()=>{})).find(row=>row.id==='DK-26'),{id:'DK-26',tests:39});
 });
 
-test('installed DK33 gate requires original account corpus, every construction check and the full generated owner',t=>{
+test('installed DK33 gate requires original account corpus, every construction check and the full generated owner',async t=>{
  const root=temporary(t);testFixtures(root);
  const owner=suites.find(row=>row.id==='DK-33'),counts=[2,7,8];
  assert.deepEqual(owner.files,['tests/browser-account-genesis/corpus.test.mjs',
@@ -539,47 +728,47 @@ test('installed DK33 gate requires original account corpus, every construction c
  for(const [index,count] of counts.entries())put(root,owner.files[index],testSource(count));
  for(const [index,count] of counts.entries()) {
   put(root,owner.files[index],testSource(count-1));
-  assert.throws(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/,owner.files[index]);
+  await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/,owner.files[index]);
   put(root,owner.files[index],testSource(count));
  }
- assert.deepEqual(runSuites(root,spawnSync,()=>{}).find(row=>row.id==='DK-33'),{id:'DK-33',tests:17});
+ assert.deepEqual((await runSuites(root,spawnSync,()=>{})).find(row=>row.id==='DK-33'),{id:'DK-33',tests:17});
 });
 
-test('installed DK26 rejects an incomplete owner or empty wire file despite passing siblings', t => {
+test('installed DK26 rejects an incomplete owner or empty wire file despite passing siblings', async t => {
  const root = temporary(t); testFixtures(root);
  const session = suites.find(row => row.id === 'DK-26');
  put(root, session.files[0], testSource(27));
  put(root, session.files[1], testSource(6));
  put(root, session.files[2], testSource(5));
- assert.throws(() => runSuites(root, spawnSync, () => {}), /incomplete test suite/);
+ await assert.rejects(() => runSuites(root, spawnSync, () => {}), /incomplete test suite/);
  put(root, session.files[0], testSource(39));
  put(root, session.files[1], '');
  // Node's automatic empty-file wrapper may break the outer numbering before
  // the missing registered-file summary is checked. Neither is acceptance.
- assert.throws(() => runSuites(root, spawnSync, () => {}), /complete sequential outer test numbering|complete selected test file summaries/);
+ await assert.rejects(() => runSuites(root, spawnSync, () => {}), /complete sequential outer test numbering|complete selected test file summaries/);
  put(root, session.files[0], testSource(28));
  put(root, session.files[1], testSource(6));
- assert.deepEqual(runSuites(root, spawnSync, () => {}).find(row => row.id === 'DK-26'), {id: 'DK-26', tests: 39});
+ assert.deepEqual((await runSuites(root, spawnSync, () => {})).find(row => row.id === 'DK-26'), {id: 'DK-26', tests: 39});
 });
 
-test('every selected file must exist even when its sibling supplies the total minimum',t=>{
+test('every selected file must exist even when its sibling supplies the total minimum',async t=>{
  const root=temporary(t);testFixtures(root);
  const path=join(root,'sdk/browser/identity.browser.test.mjs');
  rmSync(path);
- assert.throws(()=>runSuites(root,spawnSync,()=>{}));
+ await assert.rejects(()=>runSuites(root,spawnSync,()=>{}));
  put(root,'sdk/browser/identity.browser.test.mjs',testSource(1));
- assert.equal(runSuites(root,spawnSync,()=>{}).length,suites.length+fallbackSuites.length);
+ assert.equal((await runSuites(root,spawnSync,()=>{})).length,suites.length+fallbackSuites.length+standaloneSuites.length);
 });
 
-test('every selected file must register tests instead of borrowing its sibling counts',t=>{
+test('every selected file must register tests instead of borrowing its sibling counts',async t=>{
  const root=temporary(t);testFixtures(root);
  put(root,'sdk/browser/identity.browser.test.mjs','');
- assert.throws(()=>runSuites(root,spawnSync,()=>{}));
+ await assert.rejects(()=>runSuites(root,spawnSync,()=>{}));
  put(root,'sdk/browser/identity.browser.test.mjs',testSource(1));
- assert.equal(runSuites(root,spawnSync,()=>{}).length,suites.length+fallbackSuites.length);
+ assert.equal((await runSuites(root,spawnSync,()=>{})).length,suites.length+fallbackSuites.length+standaloneSuites.length);
 });
 
-test('preflight rejects missing late files, aliases and nonregular paths before any execution',t=>{
+test('preflight rejects missing late files, aliases and nonregular paths before any execution',async t=>{
  for(const kind of ['late missing','file alias','parent alias','root alias','directory','fifo']){
   const top=temporary(t),root=join(top,'root');testFixtures(root);let calls=0,selectedRoot=root;
   const path=join(root,'sdk/browser/identity.browser.test.mjs');
@@ -592,46 +781,47 @@ test('preflight rejects missing late files, aliases and nonregular paths before 
   if(kind==='root alias'){selectedRoot=join(top,'alias');symlinkSync('root',selectedRoot);}
   if(kind==='directory'){rmSync(path);mkdirSync(path);}
   if(kind==='fifo'){rmSync(path);execFileSync('mkfifo',[path]);}
-  assert.throws(()=>runSuites(selectedRoot,()=>{calls++;throw Error('must not execute');},()=>{}),
+  await assert.rejects(()=>runSuites(selectedRoot,()=>{calls++;throw Error('must not execute');},()=>{}),
    /ENOENT|selected test path alias|selected regular test file/);
   assert.equal(calls,0,kind);
  }
 });
 
-test('a module printing invented completion text does not count as registered tests',t=>{
+test('a module printing invented completion text does not count as registered tests',async t=>{
  const root=temporary(t);testFixtures(root);
  put(root,'sdk/browser/identity.browser.test.mjs',
   "console.log('# prismpm-owning-file '+JSON.stringify({file:import.meta.filename,tests:1,passed:1}));");
- assert.throws(()=>runSuites(root,spawnSync,()=>{}),/complete selected test file summaries/);
+ await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/complete selected test file summaries/);
 });
 
-test('release acceptance actually invokes every closed owning suite and rejects omission or skip',t=>{
+test('release acceptance actually invokes every closed owning suite and rejects omission or skip',async t=>{
  const root=temporary(t);testFixtures(root);const calls=[];
  const launch=(program,args,options)=>{calls.push(args);return spawnSync(program,args,options);};
  assert.deepEqual(suites.map(row=>row.id),['DK-07','DK-08','DK-09','DK-10','DK-11','DK-12','DK-13','DK-14','DK-15','DK-16','DK-19','DK-20','DK-23','DK-24','DK-25','DK-26','DK-27','DK-31','DK-32','DK-33','DK-34','DK-35','DK-37','DK-38','ST-17','HO-15']);
- const completed=runSuites(root,launch,()=>{}),executions=[...suites,...fallbackSuites];
+ const completed=(await runSuites(root,launch,()=>{})),executions=[...suites,...fallbackSuites,...standaloneSuites];
  assert.deepEqual(completed.slice(0,26).map(row=>row.id),suites.map(row=>row.id));
- assert.deepEqual(completed.slice(26),fallbackSuites.map(row=>({id:row.id,construction:'independent',tests:row.minimum})));
- assert.equal(calls.length,28);
+ assert.deepEqual(completed.slice(26,28),fallbackSuites.map(row=>({id:row.id,construction:'independent',tests:row.minimum})));
+ assert.deepEqual(completed.slice(28),standaloneSuites.map(row=>({id:row.id,tests:row.minimum})));
+ assert.equal(calls.length,34);
  assert.deepEqual(calls.map(args=>args.slice(4)),executions.map(row=>row.files));
  assert.deepEqual(calls.map(args=>args[3]),executions.map(row=>'--test-timeout='+row.deadline));
  const view=suites.find(row=>row.id==='DK-15');assert.equal(view.minimum,43);
  assert.equal(suites.find(row=>row.id==='DK-34').minimum,22);
  assert.equal(suites.find(row=>row.id==='DK-33').minimum,17);
  for(const [index,path] of view.files.entries())put(root,path,testSource(index===0?31:1));
- assert.throws(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/,'omitting the bounded streaming regression must refuse36 tests');
+ await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/,'omitting the bounded streaming regression must refuse36 tests');
  testFixtures(root);
  const path='sdk/browser/identity.test.mjs',second='sdk/browser/identity.browser.test.mjs';
- put(root,path,testSource(1));put(root,second,testSource(1));assert.throws(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/);
- put(root,path,testSource(10,true));put(root,second,testSource(10));assert.throws(()=>runSuites(root,spawnSync,()=>{}),/incomplete pass set|skipped/);
+ put(root,path,testSource(1));put(root,second,testSource(1));await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/);
+ put(root,path,testSource(10,true));put(root,second,testSource(10));await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/incomplete pass set|skipped/);
  put(root,path,testSource(10));
  const duplicate=(...args)=>{const result=spawnSync(...args);result.stdout+='# tests 20\n';return result;};
- assert.throws(()=>runSuites(root,duplicate,()=>{}),/duplicate tests/);
+ await assert.rejects(()=>runSuites(root,duplicate,()=>{}),/duplicate tests/);
  testFixtures(root);rmSync(join(root,'sdk/browser/rs256.browser.test.mjs'));
- assert.throws(()=>runSuites(root,spawnSync,()=>{}),/ENOENT.*rs256\.browser\.test\.mjs/);
+ await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/ENOENT.*rs256\.browser\.test\.mjs/);
 });
 
-test('real TAP parsing rejects missing, duplicate, zero and unsuccessful summaries',t=>{
+test('real TAP parsing rejects missing, duplicate, zero and unsuccessful summaries',async t=>{
  const root=temporary(t);put(root,'complete.mjs',testSource(3));
  const env={...process.env};delete env.NODE_TEST_CONTEXT;
  const output=spawnSync(process.execPath,['--test','--test-reporter=tap',join(root,'complete.mjs')],{encoding:'utf8',env});assert.equal(output.status,0);verifyTap(output.stdout,3);
@@ -645,7 +835,7 @@ test('real TAP parsing rejects missing, duplicate, zero and unsuccessful summari
  ])assert.throws(()=>verifyTap(changed,3));
 });
 
-test('per-file completion evidence is exact, closed, successful and reconciled to real TAP',t=>{
+test('per-file completion evidence is exact, closed, successful and reconciled to real TAP',async t=>{
  const root=temporary(t),file=join(root,'complete.mjs');put(root,'complete.mjs',testSource(3));
  const reporter='data:text/javascript;base64,'+readFileSync(new URL('./owning-node-reporter.mjs',import.meta.url)).toString('base64');
  const env={...process.env};delete env.NODE_TEST_CONTEXT;
@@ -668,10 +858,10 @@ test('per-file completion evidence is exact, closed, successful and reconciled t
  assert.throws(()=>verifyFileCompletions(output.stdout,[file],4));
 });
 
-test('owning release test kills a removed complete-TAP acceptance guard',t=>{
+test('owning release test kills a removed complete-TAP acceptance guard',async t=>{
  const source=readFileSync(new URL('./browser-api-sdk-check.mjs',import.meta.url),'utf8');
  for(const [before,after,witness] of [
-  ['const tests=verifyTap(output.stdout,execution.minimum)',"const tests=Number(/^# tests ([0-9]+)$/m.exec(output.stdout)[1])",/Missing expected exception/],
+  ['const tests=verifyTap(output.stdout,execution.minimum)',"const tests=Number(/^# tests ([0-9]+)$/m.exec(output.stdout)[1])",/Missing expected rejection/],
   ["{id:'DK-15',minimum:43","{id:'DK-15',minimum:42",/42 !== 43/],
   ["{id:'DK-34',minimum:22","{id:'DK-34',minimum:21",/21 !== 22/],
   ["{id:'DK-33',minimum:17","{id:'DK-33',minimum:16",/16 !== 17/],
@@ -684,18 +874,18 @@ test('owning release test kills a removed complete-TAP acceptance guard',t=>{
  }
 });
 
-test('owning omission regression kills removal of actual per-file completion checks',t=>{
+test('owning omission regression kills removal of actual per-file completion checks',async t=>{
  const root=temporary(t),source=readFileSync(new URL('./browser-api-sdk-check.mjs',import.meta.url),'utf8');
- const before='verifyFileCompletions(output.stdout,selected.get(identity(execution)),tests);';
+ const before='verifyFileCompletions(output.stdout,selected.get(identity(execution)),tests,execution.exactTests);';
  assert.equal(source.split(before).length,2);const selected=stageGate(root,source.replace(before,''));
  const env={...process.env};delete env.NODE_TEST_CONTEXT;
  const result=spawnSync(process.execPath,['--test','--test-reporter=tap',
   '--test-name-pattern=every selected file must register',selected],
   {encoding:'utf8',env,timeout:15000,maxBuffer:1024*1024});
- assert.equal(result.error,undefined);assert.equal(result.status,1);assert.match(result.stdout,/Missing expected exception/);
+ assert.equal(result.error,undefined);assert.equal(result.status,1);assert.match(result.stdout,/Missing expected rejection/);
 });
 
-test('owning installed-module tests kill removed exact-tree and byte-equality guards', t => {
+test('owning installed-module tests kill removed exact-tree and byte-equality guards', async t => {
  const original = sdkSource('scripts/browser-api-sdk-check.mjs');
  for (const omitted of [
   "assert.deepEqual(readdirSync(installed).sort(),names.slice().sort(),'exact installed host module closure');",

@@ -53,6 +53,7 @@ export function frozenInputs() {
     'tests/browser-view/file-custody.mjs','tests/browser-view/generated-package.mjs','tests/browser-view/generated-wasm.mjs',
     'tests/browser-presentation/provenance.mjs',
     'model/ids.toml','SPEC.md','features/suites/sdk.feature','scripts/browser-api-sdk-check.mjs',
+    'scripts/sdk-command-owner.mjs','scripts/sdk-command-owner.py',
     'sdk/account-genesis-artifact.mjs','scripts/owning-node-reporter.mjs','sdk/stdlib-sources.tar',
     'crates/conformance/src/cases/mod.rs','crates/conformance/tests/conformance.rs',
     'tests/browser-presentation/corpus.mjs','tests/browser-presentation/maximum-fixtures.mjs',

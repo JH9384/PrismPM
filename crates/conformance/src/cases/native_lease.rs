@@ -181,6 +181,8 @@ fn fixture(root: &Path) -> Fixture {
         "scripts/product-sdk-check.mjs".into(),
         "scripts/library-sdk-check.mjs".into(),
         "scripts/browser-api-sdk-check.mjs".into(),
+        "scripts/sdk-command-owner.mjs".into(),
+        "scripts/sdk-command-owner.py".into(),
         "sdk/inventory-metadata.mjs".into(),
         "sdk/platform-lock.mjs".into(),
         "sdk/migration-qualification.mjs".into(),

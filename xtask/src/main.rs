@@ -229,7 +229,18 @@ fn run_conformance(root: &Path, args: &[String]) -> Result<(), Fail> {
 
     println!("Running conformance suite: {category}");
     command(root, "cargo", &cargo_args)?;
+    if matches!(category, "all" | "desktop-browser") {
+        verify_standalone_browser_owners(root)?;
+    }
     Ok(())
+}
+
+fn verify_standalone_browser_owners(root: &Path) -> Result<(), Fail> {
+    command(
+        root,
+        "node",
+        &["scripts/browser-api-sdk-check.mjs", "standalone"],
+    )
 }
 
 fn run_unit_tests(root: &Path) -> Result<(), Fail> {
@@ -271,6 +282,7 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "scripts/hologram-source-pins.test.mjs",
             "scripts/fetch-oracle-cargo.test.mjs",
             "scripts/browser-api-sdk-check.test.mjs",
+            "scripts/product-sdk-check.test.mjs",
             "scripts/library-sdk-check.test.mjs",
             "scripts/library-sdk-check-shell.test.mjs",
             "scripts/installed-exporter-concurrency.test.mjs",
@@ -716,6 +728,10 @@ fn run_vv(root: &Path) -> Result<(), Fail> {
             "--offline",
         ],
     )?;
+
+    // Separate original standalone pairs are not implied by registered DK
+    // execution or by including their source files in an SDK inventory.
+    verify_standalone_browser_owners(root)?;
 
     println!("VV gate 7/15: feature, conformance, and negative fixtures");
     check_fixtures(root, false)?;

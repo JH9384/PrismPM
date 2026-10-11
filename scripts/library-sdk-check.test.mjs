@@ -26,6 +26,7 @@ const error=(code,message)=>({status:code==='PP6101'?5:1,signal:null,stdout:JSON
 test('closed shipped-library source binding includes implementation, fixtures, schemas and gate itself',t=>{
  const root=temporary(t);source(root);const expected=capture(root,revision);verifySource(root,expected);
  for(const path of ['crates/prismpm/src','crates/prismpm/schemas','tests/fixtures/library/native-library/project','scripts/library-sdk-check.mjs','scripts/library-sdk-check.test.mjs',
+  'scripts/sdk-command-owner.mjs','scripts/sdk-command-owner.py',
   'scripts/hologram-source-pins.mjs','scripts/hologram-source-pins.test.mjs','crates/prismpm/tests/hologram_interop.rs',
   'tests/holo-codec-oracle/Cargo.toml','tests/holo-codec-oracle/Cargo.lock']){
   assert.ok(sourceRoots.includes(path));put(root,path+'/input','mutated');assert.throws(()=>verifySource(root,expected),/source closure/);put(root,path+'/input','source');
@@ -319,6 +320,8 @@ test('owning CLI test kills a removed process-exit guard',t=>{
  const guard='assert.equal(output.status,expected.code ? exits[expected.code] : 0, "CLI exit class");';assert.equal(module.split(guard).length,2);
  put(root,'scripts/library-sdk-check.mjs',module.replace(guard,''));put(root,'scripts/browser-api-sdk-check.mjs',readFileSync(new URL('./browser-api-sdk-check.mjs',import.meta.url)));put(root,'scripts/library-sdk-check.test.mjs',readFileSync(new URL('./library-sdk-check.test.mjs',import.meta.url)));
  put(root,'scripts/library-sdk-fixture.mjs',readFileSync(new URL('./library-sdk-fixture.mjs',import.meta.url)));
+ for(const name of ['sdk-command-owner.mjs','sdk-command-owner.py'])
+  put(root,'scripts/'+name,readFileSync(new URL('./'+name,import.meta.url)));
  put(root,'scripts/installed-exporter-concurrency.mjs',readFileSync(new URL('./installed-exporter-concurrency.mjs',import.meta.url)));
  cpSync(new URL('../sdk',import.meta.url),join(root,'sdk'),{recursive:true});
  const env={...process.env};delete env.NODE_TEST_CONTEXT;

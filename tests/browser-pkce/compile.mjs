@@ -48,6 +48,7 @@ export function frozenInputs() {
     'model/authorities.toml', 'SPEC.md', 'stdlib/src/Foundation/Sec/V1/Pkce.md',
     'lean-toolchain', 'rust-toolchain.toml', 'LICENSE-MIT', 'LICENSE-APACHE',
     'scripts/browser-api-sdk-check.mjs', 'sdk/Dockerfile',
+    'scripts/sdk-command-owner.mjs', 'scripts/sdk-command-owner.py',
     'tests/browser-pkce/oracles/rfc7636.txt', 'vendor/lean4-prod/lean.tar']) files.add(path);
   // Capture transitive static imports, not only the visible entry filenames.
   // The independent protocol oracle and browser harness are part of this closure.

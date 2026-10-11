@@ -20,11 +20,14 @@ bash scripts/bootstrap-verify.sh --check-source
 # manifest digest to the tests. A Docker config image ID is not an OCI
 # distribution identity. A caller may instead supply an already verified
 # digest (for example, the released image in a consumer repository).
-# package-api owns source generation, verification and offline package checks;
-# it never consumes the runtime SDK. Only that exact single operation omits
-# image preparation. Preflights and the owning cargo command remain unchanged.
+# package-api and the two exact source-only conformance selectors below never
+# execute the runtime SDK image. Their local compiler, native and browser
+# owners remain unchanged. Other selectors, extra arguments, and --with-sdk
+# still prepare the image. Both preflights and cargo dispatch are unchanged.
 if test -z "${PRISMPM_TEST_SDK_IMAGE:-}" &&
-  ! { test "$#" -eq 1 && test "${1:-}" = package-api; }; then
+  ! { { test "$#" -eq 1 && test "${1:-}" = package-api; } ||
+      { test "$#" -eq 2 && test "${1:-}" = conformance &&
+        { test "${2:-}" = holo-stdlib || test "${2:-}" = desktop-browser; }; }; }; then
   zot_image='ghcr.io/project-zot/zot@sha256:cd2aea942f428630bcb4190542be6abd35e14177aab84fc7ccad0dca8ecb363d'
   nonce="$$-${RANDOM}"
   registry="prismpm-vv-registry-${nonce}"

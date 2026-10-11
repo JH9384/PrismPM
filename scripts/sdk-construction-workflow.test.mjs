@@ -14,7 +14,7 @@ function validate(text){
  assert.deepEqual(w.permissions,{});assert(j,'a separate no-publication construction owner is required');
  assert.equal(j.if,predicate);assert.deepEqual(j.permissions,{contents:'read'});
  assert.equal(j['timeout-minutes'],180);assert.equal(j['runs-on'],'${{ matrix.runner }}');
- assert.deepEqual(j.strategy,{'fail-fast':false,matrix:{include:[{runner:'ubuntu-24.04',architecture:'amd64'},{runner:'ubuntu-24.04-arm',architecture:'arm64'}]}});
+ assert.deepEqual(j.strategy,{'fail-fast':false,'max-parallel':2,matrix:{include:[{runner:'ubuntu-24.04',architecture:'amd64'},{runner:'ubuntu-24.04-arm',architecture:'arm64'}]}});
  assert.equal(j.environment,undefined);assert.equal(j.needs,'input-policy');
  assert.equal(w.jobs.policy.needs,'input-policy');
  const input=w.jobs['input-policy'];assert.deepEqual(input.permissions,{});
@@ -51,16 +51,23 @@ function validate(text){
  for(const name of ['policy','build','publish'])assert(w.jobs[name].if.includes("github.ref == 'refs/heads/main'"));
  assert.deepEqual(w.jobs.publish.needs,'build');assert.equal(w.jobs.publish.environment,'sdk-candidate');
  const canonical=v=>JSON.stringify(v,(_,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.fromEntries(Object.keys(x).sort().map(k=>[k,x[k]])):x);
+ assert.equal(w.jobs.policy['timeout-minutes'],30);
+ assert.equal(w.jobs.build.strategy['max-parallel'],2);
+ // These are the only independently reviewed additive bounds layered onto
+ // the historical protected owners.  Normalize those fields solely for the
+ // old-body hash; every command, dependency, permission, and condition
+ // remains covered by the hash and explicit assertions above.
+ const protectedBody=(name)=>{const body=structuredClone(w.jobs[name]);if(name==='policy'){delete body.needs;delete body['timeout-minutes'];}if(name==='build')delete body.strategy['max-parallel'];return body;};
  // Complete original protected owners, captured before this additive change.
  for(const [name,expected] of Object.entries({policy:'33851cff53bf24eb20eb90e17edac1181d71ed1527dbe18735f1038788ad05e2',build:'fc01189810bbbb18f7e30c232bf81a10d510689c08f7621bbebbb47f7cffc4cd',publish:'341a4964415efc121c469d7f1a609771f91816471e3decb8fea51fe3f8f7a5f3'})){
-  const original=structuredClone(w.jobs[name]);if(name==='policy')delete original.needs;
+  const original=protectedBody(name);
   assert.equal(createHash('sha256').update(canonical(original)).digest('hex'),expected,'protected publication owner changed: '+name);
  }
 }
 test('unpublished construction preserves protected publication and both real native build owners',()=>validate(raw()));
 test('construction policy rejects privilege, target and native-host substitutions',()=>{
  const text=raw();
- for(const [from,to] of [[predicate,'true'],['contents: read','contents: write'],['runner: ubuntu-24.04-arm','runner: ubuntu-24.04'],['architecture: arm64','architecture: amd64'],['fail-fast: false','fail-fast: true'],['ref: ${{ inputs.construction_source_revision }}','ref: main'],['^\u005b0-9a-f\u005d{40}$','.*'],['--platform "linux/$ARCHITECTURE"','--platform linux/amd64'],['node scripts/sdk-construction-record.mjs','true # node scripts/sdk-construction-record.mjs'],['name: unpublished-sdk-construction-','name: sdk-candidate-']]){
+ for(const [from,to] of [[predicate,'true'],['contents: read','contents: write'],['runner: ubuntu-24.04-arm','runner: ubuntu-24.04'],['architecture: arm64','architecture: amd64'],['fail-fast: false','fail-fast: true'],['max-parallel: 2','max-parallel: 1'],['timeout-minutes: 180','timeout-minutes: 179'],['ref: ${{ inputs.construction_source_revision }}','ref: main'],['^\u005b0-9a-f\u005d{40}$','.*'],['--platform "linux/$ARCHITECTURE"','--platform linux/amd64'],['node scripts/sdk-construction-record.mjs','true # node scripts/sdk-construction-record.mjs'],['name: unpublished-sdk-construction-','name: sdk-candidate-']]){
   // Apply mutations to the new job, not a different, already protected owner.
   const start=text.indexOf('  unpublished-construction:');assert(start>=0);
   const suffix=text.slice(start);assert(suffix.includes(from),from);
@@ -78,5 +85,26 @@ test('every protected owner and admission dependency remains intact under mutati
  const text=raw();
  for(const changed of [text.replace('needs: input-policy','needs: nonexistent'),text.replace('if: github.repository', 'if: true # github.repository'),text.replace('environment: sdk-candidate','environment: unrelated'),text.replace('packages: write','packages: read'),text.replace("github.ref == 'refs/heads/main'",'true'),text.replace('needs: build','needs: input-policy')]){
   assert.notEqual(changed,text);assert.throws(()=>validate(changed));
+ }
+});
+test('normalized capacity fields stay mandatory and construction strategy remains closed',()=>{
+ const text=raw();
+ const changeJob=(name,from,to)=>{
+  const start=text.indexOf(`  ${name}:\n`);assert(start>=0);
+  const next=text.slice(start+1).search(/\n  [a-z][a-z-]*:\n/);
+  const end=next<0?text.length:start+1+next;
+  const body=text.slice(start,end);assert(body.includes(from),`${name}: ${from}`);
+  const changed=text.slice(0,start)+body.replace(from,to)+text.slice(end);
+  assert.notEqual(changed,text);return changed;
+ };
+ for(const [name,from,to] of [
+  ['policy','    timeout-minutes: 30\n',''],
+  ['policy','timeout-minutes: 30','timeout-minutes: 29'],
+  ['build','      max-parallel: 2\n',''],
+  ['build','max-parallel: 2','max-parallel: 3'],
+  ['unpublished-construction','      max-parallel: 2','      unknown-policy: true\n      max-parallel: 2'],
+ ]) {
+  const changed=changeJob(name,from,to);
+  assert.throws(()=>validate(changed),`${name}: ${from}`);
  }
 });

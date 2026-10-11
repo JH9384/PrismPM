@@ -103,6 +103,21 @@ test('additive integrity owner must be skipped and cannot replace original nativ
  }
  const g=fixture();g.authority.jobs[5]={...g.authority.jobs[3],id:6,name:'construction-integrity'};assert.throws(()=>g.admit());
 });
+test('the current seven-job workflow profile is exact and bounds or command mutations fail closed',()=>{
+ const current=readFileSync(new URL('../.github/workflows/sdk-candidate.yml',import.meta.url));
+ const f=fixture();f.workflow=current;f.authority.jobs.push({...f.authority.jobs[3],id:7,name:'construction-integrity'});
+ assert.doesNotThrow(()=>f.admit());
+ for(const mutation of [
+  ['timeout-minutes: 180','timeout-minutes: 179'],
+  ['max-parallel: 2','max-parallel: 1'],
+  ['node scripts/sdk-construction-record.mjs','node scripts/sdk-construction-record.mjs --mutated']
+ ]){
+  const altered=Buffer.from(current.toString().replace(mutation[0],mutation[1]));
+  assert.notDeepEqual(altered,current,'the mutation must reach the actual workflow');
+  const bad=fixture();bad.workflow=altered;bad.authority.jobs.push({...bad.authority.jobs[3],id:7,name:'construction-integrity'});
+  assert.throws(()=>bad.admit(),/unreviewed source workflow profile/);
+ }
+});
 test('provider admission rejects wrong repository workflow source run attempt and failed native jobs',()=>{
  for(const mutate of [f=>f.authority.run.repository.full_name='other/repo',f=>f.authority.run.head_repository.id=2,
   f=>f.authority.run.path='.github/workflows/release.yml',f=>f.authority.run.head_sha='b'.repeat(40),f=>f.authority.run.event='pull_request',

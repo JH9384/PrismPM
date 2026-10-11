@@ -21,7 +21,10 @@ const metadataLimit=96*1024**2;
 // job count, decide the complete inventory. Unknown workflows fail closed.
 const workflowProfiles=new Map([
  ['sha256:50d8165fbab57b4022c0475d3cb9b80ad63ba1644bc7182089b1525f5f920043',6],
- ['sha256:bbfbd47a2ec3131cb00912c496f8c627e48f6e067937b9042f241764beb38a15',7]
+ ['sha256:bbfbd47a2ec3131cb00912c496f8c627e48f6e067937b9042f241764beb38a15',7],
+ // Current source-reviewed candidate workflow.  Keep historical profiles
+ // above immutable; a new workflow is admitted only by this exact digest.
+ ['sha256:ed952dbab6305ff49d8d1a3c19376049567455b73b6e673a01d72c43904d1f96',7]
 ]);
 const authorities=new WeakMap(),metadata=new WeakMap();
 const sha=bytes=>'sha256:'+createHash('sha256').update(bytes).digest('hex');

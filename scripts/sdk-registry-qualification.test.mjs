@@ -1,11 +1,11 @@
 // Unit evidence for the qualifier. Real registry/daemon proof is separate CI.
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {createHash} from 'node:crypto';
+import {createHash, randomBytes} from 'node:crypto';
 import {createServer} from 'node:https';
 import {linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync,
   symlinkSync, unlinkSync, writeFileSync} from 'node:fs';
-import {networkInterfaces, tmpdir} from 'node:os';
+import {hostname, networkInterfaces, tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'node:test';
 import {createTransportLayout, acquireQualificationMetadata, captureQualificationFiles,
@@ -265,8 +265,83 @@ test('registry SAN allocation is fixed before create and standard Go mismatch wo
   assert.throws(() => validateSanFailure({...result, stderr: Buffer.from('connection refused')}));
 });
 
-test('resource validation uses actual running cgroup bytes and rejects missing or nonzero measurements', () => {
-  const raw = Buffer.concat(['memory.max', 'memory.peak', 'memory.events'].map(name => readFileSync('/sys/fs/cgroup/' + name)));
+test('resource validation uses actual running cgroup bytes and rejects missing or nonzero measurements', t => {
+  let raw = Buffer.concat(['memory.max', 'memory.peak', 'memory.events'].map(name => readFileSync('/sys/fs/cgroup/' + name)));
+  // Ordinary devcontainers may be unbounded. Reject that real measurement, then
+  // obtain the positive measurement from a real, bounded instance of this image.
+  // Do not cap the full V&V container or manufacture finite resource readings.
+  if (raw.toString().split('\n')[0] === 'max') {
+    const boundedLimit = 64 * 1024 * 1024;
+    assert.throws(() => validateQualificationResources(raw, boundedLimit));
+    const docker = args => execFileSync('/usr/local/bin/docker', ['--host=unix:///var/run/docker.sock', ...args], {
+      timeout: 5000, killSignal: 'SIGKILL', maxBuffer: 65536,
+      env: {...process.env, DOCKER_CONTEXT: '', DOCKER_TLS_VERIFY: '', DOCKER_CERT_PATH: ''},
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const inspect = target => JSON.parse(docker(['container', 'inspect', '--format',
+      '{"id":{{json .Id}},"image":{{json .Image}},"name":{{json .Name}},"hostname":{{json .Config.Hostname}},' +
+      '"labels":{{json .Config.Labels}},"user":{{json .Config.User}},"running":{{json .State.Running}},' +
+      '"exit":{{json .State.ExitCode}},"memory":{{json .HostConfig.Memory}},"swap":{{json .HostConfig.MemorySwap}},' +
+      '"readonly":{{json .HostConfig.ReadonlyRootfs}},"network":{{json .HostConfig.NetworkMode}}}', target]).toString());
+    const absent = target => {
+      assert.throws(() => docker(['container', 'inspect', target]), error => {
+        assert.equal(error.status, 1); assert.equal(error.signal, null);
+        assert.match(error.stderr.toString(), /(?:No such container|no such container):/);
+        assert(error.stderr.toString().includes(target));
+        t.diagnostic('actual Docker absence: ' + error.stderr.toString().trim());
+        return true;
+      });
+    };
+    const kernelHostname = hostname();
+    assert.match(kernelHostname, /^[0-9a-f]{12,64}$/);
+    const caller = inspect(kernelHostname);
+    assert.match(caller.id, /^[0-9a-f]{64}$/);
+    assert(caller.id.startsWith(kernelHostname));
+    assert.equal(caller.hostname, kernelHostname); assert.equal(caller.running, true);
+    assert.match(caller.image, /^sha256:[0-9a-f]{64}$/);
+    assert.equal(docker(['image', 'inspect', '--format', '{{.Id}}', caller.image]).toString().trim(), caller.image);
+    const nonce = randomBytes(16).toString('hex'), name = 'prism-resource-unit-' + nonce;
+    const label = 'org.uor.prismpm.resource-unit', cidfile = join(directory(t), 'cid');
+    absent(name);
+    let id;
+    try {
+      const created = docker(['create', '--pull=never', '--cidfile', cidfile, '--name', name,
+        '--label', label + '=' + nonce, '--memory=64m', '--memory-swap=64m', '--cpus=1', '--pids-limit=32',
+        '--user=65534:65534', '--read-only', '--network=none', '--cap-drop=ALL',
+        '--security-opt=no-new-privileges', '--entrypoint=/bin/sh', caller.image, '-c',
+        'cat /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory.events']).toString().trim();
+      id = readFileSync(cidfile, 'utf8').trim();
+      assert.match(id, /^[0-9a-f]{64}$/); assert.equal(created, id);
+      const allocated = inspect(id);
+      assert.equal(allocated.id, id); assert.equal(allocated.name, '/' + name);
+      assert.equal(allocated.labels?.[label], nonce); assert.equal(allocated.image, caller.image);
+      assert.equal(allocated.memory, boundedLimit); assert.equal(allocated.swap, boundedLimit);
+      assert.equal(allocated.user, '65534:65534'); assert.equal(allocated.readonly, true);
+      assert.equal(allocated.network, 'none'); assert.equal(allocated.running, false);
+      raw = docker(['start', '--attach', id]);
+      const terminal = inspect(id);
+      assert.equal(terminal.id, id); assert.equal(terminal.running, false); assert.equal(terminal.exit, 0);
+      assert.equal(raw.toString().split('\n')[0], String(boundedLimit));
+      validateQualificationResources(raw, boundedLimit);
+      t.diagnostic(JSON.stringify({caller: caller.id, image: caller.image, id, name, raw: raw.toString(), exit: terminal.exit}));
+    } finally {
+      // A private creation receipt also identifies allocations if create failed
+      // after allocation. Never adopt an actor from its name or label alone.
+      if (id === undefined) {
+        try {id = readFileSync(cidfile, 'utf8').trim();}
+        catch (error) {if (error.code !== 'ENOENT') throw error;}
+      }
+      if (id !== undefined) {
+        assert.match(id, /^[0-9a-f]{64}$/);
+        const owned = inspect(id);
+        assert.equal(owned.id, id); assert.equal(owned.name, '/' + name);
+        assert.equal(owned.labels?.[label], nonce); assert.equal(owned.image, caller.image);
+        assert.equal(docker(['rm', '--force', id]).toString().trim(), id);
+        absent(id);
+      }
+      absent(name);
+    }
+  }
   const limit = Number(raw.toString().split('\n')[0]), valid = validateQualificationResources(raw, limit);
   assert.equal(valid.maximum, limit); assert(valid.peak > 0 && valid.peak <= limit);
   for (const name of ['max', 'oom', 'oom_kill']) {

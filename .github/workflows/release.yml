@@ -531,14 +531,15 @@ jobs:
           NATIVE_PLATFORM: linux/${{ matrix.arch }}
         run: |
           set -euo pipefail
-          node root-a/scripts/sdk-vv-check.mjs tests
-          node root-a/scripts/sdk-vv-check.mjs run "$(cat .shipped-image/sdk-image.txt)" \
+          bash root-a/scripts/sdk-vv-outer.sh "$(cat .shipped-image/sdk-image.txt)" \
             "$GITHUB_SHA" "${NATIVE_PLATFORM#linux/}" "$RESULT_NAME-full-sdk-vv"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: full-sdk-vv-sdk-${{ matrix.arch }}
-          path: sdk-${{ matrix.arch }}-full-sdk-vv/
+          path: |
+            sdk-${{ matrix.arch }}-full-sdk-vv/
+            sdk-${{ matrix.arch }}-full-sdk-vv-outer-owner/
           if-no-files-found: error
           retention-days: 30
       - name: Verify genuine installed product CLI and source-free browser release

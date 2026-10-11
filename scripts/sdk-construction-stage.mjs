@@ -50,7 +50,7 @@ function dispose(row){
   equal(after,before,['dev','ino','mode','uid','gid','size','mtimeNs']);assert.equal(after.nlink,0n,'original staged inode still linked');
   assert.equal(lstatSync(row.file,{throwIfNoEntry:false}),undefined);fsyncSync(row.root);absent=true;}
  catch(error){errors.push(error);}
- for(const key of ['fd','root'])if(row[key]!==undefined){try{closeSync(row[key]);}catch(error){errors.push(error);}row[key]=undefined;}
+ for(const key of ['fd','readFd','root'])if(row[key]!==undefined){try{closeSync(row[key]);}catch(error){errors.push(error);}row[key]=undefined;}
  row.retired=true;
  if(errors.length)throw new AggregateError(errors,'original staged OCI retirement unproven');
  return {original_file_absent:absent,descriptors_closed:true,scope:'owned OCI staging retirement only'};
@@ -102,6 +102,12 @@ export function beginConstructionStage(parent,archive,end){
     try{
      assert.equal(row.written,row.archive.byte_length);deadline(end);fileCustody(row);fsyncSync(fd);fchmodSync(fd,0o400);
      row.sealed=fstatSync(fd,{bigint:true});assert.equal(row.sealed.size,BigInt(row.archive.byte_length));assert.equal(row.sealed.mode&0o7777n,0o400n);
+     // chmod does not revoke the writer's existing access mode. Own the new
+     // read-only descriptor before any fallible identity check, then retire
+     // the original writer before publishing or digesting sealed custody.
+     row.readFd=openSync(row.file,constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_NONBLOCK);
+     equal(fstatSync(row.readFd,{bigint:true}),row.sealed);rootCustody(row);fileCustody(row);
+     closeSync(row.fd);row.fd=row.readFd;row.readFd=undefined;
      await hashFile(row,end);assert(available(root)>=BigInt(reserve),'12GiB staging reserve lost');
      rootCustody(row);fileCustody(row);deadline(end);
      const handle=Object.freeze({});stages.set(handle,row);row.published=true;return handle;

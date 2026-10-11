@@ -1,6 +1,6 @@
 // Real native transport qualification, not SDK execution or release acceptance.
 import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
+import {executeOwnedSdkCommand} from './sdk-command-owner.mjs';
 import {createHash, randomBytes, X509Certificate} from 'node:crypto';
 import {createServer as createHttpServer} from 'node:http';
 import {createServer as createHttpsServer, request} from 'node:https';
@@ -123,61 +123,11 @@ export function captureQualificationFiles(paths, root = process.cwd()) {
 
 export async function executeQualificationProcess(program, args, {timeout = 60000, signal, onOutput} = {}) {
   assert(Number.isSafeInteger(timeout) && timeout > 0 && timeout <= 300000);
-  signal?.throwIfAborted();
-  const child = spawn(program, args, {stdio: ['ignore', 'pipe', 'pipe'], detached: true,
-    env: {PATH: process.env.PATH, LANG: 'C', LC_ALL: 'C'}});
-  const stdout = [], stderr = [];
-  let size = 0, overflow = false, timedOut = false, aborted = false, killTimer, closeTimer, retirementDeadline, terminal, exited;
-  let rejectRetirement;
-  const retirementFailure = new Promise((_, reject) => {rejectRetirement = reject;});
-  child.once('exit', (status, signal) => {exited = {status, signal};});
-  const killGroup = signal => {
-    if (child.pid) try {process.kill(-child.pid, signal);} catch (error) {if (error.code !== 'ESRCH') throw error;}
-  };
-  const groupExists = () => {
-    if (!child.pid) return false;
-    try {process.kill(-child.pid, 0); return true;} catch (error) {if (error.code === 'ESRCH') return false; throw error;}
-  };
-  const retire = () => {
-    if (retirementDeadline === undefined) {
-      retirementDeadline = performance.now() + 5000;
-      killGroup('SIGTERM'); killTimer = setTimeout(() => killGroup('SIGKILL'), 4000);
-      closeTimer = setTimeout(() => {
-        killGroup('SIGKILL'); rejectRetirement(Error('owned process close/group retirement unproven within five seconds'));
-      }, 5000);
-    }
-  };
-  const abort = () => {aborted = true; retire();};
-  signal?.addEventListener('abort', abort, {once: true}); if (signal?.aborted) abort();
-  for (const [stream, chunks, name] of [[child.stdout, stdout, 'stdout'], [child.stderr, stderr, 'stderr']]) stream.on('data', bytes => {
-    size += bytes.length;
-    if (size > 4 * 1024 ** 2) {overflow = true; retire();} else {chunks.push(bytes); onOutput?.(name, bytes);}
-  });
-  const timer = setTimeout(() => {timedOut = true; retire();}, timeout);
-  try {
-    return await Promise.race([(async () => {
-      terminal = await new Promise((resolve, reject) => {
-        child.once('error', reject); child.once('close', (status, signal) => resolve({status, signal}));
-      });
-      const orphaned = retirementDeadline === undefined && groupExists();
-      if (orphaned) retire();
-      while (groupExists()) {
-        if (performance.now() >= retirementDeadline) {killGroup('SIGKILL'); throw Error('owned process-group retirement unproven within five seconds');}
-        await new Promise(resolve => setTimeout(resolve, 10));
-      }
-      return {...terminal, pid: child.pid, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr),
-        timedOut, overflow, aborted, orphaned, group_absent: true, close_observed: true,
-        retirement: 'actual-child-close-observed'};
-    })(), retirementFailure]);
-  } catch (error) {
-    error.result = {...(terminal ?? {}), pid: child.pid, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr),
-      timedOut, overflow, aborted, group_absent: !groupExists(), close_observed: terminal !== undefined,
-      exited, retirement: 'unproven', uncertainty: String(error)};
-    // Release our pipe handles without treating late close as timely retirement.
-    child.stdout.destroy(); child.stderr.destroy(); throw error;
-  } finally {clearTimeout(timer); clearTimeout(killTimer); clearTimeout(closeTimer); signal?.removeEventListener('abort', abort);}
+  const result = await executeOwnedSdkCommand(program, args, {profile: 'qualification', timeout, signal, onOutput,
+    environment: {PATH: process.env.PATH, LANG: 'C', LC_ALL: 'C'}, limit: 4 * 1024 ** 2, aggregate: true});
+  return {...result, descendants_absent: result.retirement.descendants_absent,
+    process_retirement: result.retirement, retirement: 'actual-subreaper-exhaustion-observed'};
 }
-
 export function qualificationRegistryAddress(subnet) {
   const match = /^(\d+)\.(\d+)\.(\d+)\.(\d+)\/(\d+)$/.exec(subnet); assert(match);
   const parts = match.slice(1, 5).map(Number), prefix = Number(match[5]);
@@ -300,13 +250,14 @@ async function run(destination) {
     const record = {id, program, arguments: args, started, completed: new Date().toISOString(),
       status: result.status, signal: result.signal, timedOut: result.timedOut, overflow: result.overflow,
       aborted: result.aborted, pid: result.pid, retirement: result.retirement,
-      group_absent: result.group_absent, orphaned: result.orphaned,
-      close_observed: result.close_observed, exited: result.exited, uncertainty: result.uncertainty,
+      descendants_absent: result.descendants_absent, orphaned: result.orphaned,
+      process_retirement: result.process_retirement ?? result.retirement,
+      close_observed: result.close_observed,
       stdout_sha256: hash(result.stdout), stderr_sha256: hash(result.stderr)};
     commands.push(record); writeFileSync(join(publicRoot, id + '.json'), JSON.stringify(record) + '\n', {flag: 'wx'});
     if (processFailure) throw processFailure;
-    assert(!result.overflow && !result.timedOut && !result.aborted && !result.orphaned && result.group_absent && result.close_observed && result.signal === null,
-      'actual bounded command and process-group completion required');
+    assert(!result.overflow && !result.timedOut && !result.aborted && !result.orphaned && result.descendants_absent && result.close_observed && result.signal === null,
+      'actual bounded command and subreaper exhaustion required');
     if (!allowFailure) assert.equal(result.status, 0, result.stderr.toString().slice(-4096));
     if (interrupted && !cleaning) throw interrupted;
     return result;
@@ -385,8 +336,10 @@ async function run(destination) {
     const buildx = await execute('docker', ['buildx', 'version']);
     assert.match(buildx.stdout.toString().trim(), /^github\.com\/docker\/buildx v0\.28\.0 b1281b81bba797b21d9eaf256e6a13eb14419836$/);
     await execute('oras', ['version']); await execute('openssl', ['version']);
+    const python = await execute('/usr/bin/python3', ['-I', '-B', '-c', 'import sys; print(".".join(map(str,sys.version_info[:3])))']);
+    assert.equal(python.stdout.toString().trim(), '3.11.2');
     for (const [tool, path] of [['node', '/usr/local/bin/node'], ['docker', '/usr/local/bin/docker'],
-      ['oras', '/usr/local/bin/oras'], ['docker-buildx', '/usr/local/libexec/docker/cli-plugins/docker-buildx']]) {
+      ['oras', '/usr/local/bin/oras'], ['docker-buildx', '/usr/local/libexec/docker/cli-plugins/docker-buildx'], ['python3', '/usr/bin/python3']]) {
       const bytes = readFileSync(path);
       writeFileSync(join(publicRoot, tool + '-identity.json'), JSON.stringify({path,
         bytes: bytes.length, sha256: hash(bytes)}) + '\n', {flag: 'wx'});

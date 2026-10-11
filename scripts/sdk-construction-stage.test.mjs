@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import {syncBuiltinESMExports} from 'node:module';
 import {Readable} from 'node:stream';
 import {chmodSync,existsSync,linkSync,mkdtempSync,mkdirSync,readdirSync,readFileSync,
- renameSync,rmSync,symlinkSync,writeFileSync} from 'node:fs';
+ readlinkSync,renameSync,rmSync,symlinkSync,writeFileSync,writeSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fixture} from './sdk-construction-archive-fixture.mjs';
@@ -19,6 +19,14 @@ test('whole original ZIP admission alone publishes an opaque stage and exact tar
   const f=fixture({wide}),r=await stageConstructionArchiveStream(input(f.bytes),f.plan,root);
   assert(r.integrity.transport_closed);assert.deepEqual(Object.keys(r.handle),[]);assert(Object.isFrozen(r.handle));
   assert.deepEqual(constructionStageDescriptor(r.handle),{...f.plan.archive,scope:'verified original OCI tar custody only'});
+  const stagedPath=join(root,readdirSync(root)[0]);
+  const held=readdirSync('/proc/self/fd').filter(fd=>{
+   try{return readlinkSync('/proc/self/fd/'+fd)===stagedPath;}catch(error){if(error.code==='ENOENT')return false;throw error;}
+  });
+  assert.equal(held.length,1,'one original stage descriptor must remain held');
+  const flags=/^flags:\s+([0-7]+)$/m.exec(readFileSync('/proc/self/fdinfo/'+held[0],'utf8'));
+  assert(flags);assert.equal(parseInt(flags[1],8)&3,fs.constants.O_RDONLY,'sealed descriptor itself must be read-only');
+  assert.throws(()=>writeSync(Number(held[0]),Buffer.of(0),0,1,0),{code:'EBADF'});
   const parts=[];let active=0;
   const readback=await consumeConstructionStage(r.handle,async b=>{assert.equal(++active,1);await new Promise(resolve=>setImmediate(resolve));parts.push(b);active--;});
   assert.deepEqual(Buffer.concat(parts),f.archive);assert.equal(readback.digest,f.plan.archive.digest);
@@ -132,6 +140,27 @@ test('failure immediately after exclusive file open cannot leak its original fil
   assert.throws(()=>beginConstructionStage(root,f.plan.archive,performance.now()+10000));assert(Number.isInteger(failedFd));
   assert.throws(()=>original(failedFd),{code:'EBADF'});assert.deepEqual(readdirSync(root),[]);
  }finally{mock.restoreAll();syncBuiltinESMExports();}
+ for(const fault of ['readonly-open','readonly-stat']){
+  const actualOpen=fs.openSync,actualStat=fs.fstatSync;let writer,reader,injected=false;
+  mock.method(fs,'openSync',function(path,flags,...args){
+   const reopening=String(path).startsWith('/proc/self/fd/')&&String(path).includes('/.prismpm-oci-')&&(flags&3)===fs.constants.O_RDONLY;
+   if(reopening&&fault==='readonly-open'){injected=true;throw Error('unit-only readonly reopen failure');}
+   const opened=actualOpen.call(this,path,flags,...args);
+   if(flags&fs.constants.O_CREAT)writer=opened;if(reopening)reader=opened;return opened;
+  });
+  mock.method(fs,'fstatSync',function(fd,...args){
+   if(fd===reader&&fault==='readonly-stat'&&!injected){injected=true;throw Error('unit-only readonly identity failure');}
+   return actualStat.call(this,fd,...args);
+  });
+  syncBuiltinESMExports();
+  try{
+   const stream=input(f.bytes);await assert.rejects(stageConstructionArchiveStream(stream,f.plan,root));
+   assert(injected,'readonly transition fault must execute');assert(stream.closed);
+   assert(Number.isInteger(writer));assert.throws(()=>actualStat(writer),{code:'EBADF'});
+   if(reader!==undefined)assert.throws(()=>actualStat(reader),{code:'EBADF'});
+   assert.deepEqual(readdirSync(root),[]);
+  }finally{mock.restoreAll();syncBuiltinESMExports();}
+ }
 }));
 test('caller archive accessors cannot throw after file acquisition and leave an unowned descriptor',async()=>temporary(async root=>{
  const f=fixture(),original=fs.openSync;let reads=0,openedFd;

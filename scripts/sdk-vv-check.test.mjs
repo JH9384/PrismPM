@@ -1,7 +1,7 @@
 // These unit adapters validate orchestration, never installed SDK acceptance.
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statfsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
@@ -28,6 +28,114 @@ test('platform selection binds actual index bytes and rejects duplicate or wrong
   assert.throws(() => selectPlatform(bytes, digest(bytes), 'arm64'));
   const duplicated = Buffer.from(JSON.stringify({schemaVersion: 2, mediaType: 'application/vnd.oci.image.index.v1+json', manifests: [child, child]}));
   assert.throws(() => selectPlatform(duplicated, digest(duplicated), 'amd64'));
+});
+
+test('the actual outer shell refuses foreign ownership and reconciles only authenticated creation files', async t => {
+  // Explicit Docker boundary units, not image/SDK/full-VV qualification. The
+  // shipped wrapper itself executes in Bash; only the daemon is a fixture.
+  const docker = String.raw`#!/bin/bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$UNIT_ROOT/docker.commands"
+cid=$(printf 'd%.0s' {1..64}); iid=sha256:$(printf 'e%.0s' {1..64})
+case "$1:$2" in
+  container:inspect)
+    reference=$3
+    if test "$UNIT_MODE" = create-renamed && test "$reference" != "$cid"; then
+      echo "Error: No such container: $reference" >&2; exit 1
+    fi
+    if test -f "$UNIT_ROOT/container.exists"; then
+      format=; if test "$#" -ge 5; then format=$5; fi
+      case "$format" in
+        '{{.Id}}') printf '%s\n' "$cid" ;;
+        '{{index .Config.Labels "org.uor.prismpm.sdk-outer"}}')
+          if test "$UNIT_MODE" = wrong-label; then echo foreign
+          elif test "$UNIT_MODE" = foreign-matching-label; then cat "$UNIT_ROOT/sdk-$UNIT_ARCH-full-sdk-vv-outer-owner/owner.name"
+          else cat "$UNIT_ROOT/owner"; fi ;;
+        '{{.State.Running}}') echo false ;;
+        '{{.State.ExitCode}}') echo 0 ;;
+        '{{.State.OOMKilled}}') echo false ;;
+        '') echo '[{"unit_only":true}]' ;;
+        *) exit 99 ;;
+      esac
+    else echo "Error: No such container: $reference" >&2; exit 1; fi ;;
+  image:inspect)
+    if test -f "$UNIT_ROOT/image.exists"; then
+      if test "$UNIT_MODE" = build-wrong-tag; then printf 'sha256:'; printf 'f%.0s' {1..64}; printf '\n'; else printf '%s\n' "$iid"; fi
+    else echo "Error: No such image: $3" >&2; exit 1; fi ;;
+  buildx:build)
+    shift 2; file= tag=
+    while test "$#" -gt 0; do
+      case "$1" in --iidfile) file=$2; shift 2 ;; --tag) tag=$2; shift 2 ;; *) shift ;; esac
+    done
+    test -n "$file"; test -n "$tag"; touch "$UNIT_ROOT/image.exists"
+    case "$UNIT_MODE" in
+      build-missing-id|build-success-missing-id) ;;
+      build-malformed-id) echo malformed > "$file" ;;
+      *) printf '%s\n' "$iid" > "$file" ;;
+    esac
+    case "$UNIT_MODE" in build-partial|build-missing-id) echo partial; exit 1 ;; esac ;;
+  container:create)
+    shift 2; file= owner=
+    while test "$#" -gt 0; do
+      case "$1" in --cidfile) file=$2; shift 2 ;; --name) owner=$2; shift 2 ;; *) shift ;; esac
+    done
+    printf '%s\n' "$owner" > "$UNIT_ROOT/owner"; touch "$UNIT_ROOT/container.exists"
+    if test "$UNIT_MODE" != create-missing-id; then
+      if test "$UNIT_MODE" = wrong-id; then printf 'f%.0s' {1..64} > "$file"; printf '\n' >> "$file"
+      else printf '%s\n' "$cid" > "$file"; fi
+    fi
+    case "$UNIT_MODE" in create-partial|create-missing-id|create-renamed) echo partial; exit 1 ;; esac
+    printf '%s\n' "$cid" ;;
+  container:start) test "$3" = --attach ;;
+  container:rm)
+    test "$3" = --force; test "$4" = --volumes; test "$5" = "$cid"
+    rm "$UNIT_ROOT/container.exists" ;;
+  image:rm) rm "$UNIT_ROOT/image.exists" ;;
+  *) exit 99 ;;
+esac
+`;
+  const script = String.raw`set -euo pipefail
+cd "$UNIT_ROOT"
+git() { case "$*" in *'rev-parse HEAD') printf '%s\n' "$UNIT_REVISION" ;; *'status --porcelain') ;; *) return 99 ;; esac; }
+df() { printf 'Avail\n30064771072\n'; }
+stat() { printf '1000\n'; }
+cat() { if test "$*" = /proc/sys/kernel/random/uuid; then echo 01234567-89ab-cdef-0123-456789abcdef; else command cat "$@"; fi; }
+export -f git df stat cat
+/bin/bash root-a/scripts/sdk-vv-outer.sh "$UNIT_IMAGE" "$UNIT_REVISION" "$UNIT_ARCH" "sdk-$UNIT_ARCH-full-sdk-vv"
+`;
+  for (const mode of ['complete', 'foreign-container', 'foreign-matching-label', 'foreign-tag', 'create-partial', 'create-renamed', 'create-missing-id',
+    'wrong-label', 'wrong-id', 'build-partial', 'build-missing-id', 'build-success-missing-id',
+    'build-malformed-id', 'build-wrong-tag']) {
+    const dir = mkdtempSync(join(tmpdir(), 'prismpm-outer-lifecycle-unit-'));
+    t.after(() => rmSync(dir, {recursive: true, force: true}));
+    mkdirSync(join(dir, 'bin')); mkdirSync(join(dir, 'root-a/scripts'), {recursive: true});
+    writeFileSync(join(dir, 'bin/docker'), docker, {mode: 0o700});
+    writeFileSync(join(dir, 'root-a/scripts/sdk-vv-outer.sh'), readFileSync(new URL('./sdk-vv-outer.sh', import.meta.url)));
+    if (['foreign-container', 'foreign-matching-label'].includes(mode)) {writeFileSync(join(dir, 'container.exists'), ''); writeFileSync(join(dir, 'owner'), 'foreign');}
+    if (mode === 'foreign-tag') writeFileSync(join(dir, 'image.exists'), '');
+    const architecture = process.arch === 'x64' ? 'amd64' : 'arm64';
+    const result = await execute('/bin/bash', ['--noprofile', '--norc', '-c', script], {timeout: 10000,
+      environment: {...process.env, PATH: join(dir, 'bin') + ':' + process.env.PATH, UNIT_ROOT: dir,
+        UNIT_MODE: mode, UNIT_REVISION: revision, UNIT_IMAGE: image, UNIT_ARCH: architecture,
+        GITHUB_RUN_ID: '12345', GITHUB_RUN_ATTEMPT: '1'}});
+    assert.equal(result.signal, null, mode);
+    assert.equal(result.status, mode === 'complete' ? 0 : 1, mode + ': ' + result.stderr);
+    const commands = readFileSync(join(dir, 'docker.commands'), 'utf8');
+    const containerRemoved = /^container rm /m.test(commands), imageRemoved = /^image rm /m.test(commands);
+    assert.equal(containerRemoved, ['complete', 'create-partial', 'create-renamed'].includes(mode), mode + ': immutable container authority');
+    assert.equal(imageRemoved, ['complete', 'create-partial', 'create-renamed', 'build-partial'].includes(mode), mode + ': immutable image authority');
+    if (mode.startsWith('foreign-')) assert(!/^buildx build /m.test(commands), 'collision must be refused before building');
+    if (['foreign-container', 'foreign-matching-label'].includes(mode)) assert(existsSync(join(dir, 'container.exists')), 'rejected foreign container must survive');
+    if (mode === 'foreign-tag') assert(existsSync(join(dir, 'image.exists')), 'rejected foreign tag must survive');
+    const evidence = join(dir, `sdk-${architecture}-full-sdk-vv-outer-owner`);
+    assert.equal(readFileSync(join(evidence, 'cleanup.status'), 'utf8').trim(), String(result.status));
+    if (['complete', 'create-partial', 'create-renamed', 'build-partial'].includes(mode)) {
+      assert.equal(readFileSync(join(evidence, 'cleanup-owned.status'), 'utf8').trim(), '0');
+      assert(!existsSync(join(dir, 'container.exists'))); assert(!existsSync(join(dir, 'image.exists')));
+    } else {
+      assert.equal(readFileSync(join(evidence, 'cleanup-owned.status'), 'utf8').trim(), '1');
+    }
+  }
 });
 
 test('isolation refuses uplinks and all IPv4 or IPv6 egress routes', () => {
@@ -153,9 +261,17 @@ function orchestrationFixture(t, fault, store = 'classic', registryEndpoint) {
   const source = join(root, 'source'); mkdirSync(source); mkdirSync(join(source, 'scripts')); mkdirSync(join(source, 'sdk'));
   const images = {}, metadata = new Map(), loaded = new Set(), resources = new Map(), calls = [];
   const arch = process.arch === 'x64' ? 'amd64' : 'arm64';
+  // Actual filesystem pressure, not a replaced statfs result. Docker/OCI
+  // metadata below remains an explicit orchestration unit, not an SDK image.
+  const pressure = ['late-space-pressure', 'space-bound-positive'].includes(fault);
+  const current = pressure ? statfsSync(root) : undefined;
+  const compressed = pressure ? Math.floor((current.bavail * current.bsize - 12 * 1024 ** 3 - 16 * 1024 ** 2) / 4) : 0;
+  if (pressure) assert(compressed > 0, 'original12GiB reserve and positive boundary headroom required');
   for (const name of ['dind', 'zot', 'buildkit', 'distribution', 'sdk']) {
     const configuration = digest(Buffer.from(`unit-only ${name} config`));
-    const manifest = Buffer.from(JSON.stringify({schemaVersion: 2, mediaType: 'application/vnd.oci.image.manifest.v1+json', config: {digest: configuration, size: 100}, layers: []}));
+    const layers = name === 'sdk' && pressure ? [{digest: digest(Buffer.from('unit-only compressed layer descriptor')),
+      size: compressed, mediaType: 'application/vnd.oci.image.layer.v1.tar+gzip'}] : [];
+    const manifest = Buffer.from(JSON.stringify({schemaVersion: 2, mediaType: 'application/vnd.oci.image.manifest.v1+json', config: {digest: configuration, size: 100}, layers}));
     const annotation = name === 'dind' ? {'org.opencontainers.image.revision': revision, 'org.opencontainers.image.version': '28.4.0-dind'} : {};
     const index = Buffer.from(JSON.stringify({schemaVersion: 2, mediaType: 'application/vnd.oci.image.index.v1+json', manifests: [{digest: digest(manifest), size: manifest.length, mediaType: 'application/vnd.oci.image.manifest.v1+json',
       platform: {os: 'linux', architecture: arch}, annotations: annotation}]}));
@@ -169,6 +285,7 @@ function orchestrationFixture(t, fault, store = 'classic', registryEndpoint) {
     [name, name === 'dind' ? {reference: row.reference, source: 'https://github.com/docker-library/docker', source_revision: revision, version: '28.4.0-dind'} : {reference: row.reference}]))};
   writeFileSync(join(source, 'sdk/vv-runtime.lock.json'), canonical(lock) + '\n');
   for (const name of ['sdk-vv-run', 'sdk-vv-probe', 'sdk-vv-check', 'sdk-bootstrap-retention', 'bootstrap-evidence', 'sdk-registry-reader']) writeFileSync(join(source, `scripts/${name}.mjs`), `// unit-only source-binding fixture: ${name}\n`);
+  for (const name of ['sdk-command-owner.mjs', 'sdk-command-owner.py', 'sdk-vv-outer.sh']) writeFileSync(join(source, 'scripts', name), `# unit-only binding fixture: ${name}\n`);
   const policy = Buffer.from(canonical({source_revision: revision, advisory_revision: '2'.repeat(40)})), inventory = Buffer.from('unit inventory'), inputManifest = Buffer.from('unit input manifest'), cli = Buffer.from('unit CLI bytes');
   const raw = Buffer.from(canonical({schema: 'prismpm/vv-evidence/1', commit: revision, gates: Array.from({length: 15}, (_, i) => i + 1), status: 'passed'}));
   const record = {schema: 'prismpm/sdk-vv-execution/1', scope: 'two-full-vv-executions-only', source_revision: revision, image_reference: images.sdk.reference,
@@ -240,7 +357,13 @@ function orchestrationFixture(t, fault, store = 'classic', registryEndpoint) {
     assert.equal(command, 'docker'); assert.deepEqual(arguments_.slice(0, 3), ['--host', 'unix:///var/run/docker.sock', '--config']);
     assert.deepEqual(Object.keys(options.environment).sort(), ['DOCKER_CONFIG', 'HOME', 'LANG', 'LC_ALL', 'PATH']);
     const args = arguments_.slice(4); calls.push(args);
-    if (args[0] === 'buildx') { const bytes = metadata.get(args.at(-1)); assert(bytes); return ok(bytes); }
+    if (args[0] === 'buildx') {
+      const bytes = metadata.get(args.at(-1)); assert(bytes);
+      if (fault === 'late-space-pressure' && args.at(-1) === images.sdk.reference.split('@')[0] + '@' + images.sdk.child_descriptor.digest) {
+        writeFileSync(join(root, 'actual-filesystem-pressure'), Buffer.alloc(32 * 1024 ** 2), {flag: 'wx'});
+      }
+      return ok(bytes);
+    }
     if (args[0] === 'pull') { assert.deepEqual(args, ['pull', '--platform', `linux/${arch}`, images.dind.reference]); return ok('pulled'); }
     if (args[0] === 'image') return store === 'classic' && args.includes('--platform') ? bad(125) : ok(loadedImage(args.at(-1), args.includes('--platform')));
     if (args[1] === 'inspect') {
@@ -401,14 +524,14 @@ test('actual process transport preserves failures and rejects timeout or oversiz
     assert(Date.now() - escapedStarted < 7500, 'a new session retaining pipes must not defeat the fixed five-second retirement bound');
     assert.equal(failure.result.status, 0, 'retain the actual observed leader exit, not a fabricated timeout status');
     assert.equal(failure.result.signal, null);
-    assert.equal(failure.result.retirement.close_observed, false);
-    assert.equal(failure.result.retirement.group_absent, true, 'absence of the original group does not prove pipe-holder retirement');
-    assert.equal(failure.result.retirement.scope, 'owned-group-and-pipes-only');
-    assert.match(failure.result.retirement.uncertainty, /within five seconds/);
+    assert.equal(failure.result.retirement.close_observed, true);
+    assert.equal(failure.result.retirement.descendants_absent, true, 'actual subreaper exhaustion must include the escaped pipe holder');
+    assert.equal(failure.result.retirement.scope, 'private-linux-subreaper-exhaustion');
+    assert.equal(failure.result.retirement.uncertainty, null);
     assert.equal(failure.result.stdout.toString(), 'escaped-ready\n');
+    assert(!existsSync(`/proc/${JSON.parse(readFileSync(marker)).pid}`), 'escaped fixture must already have been adopted and reaped by production owner');
   } finally {
-    // Retire only this test's independently identified escaped fixture. The
-    // production watchdog must not claim it adopted or retired that process.
+    // The production owner must prove absence BEFORE this safety cleanup.
     const child = JSON.parse(readFileSync(marker));
     assert.deepEqual(Object.keys(child).sort(), ['pid', 'token']);
     assert.equal(child.token, token); assert(Number.isSafeInteger(child.pid) && child.pid > 1);
@@ -422,6 +545,48 @@ test('actual process transport preserves failures and rejects timeout or oversiz
       assert(!existsSync(processPath), 'test-owned escaped fixture must actually retire');
     }
     rmSync(root, {recursive: true});
+  }
+});
+
+for (const detached of [false, true]) test(`normal leader exit cannot accept an unreaped ${detached ? 'escaped-session' : 'same-group'} descendant`, async () => {
+  const root = mkdtempSync(join(tmpdir(), 'prismpm-sdk-normal-descendant-'));
+  const marker = join(root, 'child.json'), token = randomBytes(16).toString('hex');
+  const holder = 'const fs=require("node:fs");fs.writeFileSync(process.argv[1],JSON.stringify({pid:process.pid,token:process.argv[2]}),{flag:"wx"});setTimeout(()=>{},15000);';
+  const parent = `const fs=require("node:fs");const child=require("node:child_process").spawn(process.execPath,["-e",${JSON.stringify(holder)},${JSON.stringify(marker)},${JSON.stringify(token)}],{detached:${detached},stdio:"ignore"});const ready=setInterval(()=>{if(fs.existsSync(${JSON.stringify(marker)})){clearInterval(ready);child.unref();process.exit(0);}},10);setTimeout(()=>process.exit(98),3000).unref();`;
+  const started = Date.now();
+  try {
+    let result, failure;
+    try { result = await execute(process.execPath, ['-e', parent], {timeout:1000, limit:1024}); }
+    catch (error) { failure = error; result = error.result; }
+    assert(failure, 'a still-running descendant must cause rejection at the original command deadline');
+    assert.match(failure.message, /bounded process timed out/);
+    assert(result, 'retain original process result even if supervision rejects');
+    assert.equal(result.status, 0, 'do not fabricate the observed normal leader status');
+    assert.equal(result.signal, null);
+    assert(Date.now() - started < 7500, 'normal-close supervision must remain bounded');
+    const child = JSON.parse(readFileSync(marker));
+    assert.deepEqual(Object.keys(child).sort(), ['pid', 'token']);
+    assert.equal(child.token, token); assert(Number.isSafeInteger(child.pid) && child.pid > 1);
+    assert(!existsSync(`/proc/${child.pid}`), 'normal-close completion must actually retire the original descendant');
+    assert.equal(result.retirement?.descendants_absent, true, 'require genuine descendant retirement, not leader/pipes/group absence alone');
+  } finally {
+    // This fallback retires only the independently identified test fixture. It
+    // cannot qualify production adoption, reaping or process-group authority.
+    if (existsSync(marker)) {
+      const child = JSON.parse(readFileSync(marker));
+      assert.deepEqual(Object.keys(child).sort(), ['pid', 'token']);
+      assert.equal(child.token, token); assert(Number.isSafeInteger(child.pid) && child.pid > 1);
+      const processPath = `/proc/${child.pid}`;
+      if (existsSync(processPath)) {
+        assert.deepEqual(readFileSync(processPath + '/cmdline', 'utf8').split('\0'),
+          [process.execPath, '-e', holder, marker, token, '']);
+        process.kill(child.pid, 'SIGKILL');
+        const end = Date.now() + 5000;
+        while (existsSync(processPath) && Date.now() < end) await new Promise(resolve => setTimeout(resolve, 10));
+        assert(!existsSync(processPath), 'test-owned descendant fixture must actually retire');
+      }
+    }
+    rmSync(root, {recursive:true});
   }
 });
 
@@ -491,14 +656,29 @@ test('executed omission mutants cannot satisfy the owning orchestration contract
       await f.run(module.runOuter); assert.equal(f.resources.size, 0, 'all owned resources must actually be removed');
     }, undefined, `omission mutant ${index}`);
   }
+  const positive = orchestrationFixture(t, 'space-bound-positive');
+  await positive.run(); assert.equal(positive.resources.size, 0);
+  const pressure = orchestrationFixture(t, 'late-space-pressure');
+  await assert.rejects(pressure.run(), /insufficient disk for isolated image closure and reserve/);
+  assert(!pressure.calls.some(args => args.includes('pull')), 'late reserve loss must refuse before any image acquisition');
+  assert.equal(pressure.resources.size, 0);
+  assert(!existsSync(join(pressure.destination, 'acceptance.json')));
+  const stale = original.replace('const imageSpace = statfsSync(dirname(destination));', 'const imageSpace = space;');
+  assert.notEqual(stale, original, 'actual stale-admission mutant must be planted');
+  const module = await import('data:text/javascript;base64,' + Buffer.from(absoluteImports(stale)).toString('base64'));
+  const bypass = orchestrationFixture(t, 'late-space-pressure');
+  await assert.rejects(async () => {
+    await assert.rejects(bypass.run(module.runOuter), /insufficient disk for isolated image closure and reserve/);
+  }, /Missing expected rejection/, 'the executed stale-sample mutant must fail its owning late-pressure check');
+  assert.equal(bypass.resources.size, 0);
 });
 
 test('owning TAP completeness rejects skipped, reduced and failed successful-shell output', () => {
-  const tap = ['TAP version 13', ...Array.from({length: 17}, (_, index) => `ok ${index + 1} - case ${index + 1}`),
-    '1..17', '# tests 17', '# suites 0', '# pass 17', '# fail 0', '# cancelled 0', '# skipped 0', '# todo 0'].join('\n');
+  const tap = ['TAP version 13', ...Array.from({length: 20}, (_, index) => `ok ${index + 1} - case ${index + 1}`),
+    '1..20', '# tests 20', '# suites 0', '# pass 20', '# fail 0', '# cancelled 0', '# skipped 0', '# todo 0'].join('\n');
   const value = stdout => ({status: 0, signal: null, stdout: Buffer.from(stdout), stderr: Buffer.alloc(0)});
   validateOwningTests(value(tap));
-  for (const text of ['', tap.replace('# skipped 0', '# skipped 1'), tap.replace('# tests 17', '# tests 16'),
+  for (const text of ['', tap.replace('# skipped 0', '# skipped 1'), tap.replace('# tests 20', '# tests 19'),
     tap.replace('ok 1 - case 1', 'ok 1 - case 1 # SKIP'), tap.replace('# fail 0', '# fail 1')]) assert.throws(() => validateOwningTests(value(text)));
   assert.throws(() => validateOwningTests({...value(tap), status: 1}));
 });
@@ -522,7 +702,7 @@ test('native release matrix executes the additional exact-image gate and preserv
     const firstNode = job.indexOf(command);
     assert(firstNode > job.indexOf(setupNode), 'pinned Node must precede the first source helper');
   };
-  for (const [text, command] of [[job, 'node root-a/scripts/sdk-vv-check.mjs tests'], [repro, 'node "$root/scripts/sdk-image-inputs.mjs"']]) {
+  for (const [text, command] of [[job, 'node root-a/scripts/product-sdk-check.mjs tests'], [repro, 'node "$root/scripts/sdk-image-inputs.mjs"']]) {
     hostPrerequisite(text, command);
     assert.throws(() => hostPrerequisite(text.replace(setupNode, ''), command));
     assert.throws(() => hostPrerequisite(text.replace('node-version: 22.23.2', 'node-version: 20'), command));
@@ -535,10 +715,19 @@ test('native release matrix executes the additional exact-image gate and preserv
   const step = /^        shell: bash\n        env:\n          RESULT_NAME: sdk-\$\{\{ matrix.arch \}\}\n          NATIVE_PLATFORM: linux\/\$\{\{ matrix.arch \}\}\n        run: \|\n((?:          .*\n)+)$/.exec(steps[0][1]);
   assert(step, 'closed mandatory SDK step required');
   const run = step[1].split('\n').map(line => line.slice(10)).join('\n');
+  const wrapper = readFileSync(new URL('./sdk-vv-outer.sh', import.meta.url), 'utf8');
+  const inner = /  '(node root-a\/scripts\/sdk-vv-check\.mjs tests; node root-a\/scripts\/sdk-vv-check\.mjs run [^'\n]+)'/.exec(wrapper);
+  assert(inner, 'both original owning and installed operations must execute inside the pinned image');
+  assert(wrapper.includes('--target registry_qualification_tools'));
+  assert(wrapper.includes('--read-only --user "$(id -u):$(id -g)"'));
+  assert(wrapper.includes('test "$(controlled actor-running 10 container inspect "$container_id" --format'));
+  assert(wrapper.includes('absent id-absence "$container_id"'));
   assert(repro.includes('browser-api-sdk-check.sh')); assert(repro.includes('library-sdk-check.sh'));
   const dir = mkdtempSync(join(tmpdir(), 'prismpm-vv-workflow-unit-')); t.after(() => rmSync(dir, {recursive:true, force:true}));
   mkdirSync(join(dir, '.shipped-image')); writeFileSync(join(dir, '.shipped-image/sdk-image.txt'), image + '\n');
-  const script = `cd "$UNIT_ROOT"\nnode() { printf '%s\\n' "$*" >> "$UNIT_ROOT/commands"; [ "\${UNIT_FAIL:-}" != "$2" ]; }\n` + run;
+  // Explicit workflow units, not real Docker/image/SDK acceptance. Execute the
+  // actual job command and its exact image-owned inner command in real shells.
+  const script = `cd "$UNIT_ROOT"\nnode() { printf '%s\\n' "$*" >> "$UNIT_ROOT/commands"; [ "\${UNIT_FAIL:-}" != "$2" ]; }; export -f node\nbash() { test "$1" = root-a/scripts/sdk-vv-outer.sh; shift; test "$#" = 4; /bin/bash --noprofile --norc -euo pipefail -c ${JSON.stringify(inner[1])} sdk-outer "$@"; }\n` + run;
   const env = {PATH:process.env.PATH, UNIT_ROOT:dir, RESULT_NAME:'sdk-unit', NATIVE_PLATFORM:'linux/amd64', GITHUB_SHA:revision};
   const result = await execute('/bin/bash', ['-c', script], {environment:env}); assert.equal(result.status,0);
   assert.deepEqual(readFileSync(join(dir, 'commands'), 'utf8').trim().split('\n'), [

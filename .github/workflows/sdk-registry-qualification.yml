@@ -10,6 +10,8 @@ on:
       - scripts/sdk-vv-check.mjs
       - scripts/sdk-vv-check.test.mjs
       - scripts/sdk-process-qualification.mjs
+      - scripts/sdk-command-owner.*
+      - scripts/sdk-vv-outer.sh
       - scripts/sdk-construction-*.mjs
       - scripts/sdk-candidate.mjs
       - scripts/sdk-candidate-sbom.mjs

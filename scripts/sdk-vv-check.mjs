@@ -1,13 +1,13 @@
 // Independent installed-SDK orchestration. Unit transports are not acceptance.
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
-import { spawn } from 'node:child_process';
 import { constants, closeSync, fstatSync, lstatSync, mkdirSync, openSync, readSync,
   realpathSync, statfsSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateVvEvidence } from './sdk-vv-run.mjs';
 import {bootstrapNames, validateBootstrapRetention} from './sdk-bootstrap-retention.mjs';
+import {executeOwnedSdkCommand} from './sdk-command-owner.mjs';
 import { validateResolver, isolatedResolver } from './sdk-vv-probe.mjs';
 import { verifyTap } from './browser-api-sdk-check.mjs';
 import {createSdkRegistryReader, sdkRegistryCertificate, readSdkRegistryManifest,
@@ -195,75 +195,9 @@ export function validateExecution(bytes, originals, image, revision, arch) {
 }
 
 // Fixed CLI transport. Injection below is available only to owning unit tests.
-export function execute(command, args, { environment, timeout = 120000, limit = 8 * 1024 * 1024 } = {}) {
-  assert(Number.isSafeInteger(timeout) && timeout > 0);
-  assert(Number.isSafeInteger(limit) && limit > 0);
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { env: environment, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    const streams = [[], []], lengths = [0, 0];
-    let failure, exited, retirementTimer, settled = false, closeObserved = false;
-    child.once('exit', (status, signal) => { exited = {status, signal}; });
-    const retirement = uncertainty => {
-      let absent = null;
-      if (child.pid) {
-        try { process.kill(-child.pid, 0); absent = false; }
-        catch (error) { if (error.code === 'ESRCH') absent = true; }
-      }
-      return {scope: 'owned-group-and-pipes-only', leader_exit_observed: exited !== undefined,
-        close_observed: closeObserved, group_absent: absent, uncertainty,
-        ...(failure?.kill_error ? {kill_error: failure.kill_error} : {})};
-    };
-    const result = () => ({...(exited ?? {status: null, signal: null}),
-      stdout: Buffer.concat(streams[0]), stderr: Buffer.concat(streams[1])});
-    const clean = () => {
-      clearTimeout(timer); clearTimeout(retirementTimer);
-      for (const [signal, handler] of handlers) process.removeListener(signal, handler);
-    };
-    const stop = error => {
-      if (settled || failure) return;
-      failure ??= error;
-      // Keep the original command deadline. Pipe holders cannot extend
-      // rejection beyond this separate, fixed retirement bound.
-      retirementTimer = setTimeout(() => {
-        if (settled) return;
-        failure.result = {...result(), retirement: retirement('owned process close retirement unproven within five seconds')};
-        settled = true; clean();
-        // Snapshot first: releasing our handles is not descendant reaping.
-        child.stdout.destroy(); child.stderr.destroy(); reject(failure);
-      }, 5000);
-      // Docker CLI plugins can outlive their parent and keep its pipes open.
-      // Kill only this invocation's private process group, including plugins.
-      if (child.pid) {
-        try { process.kill(-child.pid, 'SIGKILL'); }
-        catch (error) { if (error.code !== 'ESRCH') failure.kill_error = String(error); }
-      }
-    };
-    const timer = setTimeout(() => stop(Error('bounded process timed out')), timeout);
-    const handlers = ['SIGHUP', 'SIGINT', 'SIGTERM'].map(signal => [signal, () => stop(Error(`interrupted by ${signal}`))]);
-    for (const [signal, handler] of handlers) process.on(signal, handler);
-    for (const [index, stream] of [child.stdout, child.stderr].entries()) stream.on('data', bytes => {
-      if (settled) return;
-      const remaining = Math.max(0, limit - lengths[index]);
-      if (remaining > 0) streams[index].push(Buffer.from(bytes.subarray(0, remaining)));
-      lengths[index] += bytes.length;
-      if (lengths[index] > limit) stop(Error('bounded process output exceeded'));
-    });
-    child.once('error', error => {
-      if (settled) return;
-      settled = true; clean(); failure ??= error;
-      failure.result = {...result(), retirement: retirement('owned process spawn failed')};
-      child.stdout.destroy(); child.stderr.destroy(); reject(failure);
-    });
-    child.once('close', (status, signal) => {
-      if (settled) return;
-      closeObserved = true; settled = true; clean();
-      const observed = {...result(), status, signal};
-      if (failure) { failure.result = {...observed, retirement: retirement(null)}; reject(failure); }
-      else resolve(observed);
-    });
-  });
+export function execute(command, args, {environment, timeout = 120000, limit = 8 * 1024 * 1024} = {}) {
+  return executeOwnedSdkCommand(command, args, {profile: 'vv', environment, timeout, limit, interruptions: true});
 }
-
 function successful(result, label) {
   assert.equal(result.signal, null, `${label} interrupted`);
   assert.equal(result.status, 0, `${label} failed: ${result.stderr.toString().slice(-4096)}`);
@@ -407,7 +341,10 @@ export async function runOuter({image, revision, arch, destination, source, regi
     // Expanded layers and independent Cargo/build roots need additional space;
     // this deliberately conservative bound is not permission to exhaust disk.
     const imageBytes = Object.values(expected).reduce((sum, row) => sum + row.compressed_bytes, 0);
-    assert(space.bavail * space.bsize >= imageBytes * 4 + 12 * 1024 ** 3, 'insufficient disk for isolated image closure and reserve');
+    // Metadata acquisition is asynchronous; its earlier admission cannot
+    // authorize image expansion after another writer consumes this filesystem.
+    const imageSpace = statfsSync(dirname(destination));
+    assert(imageSpace.bavail * imageSpace.bsize >= imageBytes * 4 + 12 * 1024 ** 3, 'insufficient disk for isolated image closure and reserve');
     writeFileSync(join(destination, 'image-plan.json'), canonical(expected), {flag: 'wx'});
     await outer(['pull', '--platform', `linux/${arch}`, lock.images.dind.reference], {timeout: 1200000});
     await inspectLoadedImage(call, expected.dind, arch);
@@ -475,6 +412,8 @@ export async function runOuter({image, revision, arch, destination, source, regi
     const ownImage = (await sdk(['docker', '--host', SOCKET, 'inspect', names.sdk, '--format', '{{.Image}}'])).toString().trim();
     assert.equal(ownImage, loadedIdentities.sdk.id);
     const boundPaths = ['scripts/sdk-vv-run.mjs', 'scripts/sdk-vv-probe.mjs', 'scripts/sdk-vv-check.mjs',
+      'scripts/sdk-command-owner.mjs', 'scripts/sdk-command-owner.py',
+      'scripts/sdk-vv-outer.sh',
       'scripts/sdk-bootstrap-retention.mjs', 'scripts/bootstrap-evidence.mjs', 'scripts/sdk-registry-reader.mjs', 'sdk/vv-runtime.lock.json'];
     for (const path of boundPaths) assert.deepEqual(await sdk(['cat', `${SHARED}/conformance-root/${path}`]), regular(join(source, path)), 'installed outer/inner source differs');
     const elf = JSON.parse(await sdk(['node', probePath, 'native']));
@@ -559,7 +498,7 @@ export async function runOuter({image, revision, arch, destination, source, regi
 
 export function validateOwningTests(result) {
   successful(result, 'owning orchestrator tests');
-  assert.equal(verifyTap(result.stdout.toString(), 17), 17, 'exact complete owning test set');
+  assert.equal(verifyTap(result.stdout.toString(), 20), 20, 'exact complete owning test set');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -569,6 +508,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const result = await execute(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', '--test-timeout=120000',
       resolve(dirname(process.argv[1]), 'sdk-vv-check.test.mjs')], {environment, timeout: 150000, limit: 16 * 1024 * 1024});
     process.stdout.write(result.stdout); process.stderr.write(result.stderr); validateOwningTests(result);
+    const supervision = await execute(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', '--test-timeout=120000',
+      resolve(dirname(process.argv[1]), 'sdk-command-owner.test.mjs')], {environment, timeout: 150000, limit: 16 * 1024 * 1024});
+    process.stdout.write(supervision.stdout); process.stderr.write(supervision.stderr); successful(supervision, 'SDK command supervisor owning tests');
+    assert.equal(verifyTap(supervision.stdout.toString(), 12), 12, 'complete SDK command supervisor owning test set');
     const tls = await execute(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', '--test-timeout=120000',
       resolve(dirname(process.argv[1]), 'sdk-registry-reader.test.mjs')], {environment, timeout: 150000, limit: 16 * 1024 * 1024});
     process.stdout.write(tls.stdout); process.stderr.write(tls.stderr); successful(tls, 'SDK registry transport owning tests');

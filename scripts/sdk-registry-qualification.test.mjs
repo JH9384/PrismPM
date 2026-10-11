@@ -183,13 +183,13 @@ test('native qualification keeps pinned real actors, complete negative controls 
   assert(processOwner.includes("assert.equal(memory['memory.swap.max'].trim(), '0')"));
   assert(processOwner.includes('assert.equal(quota, 2 * period)'));
   assert(processOwner.includes("'--test-timeout=120000'"));
-  assert(processOwner.includes('assert.equal(verifyTap(tap, 71), 71)'));
-  for (const [path, count] of [['sdk-vv-check', 17], ['sdk-construction-archive', 14],
+  assert(processOwner.includes('assert.equal(verifyTap(tap, 103), 103)'));
+  for (const [path, count] of [['sdk-vv-check', 20], ['sdk-command-owner', 12], ['sdk-registry-qualification', 17], ['sdk-construction-archive', 14],
     ['sdk-construction-stage', 17], ['sdk-construction-acquire', 6], ['sdk-construction-observe', 17]]) {
     assert(processOwner.includes(`['scripts/${path}.test.mjs', ${count}]`));
   }
   assert(workflow.includes('- scripts/sdk-construction-*.mjs'));
-  assert(processOwner.includes('verifyFileCompletions(tap, [...owners.keys()].map(path => resolve(path)), 71)'));
+  assert(processOwner.includes('verifyFileCompletions(tap, [...owners.keys()].map(path => resolve(path)), 103)'));
   assert(processOwner.includes('new Map([...owners].map(([path, count]) => [resolve(path), count]))'));
   assert(processOwner.includes("assert.equal(row.tests, expected.get(row.file), 'complete original owning-file count required')"));
   assert(processOwner.includes('captureQualificationFiles(paths), inputs'));
@@ -213,6 +213,9 @@ test('native qualification keeps pinned real actors, complete negative controls 
   assert(tools.includes('COPY --from=docker_cli /usr/local/libexec/docker/cli-plugins/docker-buildx /usr/local/libexec/docker/cli-plugins/docker-buildx'),
     'thin qualification tools must retain the actual pinned native Buildx plugin, not depend on a host plugin');
   assert(tools.includes('&& docker buildx version'));
+  assert(tools.includes('/usr/bin/python3 -I -B'));
+  assert(tools.includes('sys.version_info[:3] == (3, 11, 2)'));
+  assert(workflow.includes('- scripts/sdk-command-owner.*'));
   assert(source.includes("await execute('docker', ['buildx', 'version'])"));
   assert(source.includes("assert.match(buildx.stdout.toString().trim(), /^github\\.com\\/docker\\/buildx v0\\.28\\.0 b1281b81bba797b21d9eaf256e6a13eb14419836$/)"));
   assert(source.includes("['docker-buildx', '/usr/local/libexec/docker/cli-plugins/docker-buildx']"));
@@ -309,7 +312,8 @@ test('actual command cancellation and deadlines retire the owned process group b
       "process.on('SIGTERM',()=>process.exit(0));process.stdout.write('READY\\n');setInterval(()=>{},1000)"],
     {signal: cancellation.signal, onOutput: (_, bytes) => {if (bytes.includes('READY')) cancellation.abort(Error('unit cancellation'));}});
     assert.equal(result.aborted, true); assert.equal(result.status, 0); assert.equal(result.signal, null);
-    assert.equal(result.retirement, 'actual-child-close-observed');
+    assert.equal(result.retirement, 'actual-subreaper-exhaustion-observed');
+    assert.equal(result.process_retirement.descendants_absent, true);
     assert.throws(() => process.kill(result.pid, 0), {code: 'ESRCH'});
   });
   await t.test('TERM-refusing actual child is killed within fixed five-second retirement bound', async () => {
@@ -334,7 +338,7 @@ setInterval(()=>{},1000);`;
     const result = await executeQualificationProcess(process.execPath, ['-e', program], {signal: cancellation.signal,
       onOutput: (_, bytes) => {const match = /^READY ([1-9][0-9]*)\n$/.exec(bytes.toString());
         if (match) {descendant = Number(match[1]); cancellation.abort(Error('unit descendant cancellation'));}}});
-    assert.equal(result.status, 0); assert.equal(result.aborted, true); assert.equal(result.group_absent, true);
+    assert.equal(result.status, 0); assert.equal(result.aborted, true); assert.equal(result.descendants_absent, true);
     assert(Number.isSafeInteger(descendant)); assert(performance.now() - start < 9000);
     assert.throws(() => process.kill(result.pid, 0), {code: 'ESRCH'});
     assert.throws(() => process.kill(-result.pid, 0), {code: 'ESRCH'});
@@ -347,20 +351,20 @@ const child=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});process.s
 child.once('message',()=>{child.disconnect();process.on('SIGTERM',()=>process.exit(0));process.stdout.write('READY '+child.pid+'\n');});
 setInterval(()=>{},1000);`;
     try {
-      await assert.rejects(executeQualificationProcess(process.execPath, ['-e', program], {signal: cancellation.signal,
+      const result = await executeQualificationProcess(process.execPath, ['-e', program], {signal: cancellation.signal,
         onOutput: (name, bytes) => {if (name !== 'stdout') return; output += bytes.toString();
           const match = /^READY ([1-9][0-9]*)\n$/.exec(output);
-          if (match) {descendant = Number(match[1]); cancellation.abort(Error('unit escaped-pipe cancellation'));}}}), error => {
-        assert.match(error.message, /close\/group retirement unproven within five seconds/);
-        assert.equal(error.result.aborted, true); assert.equal(error.result.close_observed, false);
-        assert.equal(error.result.retirement, 'unproven'); assert.equal(error.result.exited.status, 0);
-        assert(Number.isSafeInteger(descendant)); assert.doesNotThrow(() => process.kill(descendant, 0)); return true;
-      });
+          if (match) {descendant = Number(match[1]); cancellation.abort(Error('unit escaped-pipe cancellation'));}}});
+      assert.equal(result.aborted, true); assert.equal(result.close_observed, true);
+      assert.equal(result.retirement, 'actual-subreaper-exhaustion-observed'); assert.equal(result.status, 0);
+      assert.equal(result.descendants_absent, true);
+      assert(Number.isSafeInteger(descendant)); assert.throws(() => process.kill(descendant, 0), {code: 'ESRCH'});
       assert(performance.now() - start < 9000);
     } finally {
       if (descendant) {
         // This deliberately escaped fixture group belongs solely to this test.
-        process.kill(-descendant, 'SIGKILL'); const deadline = performance.now() + 5000;
+        try {process.kill(-descendant, 'SIGKILL');} catch (error) {assert.equal(error.code, 'ESRCH');}
+        const deadline = performance.now() + 5000;
         for (;;) {
           try {process.kill(descendant, 0);} catch (error) {assert.equal(error.code, 'ESRCH'); break;}
           assert(performance.now() < deadline, 'actual escaped unit child must be reaped');

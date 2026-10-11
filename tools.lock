@@ -112,6 +112,11 @@ snapshot = "https://snapshot.ubuntu.com/ubuntu/20260901T000000Z/"
 build_essential = "12.10ubuntu1"
 pkg_config = "1.8.1-2build1"
 
+[sdk-command-owner]
+bookworm_python = "3.11.2"
+noble_python = "3.12.3"
+interpreter = "/usr/bin/python3"
+
 [runtime-libraries]
 amqplib = "0.10.9"
 jose = "6.1.0"

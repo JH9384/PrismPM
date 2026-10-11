@@ -69,9 +69,12 @@ function validateWorkflow(value) {
   assert.equal(installed.if, undefined); assert.equal(installed['continue-on-error'], undefined);
   assert.equal(installed['runs-on'], '${{ matrix.os }}');
   assert.deepEqual(installed.strategy.matrix.include, [{os:'ubuntu-24.04',arch:'amd64'}, {os:'ubuntu-24.04-arm',arch:'arm64'}]);
-  const complete = installed.steps.find(step => step.run?.includes('sdk-vv-check.mjs run'));
+  const complete = installed.steps.find(step => step.run?.includes('sdk-vv-outer.sh'));
   assert(complete); assert.equal(complete.if, undefined); assert.equal(complete['continue-on-error'], undefined);
-  assert.match(complete.run, /sdk-vv-check\.mjs tests/);
+  assert.match(complete.run, /bash root-a\/scripts\/sdk-vv-outer\.sh/);
+  const outer = readFileSync(new URL('./sdk-vv-outer.sh', import.meta.url), 'utf8');
+  assert(outer.includes('node root-a/scripts/sdk-vv-check.mjs tests; node root-a/scripts/sdk-vv-check.mjs run'));
+  assert(outer.includes('--target registry_qualification_tools'));
   assert(installed.steps.some(step => step.with?.name === 'sdk-image' && step.with.path === '.shipped-image'));
   const retained = installed.steps.find(step => step.with?.name === 'full-sdk-vv-sdk-${{ matrix.arch }}');
   assert.equal(retained.if, 'always()'); assert.equal(retained.with['if-no-files-found'], 'error');
@@ -151,7 +154,7 @@ test('publication phases preserve all gates and decouple OCI/native from optiona
     value => { value.jobs['installed-sdk'].if = '${{ false }}'; },
     value => { value.jobs['installed-sdk'].strategy.matrix.include.pop(); },
     value => { value.jobs['installed-sdk'].strategy.matrix.include[1].os = 'ubuntu-24.04'; },
-    value => { value.jobs['installed-sdk'].steps.find(step => step.run?.includes('sdk-vv-check.mjs run')).if = '${{ false }}'; },
+    value => { value.jobs['installed-sdk'].steps.find(step => step.run?.includes('sdk-vv-outer.sh')).if = '${{ false }}'; },
     value => { value.jobs['oci-native'].if = '${{ always() }}'; },
     value => { value.jobs.release.if = '${{ always() }}'; },
     value => value.jobs.release.needs.pop(),

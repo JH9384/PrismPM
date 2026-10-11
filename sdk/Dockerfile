@@ -36,6 +36,9 @@ RUN node /opt/input-policy/scripts/sdk-image-inputs.mjs stage \
 FROM docker.io/library/docker:28.4.0-cli@sha256:6a73c9433f2ba4279815be1e60f5739288b939dda1e48151d8c393537802de37 AS docker_cli
 FROM input_tools AS registry_qualification_tools
 ARG TARGETARCH
+# The digest-pinned Bookworm base supplies this interpreter. Refuse missing or
+# different runtimes rather than falling back to Python installed on the host.
+RUN /usr/bin/python3 -I -B -c 'import sys; assert sys.version_info[:3] == (3, 11, 2)'
 COPY --from=docker_cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker_cli /usr/local/libexec/docker/cli-plugins/docker-buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
 RUN case "$TARGETARCH" in \
@@ -322,6 +325,7 @@ FROM scratch AS cli-archive
 COPY --from=cli-archive-package /out/ /
 
 FROM mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e AS runtime_base
+RUN /usr/bin/python3 -I -B -c 'import sys; assert sys.version_info[:3] == (3, 12, 3)'
 RUN chmod -R a-w /ms-playwright
 
 ARG SOURCE_DATE_EPOCH=0

@@ -45,7 +45,7 @@ export const suites=Object.freeze([
  {id:'DK-23',minimum:37,files:['tests/browser-presentation/wire.test.mjs','tests/browser-presentation/dom.test.mjs','tests/browser-presentation/replay.test.mjs','tests/browser-presentation/provenance.test.mjs','presentation.test.mjs']},
  {id:'DK-24',minimum:28,files:['operation-journal.test.mjs']},
  {id:'DK-25',minimum:11,files:['credential-custody-test.mjs']},
- {id:'DK-26',minimum:38,files:['session-model-test.mjs','tests/browser-session/wire.test.mjs','tests/browser-session/provenance.test.mjs']},
+ {id:'DK-26',minimum:39,files:['session-model-test.mjs','tests/browser-session/wire.test.mjs','tests/browser-session/provenance.test.mjs']},
 ].map(row=>Object.freeze({...row,
  deadline:['DK-15','DK-16','DK-20','DK-23','DK-24','DK-25','DK-26'].includes(row.id)?3600000:1500000,
  files:Object.freeze(row.files.map(file=>file.startsWith('tests/')?file:'sdk/browser/'+file))})));

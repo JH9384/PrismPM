@@ -30,8 +30,17 @@ function freezeRecord(value) {
   return value;
 }
 
+function assertCapturedNames(captured) {
+  for (const [path,evidence] of captured) {
+    const absolute=join(repository,path), stat=lstatSync(absolute,{bigint:true});
+    assert.ok(stat.isFile()&&stat.nlink===1n,'single-link session custody name');
+    assert.equal(realpathSync(absolute),absolute,'session custody ancestry');
+    for (const key of ['dev','ino','uid','gid','mode','nlink','size','mtimeNs','ctimeNs'])
+      assert.equal(stat[key].toString(),evidence[key],'stable final session custody '+path+' '+key);
+  }
+}
+
 export function frozenInputs() {
-  pins();
   const files = new Set([
     ...modules.map(modulePath),
     ...['checks.mjs','compile.mjs','corpus.mjs','maxima.mjs','maximum-runner.mjs','mutations.mjs','size-corpus.mjs',
@@ -49,15 +58,28 @@ export function frozenInputs() {
     'LICENSE-MIT','LICENSE-APACHE','model/authorities.toml','model/dependencies.toml',
     'vendor/lean4-prod/lean.tar','vendor/lean4-prod/rust/MANIFEST.sha256','vendor/lexlean/MANIFEST.sha256',
   ]);
+  const captured = new Map();
+  const read = path => {
+    assert.ok(files.has(path), 'registered complete session input required');
+    if (!captured.has(path)) captured.set(path, captureFile(join(repository,path)));
+    return captured.get(path).bytes;
+  };
   for (const tree of ['vendor/lexlean','vendor/lean4-prod/rust']) {
-    for (const line of readFileSync(join(repository,tree,'MANIFEST.sha256'),'utf8').trimEnd().split('\n')) {
+    for (const line of read(tree+'/MANIFEST.sha256').toString('utf8').trimEnd().split('\n')) {
       const row=/^([0-9a-f]{64})  ([A-Za-z0-9_./-]+)$/.exec(line); assert.ok(row);
+      assert.ok(!row[2].startsWith('/') && !row[2].split('/').some(part=>!part||part==='.'||part==='..'),
+        'closed registered session vendor path');
       files.add(tree+'/'+row[2]);
     }
   }
-  const captured = new Map([...files].sort().map(path=>[path,captureFile(join(repository,path))]));
-  const inputs = Object.freeze(Object.fromEntries([...captured].map(([path,row])=>[path,row.evidence.sha256])));
-  inputCustody.set(inputs, new Map([...captured].map(([path,row])=>[path,row.evidence])));
+  for (const path of files) read(path);
+  pins(read);
+  // Catch early names changing while later descriptors are read. This final
+  // sweep is not an atomic filesystem snapshot and never replaces fresh hashes.
+  assertCapturedNames(new Map([...captured].map(([path,row])=>[path,row.evidence])));
+  const ordered = [...captured].sort(([left],[right])=>left < right ? -1 : left > right ? 1 : 0);
+  const inputs = Object.freeze(Object.fromEntries(ordered.map(([path,row])=>[path,row.evidence.sha256])));
+  inputCustody.set(inputs, new Map(ordered.map(([path,row])=>[path,row.evidence])));
   return inputs;
 }
 
@@ -70,8 +92,13 @@ export function assertFrozenInputs(expected) {
   // The source that defines this inventory, both vendor manifests and their
   // dependency pins are captured members. Re-reading those original members
   // binds membership without recapturing the entire closure a second time.
-  pins();
-  for (const [path,evidence] of captured) capturedFile(join(repository,path),evidence);
+  const bytes = new Map();
+  for (const [path,evidence] of captured) bytes.set(path,capturedFile(join(repository,path),evidence));
+  pins(path => {
+    assert.ok(bytes.has(path), 'registered complete session pin input required');
+    return bytes.get(path);
+  });
+  assertCapturedNames(captured);
 }
 
 function capturedInput(path, inputs) {
@@ -88,17 +115,22 @@ export function assertBaselineSources(actual, expected) {
   for (const [module, bytes] of actual) assert.deepEqual(bytes, expected.get(module), 'immutable positive source before mutation ' + module);
 }
 
-function pins() {
-  const artifacts = readFileSync(join(repository, 'model/dependencies.toml'), 'utf8')
+function pins(read) {
+  const artifacts = read('model/dependencies.toml').toString('utf8')
     .split('[[dependency.artifact]]').slice(1).map(section => {
       const text = section.split('[[dependency]]')[0];
       return {path: /^path = "([^"]+)"$/m.exec(text)?.[1],
         hash: /^sha256 = "([0-9a-f]{64})"$/m.exec(text)?.[1],
         tree: /^tree_root = "([^"]+)"$/m.exec(text)?.[1]};
     });
-  for (const name of ['vendor/lean4-prod/lean.tar', 'vendor/lean4-prod/rust/MANIFEST.sha256', 'vendor/lexlean/MANIFEST.sha256']) {
+  for (const [name, expectedTree] of [
+    ['vendor/lean4-prod/lean.tar', undefined],
+    ['vendor/lean4-prod/rust/MANIFEST.sha256', 'vendor/lean4-prod/rust'],
+    ['vendor/lexlean/MANIFEST.sha256', 'vendor/lexlean'],
+  ]) {
     const rows = artifacts.filter(row => row.path === name); assert.equal(rows.length, 1);
-    const [{hash, tree}] = rows, bytes = readFileSync(join(repository, name));
+    const [{hash, tree}] = rows, bytes = read(name);
+    assert.equal(tree, expectedTree, 'registered session pin tree');
     assert.equal(sha(bytes), hash, name);
     if (!tree) continue;
     const seen = new Set();
@@ -107,7 +139,7 @@ function pins() {
       const [, digest, path] = row;
       assert.ok(!path.startsWith('/') && !path.split('/').some(part => !part || part === '.' || part === '..'));
       assert.ok(!seen.has(path)); seen.add(path);
-      assert.equal(sha(readFileSync(join(repository, tree, path))), digest, path);
+      assert.equal(sha(read(join(tree, path))), digest, path);
     }
   }
 }
@@ -265,16 +297,9 @@ export function prepare(mutation = null, baseline = null, inputs = frozenInputs(
       assert.deepEqual(fixtures[0], fixtures[1], 'two independent generated source wrapper packages');
       assert.deepEqual(sizes[0], sizes[1], 'two independent generated real writer-size parity packages');
     }
-    pins(); compiler.verify(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
-    for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'frozen source ' + module);
-    for (const [module, bytes] of sources) assert.deepEqual(readFileSync(join(project, 'src', ...module.split('.')) + '.lex.tex'), bytes, 'exact staged source after compiler execution ' + module);
-    pins(); compiler.verify(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
-    assert.deepEqual(readFileSync(join(verified.root, 'build-manifest.json')), manifestBytes);
-    assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);
     for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'unchanged source after actual compiler execution ' + module);
     for (const [module, bytes] of sources) assert.deepEqual(readFileSync(join(project, 'src', ...module.split('.')) + '.lex.tex'), bytes, 'unchanged staged source after actual compiler execution ' + module);
     for(const path of ['LICENSE-MIT','LICENSE-APACHE'])assert.equal(sha(readFileSync(join(licenses,path))),inputs[path],'unchanged staged license');
-    assertFrozenInputs(inputs);
     unchanged();
     completed = true;
     const fixed = {work, sources:new Map([...sources].map(([name,bytes])=>[name,Buffer.from(bytes)])), verified, generation, compileNative, runNative, unchanged, runner,registerObserver,

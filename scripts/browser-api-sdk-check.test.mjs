@@ -63,7 +63,7 @@ test('new installed Node suites retain exact complete owning files and deadlines
  assert.equal(journal?.minimum, 28); assert.equal(journal?.deadline, 3600000);
  const session = suites.find(row => row.id === 'DK-26');
  assert.deepEqual(session?.files, ['sdk/browser/session-model-test.mjs','tests/browser-session/wire.test.mjs','tests/browser-session/provenance.test.mjs']);
- assert.equal(session?.minimum, 38); assert.equal(session?.deadline, 3600000);
+ assert.equal(session?.minimum, 39); assert.equal(session?.deadline, 3600000);
  const sessionOwner = /"DK-26"\s*=>\s*verify_node_suite\(\s*root,\s*id,\s*&\[([^\]]+)\],\s*(\d+),\s*"([0-9]+)"/.exec(sdkSource('crates/conformance/src/cases/mod.rs'));
  assert.ok(sessionOwner, 'actual complete registered session owner');
  assert.deepEqual([...sessionOwner[1].matchAll(/"([^"]+)"/g)].map(row=>row[1]), session.files);
@@ -168,7 +168,7 @@ test('installed DK23 gate requires every wire, DOM, replay, provenance and full-
 
 test('installed DK26 gate requires every session kernel, canonical wire and custody check',t=>{
  const root=temporary(t);testFixtures(root);
- const owner=suites.find(row=>row.id==='DK-26'),counts=[28,6,4];
+ const owner=suites.find(row=>row.id==='DK-26'),counts=[28,6,5];
  assert.equal(owner.files.length,counts.length);
  for(const [index,count] of counts.entries())put(root,owner.files[index],testSource(count));
  for(const [index,count] of counts.entries()){
@@ -176,7 +176,7 @@ test('installed DK26 gate requires every session kernel, canonical wire and cust
   assert.throws(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/,owner.files[index]);
   put(root,owner.files[index],testSource(count));
  }
- assert.deepEqual(runSuites(root,spawnSync,()=>{}).find(row=>row.id==='DK-26'),{id:'DK-26',tests:38});
+ assert.deepEqual(runSuites(root,spawnSync,()=>{}).find(row=>row.id==='DK-26'),{id:'DK-26',tests:39});
 });
 
 test('every selected file must exist even when its sibling supplies the total minimum',t=>{

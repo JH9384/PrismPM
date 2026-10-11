@@ -275,7 +275,7 @@ export function validateWorkflow(text) {
   assert.match(text, /^  pull_request:$/m); assert(!/workflow_dispatch:|environment:|packages:|id-token:|attestations:|pull_request_target:/.test(text));
   assert.match(text, /^    runs-on: \$\{\{ matrix\.os \}\}$/m);
   assert.equal(text.match(/^    strategy:\n((?:      .*\n|        .*\n|          .*\n|            .*\n)+)/m)?.[1],
-    '      fail-fast: false\n      matrix:\n        include:\n          - os: ubuntu-24.04\n            arch: amd64\n          - os: ubuntu-24.04-arm\n            arch: arm64\n');
+    '      fail-fast: false\n      max-parallel: 2\n      matrix:\n        include:\n          - os: ubuntu-24.04\n            arch: amd64\n          - os: ubuntu-24.04-arm\n            arch: arm64\n');
   assert.match(text, /^      contents: read$/m); assert(!/: write\b/.test(text));
   assert.match(text, /^          node-version: 22\.23\.2$/m);
   assert.match(text, /^          ref: \$\{\{ github\.event\.pull_request\.head\.sha \}\}$/m);

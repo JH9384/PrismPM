@@ -65,6 +65,57 @@ test('ordinary just-vv path retains one full run with the same owned cleanup', t
   assert.equal(result.rows.filter(row => row.kind === 'build').length, 1);
   assert.equal(result.rows.filter(row => row.kind === 'cargo').length, 1);
 });
+for (const first of [0, 29]) {
+  test(`exact package-api preserves preflights, owning command and exit ${first} without SDK acquisition`, t => {
+    const result = run(t, {first, expectedCargoArgs: ['xtask', 'package-api']}, ['package-api']);
+    assert.equal(result.status, first, result.stderr);
+    assert.deepEqual(result.rows.map(row => row.kind), ['init', 'bootstrap', 'cargo']);
+    assert.deepEqual(result.rows[0].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs']);
+    assert.deepEqual(result.rows[1].args, ['--check-source']);
+    assert.deepEqual(result.rows[2].args, ['xtask', 'package-api']);
+    assert.equal(result.rows[2].image, null);
+  });
+}
+for (const args of [[], ['vv'], ['package-api', 'extra'], ['package-api', ''],
+  ['PACKAGE-API'], ['Package-api'], [''], ['unknown']]) {
+  test(`only exact single package-api omits SDK preparation: ${JSON.stringify(args)}`, t => {
+    const expectedCargoArgs = ['xtask', ...(args.length ? args : ['vv'])];
+    const result = run(t, {expectedCargoArgs}, args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.rows.filter(row => row.kind === 'build').length, 1);
+    const calls = result.rows.filter(row => row.kind === 'cargo');
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].args, expectedCargoArgs);
+    assert.equal(calls[0].image, `127.0.0.1:43567/prismpm-vv-sdk@sha256:${'b'.repeat(64)}`);
+    assert(result.rows.indexOf(calls[0]) > result.rows.findIndex(row => row.kind === 'bootstrap'));
+    assert(result.rows.some(row => row.kind === 'docker' && row.args.slice(0, 2).join(' ') === 'container rm'));
+  });
+}
+test('--with-sdk package-api retains its explicit owned SDK session', t => {
+  const result = run(t, {expectedCargoArgs: ['xtask', 'package-api']},
+    ['--with-sdk', 'cargo', 'xtask', 'package-api']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.rows.filter(row => row.kind === 'build').length, 1);
+  assert.equal(result.rows.find(row => row.kind === 'cargo').image,
+    `127.0.0.1:43567/prismpm-vv-sdk@sha256:${'b'.repeat(64)}`);
+});
+for (const [options, expectedKinds, status] of [
+  [{initFailure: 31}, ['init'], 31],
+  [{bootstrapFailure: 37}, ['init', 'bootstrap'], 37],
+]) {
+  test(`package-api cannot bypass a failed preflight: ${JSON.stringify(options)}`, t => {
+    const result = run(t, options, ['package-api']);
+    assert.equal(result.status, status, result.stderr);
+    assert.deepEqual(result.rows.map(row => row.kind), expectedKinds);
+  });
+}
+test('exact package-api preserves an independently supplied immutable SDK reference', t => {
+  const image = `ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:${'c'.repeat(64)}`;
+  const result = run(t, {image, expectedCargoArgs: ['xtask', 'package-api']}, ['package-api']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(result.rows.map(row => row.kind), ['init', 'bootstrap', 'cargo']);
+  assert.equal(result.rows[2].image, image);
+});
 for (const options of [{volumeConflict: true}, {containerConflict: true}, {tagConflict: true}]) {
   test(`foreign resource conflicts never delete the conflicting resource: ${JSON.stringify(options)}`, t => {
     const result = run(t, options);

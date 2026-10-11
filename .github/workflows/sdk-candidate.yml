@@ -19,6 +19,7 @@ jobs:
   policy:
     if: github.repository == 'UOR-Foundation/PrismPM' && github.ref == 'refs/heads/main' && inputs.development_only
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
       actions: read
@@ -39,6 +40,7 @@ jobs:
     if: github.repository == 'UOR-Foundation/PrismPM' && github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           - runner: ubuntu-24.04

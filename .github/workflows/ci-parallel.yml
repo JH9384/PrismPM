@@ -10,122 +10,75 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-parallel-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-parallel-${{ github.repository }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  lint-and-policy:
-    name: Lint & Dependency Policy
+  gate:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Format, Clippy & Cargo Deny
-        uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
-        with:
-          push: never
-          runCmd: |
-            set -euo pipefail
-            cargo fmt --check
-            cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
-            cargo deny --frozen --all-features check
-
-  model-and-audits:
-    name: Model & Audits
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-      - name: Check bootstrap source and validate
-        uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
-        with:
-          push: never
-          runCmd: |
-            set -euo pipefail
-            bash scripts/bootstrap-verify.sh --check-source
-            cargo xtask validate
-
-  unit-and-property-tests:
-    name: Workspace Unit Tests
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-      - name: Workspace Unit & Property Tests
-        uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
-        with:
-          push: never
-          runCmd: |
-            set -euo pipefail
-            ./scripts/vv.sh unit-tests
-
-  conformance:
-    name: Conformance / ${{ matrix.suite }}
-    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.timeout }}
     strategy:
       fail-fast: false
+      # One closed matrix bounds ALL twelve jobs, not just conformance.
+      max-parallel: 3
       matrix:
-        suite:
-          - contracts
-          - core
-          - holo-stdlib
-          - desktop-browser
-          - system-oci
-          - verification-schemas
+        include:
+          - name: Lint & Dependency Policy
+            timeout: 45
+            commands: |
+              cargo fmt --check
+              cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
+              cargo deny --frozen --all-features check
+          - name: Model & Audits
+            timeout: 45
+            commands: |
+              bash scripts/bootstrap-verify.sh --check-source
+              cargo xtask validate
+          - name: Workspace Unit Tests
+            timeout: 180
+            commands: ./scripts/vv.sh unit-tests
+          - name: Conformance / contracts
+            timeout: 120
+            commands: ./scripts/vv.sh conformance contracts
+          - name: Conformance / core
+            timeout: 120
+            commands: ./scripts/vv.sh conformance core
+          - name: Conformance / holo-stdlib
+            timeout: 180
+            commands: ./scripts/vv.sh conformance holo-stdlib
+          - name: Conformance / desktop-browser
+            timeout: 210
+            commands: ./scripts/vv.sh conformance desktop-browser
+          - name: Conformance / system-oci
+            timeout: 180
+            commands: ./scripts/vv.sh conformance system-oci
+          - name: Conformance / verification-schemas
+            timeout: 90
+            commands: ./scripts/vv.sh conformance verification-schemas
+          - name: Fixtures & Reviewed Golden Outputs
+            timeout: 90
+            commands: |
+              cargo xtask check-fixtures
+              cargo run --locked --offline --manifest-path tests/holo-codec-oracle/Cargo.toml --target-dir target/holo-codec-oracle
+              cargo xtask check-golden
+          - name: Lean 4 Proofs & Formal Verification
+            timeout: 75
+            commands: |
+              cargo xtask verify-examples
+              cargo run --locked --offline --target-dir target/vendor-lexlean --manifest-path vendor/lexlean/Cargo.toml -- --project lexlean.toml fmt --check
+              cargo run --locked --offline --target-dir target/vendor-lexlean --manifest-path vendor/lexlean/Cargo.toml -- --project lexlean.toml lock --check
+          - name: Packaging, API & Upstream Conformance
+            timeout: 120
+            commands: ./scripts/vv.sh package-api
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - name: Run ${{ matrix.suite }} conformance suite
+      - name: Run the unchanged owning gate
         uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
         with:
           push: never
           runCmd: |
             set -euo pipefail
-            ./scripts/vv.sh conformance ${{ matrix.suite }}
-
-  fixtures-and-golden:
-    name: Fixtures & Reviewed Golden Outputs
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Check Fixtures, Oracle & Golden Bytes
-        uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
-        with:
-          push: never
-          runCmd: |
-            set -euo pipefail
-            cargo xtask check-fixtures
-            cargo run --locked --offline --manifest-path tests/holo-codec-oracle/Cargo.toml --target-dir target/holo-codec-oracle
-            cargo xtask check-golden
-
-  lean-and-formal-verification:
-    name: Lean 4 Proofs & Formal Verification
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Verify Examples & LexLean
-        uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
-        with:
-          push: never
-          runCmd: |
-            set -euo pipefail
-            cargo xtask verify-examples
-            cargo run --locked --offline --target-dir target/vendor-lexlean --manifest-path vendor/lexlean/Cargo.toml -- --project lexlean.toml fmt --check
-            cargo run --locked --offline --target-dir target/vendor-lexlean --manifest-path vendor/lexlean/Cargo.toml -- --project lexlean.toml lock --check
-
-  packaging-and-upstream:
-    name: Packaging, API & Upstream Conformance
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-      - name: Package API & Upstream Standards
-        uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
-        with:
-          push: never
-          runCmd: |
-            set -euo pipefail
-            ./scripts/vv.sh package-api
+            ${{ matrix.commands }}

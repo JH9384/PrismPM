@@ -5,10 +5,18 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: vv-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   vv:
     name: Linux x86-64 normative acceptance
     runs-on: ubuntu-24.04
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:

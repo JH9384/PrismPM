@@ -15,6 +15,7 @@ mod formatting;
 mod gate_driver;
 mod gate_root;
 mod golden_preflight;
+mod source_copy;
 mod spec_links;
 mod stdlib;
 
@@ -1705,22 +1706,7 @@ fn release_check(root: &Path) -> Result<(), Fail> {
 }
 
 fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), std::io::Error> {
-    if !from.exists() {
-        return Ok(());
-    }
-    for entry in walkdir::WalkDir::new(from).into_iter().flatten() {
-        let rel = entry.path().strip_prefix(from).unwrap();
-        let target = to.join(rel);
-        if entry.file_type().is_dir() {
-            std::fs::create_dir_all(&target)?;
-        } else if entry.file_type().is_file() {
-            if let Some(parent) = target.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            std::fs::copy(entry.path(), &target)?;
-        }
-    }
-    Ok(())
+    source_copy::copy_tree(from, to)
 }
 
 #[cfg(test)]

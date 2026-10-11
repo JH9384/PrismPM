@@ -956,6 +956,39 @@ test('pinned archive comparison retains complete content and mode custody withou
       assert.equal(extraction.signal, null);
       assert.equal(extraction.status, 0);
       assert.equal(check(archive, directory).status, 0);
+      // Yield an actual unexpected filesystem member first. The comparator
+      // must refuse it BEFORE asking the directory iterator for another row.
+      const streamControl=`import contextlib, os, runpy, sys
+source = runpy.run_path(sys.argv[1])
+scan = os.scandir
+@contextlib.contextmanager
+def guarded_scan(descriptor):
+    with scan(descriptor) as entries:
+        unexpected = next(entry for entry in entries if entry.name == "unexpected-stream-member")
+        def rows():
+            yield unexpected
+            raise RuntimeError("source enumeration continued after unexpected member")
+        yield rows()
+os.scandir = guarded_scan
+source["verify"](sys.argv[2], sys.argv[3])
+`;
+      writeFileSync(join(directory,'unexpected-stream-member'),'actual unexpected member');
+      try{
+        const comparator=readFileSync(verifier,'utf8');
+        const start=comparator.indexOf('                names = set()\n');
+        const end=comparator.indexOf('            for entry in sorted(names):\n',start);
+        assert(start>=0&&end>start,'actual streaming inventory guard exists');
+        const mutant=join(root,'buffered-source-comparator.py');
+        writeFileSync(mutant,comparator.slice(0,start)+'                names = sorted(entry.name for entry in entries)\n'+comparator.slice(end));
+        for(const [selected,expected] of [[verifier,'unexpected source entry'],[mutant,'source enumeration continued after unexpected member']]){
+          const result=spawnSync('/usr/bin/python3',['-I','-B','-c',streamControl,selected,archive,directory],
+            {encoding:'utf8',timeout:30000,maxBuffer:65536});
+          assert.ifError(result.error);assert.equal(result.signal,null);assert.equal(result.status,1,result.stderr);
+          assert(result.stderr.includes(expected),result.stderr);
+          assert.equal(result.stderr.includes('source enumeration continued after unexpected member'),selected===mutant,
+            'the actual early-refusal assertion kills buffering-before-validation');
+        }
+      }finally {rmSync(join(directory,'unexpected-stream-member'));}
       const selected = join(directory, 'Cargo.toml'), original = readFileSync(selected);
       for (const mutation of ['bytes', 'missing', 'extra', 'mode', 'symlink', 'hardlink']) {
         if (mutation === 'bytes') writeFileSync(selected, Buffer.concat([original, Buffer.from('\n')]));

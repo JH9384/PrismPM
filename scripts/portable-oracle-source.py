@@ -50,6 +50,10 @@ def verify(archive, root):
                 digest = hashlib.sha256(source.extractfile(member).read()).hexdigest()
             expected[name] = (member.isdir(), member.mode & 0o777, member.size if member.isfile() else 0, digest)
     assert len(expected) == 454, "pinned source inventory differs"
+    children = {}
+    for name in expected:
+        parent, _, leaf = name.rpartition("/")
+        children.setdefault(parent + "/" if parent else "", set()).add(leaf)
     actual = {}
 
     def visit(path, parent=None, prefix="", captured=None):
@@ -64,8 +68,13 @@ def verify(archive, root):
             if not prefix:
                 assert stat.S_IMODE(before_directory.st_mode) == 0o700, "source root mode differs"
             with os.scandir(descriptor) as entries:
-                names = sorted(entry.name for entry in entries)
-            for entry in names:
+                names = set()
+                for entry in entries:
+                    assert entry.name in children.get(prefix, ()), "unexpected source entry"
+                    assert entry.name not in names, "duplicate source entry"
+                    assert len(names) < len(children[prefix]), "source directory inventory bound exceeded"
+                    names.add(entry.name)
+            for entry in sorted(names):
                 name = prefix + entry
                 assert name in expected, "unexpected source entry"
                 before = os.stat(entry, dir_fd=descriptor, follow_symlinks=False)

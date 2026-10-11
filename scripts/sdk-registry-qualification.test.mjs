@@ -183,13 +183,13 @@ test('native qualification keeps pinned real actors, complete negative controls 
   assert(processOwner.includes("assert.equal(memory['memory.swap.max'].trim(), '0')"));
   assert(processOwner.includes('assert.equal(quota, 2 * period)'));
   assert(processOwner.includes("'--test-timeout=120000'"));
-  assert(processOwner.includes('assert.equal(verifyTap(tap, 103), 103)'));
-  for (const [path, count] of [['sdk-vv-check', 20], ['sdk-command-owner', 12], ['sdk-registry-qualification', 17], ['sdk-construction-archive', 14],
+  assert(processOwner.includes('assert.equal(verifyTap(tap, 105), 105)'));
+  for (const [path, count] of [['sdk-vv-check', 20], ['sdk-command-owner', 14], ['sdk-registry-qualification', 17], ['sdk-construction-archive', 14],
     ['sdk-construction-stage', 17], ['sdk-construction-acquire', 6], ['sdk-construction-observe', 17]]) {
     assert(processOwner.includes(`['scripts/${path}.test.mjs', ${count}]`));
   }
   assert(workflow.includes('- scripts/sdk-construction-*.mjs'));
-  assert(processOwner.includes('verifyFileCompletions(tap, [...owners.keys()].map(path => resolve(path)), 103)'));
+  assert(processOwner.includes('verifyFileCompletions(tap, [...owners.keys()].map(path => resolve(path)), 105)'));
   assert(processOwner.includes('new Map([...owners].map(([path, count]) => [resolve(path), count]))'));
   assert(processOwner.includes("assert.equal(row.tests, expected.get(row.file), 'complete original owning-file count required')"));
   assert(processOwner.includes('captureQualificationFiles(paths), inputs'));

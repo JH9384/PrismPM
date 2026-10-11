@@ -12,14 +12,15 @@ const terminal = row => {
 };
 
 export function executeOwnedSdkCommand(command, args, {profile, environment, timeout, limit, aggregate = false,
-  signal, onOutput, interruptions = false}) {
+  cwd, signal, onOutput, interruptions = false}) {
   assert.equal(process.platform, 'linux'); assert(['vv', 'qualification'].includes(profile));
   assert(typeof command === 'string' && command.length > 0 && Array.isArray(args) && args.every(a => typeof a === 'string'));
   assert(Number.isSafeInteger(timeout) && timeout > 0 && Number.isSafeInteger(limit) && limit > 0);
+  assert(cwd === undefined || typeof cwd === 'string' && cwd.length > 0);
   signal?.throwIfAborted();
   return new Promise((resolve, reject) => {
     const child = spawn('/usr/bin/python3', ['-I', '-B', ownerPath, profile, command, ...args],
-      {env: environment, stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe']});
+      {cwd, env: environment, stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe']});
     const chunks = [[], []], lengths = [0, 0], protocol = [];
     let protocolBytes = 0, pending = '', leader, started, completed, protocolFailure, failure,
       timedOut = false, overflow = false, aborted = false, settled = false, ownerExited,
@@ -63,7 +64,7 @@ export function executeOwnedSdkCommand(command, args, {profile, environment, tim
     };
     const abort = () => {aborted = true; stop(Error('bounded process aborted'));};
     const handlers = interruptions ? ['SIGHUP', 'SIGINT', 'SIGTERM'].map(name =>
-      [name, () => stop(Error(`interrupted by ${name}`))]) : [];
+      [name, () => stop(Error(`interrupted by ${name}`), true)]) : [];
     for (const [name, handler] of handlers) process.on(name, handler);
     signal?.addEventListener('abort', abort, {once: true}); if (signal?.aborted) abort();
     timers.push(setTimeout(() => {timedOut = true; stop(Error('bounded process timed out'));}, timeout));

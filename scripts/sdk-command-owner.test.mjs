@@ -52,6 +52,34 @@ test('natural trailing escaped work preserves original result and complete outpu
   assert.equal(result.retirement.supervisor_status, 0); absent(f.pid());
 });
 
+test('private owner preserves exact cwd environment and uninterpreted argv', async t => {
+  const f = await fixture(t);
+  const program = 'process.stdout.write(JSON.stringify({cwd:process.cwd(),argv:process.argv.slice(1),value:process.env.PRISM_OWNER_TEST_VALUE}));';
+  const argv = ['spaces and ; shell syntax', '--not-a-supervisor-flag'];
+  const result = await executeOwnedSdkCommand(process.execPath, ['-e', program, '--', ...argv],
+    {...options, cwd: f.root, environment: {...process.env, PRISM_OWNER_TEST_VALUE: 'exact value'}});
+  assert.equal(result.status, 0); assert.equal(result.signal, null);
+  assert.deepEqual(JSON.parse(result.stdout), {cwd: f.root, argv, value: 'exact value'});
+  assert.equal(result.retirement.descendants_absent, true);
+});
+
+test('qualification caller interruption stays failed after a graceful zero leader exit and complete retirement', async t => {
+  let timer;
+  const program = "process.on('SIGTERM',()=>process.exit(0));process.stdout.write('READY\\n');setInterval(()=>{},1000);";
+  try {
+    await assert.rejects(executeOwnedSdkCommand(process.execPath, ['-e', program],
+      {...options, profile: 'qualification', interruptions: true,
+        onOutput: (_, bytes) => {
+          if (bytes.includes('READY') && !timer) timer = setTimeout(() => process.kill(process.pid, 'SIGTERM'), 20);
+        }}), error => {
+        assert.equal(error.message, 'interrupted by SIGTERM');
+        assert.equal(error.result.status, 0); assert.equal(error.result.signal, null);
+        assert.equal(error.result.timedOut, false); assert.equal(error.result.retirement.descendants_absent, true);
+        return true;
+      });
+  } finally {clearTimeout(timer);}
+});
+
 test('qualification normal leader exit cannot hide redirected same-group or escaped children', async t => {
   for (const detached of [false, true]) {
     const f = await fixture(t), start = performance.now();

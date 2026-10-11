@@ -511,7 +511,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const supervision = await execute(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', '--test-timeout=120000',
       resolve(dirname(process.argv[1]), 'sdk-command-owner.test.mjs')], {environment, timeout: 150000, limit: 16 * 1024 * 1024});
     process.stdout.write(supervision.stdout); process.stderr.write(supervision.stderr); successful(supervision, 'SDK command supervisor owning tests');
-    assert.equal(verifyTap(supervision.stdout.toString(), 12), 12, 'complete SDK command supervisor owning test set');
+    // Original12 owners plus exact cwd/argv and graceful interruption controls.
+    assert.equal(verifyTap(supervision.stdout.toString(), 14), 14, 'complete SDK command supervisor owning test set');
     const tls = await execute(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', '--test-timeout=120000',
       resolve(dirname(process.argv[1]), 'sdk-registry-reader.test.mjs')], {environment, timeout: 150000, limit: 16 * 1024 * 1024});
     process.stdout.write(tls.stdout); process.stderr.write(tls.stderr); successful(tls, 'SDK registry transport owning tests');

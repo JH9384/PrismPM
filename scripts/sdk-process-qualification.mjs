@@ -33,7 +33,7 @@ write('interpreter.json', {path: '/usr/bin/python3', version: '3.11.2', bytes: i
   sha256: hash(interpreter), process_retirement: python.retirement});
 const owners = new Map([
   ['scripts/sdk-vv-check.test.mjs', 20],
-  ['scripts/sdk-command-owner.test.mjs', 12],
+  ['scripts/sdk-command-owner.test.mjs', 14],
   ['scripts/sdk-registry-qualification.test.mjs', 17],
   ['scripts/sdk-construction-archive.test.mjs', 14],
   ['scripts/sdk-construction-stage.test.mjs', 17],
@@ -43,7 +43,7 @@ const owners = new Map([
 const args = ['--test', '--test-concurrency=1', '--test-timeout=120000',
   '--test-reporter=./scripts/owning-node-reporter.mjs', ...owners.keys()];
 write('command.json', {source, program: process.execPath, args, timeout_ms: 150000,
-  architecture: process.arch, owners: [...owners], scope: 'all original71 process/construction cases plus2 actual normal-exit cases,1 whole wrapper-lifecycle unit,12 supervisor controls and complete17 registry-process cases; unchanged deadlines'});
+  architecture: process.arch, owners: [...owners], scope: 'all original71 process/construction cases plus2 actual normal-exit cases,1 whole wrapper-lifecycle unit,original12 supervisor controls plus2 cwd/interruption controls and complete17 registry-process cases; unchanged deadlines'});
 let result, failure, sourceUnchanged = false;
 try {
   try { result = await execute(process.execPath, args, {timeout: 150000, limit: 16 * 1024 ** 2}); }
@@ -57,8 +57,8 @@ try {
   if (failure) throw failure;
   assert.equal(result.status, 0); assert.equal(result.signal, null);
   const tap = result.stdout.toString();
-  assert.equal(verifyTap(tap, 103), 103);
-  verifyFileCompletions(tap, [...owners.keys()].map(path => resolve(path)), 103);
+  assert.equal(verifyTap(tap, 105), 105);
+  verifyFileCompletions(tap, [...owners.keys()].map(path => resolve(path)), 105);
   const expected = new Map([...owners].map(([path, count]) => [resolve(path), count]));
   for (const line of tap.split(/\r?\n/).filter(line => line.startsWith('# prismpm-owning-file '))) {
     const row = JSON.parse(line.slice('# prismpm-owning-file '.length));

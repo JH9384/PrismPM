@@ -714,8 +714,7 @@ pub(crate) fn generate(
         b"leanprover/lean4:v4.32.1\n",
     )?;
 
-    let lake = executable("lake")?;
-    let cargo = executable("cargo")?;
+    let [lake, cargo] = crate::verification::executables(["lake", "cargo"])?;
     let replacements = [
         (workspace, "$APPLICATION_WORK"),
         (repository_root, "$PROJECT"),

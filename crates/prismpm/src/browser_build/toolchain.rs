@@ -2,7 +2,7 @@
 
 use super::{json_bytes, PrismError};
 use crate::library_build::sha256;
-use crate::verification::{executable, preflight_toolchain, run_process, ProcessRecord};
+use crate::verification::{executables, preflight_toolchain, run_process, ProcessRecord};
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -60,8 +60,7 @@ pub(super) fn resolve(project: &Path) -> Result<Tools, PrismError> {
     }
     selectors(&selected)?;
     let standard = preflight_toolchain(project, &[(project, "$PROJECT")])?;
-    let rustc = executable("rustc")?;
-    let cargo = executable("cargo")?;
+    let [rustc, cargo] = executables(["rustc", "cargo"])?;
     // Native Cargo must be the same pinned rustup executable as rustc; a
     // version-spoofing PATH script is insufficient. SDK inventory binds both.
     if crate::sdk::inventory_path().is_none()

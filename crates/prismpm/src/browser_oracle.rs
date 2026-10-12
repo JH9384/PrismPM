@@ -8,13 +8,14 @@ use std::path::{Path, PathBuf};
 
 const DRIVER: &str = "/opt/prismpm/oracles/node_modules/playwright";
 const CORE: &str = "/opt/prismpm/oracles/node_modules/playwright-core";
-const BROWSER: &str = "/ms-playwright/chromium_headless_shell-1234";
+const BROWSER: &str = "/ms-playwright/chromium_headless_shell-cft-157.0.8099.0";
 // Source-bootstrap pins independently derived from integrity-locked npm
-// packages and the x64 child of the Dockerfile's pinned Playwright image.
+// packages and the complete immutable official x64 Chrome for Testing archive
+// declared in sdk/browser-engine/authority.json (including upstream notices).
 // Released SDKs bind their actual native trees in their signed inventory.
 const DRIVER_SHA: &str = "bf3497a2d26912da443d74ef55c0d8155e00a781e3e6c966368d8bd2c8380b5c";
 const CORE_SHA: &str = "8d81de4103b7e342d0f997526d84fb334bf92b562f1035bc66da8b77a0b02ab7";
-const BROWSER_X64_SHA: &str = "c6f6e195fcc938a67927b4849b1a876ad5eca81a977362f8f959f26afe6f47a4";
+const BROWSER_X64_SHA: &str = "18c79a8a6f785debf08393ce22f57cf5923d996c431c5c55610e5a20109905b7";
 
 fn invalid(message: impl Into<String>) -> PrismError {
     PrismError::new("PP5301", message)
@@ -129,7 +130,12 @@ fn expected_digest(
     let row = matching
         .next()
         .ok_or_else(|| invalid(format!("SDK oracle artifact {id} is absent")))?;
-    if matching.next().is_some() || row["kind"] != "oracle" || row["version"] != "1.62.1" {
+    let version = match id {
+        "playwright-driver" | "playwright-core" => "1.62.1",
+        "playwright-headless-shell" => "157.0.8099.0",
+        _ => return Err(invalid("unknown portable oracle artifact")),
+    };
+    if matching.next().is_some() || row["kind"] != "oracle" || row["version"] != version {
         return Err(invalid(format!(
             "SDK oracle artifact {id} is ambiguous or mismatched"
         )));
@@ -171,7 +177,7 @@ pub(crate) fn verified_browser() -> Result<PathBuf, PrismError> {
     }
     let relative = match std::env::consts::ARCH {
         "x86_64" => "chrome-headless-shell-linux64/chrome-headless-shell",
-        "aarch64" => "chrome-linux/headless_shell",
+        "aarch64" => "chrome-headless-shell-linux-arm64/chrome-headless-shell",
         _ => return Err(invalid("unsupported portable browser architecture")),
     };
     let executable = Path::new(BROWSER).join(relative);
@@ -281,6 +287,22 @@ mod tests {
                 .code,
                 "PP5301"
             );
+        }
+    }
+
+    #[test]
+    fn browser_version_is_distinct_from_unchanged_playwright_driver_version() {
+        for version in ["1.62.1", "157.0.8099.0"] {
+            let inventory = serde_json::json!({"artifacts":[{
+                "id":"playwright-headless-shell","kind":"oracle","version":version,
+                "digest":format!("sha256:{BROWSER_X64_SHA}")
+            }]});
+            let result = expected_digest(Some(&inventory), "playwright-headless-shell", "");
+            if version == "157.0.8099.0" {
+                assert_eq!(result.unwrap(), BROWSER_X64_SHA);
+            } else {
+                assert_eq!(result.unwrap_err().code, "PP5301");
+            }
         }
     }
 }

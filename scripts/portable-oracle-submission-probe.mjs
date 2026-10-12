@@ -204,7 +204,7 @@ try {
     assert.deepEqual(report.portable_browser.cases.map(row => row.name), fixture.journeys);
     assert.deepEqual(report.portable_browser.vector_indexes, fixture.vector_indexes);
     assert.equal(report.portable_browser.profile, fixture.profile);
-    assert.equal(report.portable_browser.browser_version, '151.0.7922.34');
+    assert.equal(report.portable_browser.browser_version, '157.0.8099.0');
     assert.equal(report.portable_browser.playwright, '1.62.1');
     assert.ok(report.portable_browser.cases.every(row => row.status === 'passed' && row.attempts === 1));
     assert.equal(diagnostics.length, 0);

@@ -7,7 +7,7 @@ import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {browserEnvironmentPreflight, validateBrowserEnvironment} from './browser-environment-preflight.mjs';
 
-const versions={chromium:'151.0.7922.34',firefox:'153.0',webkit:'26.5'};
+const versions={chromium:'157.0.8099.0',firefox:'153.0',webkit:'26.5'};
 test('the production devcontainer provides the child reaper required by hard browser deadlines',()=>{
   const container=JSON.parse(readFileSync(new URL('../.devcontainer/devcontainer.json',import.meta.url),'utf8'));
   assert.equal(container.init,true);

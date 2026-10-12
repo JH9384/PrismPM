@@ -11,6 +11,11 @@ on:
       - tests/browser-cross-engine/server.test.mjs
       - sdk/oracles/package.json
       - sdk/oracles/package-lock.json
+      - sdk/browser-engine/**
+      - scripts/browser-engine-input.test.mjs
+      - sdk/Dockerfile
+      - sdk/generate-inventory.mjs
+      - tools.lock
   workflow_dispatch:
 
 permissions:
@@ -50,7 +55,7 @@ jobs:
           docker run --rm --init --network none --user vscode \
             --volume "$GITHUB_WORKSPACE:/workspace:ro" --workdir /workspace \
             --entrypoint node prismpm-browser-environment \
-            --test scripts/browser-environment-preflight.test.mjs scripts/qualify-debian-browser-inputs.test.mjs tests/browser-cross-engine/server.test.mjs
+            --test scripts/browser-engine-input.test.mjs scripts/browser-environment-preflight.test.mjs scripts/qualify-debian-browser-inputs.test.mjs tests/browser-cross-engine/server.test.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: browser-environment-${{ github.event.pull_request.head.sha || github.sha }}

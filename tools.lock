@@ -59,6 +59,14 @@ rust_builder = "docker.io/library/rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486
 runtime = "mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e"
 devcontainer = "docker.io/library/debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171"
 
+[chromium-headless-input]
+version = "157.0.8099.0"
+channel = "Canary"
+authority = "sdk/browser-engine/authority.json"
+authority_sha256 = "331555b57a45b264327ec4f034c189f64e20956b630a2d6b9053e767bbb53e90"
+installer = "sdk/browser-engine/install.py"
+installer_sha256 = "ae6f7357f1eea754f07f555dd263d30f2d30ca8cf5440b2494c14facf34743af"
+
 [sdk-downloads.amd64]
 elan = "df0b2b3a439961ffcbb3985214365ffe40f49bc871df04dff268c7d8e21ca8b2"
 node = "d60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307"

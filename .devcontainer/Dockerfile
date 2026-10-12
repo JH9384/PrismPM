@@ -41,10 +41,9 @@ RUN find /root/.m2/repository -type f \( -name '*.lastUpdated' -o -name '_remote
 FROM docker.io/library/debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS browser_ready
 
 COPY --from=docker_cli /usr/local/bin/docker /usr/local/bin/docker
-# Chromium and FFmpeg use the shared Linux builds. Firefox and WebKit below
+# FFmpeg uses the shared Linux build. Firefox and WebKit below
 # must use Debian 12 builds; the Noble WebKit requires a newer glibc.
 COPY --from=browser_oracle /ms-playwright/chromium-1234 /ms-playwright/chromium-1234
-COPY --from=browser_oracle /ms-playwright/chromium_headless_shell-1234 /ms-playwright/chromium_headless_shell-1234
 COPY --from=browser_oracle /ms-playwright/ffmpeg-1011 /ms-playwright/ffmpeg-1011
 
 ENV RUSTUP_HOME=/usr/local/rustup \
@@ -58,6 +57,12 @@ RUN apt-get update \
         build-essential ca-certificates coreutils=9.1-1 curl git libgmp10 \
         libssl-dev pkg-config python3=3.11.2-1+b1 ripgrep unzip xz-utils \
     && rm -rf /var/lib/apt/lists/*
+
+# The complete fixed Chromium input is independent of the unchanged driver,
+# Firefox, WebKit and base-image pins. Every byte is admitted before extraction.
+COPY sdk/browser-engine/ /opt/prismpm/browser-engine/
+RUN python3 -B /opt/prismpm/browser-engine/install_test.py \
+    && python3 -B /opt/prismpm/browser-engine/install.py --architecture amd64
 
 RUN curl --proto '=https' --tlsv1.2 -sSfL \
         https://static.rust-lang.org/rustup/archive/1.28.2/x86_64-unknown-linux-gnu/rustup-init \

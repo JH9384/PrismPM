@@ -28,8 +28,8 @@ assert.equal(matrix.interaction_cases.length, 18);
 assert.equal(matrix.infrastructure_cases.length, 3);
 assert.equal(new Set([...matrix.interaction_cases, ...matrix.infrastructure_cases]).size, 21);
 const browser = process.arch === 'x64'
-  ? '/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell'
-  : '/ms-playwright/chromium_headless_shell-1234/chrome-linux/headless_shell';
+  ? '/ms-playwright/chromium_headless_shell-cft-157.0.8099.0/chrome-headless-shell-linux64/chrome-headless-shell'
+  : '/ms-playwright/chromium_headless_shell-cft-157.0.8099.0/chrome-headless-shell-linux-arm64/chrome-headless-shell';
 assert(['x64', 'arm64'].includes(process.arch));
 const inputs = [
   'vendor/hologram-live.tar', 'tests/hologram-oracle/Cargo.toml',

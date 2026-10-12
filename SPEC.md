@@ -354,7 +354,18 @@ Before loading the browser driver, verification checks the real installed
 Playwright driver/core and Chromium headless-shell trees against the native
 SDK inventory, using the same length-prefixed SHA-256 tree encoding as SDK
 inventory production. Source-bootstrap verification instead uses independently
-reviewed digests from the locked npm packages and pinned x64 browser image.
+reviewed digests from the locked npm packages and complete immutable official
+Chrome for Testing 157.0.8099.0 x64 archive. `sdk/browser-engine/authority.json`
+binds both platform archives by object generation, compressed digest, complete
+member contents/modes, native architecture and installed-tree digest. Its
+Canary status is explicit; Playwright driver/core remain pinned to 1.62.1.
+Archive admission checks the bounded immutable compressed snapshot, complete
+classic-ZIP index and every member before creating an extraction stage; it
+does not continue after refused admission. The installer preserves complete
+upstream notices. Its no-clobber publication assumes the serialized trusted
+image-build namespace; it does not claim protection against another same-UID
+build writer. Both native compatibility and all original browser/SDK owners
+remain mandatory; an input declaration or version probe is not acceptance.
 Symlinks, special files, writable shared entries, oversized trees and digest
 changes fail with `PP5301`. Node is resolved through the existing tool inventory
 boundary; the verified absolute Node and browser executable paths are passed

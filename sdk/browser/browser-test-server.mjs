@@ -12,9 +12,9 @@ assert.equal(playwrightRequire('playwright-core/package.json').version, '1.62.1'
 const playwright = require('playwright');
 assert.ok(['x64', 'arm64'].includes(process.arch), 'pinned browser architecture');
 export const browserPins = Object.freeze({
-  chromium: Object.freeze({version: '151.0.7922.34', executablePath: process.arch === 'x64'
-    ? '/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell'
-    : '/ms-playwright/chromium_headless_shell-1234/chrome-linux/headless_shell'}),
+  chromium: Object.freeze({version: '157.0.8099.0', executablePath: process.arch === 'x64'
+    ? '/ms-playwright/chromium_headless_shell-cft-157.0.8099.0/chrome-headless-shell-linux64/chrome-headless-shell'
+    : '/ms-playwright/chromium_headless_shell-cft-157.0.8099.0/chrome-headless-shell-linux-arm64/chrome-headless-shell'}),
   firefox: Object.freeze({version: '153.0', executablePath: '/ms-playwright/firefox-1538/firefox/firefox'}),
   webkit: Object.freeze({version: '26.5', executablePath: '/ms-playwright/webkit-2336/pw_run.sh'}),
 });

@@ -159,7 +159,7 @@ export function prepare(mutation = null, inputs = frozenInputs()) {
     const driverTarget = join(work, 'driver-target');
     const compiler = stageCompiler(work, inputs);
     run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0',
-      '--config', 'build.incremental=false', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
+      '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
     const driver = join(driverTarget, 'debug/publication-admission-driver');
     run('lake', ['update'], project);
     const verified = JSON.parse(run(driver, ['verify', join(project, 'lexlean.toml')], repository));

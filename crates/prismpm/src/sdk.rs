@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use std::path::{Component, Path};
 
 mod executable_file;
+mod executable_inventory;
 pub(crate) use executable_file::ExecutableFile;
 
 const STDLIB_SOURCES: &[u8] = include_bytes!("../sdk/stdlib-sources.tar");
@@ -131,50 +132,7 @@ fn executable_digest(selected: &Path, resolved: &Path) -> std::io::Result<String
 fn executable_inventory() -> Result<serde_json::Value, PrismError> {
     let path =
         std::env::var_os("PATH").ok_or_else(|| PrismError::new("PP5401", "SDK PATH is absent"))?;
-    let mut seen = BTreeSet::new();
-    let mut commands = Vec::new();
-    for directory in std::env::split_paths(&path) {
-        let mut entries = match std::fs::read_dir(&directory) {
-            Ok(entries) => entries
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|error| PrismError::new("PP5401", error.to_string()))?,
-            Err(_) => continue,
-        };
-        entries.sort_by_key(std::fs::DirEntry::file_name);
-        for entry in entries {
-            let command = entry.file_name().into_string().map_err(|_| {
-                PrismError::new("PP5401", "SDK PATH contains a non-UTF-8 command name")
-            })?;
-            if seen.contains(&command) {
-                continue;
-            }
-            let resolved = match entry.path().canonicalize() {
-                Ok(path) => path,
-                Err(_) => continue,
-            };
-            let metadata = match std::fs::metadata(&resolved) {
-                Ok(metadata) if metadata.is_file() => metadata,
-                _ => continue,
-            };
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                if metadata.permissions().mode() & 0o111 == 0 {
-                    continue;
-                }
-            }
-            let digest = executable_digest(&entry.path(), &resolved)
-                .map_err(|error| PrismError::new("PP5401", error.to_string()))?;
-            commands.push(json!({
-                "command": command,
-                "executable": resolved.to_string_lossy(),
-                "sha256": digest
-            }));
-            seen.insert(command);
-        }
-    }
-    commands.sort_by(|left, right| left["command"].as_str().cmp(&right["command"].as_str()));
-    Ok(json!({"commands":commands,"schema":"prismpm/sdk-inventory/1"}))
+    executable_inventory::inventory(&path)
 }
 
 /// Verify that the current executable search path is exactly the signed SDK inventory.
@@ -241,6 +199,11 @@ pub fn verify_environment() -> Result<Option<serde_json::Value>, PrismError> {
 /// Released images always carry the fixed inventory file; source bootstrap
 /// environments are governed by the independently pinned repository gate.
 pub fn executable(command: &str) -> Result<PathBuf, PrismError> {
+    let [selected] = executables([command])?;
+    Ok(selected)
+}
+
+fn validate_command(command: &str) -> Result<(), PrismError> {
     if command.is_empty()
         || command.len() > 128
         || !command
@@ -249,8 +212,36 @@ pub fn executable(command: &str) -> Result<PathBuf, PrismError> {
     {
         return Err(PrismError::new("PP5401", "SDK command name is malformed"));
     }
+    Ok(())
+}
+
+// Resolve adjacent lookups using one fresh inventory before their first child.
+// Nothing is retained across calls; each selected command is still freshly
+// hashed and checked against the signed inventory by resolve_executable.
+pub(crate) fn executables<const N: usize>(commands: [&str; N]) -> Result<[PathBuf; N], PrismError> {
+    for command in commands {
+        validate_command(command)?;
+    }
     let inventory_path = inventory_path();
     let inventory = verify_environment()?;
+    let mut selected = std::array::from_fn(|_| PathBuf::new());
+    for (command, result) in commands.into_iter().zip(&mut selected) {
+        *result = resolve_executable(command, inventory_path.as_deref(), inventory.is_some())?;
+    }
+    // A batch closes with another complete fresh byte inventory before its
+    // caller can spawn any child. Never substitute cached hashes or metadata
+    // for this closing verification, or retain a barrier across execution.
+    if N > 1 && inventory.is_some() {
+        verify_environment()?;
+    }
+    Ok(selected)
+}
+
+fn resolve_executable(
+    command: &str,
+    inventory_path: Option<&Path>,
+    verified: bool,
+) -> Result<PathBuf, PrismError> {
     let candidate = std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
         .map(|directory| directory.join(command))
         .find(|path| path.is_file())
@@ -258,9 +249,9 @@ pub fn executable(command: &str) -> Result<PathBuf, PrismError> {
     let resolved = candidate
         .canonicalize()
         .map_err(|error| PrismError::new("PP5401", format!("SDK command {command}: {error}")))?;
-    if inventory.is_some() {
+    if verified {
         let bytes = read_metadata(
-            &inventory_path.ok_or_else(|| PrismError::new("PP5401", "SDK inventory is absent"))?,
+            inventory_path.ok_or_else(|| PrismError::new("PP5401", "SDK inventory is absent"))?,
             SDK_INVENTORY_MAX_BYTES,
             "PP5401",
         )?;
@@ -1162,6 +1153,46 @@ mod tests {
             canonical.display(),
             verification.is_some()
         );
+    }
+
+    #[test]
+    fn adjacent_sdk_selections_match_fresh_scalar_selections_before_any_child() {
+        let commands = ["lake", "lean", "rustfmt", "rustc", "timeout"];
+        let started = std::time::Instant::now();
+        let scalar = commands.map(|name| super::executable(name).unwrap());
+        let scalar_elapsed = started.elapsed();
+        let started = std::time::Instant::now();
+        let batch = super::executables(commands).unwrap();
+        let batch_elapsed = started.elapsed();
+        assert_eq!(batch, scalar);
+        for (name, selected) in commands.into_iter().zip(batch) {
+            let expected = std::env::split_paths(&std::env::var_os("PATH").unwrap())
+                .map(|directory| directory.join(name))
+                .find(|path| path.is_file())
+                .unwrap();
+            assert_eq!(selected, expected);
+            let mut file = super::ExecutableFile::open(&selected.canonicalize().unwrap()).unwrap();
+            assert_eq!(file.sha256().unwrap().len(), 64);
+            file.verify_reference(&selected).unwrap();
+        }
+        eprintln!(
+            "Fresh adjacent SDK selections: scalar_ms={}, batch_ms={}",
+            scalar_elapsed.as_millis(),
+            batch_elapsed.as_millis()
+        );
+    }
+
+    #[test]
+    fn adjacent_sdk_selections_refuse_malformed_names_and_missing_commands() {
+        for malformed in ["", "../node", "cargo;true", "name with space"] {
+            assert_eq!(
+                super::executables(["cargo", malformed]).unwrap_err().code,
+                "PP5401"
+            );
+        }
+        let error = super::executables(["cargo", "prismpm-absent-sdk-command"]).unwrap_err();
+        assert_eq!(error.code, "PP5401");
+        assert!(error.message.contains("absent"));
     }
 
     #[cfg(unix)]

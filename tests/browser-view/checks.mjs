@@ -28,13 +28,13 @@ function wasm(bytes,vectors,inputCap,outputCap,pages){
   }
   return maximum;
 }
-export async function verifyView(t){
+export async function verifyView(t,compilerOwner=null){
   refuseBypasses();
   const vectors=corpus();assert.equal(vectors.length,206);assert.equal(new Set(vectors.map(v=>v.id)).size,206);
   assert.equal(readFileSync(join(repository,'stdlib/src/Foundation/View/Workspace/V1/Corpus.lex.tex'),'utf8'),semanticCorpus());
   assert.equal(readFileSync(join(draft,'src/Foundation/View/Workspace/V1/Labels.lex.tex'),'utf8'),source());
   assert.deepEqual([...new Set(vectors.filter(v=>v.response.length===1).map(v=>v.response[0]))].sort((a,b)=>a-b),Array.from({length:14},(_,i)=>i+1));
-  const build=prepare();t.after(()=>rmSync(build.work,{recursive:true,force:true}));
+  const build=prepare(null,compilerOwner);t.after(()=>rmSync(build.work,{recursive:true,force:true}));
   const path=join(build.work,'vectors.tsv');writeFileSync(path,tsv(vectors),{flag:'wx'});
   for(const standard of[true,false])await prerequisite(t,standard?'all 206 modeled View vectors twice in native Rust':'all 206 modeled View vectors twice in no_std Rust',()=>{
     const binary=build.compileNative(standard),output=run(binary,[path],build.runner);
@@ -42,16 +42,17 @@ export async function verifyView(t){
     assert.match(output,/PASS 206 complete generated View vectors twice/);assert.equal(run(binary,['--labels'],build.runner),literalLabels);
   });
   await prerequisite(t,'all 206 View vectors twice in fresh bounded Wasm',()=>{build.maximum=wasm(build.wasmBytes,vectors,133728,71055,128);});
-  t.diagnostic(JSON.stringify({source:build.verified.source_id,attestation:build.verified.attestation_id,ir:build.generation.ir_sha256,wasm:sha(build.wasmBytes),labels:sha(literalLabels),maximum:build.maximum}));
+  t.diagnostic(JSON.stringify({source:build.verified.source_id,attestation:build.verified.attestation_id,ir:build.generation.ir_sha256,wasm:sha(build.wasmBytes),labels:sha(literalLabels),maximum:build.maximum,compiler:build.compilerOwner,preparationMs:build.preparationMs}));
   return build;
 }
-export function verifyModelMutation(kind){
+export function verifyModelMutation(kind,compilerOwner=null){
   const vector=corpus().find(v=>v.id===(kind==='session'?'WrongSession':'PresentationMember'));assert.ok(vector);
-  const build=prepare(kind);
+  const build=prepare(kind,compilerOwner);
   try{
     const path=join(build.work,'mutation.tsv');writeFileSync(path,tsv([vector]),{flag:'wx'});
     const binary=build.compileNative(true);
     assert.throws(()=>run(binary,[path],build.runner),/native output|assertion|mismatch/,'actual generated mutant must fail its semantic assertion');
+    return {mutation:kind,compiler:build.compilerOwner,source:build.verified.source_id,preparationMs:build.preparationMs};
   }finally{rmSync(build.work,{recursive:true,force:true});}
 }
 export async function verifyDependencies(t){

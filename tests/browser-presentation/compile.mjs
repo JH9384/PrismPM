@@ -133,7 +133,7 @@ function prepareStage(mutation, sourceOnly) {
     copyFileSync(join(repository, 'rust-toolchain.toml'), join(work, 'rust-toolchain.toml'));
     const driverTarget = createPrivateDriverTarget(work);
     const compiler = stageCompiler(work);
-    run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0', '--config', 'build.incremental=false', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
+    run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0', '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
     const driver = join(driverTarget, 'debug/browser-presentation-driver');
     const checked = JSON.parse(run(driver, ['check', join(project, 'lexlean.toml')], repository));
     assert.deepEqual(checked.modules, modules);

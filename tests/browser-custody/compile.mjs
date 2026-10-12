@@ -5,6 +5,7 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {createPrivateDriverTarget, ensureProdExport, run, sha} from '../browser-view/compile.mjs';
+import {requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 export {ensureProdExport, run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -65,7 +66,9 @@ function stageCompiler(work) {
   }};
 }
 
-export function prepare(mutation = null) {
+export function prepare(mutation = null, compilerOwner = null) {
+  const started = performance.now();
+  const shared = compilerOwner === null ? null : requireCompilerOwner(compilerOwner, 'custody');
   assert.ok([null, 'policy', 'limit', 'trailing'].includes(mutation));
   for (const key of Object.keys(process.env)) assert.ok(!key.startsWith('PRISMPM_CUSTODY_'), 'custody acceptance refuses bypass ' + key);
   pins();
@@ -115,13 +118,18 @@ export function prepare(mutation = null) {
     writeFileSync(join(project, 'lakefile.toml'), 'name = "custody_conformance"\nversion = "0.1.0"\n', {flag: 'wx'});
     copyFileSync(join(repository, 'lean-toolchain'), join(project, 'lean-toolchain'));
     copyFileSync(join(repository, 'rust-toolchain.toml'), join(work, 'rust-toolchain.toml'));
-    const driverTarget = createPrivateDriverTarget(work);
-    const compiler = stageCompiler(work);
-    run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0',
-      '--config', 'build.incremental=false', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
-    const driver = join(driverTarget, 'debug/browser-custody-driver');
+    let compiler, invokeDriver;
+    if (shared) invokeDriver = args => shared.runDriver(args, repository);
+    else {
+      const driverTarget = createPrivateDriverTarget(work);
+      compiler = stageCompiler(work);
+      run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0',
+        '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
+      const driver = join(driverTarget, 'debug/browser-custody-driver');
+      invokeDriver = args => run(driver, args, repository);
+    }
     run('lake', ['update'], project);
-    const verified = JSON.parse(run(driver, ['verify', join(project, 'lexlean.toml')], repository));
+    const verified = JSON.parse(invokeDriver(['verify', join(project, 'lexlean.toml')]));
     assert.deepEqual(verified.modules, modules);
     const manifestBytes = readFileSync(join(verified.root, 'build-manifest.json'));
     const attestationBytes = readFileSync(join(verified.root, 'attestation.json'));
@@ -149,13 +157,15 @@ export function prepare(mutation = null) {
     copyFileSync(join(repository, 'lean-toolchain'), join(lean, 'lean-toolchain'));
     writeFileSync(join(lean, 'lakefile.toml'), 'name = "custody_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + modules.map(name => '"PrismPM.' + name + '"').join(',') + ']\n', {flag: 'wx'});
     run('lake', ['build', 'PrismGenerated'], lean);
-    const {dir: exporter, bin: prodExport} = ensureProdExport(repository, work);
+    const exporter = shared ? null : ensureProdExport(repository, work);
+    const invokeExporter = args => shared ? shared.runExporter(args, join(lean, '.lake/build/lib/lean'))
+      : run(exporter.bin, args, exporter.dir, {LEAN_PATH: join(lean, '.lake/build/lib/lean')});
     const exported = join(work, 'export');
     const roots = ['PrismPM.Foundation.Browser.Application.V1.CustodyWire.custodyWireBytes'];
-    run(prodExport, ['--module', 'PrismPM.Fixture', ...roots.flatMap(root => ['--root', root]),
-      '--ir-module', 'BrowserCustody', '--out', exported], exporter, {LEAN_PATH: join(lean, '.lake/build/lib/lean')});
+    invokeExporter(['--module', 'PrismPM.Fixture', ...roots.flatMap(root => ['--root', root]),
+      '--ir-module', 'BrowserCustody', '--out', exported]);
     const generated = join(work, 'generated'), ir = join(exported, 'kernel.ir');
-    const generation = JSON.parse(run(driver, ['native', ir, generated, repository], repository));
+    const generation = JSON.parse(invokeDriver(['native', ir, generated, repository]));
     const runner = join(work, 'runner'); mkdirSync(join(runner, 'src'), {recursive: true});
     copyFileSync(join(draft, 'runner.rs'), join(runner, 'src/main.rs'));
     writeFileSync(join(runner, 'Cargo.lock'), 'version = 4\n[[package]]\nname = "browser-custody-core-probe"\nversion = "0.1.0"\n[[package]]\nname = "browser-custody-runner"\nversion = "0.1.0"\ndependencies = ["browser-custody-core-probe"]\n', {flag: 'wx'});
@@ -167,14 +177,15 @@ export function prepare(mutation = null) {
     const guests = [];
     for (const [label, mode] of [['a', 'wasm'], ['b', 'wasm']]) {
       const guest = join(work, 'guest-' + label);
-      assert.deepEqual(JSON.parse(run(driver, [mode, ir, guest, repository], repository)), generation);
+      assert.deepEqual(JSON.parse(invokeDriver([mode, ir, guest, repository])), generation);
       run('cargo', ['build', '--locked', '--offline', '--release'], guest, {CARGO_TARGET_DIR: join(guest, 'target')});
       guests.push(readFileSync(join(guest, 'target/wasm32-unknown-unknown/release/browser_custody_' + 'wire' + '_probe.wasm')));
     }
     assert.deepEqual(guests[0], guests[1], 'two independent generated Core-Wasm packages');
-    pins(); compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+    pins(); if (shared) shared.verify(); else compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
     for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'frozen source ' + module);
     completed = true;
-    return {work, sources, verified, generation, compileNative, runner, wasmBytes: guests[0]};
+    return {work, sources, verified, generation, compileNative, runner,
+      compilerOwner: shared?.identity ?? null, preparationMs: performance.now() - started, wasmBytes: guests[0]};
   } finally { if (!completed) process.stderr.write('Retained incomplete custody diagnostic build ' + work + '\n'); }
 }

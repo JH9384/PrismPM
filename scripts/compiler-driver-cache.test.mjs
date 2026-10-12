@@ -274,6 +274,48 @@ test('all twelve private compiler constructions optimize only the fixed SHA-2 pa
   }
 });
 
+test('serial View and Custody owners preserve fresh tools and every product verification', () => {
+  // Supplemental source/argument controls. Genuine owners still execute every
+  // original model, kernel, native, Wasm, browser and planted defect assertion.
+  const owner = readFileSync(join(repository, 'tests/browser-view/compiler-owner.mjs'), 'utf8');
+  const check = source => {
+    const call = /run\('cargo',\s*\['build',[\s\S]*?\], work, \{CARGO_TARGET_DIR: target\}\)/.exec(source);
+    assert.ok(call, 'one fresh owner construction');
+    const recorded = [];
+    Function('run', 'join', 'work', 'manifest', 'target', call[0])(
+      (...args) => recorded.push(args), join, '/private/owner', 'driver/Cargo.toml', '/private/owner/driver-target');
+    assert.deepEqual(recorded, [['cargo', ['build', '--locked', '--offline', '--jobs', '1',
+      '--config', 'profile.dev.debug=0', '--config', 'build.incremental=false',
+      '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', '/private/owner/driver/Cargo.toml'],
+      '/private/owner', {CARGO_TARGET_DIR: '/private/owner/driver-target'}]]);
+    assert.match(source, /const target = createPrivateDriverTarget\(work\)/);
+    assert.match(source, /exporter = ensureProdExport\(repository, work\)/);
+    return call[0];
+  };
+  const call = check(owner);
+  for (const [before, after] of [["'--locked'", "'REMOVED'"], ["'--offline'", "'REMOVED'"],
+    ["'--jobs', '1'", "'--jobs', '2'"], ['profile.dev.debug=0', 'profile.dev.debug=2'],
+    ['build.incremental=false', 'build.incremental=true'],
+    ['profile.dev.package.sha2.opt-level=3', 'profile.dev.opt-level=3']]) {
+    assert.ok(call.includes(before));
+    assert.throws(() => check(owner.replace(call, call.replace(before, after))), before);
+  }
+  for (const family of ['view', 'custody']) {
+    const compile = readFileSync(join(repository, 'tests/browser-' + family + '/compile.mjs'), 'utf8');
+    assert.match(compile, new RegExp("requireCompilerOwner\\(compilerOwner,\\s*'" + family + "'\\)"));
+    assert.match(compile, /shared\.runDriver\(/);
+    assert.match(compile, /shared\.runExporter\(/);
+    assert.match(compile, /if\s*\(shared\)\s*shared\.verify\(\)/);
+    const testPath = family === 'view' ? 'sdk/browser/view-model-test.mjs' : 'sdk/browser/credential-custody-test.mjs';
+    const testSource = readFileSync(join(repository, testPath), 'utf8');
+    assert.match(testSource, new RegExp("createCompilerOwner\\('" + family + "'\\)"));
+    assert.match(testSource, /verifyModelMutation\(kind,\s*owner\)/);
+    assert.match(testSource, /owner\.close\(\)/);
+    assert.match(testSource, /verifyCompilerOwnerSubstitutions\(owner\)/);
+    assert.match(testSource, /timeout:\s*3500000/);
+  }
+});
+
 test('actual Cargo and Lake retirement preserves all non-cache evidence and exact original tool identities', t => {
   const f = fixture(t);
   const binary = readFileSync(join(f.target,'debug/publication-admission-driver'));

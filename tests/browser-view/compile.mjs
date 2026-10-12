@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {copyFileSync,lstatSync,mkdirSync,mkdtempSync,readFileSync,realpathSync,writeFileSync} from 'node:fs';
+import {copyFileSync,lstatSync,mkdirSync,mkdtempSync,readdirSync,readFileSync,realpathSync,writeFileSync,writeSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {requireCompilerOwner} from './compiler-owner.mjs';
+import {isCapturedCompilerDriver} from './compiler-artifact.mjs';
 export const draft=dirname(fileURLToPath(import.meta.url));
 export const repository=resolve(draft,'../..');
 export const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -69,7 +71,7 @@ function compilerEnvironment(extra) {
       && !/[:\r\n\0]/.test(value), 'confined compiler path required: '+key);
   }
   return {...process.env, PATH:'/usr/local/elan/bin:/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin',
-    CARGO_NET_OFFLINE:'true', RUSTUP_TOOLCHAIN:rust+'-'+triple, ELAN_TOOLCHAIN:lean, ...extra};
+    CARGO_NET_OFFLINE:'true', RUSTUP_TOOLCHAIN:rust+'-'+triple, ELAN_TOOLCHAIN:lean, ...extra, LEAN_NUM_THREADS:'2'};
 }
 function terminateOwnedGroup(pid) {
   if (!Number.isSafeInteger(pid) || pid <= 1) return;
@@ -88,7 +90,70 @@ function terminateOwnedGroup(pid) {
   }
   signal('SIGKILL');
 }
-function execute(program,args,cwd,env={}) {
+// Diagnostics only: no command, argument, path, payload or environment is logged.
+const compilerDriverNames = new Set([
+  'browser-budget-driver', 'browser-custody-driver', 'browser-effects-driver',
+  'browser-operation-journal-driver', 'browser-presentation-driver',
+  'browser-workspace-command-driver', 'browser-workspace-envelope-driver',
+  'browser-workspace-journal-driver', 'browser-workspace-model-driver',
+  'browser-workspace-query-driver', 'browser-workspace-view-driver',
+  'publication-admission-driver',
+]);
+export function compilerPhase(program,args,artifact) {
+  if (['cargo','rustc','lean','lake'].includes(program) && args[0]?.startsWith('--version')) return 'toolchain-check';
+  if (program === 'tar') return 'archive-extraction';
+  if (['cargo','lake'].includes(program) && args[0] === 'clean') return 'artifact-cleanup';
+  if (program === 'cargo') return args[0] === 'build' ? 'rust-compilation' : 'unclassified-execution';
+  if (program === 'lake') {
+    if (args[0] === 'update') return 'lake-update';
+    if (args[0] === 'build') return args[1] === 'prod-export' ? 'exporter-construction' : 'generated-module-build';
+    return 'unclassified-execution';
+  }
+  if (program.endsWith('/prod-export')) return 'kernel-export';
+  // Raw registered compiler paths and actual privately captured driver owners
+  // are diagnostic sources. A generic basename alone is not an owner receipt.
+  const raw = /\/driver-target\/debug\/([^/]+)$/.exec(program);
+  if ((raw && compilerDriverNames.has(raw[1])) || isCapturedCompilerDriver(artifact,program)) {
+    if (['verify','check'].includes(args[0])) return 'lexlean-verification';
+    if (['native','generate'].includes(args[0])) return 'native-code-generation';
+    if (['wasm','generate-wasm','fixture','size','p256','point','pkce','labels','intent','secret','route','sink',
+      'maxroute','maxsink','maxfield','maxsecret','progress','maxprogress','guest','journal','partition',
+      'generate-journal-wasm','generate-probe-wasm','predecessor','session','observation','descriptor',
+      'reservation','retention','layout','tail','parity','context','recovery','metadata','signed-context',
+      'account-genesis','context-fields-wasm','admission-wasm','wire','semantic','designs','predicates',
+      'catalogue'].includes(args[0])) return 'wasm-code-generation';
+  }
+  return 'unclassified-execution';
+}
+export function observeCompilerPhase(program,args,started,success,artifact) {
+  // Diagnostic loss cannot change the actual compiler or test outcome.
+  try {
+    const record=Buffer.from('# prismpm-compiler-phase ' + JSON.stringify({
+      phase:compilerPhase(program,args,artifact),elapsed_ms:Math.ceil(performance.now()-started),success}) + '\n');
+    if(record.length>256)return;
+    // Pipes may briefly reject a write even while their reader is active.
+    // Account for byte progress and yield on transient backpressure, with
+    // fixed attempt/time bounds; never wait indefinitely for diagnostics.
+    const deadline=performance.now()+100;
+    let offset=0,wait=null;
+    for(let attempt=0;attempt<64&&offset<record.length;attempt++) {
+      if(performance.now()>=deadline)return;
+      try {
+        const written=writeSync(2,record,offset,record.length-offset);
+        if(!Number.isSafeInteger(written)||written<=0||written>record.length-offset)return;
+        offset+=written;
+      } catch(error) {
+        if(!['EINTR','EAGAIN','EWOULDBLOCK'].includes(error?.code))return;
+        if(error.code!=='EINTR') {
+          wait??=new Int32Array(new SharedArrayBuffer(4));
+          Atomics.wait(wait,0,0,1);
+        }
+      }
+    }
+  }
+  catch { /* No acceptance depends on this optional observation. */ }
+}
+function execute(program,args,cwd,env={},artifact) {
   const childEnvironment = compilerEnvironment(env);
   const tools = {cargo:'/usr/local/cargo/bin/cargo',rustc:'/usr/local/cargo/bin/rustc',
     lean:'/usr/local/elan/bin/lean',lake:'/usr/local/elan/bin/lake',node:process.execPath,tar:'/usr/bin/tar'};
@@ -97,14 +162,19 @@ function execute(program,args,cwd,env={}) {
     'compiler command must be SDK-owned or an exact generated executable');
   if (Object.hasOwn(env,'LEAN_PATH')) assert.ok(executable.endsWith('/prod-export'),
     'LEAN_PATH belongs only to the exact generated exporter');
-  const result = spawnSync('/usr/bin/timeout',
-    ['--signal=TERM','--kill-after=5s','360s',executable,...args],
-    {cwd,detached:true,encoding:'utf8',timeout:370000,killSignal:'SIGKILL',
-      maxBuffer:32*1024*1024,env:childEnvironment});
-  terminateOwnedGroup(result.pid);
-  assert.ifError(result.error);
-  assert.equal(result.status,0,program+' '+args.join(' ')+'\n'+result.stdout+'\n'+result.stderr);
-  return result.stdout;
+  const started = performance.now(); let success = false;
+  try {
+    const result = spawnSync('/usr/bin/timeout',
+      ['--signal=TERM','--kill-after=5s','360s',executable,...args],
+      {cwd,detached:true,encoding:'utf8',timeout:370000,killSignal:'SIGKILL',
+        maxBuffer:32*1024*1024,env:childEnvironment});
+    terminateOwnedGroup(result.pid);
+    assert.ifError(result.error);
+    assert.equal(result.status,0,program+' '+args.join(' ')+'\n'+result.stdout+'\n'+result.stderr);
+    success = true; return result.stdout;
+  } finally {
+    observeCompilerPhase(program,args,started,success,artifact);
+  }
 }
 export function verifyCompilerTools() {
   const {rust, lean, triple} = toolchainPins();
@@ -130,12 +200,13 @@ export function verifyCompilerTools() {
 }
 
 let compilerToolsVerified = false;
-export function run(program,args,cwd,env={}) {
+export function run(program,args,cwd,env={},artifact) {
   // Refuse overrides before even the tool-version subprocesses are executed.
   compilerEnvironment(env);
   if (!compilerToolsVerified) { verifyCompilerTools(); compilerToolsVerified = true; }
-  return execute(program,args,cwd,env);
+  return execute(program,args,cwd,env,artifact);
 }
+
 export function createPrivateDriverTarget(work) {
   assert.equal(realpathSync(work), resolve(work), 'aliased driver parent refused');
   const parent = lstatSync(work);
@@ -165,8 +236,14 @@ export function ensureProdExport(repo = repository, work = null) {
   mkdirSync(dir, {mode:0o700});
   const archive = join(dir, '.source-lean.tar');
   writeFileSync(archive, captured.get('vendor/lean4-prod/lean.tar'), {flag:'wx', mode:0o600});
-  run('tar', ['-xf', archive, '-C', dir], dir);
-  run('lake', ['build', 'prod-export'], dir);
+  // Archive modes describe upstream packaging, not this private executable
+  // owner. Construct under an owner-only mask instead of chmod'ing an adopted
+  // runtime after capture; restore the caller's mask even when construction fails.
+  const previousMask = process.umask(0o077);
+  try {
+    run('tar', ['--no-same-owner', '--no-same-permissions', '-xf', archive, '-C', dir], dir);
+    run('lake', ['build', 'prod-export'], dir);
+  } finally { process.umask(previousMask); }
   const bin = join(dir, '.lake/build/bin/prod-export');
   sourceFile(dir, '.lake/build/bin/prod-export');
   for (const [name, bytes] of captured) assert.deepEqual(sourceFile(repo, name), bytes,
@@ -174,9 +251,11 @@ export function ensureProdExport(repo = repository, work = null) {
   assert.deepEqual(readFileSync(archive), captured.get('vendor/lean4-prod/lean.tar'), 'captured exporter archive remained frozen');
   return { dir, bin };
 }
-export function prepare(mutation=null){
+export function prepare(mutation=null,compilerOwner=null){
+  const started=performance.now();
   assert.ok([null,"session","rows"].includes(mutation),"closed negative-only model mutation");
   verifyPins();
+  const shared=compilerOwner===null?null:requireCompilerOwner(compilerOwner,'view');
   const work=mkdtempSync(join(tmpdir(),'prismpm-view-'));
   let completed=false;
   try {
@@ -196,21 +275,28 @@ export function prepare(mutation=null){
     for(const [name,bytes]of sources){const path=join(project,'src',...name.split('.'))+'.lex.tex';mkdirSync(dirname(path),{recursive:true});writeFileSync(path,bytes,{flag:'wx'});}
     for(const file of ['lexlean.toml','lakefile.toml','lean-toolchain'])copyFileSync(join(draft,file),join(project,file));
     copyFileSync(join(repository,'rust-toolchain.toml'),join(work,'rust-toolchain.toml'));
-    const driverTarget=createPrivateDriverTarget(work);
-    run('cargo',['build','--locked','--offline','--jobs','1','--config','profile.dev.debug=0','--config','build.incremental=false','--config','profile.dev.package.sha2.opt-level=3','--manifest-path',join(draft,'driver/Cargo.toml')],repository,{CARGO_TARGET_DIR:driverTarget});
-    const driver=join(driverTarget,'debug/browser-workspace-view-driver');
+    let invokeDriver;
+    if(shared)invokeDriver=args=>shared.runDriver(args,repository);
+    else{
+      const driverTarget=createPrivateDriverTarget(work);
+      run('cargo',['build','--locked','--offline','--jobs','1','--config','profile.dev.debug=0','--config','build.incremental=false','--config','profile.dev.package.sha2.opt-level=3','--manifest-path',join(draft,'driver/Cargo.toml')],repository,{CARGO_TARGET_DIR:driverTarget});
+      const driver=join(driverTarget,'debug/browser-workspace-view-driver');
+      invokeDriver=args=>run(driver,args,repository);
+    }
     run('lake',['update'],project);
-    const verified=JSON.parse(run(driver,['verify',join(project,'lexlean.toml')],repository));
+    const verified=JSON.parse(invokeDriver(['verify',join(project,'lexlean.toml')]));
     assert.deepEqual(verified.modules,modules);
     const lean=join(work,'lean');mkdirSync(lean);
     for(const name of modules){const relative=join('PrismPM',...name.split('.'))+'.lean',path=join(lean,relative);mkdirSync(dirname(path),{recursive:true});copyFileSync(join(verified.root,'modules',relative),path);}
     copyFileSync(join(repository,'lean-toolchain'),join(lean,'lean-toolchain'));
     writeFileSync(join(lean,'lakefile.toml'),'name = "workspace_view_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['+modules.map(n=>'"PrismPM.'+n+'"').join(',')+']\n',{flag:'wx'});
     run('lake',['build','PrismGenerated'],lean);
-    const {dir: exporter, bin: prodExport} = ensureProdExport(repository, work);
+    const exporter=shared?null:ensureProdExport(repository,work);
+    const invokeExporter=args=>shared?shared.runExporter(args,join(lean,'.lake/build/lib/lean'))
+      :run(exporter.bin,args,exporter.dir,{LEAN_PATH:join(lean,'.lake/build/lib/lean')});
     const exported=join(work,'export');
-    run(prodExport,['--module','PrismPM.Foundation.View.Workspace.V1.Labels','--root','PrismPM.Foundation.View.Workspace.V1.Interaction.workspaceInteractionBytes','--root','PrismPM.Foundation.View.Workspace.V1.Interaction.workspacePresentationBytes','--root','PrismPM.Foundation.View.Workspace.V1.Labels.workspaceViewLabelsBytes','--ir-module','BrowserWorkspaceView','--out',exported],exporter,{LEAN_PATH:join(lean,'.lake/build/lib/lean')});
-    const generated=join(work,'generated'),generation=JSON.parse(run(driver,['generate',join(exported,'kernel.ir'),generated,repository],repository));
+    invokeExporter(['--module','PrismPM.Foundation.View.Workspace.V1.Labels','--root','PrismPM.Foundation.View.Workspace.V1.Interaction.workspaceInteractionBytes','--root','PrismPM.Foundation.View.Workspace.V1.Interaction.workspacePresentationBytes','--root','PrismPM.Foundation.View.Workspace.V1.Labels.workspaceViewLabelsBytes','--ir-module','BrowserWorkspaceView','--out',exported]);
+    const generated=join(work,'generated'),generation=JSON.parse(invokeDriver(['generate',join(exported,'kernel.ir'),generated,repository]));
     const runner=join(work,'runner');mkdirSync(join(runner,'src'),{recursive:true});copyFileSync(join(draft,'runner.rs'),join(runner,'src/main.rs'));
     writeFileSync(join(runner,'Cargo.lock'),'version = 4\n[[package]]\nname = "browser-workspace-view-core-probe"\nversion = "0.1.0"\n[[package]]\nname = "browser-workspace-view-runner"\nversion = "0.1.0"\ndependencies = ["browser-workspace-view-core-probe"]\n',{flag:'wx'});
     const nativeTarget=join(work,'native-target');
@@ -220,13 +306,14 @@ export function prepare(mutation=null){
     }
     const wasm=[];
     for(const label of ['a','b']){
-      const guest=join(work,'guest-'+label);assert.deepEqual(JSON.parse(run(driver,['generate-wasm',join(exported,'kernel.ir'),guest,repository],repository)),generation);
+      const guest=join(work,'guest-'+label);assert.deepEqual(JSON.parse(invokeDriver(['generate-wasm',join(exported,'kernel.ir'),guest,repository])),generation);
       run('cargo',['build','--locked','--offline','--release'],guest,{CARGO_TARGET_DIR:join(guest,'target')});
       wasm.push(readFileSync(join(guest,'target/wasm32-unknown-unknown/release/browser_workspace_view_wasm_probe.wasm')));
     }
     assert.deepEqual(wasm[0],wasm[1],'two freshly generated and compiled guests');
     verifyPins();assert.equal(generation.ir_sha256,sha(readFileSync(join(exported,'kernel.ir'))));
     for(const [name,bytes]of originalSources)assert.deepEqual(bytes,readFileSync(sourcePath(name)),'source remained frozen '+name);
-    completed=true;return {work,sources,verified,generation,compileNative,runner,wasmBytes:wasm[0]};
+    if(shared)shared.verify();
+    completed=true;return {work,sources,verified,generation,compileNative,runner,compilerOwner:shared?.identity??null,preparationMs:performance.now()-started,wasmBytes:wasm[0]};
   } finally {if(!completed)process.stderr.write('Retained incomplete View diagnostic build '+work+'\n');}
 }

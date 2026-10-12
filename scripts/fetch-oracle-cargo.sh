@@ -10,6 +10,8 @@ fi
 
 # Acquisition is separate from the offline verifier and production Cargo graph.
 # Browser compiler fixtures are internal gates, not external standards oracles.
+# Release-package verification also owns an independently locked compiler graph;
+# root workspace resolution cannot supply all of its locked registry versions.
 # Review these pins whenever an independently locked verification graph changes.
 sha256sum --check --strict <<'CHECKSUMS'
 ec19fdecf241b6e502726c1740bdc962dffc7fc1eaf456468ba0836b8fb2272a  tests/hologram-oracle/Cargo.toml
@@ -41,6 +43,8 @@ d833db76924bdf573f4d0cd47a24b585bb454879be0ff668670629688277039f  tests/publicat
 ea11b8abbdb0b258776a17359d98948f06ce12486dae7fcb06639574c3c33baa  tests/publication-admission/driver/Cargo.lock
 fc49c5659bded9db17612c76d47370fd715e4fa900f2b0aa8617e77a0fb13581  tests/browser-budget/driver/Cargo.toml
 8693ae0f8f674d3e38013956e129759665d35dfe2f31001fbed782759bdcaa3d  tests/browser-budget/driver/Cargo.lock
+63e9f1793c48cddffd4c8378fe230ea1972a128ded41a2dda5814e841fefc2f4  vendor/lean4-prod/rust/Cargo.toml
+5e16d324b08b942c476099b6c10235f4ddd58bca28aaf69514b8a88c9252c88f  vendor/lean4-prod/rust/Cargo.lock
 CHECKSUMS
 cmp tests/hologram-oracle/Cargo.toml crates/prismpm/src/embedded/hologram-oracle.Cargo.toml
 cmp tests/hologram-oracle/Cargo.lock crates/prismpm/src/embedded/hologram-oracle.Cargo.lock
@@ -70,7 +74,8 @@ for manifest in "$oracle_work/harness/Cargo.toml" \
   tests/browser-custody/driver/Cargo.toml \
   tests/browser-operation-journal/driver/Cargo.toml \
   tests/publication-admission/driver/Cargo.toml \
-  tests/browser-budget/driver/Cargo.toml; do
+  tests/browser-budget/driver/Cargo.toml \
+  vendor/lean4-prod/rust/Cargo.toml; do
   cargo fetch --locked --manifest-path "$manifest"
   cargo metadata --locked --offline --format-version 1 --manifest-path "$manifest" >/dev/null
 done

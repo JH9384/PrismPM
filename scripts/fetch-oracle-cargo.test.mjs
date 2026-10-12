@@ -37,6 +37,8 @@ const pinned = [
   'tests/publication-admission/driver/Cargo.lock',
   'tests/browser-budget/driver/Cargo.toml',
   'tests/browser-budget/driver/Cargo.lock',
+  'vendor/lean4-prod/rust/Cargo.toml',
+  'vendor/lean4-prod/rust/Cargo.lock',
   'crates/prismpm/vendor/hologram-live.tar',
 ];
 const embedded = [
@@ -103,6 +105,13 @@ test('source and SDK acquisition share the helper before the SDK cache is frozen
   const acquisition = dockerfile.indexOf(invocation);
   const snapshot = dockerfile.indexOf('cp -a /usr/local/cargo/registry /opt/prismpm/cargo-home/');
   assert.ok(acquisition >= 0 && snapshot > acquisition);
+  const helperSource = readFileSync(join(root, helper), 'utf8');
+  assert.ok(helperSource.includes('  vendor/lean4-prod/rust/Cargo.toml; do'));
+  const packaging = readFileSync(join(root, 'scripts/package-release-crates.sh'), 'utf8');
+  assert.ok(packaging.includes('cp -a "$root/vendor/lean4-prod/rust/."'));
+  for (const name of ['prod-ir', 'prod-codegen']) {
+    assert.ok(packaging.includes(`CARGO_NET_OFFLINE=true cargo package --locked --offline --target-dir target --package ${name}`));
+  }
 });
 
 test('full acquisition loop invokes exactly every reviewed manifest and offline check', () => {

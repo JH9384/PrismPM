@@ -18,6 +18,12 @@ function workspace(t) {
   const put = (path, bytes) => { mkdirSync(join(source, path, '..'), {recursive: true}); writeFileSync(join(source, path), bytes); };
   put('stdlib/src/Probe.lex.tex', 'unit-only source\n'); put('tests/golden/stdlib/source/Probe.lex.tex', 'unit-only source\n');
   put('tests/golden/stdlib/golden-manifest.json', '{}');
+  for (const manifest of ['Cargo.toml', 'vendor/lexlean/Cargo.toml',
+    'vendor/lean4-prod/rust/Cargo.toml', 'stdlib/generated/package/Cargo.toml']) {
+    put(manifest, '[package]\nname = "unit-only"\nversion = "0.1.0"\n');
+    put(manifest.replace('Cargo.toml', 'Cargo.lock'), 'version = 4\n');
+  }
+  put('.cargo/config.toml', '[alias]\nxtask = "run --package xtask --"\nvv = "run --package xtask -- validate"\n\n');
   return {root, source, put};
 }
 
@@ -105,7 +111,8 @@ function fixture(t, fault, store = 'containerd', architecture = 'arm64') {
   work.put(architecture === 'arm64' ? 'sdk/golden-development.lock.json' : 'sdk/golden-development-amd64.lock.json', canonical(lock) + '\n');
   const ok = value => ({status: 0, signal: null, stdout: Buffer.isBuffer(value) ? value : Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)), stderr: Buffer.alloc(0)});
   const bad = () => ({...ok(''), status: 1, stderr: Buffer.from('unit-only genuine command failure')});
-  let created, label, generations = 0, seeded = false;
+  let created, generations = 0, seeded = false, acquired = 0;
+  const actors = new Map();
   const transport = async (command, args, options) => {
     calls.push([command, args]);
     for (const name of ['CARGO_PROFILE_DEV_OPT_LEVEL', 'CARGO_PROFILE_TEST_OPT_LEVEL',
@@ -131,19 +138,72 @@ function fixture(t, fault, store = 'containerd', architecture = 'arm64') {
         RepoDigests: [image], Os: 'linux', Architecture: fault === 'wrong-platform' ? (architecture === 'amd64' ? 'arm64' : 'amd64') : architecture,
         Config: {Labels: {'org.opencontainers.image.revision': environmentRevision}, Volumes: null}}]);
     }
+    if (args[0] === 'network') {
+      assert(['bridge', 'none'].includes(args[2]));
+      return ok([{Id: 'd'.repeat(64), Name: args[2], Driver: args[2] === 'none' ? 'null' : 'bridge', Scope: 'local', Internal: false}]);
+    }
     if (args[0] === 'create') {
-      created = args[args.indexOf('--name') + 1]; label = args[args.indexOf('--label') + 1];
-      assert.equal(args[args.indexOf('--network') + 1], 'none'); assert(args.includes('--pull=never'));
+      const actor = args[args.indexOf('--name') + 1], label = args[args.indexOf('--label') + 1];
+      const acquisition = actor.endsWith('-inputs');
+      assert.equal(args[args.indexOf('--network') + 1], acquisition ? 'bridge' : 'none'); assert(args.includes('--pull=never'));
       assert.equal(args[args.indexOf('--platform') + 1], `linux/${architecture}`);
-      assert(args.includes('CARGO_HOME=/tmp/prismpm-golden-cargo'), 'UID 1001 requires an explicit private Cargo home');
+      assert(args.includes('CARGO_HOME=/tmp/prismpm-golden-state/cargo'), 'UID 1001 requires an explicit private Cargo home');
       assert.equal(args[args.indexOf('--user') + 1], '1001:1001');
       assert.equal(args.filter(arg => arg.startsWith('CARGO_HOME=')).length, 1);
       assert(!args.includes('--privileged')); assert(!args.some(arg => arg.includes('docker.sock')));
-      return ok('created');
+      if (acquisition) assert(args.includes('--read-only'));
+      const mounts = args.flatMap((arg, index) => arg === '--mount' ? [args[index + 1]] : []).map(value => {
+        const parts = Object.fromEntries(value.split(',').map(part => part.split('=')));
+        return {Destination: parts.target, Source: parts.source, RW: !value.endsWith(',readonly')};
+      });
+      actors.set(actor, {Id: hash(actor), Image: fault === 'wrong-container-image' ? 'sha256:' + 'f'.repeat(64) : store === 'classic' ? config : 'sha256:' + hash(index),
+        Config: {Labels: Object.fromEntries([label.split('=')]), User: '1001:1001',
+          Entrypoint: ['/bin/bash'], Cmd: ['-ec', 'mkdir -p /tmp/prismpm-golden-home; exec sleep infinity'],
+          Env: args.flatMap((arg, index) => arg === '--env' ? [args[index + 1]] : [])}, Mounts: mounts, State: {Running: true},
+        HostConfig: {NetworkMode: acquisition ? 'bridge' : 'none', CapDrop: ['ALL'], SecurityOpt: ['no-new-privileges'],
+          Privileged: false, PidsLimit: 4096, ReadonlyRootfs: acquisition, Binds: null, Devices: [],
+          Tmpfs: acquisition ? {'/tmp': 'rw,nosuid,nodev,noexec'} : null},
+        NetworkSettings: {Networks: {[acquisition ? 'bridge' : 'none']: {NetworkID: 'd'.repeat(64)}}}});
+      if (acquisition && fault === 'extra-acquisition-network') actors.get(actor).NetworkSettings.Networks.host = {};
+      if (acquisition && fault === 'acquisition-wrong-cid') actors.get(actor).Id = 'e'.repeat(64);
+      if (acquisition && fault === 'acquisition-wrong-bridge') actors.get(actor).NetworkSettings.Networks.bridge.NetworkID = 'e'.repeat(64);
+      if (acquisition && fault === 'acquisition-credential') actors.get(actor).Config.Env.push('CARGO_REGISTRY_TOKEN=unit-only-refusal');
+      if (acquisition && fault === 'acquisition-cloud-credential') actors.get(actor).Config.Env.push('AWS_ACCESS_KEY_ID=unit-only-refusal');
+      if (acquisition && fault === 'acquisition-writable-source') actors.get(actor).Mounts.find(row => row.Destination === '/workspace').RW = true;
+      if (acquisition && fault === 'acquisition-privileged') actors.get(actor).HostConfig.Privileged = true;
+      if (!acquisition) {
+        created = actor;
+        if (fault === 'extra-golden-network') actors.get(actor).NetworkSettings.Networks.bridge = {};
+      }
+      if (acquisition && fault === 'acquisition-create-failure') return bad();
+      return ok(hash(actor) + '\n');
     }
     if (args[0] === 'start') return ok('started');
-    if (args[0] === 'inspect') return ok([{Image: fault === 'wrong-container-image' ? 'sha256:' + 'f'.repeat(64) : store === 'classic' ? config : 'sha256:' + hash(index), Config: {Labels: Object.fromEntries([label.split('=')])}}]);
-    if (args[0] === 'rm') { if (fault === 'cleanup') return bad(); created = undefined; return ok('removed'); }
+    const actorName = value => actors.has(value) ? value : [...actors].find(([, row]) => row.Id === value)?.[0];
+    if (args[0] === 'inspect') return actorName(args[1]) ? ok([actors.get(actorName(args[1]))])
+      : {...bad(), stderr: Buffer.from('Error: No such object: ' + args[1])};
+    if (args[0] === 'rm') {
+      const actor = actorName(args.at(-1));
+      if (fault === 'cleanup' || fault === 'acquisition-cleanup' && actor.endsWith('-inputs')) return bad();
+      actors.delete(actor); if (actor === created) created = undefined; return ok('removed');
+    }
+    if (args[0] === 'exec' && args[1] === '--env') {
+      assert(seeded, 'acquisition refuses an unseeded cache');
+      assert.equal(generations, 0, 'no model generation during network acquisition');
+      const manifests = ['Cargo.toml', 'vendor/lexlean/Cargo.toml', 'vendor/lean4-prod/rust/Cargo.toml', 'stdlib/generated/package/Cargo.toml'];
+      assert.equal(options.timeout, 1200000);
+      assert.deepEqual(args, ['exec', '--env', 'CARGO_NET_OFFLINE=false', `${created}-inputs`,
+        'cargo', 'fetch', '--locked', '--manifest-path', '/workspace/' + manifests[acquired]]);
+      acquired++;
+      if (fault === 'fetch-failure') return bad();
+      if (fault === 'fetch-signal') return {...ok(''), status: null, signal: 'SIGTERM'};
+      if (fault === 'fetch-cancel') process.emit('SIGTERM');
+      if (fault === 'fetch-lock-mutation') work.put('Cargo.lock', 'changed acquisition lock\n');
+      const cache = join(actors.get(created).Mounts.find(row => row.Destination === '/tmp/prismpm-golden-state').Source, 'cargo');
+      if (fault === 'fetch-cache-replacement') writeFileSync(join(cache, 'unit-only-input.crate'), 'replaced input\n');
+      if (fault === 'fetch-cache-redirection') writeFileSync(join(cache, 'config.toml'), '[http]\nproxy = "unapproved"\n', {mode: 0o600});
+      return ok('unit-only locked registry data acquisition');
+    }
     assert.deepEqual(args.slice(0, 2), ['exec', created]);
     if (args[2] === 'node' && args[3] === '-e') return ok({architecture: fault === 'wrong-executable' ? 'riscv64' : nodeArchitecture, os: 'linux', release: 'ID=ubuntu\nVERSION_ID="24.04"\n'});
     if (args[2] === 'node') {
@@ -153,9 +213,14 @@ function fixture(t, fault, store = 'containerd', architecture = 'arm64') {
       if (fault === 'cache-failure') return bad();
       if (fault === 'cache-signal') return {...ok(''), status: null, signal: 'SIGTERM'};
       if (fault === 'cache-cancel') process.emit('SIGTERM');
+      const cache = join(actors.get(created).Mounts.find(row => row.Destination === '/tmp/prismpm-golden-state').Source, 'cargo');
+      mkdirSync(cache, {mode: 0o700}); writeFileSync(join(cache, 'unit-only-input.crate'), 'unit-only cache\n', {mode: 0o600});
       seeded = true; return ok({bytes: 128, entries: 2});
     }
     assert(seeded, 'golden generation cannot use an unseeded cache');
+    assert.equal(acquired, 4, 'all exact locked input owners must complete before golden generation');
+    assert(!actors.has(`${created}-inputs`), 'online acquisition actor must be retired before golden generation');
+    assert.deepEqual(Object.keys(actors.get(created).NetworkSettings.Networks), ['none'], 'offline golden actor cannot use an extra network');
     assert.equal(options.timeout, 7200000, 'native generation keeps its two-hour bound');
     assert.deepEqual(args.slice(2), ['cargo', 'run', '--locked', '--offline', '-p', 'xtask', '--', 'check-golden', ...(generations === 0 ? ['--write'] : [])]);
     generations++;
@@ -163,6 +228,10 @@ function fixture(t, fault, store = 'containerd', architecture = 'arm64') {
     if (fault === 'write-failure' && generations === 1 || fault === 'repeat-failure' && generations === 2) return bad();
     if (fault !== 'missing-profile') for (const path of recordPaths) work.put(`${profile}/${path}`, `raw ${path}\n`);
     if (fault === 'repeat-mutation' && generations === 2) work.put(`${profile}/golden-manifest.json`, 'changed');
+    if (fault === 'repeat-cache-mutation' && generations === 2) {
+      const cache = join(actors.get(created).Mounts.find(row => row.Destination === '/tmp/prismpm-golden-state').Source, 'cargo');
+      writeFileSync(join(cache, 'unit-only-input.crate'), 'changed by second compiler owner\n');
+    }
     return ok('unit-only generation transcript');
   };
   const context = {architecture: nodeArchitecture, uid: 1001, gid: 1001, environment: {PATH: process.env.PATH, CARGO_HOME: '/caller/cache',
@@ -171,7 +240,8 @@ function fixture(t, fault, store = 'containerd', architecture = 'arm64') {
     RUNNER_OS: 'Linux', RUNNER_ARCH: architecture === 'amd64' ? 'X64' : 'ARM64', GITHUB_EVENT_NAME: 'pull_request', GITHUB_RUN_ID: '123', GITHUB_RUN_ATTEMPT: '1'}};
   const destination = join(work.root, 'output');
   return {...work, calls, destination, context, run: (implementation = runReview) => implementation({source: work.source, revision, destination}, transport, context),
-    generations: () => generations, remaining: () => created};
+    generations: () => generations, acquisitions: () => acquired, remaining: () => created,
+    actors: () => actors.size};
 }
 
 test('source review executes exact image, both unchanged golden commands and byte-preserving export', async t => {
@@ -179,6 +249,7 @@ test('source review executes exact image, both unchanged golden commands and byt
     const f = fixture(t, undefined, store, architecture); const result = await f.run();
     assert.equal(result.scope, 'source-golden-review-only'); assert.equal(result.status, 'review-required');
     assert.equal(f.generations(), 2); assert.equal(f.remaining(), undefined);
+    assert.equal(f.acquisitions(), 4); assert.equal(f.actors(), 0);
     assert.equal(result.source_revision, revision); assert.equal(result.identity.store, store);
     assert.equal(result.platform, `linux-${architecture}-ubuntu-24.04`);
     assert.equal(result.native_basis, `github-hosted-${architecture === 'amd64' ? 'X64' : 'ARM64'}-runner-selection`);
@@ -221,6 +292,49 @@ test('private cache initialization failure, signal and cancellation stop generat
     assert(!existsSync(join(f.destination, 'review.json')));
     assert(existsSync(join(f.destination, 'failure.json')));
   }
+});
+
+test('locked registry acquisition failure, signal, cancellation and mutation prevent every golden command', async t => {
+  for (const fault of ['fetch-failure', 'fetch-signal', 'fetch-cancel', 'fetch-lock-mutation',
+    'extra-acquisition-network', 'extra-golden-network', 'acquisition-cleanup',
+    'acquisition-wrong-cid', 'acquisition-wrong-bridge', 'acquisition-credential',
+    'acquisition-cloud-credential', 'acquisition-writable-source', 'acquisition-privileged', 'acquisition-create-failure']) {
+    const f = fixture(t, fault); await assert.rejects(f.run(), undefined, fault);
+    assert.equal(f.generations(), 0, fault); assert.equal(f.remaining(), undefined, fault);
+    assert(!existsSync(join(f.destination, 'review.json')), fault);
+    if (!['acquisition-cleanup', 'acquisition-wrong-cid', 'acquisition-create-failure'].includes(fault)) assert.equal(f.actors(), 0, fault);
+    if (fault === 'acquisition-create-failure') {
+      assert.equal(f.actors(), 1, 'unauthenticated creation result must not authorize name-only removal');
+      assert(!f.calls.some(([, args]) => args[0] === 'rm' && args.at(-1).endsWith('-inputs')));
+      const failure = JSON.parse(readFileSync(join(f.destination, 'failure.json')));
+      assert.equal(failure.acquisition_cid, null); assert(existsSync(failure.retained_runtime));
+    }
+  }
+});
+
+test('Cargo acquisition rejects registry redirection and noncanonical configuration before network execution', async t => {
+  for (const [path, value] of [['Cargo.lock', 'version = 4\n[[package]]\nsource = "git+https://unapproved.invalid/code"\n'],
+    ['.cargo/config.toml', '[source.crates-io]\nreplace-with = "unapproved"\n'],
+    ['.cargo/config', '[http]\nproxy = "unapproved"\n'],
+    ['vendor/.cargo/config.toml', '[http]\nproxy = "unapproved"\n'],
+    ['vendor/lexlean/.cargo/config.toml', '[http]\nproxy = "unapproved"\n']]) {
+    const f = fixture(t); f.put(path, value); await assert.rejects(f.run());
+    assert.equal(f.acquisitions(), 0); assert.equal(f.generations(), 0); assert.equal(f.actors(), 0);
+  }
+});
+
+test('acquisition cannot replace existing Cargo inputs or install Cargo-home redirection', async t => {
+  for (const fault of ['fetch-cache-replacement', 'fetch-cache-redirection']) {
+    const f = fixture(t, fault); await assert.rejects(f.run());
+    assert.equal(f.generations(), 0); assert.equal(f.actors(), 0);
+    assert(!existsSync(join(f.destination, 'review.json')));
+  }
+});
+
+test('second offline writer cannot silently mutate acquired Cargo input bytes', async t => {
+  const f = fixture(t, 'repeat-cache-mutation'); await assert.rejects(f.run(), /repeat changed acquired Cargo input bytes/);
+  assert.equal(f.generations(), 2); assert.equal(f.actors(), 0);
+  assert(!existsSync(join(f.destination, 'review.json')));
 });
 
 test('image cache seeding preserves bytes in a new private writable tree', t => {

@@ -13,7 +13,10 @@ export const canonical = value => JSON.stringify(value, (_, item) => item && typ
   ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const RECORDS = ['golden-manifest.json', 'verified/lexlean-attestation.json', 'verified/manifest.json'];
-const CARGO_HOME = '/tmp/prismpm-golden-cargo';
+const CARGO_STATE = '/tmp/prismpm-golden-state';
+const CARGO_HOME = `${CARGO_STATE}/cargo`;
+const CARGO_MANIFESTS = Object.freeze(['Cargo.toml', 'vendor/lexlean/Cargo.toml',
+  'vendor/lean4-prod/rust/Cargo.toml', 'stdlib/generated/package/Cargo.toml']);
 const architectures = Object.freeze({
   amd64: Object.freeze({node: 'x64', runner: 'X64', lock: 'sdk/golden-development-amd64.lock.json'}),
   arm64: Object.freeze({node: 'arm64', runner: 'ARM64', lock: 'sdk/golden-development.lock.json'}),
@@ -167,7 +170,9 @@ export async function runReview({source, revision, destination}, transport = exe
   const {uid, gid} = context;
   assert(Number.isSafeInteger(uid) && uid > 0 && Number.isSafeInteger(gid) && gid >= 0, 'unprivileged host UID required');
   const name = `prismpm-native-golden-${randomBytes(12).toString('hex')}`, owner = 'org.uor.prismpm.golden-review';
-  let sequence = 0, created = false, failure, result, interrupted;
+  const acquisitionName = `${name}-inputs`;
+  let sequence = 0, created = false, acquisitionAttempted = false, acquisitionCreated = false, acquisitionId, failure, result, interrupted;
+  const cleanupErrors = [];
   const handlers = ['SIGHUP', 'SIGINT', 'SIGTERM'].map(signal => [signal, () => { interrupted ??= Error(`interrupted by ${signal}`); }]);
   for (const [signal, handler] of handlers) process.on(signal, handler);
   const call = async (command, args, options = {}) => {
@@ -185,6 +190,55 @@ export async function runReview({source, revision, destination}, transport = exe
   const run = async (args, options) => success(await call('docker', args, options), 'development container command');
   const checkRevision = async () => assert.equal((await git(['rev-parse', 'HEAD'])).trim(), revision, 'source revision changed');
   const requireSpace = (compressedBytes = 0) => { const space = statfsSync(destination); validateImageSpace(space.bavail * space.bsize, compressedBytes); };
+  const inputPaths = [...CARGO_MANIFESTS.flatMap(path => [path, path.replace(/Cargo\.toml$/, 'Cargo.lock')]), '.cargo/config.toml'];
+  let inputIdentity;
+  const checkInputs = () => {
+    const observed = inputPaths.map(path => ({path, sha256: hash(regular(join(source, path)))}));
+    if (inputIdentity) assert.deepEqual(observed, inputIdentity, 'locked Cargo input source changed');
+    else inputIdentity = observed;
+    // No project-controlled registry/proxy/credential redirection during acquisition.
+    assert.equal(regular(join(source, '.cargo/config.toml')).toString(),
+      '[alias]\nxtask = "run --package xtask --"\nvv = "run --package xtask -- validate"\n\n');
+    for (const manifest of CARGO_MANIFESTS) {
+      for (let directory = dirname(manifest); ; directory = dirname(directory)) {
+        for (const config of ['.cargo/config', '.cargo/config.toml']) {
+          if (directory === '.' && config === '.cargo/config.toml') continue;
+          assert.equal(lstatSync(join(source, directory, config), {throwIfNoEntry: false}), undefined, 'unexpected Cargo configuration refused');
+        }
+        if (directory === '.') break;
+      }
+      const lock = regular(join(source, manifest.replace(/Cargo\.toml$/, 'Cargo.lock'))).toString();
+      for (const match of lock.matchAll(/^source = "([^"]+)"$/gm))
+        assert.equal(match[1], 'registry+https://github.com/rust-lang/crates.io-index', 'only official locked registry inputs admitted');
+    }
+  };
+  const cacheInventory = () => {
+    const root = join(runtime, 'cargo'), rows = []; let bytes = 0, entries = 0;
+    assert(lstatSync(root, {throwIfNoEntry: false})?.isDirectory(), 'unseeded cache');
+    const walk = (path, relative, depth) => {
+      assert(depth <= 32 && ++entries <= 250000, 'Cargo input cache entry bound exceeded');
+      assert.equal(realpathSync(path), path, 'Cargo input cache alias refused');
+      const stat = lstatSync(path);
+      assert.equal(stat.uid, process.getuid());
+      assert.equal(stat.mode & 0o7022, 0, 'private Cargo input cache permissions required');
+      assert(stat.isDirectory() || stat.isFile(), 'regular Cargo input cache required');
+      if (stat.isDirectory()) for (const name of readdirSync(path).sort()) walk(join(path, name), relative ? `${relative}/${name}` : name, depth + 1);
+      else {
+        assert.equal(stat.nlink, 1, 'single-link Cargo input cache required');
+        bytes += stat.size; assert(bytes <= 2 * 1024 ** 3, 'Cargo input cache byte bound exceeded');
+        assert(!['config', 'config.toml', 'credentials', 'credentials.toml'].includes(relative), 'Cargo home redirection or credentials refused');
+        if (/^registry\/index\/[^/]+\/config.json$/.test(relative))
+          assert.deepEqual(JSON.parse(regular(path)), {dl: 'https://static.crates.io/crates', api: 'https://crates.io'}, 'official crate transport configuration required');
+        // Cargo mutates only its own bookkeeping during offline use; these
+        // records are not registry/compiler input authority.
+        if (!['.global-cache', '.global-cache-journal', '.global-cache-wal', '.global-cache-shm',
+          '.package-cache', '.package-cache-mutate'].includes(relative))
+          rows.push({path: relative, byte_length: stat.size, sha256: hash(regular(path, 256 * 1024 ** 2))});
+      }
+    };
+    walk(root, '', 0); assert(rows.length > 0, 'nonempty Cargo input cache required');
+    return rows;
+  };
   try {
     requireSpace(); await checkRevision(); assert.equal(await git(['status', '--porcelain=v1', '--untracked-files=all']), '', 'clean committed source required');
     validateSourceBaseline(source);
@@ -198,11 +252,13 @@ export async function runReview({source, revision, destination}, transport = exe
     writeFileSync(join(destination, 'environment.json'), canonical({lock, chain}), {flag: 'wx'});
     await run(['pull', '--platform', `linux/${architecture}`, lock.reference], {timeout: 1200000}); requireSpace();
     const identity = await inspectLoadedImage(docker, chain, architecture, lock.source_revision);
+    checkInputs();
     if (interrupted) throw interrupted;
     created = true;
     await run(['create', '--name', name, '--label', `${owner}=${name}`, '--pull=never', '--platform', `linux/${architecture}`, '--network', 'none',
       '--user', `${uid}:${gid}`, '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--pids-limit', '4096', '--init',
       '--mount', `type=bind,source=${source},target=/workspace`, '--workdir', '/workspace',
+      '--mount', `type=bind,source=${runtime},target=${CARGO_STATE}`,
       '--env', 'HOME=/tmp/prismpm-golden-home', '--env', 'CARGO_NET_OFFLINE=true', '--env', 'CARGO_TARGET_DIR=/workspace/target/native-golden',
       '--env', `CARGO_HOME=${CARGO_HOME}`,
       '--env', 'CARGO_BUILD_JOBS=2', '--env', 'CARGO_PROFILE_DEV_DEBUG=0', '--env', 'CARGO_PROFILE_TEST_DEBUG=0',
@@ -219,15 +275,114 @@ export async function runReview({source, revision, destination}, transport = exe
     if (interrupted) throw interrupted;
     await run(['exec', name, 'node', '/workspace/scripts/native-golden.mjs', 'seed-cache']);
     requireSpace();
+    const seededInputs = cacheInventory();
+    writeFileSync(join(destination, 'cargo-seeded-inputs.json'), canonical(seededInputs), {flag: 'wx'});
+    // Acquire registry DATA only in a separate native, source-read-only actor.
+    // The golden actor is never attached to an acquisition network. Both actors
+    // share this fresh private cache; the acquisition actor is retired before
+    // any compiler command. No prior targets or caller credentials are used.
+    const bridge = JSON.parse(await run(['network', 'inspect', 'bridge']));
+    assert(Array.isArray(bridge) && bridge.length === 1 && bridge[0].Name === 'bridge'
+      && bridge[0].Driver === 'bridge' && bridge[0].Scope === 'local' && bridge[0].Internal === false);
+    assert.match(bridge[0].Id, /^[a-f0-9]{64}$/);
+    const isolatedNetwork = JSON.parse(await run(['network', 'inspect', 'none']));
+    assert(Array.isArray(isolatedNetwork) && isolatedNetwork.length === 1 && isolatedNetwork[0].Name === 'none'
+      && isolatedNetwork[0].Driver === 'null' && isolatedNetwork[0].Scope === 'local');
+    assert.match(isolatedNetwork[0].Id, /^[a-f0-9]{64}$/);
+    acquisitionAttempted = true;
+    acquisitionId = (await run(['create', '--name', acquisitionName, '--label', `${owner}=${acquisitionName}`, '--pull=never',
+      '--platform', `linux/${architecture}`, '--network', 'bridge', '--read-only',
+      '--user', `${uid}:${gid}`, '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--pids-limit', '4096', '--init',
+      '--tmpfs', '/tmp:rw,nosuid,nodev,noexec', '--mount', `type=bind,source=${source},target=/workspace,readonly`,
+      '--mount', `type=bind,source=${runtime},target=${CARGO_STATE}`, '--workdir', '/workspace',
+      '--env', 'HOME=/tmp/prismpm-golden-home', '--env', `CARGO_HOME=${CARGO_HOME}`,
+      '--env', 'CARGO_HTTP_PROXY=', '--env', 'HTTP_PROXY=', '--env', 'HTTPS_PROXY=', '--env', 'ALL_PROXY=',
+      '--entrypoint', '/bin/bash', lock.reference, '-ec', 'mkdir -p /tmp/prismpm-golden-home; exec sleep infinity'])).toString().trim();
+    assert.match(acquisitionId, /^[a-f0-9]{64}$/);
+    acquisitionCreated = true;
+    await run(['start', acquisitionName]);
+    const assertActor = async (actor, network, readonlySource) => {
+      const rows = JSON.parse(await run(['inspect', actor]));
+      assert(Array.isArray(rows) && rows.length === 1);
+      const row = rows[0];
+      assert.equal(row.Image, identity.id); assert.equal(row.Config.Labels[owner], actor);
+      assert.equal(row.State.Running, true);
+      assert.equal(row.Config.User, `${uid}:${gid}`);
+      assert.deepEqual(Object.keys(row.NetworkSettings.Networks).sort(), [network]);
+      assert.equal(row.HostConfig.NetworkMode, network);
+      assert.deepEqual(row.HostConfig.CapDrop, ['ALL']);
+      assert(row.HostConfig.SecurityOpt.includes('no-new-privileges'));
+      assert.equal(row.HostConfig.Privileged, false); assert.equal(row.HostConfig.PidsLimit, 4096);
+      assert.equal(row.HostConfig.ReadonlyRootfs, readonlySource);
+      assert.equal(row.HostConfig.Binds, null); assert.deepEqual(row.HostConfig.Devices ?? [], []);
+      assert.deepEqual(row.Config.Entrypoint, ['/bin/bash']);
+      assert.deepEqual(row.Config.Cmd, ['-ec', 'mkdir -p /tmp/prismpm-golden-home; exec sleep infinity']);
+      assert.equal(row.Mounts.length, 2);
+      if (readonlySource) {
+        assert.equal(row.Id, acquisitionId); assert.equal(row.NetworkSettings.Networks.bridge.NetworkID, bridge[0].Id);
+        assert.deepEqual(row.HostConfig.Tmpfs, {'/tmp': 'rw,nosuid,nodev,noexec'});
+        const environment = Object.fromEntries(row.Config.Env.map(value => {
+          const offset = value.indexOf('='); assert(offset > 0); return [value.slice(0, offset), value.slice(offset + 1)];
+        }));
+        assert.equal(Object.keys(environment).length, row.Config.Env.length, 'duplicate acquisition environment refused');
+        const allowed = new Set(['PATH', 'LANG', 'LC_ALL', 'PLAYWRIGHT_BROWSERS_PATH', 'CARGO_HOME', 'RUSTUP_HOME',
+          'ELAN_HOME', 'ELAN_TOOLCHAIN', 'PRISMPM_SDK_INVENTORY', 'HOME', 'CARGO_HTTP_PROXY', 'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY']);
+        assert.equal(environment.CARGO_HOME, CARGO_HOME); assert.equal(environment.HOME, '/tmp/prismpm-golden-home');
+        for (const [key, value] of Object.entries(environment)) {
+          assert(allowed.has(key), 'unregistered acquisition environment refused');
+          assert(!/TOKEN|SECRET|PASSWORD|CREDENTIAL|CARGO_REGISTR|GIT_|SSH_/i.test(key), 'acquisition credential or registry environment refused');
+          if (/PROXY/i.test(key)) assert.equal(value, '', 'acquisition proxy refused');
+        }
+      } else assert.equal(row.NetworkSettings.Networks.none.NetworkID, isolatedNetwork[0].Id);
+      const sourceMount = row.Mounts.filter(mount => mount.Destination === '/workspace');
+      assert.equal(sourceMount.length, 1); assert.equal(sourceMount[0].Source, source);
+      assert.equal(sourceMount[0].RW, !readonlySource);
+      const cacheMount = row.Mounts.filter(mount => mount.Destination === CARGO_STATE);
+      assert.equal(cacheMount.length, 1); assert.equal(cacheMount[0].Source, runtime); assert.equal(cacheMount[0].RW, true);
+      return row;
+    };
+    await assertActor(acquisitionName, 'bridge', true);
+    for (const manifest of CARGO_MANIFESTS) {
+      if (interrupted) throw interrupted;
+      checkInputs();
+      await run(['exec', '--env', 'CARGO_NET_OFFLINE=false', acquisitionName,
+        'cargo', 'fetch', '--locked', '--manifest-path', `/workspace/${manifest}`], {timeout: 1200000});
+      requireSpace();
+    }
+    await assertActor(acquisitionName, 'bridge', true);
+    await run(['rm', '--force', '--volumes', acquisitionId]);
+    for (const actor of [acquisitionId, acquisitionName]) {
+      const absent = await docker(['inspect', actor]);
+      assert.equal(absent.status, 1); assert.equal(absent.signal, null);
+      assert.match(absent.stderr.toString(), /No such (?:object|container)/);
+    }
+    acquisitionCreated = false;
+    acquisitionAttempted = false;
+    checkInputs(); await checkRevision();
+    assert.equal(await git(['status', '--porcelain=v1', '--untracked-files=all']), '', 'acquisition changed source');
+    const cacheInputs = cacheInventory();
+    const acquiredMap = new Map(cacheInputs.map(row => [row.path, row]));
+    for (const row of seededInputs) {
+      // Official sparse index rows may acquire newer locked versions. Existing
+      // compiler/source/archive bytes may not be replaced during that update.
+      if (!row.path.startsWith('registry/index/'))
+        assert.deepEqual(acquiredMap.get(row.path), row, 'acquisition replaced an existing Cargo input');
+    }
+    writeFileSync(join(destination, 'cargo-inputs.json'), canonical({scope: 'locked-registry-input-acquisition-only',
+      source_revision: revision, identity_basis: 'sha256-content', manifests: CARGO_MANIFESTS,
+      inputs: inputIdentity, cache_inputs: cacheInputs}), {flag: 'wx'});
     let records;
     for (const write of [true, false]) {
       if (interrupted) throw interrupted;
+      await assertActor(name, 'none', false); checkInputs();
+      assert.deepEqual(cacheInventory(), cacheInputs, 'acquired Cargo input bytes changed');
       await run(['exec', name, 'cargo', 'run', '--locked', '--offline', '-p', 'xtask', '--', 'check-golden', ...(write ? ['--write'] : [])], {timeout: 7200000});
       requireSpace();
       const observed = collectProfile(source, architecture);
       if (write) records = observed;
       else for (const [index, row] of observed.entries()) assert.equal(hash(row.bytes), hash(records[index].bytes), `repeat changed original native record: ${row.path}`);
     }
+    checkInputs(); assert.deepEqual(cacheInventory(), cacheInputs, 'repeat changed acquired Cargo input bytes');
     await checkRevision(); validateSourceBaseline(source);
     for (const command of [['diff', '--name-only', 'HEAD'], ['ls-files', '--others', '--exclude-standard']]) {
       const changed = (await git(command)).trim().split('\n').filter(Boolean);
@@ -245,6 +400,20 @@ export async function runReview({source, revision, destination}, transport = exe
       unclaimed: ['hardware-attestation', 'reviewed-baseline', 'current-sdk-acceptance', 'sdk-release', 'product-readiness']};
   } catch (error) { failure = error; }
   finally {
+    if (acquisitionCreated) try {
+      const rows = JSON.parse(await run(['inspect', acquisitionId]));
+      assert(Array.isArray(rows) && rows.length === 1 && rows[0].Config.Labels[owner] === acquisitionName, 'acquisition cleanup ownership differs');
+      assert.match(rows[0].Id, /^[a-f0-9]{64}$/);
+      if (acquisitionId) assert.equal(rows[0].Id, acquisitionId, 'acquisition cleanup CID differs');
+      await run(['rm', '--force', '--volumes', rows[0].Id]);
+      for (const actor of [rows[0].Id, acquisitionName]) {
+        const absent = await docker(['inspect', actor]);
+        assert.equal(absent.status, 1); assert.equal(absent.signal, null);
+        assert.match(absent.stderr.toString(), /No such (?:object|container)/);
+      }
+      acquisitionCreated = false;
+      acquisitionAttempted = false;
+    } catch (error) { cleanupErrors.push(error.message); failure ??= error; }
     // Stop the owned container before retaining evidence. A timed-out Docker
     // exec client can leave its in-container compiler running and writing.
     if (created) try {
@@ -252,7 +421,7 @@ export async function runReview({source, revision, destination}, transport = exe
       assert(Array.isArray(container) && container.length === 1 && container[0].Config.Labels[owner] === name, 'cleanup ownership differs');
       await run(['rm', '--force', '--volumes', name]);
       created = false;
-    } catch (error) { failure ??= error; }
+    } catch (error) { cleanupErrors.push(error.message); failure ??= error; }
     try {
       for (const kind of created ? [] : ['build', 'verified']) {
         const directory = join(source, '.prism', kind);
@@ -263,10 +432,13 @@ export async function runReview({source, revision, destination}, transport = exe
       }
     } catch (error) { failure ??= error; }
     for (const [signal, handler] of handlers) process.removeListener(signal, handler);
-    rmSync(runtime, {recursive: true});
+    if (!created && !acquisitionAttempted) rmSync(runtime, {recursive: true});
+    else process.stderr.write(`Retained unresolved native review cache ${runtime}\n`);
   }
   failure ??= interrupted;
-  if (failure) { writeFileSync(join(destination, 'failure.json'), canonical({scope: 'source-golden-review-only', message: failure.message}), {flag: 'wx'}); throw failure; }
+  if (failure) { writeFileSync(join(destination, 'failure.json'), canonical({scope: 'source-golden-review-only', message: failure.message,
+    cleanup_errors: cleanupErrors, ...(created || acquisitionAttempted ? {retained_runtime: runtime,
+      ...(acquisitionAttempted ? {acquisition_name: acquisitionName, acquisition_cid: acquisitionId ?? null} : {})} : {})}), {flag: 'wx'}); throw failure; }
   writeFileSync(join(destination, 'review.json'), canonical(result), {flag: 'wx'});
   return result;
 }
@@ -303,7 +475,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const environment = {...process.env}; delete environment.NODE_TEST_CONTEXT;
     const result = await execute(process.execPath, ['--test', '--test-reporter=tap', '--test-timeout=120000', join(dirname(process.argv[1]), 'native-golden.test.mjs')], {environment});
     process.stdout.write(result.stdout); process.stderr.write(result.stderr); success(result, 'owning source-review tests');
-    assert.equal(verifyTap(result.stdout.toString(), 12), 12);
+    assert.equal(verifyTap(result.stdout.toString(), 16), 16);
   } else {
     assert.equal(operation, 'run'); assert(revision && destination && extra.length === 0, 'usage: native-golden.mjs tests | run SOURCE_COMMIT FRESH_OUTPUT');
     await runReview({source: process.cwd(), revision, destination});

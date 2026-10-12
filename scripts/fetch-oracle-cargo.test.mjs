@@ -61,6 +61,8 @@ const pinned = [
   'tests/browser-session-recovery-frames/driver/Cargo.lock',
   'tests/publication-context-linkage/driver/Cargo.toml',
   'tests/publication-context-linkage/driver/Cargo.lock',
+  'sdk/oracles/oscal/Cargo.toml',
+  'sdk/oracles/oscal/Cargo.lock',
   'vendor/lean4-prod/rust/Cargo.toml',
   'vendor/lean4-prod/rust/Cargo.lock',
   'crates/prismpm/vendor/hologram-live.tar',
@@ -92,6 +94,8 @@ test('oracle acquisition inputs match reviewed pins and embedded verifier inputs
     const path = `tests/${family}/driver/${file}`;
     assert.ok(script.includes('  ' + path + '\n'), 'closed owning acquisition pin: ' + path);
   }
+  for (const file of ['Cargo.toml', 'Cargo.lock'])
+    assert.ok(script.includes('  sdk/oracles/oscal/' + file + '\n'), 'closed published OSCAL engine pin');
   for (const file of ['Cargo.toml', 'Cargo.lock'])
     assert.ok(script.includes('  vendor/lean4-prod/rust/' + file + '\n'), 'independent packaged compiler graph is pinned');
   for (const file of ['Cargo.toml', 'Cargo.lock'])

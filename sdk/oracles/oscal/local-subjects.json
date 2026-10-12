@@ -1,0 +1,1686 @@
+{
+  "source": "PrismPM-local-examples-not-NIST-test-vectors",
+  "positives": [
+    {
+      "catalog": {
+        "uuid": "00000000-0000-4000-8000-000000000001",
+        "metadata": {
+          "title": "Prism structural fixture",
+          "last-modified": "2026-09-27T00:00:00Z",
+          "version": "1",
+          "oscal-version": "1.1.0"
+        }
+      }
+    },
+    {
+      "component-definition": {
+        "uuid": "00000000-0000-4000-8000-000000000001",
+        "metadata": {
+          "title": "Prism structural fixture",
+          "last-modified": "2026-09-27T00:00:00Z",
+          "version": "1",
+          "oscal-version": "1.1.0"
+        }
+      }
+    },
+    {
+      "profile": {
+        "uuid": "00000000-0000-4000-8000-000000000001",
+        "metadata": {
+          "title": "Prism structural fixture",
+          "last-modified": "2026-09-27T00:00:00Z",
+          "version": "1",
+          "oscal-version": "1.1.0"
+        },
+        "imports": [
+          {
+            "href": "#catalog",
+            "include-all": {}
+          }
+        ]
+      }
+    },
+    {
+      "assessment-plan": {
+        "uuid": "00000000-0000-4000-8000-000000000001",
+        "metadata": {
+          "title": "Prism structural fixture",
+          "last-modified": "2026-09-27T00:00:00Z",
+          "version": "1",
+          "oscal-version": "1.1.0"
+        },
+        "import-ssp": {
+          "href": "#ssp"
+        },
+        "reviewed-controls": {
+          "control-selections": [
+            {
+              "include-all": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "assessment-results": {
+        "uuid": "00000000-0000-4000-8000-000000000001",
+        "metadata": {
+          "title": "Prism structural fixture",
+          "last-modified": "2026-09-27T00:00:00Z",
+          "version": "1",
+          "oscal-version": "1.1.0"
+        },
+        "import-ap": {
+          "href": "#ap"
+        },
+        "results": [
+          {
+            "uuid": "00000000-0000-4000-8000-000000000001",
+            "title": "Structural result",
+            "description": "No control-fulfillment claim.",
+            "start": "2026-09-27T00:00:00Z",
+            "reviewed-controls": {
+              "control-selections": [
+                {
+                  "include-all": {}
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "plan-of-action-and-milestones": {
+        "uuid": "00000000-0000-4000-8000-000000000001",
+        "metadata": {
+          "title": "Prism structural fixture",
+          "last-modified": "2026-09-27T00:00:00Z",
+          "version": "1",
+          "oscal-version": "1.1.0"
+        },
+        "poam-items": [
+          {
+            "title": "Structural item",
+            "description": "No remediation claim."
+          }
+        ]
+      }
+    },
+    {
+      "system-security-plan": {
+        "uuid": "00000000-0000-4000-8000-000000000001",
+        "metadata": {
+          "title": "Prism structural fixture",
+          "last-modified": "2026-09-27T00:00:00Z",
+          "version": "1",
+          "oscal-version": "1.1.0"
+        },
+        "import-profile": {
+          "href": "#profile"
+        },
+        "system-characteristics": {
+          "system-ids": [
+            {
+              "id": "structural-fixture"
+            }
+          ],
+          "system-name": "Structural fixture",
+          "description": "No system implementation claim.",
+          "system-information": {
+            "information-types": [
+              {
+                "title": "Fixture",
+                "description": "Fixture"
+              }
+            ]
+          },
+          "status": {
+            "state": "under-development"
+          },
+          "authorization-boundary": {
+            "description": "Fixture"
+          }
+        },
+        "system-implementation": {
+          "users": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001"
+            }
+          ],
+          "components": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001",
+              "type": "software",
+              "title": "Fixture",
+              "description": "Fixture",
+              "status": {
+                "state": "under-development"
+              }
+            }
+          ]
+        },
+        "control-implementation": {
+          "description": "Structural shape only.",
+          "implemented-requirements": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001",
+              "control-id": "local-fixture"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "negatives": [
+    {
+      "id": "catalog/missing-uuid",
+      "value": {
+        "catalog": {
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "catalog/bad-uuid",
+      "value": {
+        "catalog": {
+          "uuid": "not-a-uuid",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "catalog/missing-metadata",
+      "value": {
+        "catalog": {
+          "uuid": "00000000-0000-4000-8000-000000000001"
+        }
+      }
+    },
+    {
+      "id": "catalog/missing-title",
+      "value": {
+        "catalog": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "catalog/invalid-date",
+      "value": {
+        "catalog": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "not-a-date",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "catalog/wrong-edition",
+      "value": {
+        "catalog": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.1"
+          }
+        }
+      }
+    },
+    {
+      "id": "catalog/unknown-field",
+      "value": {
+        "catalog": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "unregistered": true
+        }
+      }
+    },
+    {
+      "id": "catalog/unknown-root",
+      "value": {
+        "catalog": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          }
+        },
+        "unregistered": true
+      }
+    },
+    {
+      "id": "component-definition/missing-uuid",
+      "value": {
+        "component-definition": {
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "component-definition/bad-uuid",
+      "value": {
+        "component-definition": {
+          "uuid": "not-a-uuid",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "component-definition/missing-metadata",
+      "value": {
+        "component-definition": {
+          "uuid": "00000000-0000-4000-8000-000000000001"
+        }
+      }
+    },
+    {
+      "id": "component-definition/missing-title",
+      "value": {
+        "component-definition": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "component-definition/invalid-date",
+      "value": {
+        "component-definition": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "not-a-date",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "component-definition/wrong-edition",
+      "value": {
+        "component-definition": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.1"
+          }
+        }
+      }
+    },
+    {
+      "id": "component-definition/unknown-field",
+      "value": {
+        "component-definition": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "unregistered": true
+        }
+      }
+    },
+    {
+      "id": "component-definition/unknown-root",
+      "value": {
+        "component-definition": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          }
+        },
+        "unregistered": true
+      }
+    },
+    {
+      "id": "profile/missing-uuid",
+      "value": {
+        "profile": {
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "imports": [
+            {
+              "href": "#catalog",
+              "include-all": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "profile/bad-uuid",
+      "value": {
+        "profile": {
+          "uuid": "not-a-uuid",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "imports": [
+            {
+              "href": "#catalog",
+              "include-all": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "profile/missing-metadata",
+      "value": {
+        "profile": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "imports": [
+            {
+              "href": "#catalog",
+              "include-all": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "profile/missing-title",
+      "value": {
+        "profile": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "imports": [
+            {
+              "href": "#catalog",
+              "include-all": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "profile/invalid-date",
+      "value": {
+        "profile": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "not-a-date",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "imports": [
+            {
+              "href": "#catalog",
+              "include-all": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "profile/wrong-edition",
+      "value": {
+        "profile": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.1"
+          },
+          "imports": [
+            {
+              "href": "#catalog",
+              "include-all": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "profile/unknown-field",
+      "value": {
+        "profile": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "imports": [
+            {
+              "href": "#catalog",
+              "include-all": {}
+            }
+          ],
+          "unregistered": true
+        }
+      }
+    },
+    {
+      "id": "profile/unknown-root",
+      "value": {
+        "profile": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "imports": [
+            {
+              "href": "#catalog",
+              "include-all": {}
+            }
+          ]
+        },
+        "unregistered": true
+      }
+    },
+    {
+      "id": "assessment-plan/missing-uuid",
+      "value": {
+        "assessment-plan": {
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ssp": {
+            "href": "#ssp"
+          },
+          "reviewed-controls": {
+            "control-selections": [
+              {
+                "include-all": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "assessment-plan/bad-uuid",
+      "value": {
+        "assessment-plan": {
+          "uuid": "not-a-uuid",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ssp": {
+            "href": "#ssp"
+          },
+          "reviewed-controls": {
+            "control-selections": [
+              {
+                "include-all": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "assessment-plan/missing-metadata",
+      "value": {
+        "assessment-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "import-ssp": {
+            "href": "#ssp"
+          },
+          "reviewed-controls": {
+            "control-selections": [
+              {
+                "include-all": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "assessment-plan/missing-title",
+      "value": {
+        "assessment-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ssp": {
+            "href": "#ssp"
+          },
+          "reviewed-controls": {
+            "control-selections": [
+              {
+                "include-all": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "assessment-plan/invalid-date",
+      "value": {
+        "assessment-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "not-a-date",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ssp": {
+            "href": "#ssp"
+          },
+          "reviewed-controls": {
+            "control-selections": [
+              {
+                "include-all": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "assessment-plan/wrong-edition",
+      "value": {
+        "assessment-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.1"
+          },
+          "import-ssp": {
+            "href": "#ssp"
+          },
+          "reviewed-controls": {
+            "control-selections": [
+              {
+                "include-all": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "assessment-plan/unknown-field",
+      "value": {
+        "assessment-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ssp": {
+            "href": "#ssp"
+          },
+          "reviewed-controls": {
+            "control-selections": [
+              {
+                "include-all": {}
+              }
+            ]
+          },
+          "unregistered": true
+        }
+      }
+    },
+    {
+      "id": "assessment-plan/unknown-root",
+      "value": {
+        "assessment-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ssp": {
+            "href": "#ssp"
+          },
+          "reviewed-controls": {
+            "control-selections": [
+              {
+                "include-all": {}
+              }
+            ]
+          }
+        },
+        "unregistered": true
+      }
+    },
+    {
+      "id": "assessment-results/missing-uuid",
+      "value": {
+        "assessment-results": {
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ap": {
+            "href": "#ap"
+          },
+          "results": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001",
+              "title": "Structural result",
+              "description": "No control-fulfillment claim.",
+              "start": "2026-09-27T00:00:00Z",
+              "reviewed-controls": {
+                "control-selections": [
+                  {
+                    "include-all": {}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "assessment-results/bad-uuid",
+      "value": {
+        "assessment-results": {
+          "uuid": "not-a-uuid",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ap": {
+            "href": "#ap"
+          },
+          "results": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001",
+              "title": "Structural result",
+              "description": "No control-fulfillment claim.",
+              "start": "2026-09-27T00:00:00Z",
+              "reviewed-controls": {
+                "control-selections": [
+                  {
+                    "include-all": {}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "assessment-results/missing-metadata",
+      "value": {
+        "assessment-results": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "import-ap": {
+            "href": "#ap"
+          },
+          "results": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001",
+              "title": "Structural result",
+              "description": "No control-fulfillment claim.",
+              "start": "2026-09-27T00:00:00Z",
+              "reviewed-controls": {
+                "control-selections": [
+                  {
+                    "include-all": {}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "assessment-results/missing-title",
+      "value": {
+        "assessment-results": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ap": {
+            "href": "#ap"
+          },
+          "results": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001",
+              "title": "Structural result",
+              "description": "No control-fulfillment claim.",
+              "start": "2026-09-27T00:00:00Z",
+              "reviewed-controls": {
+                "control-selections": [
+                  {
+                    "include-all": {}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "assessment-results/invalid-date",
+      "value": {
+        "assessment-results": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "not-a-date",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ap": {
+            "href": "#ap"
+          },
+          "results": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001",
+              "title": "Structural result",
+              "description": "No control-fulfillment claim.",
+              "start": "2026-09-27T00:00:00Z",
+              "reviewed-controls": {
+                "control-selections": [
+                  {
+                    "include-all": {}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "assessment-results/wrong-edition",
+      "value": {
+        "assessment-results": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.1"
+          },
+          "import-ap": {
+            "href": "#ap"
+          },
+          "results": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001",
+              "title": "Structural result",
+              "description": "No control-fulfillment claim.",
+              "start": "2026-09-27T00:00:00Z",
+              "reviewed-controls": {
+                "control-selections": [
+                  {
+                    "include-all": {}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "assessment-results/unknown-field",
+      "value": {
+        "assessment-results": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ap": {
+            "href": "#ap"
+          },
+          "results": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001",
+              "title": "Structural result",
+              "description": "No control-fulfillment claim.",
+              "start": "2026-09-27T00:00:00Z",
+              "reviewed-controls": {
+                "control-selections": [
+                  {
+                    "include-all": {}
+                  }
+                ]
+              }
+            }
+          ],
+          "unregistered": true
+        }
+      }
+    },
+    {
+      "id": "assessment-results/unknown-root",
+      "value": {
+        "assessment-results": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-ap": {
+            "href": "#ap"
+          },
+          "results": [
+            {
+              "uuid": "00000000-0000-4000-8000-000000000001",
+              "title": "Structural result",
+              "description": "No control-fulfillment claim.",
+              "start": "2026-09-27T00:00:00Z",
+              "reviewed-controls": {
+                "control-selections": [
+                  {
+                    "include-all": {}
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "unregistered": true
+      }
+    },
+    {
+      "id": "plan-of-action-and-milestones/missing-uuid",
+      "value": {
+        "plan-of-action-and-milestones": {
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "poam-items": [
+            {
+              "title": "Structural item",
+              "description": "No remediation claim."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "plan-of-action-and-milestones/bad-uuid",
+      "value": {
+        "plan-of-action-and-milestones": {
+          "uuid": "not-a-uuid",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "poam-items": [
+            {
+              "title": "Structural item",
+              "description": "No remediation claim."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "plan-of-action-and-milestones/missing-metadata",
+      "value": {
+        "plan-of-action-and-milestones": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "poam-items": [
+            {
+              "title": "Structural item",
+              "description": "No remediation claim."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "plan-of-action-and-milestones/missing-title",
+      "value": {
+        "plan-of-action-and-milestones": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "poam-items": [
+            {
+              "title": "Structural item",
+              "description": "No remediation claim."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "plan-of-action-and-milestones/invalid-date",
+      "value": {
+        "plan-of-action-and-milestones": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "not-a-date",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "poam-items": [
+            {
+              "title": "Structural item",
+              "description": "No remediation claim."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "plan-of-action-and-milestones/wrong-edition",
+      "value": {
+        "plan-of-action-and-milestones": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.1"
+          },
+          "poam-items": [
+            {
+              "title": "Structural item",
+              "description": "No remediation claim."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "plan-of-action-and-milestones/unknown-field",
+      "value": {
+        "plan-of-action-and-milestones": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "poam-items": [
+            {
+              "title": "Structural item",
+              "description": "No remediation claim."
+            }
+          ],
+          "unregistered": true
+        }
+      }
+    },
+    {
+      "id": "plan-of-action-and-milestones/unknown-root",
+      "value": {
+        "plan-of-action-and-milestones": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "poam-items": [
+            {
+              "title": "Structural item",
+              "description": "No remediation claim."
+            }
+          ]
+        },
+        "unregistered": true
+      }
+    },
+    {
+      "id": "system-security-plan/missing-uuid",
+      "value": {
+        "system-security-plan": {
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-profile": {
+            "href": "#profile"
+          },
+          "system-characteristics": {
+            "system-ids": [
+              {
+                "id": "structural-fixture"
+              }
+            ],
+            "system-name": "Structural fixture",
+            "description": "No system implementation claim.",
+            "system-information": {
+              "information-types": [
+                {
+                  "title": "Fixture",
+                  "description": "Fixture"
+                }
+              ]
+            },
+            "status": {
+              "state": "under-development"
+            },
+            "authorization-boundary": {
+              "description": "Fixture"
+            }
+          },
+          "system-implementation": {
+            "users": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001"
+              }
+            ],
+            "components": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "type": "software",
+                "title": "Fixture",
+                "description": "Fixture",
+                "status": {
+                  "state": "under-development"
+                }
+              }
+            ]
+          },
+          "control-implementation": {
+            "description": "Structural shape only.",
+            "implemented-requirements": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "control-id": "local-fixture"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "system-security-plan/bad-uuid",
+      "value": {
+        "system-security-plan": {
+          "uuid": "not-a-uuid",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-profile": {
+            "href": "#profile"
+          },
+          "system-characteristics": {
+            "system-ids": [
+              {
+                "id": "structural-fixture"
+              }
+            ],
+            "system-name": "Structural fixture",
+            "description": "No system implementation claim.",
+            "system-information": {
+              "information-types": [
+                {
+                  "title": "Fixture",
+                  "description": "Fixture"
+                }
+              ]
+            },
+            "status": {
+              "state": "under-development"
+            },
+            "authorization-boundary": {
+              "description": "Fixture"
+            }
+          },
+          "system-implementation": {
+            "users": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001"
+              }
+            ],
+            "components": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "type": "software",
+                "title": "Fixture",
+                "description": "Fixture",
+                "status": {
+                  "state": "under-development"
+                }
+              }
+            ]
+          },
+          "control-implementation": {
+            "description": "Structural shape only.",
+            "implemented-requirements": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "control-id": "local-fixture"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "system-security-plan/missing-metadata",
+      "value": {
+        "system-security-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "import-profile": {
+            "href": "#profile"
+          },
+          "system-characteristics": {
+            "system-ids": [
+              {
+                "id": "structural-fixture"
+              }
+            ],
+            "system-name": "Structural fixture",
+            "description": "No system implementation claim.",
+            "system-information": {
+              "information-types": [
+                {
+                  "title": "Fixture",
+                  "description": "Fixture"
+                }
+              ]
+            },
+            "status": {
+              "state": "under-development"
+            },
+            "authorization-boundary": {
+              "description": "Fixture"
+            }
+          },
+          "system-implementation": {
+            "users": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001"
+              }
+            ],
+            "components": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "type": "software",
+                "title": "Fixture",
+                "description": "Fixture",
+                "status": {
+                  "state": "under-development"
+                }
+              }
+            ]
+          },
+          "control-implementation": {
+            "description": "Structural shape only.",
+            "implemented-requirements": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "control-id": "local-fixture"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "system-security-plan/missing-title",
+      "value": {
+        "system-security-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-profile": {
+            "href": "#profile"
+          },
+          "system-characteristics": {
+            "system-ids": [
+              {
+                "id": "structural-fixture"
+              }
+            ],
+            "system-name": "Structural fixture",
+            "description": "No system implementation claim.",
+            "system-information": {
+              "information-types": [
+                {
+                  "title": "Fixture",
+                  "description": "Fixture"
+                }
+              ]
+            },
+            "status": {
+              "state": "under-development"
+            },
+            "authorization-boundary": {
+              "description": "Fixture"
+            }
+          },
+          "system-implementation": {
+            "users": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001"
+              }
+            ],
+            "components": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "type": "software",
+                "title": "Fixture",
+                "description": "Fixture",
+                "status": {
+                  "state": "under-development"
+                }
+              }
+            ]
+          },
+          "control-implementation": {
+            "description": "Structural shape only.",
+            "implemented-requirements": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "control-id": "local-fixture"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "system-security-plan/invalid-date",
+      "value": {
+        "system-security-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "not-a-date",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-profile": {
+            "href": "#profile"
+          },
+          "system-characteristics": {
+            "system-ids": [
+              {
+                "id": "structural-fixture"
+              }
+            ],
+            "system-name": "Structural fixture",
+            "description": "No system implementation claim.",
+            "system-information": {
+              "information-types": [
+                {
+                  "title": "Fixture",
+                  "description": "Fixture"
+                }
+              ]
+            },
+            "status": {
+              "state": "under-development"
+            },
+            "authorization-boundary": {
+              "description": "Fixture"
+            }
+          },
+          "system-implementation": {
+            "users": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001"
+              }
+            ],
+            "components": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "type": "software",
+                "title": "Fixture",
+                "description": "Fixture",
+                "status": {
+                  "state": "under-development"
+                }
+              }
+            ]
+          },
+          "control-implementation": {
+            "description": "Structural shape only.",
+            "implemented-requirements": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "control-id": "local-fixture"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "system-security-plan/wrong-edition",
+      "value": {
+        "system-security-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.1"
+          },
+          "import-profile": {
+            "href": "#profile"
+          },
+          "system-characteristics": {
+            "system-ids": [
+              {
+                "id": "structural-fixture"
+              }
+            ],
+            "system-name": "Structural fixture",
+            "description": "No system implementation claim.",
+            "system-information": {
+              "information-types": [
+                {
+                  "title": "Fixture",
+                  "description": "Fixture"
+                }
+              ]
+            },
+            "status": {
+              "state": "under-development"
+            },
+            "authorization-boundary": {
+              "description": "Fixture"
+            }
+          },
+          "system-implementation": {
+            "users": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001"
+              }
+            ],
+            "components": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "type": "software",
+                "title": "Fixture",
+                "description": "Fixture",
+                "status": {
+                  "state": "under-development"
+                }
+              }
+            ]
+          },
+          "control-implementation": {
+            "description": "Structural shape only.",
+            "implemented-requirements": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "control-id": "local-fixture"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "system-security-plan/unknown-field",
+      "value": {
+        "system-security-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-profile": {
+            "href": "#profile"
+          },
+          "system-characteristics": {
+            "system-ids": [
+              {
+                "id": "structural-fixture"
+              }
+            ],
+            "system-name": "Structural fixture",
+            "description": "No system implementation claim.",
+            "system-information": {
+              "information-types": [
+                {
+                  "title": "Fixture",
+                  "description": "Fixture"
+                }
+              ]
+            },
+            "status": {
+              "state": "under-development"
+            },
+            "authorization-boundary": {
+              "description": "Fixture"
+            }
+          },
+          "system-implementation": {
+            "users": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001"
+              }
+            ],
+            "components": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "type": "software",
+                "title": "Fixture",
+                "description": "Fixture",
+                "status": {
+                  "state": "under-development"
+                }
+              }
+            ]
+          },
+          "control-implementation": {
+            "description": "Structural shape only.",
+            "implemented-requirements": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "control-id": "local-fixture"
+              }
+            ]
+          },
+          "unregistered": true
+        }
+      }
+    },
+    {
+      "id": "system-security-plan/unknown-root",
+      "value": {
+        "system-security-plan": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0"
+          },
+          "import-profile": {
+            "href": "#profile"
+          },
+          "system-characteristics": {
+            "system-ids": [
+              {
+                "id": "structural-fixture"
+              }
+            ],
+            "system-name": "Structural fixture",
+            "description": "No system implementation claim.",
+            "system-information": {
+              "information-types": [
+                {
+                  "title": "Fixture",
+                  "description": "Fixture"
+                }
+              ]
+            },
+            "status": {
+              "state": "under-development"
+            },
+            "authorization-boundary": {
+              "description": "Fixture"
+            }
+          },
+          "system-implementation": {
+            "users": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001"
+              }
+            ],
+            "components": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "type": "software",
+                "title": "Fixture",
+                "description": "Fixture",
+                "status": {
+                  "state": "under-development"
+                }
+              }
+            ]
+          },
+          "control-implementation": {
+            "description": "Structural shape only.",
+            "implemented-requirements": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "control-id": "local-fixture"
+              }
+            ]
+          }
+        },
+        "unregistered": true
+      }
+    },
+    {
+      "id": "catalog/invalid-email-format",
+      "value": {
+        "catalog": {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "metadata": {
+            "title": "Prism structural fixture",
+            "last-modified": "2026-09-27T00:00:00Z",
+            "version": "1",
+            "oscal-version": "1.1.0",
+            "parties": [
+              {
+                "uuid": "00000000-0000-4000-8000-000000000001",
+                "type": "person",
+                "email-addresses": [
+                  "missing-at.example"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

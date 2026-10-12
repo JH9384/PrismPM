@@ -667,6 +667,12 @@ level = "build"
 statement = "Official positive and negative corpora plus Prism mutations detect stale, bypassed, changed, or always-passing oracles."
 
 [[id]]
+id = "AU-07"
+suite = "authorities"
+level = "build"
+statement = "The imported OSCAL JSON structural oracle executes complete pinned schema corpora and bounded subject-capture adversaries without claiming implemented controls or whole-standard acceptance."
+
+[[id]]
 id = "SY-01"
 suite = "system"
 level = "build"

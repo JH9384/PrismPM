@@ -456,6 +456,16 @@ pub fn run_at(root: &Path, id: &str) {
         }
 
         "AU-01" | "AU-02" | "AU-03" | "AU-04" | "AU-05" | "AU-06" => verify_authorities(root, id),
+        "AU-07" => verify_node_suite(
+            root,
+            id,
+            &[
+                "tests/oscal-json/capture.test.mjs",
+                "tests/oscal-json/owner.test.mjs",
+            ],
+            9,
+            "1200000",
+        ),
         "SY-08" => browser_system::verify(root),
         "SY-01" | "SY-02" | "SY-03" | "SY-04" | "SY-05" | "SY-06" | "SY-07" => {
             verify_system(root, id)

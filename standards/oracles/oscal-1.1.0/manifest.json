@@ -1,0 +1,45 @@
+{
+  "schema": "prismpm/oscal-json-schema-import/1",
+  "edition": "1.1.0",
+  "revision": "ef4df067c280e718e107c646f7567c053c2abfc8",
+  "tag_object": "2e1719179392c04fa3535cab28ce4f39bc5d8253",
+  "scope": "json-structural-validation-only",
+  "complete_standard_acceptance": false,
+  "license": "CC0-1.0",
+  "license_url": "https://raw.githubusercontent.com/usnistgov/OSCAL/ef4df067c280e718e107c646f7567c053c2abfc8/LICENSE.md",
+  "license_sha256": "63407ac41abc46911bc9759fc0c19fd0ba7f66c59bb6746e51d85e2f2f3244b1",
+  "schemas": {
+    "oscal_assessment-plan_schema.json": {
+      "url": "https://github.com/usnistgov/OSCAL/releases/download/v1.1.0/oscal_assessment-plan_schema.json",
+      "sha256": "add46ade21dc1659f7bac0e83637a9270ba1468ebf6bbd26ac0c6085d2eb0e67"
+    },
+    "oscal_assessment-results_schema.json": {
+      "url": "https://github.com/usnistgov/OSCAL/releases/download/v1.1.0/oscal_assessment-results_schema.json",
+      "sha256": "fdee9614db5a21ad0c1747945def60810278fc5bf7287d2bf93ce2f53ed46977"
+    },
+    "oscal_catalog_schema.json": {
+      "url": "https://github.com/usnistgov/OSCAL/releases/download/v1.1.0/oscal_catalog_schema.json",
+      "sha256": "936c53978eb47880dfa8b471640ae09b111b38d837686022ef7db07e26fa629d"
+    },
+    "oscal_complete_schema.json": {
+      "url": "https://github.com/usnistgov/OSCAL/releases/download/v1.1.0/oscal_complete_schema.json",
+      "sha256": "c57fe854b05dd6c249343349ea76aaf59cca87289e5c791ba832eedc2a0ae653"
+    },
+    "oscal_component_schema.json": {
+      "url": "https://github.com/usnistgov/OSCAL/releases/download/v1.1.0/oscal_component_schema.json",
+      "sha256": "41c14d6a7d6798a7cc3b87d07bf2888b2027210acd79d27f10b6579610f3afd2"
+    },
+    "oscal_poam_schema.json": {
+      "url": "https://github.com/usnistgov/OSCAL/releases/download/v1.1.0/oscal_poam_schema.json",
+      "sha256": "7e06835a32ab03561e96cfc9c623dd7b1ffd3924958a0e6a333008cb711b0f5f"
+    },
+    "oscal_profile_schema.json": {
+      "url": "https://github.com/usnistgov/OSCAL/releases/download/v1.1.0/oscal_profile_schema.json",
+      "sha256": "e40698f88744d07ff4d06512d7359b18c10bf15ca97de6ce0b61d53bd82d19af"
+    },
+    "oscal_ssp_schema.json": {
+      "url": "https://github.com/usnistgov/OSCAL/releases/download/v1.1.0/oscal_ssp_schema.json",
+      "sha256": "c361dd9aadb7e0cf9b195194f2e1e88829d2b2b183d0e3ac32d4590d1acb72dd"
+    }
+  }
+}

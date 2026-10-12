@@ -1068,6 +1068,35 @@ the authority/oracle diagnostics in the PP54xx range. If no executable oracle
 exists, coverage is `not-executable`; PrismPM cannot manufacture an external
 conformance claim from its own validator.
 
+### 10.1 OSCAL JSON structural validation
+
+AU-07 owns the imported OSCAL 1.1.0 JSON schema boundary: all seven model
+schemas and the complete schema, with their original release bytes. The
+published, checksum-locked JSON Schema engine runs without network retrieval.
+The complete selected draft-07 corpus includes all 37 mandatory files and the
+four format suites used by these schemas: 1,120 cases. All 44 pinned NIST
+content documents are structural probes; their original 1.1.1 edition is
+retained and refused by the 1.1.0 admission boundary. Seven local valid model
+documents and 57 local invalid mutations are not attributed to NIST.
+
+The adapter captures one regular, unaliased, singly linked subject through a
+bounded no-follow descriptor, checking held/path identity before and after
+reading. Strict UTF-8 JSON refuses duplicate decoded keys and preserves exact
+numbers. Resource ceilings are 64 MiB, depth 128, one million JSON nodes and
+numeric digits, and absolute decimal exponent/adjustment of one million.
+Exceeding a ceiling is resource refusal, never a schema-invalid verdict.
+Exit codes are success 0, invocation 2, rejected subject 4, resource refusal 5
+and unavailable oracle 6. Failure emits no accepted-subject record.
+
+Successful evidence binds exact subject bytes, model and edition and reports
+only JSON structural validation. It does not establish profile resolution,
+control implementation, assessment authenticity, inheritance, security or
+whole-standard conformance. The complete owning gate requires freshly built
+locked engine execution, exact upstream inventory, actual CLI boundaries and
+compiled defects for invalid acceptance, wrong editions and unstable capture.
+Changed compiled schema bytes must produce an unavailable-oracle refusal.
+Source-only registration or a locally overridden engine cannot accept it.
+
 ## 11. Production system model and projections
 
 `prismpm/system-model/1` is a closed projection of one LexLean semantic graph.
@@ -3253,6 +3282,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `AU-04` | `authorities` | Authority and oracle verification reproduces from a populated cache with network access disabled. | §10 |
 | `AU-05` | `authorities` | Oracle runners are digest-bound, resource-bounded, networkless, and report exact covered and uncovered requirements. | §10 |
 | `AU-06` | `authorities` | Official positive and negative corpora plus Prism mutations detect stale, bypassed, changed, or always-passing oracles. | §10 |
+| `AU-07` | `authorities` | The imported OSCAL JSON structural oracle executes complete pinned schema corpora and bounded subject-capture adversaries without claiming implemented controls or whole-standard acceptance. | §10 |
 | `SY-01` | `system` | Prism system models cover product, components, interfaces, topology, configuration, data, operations, and lifecycle. | §11 |
 | `SY-02` | `system` | System validation enforces closure, uniqueness, references, compatibility, capabilities, ordering, and release completeness. | §11 |
 | `SY-03` | `system` | All Prism system semantics and validators are authored in LexLean and exported only from generated Lean roots. | §11 |

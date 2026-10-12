@@ -131,6 +131,7 @@ test_case!(conformance_au_03, "AU-03");
 test_case!(conformance_au_04, "AU-04");
 test_case!(conformance_au_05, "AU-05");
 test_case!(conformance_au_06, "AU-06");
+test_case!(conformance_au_07, "AU-07");
 test_case!(conformance_sy_01, "SY-01");
 test_case!(conformance_sy_02, "SY-02");
 test_case!(conformance_sy_03, "SY-03");

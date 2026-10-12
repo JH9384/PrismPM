@@ -1,0 +1,703 @@
+{
+  "schema": "prismpm/oscal-json-import-sources/1",
+  "scope": "immutable-source-acquisition-only",
+  "oracle_acceptance": false,
+  "complete_standard_acceptance": false,
+  "tree_encoding": "ordered relative UTF-8 path and content; each preceded by unsigned 64-bit big-endian byte length",
+  "corpora": [
+    {
+      "directory": "standards/corpora/json-schema-draft7",
+      "repository": "https://github.com/json-schema-org/JSON-Schema-Test-Suite",
+      "revision": "c9510e3bf8a896c3cba4e08509cf752b4f30dff8",
+      "archive_sha256": "cf0e16252ef08add662b9db2b7f0f099644cdaffd1c429b1ce9212cebf086aba",
+      "expected_tree": "d76b20f487c40a66ce929fe821ff8a36fac2dc33a7f0ade347086b23e84b3335",
+      "expected_files": 121,
+      "selection": "All 37 mandatory draft7 files; all four OSCAL format files; all 79 remote resources; LICENSE",
+      "cases": {
+        "positive": 634,
+        "negative": 486
+      },
+      "scope": "draft7-structural-and-four-format-corpus",
+      "files": {
+        "LICENSE": {
+          "bytes": 1057,
+          "sha256": "837402bd25fad9b704265801ca3f92566a98157c1f9a7acd6f446299ba1c305a"
+        },
+        "remotes/baseUriChange/folderInteger.json": {
+          "bytes": 26,
+          "sha256": "fab4a7197aaa97e26792aa501e2643829a6074343c5fd45a6512af28bc55dd93"
+        },
+        "remotes/baseUriChangeFolder/folderInteger.json": {
+          "bytes": 26,
+          "sha256": "fab4a7197aaa97e26792aa501e2643829a6074343c5fd45a6512af28bc55dd93"
+        },
+        "remotes/baseUriChangeFolderInSubschema/folderInteger.json": {
+          "bytes": 26,
+          "sha256": "fab4a7197aaa97e26792aa501e2643829a6074343c5fd45a6512af28bc55dd93"
+        },
+        "remotes/draft2019-09/baseUriChange/folderInteger.json": {
+          "bytes": 89,
+          "sha256": "eab1dc35fd88ab0c426e6ef66b4febd2d84b926990d456d32592030cdc940f10"
+        },
+        "remotes/draft2019-09/baseUriChangeFolder/folderInteger.json": {
+          "bytes": 89,
+          "sha256": "eab1dc35fd88ab0c426e6ef66b4febd2d84b926990d456d32592030cdc940f10"
+        },
+        "remotes/draft2019-09/baseUriChangeFolderInSubschema/folderInteger.json": {
+          "bytes": 89,
+          "sha256": "eab1dc35fd88ab0c426e6ef66b4febd2d84b926990d456d32592030cdc940f10"
+        },
+        "remotes/draft2019-09/dependentRequired.json": {
+          "bytes": 195,
+          "sha256": "d92216917b9d9989b57e7c9eb21f42b86f97d8d3c41475fb48609bca4d2f3051"
+        },
+        "remotes/draft2019-09/detached-ref.json": {
+          "bytes": 269,
+          "sha256": "0c89bf59452394169769dcac72ee7e571554b1ae1fbf5f41a19145385fae7549"
+        },
+        "remotes/draft2019-09/different-id-ref-string.json": {
+          "bytes": 145,
+          "sha256": "d8747669a58f38029a39f263842f2f5c01dc7cbe803c7808d73db0736ebf0bc8"
+        },
+        "remotes/draft2019-09/extendible-dynamic-ref.json": {
+          "bytes": 532,
+          "sha256": "fe59f7ef575dbfe1393da8e431c32f5c3aef87a40a224fddfa9412a858f91ffa"
+        },
+        "remotes/draft2019-09/ignore-prefixItems.json": {
+          "bytes": 194,
+          "sha256": "01a4ad72fc2f529a7329caf5eb02c86ed2be591bd0c2b327624276aa5e16653c"
+        },
+        "remotes/draft2019-09/integer.json": {
+          "bytes": 89,
+          "sha256": "eab1dc35fd88ab0c426e6ef66b4febd2d84b926990d456d32592030cdc940f10"
+        },
+        "remotes/draft2019-09/locationIndependentIdentifier.json": {
+          "bytes": 237,
+          "sha256": "f33140088756e298545dffe00b5d3bb2236540f8c621c4aaa069c41c2160e25b"
+        },
+        "remotes/draft2019-09/metaschema-no-validation.json": {
+          "bytes": 509,
+          "sha256": "55aa40cf0839f02885b5021fec03f04a5be0ee037c561fad45215b3a8aa2dfda"
+        },
+        "remotes/draft2019-09/metaschema-optional-vocabulary.json": {
+          "bytes": 582,
+          "sha256": "08d6d4aac8c5b64fa5d77a5ecf4c46b6689d2275451b1d396ba4ce5a1afadab2"
+        },
+        "remotes/draft2019-09/name-defs.json": {
+          "bytes": 317,
+          "sha256": "fdfa03c338a8487eca894ca21f432a392d1734b2afee038eb5251f91e792926e"
+        },
+        "remotes/draft2019-09/nested/foo-ref-string.json": {
+          "bytes": 154,
+          "sha256": "90700656ff0f1376ac15718b874815d89b7ff2e622336ba0c16d775f8903a07d"
+        },
+        "remotes/draft2019-09/nested/string.json": {
+          "bytes": 88,
+          "sha256": "732e5d2d8d5cd35a29dbb687c5224cd8c3149ac4d76a1438c351743993290d78"
+        },
+        "remotes/draft2019-09/nested-absolute-ref-to-string.json": {
+          "bytes": 226,
+          "sha256": "855e4c5d5f8b6a33cb569709dacc88d5cb2e9bf483961582d7c2d78b9c61d959"
+        },
+        "remotes/draft2019-09/ref-and-defs.json": {
+          "bytes": 299,
+          "sha256": "753f4bf66207da6ced22af9012d28d85c71db3c67f7ea164e5972764736d3f1e"
+        },
+        "remotes/draft2019-09/subSchemas.json": {
+          "bytes": 224,
+          "sha256": "f369d5fc251c5635fbec025e30a6dae110599cc57f4081f8ff055dc75152a305"
+        },
+        "remotes/draft2019-09/urn-ref-string.json": {
+          "bytes": 132,
+          "sha256": "edd957b986c1da9582043660df22c953419ee6c20f6a1f6b6157898141367cba"
+        },
+        "remotes/draft2020-12/baseUriChange/folderInteger.json": {
+          "bytes": 89,
+          "sha256": "01909782da0e97eb093661b6a030fb4fa140198c1ceb4bddd33357ca416ee0bb"
+        },
+        "remotes/draft2020-12/baseUriChangeFolder/folderInteger.json": {
+          "bytes": 89,
+          "sha256": "01909782da0e97eb093661b6a030fb4fa140198c1ceb4bddd33357ca416ee0bb"
+        },
+        "remotes/draft2020-12/baseUriChangeFolderInSubschema/folderInteger.json": {
+          "bytes": 89,
+          "sha256": "01909782da0e97eb093661b6a030fb4fa140198c1ceb4bddd33357ca416ee0bb"
+        },
+        "remotes/draft2020-12/detached-dynamicref.json": {
+          "bytes": 290,
+          "sha256": "179fa0d52df07a3c0c0509ec9a66aae3f5bbd8d150b64a8bdfa9e7342ccb6385"
+        },
+        "remotes/draft2020-12/detached-ref.json": {
+          "bytes": 269,
+          "sha256": "1d89f859adec83ae5eb27fd1a171bad2567b7d05baf019845ec8ae848f975a1c"
+        },
+        "remotes/draft2020-12/different-id-ref-string.json": {
+          "bytes": 145,
+          "sha256": "7a3be1ab2e5cb85d9c85ac20859b0187c30d3066cbe8a708a61ef145012dee1f"
+        },
+        "remotes/draft2020-12/extendible-dynamic-ref.json": {
+          "bytes": 532,
+          "sha256": "876cfd13df8730880db32f8d1b4b95c850ec170929247787118b448347dd1ed4"
+        },
+        "remotes/draft2020-12/format-assertion-false.json": {
+          "bytes": 520,
+          "sha256": "ae4de9d880b3f4630ad1eff35d797b0bcb2465a9744d27ff56692b50d78612c5"
+        },
+        "remotes/draft2020-12/format-assertion-true.json": {
+          "bytes": 518,
+          "sha256": "b452da83b92aa5f559abbae690adf59819fbb3e20ebd19acceeeeea7636a9cd9"
+        },
+        "remotes/draft2020-12/integer.json": {
+          "bytes": 89,
+          "sha256": "01909782da0e97eb093661b6a030fb4fa140198c1ceb4bddd33357ca416ee0bb"
+        },
+        "remotes/draft2020-12/locationIndependentIdentifier.json": {
+          "bytes": 237,
+          "sha256": "363f9c0cba34b30f38ba351e562f5704079657bece4aaf5329183ae17663b141"
+        },
+        "remotes/draft2020-12/metaschema-no-validation.json": {
+          "bytes": 509,
+          "sha256": "ece55f3d99bea2317baba2aaa886f57736ac0e9b4c4b6e433b93176a6a5501f5"
+        },
+        "remotes/draft2020-12/metaschema-optional-vocabulary.json": {
+          "bytes": 582,
+          "sha256": "4677e1f74ccac6be9da11831de3d859ce06aeeca30242e39edc1821e6c5bf269"
+        },
+        "remotes/draft2020-12/name-defs.json": {
+          "bytes": 317,
+          "sha256": "7069ac1ac37c71e32ac42c32091353126b836890f0bd20cdada183f8657376ed"
+        },
+        "remotes/draft2020-12/nested/foo-ref-string.json": {
+          "bytes": 154,
+          "sha256": "f476446b33cca4971acd249dded0400f6f8764c61cce5bb5d1445910750d7ba0"
+        },
+        "remotes/draft2020-12/nested/string.json": {
+          "bytes": 88,
+          "sha256": "463ae2cb710a930e17db3799f110abf0c56019ae1a64d1da35bfcc94c4bdc814"
+        },
+        "remotes/draft2020-12/nested-absolute-ref-to-string.json": {
+          "bytes": 226,
+          "sha256": "a339b08131df671e927c6ecad6cc41c340b17937718d494ed64ddbfce67fcad0"
+        },
+        "remotes/draft2020-12/prefixItems.json": {
+          "bytes": 187,
+          "sha256": "a8bc2649cd9314ce069634619bd96ee95af570ae702393c1c5b558b383c2e28a"
+        },
+        "remotes/draft2020-12/ref-and-defs.json": {
+          "bytes": 299,
+          "sha256": "99aa223bc45a9c40e6746ad518aed22a6e42dacb93444e6a53c4368d711d3e86"
+        },
+        "remotes/draft2020-12/subSchemas.json": {
+          "bytes": 224,
+          "sha256": "f6c1452bb6ca9e7e5638a7ea000763cb847d42132756c8db6e570debcacdac76"
+        },
+        "remotes/draft2020-12/tree.json": {
+          "bytes": 410,
+          "sha256": "e2fa53954b78121c6533e98ef7ca83689c9b990c5ca1c01f65e2cc7e7f426664"
+        },
+        "remotes/draft2020-12/urn-ref-string.json": {
+          "bytes": 132,
+          "sha256": "5cbd6af1efdfcffee931886613be5c398a2d2a5faa064c11da1d028463126283"
+        },
+        "remotes/draft3/subSchemas.json": {
+          "bytes": 173,
+          "sha256": "6fa00a1ac5296436f40d020b1077cd3c633fd99762de83e059ad29495e41a3bb"
+        },
+        "remotes/draft4/locationIndependentIdentifier.json": {
+          "bytes": 176,
+          "sha256": "e987e38691f9d614f17968da22aa93b5ed4ecff11c309ef6226710cc6122ce9e"
+        },
+        "remotes/draft4/name.json": {
+          "bytes": 260,
+          "sha256": "9288a5be0c1be53ee38d629645088abeb3e3e0912ae00eee0818efdabffb6a35"
+        },
+        "remotes/draft4/subSchemas.json": {
+          "bytes": 173,
+          "sha256": "6fa00a1ac5296436f40d020b1077cd3c633fd99762de83e059ad29495e41a3bb"
+        },
+        "remotes/draft6/detached-ref.json": {
+          "bytes": 261,
+          "sha256": "1c72230675f9e3bcc1565943c67667dbb8a2b0a6c00e7f3649cee60fa95a5b58"
+        },
+        "remotes/draft6/locationIndependentIdentifier.json": {
+          "bytes": 177,
+          "sha256": "315c3114cab95764c1dad2ad56c84abffd6c8f180638f11ce6e80ced0321f15d"
+        },
+        "remotes/draft6/name.json": {
+          "bytes": 260,
+          "sha256": "9288a5be0c1be53ee38d629645088abeb3e3e0912ae00eee0818efdabffb6a35"
+        },
+        "remotes/draft6/ref-and-definitions.json": {
+          "bytes": 266,
+          "sha256": "7d6f0dbc08eb204977a5e4bc27c011d957e2919e6e9224298dc9d6d09129283f"
+        },
+        "remotes/draft6/subSchemas.json": {
+          "bytes": 173,
+          "sha256": "6fa00a1ac5296436f40d020b1077cd3c633fd99762de83e059ad29495e41a3bb"
+        },
+        "remotes/draft7/detached-ref.json": {
+          "bytes": 261,
+          "sha256": "ea00368e86308ec10e7e9d08b9426568f92cbaa54d9702199f949dafd4e32cd4"
+        },
+        "remotes/draft7/ignore-dependentRequired.json": {
+          "bytes": 173,
+          "sha256": "970fd260f2de54a9c908e856be81a05a487a589e41e671c40f7267c9fa16cd96"
+        },
+        "remotes/draft7/locationIndependentIdentifier.json": {
+          "bytes": 177,
+          "sha256": "315c3114cab95764c1dad2ad56c84abffd6c8f180638f11ce6e80ced0321f15d"
+        },
+        "remotes/draft7/name.json": {
+          "bytes": 260,
+          "sha256": "9288a5be0c1be53ee38d629645088abeb3e3e0912ae00eee0818efdabffb6a35"
+        },
+        "remotes/draft7/ref-and-definitions.json": {
+          "bytes": 266,
+          "sha256": "2f89a7faecb47524e8efb656191dd934826eb7eb528bf71697af33514d9ccaf6"
+        },
+        "remotes/draft7/subSchemas.json": {
+          "bytes": 173,
+          "sha256": "6fa00a1ac5296436f40d020b1077cd3c633fd99762de83e059ad29495e41a3bb"
+        },
+        "remotes/integer.json": {
+          "bytes": 26,
+          "sha256": "fab4a7197aaa97e26792aa501e2643829a6074343c5fd45a6512af28bc55dd93"
+        },
+        "remotes/nested/foo-ref-string.json": {
+          "bytes": 91,
+          "sha256": "8af9833ea84cfecd9494a75c9b304d857108f00bee72fb247dc95045f1852986"
+        },
+        "remotes/nested/string.json": {
+          "bytes": 25,
+          "sha256": "449e7fcd49f7748a36f0298c3bcdea9897b5c6534c50356f334e3faf5c8d4f62"
+        },
+        "remotes/v1/baseUriChange/folderInteger.json": {
+          "bytes": 71,
+          "sha256": "26d7a400a2fcadbb4a9ee3d23237839d74c36906e3450fb3bfe9730e354e69d4"
+        },
+        "remotes/v1/baseUriChangeFolder/folderInteger.json": {
+          "bytes": 71,
+          "sha256": "26d7a400a2fcadbb4a9ee3d23237839d74c36906e3450fb3bfe9730e354e69d4"
+        },
+        "remotes/v1/baseUriChangeFolderInSubschema/folderInteger.json": {
+          "bytes": 71,
+          "sha256": "26d7a400a2fcadbb4a9ee3d23237839d74c36906e3450fb3bfe9730e354e69d4"
+        },
+        "remotes/v1/detached-dynamicref.json": {
+          "bytes": 263,
+          "sha256": "bd105fef59a00c8e08f83ecef0d85f9822728c941831878b56b9351b51df49c7"
+        },
+        "remotes/v1/detached-ref.json": {
+          "bytes": 242,
+          "sha256": "cdeaec640d65d64dcedefc163f51905138f58dc4cfb167ed56def3e527bf1040"
+        },
+        "remotes/v1/different-id-ref-string.json": {
+          "bytes": 135,
+          "sha256": "0b74ccb9e231a589659721c9fe990b9db74d578224d5c630b4a55e121c0a4f89"
+        },
+        "remotes/v1/extendible-dynamic-ref.json": {
+          "bytes": 504,
+          "sha256": "39f69d7721ddc450d5d315512a9dc87d7859550966e23443ffa34040ccf6fef5"
+        },
+        "remotes/v1/integer.json": {
+          "bytes": 71,
+          "sha256": "26d7a400a2fcadbb4a9ee3d23237839d74c36906e3450fb3bfe9730e354e69d4"
+        },
+        "remotes/v1/locationIndependentIdentifier.json": {
+          "bytes": 219,
+          "sha256": "bbc9049ba2aa7b05cde315032c8f210304a0f4f84ab3c816086c191a927a0800"
+        },
+        "remotes/v1/name-defs.json": {
+          "bytes": 299,
+          "sha256": "18252e572eee5ab5ef22815930542542f9e6f046dbc21715ed1d3997b8053a35"
+        },
+        "remotes/v1/nested/foo-ref-string.json": {
+          "bytes": 136,
+          "sha256": "e5263f4b57dcb925f636a46aac11c72a19136bd35e26bf6fbc93f24e6aa62921"
+        },
+        "remotes/v1/nested/string.json": {
+          "bytes": 70,
+          "sha256": "f027745f485716169e48cab5687cfb782a8e183b4001dc25ea868f61d5d32fda"
+        },
+        "remotes/v1/nested-absolute-ref-to-string.json": {
+          "bytes": 206,
+          "sha256": "64c14037a2ce02fd531bbd75d43e2f483f4752f550b1c99cd9acf93b302fee05"
+        },
+        "remotes/v1/ref-and-defs.json": {
+          "bytes": 271,
+          "sha256": "351acf2c04c490349baf12cba3676d860325ab4b8e9173a7491dd4f62be64753"
+        },
+        "remotes/v1/subSchemas.json": {
+          "bytes": 206,
+          "sha256": "7f86b515edceb72eb2db3f5fe4d729c9e26a4dbd59ffc550e7c530d2c7927891"
+        },
+        "remotes/v1/tree.json": {
+          "bytes": 382,
+          "sha256": "efe4e04f531200bc90a59780f1598f5b816a032fb1282d2ce1463609c4620b48"
+        },
+        "remotes/v1/urn-ref-string.json": {
+          "bytes": 132,
+          "sha256": "2d1781d560e901088eff5d8e47184bcb781b518503e78836fe94bdfc464653f1"
+        },
+        "tests/draft7/additionalItems.json": {
+          "bytes": 5394,
+          "sha256": "c25888a38a6db63d31daa9bce5647038513a54a327dabaeb2548189f6a51fb64"
+        },
+        "tests/draft7/additionalProperties.json": {
+          "bytes": 4426,
+          "sha256": "6ab2e5091d2d75fc047767b42cafdb493b67f2559b05bf33202a154363824b4c"
+        },
+        "tests/draft7/allOf.json": {
+          "bytes": 7783,
+          "sha256": "940b67eca31bc9035a9864a5b00a720e6880d7780e6e4db85403bfa12222fd7a"
+        },
+        "tests/draft7/anyOf.json": {
+          "bytes": 4827,
+          "sha256": "1175062b77388b03432d61f1b43448a71b5b2bb03696215ebe52fa5be69eec61"
+        },
+        "tests/draft7/boolean_schema.json": {
+          "bytes": 2818,
+          "sha256": "9c8828d325b88a0c632fca22405d5481548b49fb0f9f5536ee401e4d66aa8582"
+        },
+        "tests/draft7/const.json": {
+          "bytes": 10878,
+          "sha256": "65d2b152fbbbdd3291beb3dcc048dea1644acf3c59c68b5f72f521b5a927fcf9"
+        },
+        "tests/draft7/contains.json": {
+          "bytes": 4633,
+          "sha256": "2a27945551b0189c264709147b46608fedb1d50b0d841817757ef60ba445f024"
+        },
+        "tests/draft7/default.json": {
+          "bytes": 2231,
+          "sha256": "b0c16241a36d86af33b33183da33b15f5d883a141fbc2ee451d57ec679f17e7e"
+        },
+        "tests/draft7/definitions.json": {
+          "bytes": 719,
+          "sha256": "b1159d8adeb80362bfc09b925b20f4bacdf698f8fe437d9859b4403dfff87b24"
+        },
+        "tests/draft7/dependencies.json": {
+          "bytes": 7903,
+          "sha256": "e5c757b8c79b669eab621eb7b2801c99aecd94dd16aa4e41662992509d249fd5"
+        },
+        "tests/draft7/enum.json": {
+          "bytes": 9457,
+          "sha256": "069890108f4f83e62c9be9f42af63b5de911555e6644d83cd89c08ff644a43bb"
+        },
+        "tests/draft7/exclusiveMaximum.json": {
+          "bytes": 775,
+          "sha256": "a51392482efa787d7fcea34de78de441a8807b1881ec0bc414f013cab0bf5812"
+        },
+        "tests/draft7/exclusiveMinimum.json": {
+          "bytes": 775,
+          "sha256": "08435add3250275173074d2b7ad519806baae83be95d7397d3a514b8ad7561d3"
+        },
+        "tests/draft7/format.json": {
+          "bytes": 18067,
+          "sha256": "8c670c5bbf816d1bb6a7be7db526d31989e2fe3d2f95198ee7c28c34136c8f22"
+        },
+        "tests/draft7/if-then-else.json": {
+          "bytes": 7919,
+          "sha256": "c581c49c9fd9dcaaa140bf1cee7ef9adc090399865faad75a59bf8e0c5af05a1"
+        },
+        "tests/draft7/infinite-loop-detection.json": {
+          "bytes": 998,
+          "sha256": "c247742221355ae165edaada14385669382c6d0cdbcc933ce8f9a693b9444de7"
+        },
+        "tests/draft7/items.json": {
+          "bytes": 8076,
+          "sha256": "6480f868b34c832265c9ee42a7643e16873c74f11c8d735d8eea5e494c93ed02"
+        },
+        "tests/draft7/maxItems.json": {
+          "bytes": 1133,
+          "sha256": "913397eff076de4eb63982c6682fb40cfd6117900da34f8fbb3a71839bcc813c"
+        },
+        "tests/draft7/maxLength.json": {
+          "bytes": 1297,
+          "sha256": "3330342d36c85a7334ea3f7deb168beae26617ce83cc1d43b6ba2f618b3c2f4e"
+        },
+        "tests/draft7/maxProperties.json": {
+          "bytes": 1963,
+          "sha256": "b57f784fdb7ec266cef13afd2de4ab9f2cfc7e2bdd86428d90be0212106babd3"
+        },
+        "tests/draft7/maximum.json": {
+          "bytes": 1474,
+          "sha256": "b3094bf70bea8df1eb17c22a9afb47af1bcf3b8d6616bfb8bce95c1ee874e2e3"
+        },
+        "tests/draft7/minItems.json": {
+          "bytes": 1116,
+          "sha256": "706f786718b5af39ca447d006909aa3adba53ebffe450d97cc7773f47d97bb46"
+        },
+        "tests/draft7/minLength.json": {
+          "bytes": 1287,
+          "sha256": "6faf7b73d1eac9615da33147a05e0fdde90737b62a175d1ce2a9a0bc98eaaaa5"
+        },
+        "tests/draft7/minProperties.json": {
+          "bytes": 1727,
+          "sha256": "c958aade9248bf33ae2670171379671f0484aeec434c44c9f2adf4b87f39bcf7"
+        },
+        "tests/draft7/minimum.json": {
+          "bytes": 1930,
+          "sha256": "8e13e2a245ecffc0c39481430583ef3b11ce1ac3eb5d02617bfe6f8a022b1579"
+        },
+        "tests/draft7/multipleOf.json": {
+          "bytes": 2343,
+          "sha256": "919162ca3ea2aa831d403b1100a04aba53e7ff2e48810a65e7f4a88ceb959ff9"
+        },
+        "tests/draft7/not.json": {
+          "bytes": 6856,
+          "sha256": "c225b4d75dfb2a485006236f005070a2aae2f60090c761ffaf947a3259de77da"
+        },
+        "tests/draft7/oneOf.json": {
+          "bytes": 7254,
+          "sha256": "0eff07bc5ec108eb324aeb61d9ff130a3e689b0ab4b26af40561e6b1eda3a26c"
+        },
+        "tests/draft7/optional/format/date-time.json": {
+          "bytes": 7997,
+          "sha256": "704a361f215c08de56c9aac3ba9b1db674ba7ad097fe286b4bbe5ed8f19a79b6"
+        },
+        "tests/draft7/optional/format/email.json": {
+          "bytes": 13223,
+          "sha256": "1af7cdb9b22cda7962758754fd95ce8d9561a227d3e53604eaad2c7909b7b519"
+        },
+        "tests/draft7/optional/format/uri-reference.json": {
+          "bytes": 7573,
+          "sha256": "9f1e0ccf404b91e98512621b56118d1561e090f45bf7dc0eae980545d073ecbf"
+        },
+        "tests/draft7/optional/format/uri.json": {
+          "bytes": 8802,
+          "sha256": "b35144c96aa5042d1464b14cabfdff5cf7d761bb34b84eb9b07ec54a68ffe1f9"
+        },
+        "tests/draft7/pattern.json": {
+          "bytes": 1539,
+          "sha256": "92f42bdbf24f20b2b6378a8dfa882a8b40746170303f5dbe5b4cade420599507"
+        },
+        "tests/draft7/patternProperties.json": {
+          "bytes": 5177,
+          "sha256": "2e27cf7e3c459d15c7d9a40f3daebdf673ca49c283b3bbcb3ac1f4c2d333ec4d"
+        },
+        "tests/draft7/properties.json": {
+          "bytes": 7305,
+          "sha256": "b8246287c2b214d0e17ed4b1904b92cfde803d52546a901ce123a7ecce5b75cb"
+        },
+        "tests/draft7/propertyNames.json": {
+          "bytes": 4657,
+          "sha256": "847e2fb9ba870632c9a13c04133511a3af9d98165de56df64c99b1d6f2eac355"
+        },
+        "tests/draft7/ref.json": {
+          "bytes": 30314,
+          "sha256": "217aebe267fab77ff9bb3332d559054cf1602077abb3395dae417c0b6db6d789"
+        },
+        "tests/draft7/refRemote.json": {
+          "bytes": 7249,
+          "sha256": "6051ea8dfa9cdb3d7ec5802e7eb824be40ae5bc0d224706055d3cb57eeae6455"
+        },
+        "tests/draft7/required.json": {
+          "bytes": 4527,
+          "sha256": "66946289772a5e931835060187b18e63bc215fbebf981b2d40d1c945145676f4"
+        },
+        "tests/draft7/type.json": {
+          "bytes": 13408,
+          "sha256": "091aa31e688df20891de7884878b527745ddac0a3ced6d19a5ea4aa075dbbe00"
+        },
+        "tests/draft7/uniqueItems.json": {
+          "bytes": 14018,
+          "sha256": "c633e14ebbaa66dfba92023aada363510d8f37395dc2aaabdc249465f095c454"
+        }
+      }
+    },
+    {
+      "directory": "standards/corpora/oscal-content-bae69b5a",
+      "repository": "https://github.com/usnistgov/oscal-content",
+      "revision": "bae69b5a53a8a1007469a7dc9c331a5f0f600094",
+      "archive_sha256": "97d3d647ed5f0bf2c4f4a1e68898dde0e006927c788188ab810f69087b3521a9",
+      "expected_tree": "faf2b57fea7429ea81704308f5b2f81c66e40cc06f45e6f1733f53ed161e4fef",
+      "expected_files": 45,
+      "selection": "All JSON under examples/ and nist.gov/ plus LICENSE.md",
+      "documents": 44,
+      "declared_document_edition": "1.1.1",
+      "scope": "cross-edition-structural-probes-not-1.1.0-admission",
+      "files": {
+        "LICENSE.md": {
+          "bytes": 2106,
+          "sha256": "9f0ddd1ed71f691bb483965a7c46e1315ab6cc28dac0426d4c3d27108aafde13"
+        },
+        "examples/catalog/json/basic-catalog-min.json": {
+          "bytes": 10447,
+          "sha256": "fb40494b4c0285d4092bbc91a66d1abaee0711d2d324ed271524df60194073dd"
+        },
+        "examples/catalog/json/basic-catalog.json": {
+          "bytes": 15815,
+          "sha256": "35d9c6b5bae2cc4e5c11792b0e6413045a08c445c9d755f9f7b9ce42e2ea6553"
+        },
+        "examples/component-definition/json/example-component-definition-min.json": {
+          "bytes": 3983,
+          "sha256": "f0eace3bb8e34f6aa14f67bf23e537fd54a605946b29b6de11a01346154876b8"
+        },
+        "examples/component-definition/json/example-component-definition.json": {
+          "bytes": 6314,
+          "sha256": "68f5f1529749d43af4f6c10c8722a56e17e8fbd785b2814b7a5370c1fffbe97d"
+        },
+        "examples/component-definition/json/example-component-min.json": {
+          "bytes": 2915,
+          "sha256": "d456466adbd929bf5155e36257a6ad8a076118117807152c6b2ac6f0158357e4"
+        },
+        "examples/component-definition/json/example-component.json": {
+          "bytes": 4014,
+          "sha256": "004ab6af8687221b5372acade6f3e146e324e8a9960c647bc12aeaa2afcca282"
+        },
+        "examples/ssp/json/oscal_leveraged-example_ssp-min.json": {
+          "bytes": 8135,
+          "sha256": "c814389b64c8a7ffe5a878f728ba47c730d81d3424e96d8a93c9247d06a04337"
+        },
+        "examples/ssp/json/oscal_leveraged-example_ssp.json": {
+          "bytes": 11575,
+          "sha256": "8162d8c2dcc0b4119b567d74fffb445358e4e6f50da8c64ebc96f2c1af778ac9"
+        },
+        "examples/ssp/json/oscal_leveraging-example_ssp-min.json": {
+          "bytes": 9735,
+          "sha256": "2684b2c8934b929717f001bc622238be278c1404e2b91cccc4fcf2c073f7b7bf"
+        },
+        "examples/ssp/json/oscal_leveraging-example_ssp.json": {
+          "bytes": 13981,
+          "sha256": "515cec4d28d645cf656771dd9936f190c2e96783251bd10cb0b4de3ef5e639f9"
+        },
+        "examples/ssp/json/ssp-example-min.json": {
+          "bytes": 13461,
+          "sha256": "cadbe34de3932b828551dec40c6d9fe8711c308eba3b4046d4589a7bb6d5c413"
+        },
+        "examples/ssp/json/ssp-example.json": {
+          "bytes": 20890,
+          "sha256": "5c821422e82c3c7c30ee9953c44d314ea021a4ae2320a516717a25556f7da64b"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_HIGH-baseline-resolved-profile_catalog-min.json": {
+          "bytes": 1344577,
+          "sha256": "e46b1ec50fe02c5f927c306522dfa710237819fe66913668c2f4cc2ce0456989"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_HIGH-baseline-resolved-profile_catalog.json": {
+          "bytes": 2856123,
+          "sha256": "5fa51ad763a3bd66016d3e6c4c018e44d8d83311ac1a7cdb757cccbe0de1d3ae"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_HIGH-baseline_profile-min.json": {
+          "bytes": 21257,
+          "sha256": "dcd4624d3db454c3f0220c8731885dad18f12565c9213fed93029bd5ff71efb2"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_HIGH-baseline_profile.json": {
+          "bytes": 61393,
+          "sha256": "769dd395fbf029e3880d3a8ca9266acc4ec0d2953ee184fb6ac557556da66339"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_LOW-baseline-resolved-profile_catalog-min.json": {
+          "bytes": 683713,
+          "sha256": "b89a53e377a5be09e1a7ffa52cbc8c5b3eb5b59de7f01aba8d3f23a0a6ecee55"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_LOW-baseline-resolved-profile_catalog.json": {
+          "bytes": 1498943,
+          "sha256": "a42c19c060077420f527ed5d33fe7fb25523f1e690b50c1fccd2450dcc8d983a"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_LOW-baseline_profile-min.json": {
+          "bytes": 13926,
+          "sha256": "accd6e4700f8cac8916e205775aead1bf831f8066991e27678d13f21845c80f0"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_LOW-baseline_profile.json": {
+          "bytes": 39777,
+          "sha256": "12d0c177c844d6297921c0cfedc34112babca5933b2f03f2b8bdcc30b53991a2"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_MODERATE-baseline-resolved-profile_catalog-min.json": {
+          "bytes": 1101798,
+          "sha256": "52d878b41e0b0fd1c28d654412a7ec934e48f44db8856bca3ba050a99f47983f"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_MODERATE-baseline-resolved-profile_catalog.json": {
+          "bytes": 2353194,
+          "sha256": "e7a2ca561c2ab6966b2041a78ce79d44e975934890529f32d67fb5393e54238f"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_MODERATE-baseline_profile-min.json": {
+          "bytes": 19435,
+          "sha256": "6a2798c1fa4ea499b2cf75a8b40629bf8597aff00f89aa83a39c15d3824a70e3"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_MODERATE-baseline_profile.json": {
+          "bytes": 56141,
+          "sha256": "c5e48e731d11b6780d437e57a4fac27aca04500c698b60be68ad25e206c34b0d"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_catalog-min.json": {
+          "bytes": 2711186,
+          "sha256": "188ed7f962e79297a965fbd8a3532e14cffe4e0ec2f38d36174dfa6b7416a19b"
+        },
+        "nist.gov/SP800-53/rev4/json/NIST_SP-800-53_rev4_catalog.json": {
+          "bytes": 5617143,
+          "sha256": "9ea66bf110f1c380d6536a2d8a9f722e652100953736102bd664ba74a4d83fcd"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_HIGH-baseline-resolved-profile_catalog-min.json": {
+          "bytes": 2017167,
+          "sha256": "651e05eb50cad23e2691f929c4b079fe4983b1e6b7f90066ccea5ed4d35b58f6"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_HIGH-baseline-resolved-profile_catalog.json": {
+          "bytes": 4145711,
+          "sha256": "cb007b337102d59fba20c18cd155a88130b822aff1f46bb93fe9b502c92bde11"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_HIGH-baseline_profile-min.json": {
+          "bytes": 4750,
+          "sha256": "2729866fff03508c12e3d2458c9606ea41c9dd5e000a475fec9a3fa74c6c316c"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_HIGH-baseline_profile.json": {
+          "bytes": 11265,
+          "sha256": "fec6b69185af95d78243b48235a1036bb8b13ece3df48435db4f7de1e65348e5"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_LOW-baseline-resolved-profile_catalog-min.json": {
+          "bytes": 1122480,
+          "sha256": "a63e8f27c7eb041246ed51d8ef074a744a862c2f91ede0a46e25daae5a2811b8"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_LOW-baseline-resolved-profile_catalog.json": {
+          "bytes": 2312396,
+          "sha256": "6128b18e2894a5abe6bedfff901b5006598b3f69c0833c8a9c7c06c22da497ab"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_LOW-baseline_profile-min.json": {
+          "bytes": 2807,
+          "sha256": "825cae76e4d6748eeac7d651eaa4bb770bd6147f6c1d51ab50cbaec4111cb1f1"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_LOW-baseline_profile.json": {
+          "bytes": 6007,
+          "sha256": "9e2eb97a5fc6e4f709179d62f29334c487bf035ff19467f1d874392ac910dc3a"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_MODERATE-baseline-resolved-profile_catalog-min.json": {
+          "bytes": 1702660,
+          "sha256": "012d5c3efd9386a87737e4b963964390519fec0242df521e68f13df0e88b8f36"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_MODERATE-baseline-resolved-profile_catalog.json": {
+          "bytes": 3494876,
+          "sha256": "18d95eb1766396b8f34cd923a82f46e48fc0bd53c54481276f839c2cb41a0711"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_MODERATE-baseline_profile-min.json": {
+          "bytes": 4001,
+          "sha256": "6156a29f3e8e3a9eeb5401710a3721d80f17a066e7c74168b73feb6ec0fef915"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_MODERATE-baseline_profile.json": {
+          "bytes": 9271,
+          "sha256": "9c0941360d5219b2f56c1ddf76b891aa7eb8024ea04b59db9c57cdcdee05e4d7"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_PRIVACY-baseline-resolved-profile_catalog-min.json": {
+          "bytes": 785454,
+          "sha256": "23ac467ee8e4e7a4f6687585e01af73bc24688085df23c68ff1eded5371e654d"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_PRIVACY-baseline-resolved-profile_catalog.json": {
+          "bytes": 1611331,
+          "sha256": "6f1cdcc56b544b735054ed0545cb0f92297032fd5895f41f3c192dc5bfc78f4d"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_PRIVACY-baseline_profile-min.json": {
+          "bytes": 2432,
+          "sha256": "202023c737f2a1a7f1d3829bf427e2f9942092b59a57bd5935f99825eb3035f0"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_PRIVACY-baseline_profile.json": {
+          "bytes": 4837,
+          "sha256": "11380a0fc5b69acbdfcccc0fce3efd20650849080b90a654ea67937e706c023f"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog-min.json": {
+          "bytes": 4576114,
+          "sha256": "03d2e6f3f084f8daf6fb9311036b6000a3011882e27c83eeb346fcb1215122b4"
+        },
+        "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json": {
+          "bytes": 9361316,
+          "sha256": "6c39acc31c7d492a80acd6dd2af0ebc19bf8084974fd38ac9ed684a56beef3ac"
+        }
+      }
+    }
+  ]
+}

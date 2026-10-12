@@ -40,6 +40,7 @@ The three honesty levels:
 | `AU-04` | `build` | Authority and oracle verification reproduces from a populated cache with network access disabled. |
 | `AU-05` | `build` | Oracle runners are digest-bound, resource-bounded, networkless, and report exact covered and uncovered requirements. |
 | `AU-06` | `build` | Official positive and negative corpora plus Prism mutations detect stale, bypassed, changed, or always-passing oracles. |
+| `AU-07` | `build` | The imported OSCAL JSON structural oracle executes complete pinned schema corpora and bounded subject-capture adversaries without claiming implemented controls or whole-standard acceptance. |
 
 ## controller
 

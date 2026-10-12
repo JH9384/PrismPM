@@ -66,6 +66,8 @@ f3f8226238c13d68103452ec38a5a8c86e53b1aede0a0af2792d60b0caabd03e  tests/browser-
 f3f20365df2abb017f07449f3bc1b157be3eea8f5da61dcdd770be8c238b29ef  tests/browser-session-recovery-frames/driver/Cargo.lock
 4e28d2bb5acc49e2464a01d168c15644fcc6922eda263b6225c4fa6cd45a41f0  tests/publication-context-linkage/driver/Cargo.toml
 ce6bc5b421d76948c62d4f630e91ec0a64d298730c09b5d98324d6c33dc9e9b8  tests/publication-context-linkage/driver/Cargo.lock
+2fb0bb8ba645ff99e72007455fbbb9b5ee0716e2182fb061f3a84ae37ffb1379  sdk/oracles/oscal/Cargo.toml
+1e33bbf4be333f4f745e976f7b8529c559aea7b7dcc5b7905ca75ce416d5d2e1  sdk/oracles/oscal/Cargo.lock
 63e9f1793c48cddffd4c8378fe230ea1972a128ded41a2dda5814e841fefc2f4  vendor/lean4-prod/rust/Cargo.toml
 5e16d324b08b942c476099b6c10235f4ddd58bca28aaf69514b8a88c9252c88f  vendor/lean4-prod/rust/Cargo.lock
 CHECKSUMS
@@ -110,6 +112,7 @@ for manifest in "$oracle_work/harness/Cargo.toml" \
   tests/browser-session-payloads/driver/Cargo.toml \
   tests/browser-session-recovery-frames/driver/Cargo.toml \
   tests/publication-context-linkage/driver/Cargo.toml \
+  sdk/oracles/oscal/Cargo.toml \
   vendor/lean4-prod/rust/Cargo.toml; do
   cargo fetch --locked --manifest-path "$manifest"
   cargo metadata --locked --offline --format-version 1 --manifest-path "$manifest" >/dev/null

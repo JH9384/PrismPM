@@ -2611,6 +2611,17 @@ pub(crate) fn run(
         );
     }
 
+    // These parsed inputs have completed every identity, declaration, coverage,
+    // and routing check. The independent second verification root needs the
+    // owned attested module map and canonical artifact bytes, not their parsed
+    // copies or the completed LexLean engine/result metadata.
+    drop(lex_snapshot);
+    drop(lex_value);
+    drop(lex_manifest_value);
+    drop(build_manifest);
+    drop(lex_engine);
+    drop(lex_verified);
+
     let staging_parent = output_root.join(".verify-work");
     std::fs::create_dir_all(&staging_parent)
         .map_err(|error| PrismError::new("PP4002", format!("verification work: {error}")))?;
@@ -2939,7 +2950,7 @@ pub(crate) fn run(
         },
         "build_id": build.build_id,
         "execution": execution,
-        "lexlean_attestation_id": lex_verified.attestation_id.to_string(),
+        "lexlean_attestation_id": lex_attestation_id,
         "processes": process_value,
         "export_roots": export_roots,
         "package_export_roots": package_roots,

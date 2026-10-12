@@ -6,16 +6,39 @@ use sha2::Digest;
 use std::collections::BTreeSet;
 use std::path::Path;
 
+const LEXLEAN_AUTHORITY_REVISION: &str = "0865df4e540ca643b090a29e9df6d319d6906da6";
+const LEXLEAN_AUTHORITY_SOURCES: [&str; 18] = [
+    "language/lcnf-1.2/extract.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/Compose.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/Core.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/Fixed.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/Keys.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/Primitives.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/RustBase.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/RustCorr.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/RustLemmas.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/RustMatches.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/RustSound.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/Templates.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/Validate.lean",
+    "language/preservation-1.2/library/LexLeanPreservation/Values.lean",
+    "language/preservation-1.2/modules/LexLeanTarget/RustSemantics.lean",
+    "language/preservation-1.2/modules/LexLeanTarget/RustSyntax.lean",
+    "language/preservation-1.2/modules/LexLeanTarget/TargetSemantics.lean",
+    "language/preservation-1.2/modules/LexLeanTarget/TargetSyntax.lean",
+];
+
 /// Audit that no handwritten .lean or lakefile.lean exists in source paths.
 pub fn audit_no_handwritten_lean(root: &Path) -> Result<(), Fail> {
     let golden_root = root.join("tests/golden/stdlib");
     let mut allowed = std::collections::BTreeSet::new();
-    let adapter = root.join("vendor/lexlean/language/lcnf-1.2/extract.lean");
-    if adapter.is_file() {
-        // This is the dependency's exact Lean-authority adapter, never a
-        // PrismPM-authored model or an exemption for the rest of its tree.
+    if root.join("vendor/lexlean").exists() {
+        // These are the selected dependency's closed compiler authorities,
+        // never PrismPM-authored models or an exemption for its entire tree.
         audit_lexlean_adapter_provenance(root)?;
-        allowed.insert(adapter);
+        for relative in LEXLEAN_AUTHORITY_SOURCES {
+            allowed.insert(root.join("vendor/lexlean").join(relative));
+        }
     }
     let golden_manifest = golden_root.join("golden-manifest.json");
     if golden_manifest.is_file() {
@@ -72,10 +95,18 @@ pub fn audit_no_handwritten_lean(root: &Path) -> Result<(), Fail> {
             }
         }
     }
-    for entry in walkdir::WalkDir::new(root).into_iter().flatten() {
-        if !entry.file_type().is_file() {
-            continue;
-        }
+    for entry in walkdir::WalkDir::new(root)
+        .into_iter()
+        .filter_entry(|entry| {
+            entry.depth() == 0
+                || !entry.file_type().is_dir()
+                || !matches!(
+                    entry.file_name().to_str(),
+                    Some(".prism" | ".lexlean" | ".git" | "target" | "node_modules")
+                )
+        })
+    {
+        let entry = entry?;
         let path = entry.path();
         let rel = path.strip_prefix(root).unwrap_or(path).to_string_lossy();
         if Path::new(rel.as_ref()).components().any(|component| {
@@ -84,6 +115,16 @@ pub fn audit_no_handwritten_lean(root: &Path) -> Result<(), Fail> {
                 Some(".prism" | ".lexlean" | ".git" | "target" | "node_modules")
             )
         }) {
+            continue;
+        }
+        if !entry.file_type().is_file() {
+            if rel.ends_with(".lean") || rel.ends_with(".ir") || rel.ends_with("/generated.rs") {
+                return Err(format!(
+                    "no-handwritten-lean audit failed: nonregular source {}",
+                    path.display()
+                )
+                .into());
+            }
             continue;
         }
         if rel.ends_with(".lean") && !allowed.contains(path) {
@@ -146,8 +187,9 @@ fn audit_lexlean_adapter_provenance(root: &Path) -> Result<(), Fail> {
         }
     }
     audit_dependencies(root)?;
-    let register: toml::Value =
-        toml::from_str(&std::fs::read_to_string(root.join("model/dependencies.toml"))?)?;
+    let register: toml::Value = toml::from_str(&std::fs::read_to_string(
+        root.join("model/dependencies.toml"),
+    )?)?;
     let dependency = register
         .get("dependency")
         .and_then(toml::Value::as_array)
@@ -189,6 +231,9 @@ fn audit_lexlean_adapter_provenance(root: &Path) -> Result<(), Fail> {
     )?)?;
     if provenance["git"]["sha1"].as_str()
         != dependency.get("revision").and_then(toml::Value::as_str)
+        || dependency.get("revision").and_then(toml::Value::as_str)
+            != Some(LEXLEAN_AUTHORITY_REVISION)
+        || version != "0.3.0"
         || provenance["path_in_vcs"] != "crates/lexlean"
         || provenance["git"]
             .get("dirty")
@@ -197,6 +242,230 @@ fn audit_lexlean_adapter_provenance(root: &Path) -> Result<(), Fail> {
         return Err(
             "LexLean extraction adapter package provenance differs from its revision".into(),
         );
+    }
+    let archive_sha = dependency["artifact"]
+        .as_array()
+        .and_then(|rows| {
+            rows.iter()
+                .find(|row| row["path"].as_str() == Some(&archive))
+        })
+        .and_then(|row| row.get("sha256"))
+        .and_then(toml::Value::as_str)
+        .ok_or("LexLean authority archive checksum is absent")?;
+    audit_lexlean_authority_archive(root, &archive, archive_sha, version)
+}
+
+fn audit_lexlean_authority_archive(
+    root: &Path,
+    archive_path: &str,
+    expected_sha: &str,
+    version: &str,
+) -> Result<(), Fail> {
+    use std::io::Read;
+    const COMPRESSED: u64 = 32 * 1024 * 1024;
+    const EXPANDED: u64 = 128 * 1024 * 1024;
+    const MEMBER: u64 = 32 * 1024 * 1024;
+    let mut raw = Vec::new();
+    std::fs::File::open(root.join(archive_path))?
+        .take(COMPRESSED + 1)
+        .read_to_end(&mut raw)?;
+    if raw.len() as u64 > COMPRESSED || format!("{:x}", sha2::Sha256::digest(&raw)) != expected_sha
+    {
+        return Err(
+            "LexLean authority archive bytes exceed their bound or registered checksum".into(),
+        );
+    }
+    let prefix = format!("lexlean-{version}/");
+    let expected = LEXLEAN_AUTHORITY_SOURCES
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+    let tree = root.join("vendor/lexlean");
+    let archive_name = format!("lexlean-{version}.crate");
+    // The normal package writer adds only these two root-level files after
+    // extraction. Every other tree file must be a byte-identical crate member.
+    let mut manifest_bytes = Vec::new();
+    std::fs::File::open(tree.join("MANIFEST.sha256"))?
+        .take(1024 * 1024 + 1)
+        .read_to_end(&mut manifest_bytes)?;
+    if manifest_bytes.len() > 1024 * 1024 {
+        return Err("LexLean package tree manifest exceeds its bound".into());
+    }
+    let manifest = std::str::from_utf8(&manifest_bytes)?;
+    if !manifest.ends_with('\n') || manifest.contains('\r') {
+        return Err("LexLean package tree manifest is not canonical text".into());
+    }
+    let mut declared = std::collections::BTreeMap::new();
+    for line in manifest.lines() {
+        let (digest, relative) = line
+            .split_once("  ")
+            .ok_or("LexLean package tree manifest has a malformed row")?;
+        if declared.len() >= 4096
+            || digest.len() != 64
+            || !digest.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || relative.len() > 4096
+            || relative.contains('\\')
+            || relative.split('/').count() > 128
+            || relative
+                .split('/')
+                .any(|part| matches!(part, "" | "." | ".."))
+            || relative == "MANIFEST.sha256"
+            || declared
+                .insert(relative.to_owned(), digest.to_owned())
+                .is_some()
+        {
+            return Err("LexLean package tree manifest has an invalid or duplicate row".into());
+        }
+    }
+    if declared.remove(&archive_name).is_none() {
+        return Err("LexLean package tree manifest omits its owning archive".into());
+    }
+    let mut tree_names = BTreeSet::new();
+    for (index, entry) in walkdir::WalkDir::new(&tree)
+        .min_depth(1)
+        .into_iter()
+        .enumerate()
+    {
+        let entry = entry?;
+        if index >= 8192 || entry.depth() > 128 || entry.file_type().is_symlink() {
+            return Err("LexLean package tree exceeds its bounds or contains an alias".into());
+        }
+        if entry.file_type().is_dir() {
+            continue;
+        }
+        if !entry.file_type().is_file() || entry.metadata()?.len() > MEMBER {
+            return Err("LexLean package tree contains a nonregular or oversized file".into());
+        }
+        let relative = entry
+            .path()
+            .strip_prefix(&tree)?
+            .to_str()
+            .ok_or("LexLean package tree path is not UTF-8")?;
+        if !matches!(relative, "MANIFEST.sha256") && relative != archive_name {
+            tree_names.insert(relative.to_owned());
+        }
+    }
+    if tree_names != declared.keys().cloned().collect() {
+        return Err("LexLean package tree membership differs from its complete manifest".into());
+    }
+    let mut names = BTreeSet::new();
+    let mut package_names = BTreeSet::new();
+    let mut sources = BTreeSet::new();
+    let mut total = 0_u64;
+    let mut vcs_seen = false;
+    let decoder = flate2::bufread::GzDecoder::new(raw.as_slice());
+    let mut bounded = decoder.take(EXPANDED + 1);
+    let mut expanded = Vec::new();
+    bounded.read_to_end(&mut expanded)?;
+    if expanded.len() as u64 > EXPANDED || !bounded.into_inner().get_ref().is_empty() {
+        return Err("LexLean authority archive exceeds its bound or has trailing gzip data".into());
+    }
+    // Admit physical extents before tar may buffer GNU long-name metadata.
+    // Memory is explicitly bounded, not claimed to be constant-streaming.
+    let mut offset = 0_usize;
+    let mut headers = 0_usize;
+    loop {
+        let header_bytes = expanded
+            .get(offset..offset + 512)
+            .ok_or("LexLean archive has a truncated tar header")?;
+        if header_bytes.iter().all(|byte| *byte == 0) {
+            if expanded.len() - offset < 1024 || expanded[offset..].iter().any(|byte| *byte != 0) {
+                return Err("LexLean authority archive has invalid terminal tar padding".into());
+            }
+            break;
+        }
+        let header = tar::Header::from_byte_slice(header_bytes);
+        headers += 1;
+        let size = header.entry_size()?;
+        if headers > 8192
+            || size > MEMBER
+            || !(header.entry_type().is_file() || header.entry_type().is_gnu_longname())
+        {
+            return Err(
+                "LexLean archive has unsupported or oversized physical tar metadata".into(),
+            );
+        }
+        let padded = usize::try_from(size.div_ceil(512) * 512)?;
+        offset = offset
+            .checked_add(512)
+            .and_then(|n| n.checked_add(padded))
+            .ok_or("LexLean tar extent overflow")?;
+        if offset > expanded.len() {
+            return Err("LexLean archive has a truncated tar member".into());
+        }
+    }
+    {
+        let mut archive = tar::Archive::new(expanded.as_slice());
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            let path_bytes = entry.path_bytes().into_owned();
+            let name = std::str::from_utf8(&path_bytes)?;
+            if names.len() >= 4096
+                || !entry.header().entry_type().is_file()
+                || entry.size() > MEMBER
+                || name.len() > 4096
+                || name.split('/').count() > 128
+                || name.contains('\\')
+                || name.split('/').any(|part| matches!(part, "" | "." | ".."))
+                || !names.insert(name.to_owned())
+            {
+                return Err(
+                    "LexLean authority archive has an invalid, duplicate or oversized member"
+                        .into(),
+                );
+            }
+            let relative = name
+                .strip_prefix(&prefix)
+                .ok_or("LexLean archive has a foreign package root")?;
+            total = total
+                .checked_add(entry.size())
+                .ok_or("LexLean archive size overflow")?;
+            if total > EXPANDED {
+                return Err("LexLean authority archive exceeds its expanded bound".into());
+            }
+            if relative.ends_with(".lean") && !expected.contains(relative) {
+                return Err(format!(
+                    "no-handwritten-lean audit failed: unregistered package source {relative}"
+                )
+                .into());
+            }
+            let digest = declared.get(relative).ok_or_else(|| {
+                format!(
+                    "LexLean archive member is absent from its complete tree manifest: {relative}"
+                )
+            })?;
+            package_names.insert(relative.to_owned());
+            let mut bytes = Vec::new();
+            entry.read_to_end(&mut bytes)?;
+            let source = tree.join(relative);
+            let metadata = std::fs::symlink_metadata(&source)?;
+            if !metadata.is_file()
+                || metadata.file_type().is_symlink()
+                || metadata.len() != bytes.len() as u64
+            {
+                return Err(format!("LexLean authority archive member differs from its regular tree source {relative}").into());
+            }
+            let mut actual = Vec::new();
+            std::fs::File::open(source)?
+                .take(MEMBER + 1)
+                .read_to_end(&mut actual)?;
+            if actual != bytes || format!("{:x}", sha2::Sha256::digest(&bytes)) != *digest {
+                return Err(format!(
+                    "LexLean authority archive bytes differ from tree source {relative}"
+                )
+                .into());
+            }
+            if relative == ".cargo_vcs_info.json" {
+                vcs_seen = true;
+            } else if relative.ends_with(".lean") {
+                sources.insert(relative.to_owned());
+            }
+        }
+    }
+    if package_names != tree_names {
+        return Err("LexLean archive membership differs from its complete extracted tree".into());
+    }
+    if !vcs_seen || sources != expected.into_iter().map(str::to_owned).collect() {
+        return Err("LexLean authority archive does not contain the exact selected 18-source closure and VCS identity".into());
     }
     Ok(())
 }
@@ -1090,12 +1359,66 @@ mod oracle_separation_tests {
 
 #[cfg(test)]
 mod lean_source_audit_tests {
-    use super::{audit_no_handwritten_lean, hash_file};
+    use super::{
+        audit_lexlean_authority_archive, audit_no_handwritten_lean, hash_file,
+        LEXLEAN_AUTHORITY_REVISION,
+    };
     use std::path::Path;
 
     const ADAPTER: &str = "vendor/lexlean/language/lcnf-1.2/extract.lean";
+    const PRESERVATION: [&str; 17] = [
+        "library/LexLeanPreservation/Compose.lean",
+        "library/LexLeanPreservation/Core.lean",
+        "library/LexLeanPreservation/Fixed.lean",
+        "library/LexLeanPreservation/Keys.lean",
+        "library/LexLeanPreservation/Primitives.lean",
+        "library/LexLeanPreservation/RustBase.lean",
+        "library/LexLeanPreservation/RustCorr.lean",
+        "library/LexLeanPreservation/RustLemmas.lean",
+        "library/LexLeanPreservation/RustMatches.lean",
+        "library/LexLeanPreservation/RustSound.lean",
+        "library/LexLeanPreservation/Templates.lean",
+        "library/LexLeanPreservation/Validate.lean",
+        "library/LexLeanPreservation/Values.lean",
+        "modules/LexLeanTarget/RustSemantics.lean",
+        "modules/LexLeanTarget/RustSyntax.lean",
+        "modules/LexLeanTarget/TargetSemantics.lean",
+        "modules/LexLeanTarget/TargetSyntax.lean",
+    ];
 
     fn seal(root: &Path) {
+        let vendor = root.join("vendor/lexlean");
+        let encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        let mut archive = tar::Builder::new(encoder);
+        for entry in walkdir::WalkDir::new(&vendor).sort_by_file_name() {
+            let entry = entry.unwrap();
+            if !entry.file_type().is_file()
+                || matches!(
+                    entry.file_name().to_str(),
+                    Some("MANIFEST.sha256" | "lexlean-0.3.0.crate")
+                )
+            {
+                continue;
+            }
+            let bytes = std::fs::read(entry.path()).unwrap();
+            let mut header = tar::Header::new_gnu();
+            header.set_size(bytes.len() as u64);
+            header.set_mode(0o644);
+            header.set_cksum();
+            archive
+                .append_data(
+                    &mut header,
+                    Path::new("lexlean-0.3.0").join(entry.path().strip_prefix(&vendor).unwrap()),
+                    bytes.as_slice(),
+                )
+                .unwrap();
+        }
+        let bytes = archive.into_inner().unwrap().finish().unwrap();
+        std::fs::write(vendor.join("lexlean-0.3.0.crate"), bytes).unwrap();
+        seal_tree(root);
+    }
+
+    fn seal_tree(root: &Path) {
         let vendor = root.join("vendor/lexlean");
         let mut files = std::collections::BTreeMap::new();
         for entry in walkdir::WalkDir::new(&vendor) {
@@ -1116,7 +1439,7 @@ mod lean_source_audit_tests {
         let manifest_digest = hash_file(&vendor.join("MANIFEST.sha256")).unwrap();
         let other_digest = hash_file(&root.join("vendor/fixture.bin")).unwrap();
         let archive_digest = hash_file(&vendor.join("lexlean-0.3.0.crate")).unwrap();
-        let revision = "1".repeat(40);
+        let revision = LEXLEAN_AUTHORITY_REVISION;
         let source = format!(
             "spec = 'prismpm/dependencies/1'\n\n\
              [[dependency]]\nid = 'lean4-prod'\nrevision = '{revision}'\nsource = 'vendored'\n\
@@ -1138,20 +1461,261 @@ mod lean_source_audit_tests {
         std::fs::write(root.path().join(ADAPTER), "namespace ImportedAdapter\n").unwrap();
         std::fs::write(root.path().join("vendor/fixture.bin"), "fixture\n").unwrap();
         std::fs::write(
+            root.path().join("vendor/lexlean/Cargo.toml"),
+            "[package]\nname='lexlean'\n",
+        )
+        .unwrap();
+        std::fs::write(
             root.path().join("vendor/lexlean/lexlean-0.3.0.crate"),
             "synthetic archive for dependency-gate testing\n",
         )
         .unwrap();
         let provenance = serde_json::json!({
-            "git": {"sha1": "1".repeat(40)}, "path_in_vcs": "crates/lexlean"
+            "git": {"sha1": LEXLEAN_AUTHORITY_REVISION}, "path_in_vcs": "crates/lexlean"
         });
         std::fs::write(
             root.path().join("vendor/lexlean/.cargo_vcs_info.json"),
             serde_json::to_vec(&provenance).unwrap(),
         )
         .unwrap();
+        for relative in PRESERVATION {
+            let path = root
+                .path()
+                .join("vendor/lexlean/language/preservation-1.2")
+                .join(relative);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(
+                path,
+                "-- upstream package authority fixture, not a Prism model\n",
+            )
+            .unwrap();
+        }
         seal(root.path());
         root
+    }
+
+    fn preservation_fixture() -> tempfile::TempDir {
+        let root = fixture();
+        for relative in PRESERVATION {
+            let path = root
+                .path()
+                .join("vendor/lexlean/language/preservation-1.2")
+                .join(relative);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(
+                path,
+                "-- upstream package authority fixture, not a Prism model\n",
+            )
+            .unwrap();
+        }
+        seal(root.path());
+        root
+    }
+
+    #[test]
+    fn exact_preservation_package_sources_are_admitted_with_archive_custody() {
+        let root = preservation_fixture();
+        audit_no_handwritten_lean(root.path()).unwrap();
+    }
+
+    #[test]
+    fn current_selected_package_has_no_unregistered_lean_authority() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        audit_no_handwritten_lean(root).unwrap();
+    }
+
+    #[test]
+    fn source_walk_errors_cannot_be_silently_omitted() {
+        let root = tempfile::tempdir().unwrap();
+        assert!(audit_no_handwritten_lean(&root.path().join("missing-source-root")).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nonregular_lean_sources_cannot_hide_behind_aliases() {
+        for target in ["missing", "../vendor/fixture.bin", "../vendor"] {
+            let root = fixture();
+            std::os::unix::fs::symlink(target, root.path().join("model/Hidden.lean")).unwrap();
+            let error = audit_no_handwritten_lean(root.path()).unwrap_err();
+            assert!(error.to_string().contains("nonregular source"));
+        }
+        let root = fixture();
+        std::fs::create_dir(root.path().join("model/Hidden.lean")).unwrap();
+        assert!(audit_no_handwritten_lean(root.path())
+            .unwrap_err()
+            .to_string()
+            .contains("nonregular source"));
+        // Existing non-Lean packaging/embedded-manifest aliases are not a
+        // handwritten-Lean exception and keep their separately owned audits.
+        std::os::unix::fs::symlink(
+            "../vendor/fixture.bin",
+            root.path().join("model/embedded.MANIFEST.sha256"),
+        )
+        .unwrap();
+        std::fs::remove_dir(root.path().join("model/Hidden.lean")).unwrap();
+        audit_no_handwritten_lean(root.path()).unwrap();
+    }
+
+    #[test]
+    fn preservation_member_substitution_or_deletion_cannot_be_resealed_as_the_archive() {
+        for delete in [false, true] {
+            let root = preservation_fixture();
+            let path = root
+                .path()
+                .join("vendor/lexlean/language/preservation-1.2")
+                .join(PRESERVATION[0]);
+            if delete {
+                std::fs::remove_file(path).unwrap();
+            } else {
+                std::fs::write(path, "substituted authority\n").unwrap();
+            }
+            seal_tree(root.path());
+            assert!(audit_no_handwritten_lean(root.path()).is_err());
+        }
+    }
+
+    #[test]
+    fn an_unlisted_preservation_member_is_rejected_even_in_the_sealed_archive() {
+        let root = preservation_fixture();
+        std::fs::write(root.path().join("vendor/lexlean/language/preservation-1.2/library/LexLeanPreservation/Unlisted.lean"), "unlisted\n").unwrap();
+        seal(root.path());
+        assert!(audit_no_handwritten_lean(root.path()).is_err());
+    }
+
+    #[test]
+    fn every_non_lean_package_member_requires_exact_tree_bytes_and_membership() {
+        for mutation in ["substitute", "delete", "extra", "nested-manifest", "target"] {
+            let root = preservation_fixture();
+            let vendor = root.path().join("vendor/lexlean");
+            match mutation {
+                "substitute" => {
+                    std::fs::write(vendor.join("Cargo.toml"), "[package]\nname='changed'\n")
+                        .unwrap()
+                }
+                "delete" => std::fs::remove_file(vendor.join("Cargo.toml")).unwrap(),
+                "extra" => std::fs::write(vendor.join("unlisted.rs"), "// unlisted\n").unwrap(),
+                "nested-manifest" => {
+                    std::fs::create_dir(vendor.join("nested")).unwrap();
+                    std::fs::write(
+                        vendor.join("nested/MANIFEST.sha256"),
+                        "not a root exclusion\n",
+                    )
+                    .unwrap();
+                }
+                "target" => {
+                    std::fs::create_dir(vendor.join("target")).unwrap();
+                    std::fs::write(
+                        vendor.join("target/unlisted.rs"),
+                        "not a package exclusion\n",
+                    )
+                    .unwrap();
+                }
+                _ => unreachable!(),
+            }
+            seal_tree(root.path());
+            // Exercise the decoder after the ordinary manifest itself is
+            // resealed, rather than accepting a generic dependency-hash error.
+            let error = audit_lexlean_authority_archive(
+                root.path(),
+                "vendor/lexlean/lexlean-0.3.0.crate",
+                &hash_file(&vendor.join("lexlean-0.3.0.crate")).unwrap(),
+                "0.3.0",
+            )
+            .unwrap_err()
+            .to_string();
+            let expected = match mutation {
+                "substitute" => "archive bytes differ from tree source Cargo.toml",
+                "delete" => "archive member is absent from its complete tree manifest: Cargo.toml",
+                "nested-manifest" => "tree membership differs from its complete manifest",
+                _ => "archive membership differs from its complete extracted tree",
+            };
+            assert!(error.contains(expected), "{mutation}: {error}");
+            assert!(
+                audit_no_handwritten_lean(root.path()).is_err(),
+                "{mutation}"
+            );
+        }
+    }
+
+    #[test]
+    fn physical_archive_mutations_cannot_bypass_the_registered_source_boundary() {
+        use std::io::{Read, Write};
+        for mutation in [
+            "duplicate",
+            "traversal",
+            "symlink",
+            "oversized",
+            "trailing-gzip",
+            "hidden-tar",
+        ] {
+            let root = preservation_fixture();
+            audit_no_handwritten_lean(root.path()).unwrap();
+            let path = root.path().join("vendor/lexlean/lexlean-0.3.0.crate");
+            let original = std::fs::read(&path).unwrap();
+            let mut tar_bytes = Vec::new();
+            flate2::read::GzDecoder::new(original.as_slice())
+                .read_to_end(&mut tar_bytes)
+                .unwrap();
+            let mut header = tar::Header::new_gnu();
+            header.as_mut_bytes().copy_from_slice(&tar_bytes[..512]);
+            match mutation {
+                "duplicate" => {
+                    let extent = 512 + header.size().unwrap().div_ceil(512) as usize * 512;
+                    tar_bytes.splice(0..0, tar_bytes[..extent].to_vec());
+                }
+                "traversal" => {
+                    header.as_mut_bytes()[..100].fill(0);
+                    let name = b"lexlean-0.3.0/../foreign.lean";
+                    header.as_mut_bytes()[..name.len()].copy_from_slice(name);
+                    header.set_cksum();
+                    tar_bytes[..512].copy_from_slice(header.as_bytes());
+                }
+                "symlink" => {
+                    header.set_entry_type(tar::EntryType::Symlink);
+                    header.set_cksum();
+                    tar_bytes[..512].copy_from_slice(header.as_bytes());
+                }
+                "oversized" => {
+                    header.set_entry_type(tar::EntryType::GNULongName);
+                    header.set_size(32 * 1024 * 1024 + 1);
+                    header.set_cksum();
+                    tar_bytes[..512].copy_from_slice(header.as_bytes());
+                }
+                "hidden-tar" => tar_bytes.extend_from_slice(header.as_bytes()),
+                "trailing-gzip" => {}
+                _ => unreachable!(),
+            }
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(&tar_bytes).unwrap();
+            let mut changed = encoder.finish().unwrap();
+            if mutation == "trailing-gzip" {
+                changed.push(1);
+            }
+            std::fs::write(&path, changed).unwrap();
+            let manifest = root.path().join("vendor/lexlean/MANIFEST.sha256");
+            let original_manifest = std::fs::read(&manifest).unwrap();
+            // Deliberately exercise the decoder directly with the actual
+            // mutated archive hash. The untouched manifest cannot turn this
+            // into a vacuous rejection by the outer dependency checksum gate.
+            let error = audit_lexlean_authority_archive(
+                root.path(),
+                "vendor/lexlean/lexlean-0.3.0.crate",
+                &hash_file(&path).unwrap(),
+                "0.3.0",
+            )
+            .unwrap_err()
+            .to_string();
+            let expected = match mutation {
+                "duplicate" | "traversal" => "invalid, duplicate or oversized member",
+                "symlink" | "oversized" => "unsupported or oversized physical tar metadata",
+                "trailing-gzip" => "trailing gzip data",
+                "hidden-tar" => "invalid terminal tar padding",
+                _ => unreachable!(),
+            };
+            assert!(error.contains(expected), "{mutation}: {error}");
+            assert_eq!(std::fs::read(manifest).unwrap(), original_manifest);
+        }
     }
 
     #[test]
@@ -1186,8 +1750,8 @@ mod lean_source_audit_tests {
     fn package_revision_path_and_dirty_provenance_are_checked_after_resealing() {
         for provenance in [
             serde_json::json!({"git": {"sha1": "2".repeat(40)}, "path_in_vcs": "crates/lexlean"}),
-            serde_json::json!({"git": {"sha1": "1".repeat(40)}, "path_in_vcs": "crates/other"}),
-            serde_json::json!({"git": {"sha1": "1".repeat(40), "dirty": true}, "path_in_vcs": "crates/lexlean"}),
+            serde_json::json!({"git": {"sha1": LEXLEAN_AUTHORITY_REVISION}, "path_in_vcs": "crates/other"}),
+            serde_json::json!({"git": {"sha1": LEXLEAN_AUTHORITY_REVISION, "dirty": true}, "path_in_vcs": "crates/lexlean"}),
         ] {
             let root = fixture();
             std::fs::write(

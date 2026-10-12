@@ -7,14 +7,13 @@
 //!
 //! # Code generation policy
 //!
-//! The generated code targets the project's production standard: it must not
-//! panic on caller-controlled input, and it must not allocate. Those two rules
-//! drive everything below.
+//! Generated checked operations report typed errors. Scalar and list-buffer
+//! paths avoid allocation; explicitly owned strings, bytes and record fields
+//! use the portable `alloc` data path. These are distinct memory contracts.
 //!
-//! ## Memory profile: no heap, ever
+//! ## Memory profiles and public list ABI
 //!
-//! Nothing rendered here can allocate. Lean `List α` is the only type that
-//! would naïvely need a heap, so its lowering is position-dependent:
+//! Lean `List α` lowering is position-dependent:
 //!
 //! - **Parameter position** → `&[α]`. `List.nil` match arms render as the
 //!   slice pattern `[]` and `List.cons (h t)` as `[h, t @ ..]`, so structural
@@ -32,11 +31,14 @@
 //! - **Zero-argument definitions returning a list** (the golden values) →
 //!   `&'static [α]` built from a promoted array literal.
 //!
-//! A list value that reaches any other position — an intermediate value used
-//! as something other than a builder tail, or a list nested inside another
-//! type — is an [`Error::UnsupportedList`]: an honest codegen failure rather
-//! than a silently allocating fallback. `Type::Vec` is rejected outright as
-//! [`Error::HeapType`].
+//! Nested owned list fields use `Vec` in portable generated packages. A
+//! single-consumption list accumulator in an owned-record self-tail function
+//! may use a private owned worker and an explicit loop. Its public slice
+//! wrapper makes one ownership copy; internal owned arguments move. Unsupported
+//! alias, borrowed-back-edge, join and escaping shapes retain ordinary lowering.
+//! This does not add allocation to scalar, predicate or list-buffer paths and
+//! is not a general heapless claim. Other unsupported list positions report
+//! [`Error::UnsupportedList`]; `Type::Vec` reports [`Error::HeapType`].
 //!
 //! ## Error contract: fallibility is precise, not uniform
 //!
@@ -108,12 +110,14 @@ mod c_abi;
 mod core_wasm;
 mod joins;
 mod naming;
+mod owned_accumulators;
 mod ownership;
 mod package;
 mod sdk;
 mod tail_calls;
 mod text_view;
 mod view;
+mod workspace_view;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::format;
@@ -133,6 +137,10 @@ pub use text_view::{generate_text_view_v1, TextBrowserAdapterBinding, TextViewV1
 pub use view::{
     generate_holoview_bundle, generate_view_v1, BrowserAdapterBinding, EvaluatedViewV1,
     GeneratedViewV1, ViewOperation,
+};
+pub use workspace_view::{
+    generate_workspace_view_v1, GeneratedWorkspaceViewV1, WorkspaceBrowserBinding, WorkspaceGuest,
+    WorkspaceGuestRole, WorkspaceSdkAsset, WorkspaceViewError, WorkspaceViewV1,
 };
 
 /// Errors that can occur during code generation
@@ -633,7 +641,26 @@ fn count_path_uses(mut expr: &Expr, name: &str) -> usize {
             break;
         }
     }
-    count_sequential_path_uses(expr, name)
+    match expr {
+        // An owner-free selector cannot transfer or retain this binding.
+        // Each exclusive branch therefore begins with the same unmoved owner;
+        // only its own leading scalar reads may be ignored. An owner-bearing
+        // selector, retained value, or later sequential use stays conservative.
+        Expr::If(condition, yes, no) if count_var_uses(condition, name) == 0 => {
+            count_path_uses(yes, name).max(count_path_uses(no, name))
+        }
+        Expr::Match {
+            scrut,
+            alts,
+            default,
+        } if count_var_uses(scrut, name) == 0 => alts
+            .iter()
+            .map(|alt| count_path_uses(&alt.body, name))
+            .chain(default.iter().map(|value| count_path_uses(value, name)))
+            .max()
+            .unwrap_or(0),
+        _ => count_sequential_path_uses(expr, name),
+    }
 }
 
 fn count_sequential_path_uses(expr: &Expr, name: &str) -> usize {
@@ -674,6 +701,48 @@ fn count_sequential_path_uses(expr: &Expr, name: &str) -> usize {
                     .sum::<usize>()
         }
     }
+}
+
+/// Uses of a local inside a join-point body are duplicated at every one of
+/// the join point's jump sites: the renderer inlines an acyclic join point
+/// at each `jmp`, so a payload captured once in the body but jumped to twice
+/// is really used twice. `count_path_uses` sees only the single syntactic
+/// use inside the body; without these extra uses such a payload keeps no
+/// clone flag, and its first inlined use renders as a move (E0382 on every
+/// remaining use). A body reference shadowed by one of the join point's own
+/// parameters names the parameter, not the captured local, and contributes
+/// nothing. Returns only the uses beyond the syntactic one, so callers add
+/// it to an ordinary `count_path_uses` total.
+fn inlined_join_extra_uses(root: &Expr, name: &str) -> usize {
+    fn jump_sites(expr: &Expr, join: &str) -> usize {
+        usize::from(matches!(expr, Expr::Jmp(candidate, _) if candidate == join))
+            + expr
+                .children()
+                .map(|child| jump_sites(child, join))
+                .sum::<usize>()
+    }
+    fn walk(expr: &Expr, root: &Expr, name: &str) -> usize {
+        match expr {
+            Expr::Jp {
+                name: join,
+                params,
+                body,
+            } => {
+                let captured = if params.iter().any(|param| param == name) {
+                    0
+                } else {
+                    count_path_uses(body, name)
+                };
+                // With no jump sites the body still renders once in place;
+                // otherwise once per jump. The syntactic use is already
+                // counted by the caller's `count_path_uses`.
+                let renders = jump_sites(root, join).max(1);
+                captured * (renders - 1) + walk(body, root, name)
+            }
+            _ => expr.children().map(|child| walk(child, root, name)).sum(),
+        }
+    }
+    walk(root, root, name)
 }
 
 /// Whether a binding expression produces a known non-`Copy` Rust value.
@@ -760,7 +829,6 @@ fn repeated_non_copy_locals(
     definitions: &[Definition],
     table: &TypeTable<'_>,
     params: &[(String, Type)],
-    returns_copy: bool,
     borrowed_bindings: &BTreeSet<String>,
 ) -> BTreeSet<String> {
     struct Context<'a, 'm> {
@@ -834,7 +902,9 @@ fn repeated_non_copy_locals(
                         if !copy_type(&ty, table, &mut BTreeSet::new()) {
                             nested.insert(name.clone());
                             if !borrowed_bindings.contains(&name)
-                                && count_path_uses(&alt.body, &name) > 1
+                                && count_path_uses(&alt.body, &name)
+                                    + inlined_join_extra_uses(&alt.body, &name)
+                                    > 1
                             {
                                 output.insert(name.clone());
                             }
@@ -869,7 +939,7 @@ fn repeated_non_copy_locals(
 
     let mut output = BTreeSet::new();
     for (name, ty) in params {
-        if !internal_borrowed_parameter(ty, table, returns_copy)
+        if !borrowed_bindings.contains(name)
             && !copy_type(ty, table, &mut BTreeSet::new())
             && count_path_uses(expr, name) > 1
         {
@@ -920,6 +990,25 @@ fn inline_bindings(expr: &Expr) -> BTreeMap<String, &Expr> {
     let mut output = BTreeMap::new();
     walk(expr, &mut output);
     output
+}
+
+/// A byte view may replace an encoding allocation only when every use is a
+/// direct, non-owning length/ordering read. Aliases, returns, calls, raw
+/// parameters and join points retain ordinary owned encoding. Local names
+/// have already been lexically normalized before rendering.
+fn utf8_read_only_uses(expr: &Expr, name: &str) -> bool {
+    match expr {
+        Expr::Var(candidate) => candidate != name,
+        Expr::Param(_) | Expr::Jp { .. } | Expr::Jmp(..) => false,
+        Expr::Length(value) if matches!(value.as_ref(), Expr::Var(value) if value == name) => true,
+        Expr::CompareBytes(left, right) => [left, right].iter().all(|value| {
+            matches!(value.as_ref(), Expr::Var(value) if value == name)
+                || utf8_read_only_uses(value, name)
+        }),
+        _ => expr
+            .children()
+            .all(|child| utf8_read_only_uses(child, name)),
+    }
 }
 
 /// Owners used exclusively through distinct field projections can be partially
@@ -1053,6 +1142,7 @@ fn binding_ownership(
     definitions: &[Definition],
     table: &TypeTable<'_>,
     movable: &BTreeSet<String>,
+    owned_parameters: &BTreeSet<usize>,
 ) -> BindingOwnership {
     fn walk(
         expr: &Expr,
@@ -1193,8 +1283,12 @@ fn binding_ownership(
         borrowed: definition
             .params
             .iter()
-            .filter(|(_, ty)| internal_borrowed_parameter(ty, table, returns_copy))
-            .map(|(name, _)| name.clone())
+            .enumerate()
+            .filter(|(index, (_, ty))| {
+                !owned_parameters.contains(index)
+                    && internal_borrowed_parameter(ty, table, returns_copy)
+            })
+            .map(|(_, (name, _))| name.clone())
             .collect(),
         copied_patterns: BTreeSet::new(),
     };
@@ -1246,6 +1340,16 @@ fn single_owned_option_match(
             alt.ctor == "Option.some"
                 && alt.binders.len() == 1
                 && count_var_uses(&alt.body, name) == 0
+                // The payload may itself move out of the owner, but only an
+                // untouched payload or a pure `Some(x) => Some(x)` rewrap
+                // leaves the None arm's owner reusable. Binder names are
+                // normalized before this pass, so a payload that shadowed
+                // the owner arrives under a fresh name: count the binder's
+                // own uses rather than trusting lexical equality.
+                && (count_var_uses(&alt.body, &alt.binders[0]) == 0
+                    || matches!(&alt.body, Expr::Ctor(ctor, args)
+                        if ctor == "Option.some"
+                            && matches!(args.as_slice(), [Expr::Var(returned)] if returned == &alt.binders[0])))
         })
     {
         return false;
@@ -1265,6 +1369,9 @@ fn generate_def_in<'m>(
 ) -> Result<String, Error> {
     // Ownership and inline-value tables are keyed by local name. Preserve
     // lexical scopes at the public IR boundary before building those tables.
+    // Plan against the original declaration, consistently with every caller.
+    // Unsupported raw-IR shadowing is conservatively excluded by this plan.
+    let owned_parameters = owned_accumulators::parameters(def, table);
     let normalized = naming::normalize_definition(
         def,
         &|name| emitted_call_name(name, definitions, table),
@@ -1291,21 +1398,29 @@ fn generate_def_in<'m>(
         .copied()
         .unwrap_or(Shape::Value);
     let returns_copy = copy_type(&def.ret, table, &mut BTreeSet::new());
-    let helper = needs_borrowed_helper(def, table);
-    let generated_name = if helper {
+    let helper = !owned_parameters.is_empty() || needs_borrowed_helper(def, table);
+    let generated_name = if !owned_parameters.is_empty() {
+        owned_helper_name(def, definitions)
+    } else if helper {
         borrowed_helper_name(def, definitions)
     } else {
-        def.name.clone()
+        rust_ident(&def.name)
     };
     let visibility = if helper { "" } else { "pub " };
     let borrowed_return = returns_borrowed_projection(def, table);
     let tail_plan = if matches!(shape, Shape::Value | Shape::Fallible) && !borrowed_return {
-        tail_calls::plan(def, table)
+        tail_calls::plan(def, table, &owned_parameters)
     } else {
         None
     };
     let movable_projections = movable_projection_owners(def, table);
-    let bindings = binding_ownership(def, definitions, table, &movable_projections);
+    let bindings = binding_ownership(
+        def,
+        definitions,
+        table,
+        &movable_projections,
+        &owned_parameters,
+    );
     let renderer = Renderer {
         shapes,
         definitions,
@@ -1317,7 +1432,6 @@ fn generate_def_in<'m>(
             definitions,
             table,
             &def.params,
-            returns_copy,
             &bindings.borrowed,
         ),
         inline_values: inline_bindings(&def.body),
@@ -1343,7 +1457,8 @@ fn generate_def_in<'m>(
             param_type_to_rust(
                 ty,
                 table,
-                internal_borrowed_parameter(ty, table, returns_copy),
+                !owned_parameters.contains(&i)
+                    && internal_borrowed_parameter(ty, table, returns_copy),
             )?
         ));
     }
@@ -1363,13 +1478,14 @@ fn generate_def_in<'m>(
                     def.name
                 )));
             }
-            let mut items = Vec::new();
-            renderer.static_list(&def.body, &[], &mut items)?;
+            let mut output = StaticOutput::new(&def.body, renderer.definitions);
+            renderer.static_list(&def.body, &[], &[], &[], elem, &mut output)?;
             Ok(format!(
-                "{visibility}fn {}() -> &'static [{}] {{\n    &[{}]\n}}\n",
+                "{visibility}fn {}() -> &'static [{}] {{\n{}    &[{}]\n}}\n",
                 generated_name,
                 type_to_rust(elem)?,
-                items.join(", ")
+                output.declarations.concat(),
+                output.items.join(", ")
             ))
         }
         Shape::Buffer => {
@@ -1430,10 +1546,11 @@ fn generate_def_in<'m>(
 
     let mut public_params = Vec::with_capacity(def.params.len());
     let mut arguments = Vec::with_capacity(def.params.len());
-    for (name, ty) in &def.params {
+    for (index, (name, ty)) in def.params.iter().enumerate() {
         let local = rust_local_ident(name);
         let public_borrowed = public_borrowed_parameter(ty, table, def.ret == Type::Bool);
-        let internal_borrowed = internal_borrowed_parameter(ty, table, returns_copy);
+        let internal_borrowed = !owned_parameters.contains(&index)
+            && internal_borrowed_parameter(ty, table, returns_copy);
         public_params.push(format!(
             "{local}: {}",
             param_type_to_rust(ty, table, public_borrowed)?
@@ -1444,6 +1561,8 @@ fn generate_def_in<'m>(
             } else {
                 format!("&{local}")
             }
+        } else if public_borrowed && !internal_borrowed {
+            format!("alloc::borrow::ToOwned::to_owned({local})")
         } else {
             local
         });
@@ -1457,7 +1576,7 @@ fn generate_def_in<'m>(
     };
     Ok(format!(
         "pub fn {}({}) -> {} {{\n    {}({})\n}}\n\n{}",
-        def.name,
+        rust_ident(&def.name),
         public_params.join(", "),
         public_return,
         generated_name,
@@ -1603,13 +1722,31 @@ fn borrowed_helper_name(definition: &Definition, definitions: &[Definition]) -> 
     candidate
 }
 
+fn owned_helper_name(definition: &Definition, definitions: &[Definition]) -> String {
+    // The length makes this encoding prefix-free: appending underscores to
+    // avoid a source declaration cannot collide with another owned helper.
+    let mut candidate = format!("__prod_owned_{}_{}", definition.name.len(), definition.name);
+    while definitions.iter().any(|row| row.name == candidate) {
+        candidate.push('_');
+    }
+    candidate
+}
+
 fn emitted_call_name(name: &str, definitions: &[Definition], table: &TypeTable<'_>) -> String {
+    if let Some(definition) = definitions
+        .iter()
+        .find(|definition| definition.name == name)
+    {
+        if !owned_accumulators::parameters(definition, table).is_empty() {
+            return owned_helper_name(definition, definitions);
+        }
+    }
     definitions
         .iter()
         .find(|definition| definition.name == name)
         .filter(|definition| needs_borrowed_helper(definition, table))
         .map(|definition| borrowed_helper_name(definition, definitions))
-        .unwrap_or_else(|| String::from(name))
+        .unwrap_or_else(|| rust_ident(name))
 }
 
 /// A `(named ...)` type occurring in a definition's signature must be
@@ -1742,6 +1879,67 @@ enum Mode<'x, 'm> {
     },
 }
 
+/// A closed, allocation-free initializer captured at its lexical binding.
+/// Only compiler storage owns the rendered aggregate text; generated values
+/// remain literals and typed record/enum constructors in a promoted slice.
+#[derive(Clone)]
+enum StaticConstant<'m> {
+    Nat(u64),
+    Int(i64),
+    Bool(bool),
+    Aggregate { name: &'m str, rendered: String },
+}
+
+struct StaticOutput {
+    items: Vec<String>,
+    declarations: Vec<String>,
+    reserved: BTreeSet<String>,
+}
+
+impl StaticOutput {
+    fn new(body: &Expr, definitions: &[Definition]) -> Self {
+        fn reserve(expr: &Expr, names: &mut BTreeSet<String>) {
+            match expr {
+                Expr::Var(name) | Expr::Let(name, _, _) | Expr::Call(name, _) => {
+                    names.insert(rust_local_ident(name));
+                }
+                _ => {}
+            }
+            for child in expr.children() {
+                reserve(child, names);
+            }
+        }
+        let mut reserved = definitions
+            .iter()
+            .map(|definition| rust_ident(&definition.name))
+            .collect();
+        reserve(body, &mut reserved);
+        Self {
+            items: Vec::new(),
+            declarations: Vec::new(),
+            reserved,
+        }
+    }
+
+    fn aggregate(&mut self, ty: &str, initializer: &str) -> String {
+        // Keep shared immutable aggregate bindings shared in generated text.
+        // Expanding a binary constructor DAG inline would grow exponentially.
+        let mut ordinal = self.declarations.len();
+        let name = loop {
+            let candidate = format!("__PROD_STATIC_CONSTANT_{ordinal}");
+            if self.reserved.insert(candidate.clone()) {
+                break candidate;
+            }
+            ordinal += 1;
+        };
+        self.declarations.push(format!(
+            "    const {name}: crate::{} = {initializer};\n",
+            rust_ident(last_component(ty))
+        ));
+        name
+    }
+}
+
 struct Renderer<'s, 'm> {
     shapes: &'s Signatures<'m>,
     definitions: &'m [Definition],
@@ -1792,6 +1990,23 @@ impl<'m> Renderer<'_, 'm> {
             Expr::Var(name) => Ok(rust_local_ident(name)),
             other => self.value(other),
         }
+    }
+
+    fn utf8_read_binding(&self, name: &str, value: &'m Expr, body: &Expr) -> Option<String> {
+        let Expr::Utf8Encode(text) = value else {
+            return None;
+        };
+        if count_var_uses(body, name) == 0 || !utf8_read_only_uses(body, name) {
+            return None;
+        }
+        // Borrow only a stable local or a static literal. Temporaries and
+        // projections retain their original evaluation/lifetime behavior.
+        let text = match self.resolved_inline(text) {
+            Expr::Var(name) => rust_local_ident(name),
+            Expr::String(value) => format!("{value:?}"),
+            _ => return None,
+        };
+        Some(format!("({text}).as_bytes()"))
     }
 
     fn owned_value(&self, expr: &'m Expr) -> Result<String, Error> {
@@ -1913,11 +2128,13 @@ impl<'m> Renderer<'_, 'm> {
                     definition.params.get(index).map(|(_, ty)| {
                         (
                             ty,
-                            internal_borrowed_parameter(
-                                ty,
-                                self.types,
-                                copy_type(&definition.ret, self.types, &mut BTreeSet::new()),
-                            ),
+                            !owned_accumulators::parameters(definition, self.types)
+                                .contains(&index)
+                                && internal_borrowed_parameter(
+                                    ty,
+                                    self.types,
+                                    copy_type(&definition.ret, self.types, &mut BTreeSet::new()),
+                                ),
                         )
                     })
                 }) {
@@ -2154,28 +2371,38 @@ impl<'m> Renderer<'_, 'm> {
             {
                 self.render(body, mode)
             }
-            Expr::Let(name, val, body) => match mode {
-                Mode::Builder { out, env, depth } if self.is_list_valued(val, env) => {
-                    // A list binding has no runtime representation to emit;
-                    // record it and resolve uses through the environment.
-                    let mut extended = env.to_vec();
-                    extended.push((name.as_str(), val));
-                    self.render(
-                        body,
-                        &Mode::Builder {
-                            out,
-                            env: &extended,
-                            depth: *depth,
-                        },
-                    )
+            Expr::Let(name, val, body) => {
+                if let Some(encoded) = self.utf8_read_binding(name, val, body) {
+                    return Ok(format!(
+                        "{{ let {} = {}; {} }}",
+                        rust_local_ident(name),
+                        encoded,
+                        self.render(body, mode)?
+                    ));
                 }
-                _ => Ok(format!(
-                    "{{ let {} = {}; {} }}",
-                    rust_local_ident(name),
-                    self.value(val)?,
-                    self.render(body, mode)?
-                )),
-            },
+                match mode {
+                    Mode::Builder { out, env, depth } if self.is_list_valued(val, env) => {
+                        // A list binding has no runtime representation to emit;
+                        // record it and resolve uses through the environment.
+                        let mut extended = env.to_vec();
+                        extended.push((name.as_str(), val));
+                        self.render(
+                            body,
+                            &Mode::Builder {
+                                out,
+                                env: &extended,
+                                depth: *depth,
+                            },
+                        )
+                    }
+                    _ => Ok(format!(
+                        "{{ let {} = {}; {} }}",
+                        rust_local_ident(name),
+                        self.value(val)?,
+                        self.render(body, mode)?
+                    )),
+                }
+            }
             Expr::Match {
                 scrut,
                 alts,
@@ -2369,6 +2596,20 @@ impl<'m> Renderer<'_, 'm> {
                 "{{ let mut __value = {}; __value.extend_from_within(..); __value }}",
                 self.owned_value(left)?
             )),
+            Expr::Append(left, right)
+                if matches!(self.resolved_inline(right), Expr::Var(name)
+                    if !self.borrowed_locals.contains(name) && !self.clone_locals.contains(name)) =>
+            {
+                // A single-use owned RHS can transfer its elements. Borrowing
+                // it for extend_from_slice needlessly clones nested payloads.
+                // Evaluate both operands left-to-right outside the temporary's
+                // scope; shared locals and borrowed slices retain the path below.
+                Ok(format!(
+                    "{{ let mut __append = ({}, {}); __append.0.extend(__append.1); __append.0 }}",
+                    self.owned_value(left)?,
+                    self.value(right)?
+                ))
+            }
             Expr::Append(left, right) => Ok(format!(
                 "{{ let mut __value = {}; __value.extend_from_slice(&{}); __value }}",
                 self.owned_value(left)?,
@@ -2685,6 +2926,19 @@ impl<'m> Renderer<'_, 'm> {
             && branch_borrows.iter().any(|borrowed| *borrowed)
             && branch_borrows.iter().any(|borrowed| !borrowed);
         let scrut = self.value(scrut)?;
+        // List parameters are slices, but record fields, local aliases and
+        // temporaries may be Vecs. Normalize the match place, not its owner:
+        // evaluate once and borrow the full slice without cloning its payload.
+        // Match-temporary lifetime extension keeps owned temporaries alive for
+        // the arms; existing result ownership handles values escaping them.
+        let scrut = if alts
+            .iter()
+            .any(|alt| matches!(alt.ctor.as_str(), "List.nil" | "List.cons"))
+        {
+            format!("&({scrut})[..]")
+        } else {
+            scrut
+        };
         let mut out = format!("match {} {{\n", scrut);
         for alt in alts {
             let body = if let Some(plan) = tail {
@@ -2839,20 +3093,41 @@ impl<'m> Renderer<'_, 'm> {
     }
 
     /// Flatten a constant `List.cons`/`List.nil` chain into array elements for
-    /// a promoted `&'static [T]`. Only `let`-bound list values are followed;
-    /// anything computed belongs in builder mode instead.
+    /// a promoted `&'static [T]`. LCNF also binds literals and closed record/enum
+    /// constructors before its cons cells. Keep those in a separate lexical
+    /// environment: aliases capture their exact initializer at binding time. Computed
+    /// bindings still belong in builder mode instead. `generate_def_in` has
+    /// already made every lexical binder unique. Each list additionally keeps
+    /// its original visible constant boundary and list prefix, so unresolved
+    /// names cannot capture a later binding when the retained body is read.
     fn static_list(
         &self,
         expr: &'m Expr,
         env: &[(&'m str, &'m Expr)],
-        items: &mut Vec<String>,
+        scalar_scopes: &[usize],
+        scalars: &[(&'m str, StaticConstant<'m>)],
+        element: &Type,
+        output: &mut StaticOutput,
     ) -> Result<(), Error> {
         if let Expr::Let(name, value, _) = expr {
             self.reject_eager_list_binding(name, value, env)?;
         }
         match expr {
-            Expr::Var(name) => match lookup(env, name) {
-                Some(bound) => self.static_list(bound, env, items),
+            Expr::Var(name) => match env
+                .iter()
+                .zip(scalar_scopes)
+                .enumerate()
+                .rev()
+                .find(|(_, ((bound, _), _))| bound == name)
+            {
+                Some((index, ((_, bound), scope))) => self.static_list(
+                    bound,
+                    &env[..index],
+                    &scalar_scopes[..index],
+                    &scalars[..*scope],
+                    element,
+                    output,
+                ),
                 None => Err(Error::UnsupportedList(format!(
                     "`{}` is not a constant list",
                     name
@@ -2861,17 +3136,166 @@ impl<'m> Renderer<'_, 'm> {
             Expr::Let(name, val, body) if self.is_list_valued(val, env) => {
                 let mut extended = env.to_vec();
                 extended.push((name.as_str(), val));
-                self.static_list(body, &extended, items)
+                let mut extended_scopes = scalar_scopes.to_vec();
+                extended_scopes.push(scalars.len());
+                self.static_list(body, &extended, &extended_scopes, scalars, element, output)
+            }
+            Expr::Let(name, value, body) => {
+                let mut literal = self.static_constant(value, scalars)?;
+                if !matches!(value.as_ref(), Expr::Var(_)) {
+                    if let StaticConstant::Aggregate { name, rendered } = &mut literal {
+                        *rendered = output.aggregate(name, rendered);
+                    }
+                }
+                let mut extended = scalars.to_vec();
+                extended.push((name.as_str(), literal));
+                self.static_list(body, env, scalar_scopes, &extended, element, output)
             }
             Expr::Ctor(name, args) if name == "List.nil" && args.is_empty() => Ok(()),
             Expr::Ctor(name, args) if name == "List.cons" && args.len() == 2 => {
-                items.push(self.value(&args[0])?);
-                self.static_list(&args[1], env, items)
+                output
+                    .items
+                    .push(self.static_list_element(&args[0], scalars, element)?);
+                self.static_list(&args[1], env, scalar_scopes, scalars, element, output)
             }
             _ => Err(Error::UnsupportedList(
                 "zero-argument list definitions must be constant cons chains".to_string(),
             )),
         }
+    }
+
+    fn static_constant(
+        &self,
+        expr: &'m Expr,
+        scalars: &[(&'m str, StaticConstant<'m>)],
+    ) -> Result<StaticConstant<'m>, Error> {
+        match expr {
+            Expr::Nat(value) => Ok(StaticConstant::Nat(*value)),
+            Expr::Int(value) => Ok(StaticConstant::Int(*value)),
+            Expr::Bool(value) => Ok(StaticConstant::Bool(*value)),
+            // Stored values are already resolved constants, never expressions
+            // that can acquire a later binding or form an alias cycle.
+            Expr::Var(name) => scalars
+                .iter()
+                .rev()
+                .find(|(bound, _)| *bound == name)
+                .map(|(_, value)| value.clone())
+                .ok_or_else(|| Error::UnsupportedList("unbound static list initializer".into())),
+            Expr::Ctor(name, arguments) if arguments.is_empty() && name == "Bool.true" => {
+                Ok(StaticConstant::Bool(true))
+            }
+            Expr::Ctor(name, arguments) if arguments.is_empty() && name == "Bool.false" => {
+                Ok(StaticConstant::Bool(false))
+            }
+            Expr::Ctor(name, arguments) => {
+                let (declaration, constructor) = self.ctor_decl(name).ok_or_else(|| {
+                    Error::UnsupportedList(format!(
+                        "static initializer `{name}` is not a declared record or enum constructor"
+                    ))
+                })?;
+                if arguments.len() != constructor.fields.len() {
+                    return Err(Error::UnsupportedFieldType(format!(
+                        "`{name}` takes {} field(s) but got {} argument(s)",
+                        constructor.fields.len(),
+                        arguments.len()
+                    )));
+                }
+                let mut fields = Vec::with_capacity(arguments.len());
+                for ((field, ty), argument) in constructor.fields.iter().zip(arguments) {
+                    let value = self.static_constant(argument, scalars)?;
+                    fields.push(format!(
+                        "{}: {}",
+                        rust_ident(field),
+                        self.static_constant_value(&value, ty)?
+                    ));
+                }
+                let path = if declaration.ctors.len() == 1 {
+                    format!("crate::{}", rust_ident(last_component(&declaration.name)))
+                } else {
+                    format!(
+                        "crate::{}::{}",
+                        rust_ident(last_component(&declaration.name)),
+                        rust_ident(last_component(&constructor.name))
+                    )
+                };
+                let rendered = if fields.is_empty() && declaration.ctors.len() != 1 {
+                    path
+                } else {
+                    format!("{path} {{ {} }}", fields.join(", "))
+                };
+                Ok(StaticConstant::Aggregate {
+                    name: &declaration.name,
+                    rendered,
+                })
+            }
+            _ => Err(Error::UnsupportedList(
+                "static list bindings require closed allocation-free constants".into(),
+            )),
+        }
+    }
+
+    fn static_constant_value(
+        &self,
+        value: &StaticConstant<'m>,
+        element: &Type,
+    ) -> Result<String, Error> {
+        let valid = match (value, element) {
+            (StaticConstant::Nat(_), Type::Nat | Type::UInt64)
+            | (StaticConstant::Bool(_), Type::Bool) => true,
+            (StaticConstant::Nat(value), Type::UInt8) => u8::try_from(*value).is_ok(),
+            (StaticConstant::Nat(value), Type::UInt16) => u16::try_from(*value).is_ok(),
+            (StaticConstant::Nat(value), Type::UInt32) => u32::try_from(*value).is_ok(),
+            (StaticConstant::Nat(value), Type::Int8) => i8::try_from(*value).is_ok(),
+            (StaticConstant::Nat(value), Type::Int16) => i16::try_from(*value).is_ok(),
+            (StaticConstant::Nat(value), Type::Int32) => i32::try_from(*value).is_ok(),
+            (StaticConstant::Nat(value), Type::Int64) => i64::try_from(*value).is_ok(),
+            (StaticConstant::Int(value), Type::Int8) => i8::try_from(*value).is_ok(),
+            (StaticConstant::Int(value), Type::Int16) => i16::try_from(*value).is_ok(),
+            (StaticConstant::Int(value), Type::Int32) => i32::try_from(*value).is_ok(),
+            (StaticConstant::Int(_), Type::Int64) => true,
+            (StaticConstant::Aggregate { name, .. }, Type::Named(expected)) => *name == expected,
+            _ => false,
+        };
+        if !valid {
+            return Err(Error::UnsupportedList(
+                "static list constant does not fit its declared type".to_string(),
+            ));
+        }
+        Ok(match value {
+            StaticConstant::Nat(value) => format!("{value}"),
+            StaticConstant::Int(value) => format!("{value}"),
+            StaticConstant::Bool(value) => format!("{value}"),
+            StaticConstant::Aggregate { rendered, .. } => rendered.clone(),
+        })
+    }
+
+    fn static_list_element(
+        &self,
+        expr: &'m Expr,
+        scalars: &[(&'m str, StaticConstant<'m>)],
+        element: &Type,
+    ) -> Result<String, Error> {
+        if let Ok(value) = self.static_constant(expr, scalars) {
+            return self.static_constant_value(&value, element);
+        }
+        if matches!(expr, Expr::Var(_)) {
+            return Err(Error::UnsupportedList(
+                "static list element is not a bound scalar literal".to_string(),
+            ));
+        }
+        // Preserve previously supported closed element expressions, including
+        // scalar continuations. This extension does not evaluate expressions
+        // involving newly admitted outer literal bindings.
+        fn uses_scalar(expr: &Expr, scalars: &[(&str, StaticConstant<'_>)]) -> bool {
+            matches!(expr, Expr::Var(name) if scalars.iter().any(|(bound,_)| *bound == name))
+                || expr.children().any(|child| uses_scalar(child, scalars))
+        }
+        if uses_scalar(expr, scalars) {
+            return Err(Error::UnsupportedList(
+                "static list literal aliases cannot be used in computed elements".to_string(),
+            ));
+        }
+        self.value(expr)
     }
 
     fn binop(&self, a: &'m Expr, b: &'m Expr, op: &str) -> Result<String, Error> {

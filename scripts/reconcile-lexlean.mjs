@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {cpSync, existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync} from 'node:fs';
+import {cpSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join, relative, resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -9,16 +9,81 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const run = (command,args,cwd) => {
-  const result=spawnSync(command,args,{cwd,encoding:'utf8',maxBuffer:64*1024*1024,stdio:['ignore','pipe','pipe']});
+  const result=spawnSync(command,args,{cwd,env:{...process.env,CARGO_NET_OFFLINE:'true'},encoding:'utf8',maxBuffer:64*1024*1024,stdio:['ignore','pipe','pipe']});
   if(result.status!==0) throw new Error(`${command} ${args.join(' ')} failed (${result.status}):\n${result.stdout}\n${result.stderr}`);
   return result.stdout.trim();
 };
+
+const present = path => {
+  try { lstatSync(path); return true; } catch(error) { if(error.code==='ENOENT') return false; throw error; }
+};
+const directoryIdentity = path => {
+  const st=lstatSync(path,{bigint:true}); assert.ok(st.isDirectory()&&!st.isSymbolicLink(),`not an owned directory: ${path}`);
+  return [st.dev,st.ino];
+};
+const requireDirectory = (path,identity) => assert.deepEqual(directoryIdentity(path),identity,`owned directory changed: ${path}`);
+const regularIdentity = path => {
+  const st=lstatSync(path,{bigint:true});
+  assert.ok(st.isFile()&&!st.isSymbolicLink()&&st.nlink===1n,`not a private regular input: ${path}`);
+  return [st.dev,st.ino,st.mode,st.nlink,st.uid,st.gid];
+};
+
+// Internal, serialized repository producer transaction. Validation failures
+// retain the original vendor plus exact register/lock bytes. This is not a
+// crash-atomic multi-path publication or an adversarial same-UID filesystem API.
+export function replaceDependencyTransaction(repoRoot, prepare, validate, writeDependency=writeFileSync) {
+  const vendor=join(repoRoot,'vendor/lexlean'), stage=join(repoRoot,'vendor/.lexlean-reconcile-stage'), backup=join(repoRoot,'vendor/.lexlean-reconcile-backup');
+  const dependencyPath=join(repoRoot,'model/dependencies.toml'), lockPath=join(repoRoot,'Cargo.lock');
+  const parents=[repoRoot,join(repoRoot,'vendor'),join(repoRoot,'model')].map(path=>[path,directoryIdentity(path)]);
+  const requireParents=()=>{for(const [path,identity] of parents)requireDirectory(path,identity);};
+  const dependencyIdentity=regularIdentity(dependencyPath), lockIdentity=regularIdentity(lockPath);
+  assert.ok(!present(stage)&&!present(backup),'prior reconciliation stage or backup exists; refusing replacement');
+  const original=directoryIdentity(vendor), dependency=readFileSync(dependencyPath), lock=readFileSync(lockPath);
+  let staged, moved=false, installed=false, committed=false, primary;
+  try {
+    mkdirSync(stage); staged=directoryIdentity(stage);
+    const updated=prepare(stage,dependency.toString('utf8'));
+    requireParents();
+    requireDirectory(stage,staged); requireDirectory(vendor,original);
+    assert.deepEqual(regularIdentity(dependencyPath),dependencyIdentity);assert.deepEqual(regularIdentity(lockPath),lockIdentity);
+    assert.deepEqual(readFileSync(dependencyPath),dependency); assert.deepEqual(readFileSync(lockPath),lock);
+    assert.ok(!present(backup),'foreign reconciliation backup appeared');
+    renameSync(vendor,backup); moved=true;
+    renameSync(stage,vendor); installed=true;
+    writeDependency(dependencyPath,updated);
+    const value=validate();
+    requireParents();regularIdentity(dependencyPath);regularIdentity(lockPath);
+    requireDirectory(vendor,staged); requireDirectory(backup,original);
+    committed=true;
+    rmSync(backup,{recursive:true}); moved=false;
+    return value;
+  } catch(error) {
+    primary=error;
+    if(!committed){
+      const failures=[];
+      const attempt=action=>{try{action();}catch(failure){failures.push(failure);}};
+      if(installed) attempt(()=>{requireParents();requireDirectory(vendor,staged);assert.ok(!present(stage),'foreign stage prevents rollback');renameSync(vendor,stage);installed=false;});
+      if(moved&&!installed) attempt(()=>{requireParents();requireDirectory(backup,original);assert.ok(!present(vendor),'foreign vendor prevents rollback');renameSync(backup,vendor);moved=false;});
+      if(!moved&&!installed){
+        attempt(()=>{requireParents();regularIdentity(dependencyPath);writeFileSync(dependencyPath,dependency);});
+        attempt(()=>{requireParents();regularIdentity(lockPath);writeFileSync(lockPath,lock);});
+      }
+      if(failures.length) primary=new AggregateError([error,...failures],'reconciliation failed; rollback incomplete; original failure retained',{cause:error});
+    }
+    throw primary;
+  } finally {
+    if(staged&&!installed&&present(stage)){
+      try {requireParents();requireDirectory(stage,staged);rmSync(stage,{recursive:true});}
+      catch(error){if(primary)throw new AggregateError([primary,error],'reconciliation failure and owned-stage cleanup failure',{cause:primary});throw error;}
+    }
+  }
+}
 
 export function packageTreeManifest(root, crateName) {
   const rows=[];
   const walk=(dir)=>{
     for(const name of readdirSync(dir).sort()){
-      if(name==='MANIFEST.sha256') continue;
+      if(dir===root && name==='MANIFEST.sha256') continue;
       const path=join(dir,name), st=lstatSync(path);
       assert.ok(!st.isSymbolicLink(), `vendored package contains symlink ${path}`);
       if(st.isDirectory()) walk(path);
@@ -83,8 +148,8 @@ export function reconcile(repoRoot, lexRoot, revision) {
   repoRoot=resolve(repoRoot); lexRoot=resolve(lexRoot);
   assertCleanCheckout(lexRoot, revision);
 
-  run('cargo',['xtask','check-package'],lexRoot);
-  run('cargo',['xtask','release-artifacts'],lexRoot);
+  run('cargo',['--offline','xtask','check-package'],lexRoot);
+  run('cargo',['--offline','xtask','release-artifacts'],lexRoot);
 
   const identity=JSON.parse(readFileSync(join(lexRoot,'release/release-identity.json'),'utf8'));
   assert.equal(identity.spec,'lexlean/release-identity/1');
@@ -95,11 +160,13 @@ export function reconcile(repoRoot, lexRoot, revision) {
   const crateBytes=readFileSync(join(lexRoot,'release/lexlean.crate'));
   assert.equal(sha(crateBytes),identity.crate_sha256,'LexLean release identity crate digest drift');
   // A second owning package invocation must reproduce the captured archive.
-  run('cargo',['xtask','release-artifacts'],lexRoot);
+  run('cargo',['--offline','xtask','release-artifacts'],lexRoot);
   assert.deepEqual(readFileSync(join(lexRoot,'release/lexlean.crate')),crateBytes,'LexLean package is not reproducible');
 
   const work=mkdtempSync(join(tmpdir(),'prismpm-lexlean-reconcile-'));
+  const workIdentity=directoryIdentity(work);
   const unpack=join(work,'unpack');
+  let failure;
   try {
     run('mkdir',['-p',unpack],repoRoot);
     run('tar',['-xzf',join(lexRoot,'release/lexlean.crate'),'-C',unpack],repoRoot);
@@ -108,32 +175,29 @@ export function reconcile(repoRoot, lexRoot, revision) {
     const vcs=JSON.parse(readFileSync(join(packageRoot,'.cargo_vcs_info.json'),'utf8'));
     assert.equal(vcs.git?.sha1,revision,'packaged .cargo_vcs_info.json does not bind selected revision');
 
-    const stage=join(repoRoot,'vendor','.lexlean-reconcile-stage');
-    assert.ok(!existsSync(stage),'prior reconciliation stage exists; refusing replacement');
-    cpSync(packageRoot,stage,{recursive:true,errorOnExist:true});
+    const sourceTree=run('git',['rev-parse',`${revision}^{tree}`],lexRoot);
+    return replaceDependencyTransaction(repoRoot,(stage,oldDependencies)=>{
+    cpSync(packageRoot,stage,{recursive:true,errorOnExist:true,force:false});
     writeFileSync(join(stage,crateName),crateBytes);
     const manifest=packageTreeManifest(stage,crateName);
     writeFileSync(join(stage,'MANIFEST.sha256'),manifest);
     const manifestSha=sha(Buffer.from(manifest)), crateSha=sha(crateBytes);
 
-    const vendor=join(repoRoot,'vendor','lexlean'), backup=join(repoRoot,'vendor','.lexlean-reconcile-backup');
-    assert.ok(!existsSync(backup),'prior reconciliation backup exists; refusing replacement');
-    const dependencyPath=join(repoRoot,'model/dependencies.toml');
-    const dependencies=updateDependencyRegister(readFileSync(dependencyPath,'utf8'),{revision,version,manifestSha,crateSha});
-    renameSync(vendor,backup);
-    try { renameSync(stage,vendor); } catch(error){ renameSync(backup,vendor); throw error; }
-    rmSync(backup,{recursive:true,force:true});
-
-    writeFileSync(dependencyPath,dependencies);
-
+    return updateDependencyRegister(oldDependencies,{revision,version,manifestSha,crateSha});
+    },()=>{
     // Resolve only after the exact packaged dependency is in place. Existing locked
     // versions remain preferred; new transitive requirements are admitted once here.
-    run('cargo',['metadata','--format-version','1'],repoRoot);
-    run('cargo',['check','--workspace','--all-targets','--all-features','--locked'],repoRoot);
+    run('cargo',['metadata','--offline','--format-version','1'],repoRoot);
+    run('cargo',['check','--workspace','--all-targets','--all-features','--locked','--offline'],repoRoot);
     // Generated documents and locks still belong to their normal writers.
     // Validate them only after those writers finish via --validate-generated.
-    return {revision,source_tree:run('git',['rev-parse',`${revision}^{tree}`],lexRoot),version,crate_sha256:crateSha,manifest_sha256:manifestSha};
-  } finally { rmSync(work,{recursive:true,force:true}); }
+    return {revision,source_tree:sourceTree,version,crate_sha256:sha(crateBytes),manifest_sha256:sha(readFileSync(join(repoRoot,'vendor/lexlean/MANIFEST.sha256')))};
+    });
+  } catch(error) { failure=error; throw error; }
+  finally {
+    try {requireDirectory(work,workIdentity);rmSync(work,{recursive:true});}
+    catch(error){if(failure)throw new AggregateError([failure,error],'reconciliation and private extraction cleanup failed',{cause:failure});throw error;}
+  }
 }
 
 export function validateGenerated(repoRoot) {

@@ -32,6 +32,7 @@ blake3 = "=1.5.5"
 clap = { version = "4.5", features = ["derive"] }
 ctrlc = "=3.5.2"
 fs4 = { version = "0.13", features = ["sync"] }
+flate2 = "=1.1.9"
 nom = { version = "7", default-features = false }
 proptest = "1.6"
 jsonschema = { version = "=0.50.1", default-features = false }

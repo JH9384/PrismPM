@@ -3,7 +3,7 @@ import {mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import test from 'node:test';
-import {assertCleanCheckout,packageTreeManifest,reconcile,updateDependencyRegister} from './reconcile-lexlean.mjs';
+import {assertCleanCheckout,packageTreeManifest,reconcile,replaceDependencyTransaction,updateDependencyRegister} from './reconcile-lexlean.mjs';
 
 test('tree manifest closes package bytes including the crate archive',t=>{
  const root=mkdtempSync(join(tmpdir(),'reconcile-manifest-')); t.after(()=>rmSync(root,{recursive:true,force:true}));
@@ -55,7 +55,7 @@ test('missing malformed and duplicated identities cannot become reconciliation n
 // These subprocess fixtures qualify orchestration only. They never provide
 // evidence that Cargo, LexLean, PrismPM or an SDK acceptance gate ran.
 import {createHash} from 'node:crypto';
-import {chmodSync,readFileSync,symlinkSync} from 'node:fs';
+import {chmodSync,readFileSync,symlinkSync,lstatSync,existsSync,renameSync,linkSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
@@ -84,6 +84,17 @@ test('manifest contains actual file SHA-256, not a literal expression',t=>{
  const root=mkdtempSync(join(tmpdir(),'reconcile-digest-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
  writeFileSync(join(root,'lexlean-0.3.0.crate'),'archive');
  assert.equal(packageTreeManifest(root,'lexlean-0.3.0.crate'),`${createHash('sha256').update('archive').digest('hex')}  lexlean-0.3.0.crate\n`);
+});
+
+test('manifest excludes only its root output and includes nested manifest source bytes',t=>{
+ const root=mkdtempSync(join(tmpdir(),'reconcile-nested-manifest-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
+ mkdirSync(join(root,'src'));writeFileSync(join(root,'lexlean-0.3.0.crate'),'archive');
+ writeFileSync(join(root,'MANIFEST.sha256'),'old generated root manifest');
+ const nested=Buffer.from('ordinary upstream manifest source\n');writeFileSync(join(root,'src/MANIFEST.sha256'),nested);
+ const expected=`${createHash('sha256').update('archive').digest('hex')}  lexlean-0.3.0.crate\n${createHash('sha256').update(nested).digest('hex')}  src/MANIFEST.sha256\n`;
+ assert.equal(packageTreeManifest(root,'lexlean-0.3.0.crate'),expected);
+ writeFileSync(join(root,'src/MANIFEST.sha256'),'changed nested source');
+ assert.notEqual(packageTreeManifest(root,'lexlean-0.3.0.crate'),expected);
 });
 
 test('manifest rejects an absent archive or a symlink',t=>{
@@ -123,9 +134,24 @@ test('unsupported-command mutation is rejected by the subprocess boundary',t=>{
  assert.match(result.stderr,/unsupported xtask command/);
 });
 
+function assertLockedAcquisition(workflow){
+ const start=workflow.indexOf('      - name: Acquire the separate exact locked Cargo inputs\n');
+ const end=workflow.indexOf('      - name: Prepare the exact packaged dependency with its owning helper\n');
+ assert.ok(start>=0 && end>start);
+ const phase=workflow.slice(start,end);
+ assert.ok(workflow.includes('CARGO_HOME: ${{ github.workspace }}/target/m0-locked-cargo-inputs'));
+ assert.ok(phase.includes('test ! -e "$CARGO_HOME" && test ! -L "$CARGO_HOME"'));
+ assert.ok(phase.includes('manifests=(Cargo.toml _m0/lexlean/Cargo.toml vendor/lexlean/Cargo.toml vendor/lean4-prod/rust/Cargo.toml stdlib/generated/package/Cargo.toml)'));
+ assert.ok(phase.includes('CARGO_NET_OFFLINE=false cargo fetch --locked --manifest-path "$manifest"'));
+ assert.equal((workflow.match(/CARGO_NET_OFFLINE=false/g)??[]).length,1);
+ assert.ok(workflow.includes('export CARGO_HOME="$PWD/target/m0-locked-cargo-inputs"'));
+ const generation=workflow.slice(workflow.indexOf('      - name: Regenerate owned PrismPM evidence through the pinned devcontainer\n'));
+ assert.ok(generation.indexOf('export CARGO_NET_OFFLINE=true')>=0 && generation.indexOf('export CARGO_NET_OFFLINE=true')<generation.indexOf('just codegen'));
+}
+
 test('reconciliation workflow pins selected source and has no repository writer',()=>{
  const workflow=readFileSync(join(repository,'.github/workflows/m0-lexlean-reconcile.yml'),'utf8');
- const selected='3e79a5a0e7059dc3a425aa17010e0a6721b24c44';
+ const selected='0865df4e540ca643b090a29e9df6d319d6906da6';
  assert.match(workflow,/workflow_dispatch:/);
  assert.match(workflow,/branches: \[work\/compression-m0-reconcile\]/);
  assert.doesNotMatch(workflow,/pull_request_target:/);
@@ -139,8 +165,37 @@ test('reconciliation workflow pins selected source and has no repository writer'
  assert.match(workflow,/name: m0-lexlean-reconciliation-proposal/);
  assert.match(workflow,/name: m0-lexlean-reconciliation-diagnostics/);
  assert.match(workflow,/partial-dependency\.json/);
+ assert.ok(workflow.includes('(cd "$directory" && "$lexlean" lock && "$lexlean" clean)'));
+ assert.match(workflow,/CARGO_NET_OFFLINE: "true"/);
+ assertLockedAcquisition(workflow);
+ for(const mutation of [
+  workflow.replace('      - name: Acquire the separate exact locked Cargo inputs\n','      - name: Missing acquisition\n'),
+  workflow.replace('cargo fetch --locked --manifest-path','cargo fetch --manifest-path'),
+  workflow.replace('vendor/lean4-prod/rust/Cargo.toml stdlib/generated/package/Cargo.toml)','vendor/lean4-prod/rust/Cargo.toml)'),
+  workflow.replace('export CARGO_HOME="$PWD/target/m0-locked-cargo-inputs"','export CARGO_HOME=/other-cache'),
+  workflow.replace('CARGO_NET_OFFLINE=false cargo fetch','CARGO_NET_OFFLINE=true cargo fetch'),
+  workflow.replace('export CARGO_NET_OFFLINE=true','export CARGO_NET_OFFLINE=false'),
+ ]) assert.throws(()=>assertLockedAcquisition(mutation),assert.AssertionError);
+ assert.match(workflow,/cargo build --locked --offline --manifest-path vendor\/lexlean\/Cargo\.toml/);
+ assert.match(helperSource,/CARGO_NET_OFFLINE:'true'/);
+ assert.equal((helperSource.match(/\['--offline','xtask',/g)??[]).length,3);
+ assert.ok(helperSource.includes("['metadata','--offline','--format-version','1']"));
+ assert.ok(helperSource.includes("['check','--workspace','--all-targets','--all-features','--locked','--offline']"));
  assert.match(workflow,/Diagnostic-only partial preparation/);
+ const cloneIdentity=workflow.indexOf('test "$(git -C _m0/lexlean rev-parse HEAD)" = "$LEXLEAN_SOURCE_SHA"');
+ assert.ok(cloneIdentity>=0 && cloneIdentity<workflow.indexOf('rm -rf _m0'));
+ assert.ok(workflow.includes('test -z "$(git -C _m0/lexlean status --porcelain=v1 --untracked-files=all)"'));
  assert.ok(workflow.indexOf('--validate-generated')>workflow.indexOf('just package-release-crates-check'));
+});
+
+test('real offline Cargo metadata refuses a fresh empty input cache before any build',t=>{
+ const root=mkdtempSync(join(tmpdir(),'reconcile-empty-cargo-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
+ const cache=join(root,'cargo');mkdirSync(cache);
+ const result=spawnSync('cargo',['metadata','--locked','--offline','--format-version','1','--manifest-path',join(repository,'Cargo.toml')],{
+  cwd:repository,env:{...process.env,CARGO_HOME:cache,CARGO_NET_OFFLINE:'true'},encoding:'utf8',timeout:30000,maxBuffer:1024*1024,
+ });
+ assert.equal(result.error,undefined);assert.equal(result.signal,null);assert.equal(result.status,101);
+ assert.match(result.stderr,/no matching package named/);assert.match(result.stderr,/offline mode/);
 });
 
 
@@ -164,4 +219,101 @@ test('owning package boundary rejects untracked and tracked source, allowing ign
  rmSync(join(root,'untracked.lex.tex'));
  writeFileSync(join(root,'source.lex.tex'),'changed source\n');
  assert.throws(()=>reconcile(root,root,revision),/LexLean source is dirty/);
+});
+
+function transactionFixture(t){
+ const root=mkdtempSync(join(tmpdir(),'reconcile-transaction-'));
+ t.after(()=>rmSync(root,{recursive:true,force:true}));
+ mkdirSync(join(root,'vendor/lexlean'),{recursive:true});mkdirSync(join(root,'model'));
+ writeFileSync(join(root,'vendor/lexlean/original'),'original vendor');
+ writeFileSync(join(root,'model/dependencies.toml'),'original register');writeFileSync(join(root,'Cargo.lock'),'original lock');
+ const prepare=stage=>{writeFileSync(join(stage,'replacement'),'new vendor');return 'new register';};
+ const original=()=>{
+  assert.equal(readFileSync(join(root,'vendor/lexlean/original'),'utf8'),'original vendor');
+  assert.equal(readFileSync(join(root,'model/dependencies.toml'),'utf8'),'original register');
+  assert.equal(readFileSync(join(root,'Cargo.lock'),'utf8'),'original lock');
+  assert.equal(existsSync(join(root,'vendor/.lexlean-reconcile-stage')),false);
+  assert.equal(existsSync(join(root,'vendor/.lexlean-reconcile-backup')),false);
+ };
+ return {root,prepare,original};
+}
+
+test('transaction retains prior vendor register and Cargo lock on actual dependency-write failure',t=>{
+ const {root,prepare,original}=transactionFixture(t);let denial;
+ assert.throws(()=>replaceDependencyTransaction(root,prepare,()=>assert.fail('validation after failed write'),(path,value)=>{
+  chmodSync(path,0o444);
+  try {writeFileSync(path,value);assert.fail('read-only dependency file unexpectedly writable');}
+  catch(error){denial=error;throw error;}
+  finally {chmodSync(path,0o644);}
+ }),error=>error===denial&&error.code==='EACCES');
+ original();
+});
+
+test('transaction restores all prior bytes after real metadata and check child failures',t=>{
+ for(const phase of ['metadata','check']){
+  const {root,prepare,original}=transactionFixture(t);const observed=[];
+  assert.throws(()=>replaceDependencyTransaction(root,prepare,()=>{
+   assert.equal(readFileSync(join(root,'vendor/lexlean/replacement'),'utf8'),'new vendor');
+   assert.equal(readFileSync(join(root,'vendor/.lexlean-reconcile-backup/original'),'utf8'),'original vendor');
+   assert.equal(readFileSync(join(root,'model/dependencies.toml'),'utf8'),'new register');
+   writeFileSync(join(root,'Cargo.lock'),'resolved lock');
+   for(const name of ['metadata','check']){
+    const child=spawnSync(process.execPath,['-e',`process.exit(${name===phase?23:0})`],{encoding:'utf8'});observed.push(name);
+    assert.equal(child.signal,null);if(child.status!==0)throw new Error(`${name} actual child failed (${child.status})`);
+   }
+  }),new RegExp(`${phase} actual child failed \\(23\\)`));
+  assert.deepEqual(observed,phase==='metadata'?['metadata']:['metadata','check']);original();
+ }
+});
+
+test('transaction removes only its own partial preparation and preserves preexisting foreign paths',t=>{
+ const {root,original}=transactionFixture(t);
+ assert.throws(()=>replaceDependencyTransaction(root,stage=>{writeFileSync(join(stage,'partial'),'partial');throw new Error('preparation failed');},()=>assert.fail()),/preparation failed/);original();
+ for(const name of ['.lexlean-reconcile-stage','.lexlean-reconcile-backup'])for(const kind of ['directory','file','dangling']){
+  const path=join(root,'vendor',name);
+  if(kind==='directory')mkdirSync(path);else if(kind==='file')writeFileSync(path,'foreign');else symlinkSync('missing',path);
+  const before=lstatSync(path,{bigint:true});
+  assert.throws(()=>replaceDependencyTransaction(root,()=>assert.fail('prepare entered'),()=>assert.fail()),/prior reconciliation/);
+  const after=lstatSync(path,{bigint:true});assert.equal(after.ino,before.ino);assert.equal(after.mode,before.mode);
+  rmSync(path,{recursive:true});original();
+ }
+});
+
+test('transaction refuses rollback over a foreign path and retains its primary failure and backup',t=>{
+ const {root,prepare}=transactionFixture(t);const failure=new Error('validation failed');
+ assert.throws(()=>replaceDependencyTransaction(root,prepare,()=>{
+  mkdirSync(join(root,'vendor/.lexlean-reconcile-stage'));writeFileSync(join(root,'vendor/.lexlean-reconcile-stage/foreign'),'foreign');throw failure;
+ }),error=>error instanceof AggregateError&&error.cause===failure);
+ assert.equal(readFileSync(join(root,'vendor/.lexlean-reconcile-stage/foreign'),'utf8'),'foreign');
+ assert.equal(readFileSync(join(root,'vendor/.lexlean-reconcile-backup/original'),'utf8'),'original vendor');
+});
+
+test('transaction commits only after validation and removes its retired backup',t=>{
+ const {root,prepare}=transactionFixture(t);
+ assert.equal(replaceDependencyTransaction(root,prepare,()=>{writeFileSync(join(root,'Cargo.lock'),'resolved lock');return 'validated';}),'validated');
+ assert.equal(readFileSync(join(root,'vendor/lexlean/replacement'),'utf8'),'new vendor');
+ assert.equal(readFileSync(join(root,'model/dependencies.toml'),'utf8'),'new register');
+ assert.equal(readFileSync(join(root,'Cargo.lock'),'utf8'),'resolved lock');
+ assert.equal(existsSync(join(root,'vendor/.lexlean-reconcile-stage')),false);assert.equal(existsSync(join(root,'vendor/.lexlean-reconcile-backup')),false);
+});
+
+test('transaction refuses aliased parents and nonregular or shared inputs before staging',t=>{
+ for(const parent of ['vendor','model','vendor/lexlean']){
+  const {root}=transactionFixture(t),path=join(root,parent),saved=path+'-original';renameSync(path,saved);symlinkSync(saved,path);
+  assert.throws(()=>replaceDependencyTransaction(root,()=>assert.fail('prepare entered'),()=>assert.fail()),/not an owned directory/);
+  assert.equal(readFileSync(join(root,'vendor/lexlean/original'),'utf8'),'original vendor');
+  assert.equal(readFileSync(join(root,'model/dependencies.toml'),'utf8'),'original register');
+  assert.equal(existsSync(join(root,'vendor/.lexlean-reconcile-stage')),false);
+ }
+ {
+  const {root,original}=transactionFixture(t),alias=join(root,'alias');symlinkSync(root,alias);
+  assert.throws(()=>replaceDependencyTransaction(alias,()=>assert.fail('prepare entered'),()=>assert.fail()),/not an owned directory/);original();
+ }
+ for(const input of ['model/dependencies.toml','Cargo.lock'])for(const kind of ['symlink','hardlink','directory']){
+  const {root}=transactionFixture(t),path=join(root,input),saved=path+'-original';const bytes=readFileSync(path);
+  if(kind==='hardlink')linkSync(path,saved);else{renameSync(path,saved);if(kind==='symlink')symlinkSync(saved,path);else mkdirSync(path);}
+  assert.throws(()=>replaceDependencyTransaction(root,()=>assert.fail('prepare entered'),()=>assert.fail()),/not a private regular input/);
+  assert.deepEqual(readFileSync(saved),bytes);assert.equal(readFileSync(join(root,'vendor/lexlean/original'),'utf8'),'original vendor');
+  assert.equal(existsSync(join(root,'vendor/.lexlean-reconcile-stage')),false);
+ }
 });

@@ -40,17 +40,19 @@ struct Render<'a> {
 /// The generated name of well-founded hypothesis `index`. Semantic names
 /// begin with an ASCII letter and an unused binder lowers as `_name`, so no
 /// source binder can capture a name beginning with two underscores.
-fn hypothesis(index: usize) -> String {
+pub(crate) fn hypothesis(index: usize) -> String {
     format!("__decrease{index}")
 }
 
 // Semantic names are validated data, not Lean tokens. Quoting a reserved
 // segment preserves its exact Name identity instead of narrowing the source
 // language to whatever the pinned parser happens to leave unreserved.
-fn identifier(name: &str) -> String {
+pub(crate) fn identifier(name: &str) -> String {
     name.split('.')
         .map(|segment| {
-            if super::lean_tokens::is_reserved(segment) {
+            if super::lean_tokens::is_reserved(segment)
+                || crate::verify::source_audit::forbids_segment(segment)
+            {
                 format!("«{segment}»")
             } else {
                 segment.to_owned()
@@ -63,7 +65,7 @@ fn identifier(name: &str) -> String {
 // Lean's pinned parser accepts four-digit Unicode escapes, not Rust's
 // zero escape or braced Unicode debug spelling. Escape characters, never
 // substrings, so a literal backslash followed by `0` remains literal data.
-fn string_literal(value: &str) -> String {
+pub(crate) fn string_literal(value: &str) -> String {
     use std::fmt::Write as _;
 
     let mut output = String::from("\"");
@@ -138,7 +140,7 @@ fn proof_uses(proof: &SemanticProof, local: &str) -> bool {
     }
 }
 
-fn term_uses(term: &SemanticTerm, local: &str) -> bool {
+pub(crate) fn term_uses(term: &SemanticTerm, local: &str) -> bool {
     let pair = |left: &SemanticTerm, right: &SemanticTerm| {
         term_uses(left, local) || term_uses(right, local)
     };
@@ -267,7 +269,7 @@ fn term_uses(term: &SemanticTerm, local: &str) -> bool {
 
 /// The Lean pattern of a `ContractViolation` or `ReasoningFailure`
 /// constructor: the pair of Booleans it is represented by (§17.12).
-fn violation_pattern(constructor: &MemberRef) -> Option<&'static str> {
+pub(crate) fn violation_pattern(constructor: &MemberRef) -> Option<&'static str> {
     if constructor.module.is_some() {
         return None;
     }
@@ -789,10 +791,46 @@ impl Render<'_> {
                         let pair = core::str::from_utf8(pair).expect("validated byte literal");
                         u8::from_str_radix(pair, 16).expect("validated byte literal")
                     })
-                    .map(|value| value.to_string())
+                    .collect::<Vec<_>>();
+                if self.document {
+                    let numbers = values
+                        .iter()
+                        .map(u8::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    return format!("ByteArray.mk #[{numbers}]");
+                }
+                let mut counts = [0_usize; 256];
+                for value in &values {
+                    counts[usize::from(*value)] += 1;
+                }
+                // Keep sharing inside this literal: generated locals outside it
+                // must not participate in the meaning of its octets.
+                let mut bindings = String::new();
+                for (value, count) in counts.iter().enumerate() {
+                    if *count >= 4 {
+                        bindings.push_str(&format!(
+                            "let __byte{value} : _root_.UInt8 := _root_.UInt8.ofNat (nat_lit {value}); "
+                        ));
+                    }
+                }
+                let octets = values
+                    .iter()
+                    .map(|value| {
+                        if counts[usize::from(*value)] >= 4 {
+                            format!("__byte{value}")
+                        } else {
+                            format!("(_root_.UInt8.ofNat (nat_lit {value}))")
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("ByteArray.mk #[{values}]")
+                let array = format!("_root_.ByteArray.mk #[{octets}]");
+                if bindings.is_empty() {
+                    array
+                } else {
+                    format!("({bindings}{array})")
+                }
             }
             SemanticTerm::Primitive {
                 operation,
@@ -2364,8 +2402,16 @@ pub fn render_lean(
     // project still bounds child elapsed time and captured output, and every
     // declaration is elaborated, replayed, and axiom-audited normally.
     text.push_str(
-        "set_option autoImplicit false\nset_option maxRecDepth 100000\nset_option maxHeartbeats 1000000000\nnamespace ",
+        "set_option autoImplicit false\nset_option maxRecDepth 100000\nset_option maxHeartbeats 1000000000\n",
     );
+    // A parameter named like a nullary constructor of its own type (`zero :
+    // Nat`, `red : Color`) is a valid binder, and Lean's linter reports it as
+    // resembling the constructor. The constructors of a module are never
+    // written bare, so nothing is hidden by silencing it.
+    if module.spec == "lexlean/semantic-module/2" {
+        text.push_str("set_option linter.constructorNameAsVariable false\n");
+    }
+    text.push_str("namespace ");
     text.push_str(&identifier(&document.lean_module));
     text.push('\n');
     if runtime {
@@ -3529,6 +3575,102 @@ pub fn render_latex(
         emit_declarations(checked, &text, "semantic-latex-module", &starts, end)
     } else {
         Ok(emit(checked, &text, "semantic-latex-module"))
+    }
+}
+
+#[cfg(test)]
+mod byte_literal_tests {
+    use super::{Render, SemanticParameter, SemanticTerm, SemanticType};
+
+    fn render(document: bool, term: &SemanticTerm) -> String {
+        Render {
+            prefix: "ByteFixture",
+            hypotheses: std::collections::BTreeMap::new(),
+            runtime: false,
+            document,
+            qualify: None,
+        }
+        .term(term)
+    }
+
+    fn literal(values: &[u8]) -> SemanticTerm {
+        SemanticTerm::Bytes {
+            hex: values.iter().map(|value| format!("{value:02x}")).collect(),
+        }
+    }
+
+    #[test]
+    fn byte_literals_are_explicit_octets_without_changing_document_numbers() {
+        for values in [vec![], vec![0, 255, 128], (0..=255).collect()] {
+            let term = literal(&values);
+            let explicit = values
+                .iter()
+                .map(|value| format!("(_root_.UInt8.ofNat (nat_lit {value}))"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            assert_eq!(
+                render(false, &term),
+                format!("_root_.ByteArray.mk #[{explicit}]")
+            );
+            let numbers = values
+                .iter()
+                .map(u8::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+            assert_eq!(render(true, &term), format!("ByteArray.mk #[{numbers}]"));
+        }
+    }
+
+    #[test]
+    fn repeated_octets_have_one_closed_binding_at_the_four_occurrence_boundary() {
+        assert_eq!(
+            render(false, &literal(&[0, 255, 0, 255, 0, 255, 0, 255, 128])),
+            "(let __byte0 : _root_.UInt8 := _root_.UInt8.ofNat (nat_lit 0); let __byte255 : _root_.UInt8 := _root_.UInt8.ofNat (nat_lit 255); _root_.ByteArray.mk #[__byte0, __byte255, __byte0, __byte255, __byte0, __byte255, __byte0, __byte255, (_root_.UInt8.ofNat (nat_lit 128))])"
+        );
+        for count in 1..=3 {
+            let text = render(false, &literal(&vec![255; count]));
+            assert!(!text.contains("let "), "{count} occurrences: {text}");
+            assert_eq!(text.matches("UInt8.ofNat").count(), count);
+        }
+        let all: Vec<u8> = (0..4).flat_map(|_| 0..=255).collect();
+        let text = render(false, &literal(&all));
+        assert_eq!(text.matches("let __byte").count(), 256);
+        assert_eq!(text.matches("UInt8.ofNat").count(), 256);
+        assert_eq!(text.matches("_root_.ByteArray.mk #[").count(), 1);
+        let numbers = all.iter().map(u8::to_string).collect::<Vec<_>>().join(", ");
+        assert_eq!(
+            render(true, &literal(&all)),
+            format!("ByteArray.mk #[{numbers}]")
+        );
+        assert_eq!(
+            text,
+            render(false, &literal(&all)),
+            "deterministic literal-local scope"
+        );
+    }
+
+    #[test]
+    fn shared_octet_scope_cannot_capture_an_outer_generated_local() {
+        let bytes = literal(&[0; 4]);
+        let term = SemanticTerm::Let {
+            binder: SemanticParameter {
+                name: "__byte0".to_owned(),
+                r#type: SemanticType::Nat,
+            },
+            value: Box::new(SemanticTerm::Nat {
+                value: "9".to_owned(),
+            }),
+            body: Box::new(SemanticTerm::Pair {
+                left: Box::new(SemanticTerm::Var {
+                    name: "__byte0".to_owned(),
+                }),
+                right: Box::new(bytes),
+            }),
+        };
+        assert_eq!(
+            render(false, &term),
+            "(let __byte0 : Nat := 9; (__byte0, (let __byte0 : _root_.UInt8 := _root_.UInt8.ofNat (nat_lit 0); _root_.ByteArray.mk #[__byte0, __byte0, __byte0, __byte0])))"
+        );
     }
 }
 

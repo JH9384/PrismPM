@@ -205,6 +205,7 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "scripts/ci-observe.test.mjs",
             "scripts/ci-capacity.test.mjs",
             "scripts/vv-sdk-session.test.mjs",
+            "scripts/reconcile-lexlean.test.mjs",
             "sdk/bootstrap/runner.test.mjs",
         ],
     )?;

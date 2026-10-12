@@ -399,6 +399,57 @@ def checked_result(value):
     return value
 
 
+def capture_records(output, result):
+    try:
+        checked_result(result)
+    except RuntimeError:
+        # A failed producer is not a complete captured application. Its Cargo
+        # scratch can contain ordinary hard links or oversized outputs; scanning
+        # those must not prevent transport of the original test failure. The
+        # parent still refuses this result and retains the entire owned volume.
+        # Only the existing bounded failure marker crosses this diagnostic path.
+        marker = output / "capture-failure.json"
+        if not os.path.lexists(marker):
+            return []
+        before = os.lstat(marker)
+        contents = read_regular(marker, MIB)
+        failure = json.loads(contents)
+        require(isinstance(failure, dict) and set(failure) == {
+            "phase", "code", "message", "complete_application_accepted"}, "closed failed capture marker")
+        require(failure["phase"] in ("build", "verification")
+                and isinstance(failure["code"], str) and re.fullmatch(r"PP[0-9]{4}", failure["code"])
+                and isinstance(failure["message"], str)
+                and failure["complete_application_accepted"] is False, "failed capture marker is not acceptance")
+        require(identity(os.lstat(marker)) == identity(before), "failed capture marker changed during admission")
+        return [{"path": "capture-failure.json", "kind": "file", "bytes": len(contents),
+                 "sha256": sha(contents), "executable": bool(before.st_mode & 0o100)}]
+    return tree(output) if any(output.iterdir()) else []
+
+
+def transport_capture(output, result, bindings, stdout, stderr, stream):
+    original = None
+    try:
+        records = capture_records(output, result)
+    except Exception as error:
+        # Transport the actual bounded test streams even if secondary evidence
+        # admission fails. The original result is unchanged, the inventory is
+        # explicitly empty, and the guest fails before retirement acknowledgement.
+        records, original = [], error
+    response = {"result": result, **bindings, "stdout_bytes": len(stdout), "stderr_bytes": len(stderr),
+                "records": records}
+    stream.write(encoded(response) + stdout + stderr)
+    stream.flush()
+    if original is not None:
+        raise original
+    for record in records:
+        if record["kind"] == "file":
+            contents = read_regular(output / record["path"], record["bytes"])
+            require(len(contents) == record["bytes"] and sha(contents) == record["sha256"],
+                    "capture member changed during transport")
+            stream.write(contents)
+    stream.flush()
+
+
 def checked_response(value, descriptor):
     require(isinstance(value, dict) and set(value) == {"result", "executable_sha256", "inventory_sha256",
             "source_sha256", "stdout_bytes", "stderr_bytes", "records"}, "closed actual capture response")
@@ -522,17 +573,8 @@ def guest():
     require([row(SDK_ROOT, r["path"]) for r in descriptor["source"]] == descriptor["source"],
             "immutable SDK inputs changed during capture")
     require(fixture_rows(SDK_ROOT) == descriptor["fixture_inputs"], "immutable SDK fixture closure changed during capture")
-    rows = tree(output) if any(output.iterdir()) else []
-    response = {"result": result, "executable_sha256": sha(body),
-                "inventory_sha256": sha(inventory), "source_sha256": sha(encoded(descriptor["source"])),
-                "stdout_bytes": len(stdout), "stderr_bytes": len(stderr), "records": rows}
-    sys.stdout.buffer.write(encoded(response) + stdout + stderr)
-    for record in rows:
-        if record["kind"] == "file":
-            contents = read_regular(output / record["path"])
-            require(sha(contents) == record["sha256"], "capture member changed during transport")
-            sys.stdout.buffer.write(contents)
-    sys.stdout.buffer.flush()
+    transport_capture(output, result, {"executable_sha256": sha(body), "inventory_sha256": sha(inventory),
+                      "source_sha256": sha(encoded(descriptor["source"]))}, stdout, stderr, sys.stdout.buffer)
     require(reader.line() == {"retire": True}, "retirement acknowledgement required")
 
 

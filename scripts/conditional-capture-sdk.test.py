@@ -10,6 +10,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("capture_boundary", Path(__file__).with_name("conditional-capture-sdk.py"))
 boundary = importlib.util.module_from_spec(spec)
@@ -241,6 +242,144 @@ class BoundaryControls(unittest.TestCase):
             added.symlink_to("model.lex.tex")
             with self.assertRaises(RuntimeError):
                 boundary.fixture_rows(root)
+
+    def test_failed_capture_retains_original_marker_without_scanning_cargo_scratch(self):
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            marker = {"phase": "verification", "code": "PP5301", "message": "original producer failure",
+                      "complete_application_accepted": False}
+            (root / "capture-failure.json").write_bytes(boundary.encoded(marker))
+            scratch = root / "failed-producer-source/target"
+            scratch.mkdir(parents=True)
+            (scratch / "build-script-build").write_bytes(b"real scratch bytes")
+            os.link(scratch / "build-script-build", scratch / "build_script_build")
+            os.mkfifo(scratch / "nonregular-scratch")
+            with self.assertRaisesRegex(RuntimeError, "bounded singly linked regular input required"):
+                boundary.tree(root)
+            failed = self.result()
+            failed["status"] = 7
+            rows = boundary.capture_records(root, failed)
+            self.assertEqual(rows, [boundary.row(root, "capture-failure.json")])
+            self.assertEqual(boundary.validate_rows(rows, capture=True), rows)
+            self.assertEqual(boundary.read_regular(root / "capture-failure.json"), boundary.encoded(marker))
+            with self.assertRaisesRegex(RuntimeError, "actual successful child result"):
+                boundary.checked_result(failed)
+            # A forged diagnostic marker cannot bypass successful-tree custody.
+            with self.assertRaisesRegex(RuntimeError, "bounded singly linked regular input required"):
+                boundary.capture_records(root, self.result())
+
+    def test_failed_capture_marker_is_closed_bounded_and_cannot_claim_acceptance(self):
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            marker = root / "capture-failure.json"
+            failure = {"phase": "build", "code": "PP5101", "message": "original failure",
+                       "complete_application_accepted": False}
+            failed = self.result()
+            failed["status"] = 1
+            for key, value in (("extra", True), ("phase", "success"), ("code", "not-a-code"),
+                               ("message", {}), ("complete_application_accepted", True),
+                               ("complete_application_accepted", 0)):
+                changed = {**failure, key: value}
+                marker.write_bytes(boundary.encoded(changed))
+                with self.subTest(key=key, value=value), self.assertRaises(RuntimeError):
+                    boundary.capture_records(root, failed)
+            marker.write_bytes(boundary.encoded(failure))
+            os.link(marker, root / "alias")
+            with self.assertRaises(RuntimeError):
+                boundary.capture_records(root, failed)
+            (root / "alias").unlink()
+            marker.unlink()
+            (root / "target").write_bytes(boundary.encoded(failure))
+            marker.symlink_to("target")
+            with self.assertRaises(RuntimeError):
+                boundary.capture_records(root, failed)
+            marker.unlink()
+            with marker.open("xb") as stream:
+                stream.truncate(boundary.MIB + 1)
+            with self.assertRaises(RuntimeError):
+                boundary.capture_records(root, failed)
+
+    def test_failed_capture_without_marker_never_becomes_success(self):
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            (root / "unqualified").mkdir()
+            os.mkfifo(root / "unqualified/scratch")
+            failed = self.result()
+            failed["status"] = 1
+            self.assertEqual(boundary.capture_records(root, failed), [])
+            with self.assertRaises(RuntimeError):
+                boundary.checked_result(failed)
+            with self.assertRaises(RuntimeError):
+                boundary.capture_records(root, self.result())
+
+    def test_failed_capture_keeps_real_process_streams_and_strict_result_refusals(self):
+        process = boundary.run_bounded(["/usr/bin/python3", "-I", "-B", "-c",
+            "import os; os.write(1,b'original stdout\\n'); os.write(2,b'original stderr\\n'); raise SystemExit(7)"])
+        self.assertEqual((process.returncode, process.stdout, process.stderr),
+                         (7, b"original stdout\n", b"original stderr\n"))
+        with tempfile.TemporaryDirectory() as owner:
+            output = Path(owner)
+            result = self.result()
+            mutations = [{**result, "status": process.returncode}, {**result, "status": False},
+                         {**result, "status": None}, {**result, "signal": "SIGTERM"},
+                         {**result, "retirement": {**result["retirement"], "descendants_absent": False}},
+                         {**result, "extra": True}]
+            for changed in mutations:
+                with self.subTest(result=changed):
+                    self.assertEqual(boundary.capture_records(output, changed), [])
+                    with self.assertRaises(RuntimeError):
+                        boundary.checked_result(changed)
+            self.assertEqual((process.returncode, process.stdout, process.stderr),
+                             (7, b"original stdout\n", b"original stderr\n"))
+
+    def test_failed_marker_substitution_between_validation_and_measurement_is_refused(self):
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            marker = root / "capture-failure.json"
+            value = {"phase": "build", "code": "PP5101", "message": "original failure",
+                     "complete_application_accepted": False}
+            marker.write_bytes(boundary.encoded(value))
+            failed = {**self.result(), "status": 1}
+            loads = boundary.json.loads
+            def replace_after_parse(contents):
+                parsed = loads(contents)
+                marker.write_bytes(boundary.encoded({**value, "complete_application_accepted": True}))
+                return parsed
+            with patch.object(boundary.json, "loads", replace_after_parse):
+                with self.assertRaisesRegex(RuntimeError, "failed capture marker changed during admission"):
+                    boundary.capture_records(root, failed)
+
+    def test_actual_failed_wire_preserves_streams_on_secondary_marker_refusal(self):
+        process = boundary.run_bounded(["/usr/bin/python3", "-I", "-B", "-c",
+            "import os; os.write(1,b'original stdout\\n'); os.write(2,b'original stderr\\n'); raise SystemExit(7)"])
+        result = {**self.result(), "status": process.returncode}
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            for body in (b"malformed", boundary.encoded({"complete_application_accepted": True})):
+                (root / "capture-failure.json").write_bytes(body)
+                reader_fd, writer_fd = os.pipe()
+                failures = []
+                def send():
+                    try:
+                        with os.fdopen(writer_fd, "wb", buffering=0) as stream:
+                            boundary.transport_capture(root, result, {}, process.stdout, process.stderr, stream)
+                    except Exception as error:
+                        failures.append(error)
+                sender = threading.Thread(target=send)
+                sender.start()
+                with os.fdopen(reader_fd, "rb", buffering=0) as stream:
+                    wire = boundary.Reader(stream, time.monotonic() + 5)
+                    response = wire.line()
+                    self.assertEqual(response["result"], result)
+                    self.assertEqual(response["records"], [])
+                    self.assertEqual(wire.exact(response["stdout_bytes"]), process.stdout)
+                    self.assertEqual(wire.exact(response["stderr_bytes"]), process.stderr)
+                    wire.exhausted()
+                sender.join(timeout=5)
+                self.assertFalse(sender.is_alive())
+                self.assertEqual(len(failures), 1)
+                with self.assertRaises(RuntimeError):
+                    boundary.checked_result(response["result"])
 
     def test_receipt_join_controls_use_retained_bytes_and_complete_original_inventory(self):
         descriptor = self.descriptor()

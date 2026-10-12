@@ -146,8 +146,23 @@ class InstallerBoundary(unittest.TestCase):
             (self.destination / "guard").write_bytes(b"late independent destination")
             return original(arguments, **kwargs)
         with patch.object(INSTALL.subprocess, "run", side_effect=race):
-            with self.assertRaisesRegex(ValueError, "publication refused"):
+            try:
                 INSTALL.install_archive(self.archive, self.authority, self.destination)
+            except ValueError as error:
+                # Older coreutils leaves the stage in place and exits zero.
+                self.assertRegex(str(error), "publication refused")
+            except subprocess.CalledProcessError as error:
+                # Current coreutils reports the same real no-clobber refusal
+                # with exit one. Do not accept another command or failure.
+                self.assertEqual(error.returncode, 1)
+                self.assertEqual(error.cmd[:4],
+                                 ["/usr/bin/mv", "--no-clobber", "--no-target-directory", "--"])
+                self.assertEqual(len(error.cmd), 6)
+                self.assertEqual(error.cmd[5], str(self.destination))
+                self.assertEqual(Path(error.cmd[4]).parent, self.destination.parent)
+                self.assertTrue(Path(error.cmd[4]).name.startswith(".chromium-input-"))
+            else:
+                self.fail("late foreign destination must refuse publication")
         self.assertEqual((self.destination / "guard").read_bytes(), b"late independent destination")
         self.assertFalse(list(self.work.glob(".chromium-input-*")))
 

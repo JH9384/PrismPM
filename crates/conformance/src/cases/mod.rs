@@ -2972,7 +2972,7 @@ fn verify_portable_view_report(root: &Path) {
             "schema":"prismpm/portable-browser-oracle/1",
             "profile":"utf8-text",
             "engine":"chromium",
-            "browser_version":"151.0.7922.34",
+            "browser_version":"157.0.8099.0",
             "playwright":"1.62.1",
             "cases":cases,
             "vector_indexes":[0,2,3],

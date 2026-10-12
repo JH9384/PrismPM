@@ -3,13 +3,19 @@
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import signal
 import subprocess
 import uuid
 
-IMAGE = "sha256:29b3ca3d941205958e4dde46aaf802437dbb7a8d3f5c4db567a6563cba60dd74"
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def immutable_image(value):
+    if re.fullmatch(r"sha256:[a-f0-9]{64}", value) is None:
+        raise argparse.ArgumentTypeError("an explicit already-built immutable image ID is required")
+    return value
 
 
 def docker(*args, timeout=30):
@@ -19,6 +25,8 @@ def docker(*args, timeout=30):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--image", type=immutable_image, required=True,
+                        help="exact corrected devcontainer image ID; diagnostics are not image qualification")
     parser.add_argument("--artifact-directory", type=Path, required=True)
     parser.add_argument("--oracle", type=Path, required=True)
     parser.add_argument("--evidence-directory", type=Path, required=True)
@@ -29,6 +37,13 @@ def main():
                         "private-method", "pretend-body-failure", "body-plus-cleanup", "cleanup-failure", "setup-failure",
                         "delayed-duplicate", "delayed-wrong-response", "delayed-stuck-busy"])
     args = parser.parse_args()
+    image = args.image
+    profile = json.loads(docker("image", "inspect", image))[0]
+    assert profile["Id"] == image and profile["Os"] == "linux"
+    assert profile["Architecture"] in ("amd64", "arm64")
+    native_directory = {"amd64": "linux64", "arm64": "linux-arm64"}[profile["Architecture"]]
+    browser = ("/ms-playwright/chromium_headless_shell-cft-157.0.8099.0/"
+               f"chrome-headless-shell-{native_directory}/chrome-headless-shell")
     artifact = args.artifact_directory.resolve(strict=True)
     oracle = args.oracle.resolve(strict=True)
     evidence = args.evidence_directory.absolute()
@@ -53,12 +68,12 @@ def main():
                      "--mount", f"type=bind,src={artifact},dst=/artifact,readonly",
                      "--mount", f"type=bind,src={oracle},dst=/oracle,readonly",
                      "--mount", f"type=bind,src={evidence},dst=/evidence",
-                     "--entrypoint", "node", IMAGE,
+                     "--entrypoint", "node", image,
                      "/source/scripts/portable-oracle-submission-probe.mjs", "/oracle",
-                     "/artifact", "/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell",
+                     "/artifact", browser,
                      args.case, "/evidence/probe", args.trigger).strip()
         inspected = json.loads(docker("inspect", cid))[0]
-        assert inspected["Image"] == IMAGE
+        assert inspected["Image"] == image
         assert inspected["Config"]["Labels"].get("org.prismpm.oracle-probe") == token
         with (evidence / "container.stdout").open("xb") as stdout, (evidence / "container.stderr").open("xb") as stderr:
             subprocess.run(["docker", "start", "--attach", cid], stdout=stdout, stderr=stderr,
@@ -95,7 +110,7 @@ def main():
         except BaseException as error:
             cleanup_errors.append(repr(error))
         (evidence / "container.json").write_text(json.dumps({
-            "schema": "prismpm/oracle-probe-container/1", "image": IMAGE,
+            "schema": "prismpm/oracle-probe-container/1", "image": image,
             "container": cid, "name": name, "label": label, "cleanup_verified": cleaned,
             "cleanup_errors": cleanup_errors, "execution_error": execution_error,
             "product_acceptance": "not-established"}) + "\n")

@@ -1,0 +1,176 @@
+name: Verify corrected Chromium interoperability
+
+on:
+  pull_request:
+    branches: [test/sdk-metadata-native-join]
+    paths:
+      - sdk/browser-engine/**
+      - sdk/Dockerfile
+      - sdk/generate-inventory.mjs
+      - .devcontainer/Dockerfile
+      - .devcontainer/devcontainer.json
+      - .github/workflows/browser-input-interop.yml
+      - tools.lock
+      - scripts/browser-engine-input.test.mjs
+      - scripts/chromium-interop-reader.test.mjs
+      - scripts/browser-environment-preflight.*
+      - scripts/portable-oracle-*
+      - sdk/browser/browser-test-server.mjs
+      - sdk/oracles/package.json
+      - sdk/oracles/package-lock.json
+      - tests/data/portable-oracle-matrix.json
+      - tests/hologram-oracle/**
+      - vendor/hologram-live.tar
+      - crates/prismpm/src/browser_oracle.rs
+      - crates/prismpm/src/embedded/hologram-oracle.browser.mjs
+      - crates/prismpm/src/embedded/hologram-oracle.Cargo.*
+      - crates/prismpm/src/embedded/hologram-oracle.main.rs
+      - crates/prismpm/src/verification.rs
+      - crates/prismpm/src/release_verification.rs
+      - crates/prismpm/tests/hologram_interop.rs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chromium-interop-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  interoperability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Execute every original interoperability owner in the corrected devcontainer
+        uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6
+        env:
+          SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        with:
+          push: never
+          env: SOURCE_REVISION
+          runCmd: |
+            set -euo pipefail
+            test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+            git diff HEAD --exit-code
+            mkdir -p target/ci-diagnostics/chromium-interop
+            git rev-parse HEAD > target/ci-diagnostics/chromium-interop/source.txt
+            node --test --test-concurrency=1 --test-reporter=./scripts/owning-node-reporter.mjs scripts/browser-engine-input.test.mjs scripts/chromium-interop-reader.test.mjs scripts/browser-environment-preflight.test.mjs scripts/portable-oracle-matrix.test.mjs 2>&1 | tee target/ci-diagnostics/chromium-interop/node.log
+            cargo test --locked --offline --package prismpm --test hologram_interop -- --test-threads=1 --nocapture 2>&1 | tee target/ci-diagnostics/chromium-interop/interop.log
+            node --input-type=module <<'VERIFY_CHROMIUM_INTEROP'
+            import assert from 'node:assert/strict';
+            import {createHash} from 'node:crypto';
+            import {lstatSync,opendirSync,readFileSync,readdirSync,realpathSync} from 'node:fs';
+            import {resolve,join} from 'node:path';
+            import {verifyTap,verifyFileCompletions} from './scripts/browser-api-sdk-check.mjs';
+            import {readDiagnosticFile,diagnosticLimits} from './scripts/portable-oracle-diagnostics.mjs';
+            import {retirementFaults} from './scripts/portable-oracle-retirement.mjs';
+            const node=readFileSync('target/ci-diagnostics/chromium-interop/node.log','utf8');
+            assert.equal(verifyTap(node,69),69);
+            verifyFileCompletions(node,['scripts/browser-engine-input.test.mjs','scripts/chromium-interop-reader.test.mjs','scripts/browser-environment-preflight.test.mjs','scripts/portable-oracle-matrix.test.mjs'].map(path=>resolve(path)),69);
+            const rust=readFileSync('target/ci-diagnostics/chromium-interop/interop.log','utf8');
+            assert.equal((rust.match(/^test result: ok\. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;/gm)||[]).length,1);
+            for(const name of ['test_hologram_oracle_pinned_source_identities','test_portable_view_profiles_and_owned_failure_matrix','test_hologram_oracle_negative_probes_reject_wrong_subject_edition_and_mutations'])
+              assert.equal((rust.match(new RegExp('^test '+name+' \\.\\.\\.(?: |$)','gm'))||[]).length,1);
+            const bundles=readdirSync('target/ci-diagnostics').filter(name=>name.startsWith('portable-oracle-'));
+            assert.equal(bundles.length,1);
+            const root=resolve('target/ci-diagnostics',bundles[0]);
+            const observed=new Map();
+            const identity=path=>{
+              assert.equal(realpathSync(path),resolve(path));
+              const value=lstatSync(path,{bigint:true});
+              assert.ok(!value.isSymbolicLink());
+              if(observed.has(path))for(const field of ['dev','ino','mode','uid','gid','nlink','size','mtimeNs','ctimeNs'])
+                assert.equal(value[field],observed.get(path)[field],'retained diagnostic changed: '+path);
+              else observed.set(path,value);
+              return value;
+            };
+            assert.ok(identity(root).isDirectory());
+            const matrix=JSON.parse(readDiagnosticFile('tests/data/portable-oracle-matrix.json',65536));
+            assert.equal(matrix.schema,'prismpm/portable-oracle-matrix/1');
+            assert.deepEqual(matrix.profiles.map(row=>row.name),['Calculator','Text Request']);
+            assert.deepEqual(matrix.triggers,['click','keyboard']);
+            assert.equal(matrix.interaction_cases.length,18);
+            assert.equal(matrix.infrastructure_cases.length,3);
+            const cases=matrix.profiles.flatMap((_,index)=>[
+              ...matrix.triggers.flatMap(trigger=>matrix.interaction_cases.map(name=>`${index}-${trigger}-${name}`)),
+              ...matrix.infrastructure_cases.map(name=>`${index}-click-${name}`)]);
+            const negatives=matrix.profiles.flatMap((_,index)=>['wrong-status','noop'].map(name=>`${index}-probe-control-${name}`));
+            const observations=matrix.profiles.flatMap((_,index)=>matrix.triggers.flatMap(trigger=>['observed','unobserved'].map(mode=>`${index}-observation-${trigger}-${mode}`)));
+            const retirements=matrix.profiles.flatMap((_,index)=>retirementFaults.flatMap(fault=>
+              (['pending-detach','rejected-detach','primary-body-failure'].includes(fault)?matrix.triggers:['click'])
+                .map(trigger=>`${index}-retirement-${trigger}-${fault}`)));
+            assert.equal(cases.length,78);assert.equal(negatives.length,4);
+            assert.equal(observations.length,8);assert.equal(retirements.length,32);
+            const expected=['source-witnesses.json','outcomes.json',
+              ...matrix.profiles.flatMap((_,index)=>['model','archive','wasm','verification'].map(name=>`subjects/${index}-${name}`)),
+              ...[...cases,...negatives,...observations,...retirements].flatMap(id=>[`cases/${id}.driver.mjs`,`cases/${id}.json`])].sort();
+            assert.equal(expected.length,254);
+            assert.equal(new Set(expected).size,254);
+            identity(join(root,'index.json'));
+            const index=JSON.parse(readDiagnosticFile(join(root,'index.json'),diagnosticLimits.indexBytes));
+            assert.equal(index.schema,'prismpm/portable-oracle-diagnostic-bundle/1');
+            assert.equal(index.state,'completed');
+            assert.equal(index.scope,'diagnostics-only-not-acceptance');
+            assert.deepEqual(Object.keys(index).sort(),['files','schema','scope','state','total_bytes']);
+            assert.ok(Array.isArray(index.files)&&index.files.length===254&&index.files.length<=diagnosticLimits.files-2);
+            assert.ok(Number.isSafeInteger(index.total_bytes)&&index.total_bytes>=0&&index.total_bytes<=diagnosticLimits.totalBytes-2*diagnosticLimits.indexBytes);
+            assert.deepEqual(index.files.map(row=>row.path).sort(),expected);
+            assert.equal(new Set(index.files.map(row=>row.path)).size,index.files.length);
+            const physical=new Set([...expected,'index.json','cases/','subjects/']);
+            const actual=[];
+            const visit=(path,prefix)=>{
+              assert.ok(identity(path).isDirectory());
+              const iterator=opendirSync(path,{bufferSize:1});
+              try{for(let entry;(entry=iterator.readSync())!==null;){
+                assert.ok(actual.length<257,'bounded physical diagnostic inventory');
+                const selected=join(path,entry.name),stat=identity(selected);
+                const name=prefix+entry.name+(stat.isDirectory()?'/':'');
+                assert.ok(physical.has(name),'unindexed diagnostic output: '+name);
+                actual.push(name);
+                if(stat.isDirectory())visit(selected,name);
+                else assert.ok(stat.isFile()&&stat.nlink===1n);
+              }}finally{iterator.closeSync();}
+            };
+            visit(root,'');
+            assert.deepEqual(actual.sort(),[...physical].sort());
+            let bytes=0;
+            let outcomes;
+            for(const row of index.files){
+              assert.deepEqual(Object.keys(row).sort(),['byte_length','path','sha256']);
+              assert.ok(typeof row.path==='string'&&row.path.length<=160&&row.path.split('/').length<=4&&/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(row.path)&&row.path.split('/').every(part=>part!==''&&part!=='.'&&part!=='..'));
+              assert.ok(Number.isSafeInteger(row.byte_length)&&row.byte_length>=0&&row.byte_length<=diagnosticLimits.fileBytes);
+              assert.match(row.sha256,/^[a-f0-9]{64}$/);
+              assert.ok(bytes+row.byte_length<=diagnosticLimits.totalBytes-2*diagnosticLimits.indexBytes);
+              const data=readDiagnosticFile(join(root,row.path));
+              assert.equal(data.length,row.byte_length);
+              assert.equal(createHash('sha256').update(data).digest('hex'),row.sha256);
+              if(row.path==='outcomes.json')outcomes=JSON.parse(data);
+              bytes+=data.length;
+            }
+            assert.equal(bytes,index.total_bytes);
+            assert.deepEqual(Object.keys(outcomes).sort(),['cases','negative_controls','retirement_controls']);
+            for(const [name,ids,status] of [['cases',cases,'passed'],['negative_controls',negatives,'refused-as-required'],['retirement_controls',retirements,'passed']]){
+              assert.ok(Array.isArray(outcomes[name]));
+              assert.deepEqual(outcomes[name].map(row=>row.id).sort(),ids.slice().sort());
+              for(const row of outcomes[name]){
+                assert.deepEqual(Object.keys(row).sort(),['id','status']);
+                assert.equal(row.status,status);
+              }
+            }
+            for(const path of observed.keys())identity(path);
+            VERIFY_CHROMIUM_INTEROP
+            git diff HEAD --exit-code
+      - name: Preserve original owner logs and complete bounded diagnostic bundle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: chromium-interop-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/ci-diagnostics/
+          if-no-files-found: error
+          retention-days: 14

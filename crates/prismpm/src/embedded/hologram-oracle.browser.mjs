@@ -244,8 +244,8 @@ const first = await input.next();
 assert.equal(first.done, false);
 const {origin, application: app, browser_executable: browserExecutable} = JSON.parse(first.value);
 assert.equal(browserExecutable, process.arch === 'x64'
-  ? '/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell'
-  : '/ms-playwright/chromium_headless_shell-1234/chrome-linux/headless_shell');
+  ? '/ms-playwright/chromium_headless_shell-cft-157.0.8099.0/chrome-headless-shell-linux64/chrome-headless-shell'
+  : '/ms-playwright/chromium_headless_shell-cft-157.0.8099.0/chrome-headless-shell-linux-arm64/chrome-headless-shell');
 assert.ok(Number.isInteger(app.request_maximum) && app.request_maximum > 0 && app.request_maximum <= 65_536,
   'request bound exceeds pinned portable View transport');
 assert.ok(Number.isInteger(app.response_maximum) && app.response_maximum > 0 && app.response_maximum <= 1_048_576,
@@ -263,7 +263,7 @@ const vectorIndexes = [];
 let activeJourney = 'setup';
 browser = await chromium.launch({headless: true, executablePath: browserExecutable});
 assert.equal(browser.browserType().name(), 'chromium');
-assert.equal(browser.version(), '151.0.7922.34');
+assert.equal(browser.version(), '157.0.8099.0');
 const context = await browser.newContext();
 const page = await context.newPage();
 const unexpected = [];

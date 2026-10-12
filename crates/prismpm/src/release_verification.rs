@@ -1377,10 +1377,10 @@ fn application_binding(
     )?;
     let browser = match lex["host"]["arch"].as_str() {
         Some("x86_64") => {
-            "/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell"
+            "/ms-playwright/chromium_headless_shell-cft-157.0.8099.0/chrome-headless-shell-linux64/chrome-headless-shell"
         }
         Some("aarch64") => {
-            "/ms-playwright/chromium_headless_shell-1234/chrome-linux/headless_shell"
+            "/ms-playwright/chromium_headless_shell-cft-157.0.8099.0/chrome-headless-shell-linux-arm64/chrome-headless-shell"
         }
         _ => return Err(invalid("application oracle host architecture differs")),
     };

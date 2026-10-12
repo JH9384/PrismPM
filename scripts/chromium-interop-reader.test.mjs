@@ -21,12 +21,14 @@ const matrix=JSON.parse(readFileSync(join(sourceRoot,'tests/data/portable-oracle
 const cases=matrix.profiles.flatMap((_,index)=>[
   ...matrix.triggers.flatMap(trigger=>matrix.interaction_cases.map(name=>`${index}-${trigger}-${name}`)),
   ...matrix.infrastructure_cases.map(name=>`${index}-click-${name}`)]);
-const negatives=matrix.profiles.flatMap((_,index)=>['wrong-status','noop'].map(name=>`${index}-probe-control-${name}`));
-const observations=matrix.profiles.flatMap((_,index)=>matrix.triggers.flatMap(trigger=>['observed','unobserved'].map(mode=>`${index}-observation-${trigger}-${mode}`)));
+const negatives=matrix.profiles.flatMap((_,index)=>[
+  ...['wrong-status','noop'].map(name=>`${index}-probe-control-${name}`),
+  ...matrix.triggers.flatMap(trigger=>['omit-finished','malformed-finished'].map(name=>`${index}-probe-control-${name}-${trigger}`))]);
+const observations=matrix.profiles.flatMap((_,index)=>matrix.triggers.flatMap(trigger=>['observed','unobserved','ordinary'].map(mode=>`${index}-observation-${trigger}-${mode}`)));
 const retirements=matrix.profiles.flatMap((_,index)=>retirementFaults.flatMap(fault=>
   (['pending-detach','rejected-detach','primary-body-failure'].includes(fault)?matrix.triggers:['click'])
     .map(trigger=>`${index}-retirement-${trigger}-${fault}`)));
-const controls=['positive','empty-index-unindexed-outcomes','omitted-indexed-subject','foreign-output','duplicate-outcome','changed-payload','hardlinked-payload','symlink-payload','wrong-status'];
+const controls=['positive','empty-index-unindexed-outcomes','omitted-indexed-subject','foreign-output','duplicate-outcome','changed-payload','hardlinked-payload','symlink-payload','wrong-status','omitted-completion-negative','omitted-added-retirement','omitted-ordinary-observation'];
 for(const control of controls)test('Chromium CI retained-reader '+control,()=>{
   const root=mkdtempSync(join(tmpdir(),'prismpm-ci-reader-fixture-'));
   try{
@@ -44,6 +46,8 @@ for(const control of controls)test('Chromium CI retained-reader '+control,()=>{
     const result={cases:cases.map(id=>({id,status:'passed'})),negative_controls:negatives.map(id=>({id,status:'refused-as-required'})),retirement_controls:retirements.map(id=>({id,status:'passed'}))};
     if(control==='duplicate-outcome')result.cases[1].id=result.cases[0].id;
     if(control==='wrong-status')result.cases[0].status='failed';
+    if(control==='omitted-completion-negative')result.negative_controls=result.negative_controls.filter(row=>row.id!=='0-probe-control-omit-finished-keyboard');
+    if(control==='omitted-added-retirement')result.retirement_controls=result.retirement_controls.filter(row=>row.id!=='0-retirement-click-rejected-acquisition');
     bundle.finish(result,true);
     const indexed=join(bundle.path,'index.json'),payload=join(bundle.path,'subjects/0-model');
     if(control==='empty-index-unindexed-outcomes'){
@@ -53,6 +57,11 @@ for(const control of controls)test('Chromium CI retained-reader '+control,()=>{
     if(control==='omitted-indexed-subject'){
       const index=JSON.parse(readFileSync(indexed));const omitted=index.files.find(row=>row.path==='subjects/0-model');
       index.files=index.files.filter(row=>row!==omitted);index.total_bytes-=omitted.byte_length;
+      writeFileSync(indexed,JSON.stringify(index));
+    }
+    if(control==='omitted-ordinary-observation'){
+      const index=JSON.parse(readFileSync(indexed));const omitted=index.files.find(row=>row.path==='cases/0-observation-click-ordinary.driver.mjs');
+      assert.ok(omitted);index.files=index.files.filter(row=>row!==omitted);index.total_bytes-=omitted.byte_length;
       writeFileSync(indexed,JSON.stringify(index));
     }
     if(control==='foreign-output')writeFileSync(join(bundle.path,'unindexed'), 'foreign');

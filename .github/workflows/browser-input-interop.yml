@@ -2,7 +2,7 @@ name: Verify corrected Chromium interoperability
 
 on:
   pull_request:
-    branches: [test/sdk-metadata-native-join]
+    branches: [test/sdk-metadata-native-join, integration/production-pr-components]
     paths:
       - sdk/browser-engine/**
       - sdk/Dockerfile
@@ -13,6 +13,9 @@ on:
       - tools.lock
       - scripts/browser-engine-input.test.mjs
       - scripts/chromium-interop-reader.test.mjs
+      - scripts/browser-api-sdk-check.mjs
+      - scripts/browser-api-sdk-check.test.mjs
+      - scripts/hologram-source-pins.mjs
       - scripts/browser-environment-preflight.*
       - scripts/portable-oracle-*
       - sdk/browser/browser-test-server.mjs
@@ -71,8 +74,8 @@ jobs:
             import {readDiagnosticFile,diagnosticLimits} from './scripts/portable-oracle-diagnostics.mjs';
             import {retirementFaults} from './scripts/portable-oracle-retirement.mjs';
             const node=readFileSync('target/ci-diagnostics/chromium-interop/node.log','utf8');
-            assert.equal(verifyTap(node,69),69);
-            verifyFileCompletions(node,['scripts/browser-engine-input.test.mjs','scripts/chromium-interop-reader.test.mjs','scripts/browser-environment-preflight.test.mjs','scripts/portable-oracle-matrix.test.mjs'].map(path=>resolve(path)),69);
+            assert.equal(verifyTap(node,82),82);
+            verifyFileCompletions(node,['scripts/browser-engine-input.test.mjs','scripts/chromium-interop-reader.test.mjs','scripts/browser-environment-preflight.test.mjs','scripts/portable-oracle-matrix.test.mjs'].map(path=>resolve(path)),82);
             const rust=readFileSync('target/ci-diagnostics/chromium-interop/interop.log','utf8');
             assert.equal((rust.match(/^test result: ok\. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;/gm)||[]).length,1);
             for(const name of ['test_hologram_oracle_pinned_source_identities','test_portable_view_profiles_and_owned_failure_matrix','test_hologram_oracle_negative_probes_reject_wrong_subject_edition_and_mutations'])
@@ -100,25 +103,27 @@ jobs:
             const cases=matrix.profiles.flatMap((_,index)=>[
               ...matrix.triggers.flatMap(trigger=>matrix.interaction_cases.map(name=>`${index}-${trigger}-${name}`)),
               ...matrix.infrastructure_cases.map(name=>`${index}-click-${name}`)]);
-            const negatives=matrix.profiles.flatMap((_,index)=>['wrong-status','noop'].map(name=>`${index}-probe-control-${name}`));
-            const observations=matrix.profiles.flatMap((_,index)=>matrix.triggers.flatMap(trigger=>['observed','unobserved'].map(mode=>`${index}-observation-${trigger}-${mode}`)));
+            const negatives=matrix.profiles.flatMap((_,index)=>[
+              ...['wrong-status','noop'].map(name=>`${index}-probe-control-${name}`),
+              ...matrix.triggers.flatMap(trigger=>['omit-finished','malformed-finished'].map(name=>`${index}-probe-control-${name}-${trigger}`))]);
+            const observations=matrix.profiles.flatMap((_,index)=>matrix.triggers.flatMap(trigger=>['observed','unobserved','ordinary'].map(mode=>`${index}-observation-${trigger}-${mode}`)));
             const retirements=matrix.profiles.flatMap((_,index)=>retirementFaults.flatMap(fault=>
               (['pending-detach','rejected-detach','primary-body-failure'].includes(fault)?matrix.triggers:['click'])
                 .map(trigger=>`${index}-retirement-${trigger}-${fault}`)));
-            assert.equal(cases.length,78);assert.equal(negatives.length,4);
-            assert.equal(observations.length,8);assert.equal(retirements.length,32);
+            assert.equal(cases.length,78);assert.equal(negatives.length,12);
+            assert.equal(observations.length,12);assert.equal(retirements.length,34);
             const expected=['source-witnesses.json','outcomes.json',
               ...matrix.profiles.flatMap((_,index)=>['model','archive','wasm','verification'].map(name=>`subjects/${index}-${name}`)),
               ...[...cases,...negatives,...observations,...retirements].flatMap(id=>[`cases/${id}.driver.mjs`,`cases/${id}.json`])].sort();
-            assert.equal(expected.length,254);
-            assert.equal(new Set(expected).size,254);
+            assert.equal(expected.length,282);
+            assert.equal(new Set(expected).size,282);
             identity(join(root,'index.json'));
             const index=JSON.parse(readDiagnosticFile(join(root,'index.json'),diagnosticLimits.indexBytes));
             assert.equal(index.schema,'prismpm/portable-oracle-diagnostic-bundle/1');
             assert.equal(index.state,'completed');
             assert.equal(index.scope,'diagnostics-only-not-acceptance');
             assert.deepEqual(Object.keys(index).sort(),['files','schema','scope','state','total_bytes']);
-            assert.ok(Array.isArray(index.files)&&index.files.length===254&&index.files.length<=diagnosticLimits.files-2);
+            assert.ok(Array.isArray(index.files)&&index.files.length===282&&index.files.length<=diagnosticLimits.files-2);
             assert.ok(Number.isSafeInteger(index.total_bytes)&&index.total_bytes>=0&&index.total_bytes<=diagnosticLimits.totalBytes-2*diagnosticLimits.indexBytes);
             assert.deepEqual(index.files.map(row=>row.path).sort(),expected);
             assert.equal(new Set(index.files.map(row=>row.path)).size,index.files.length);
@@ -128,7 +133,7 @@ jobs:
               assert.ok(identity(path).isDirectory());
               const iterator=opendirSync(path,{bufferSize:1});
               try{for(let entry;(entry=iterator.readSync())!==null;){
-                assert.ok(actual.length<257,'bounded physical diagnostic inventory');
+                assert.ok(actual.length<285,'bounded physical diagnostic inventory');
                 const selected=join(path,entry.name),stat=identity(selected);
                 const name=prefix+entry.name+(stat.isDirectory()?'/':'');
                 assert.ok(physical.has(name),'unindexed diagnostic output: '+name);

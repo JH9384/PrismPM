@@ -4,6 +4,8 @@ from contextlib import ExitStack, redirect_stderr
 import importlib.util
 import os
 from pathlib import Path
+import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -18,6 +20,145 @@ spec.loader.exec_module(boundary)
 
 
 class BoundaryControls(unittest.TestCase):
+    def test_private_cache_retains_actual_native_execution_without_executing_data(self):
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            tool = root / "actual-native-tool"
+            shutil.copyfile("/usr/bin/true", tool)
+            tool.chmod(0o555)
+            data = root / "dependency-data"
+            data.write_bytes(boundary.read_regular(tool))
+            data.chmod(0o444)
+            nested = root / "registry"
+            nested.mkdir(mode=0o555)
+            before = {file.name: boundary.read_regular(file) for file in (tool, data)}
+            boundary.seal_private_cargo_cache(root)
+            self.assertEqual(stat.S_IMODE(root.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(nested.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(tool.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(data.stat().st_mode), 0o600)
+            self.assertEqual({file.name: boundary.read_regular(file) for file in (tool, data)}, before)
+            self.assertEqual(boundary.run_bounded([str(tool)]).returncode, 0)
+            with self.assertRaises(PermissionError):
+                boundary.run_bounded([str(data)])
+
+    def test_private_cache_refuses_file_and_directory_aliases(self):
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            outside = root / "outside"
+            outside.mkdir()
+            target = outside / "unchanged"
+            target.write_bytes(b"outside cache")
+            target.chmod(0o444)
+            for directory in (False, True):
+                with self.subTest(directory=directory):
+                    cargo = root / "cache"
+                    cargo.mkdir()
+                    alias = cargo / "alias"
+                    alias.symlink_to(outside if directory else target)
+                    with self.assertRaises(RuntimeError):
+                        boundary.seal_private_cargo_cache(cargo)
+                    self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o444)
+                    self.assertEqual(target.read_bytes(), b"outside cache")
+                    alias.unlink()
+                    cargo.rmdir()
+
+    def test_private_cache_refuses_hardlinked_and_special_files(self):
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            target = root / "file"
+            target.write_bytes(b"linked cache data")
+            target.chmod(0o444)
+            os.link(target, root / "hardlink")
+            with self.assertRaises(RuntimeError):
+                boundary.seal_private_cargo_cache(root)
+            self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o444)
+            (root / "hardlink").unlink()
+            os.mkfifo(root / "special")
+            with self.assertRaises(RuntimeError):
+                boundary.seal_private_cargo_cache(root)
+
+    def test_private_cache_clone_binds_actual_native_bytes_modes_and_membership(self):
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            source = root / "image-cache"
+            source.mkdir()
+            tool_name = ".git/hooks/actual-native-tool"
+            tool = source / tool_name
+            tool.parent.mkdir(parents=True)
+            shutil.copyfile("/usr/bin/true", tool)
+            tool.chmod(0o555)
+            tool.parent.chmod(0o555)
+            tool.parent.parent.chmod(0o555)
+            data = source / "data"
+            data.write_bytes(b"immutable dependency input")
+            data.chmod(0o444)
+            source.chmod(0o555)
+            try:
+                before = boundary.cargo_cache_rows(source, immutable=True)
+                destination = root / "private-cache"
+                custody = boundary.copy_private_cargo_cache(source, destination)
+                self.assertEqual(custody["inventory_sha256"], boundary.sha(boundary.encoded(before)))
+                self.assertEqual(custody["entries"], 5)
+                self.assertEqual(custody["source_tool_modes"], [{"path": tool_name, "mode": 0o555}])
+                self.assertEqual(boundary.run_bounded([str(destination / tool_name)]).returncode, 0)
+                boundary.verify_private_cargo_tools(destination, custody)
+                (destination / tool_name).chmod(0o600)
+                with self.assertRaises(RuntimeError):
+                    boundary.verify_private_cargo_tools(destination, custody)
+                (destination / tool_name).chmod(0o700)
+                (destination / tool_name).write_bytes(b"changed native tool")
+                with self.assertRaises(RuntimeError):
+                    boundary.verify_private_cargo_tools(destination, custody)
+                with self.assertRaises(RuntimeError):
+                    boundary.copy_private_cargo_cache(source, destination)
+            finally:
+                source.chmod(0o700)
+
+    def test_private_cache_clone_refuses_source_aliases_before_destination_creation(self):
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            source = root / "image-cache"
+            source.mkdir()
+            data = root / "foreign-data"
+            data.write_bytes(b"foreign dependency input")
+            data.chmod(0o444)
+            (source / "alias").symlink_to(data)
+            source.chmod(0o555)
+            destination = root / "private-cache"
+            try:
+                with self.assertRaises(RuntimeError):
+                    boundary.copy_private_cargo_cache(source, destination)
+                self.assertFalse(destination.exists())
+                self.assertEqual(data.read_bytes(), b"foreign dependency input")
+            finally:
+                source.chmod(0o700)
+
+    def test_private_cache_clone_breaks_complete_immutable_git_pack_links(self):
+        with tempfile.TemporaryDirectory() as owner:
+            root = Path(owner)
+            source = root / "image-cache"
+            source.mkdir()
+            pack = source / "db-pack"
+            pack.write_bytes(b"actual immutable shared pack bytes")
+            pack.chmod(0o444)
+            os.link(pack, source / "checkout-pack")
+            source.chmod(0o555)
+            destination = root / "private-cache"
+            try:
+                boundary.copy_private_cargo_cache(source, destination)
+                self.assertEqual((destination / "db-pack").stat().st_nlink, 1)
+                self.assertEqual((destination / "checkout-pack").stat().st_nlink, 1)
+                self.assertNotEqual((destination / "db-pack").stat().st_ino,
+                                    (destination / "checkout-pack").stat().st_ino)
+                self.assertEqual(pack.stat().st_nlink, 2)
+                os.link(pack, root / "foreign-link")
+                with self.assertRaisesRegex(RuntimeError, "out-of-root hardlink"):
+                    boundary.copy_private_cargo_cache(source, root / "second-cache")
+                self.assertFalse((root / "second-cache").exists())
+            finally:
+                source.chmod(0o700)
+
     def descriptor(self):
         # Parser/control fixture only. Actual ELF and actual file measurements
         # below must not be interpreted as installed SDK qualification.

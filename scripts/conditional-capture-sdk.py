@@ -20,6 +20,7 @@ import sys
 import tarfile
 import tempfile
 import time
+import tomllib
 import uuid
 
 TEST = "oci::publication_context::capture_tests::actual_source_free_capture_constructs_complete_conditional_context"
@@ -96,9 +97,11 @@ def identity(info):
     return (info.st_dev, info.st_ino, info.st_mode, info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
-def read_regular(path, limit=MAX_FILE):
+def read_regular(path, limit=MAX_FILE, *, immutable_image_links=False):
     before = os.lstat(path)
-    require(stat.S_ISREG(before.st_mode) and before.st_nlink == 1 and before.st_size <= limit,
+    links = before.st_nlink == 1 or (immutable_image_links and before.st_nlink >= 1
+                                    and not before.st_mode & 0o222)
+    require(stat.S_ISREG(before.st_mode) and links and before.st_size <= limit,
             "bounded singly linked regular input required: " + str(path))
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
     try:
@@ -508,6 +511,136 @@ def checked_receipt(receipt, descriptor, output):
     return receipt
 
 
+def seal_private_cargo_cache(cargo):
+    # copytree preserves the immutable image's executable classification.
+    # Cargo dependencies can contain real build tools (including protoc);
+    # making every private file 0600 destroys those tools' execution authority.
+    # Retain only owner execution already present, never grant it to data.
+    for path, directories, files in os.walk(cargo):
+        require(stat.S_ISDIR(os.lstat(path).st_mode), "SDK dependency cache directory alias refused")
+        for name in directories:
+            require(stat.S_ISDIR(os.lstat(Path(path) / name).st_mode),
+                    "SDK dependency cache directory alias refused")
+        os.chmod(path, 0o700)
+        for name in files:
+            item = Path(path) / name
+            info = os.lstat(item)
+            require(stat.S_ISREG(info.st_mode) and info.st_nlink == 1,
+                    "SDK dependency cache requires singly linked regular files")
+            os.chmod(item, 0o700 if info.st_mode & 0o100 else 0o600)
+
+
+def cargo_cache_rows(root, immutable):
+    require(root.resolve() == root and stat.S_ISDIR(os.lstat(root).st_mode),
+            "unaliasable Cargo cache root required")
+    records, total, source_links = [], 0, {}
+    def visit(path, name, depth):
+        nonlocal total
+        require(depth <= 32 and len(records) < 250000, "Cargo cache entry/depth bound")
+        info = os.lstat(path)
+        require(stat.S_ISDIR(info.st_mode) or (stat.S_ISREG(info.st_mode)
+                and (immutable or info.st_nlink == 1)),
+                "Cargo cache aliases, hardlinks and special files refused")
+        require(not immutable or not info.st_mode & 0o222, "immutable image Cargo cache required")
+        if not immutable:
+            expected = 0o700 if stat.S_ISDIR(info.st_mode) or info.st_mode & 0o100 else 0o600
+            require(stat.S_IMODE(info.st_mode) == expected and info.st_uid == os.getuid(),
+                    "owned normalized private Cargo cache mode required")
+        if stat.S_ISDIR(info.st_mode):
+            records.append({"path": name, "kind": "directory"})
+            for child in sorted(os.listdir(path)):
+                require(child not in ("", ".", "..") and "\\" not in child
+                        and not any(ord(c) < 32 or ord(c) == 127 for c in child),
+                        "invalid Cargo cache member name")
+                visit(path / child, name + "/" + child if name else child, depth + 1)
+        else:
+            total += info.st_size
+            require(total <= 2 * 1024 ** 3, "Cargo cache aggregate byte bound")
+            if immutable:
+                key = (info.st_dev, info.st_ino)
+                links = source_links.setdefault(key, [info.st_nlink, 0])
+                require(links[0] == info.st_nlink, "immutable Cargo hardlink count changed")
+                links[1] += 1
+            body = read_regular(path, immutable_image_links=immutable)
+            records.append({"path": name, "kind": "file", "bytes": len(body),
+                            "sha256": sha(body), "executable": bool(info.st_mode & 0o100)})
+        require(identity(os.lstat(path)) == identity(info), "Cargo cache changed during inventory")
+    visit(root, "", 0)
+    # Git legitimately shares immutable packfiles between cache db/checkouts.
+    # Admit only complete in-root link groups; copytree breaks those links so
+    # every writable private file remains singly owned. Foreign links refuse.
+    require(all(expected == observed for expected, observed in source_links.values()),
+            "immutable Cargo cache has an out-of-root hardlink")
+    require(total > 0 and len(encoded(records)) <= MAX_JSON, "bounded nonempty Cargo cache required")
+    return records
+
+
+def copy_private_cargo_cache(source, cargo):
+    # The source is the selected immutable SDK, not an environment-selected
+    # cache. Bind its complete byte/mode closure before and after the clone.
+    before = cargo_cache_rows(source, immutable=True)
+    require(not os.path.lexists(cargo), "private Cargo cache destination must be new")
+    shutil.copytree(source, cargo, symlinks=True)
+    seal_private_cargo_cache(cargo)
+    require(cargo_cache_rows(cargo, immutable=False) == before,
+            "private Cargo cache bytes, membership or execution authority differ")
+    require(cargo_cache_rows(source, immutable=True) == before, "immutable Cargo cache changed during copy")
+    tools = [row for row in before if row.get("executable") is True]
+    for tool in tools:
+        # This is the actual SDK mode, not a grant inferred from a filename.
+        require(stat.S_IMODE(os.lstat(cargo / tool["path"]).st_mode) == 0o700,
+                "private Cargo tool mode differs")
+    return {"schema": "prismpm/conditional-cargo-cache-custody/1",
+            "scope": "immutable SDK dependency clone; not application acceptance",
+            "entries": len(before), "inventory_sha256": sha(encoded(before)),
+            "bytes": sum(row.get("bytes", 0) for row in before),
+            "executable_tools": tools,
+            "source_tool_modes": [{"path": tool["path"],
+                                   "mode": stat.S_IMODE(os.lstat(source / tool["path"]).st_mode)}
+                                  for tool in tools]}
+
+
+def verify_private_cargo_tools(cargo, custody):
+    for tool in custody["executable_tools"]:
+        name = tool["path"]
+        require(isinstance(name, str) and not name.startswith("/")
+                and all(part not in ("", ".", "..") for part in name.split("/")),
+                "confined original Cargo tool path required")
+        path = cargo / name
+        info = os.lstat(path)
+        body = read_regular(path)
+        # Cargo's legitimate Git checkout can contain executable .git hooks.
+        # Its private cache is not the separately restricted capture-output
+        # namespace; do not route its measured paths through capture row().
+        measured = {"path": name, "kind": "file", "bytes": len(body),
+                    "sha256": sha(body), "executable": bool(info.st_mode & 0o100)}
+        require(stat.S_IMODE(info.st_mode) == 0o700
+                and measured == tool and identity(os.lstat(path)) == identity(info),
+                "private Cargo execution authority changed")
+
+
+def run_vendored_protoc(cargo, custody):
+    architectures = {"x86_64": "x86_64", "aarch64": "aarch_64"}
+    require(os.uname().machine in architectures, "native Linux protoc architecture required")
+    package = "protoc-bin-vendored-linux-" + architectures[os.uname().machine]
+    lock = tomllib.loads(read_regular(SDK_ROOT / "tests/hologram-oracle/Cargo.lock").decode("utf-8"))
+    versions = [entry["version"] for entry in lock["package"] if entry["name"] == package]
+    require(len(versions) == 1, "one pinned native vendored protoc package required")
+    suffix = "/" + package + "-" + versions[0] + "/bin/protoc"
+    tools = [tool for tool in custody["executable_tools"]
+             if tool["path"].startswith("registry/src/") and tool["path"].endswith(suffix)]
+    require(len(tools) == 1, "one actual pinned private vendored protoc executable required")
+    verify_private_cargo_tools(cargo, custody)
+    result = run_bounded([str(cargo / tools[0]["path"]), "--version"], timeout=30, limit=4096)
+    require(result.returncode == 0 and result.stderr == b""
+            and re.fullmatch(rb"libprotoc [0-9]+(?:\.[0-9]+)+\n", result.stdout),
+            "actual private vendored protoc execution failed")
+    verify_private_cargo_tools(cargo, custody)
+    return {"tool": tools[0], "argv": [str(cargo / tools[0]["path"]), "--version"],
+            "status": result.returncode, "stdout": result.stdout.decode("ascii"),
+            "scope": "pinned dependency execution preflight; not application acceptance"}
+
+
 def guest():
     require(sys.version_info[:3] == (3, 12, 3), "pinned SDK interpreter required")
     reader = Reader(sys.stdin.buffer, time.monotonic() + DEADLINE_SECONDS)
@@ -546,13 +679,8 @@ def guest():
     temporary = work / "tmp"
     temporary.mkdir(mode=0o700)
     cargo = work / "cargo"
-    shutil.copytree("/opt/prismpm/cargo-home", cargo)
-    for path, directories, files in os.walk(cargo):
-        os.chmod(path, 0o700)
-        for name in files:
-            item = Path(path) / name
-            require(not item.is_symlink(), "SDK dependency cache alias refused")
-            os.chmod(item, 0o600)
+    cache_custody = copy_private_cargo_cache(Path("/opt/prismpm/cargo-home"), cargo)
+    cache_custody["protoc"] = run_vendored_protoc(cargo, cache_custody)
     elan = work / "elan"
     elan.mkdir(mode=0o700)
     os.symlink("/usr/local/elan/toolchains", elan / "toolchains")
@@ -568,6 +696,17 @@ def guest():
     result = json.loads(read_regular(work / "command-result.json", MIB))
     stdout = read_regular(work / "stdout", 32 * MIB)
     stderr = read_regular(work / "stderr", 32 * MIB)
+    # Preserve the original failure path; failed producers remain unaccepted
+    # and their entire private volume is retained. Successful producers must
+    # additionally preserve every original tool's bytes and normalized mode.
+    try:
+        checked_result(result)
+    except RuntimeError:
+        pass
+    else:
+        verify_private_cargo_tools(cargo, cache_custody)
+        with (output / "cargo-cache-custody.json").open("xb") as record:
+            record.write(encoded(cache_custody))
     require(read_executable(executable) == body and read_regular(INVENTORY, 8 * MIB) == inventory,
             "capture executable or SDK inventory changed")
     require([row(SDK_ROOT, r["path"]) for r in descriptor["source"]] == descriptor["source"],

@@ -1,7 +1,7 @@
 //! Development-only packaging of the freshly verified standard-library export.
 
 use crate::Fail;
-use prismpm::controller::{BuildRequest, BuildResult, VerifyRequest, VerifyResult};
+use prismpm::controller::{BuildResult, VerifyRequest, VerifyResult};
 use prod_codegen::{CargoPackageSpec, GeneratedPackage};
 use sha2::{Digest, Sha256};
 use std::path::{Component, Path};
@@ -262,15 +262,13 @@ fn update_package(root: &Path, package: &GeneratedPackage, write: bool) -> Resul
 fn verify_current(root: &Path) -> Result<(BuildResult, VerifyResult), Fail> {
     let controller =
         prismpm::Controller::load(root).map_err(|error| crate::diagnostic_failure(&error))?;
-    let before = controller
-        .build(BuildRequest { config_path: None })
-        .map_err(|error| crate::diagnostic_failure(&error))?;
+    let before =
+        crate::build_on_worker(&controller).map_err(|error| crate::diagnostic_failure(&error))?;
     let verified = controller
         .verify(VerifyRequest { config_path: None })
         .map_err(|error| crate::diagnostic_failure(&error))?;
-    let after = controller
-        .build(BuildRequest { config_path: None })
-        .map_err(|error| crate::diagnostic_failure(&error))?;
+    let after =
+        crate::build_on_worker(&controller).map_err(|error| crate::diagnostic_failure(&error))?;
     current_results(&before, &verified, after)
 }
 
@@ -324,7 +322,7 @@ pub fn check_acceptance(root: &Path) -> Result<(), Fail> {
     crate::audit::audit_dependencies(root)?;
     let before = crate::build_once(root)?;
     let verified = crate::verify_once(root)?;
-    let current = prismpm::Controller::load(root)?.build(BuildRequest { config_path: None })?;
+    let current = crate::build_on_worker(&prismpm::Controller::load(root)?)?;
     let (build, verified) = current_results(before, verified, current)?;
     run_verified(root, false, || Ok((build.clone(), verified)))?;
     check_release_binding(root, &build)

@@ -30,12 +30,31 @@ fn diagnostic_failure(error: &prismpm::PrismError) -> Fail {
         .into()
 }
 
+// A source build returns only owned identifiers. Join its temporary worker
+// before verification so the allocator can reuse its arenas for verification,
+// rather than retaining a separate main-thread arena for decoded build graphs.
+fn join_build_worker<T: Send>(build: impl FnOnce() -> T + Send) -> T {
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .name("prismpm-gate-build".to_owned())
+            .stack_size(16 * 1024 * 1024)
+            .spawn_scoped(scope, build)
+            .expect("start private gate build worker")
+            .join()
+            .expect("private gate build worker terminated unexpectedly")
+    })
+}
+
+fn build_on_worker(
+    controller: &prismpm::Controller,
+) -> Result<prismpm::controller::BuildResult, prismpm::PrismError> {
+    join_build_worker(|| controller.build(prismpm::controller::BuildRequest { config_path: None }))
+}
+
 fn build_once(root: &Path) -> Result<&'static prismpm::controller::BuildResult, Fail> {
     BUILD
         .get_or_init(|| {
-            prismpm::Controller::load(root).and_then(|controller| {
-                controller.build(prismpm::controller::BuildRequest { config_path: None })
-            })
+            prismpm::Controller::load(root).and_then(|controller| build_on_worker(&controller))
         })
         .as_ref()
         .map_err(diagnostic_failure)
@@ -50,6 +69,47 @@ fn verify_once(root: &Path) -> Result<&'static prismpm::controller::VerifyResult
         })
         .as_ref()
         .map_err(diagnostic_failure)
+}
+
+#[cfg(test)]
+mod build_worker_tests {
+    #[test]
+    fn owned_build_worker_finishes_before_results_escape() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        struct Finished<'a>(&'a AtomicBool);
+        impl Drop for Finished<'_> {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+        let finished = AtomicBool::new(false);
+        let caller = std::thread::current().id();
+        let borrowed = String::from("owned build identifiers");
+        let result = super::join_build_worker(|| {
+            assert_ne!(std::thread::current().id(), caller);
+            let _finished = Finished(&finished);
+            borrowed.clone()
+        });
+        assert!(finished.load(Ordering::SeqCst));
+        assert_eq!(result, borrowed);
+    }
+
+    #[test]
+    fn owned_build_worker_preserves_structured_failures() {
+        let error = prismpm::PrismError::new("PP5007", "original build refusal");
+        let result = super::join_build_worker(|| Err::<(), _>(error.clone()));
+        assert_eq!(result.unwrap_err(), error);
+    }
+
+    #[test]
+    fn owned_build_worker_panics_cannot_initialize_success_cache() {
+        let cache = std::sync::OnceLock::<Result<(), prismpm::PrismError>>::new();
+        assert!(std::panic::catch_unwind(|| {
+            cache.get_or_init(|| super::join_build_worker(|| panic!("infrastructure failure")));
+        })
+        .is_err());
+        assert!(cache.get().is_none());
+    }
 }
 
 fn main() -> ExitCode {

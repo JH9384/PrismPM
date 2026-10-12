@@ -75,7 +75,7 @@ jobs:
             import {retirementFaults} from './scripts/portable-oracle-retirement.mjs';
             const node=readFileSync('target/ci-diagnostics/chromium-interop/node.log','utf8');
             assert.equal(verifyTap(node,82),82);
-            verifyFileCompletions(node,['scripts/browser-engine-input.test.mjs','scripts/chromium-interop-reader.test.mjs','scripts/browser-environment-preflight.test.mjs','scripts/portable-oracle-matrix.test.mjs'].map(path=>resolve(path)),82);
+            verifyFileCompletions(node,['scripts/browser-engine-input.test.mjs','scripts/chromium-interop-reader.test.mjs','scripts/browser-environment-preflight.test.mjs','scripts/portable-oracle-matrix.test.mjs'].map(path=>resolve(path)),82,[6,12,7,57]);
             const rust=readFileSync('target/ci-diagnostics/chromium-interop/interop.log','utf8');
             assert.equal((rust.match(/^test result: ok\. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;/gm)||[]).length,1);
             for(const name of ['test_hologram_oracle_pinned_source_identities','test_portable_view_profiles_and_owned_failure_matrix','test_hologram_oracle_negative_probes_reject_wrong_subject_edition_and_mutations'])

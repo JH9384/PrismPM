@@ -6,7 +6,7 @@ import {requireCompilerOwner} from './compiler-owner.mjs';
 
 // Inventory lookup only; callers must first validate the genuine family owner.
 export function compilerDriverDirectory(inputs) {
-  const paths = Object.keys(inputs).filter(path => /^tests\/(?:browser-view|browser-custody|browser-effects|browser-budget|browser-operation-journal)\/driver\/src\/main\.rs$/.test(path));
+  const paths = Object.keys(inputs).filter(path => /^tests\/(?:browser-view|browser-custody|browser-effects|browser-budget|browser-operation-journal|browser-presentation|publication-admission)\/driver\/src\/main\.rs$/.test(path));
   assert.equal(paths.length, 1, 'one source-bound family driver required');
   return paths[0].slice(0, -'/src/main.rs'.length);
 }

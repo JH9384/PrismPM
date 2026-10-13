@@ -5,6 +5,7 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {createPrivateDriverTarget, ensureProdExport, run, sha} from '../browser-view/compile.mjs';
+import {requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 export {ensureProdExport, run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -66,11 +67,13 @@ function stageCompiler(work) {
 }
 
 export const checkSource = () => prepareStage(null, true);
-export const prepare = (mutation = null) => prepareStage(mutation, false);
-function prepareStage(mutation, sourceOnly) {
+export const prepare = (mutation = null, compilerOwner = null) => prepareStage(mutation, false, compilerOwner);
+function prepareStage(mutation, sourceOnly, compilerOwner = null) {
+  const started = performance.now();
   assert.ok([null, 'binding', 'trailing', 'secretbound', 'secretroute', 'progress'].includes(mutation));
   for (const key of Object.keys(process.env)) assert.ok(!key.startsWith('PRISMPM_PRESENTATION_'), 'presentation acceptance refuses bypass ' + key);
   pins();
+  const shared = compilerOwner === null ? null : requireCompilerOwner(compilerOwner, 'presentation');
   const work = mkdtempSync(join(tmpdir(), 'prismpm-presentation-'));
   const sourcePath = name => join(name === 'Fixture' ? draft : join(repository, 'stdlib'), 'src', ...name.split('.')) + '.lex.tex';
   const sources = new Map(modules.map(name => [name, readFileSync(sourcePath(name))]));
@@ -131,19 +134,24 @@ function prepareStage(mutation, sourceOnly) {
     writeFileSync(join(project, 'lakefile.toml'), 'name = "presentation_conformance"\nversion = "0.1.0"\n', {flag: 'wx'});
     copyFileSync(join(repository, 'lean-toolchain'), join(project, 'lean-toolchain'));
     copyFileSync(join(repository, 'rust-toolchain.toml'), join(work, 'rust-toolchain.toml'));
-    const driverTarget = createPrivateDriverTarget(work);
-    const compiler = stageCompiler(work);
-    run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0', '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
-    const driver = join(driverTarget, 'debug/browser-presentation-driver');
-    const checked = JSON.parse(run(driver, ['check', join(project, 'lexlean.toml')], repository));
+    let compiler, invokeDriver;
+    if (shared) invokeDriver = args => shared.runDriver(args, repository);
+    else {
+      const driverTarget = createPrivateDriverTarget(work);
+      compiler = stageCompiler(work);
+      run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0', '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
+      const driver = join(driverTarget, 'debug/browser-presentation-driver');
+      invokeDriver = args => run(driver, args, repository);
+    }
+    const checked = JSON.parse(invokeDriver(['check', join(project, 'lexlean.toml')]));
     assert.deepEqual(checked.modules, modules);
     if (sourceOnly) {
-      compiler.unchanged();
+      if (shared) shared.verify(); else compiler.unchanged();
       for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'frozen source ' + module);
       completed = true; return {work, checked, sourceOnly: true};
     }
     run('lake', ['update'], project);
-    const verified = JSON.parse(run(driver, ['verify', join(project, 'lexlean.toml')], repository));
+    const verified = JSON.parse(invokeDriver(['verify', join(project, 'lexlean.toml')]));
     assert.deepEqual(verified.modules, modules);
     const manifestBytes = readFileSync(join(verified.root, 'build-manifest.json'));
     const attestationBytes = readFileSync(join(verified.root, 'attestation.json'));
@@ -171,7 +179,9 @@ function prepareStage(mutation, sourceOnly) {
     copyFileSync(join(repository, 'lean-toolchain'), join(lean, 'lean-toolchain'));
     writeFileSync(join(lean, 'lakefile.toml'), 'name = "presentation_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + modules.map(name => '"PrismPM.' + name + '"').join(',') + ']\n', {flag: 'wx'});
     run('lake', ['build', 'PrismGenerated'], lean);
-    const {dir: exporter, bin: prodExport} = ensureProdExport(repository, work);
+    const exporter = shared ? null : ensureProdExport(repository, work);
+    const invokeExporter = args => shared ? shared.runExporter(args, join(lean, '.lake/build/lib/lean'))
+      : run(exporter.bin, args, exporter.dir, {LEAN_PATH: join(lean, '.lake/build/lib/lean')});
     const exported = join(work, 'export');
     const roots = ['PrismPM.Foundation.View.Browser.V1.Wire.viewWireBytes', ...[
       'fixturePresentationBytes', 'fixtureLabelsBytes', 'fixtureIntentFitsBytes',
@@ -181,10 +191,10 @@ function prepareStage(mutation, sourceOnly) {
       'fixtureProgressFitsBytes',
       'fixtureProgressMaximumBytes',
     ].map(name => 'PrismPM.Fixture.' + name)].sort();
-    run(prodExport, ['--module', 'PrismPM.Fixture', ...roots.flatMap(root => ['--root', root]),
-      '--ir-module', 'BrowserPresentation', '--out', exported], exporter, {LEAN_PATH: join(lean, '.lake/build/lib/lean')});
+    invokeExporter(['--module', 'PrismPM.Fixture', ...roots.flatMap(root => ['--root', root]),
+      '--ir-module', 'BrowserPresentation', '--out', exported]);
     const generated = join(work, 'generated'), ir = join(exported, 'kernel.ir');
-    const generation = JSON.parse(run(driver, ['native', ir, generated, repository], repository));
+    const generation = JSON.parse(invokeDriver(['native', ir, generated, repository]));
     const runner = join(work, 'runner'); mkdirSync(join(runner, 'src'), {recursive: true});
     copyFileSync(join(draft, 'runner.rs'), join(runner, 'src/main.rs'));
     writeFileSync(join(runner, 'Cargo.lock'), 'version = 4\n[[package]]\nname = "browser-presentation-core-probe"\nversion = "0.1.0"\n[[package]]\nname = "browser-presentation-runner"\nversion = "0.1.0"\ndependencies = ["browser-presentation-core-probe"]\n', {flag: 'wx'});
@@ -198,15 +208,25 @@ function prepareStage(mutation, sourceOnly) {
       ['secret', 'secret'], ['route', 'route'], ['sink', 'sink'],
       ['maxroute', 'maxroute'], ['maxsink', 'maxsink'], ['maxfield', 'maxfield'], ['maxsecret', 'maxsecret'], ['progress', 'progress'], ['maxprogress', 'maxprogress']]) {
       const guest = join(work, 'guest-' + label);
-      assert.deepEqual(JSON.parse(run(driver, [mode, ir, guest, repository], repository)), generation);
+      assert.deepEqual(JSON.parse(invokeDriver([mode, ir, guest, repository])), generation);
       run('cargo', ['build', '--locked', '--offline', '--release'], guest, {CARGO_TARGET_DIR: join(guest, 'target')});
       guests.push(readFileSync(join(guest, 'target/wasm32-unknown-unknown/release/browser_presentation_' + (mode === 'wasm' ? 'wire' : mode) + '_probe.wasm')));
     }
     assert.deepEqual(guests[0], guests[1], 'two independent generated Core-Wasm packages');
-    pins(); compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+    pins(); if (shared) shared.verify(); else compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
     for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'frozen source ' + module);
+    const verifyEvidence = () => {
+      pins();
+      assert.deepEqual(readFileSync(join(verified.root, 'build-manifest.json')), manifestBytes);
+      assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);
+      assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+      for (const [module, bytes] of originals)
+        assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'retained model source ' + module);
+    };
+    verifyEvidence();
     completed = true;
-    return {work, sources, verified, generation, compileNative, runner, wasmBytes: guests[0], fixtureBytes: guests[2], labelsBytes: guests[3], intentBytes: guests[4],
+    return {work, sources, verified, generation, compileNative, runner, verifyEvidence, compilerOwner:shared?.identity ?? null,
+      preparationMs:performance.now() - started, wasmBytes: guests[0], fixtureBytes: guests[2], labelsBytes: guests[3], intentBytes: guests[4],
       secretBytes: guests[5], routeBytes: guests[6], sinkBytes: guests[7],
       maxrouteBytes: guests[8], maxsinkBytes: guests[9], maxfieldBytes: guests[10], maxsecretBytes: guests[11], progressBytes: guests[12], maxprogressBytes: guests[13]};
   } finally { if (!completed) process.stderr.write('Retained incomplete presentation diagnostic build ' + work + '\n'); }

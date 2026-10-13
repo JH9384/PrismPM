@@ -29,7 +29,13 @@ function observeProduct(path) {
 }
 
 export function captureVerificationProducts(work, family) {
-  assert(['effects', 'budget', 'operation-journal'].includes(family));
+  const guestsByFamily = {
+    effects:['a','b','echo'], budget:['a','b'], publication:['a','b'],
+    'operation-journal':['a','b','echo','journal','partition','journal-b','partition-b'],
+    presentation:['a','b','fixture','labels','intent','secret','route','sink',
+      'maxroute','maxsink','maxfield','maxsecret','progress','maxprogress'],
+  };
+  assert(Object.hasOwn(guestsByFamily, family));
   assert.equal(realpathSync(work), work, 'unaliased verification workspace');
   const rows = [], directories = [];
   let bytes = 0;
@@ -65,7 +71,8 @@ export function captureVerificationProducts(work, family) {
   for (const name of ['project', 'lean', 'export', 'generated', 'runner']) tree(join(work, name));
   if (family === 'operation-journal') tree(join(work, 'generated-b'));
   const guests = readdirSync(work).filter(name => name.startsWith('guest-')).sort();
-  assert.equal(guests.length, family === 'effects' ? 3 : family === 'budget' ? 2 : 7);
+  assert.deepEqual(guests, guestsByFamily[family].map(name => 'guest-' + name).sort(),
+    'exact independent generated guest inventory');
   for (const name of guests) {
     tree(join(work, name));
     const release = join(work, name, 'target/wasm32-unknown-unknown/release');
@@ -73,7 +80,8 @@ export function captureVerificationProducts(work, family) {
     assert.equal(outputs.length, 1, 'one actual generated guest product');
     regular(join(release, outputs[0]));
   }
-  regular(join(work, 'native-target/release/browser-' + family + '-runner'));
+  regular(join(work, 'native-target/release/' + (family === 'publication'
+    ? 'publication-admission-runner' : 'browser-' + family + '-runner')));
   return {directories:directories.sort((a, b) => a.path.localeCompare(b.path)),
     files:rows.sort((a, b) => a.path.localeCompare(b.path))};
 }

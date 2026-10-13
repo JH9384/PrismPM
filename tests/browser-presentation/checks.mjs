@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {prepare, run, sha, repository} from './compile.mjs';
+import {captureCompilerInputs} from '../browser-view/compiler-owner.mjs';
 import {corpus, boundaries, maximumCorpus, combinedMaximumCorpus, secretMaximumCorpus, progressMaximumCorpus} from './corpus.mjs';
 import {prerequisite} from '../browser-view/prerequisites.mjs';
 import {inspectEffectModule} from '../../sdk/browser/effects-module.mjs';
@@ -33,12 +34,33 @@ export function executeWasm(bytes, rows, inputMaximum = 67108864) {
   return {maximumBytes: maximum, declaredPages: memory.maximumPages};
 }
 
-export async function verifyWire(t) {
+export function sourceClosure() {
   const sourceNames = ['compile.mjs', 'checks.mjs', 'corpus.mjs', 'maximum-fixtures.mjs', 'runner.rs',
     'driver/Cargo.toml', 'driver/Cargo.lock', 'driver/src/main.rs'];
-  const capture = () => Object.fromEntries(sourceNames.map(path => [path,
-    sha(readFileSync(join(repository, 'tests/browser-presentation', path)))]));
-  const frozen = capture(), build = prepare();
+  const paths = [
+    ...sourceNames.map(path => 'tests/browser-presentation/' + path),
+    'tests/browser-presentation/src/Fixture.lex.tex', 'tests/browser-presentation/browser.mjs',
+    'tests/browser-presentation/browser-fixture.mjs', 'sdk/browser/presentation.test.mjs',
+    'sdk/browser/presentation-dom.mjs', 'sdk/browser/presentation-wire.mjs',
+    'sdk/browser/identity.mjs', 'sdk/browser/browser-test-server.mjs',
+    'sdk/browser/effects-module.mjs', 'sdk/browser/effects-wire.mjs',
+    'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
+    'tests/browser-view/compiler-owner-checks.mjs', 'tests/browser-view/verification-products.mjs',
+    'tests/browser-view/prerequisites.mjs', 'tests/fixtures/library/native-library/project/lexlean.toml',
+    'stdlib/src/Foundation/View/Browser/V1/Model.lex.tex',
+    'stdlib/src/Foundation/View/Browser/V1/Wire.lex.tex', 'stdlib/src/Foundation/Bytes.lex.tex',
+    'stdlib/src/Foundation/Codec.lex.tex', 'stdlib/src/Foundation/Codec/Cbor/V1/Primitive.lex.tex',
+    'model/browser-presentation-diagnostics.json', 'LICENSE-MIT', 'LICENSE-APACHE',
+  ];
+  return {...captureCompilerInputs('presentation'),
+    ...Object.fromEntries(paths.map(path => [path, sha(readFileSync(join(repository, path)))]))};
+}
+
+export async function verifyWire(t, compilerOwner = null) {
+  const frozen = sourceClosure();
+  if (compilerOwner) for (const [path, digest] of Object.entries(compilerOwner.evidence.inputs))
+    assert.equal(frozen[path], digest, 'compiler tool closure differs from frozen presentation inputs');
+  const build = prepare(null, compilerOwner);
   t.after(() => rmSync(build.work, {recursive: true, force: true}));
   const intentRows = Array.from({length: 17}, (_, code) => ({id: 'IntentCase' + code,
     request: Uint8Array.of(code), response: Uint8Array.of([0, 10, 14, 16].includes(code) ? 245 : 244)}));
@@ -122,7 +144,7 @@ export async function verifyWire(t) {
       }
     }
   });
-  assert.deepEqual(capture(), frozen, 'owning oracle source remained frozen');
+  assert.deepEqual(sourceClosure(), frozen, 'owning oracle source remained frozen');
   build.maximumFrame = {request: sha(maximum[0].request), response: sha(maximum[0].response), length: maximum[0].request.length};
   t.diagnostic(JSON.stringify({source: build.verified.source_id, attestation: build.verified.attestation_id,
     ir: build.generation.ir_sha256, wasm: sha(build.wasmBytes), fixture: sha(build.fixtureBytes), labels: sha(build.labelsBytes),
@@ -148,14 +170,14 @@ export function replayBrowser(build, result, stem = 'observed-browser') {
   }
 }
 
-export function verifyModelMutation(kind) {
+export function verifyModelMutation(kind, compilerOwner = null) {
   const secret = ['secretbound', 'secretroute'].includes(kind);
   const progress = kind === 'progress';
   const row = progress ? {id: 'ProgressCaseMutation', request: Uint8Array.of(5), response: Uint8Array.of(244)} : secret ? {id: 'BrowserRouteMutation',
     request: encodeWire([1, 1, 202, [[6, 'x'.repeat(kind === 'secretbound' ? 65 : 64)], [7, ''], [8, 10]]]),
     response: Uint8Array.of(kind === 'secretbound' ? 244 : 245)}
     : corpus().find(row => row.id === ({binding: 'WrongBindingKind', trailing: 'Trailing'}[kind]));
-  assert.ok(row); const build = prepare(kind);
+  assert.ok(row); const build = prepare(kind, compilerOwner);
   try {
     const path = join(build.work, 'mutation.tsv'); writeFileSync(path, tsv([row]), {flag: 'wx'});
     for (const standard of [true, false]) assert.throws(() => run(build.compileNative(standard), [path], build.runner), /native output mismatch/);

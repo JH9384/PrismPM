@@ -10,7 +10,8 @@ import {compilerDriverDirectory} from './compiler-owner-checks.mjs';
 import {captureVerificationProducts} from './verification-products.mjs';
 
 test('driver substitution lookup includes every registered private family and rejects missing or ambiguous source inventory', () => {
-  for (const directory of ['browser-view', 'browser-custody', 'browser-effects', 'browser-budget', 'browser-operation-journal']) {
+  for (const directory of ['browser-view', 'browser-custody', 'browser-effects', 'browser-budget', 'browser-operation-journal',
+    'browser-presentation', 'publication-admission']) {
     const path = 'tests/' + directory + '/driver/src/main.rs';
     assert.equal(compilerDriverDirectory({[path]: 'not-authority'}), 'tests/' + directory + '/driver');
   }
@@ -137,23 +138,26 @@ test('fresh independent drivers pin hash optimization without changing construct
 });
 
 test('product preservation detects generated source proof package native Wasm and custody defects', t => {
-  for (const family of ['effects', 'budget', 'operation-journal']) {
+  for (const family of ['effects', 'budget', 'operation-journal', 'presentation', 'publication']) {
     const work=fs.mkdtempSync(join(tmpdir(),'prismpm-product-preservation-'));
     t.after(()=>fs.rmSync(work,{recursive:true,force:true}));
     const put=(relative,bytes='product-preservation unit fixture')=>{
       const path=join(work,relative);fs.mkdirSync(join(path,'..'),{recursive:true});
       fs.writeFileSync(path,bytes);return path;
     };
+    const executable=family==='publication'?'publication-admission-runner':'browser-'+family+'-runner';
     const paths=['project/source.lex.tex','lean/modules/source','export/kernel.ir',
       'generated/Cargo.toml','runner/src/main.rs',
-      'native-target/release/browser-'+family+'-runner'];
+      'native-target/release/'+executable];
     if(family==='operation-journal')paths.push('generated-b/Cargo.toml');
-    const guests=family==='effects'?['a','b','echo']:family==='budget'?['a','b']:
-      ['a','b','echo','journal','partition','journal-b','partition-b'];
+    const guests=family==='effects'?['a','b','echo']:['budget','publication'].includes(family)?['a','b']:
+      family==='presentation'?['a','b','fixture','labels','intent','secret','route','sink',
+        'maxroute','maxsink','maxfield','maxsecret','progress','maxprogress']:
+        ['a','b','echo','journal','partition','journal-b','partition-b'];
     for(const guest of guests)paths.push('guest-'+guest+'/Cargo.toml',
       'guest-'+guest+'/target/wasm32-unknown-unknown/release/product.wasm');
     for(const path of paths)put(path);
-    const native=join(work,'native-target/release/browser-'+family+'-runner');
+    const native=join(work,'native-target/release/'+executable);
     const linked=join(work,'native-target/release/cargo-deps-link');
     fs.linkSync(native,linked);
     const linkedProducts=captureVerificationProducts(work,family);
@@ -193,6 +197,10 @@ test('product preservation detects generated source proof package native Wasm an
     fs.chmodSync(root,rootMode|0o020);
     assert.throws(()=>captureVerificationProducts(work,family),/group\/other writable/);
     fs.chmodSync(root,rootMode);
+    const guest=join(work,'guest-'+guests[0]);
+    fs.renameSync(guest,guest+'-substituted');
+    assert.throws(()=>captureVerificationProducts(work,family),/exact independent generated guest inventory/);
+    fs.renameSync(guest+'-substituted',guest);
   }
 });
 
@@ -204,7 +212,7 @@ test('compiler owner refuses malformed or incomplete input closures before build
     assert.throws(() => createCompilerOwner('view', inputs),
       /compiler input (map|path|digest|closure)/);
   assert.equal(called, false, 'input accessors cannot run before immutable capture');
-  for (const name of ['view', 'custody', 'effects', 'budget', 'operation-journal']) {
+  for (const name of ['view', 'custody', 'effects', 'budget', 'operation-journal', 'presentation', 'publication']) {
     const inputs = captureCompilerInputs(name);
     for (const missing of ['tests/browser-view/compile.mjs', 'tests/browser-view/compiler-artifact.mjs', 'vendor/lean4-prod/lean.tar']) {
       const changed = {...inputs}; delete changed[missing];

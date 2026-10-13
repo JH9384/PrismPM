@@ -326,11 +326,18 @@ test('additional serial compiler owners preserve all independent models, mutatio
     {name:'operation-journal', caller:'tests/browser-operation-journal/checks.mjs',
       mutants:"['binding', 'trailing', 'reservation', 'payload', 'partition']",
       invocation:'verifyModelMutation(kind, owner)'},
+    {name:'presentation', caller:'sdk/browser/presentation.test.mjs',
+      mutants:"['binding', 'trailing', 'secretbound', 'secretroute', 'progress']",
+      invocation:'verifyModelMutation(kind, owner)'},
+    {name:'publication', directory:'publication-admission', caller:'tests/publication-admission/owner.test.mjs',
+      mutants:"['binding','coverage','timeline','trailing','preimage','partition']",
+      invocation:'verifyModelMutation(kind,inputs,owner)'},
   ];
   for (const family of families) {
-    const compile = readFileSync(join(repository, 'tests/browser-' + family.name + '/compile.mjs'), 'utf8');
+    const directory = family.directory ?? 'browser-' + family.name;
+    const compile = readFileSync(join(repository, 'tests/' + directory + '/compile.mjs'), 'utf8');
     const caller = readFileSync(join(repository, family.caller), 'utf8');
-    const checks = readFileSync(join(repository, 'tests/browser-' + family.name + '/checks.mjs'), 'utf8');
+    const checks = readFileSync(join(repository, 'tests/' + directory + '/checks.mjs'), 'utf8');
     const check = (compiled, owned, oracle) => {
       for (const anchor of ["requireCompilerOwner(compilerOwner, '" + family.name + "')",
         'shared.runDriver(', 'shared.runExporter(', 'if (shared) shared.verify()',

@@ -36,6 +36,13 @@ Evidence in container `prismpm-pkce-owner`,
 - Original/private compiler, generated-package and Wasm substitutions refuse.
 - SDK registration, omission/deadline and compiler-handle checks: 35 passed.
 
+The normative Debian 12 development image separately built the source-owned
+tools and passed golden write/readback: 375 files match build
+`c61f76a5280d23d717d738d10ae2e7965f4dc938caf8674ed16b84b12628e81c`.
+The reviewed delta adds only the exact PKCE source and updates tool-attestation
+metadata; existing generated behavior is unchanged. All 836 component inputs
+were rehashed afterward with no changes.
+
 Earlier runs failed on a missing test-family registration and an invalid source
 mutant; neither is accepted. The final run includes corrected, kernel-verified
 mutants. Broad infrastructure validation in the network-isolated Ubuntu SDK

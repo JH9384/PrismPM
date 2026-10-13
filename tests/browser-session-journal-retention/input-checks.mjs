@@ -1,12 +1,18 @@
 // Actual changes to a captured transitive input, never a substituted reader.
 import assert from 'node:assert/strict';
-import {existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, renameSync, unlinkSync, writeFileSync} from 'node:fs';
+import {existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {dirname, join} from 'node:path';
+import {basename, dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {frozenInputs, repository, run, sha, verifyFrozenInputs} from './compile.mjs';
 
 function substitutePrivateInputs(inputs) {
+  assert.equal(dirname(repository), realpathSync(tmpdir()), 'private input-copy parent');
+  assert.match(basename(repository), /^prismpm-retention-input-checks-[A-Za-z0-9]+$/, 'private input-copy directory name');
+  assert.equal(realpathSync(repository), resolve(repository));
+  const directory = lstatSync(repository);
+  assert.ok(directory.isDirectory() && directory.uid === process.getuid()
+    && (directory.mode & 0o777) === 0o700, 'owned private input-copy directory');
   verifyFrozenInputs(inputs);
   const relative = 'tests/browser-effects/corpus.mjs';
   assert.ok(Object.hasOwn(inputs, relative), 'actual transitive Session corpus is captured');
@@ -37,7 +43,7 @@ export function verifyRetentionInputSubstitutions(inputs) {
   verifyFrozenInputs(inputs);
   // Never mutate the repository or installed SDK: other owners may read the
   // same transitive source, and the immutable SDK can be mounted read-only.
-  const work = mkdtempSync(join(tmpdir(), 'prismpm-retention-input-checks-'));
+  const work = mkdtempSync(join(realpathSync(tmpdir()), 'prismpm-retention-input-checks-'));
   for (const [relative, digest] of Object.entries(inputs)) {
     assert.ok(relative.split('/').every(part => /^[A-Za-z0-9_.-]+$/.test(part)
       && part !== '.' && part !== '..'), 'closed captured input path');

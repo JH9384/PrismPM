@@ -1,5 +1,44 @@
 # Private retention component
 
+## Current compiler integration
+
+The guarded input-copy entry and all four component tests are retained with
+the complete 18-check owner. Current source, native, browser and installed-SDK
+qualification remain unaccepted until verified against this exact closure.
+The historical receipts below do not qualify the current compiler integration.
+
+## Historical guarded input-copy owner
+
+27 September 2026, pinned `prismpm-dev` devcontainer: complete owner **18/18
+PASS** in 903.217 seconds; separate source-readonly component suite **4/4
+PASS** in 10.801 seconds. Neither run skipped, cancelled or deferred cases.
+
+The unchanged owner verified 86 native std/no_std and Wasm vectors, six joint
+maxima, eleven Chromium storage journeys with native transcript replay, six
+executed host defects and nine independently compiled source defects. Existing
+compiler, generated-source, executable and Wasm substitution checks all ran.
+
+The new entry guard permits substitutions only in an owned canonical temporary
+`prismpm-retention-input-checks-*` directory with mode `0700`. Before the fix,
+the original-entry regression reached an attempted rename on a read-only source
+mount; afterward it refused before substitution. Actual nonprivate-mode and
+wrong-name probes also refuse, while all five private input defects remain
+detected and every captured source byte is restored.
+
+Receipt: `932a932d8e15c34e595cd0493ee714740d15403fea7765869ba6f2eb4bcb46b6`.
+840 frozen inputs: `487c97a0f1cbebd5dd20e9f95ab9684929f9e1fa8353909a721ed320a858c8c7`.
+Source and Wasm identities match the earlier baseline below.
+
+Raw logs, copied inputs, independent rehash inventory and complete baseline,
+mutant and compiler artifacts are retained under
+`target/retention-verification/guard-run-kGRl4A9A/` in the guarded worktree.
+Archive `complete-artifacts.tar.gz` (135,565,955 bytes):
+`d7b692c900f7fc0d2e942bf5b962210053155c4cfb50d978ffc8aaa52e76b15f`.
+The rehash independently checked all source inputs, exact generated packages,
+native executables, original/private Wasm, IR and proof manifests.
+
+## Earlier receipts
+
 27 September 2026, pinned `prismpm-dev` devcontainer:
 
 ```sh
@@ -42,10 +81,10 @@ TAP tests in 7.562 seconds against the exact original artifact and full receipt.
 Separate follow-up receipt:
 `42054aac06d8f1822e0dd7ed3551a5203743179f367f1fd8118a7228f7c79d00`.
 
-The current owner additionally requires eleven browser journeys, native replay
+The later owner additionally requires eleven browser journeys, native replay
 of every observed generated call and six actual host mutants; the scoped
-follow-up passes. See `../browser-session-journal/STORAGE.md`. Its complete
-changed-closure source-owner run remains required.
+follow-up passed. See `../browser-session-journal/STORAGE.md`. The complete
+changed-closure run is now recorded above, without relabeling earlier receipts.
 
 This receipt does not establish
 authenticated journal closure, freshness, joint real IndexedDB capacity, all-browser support,

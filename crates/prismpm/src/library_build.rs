@@ -487,7 +487,7 @@ mod tests {
         let (coverage, roots_document, module, roots) = fixture(&["Owner.match"]);
         assert!(prod_codegen::generate_module(&module)
             .unwrap()
-            .contains("pub fn match("));
+            .contains("pub fn r#match("));
         assert_eq!(
             validate_export_identity(&coverage, &roots_document, &module, &roots, &roots)
                 .unwrap_err()

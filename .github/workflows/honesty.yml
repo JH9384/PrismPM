@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 concurrency:
   group: honesty-${{ github.repository }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}

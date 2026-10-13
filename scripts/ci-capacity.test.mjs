@@ -72,6 +72,11 @@ test('parallel policy refuses missing, duplicated, weakened or unbounded executi
 test('read-only source workflows supersede by repository and ref, never unique run ID', () => {
   for (const name of ['ci-parallel', 'vv', 'bootstrap', 'reproducibility', 'honesty']) {
     const value = workflow(name);
+    if (['ci-parallel', 'reproducibility', 'honesty'].includes(name)) {
+      // Stacked PRs must run the same source checks before their parent merges.
+      assert.equal(value.on.pull_request, null);
+      assert.deepEqual(value.on.push.branches, ['main']);
+    }
     assert.equal(value.concurrency['cancel-in-progress'], true);
     assert(value.concurrency.group.includes('github.repository'));
     assert(value.concurrency.group.includes('github.ref'));

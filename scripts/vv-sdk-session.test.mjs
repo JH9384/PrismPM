@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {existsSync, mkdtempSync, readFileSync, rmSync} from 'node:fs';
+import {existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'node:test';
@@ -10,6 +10,12 @@ function run(t, options = {}, args = ['--with-sdk', 'bash', '-euo', 'pipefail', 
   const root = mkdtempSync(join(tmpdir(), 'prismpm-vv-session-'));
   t.after(() => rmSync(root, {recursive: true, force: true}));
   const env = sessionFixture(root, process.env, options);
+  if (options.shellMutation) {
+    const path = join(root, 'scripts/vv.sh'), original = readFileSync(path, 'utf8');
+    const changed = options.shellMutation(original);
+    assert.notEqual(changed, original, 'source mutation must alter the actual copied shell');
+    writeFileSync(path, changed);
+  }
   const result = spawnSync('bash', ['scripts/vv.sh', ...args], {cwd: root, env, input: options.input, encoding: 'utf8', timeout: 15_000});
   assert.ifError(result.error);
   const path = join(root, 'session.jsonl');
@@ -116,6 +122,111 @@ test('exact package-api preserves an independently supplied immutable SDK refere
   assert.deepEqual(result.rows.map(row => row.kind), ['init', 'bootstrap', 'cargo']);
   assert.equal(result.rows[2].image, image);
 });
+for (const category of ['holo-stdlib', 'desktop-browser']) {
+  const args = ['conformance', category];
+  for (const first of [0, 29]) {
+    test(`exact source-only conformance ${category} preserves both preflights and owning exit ${first}`, t => {
+      const result = run(t, {first, expectedCargoArgs: ['xtask', ...args]}, args);
+      assert.equal(result.status, first, result.stderr);
+      assert.deepEqual(result.rows.map(row => row.kind), ['init', 'bootstrap', 'cargo']);
+      assert.deepEqual(result.rows[0].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs']);
+      assert.deepEqual(result.rows[1].args, ['--check-source']);
+      assert.deepEqual(result.rows[2].args, ['xtask', ...args]);
+      assert.equal(result.rows[2].image, null);
+    });
+  }
+  for (const [options, expectedKinds, status] of [
+    [{initFailure: 31}, ['init'], 31],
+    [{bootstrapFailure: 37}, ['init', 'bootstrap'], 37],
+  ]) {
+    test(`source-only conformance ${category} cannot bypass failed preflight ${status}`, t => {
+      const result = run(t, options, args);
+      assert.equal(result.status, status, result.stderr);
+      assert.deepEqual(result.rows.map(row => row.kind), expectedKinds);
+    });
+  }
+  test(`source-only conformance ${category} preserves a supplied immutable SDK reference`, t => {
+    const image = `ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:${'c'.repeat(64)}`;
+    const result = run(t, {image, expectedCargoArgs: ['xtask', ...args]}, args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.rows.map(row => row.kind), ['init', 'bootstrap', 'cargo']);
+    assert.deepEqual(result.rows[2].args, ['xtask', ...args]);
+    assert.equal(result.rows[2].image, image);
+  });
+  test(`explicit --with-sdk conformance ${category} retains its owned runtime image`, t => {
+    const result = run(t, {expectedCargoArgs: ['xtask', ...args]}, ['--with-sdk', 'cargo', 'xtask', ...args]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.rows.filter(row => row.kind === 'build').length, 1);
+    const calls = result.rows.filter(row => row.kind === 'cargo');
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].args, ['xtask', ...args]);
+    assert.equal(calls[0].image, `127.0.0.1:43567/prismpm-vv-sdk@sha256:${'b'.repeat(64)}`);
+    assert(result.rows.some(row => row.kind === 'docker' && row.args.slice(0, 2).join(' ') === 'container rm'));
+  });
+}
+for (const args of [
+  ['conformance'], ['conformance', 'all'], ['conformance', 'contracts'],
+  ['conformance', 'core'], ['conformance', 'system-oci'], ['conformance', 'verification-schemas'],
+  ['conformance', 'holo-stdlib', '--nocapture'], ['conformance', 'desktop-browser', 'extra'],
+  ['conformance', 'holo-stdlib', ''], ['conformance', 'desktop-browser', ''],
+  ['Conformance', 'holo-stdlib'], ['CONFORMANCE', 'desktop-browser'],
+  ['conformance', 'HOLO-STDLIB'], ['conformance', 'Desktop-browser'],
+  ['conformance', 'holo-stdlib '], ['conformance', 'desktop-browser\n'],
+  ['conformance', 'conformance_ho'], ['conformance', 'conformance_dk'],
+  ['conformance', 'desktop-browser,holo-stdlib'], ['conformance', ''],
+  ['holo-stdlib'], ['desktop-browser'], ['other', 'holo-stdlib'], ['other', 'desktop-browser'],
+]) {
+  test(`non-exact conformance argv retains runtime SDK acquisition: ${JSON.stringify(args)}`, t => {
+    const expectedCargoArgs = ['xtask', ...args];
+    const result = run(t, {expectedCargoArgs}, args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.rows.filter(row => row.kind === 'build').length, 1);
+    const calls = result.rows.filter(row => row.kind === 'cargo');
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].args, expectedCargoArgs);
+    assert.equal(calls[0].image, `127.0.0.1:43567/prismpm-vv-sdk@sha256:${'b'.repeat(64)}`);
+    assert(result.rows.indexOf(calls[0]) > result.rows.findIndex(row => row.kind === 'bootstrap'));
+    assert(result.rows.some(row => row.kind === 'docker' && row.args.slice(0, 2).join(' ') === 'container rm'));
+  });
+}
+const exactCategory = '{ test "${2:-}" = holo-stdlib || test "${2:-}" = desktop-browser; }';
+for (const [name, from, to, args] of [
+  ['arity guard', 'test "$#" -eq 2 && ', '', ['conformance', 'holo-stdlib', 'extra']],
+  ['command guard', 'test "${1:-}" = conformance &&', 'true &&', ['other', 'desktop-browser']],
+  ['closed category guard', exactCategory, 'true', ['conformance', 'system-oci']],
+  ['unreviewed category addition', exactCategory, '{ test "${2:-}" = core || ' + exactCategory.slice(2), ['conformance', 'core']],
+]) {
+  test(`actual shell mutant without ${name} is rejected by SDK-acquisition witness`, t => {
+    const result = run(t, {expectedCargoArgs: ['xtask', ...args], shellMutation: source => {
+      assert.equal(source.split(from).length, 2, 'one exact source guard');
+      return source.replace(from, to);
+    }}, args);
+    assert.equal(result.status, 0, result.stderr);
+    const calls = result.rows.filter(row => row.kind === 'cargo');
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].args, ['xtask', ...args]);
+    assert.equal(calls[0].image, null, 'mutant reached the real shell dispatch without image acquisition');
+    assert.throws(() => assert.equal(result.rows.filter(row => row.kind === 'build').length, 1,
+      'required SDK image acquisition'), /required SDK image acquisition/);
+  });
+}
+for (const [name, line, expectedKinds] of [
+  ['initial source preflight', 'node --test scripts/devcontainer-init.test.mjs scripts/reconcile-lexlean.test.mjs\n', ['bootstrap', 'cargo']],
+  ['bootstrap source preflight', 'bash scripts/bootstrap-verify.sh --check-source\n', ['init', 'cargo']],
+]) {
+  test(`actual shell mutant omitting ${name} is rejected by ordered preflight witness`, t => {
+    const args = ['conformance', 'holo-stdlib'];
+    const result = run(t, {expectedCargoArgs: ['xtask', ...args], shellMutation: source => {
+      assert.equal(source.split(line).length, 2, 'one exact source preflight');
+      return source.replace(line, '');
+    }}, args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.rows.map(row => row.kind), expectedKinds);
+    assert.deepEqual(result.rows.at(-1).args, ['xtask', ...args]);
+    assert.throws(() => assert.deepEqual(result.rows.map(row => row.kind), ['init', 'bootstrap', 'cargo'],
+      'both ordered source preflights'), /both ordered source preflights/);
+  });
+}
 for (const options of [{volumeConflict: true}, {containerConflict: true}, {tagConflict: true}]) {
   test(`foreign resource conflicts never delete the conflicting resource: ${JSON.stringify(options)}`, t => {
     const result = run(t, options);

@@ -8,6 +8,78 @@ use std::process::Command;
 const REPORTER: &[u8] = include_bytes!("../../../../scripts/owning-node-reporter.mjs");
 const FILE_PREFIX: &str = "# prismpm-owning-file ";
 
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct PhaseSummary {
+    scope: String,
+    phases: Vec<PhaseTiming>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct PhaseTiming {
+    phase: String,
+    calls: u64,
+    failures: u64,
+    elapsed_ms: u64,
+}
+
+// Diagnostic parsing is fail-closed but non-authoritative. Never forward child
+// prose, paths or additional fields, and never change a passing/failing owner.
+fn phase_summary(stdout: &[u8]) -> Option<PhaseSummary> {
+    const PREFIX: &str = "# prismpm-compiler-phase-summary ";
+    let text = std::str::from_utf8(stdout).ok()?;
+    let mut rows = text.lines().filter_map(|line| line.strip_prefix(PREFIX));
+    let line = rows.next()?;
+    if line.len() > 4096 || rows.next().is_some() {
+        return None;
+    }
+    let summary: PhaseSummary = serde_json::from_str(line).ok()?;
+    if summary.scope != "compiler-phase-diagnostic-not-acceptance"
+        || summary.phases.is_empty()
+        || summary.phases.len() > 12
+    {
+        return None;
+    }
+    let mut previous = None;
+    for row in &summary.phases {
+        if !matches!(
+            row.phase.as_str(),
+            "archive-extraction"
+                | "artifact-cleanup"
+                | "exporter-construction"
+                | "generated-module-build"
+                | "kernel-export"
+                | "lake-update"
+                | "lexlean-verification"
+                | "native-code-generation"
+                | "rust-compilation"
+                | "toolchain-check"
+                | "unclassified-execution"
+                | "wasm-code-generation"
+        ) || row.calls == 0
+            || row.calls > 1_000_000
+            || row.failures > row.calls
+            || row.elapsed_ms > row.calls * 600_000
+            || previous.is_some_and(|value: &str| value >= row.phase.as_str())
+        {
+            return None;
+        }
+        previous = Some(row.phase.as_str());
+    }
+    Some(summary)
+}
+
+fn write_diagnostic(writer: &mut impl std::io::Write, prefix: &str, record: &serde_json::Value) {
+    // Formatting JSON directly into stderr performs many tiny writes. Build
+    // each bounded line first so the transport receives one complete record.
+    // A short write is completed by write_all; failure remains diagnostic loss.
+    let line = format!("{prefix}{record}\n");
+    if line.len() <= 4096 {
+        let _ = writer.write_all(line.as_bytes());
+    }
+}
+
 fn failure_diagnostics(id: &str, reason: &str, stdout: &[u8], stderr: &[u8]) -> Vec<u8> {
     use std::io::Write;
     let mut bytes = Vec::new();
@@ -169,6 +241,9 @@ pub(super) fn verify(root: &Path, id: &str, files: &[&str], minimum_tests: usize
         .map(|byte| format!("%{byte:02X}"))
         .collect::<String>();
     let reporter = format!("--test-reporter=data:text/javascript,{encoded}");
+    // Measure this actual child execution, not time spent waiting for the
+    // compiler scheduler. Timing is diagnostic only, never acceptance.
+    let started = std::time::Instant::now();
     let output = Command::new("node")
         .env_remove("LD_LIBRARY_PATH")
         .env_remove("NODE_TEST_CONTEXT")
@@ -177,6 +252,7 @@ pub(super) fn verify(root: &Path, id: &str, files: &[&str], minimum_tests: usize
         .current_dir(root)
         .output()
         .expect("execute complete owning Node suite in the devcontainer");
+    let elapsed_ms = started.elapsed().as_millis();
     let validation = std::panic::catch_unwind(|| {
         let stdout = std::str::from_utf8(&output.stdout).expect("UTF-8 TAP output");
         assert!(
@@ -206,35 +282,236 @@ pub(super) fn verify(root: &Path, id: &str, files: &[&str], minimum_tests: usize
                 "{id}: {outcome} tests cannot satisfy acceptance"
             );
         }
-        file_completions(stdout, &selected, count("tests"));
+        let tests = count("tests");
+        file_completions(stdout, &selected, tests);
+        tests
     });
-    if let Err(failure) = validation {
-        // Direct Write bypasses libtest's per-test print capture. ci-observe
-        // retains process AND transcript failures before another long test
-        // can be cancelled ahead of libtest's final failure report.
-        use std::io::Write;
-        let mut stderr = std::io::stderr().lock();
-        let reason = failure
-            .downcast_ref::<String>()
-            .map(String::as_str)
-            .or_else(|| failure.downcast_ref::<&str>().copied())
-            .unwrap_or("non-string assertion payload");
-        // A closed diagnostic pipe must not replace the owning failure.
-        let _ = stderr.write_all(&failure_diagnostics(
-            id,
-            reason,
-            &output.stdout,
-            &output.stderr,
-        ));
-        let _ = stderr.flush();
-        std::panic::resume_unwind(failure);
+    let tests = match validation {
+        Ok(tests) => tests,
+        Err(failure) => {
+            // Direct Write bypasses libtest's per-test print capture. ci-observe
+            // retains process AND transcript failures before another long test
+            // can be cancelled ahead of libtest's final failure report.
+            use std::io::Write;
+            let mut stderr = std::io::stderr().lock();
+            let reason = failure
+                .downcast_ref::<String>()
+                .map(String::as_str)
+                .or_else(|| failure.downcast_ref::<&str>().copied())
+                .unwrap_or("non-string assertion payload");
+            // A closed diagnostic pipe must not replace the owning failure.
+            let _ = stderr.write_all(&failure_diagnostics(
+                id,
+                reason,
+                &output.stdout,
+                &output.stderr,
+            ));
+            let _ = stderr.flush();
+            std::panic::resume_unwind(failure);
+        }
+    };
+    // Direct Write also bypasses libtest capture for successful owners. Keep
+    // only closed numeric summary fields and the owning identifier: never
+    // echo child diagnostics, private paths, environment or arbitrary stdout.
+    use std::io::Write;
+    let diagnostic = serde_json::json!({
+        "scope": "node-owner-diagnostic-not-acceptance", "owner": id,
+        "elapsed_ms": elapsed_ms, "files": files.len(), "tests": tests
+    });
+    let mut stderr = std::io::stderr().lock();
+    if let Some(phases) = phase_summary(&output.stdout) {
+        let record = serde_json::json!({"scope":phases.scope,"owner":id,"phases":phases.phases});
+        write_diagnostic(&mut stderr, "# prismpm-compiler-phase-diagnostic ", &record);
     }
+    // A broken diagnostic pipe cannot replace a successful owning result.
+    write_diagnostic(&mut stderr, "# prismpm-node-owner-diagnostic ", &diagnostic);
+    let _ = stderr.flush();
 }
 
 #[cfg(test)]
 mod tests {
     use super::{file_completions, selected_files, verify, FileCompletion, FILE_PREFIX};
+
+    #[test]
+    fn complete_diagnostics_are_formatted_before_the_transport_write() {
+        #[derive(Default)]
+        struct Transport {
+            writes: Vec<Vec<u8>>,
+            maximum: Option<usize>,
+        }
+        impl std::io::Write for Transport {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                let count = self.maximum.unwrap_or(bytes.len()).min(bytes.len());
+                self.writes.push(bytes[..count].to_vec());
+                Ok(count)
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let record = serde_json::json!({"owner":"DK-16",
+            "scope":"compiler-phase-diagnostic-not-acceptance",
+            "phases":[{"calls":3,"elapsed_ms":123456,"failures":0,"phase":"rust-compilation"}]});
+        let prefix = "# prismpm-compiler-phase-diagnostic ";
+        let expected = format!("{prefix}{record}\n").into_bytes();
+        let mut transport = Transport::default();
+        super::write_diagnostic(&mut transport, prefix, &record);
+        assert_eq!(transport.writes, std::slice::from_ref(&expected));
+        let mut short = Transport {
+            maximum: Some(7),
+            ..Transport::default()
+        };
+        super::write_diagnostic(&mut short, prefix, &record);
+        assert_eq!(short.writes.concat(), expected);
+    }
+
+    #[test]
+    fn unavailable_or_oversized_diagnostics_do_not_become_acceptance_failures() {
+        struct Unavailable;
+        impl std::io::Write for Unavailable {
+            fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::ErrorKind::BrokenPipe.into())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        super::write_diagnostic(
+            &mut Unavailable,
+            "# diagnostic ",
+            &serde_json::json!({"tests":1}),
+        );
+        let mut captured = Vec::new();
+        super::write_diagnostic(
+            &mut captured,
+            "# diagnostic ",
+            &serde_json::json!("x".repeat(4096)),
+        );
+        assert!(
+            captured.is_empty(),
+            "oversized diagnostic is omitted, never truncated"
+        );
+        super::write_diagnostic(
+            &mut captured,
+            "# diagnostic ",
+            &serde_json::json!("😀".repeat(1024)),
+        );
+        assert!(captured.is_empty(), "the bound counts UTF-8 bytes");
+    }
+
+    #[test]
+    fn complete_json_records_survive_competing_stdout_and_stderr_writers() {
+        use std::io::{Read, Seek, SeekFrom, Write};
+        const CHILD: &str = "PRISMPM_DIAGNOSTIC_TRANSPORT_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            // Finish libtest's unterminated progress prefix before the fixture.
+            std::io::stdout().lock().write_all(b"\n").unwrap();
+            std::thread::scope(|scope| {
+                for owner in ["DK-16", "DK-23"] {
+                    scope.spawn(move || {
+                        for index in 0..128 {
+                            let phases = [
+                                "archive-extraction", "artifact-cleanup", "exporter-construction",
+                                "generated-module-build", "kernel-export", "lake-update",
+                                "lexlean-verification", "native-code-generation", "rust-compilation",
+                                "toolchain-check", "unclassified-execution", "wasm-code-generation",
+                            ].map(|phase| serde_json::json!({"phase":phase,"calls":100,
+                                "failures":0,"elapsed_ms":123456}));
+                            let record = serde_json::json!({"owner":owner,"index":index,
+                                "scope":"compiler-phase-diagnostic-not-acceptance","phases":phases});
+                            super::write_diagnostic(
+                                &mut std::io::stderr().lock(),
+                                "# prismpm-compiler-phase-diagnostic ",
+                                &record,
+                            );
+                        }
+                    });
+                }
+                scope.spawn(|| {
+                    for index in 0..256 {
+                        let line = format!("competing stdout {index}\n");
+                        std::io::stdout().lock().write_all(line.as_bytes()).unwrap();
+                    }
+                });
+            });
+            return;
+        }
+        let mut combined = tempfile::tempfile().unwrap();
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "cases::node_suite::tests::complete_json_records_survive_competing_stdout_and_stderr_writers",
+                "--test-threads=1",
+            ])
+            .env(CHILD, "1")
+            // Both descriptors share one open-file offset. This exercises
+            // genuinely combined transport, not separately captured pipes.
+            .stdout(combined.try_clone().unwrap())
+            .stderr(combined.try_clone().unwrap())
+            .status()
+            .unwrap();
+        assert!(status.success());
+        combined.seek(SeekFrom::Start(0)).unwrap();
+        let mut transcript = String::new();
+        combined.read_to_string(&mut transcript).unwrap();
+        let mut seen = std::collections::BTreeSet::new();
+        for line in transcript
+            .lines()
+            .filter(|line| line.starts_with("# prismpm-compiler-phase-diagnostic "))
+        {
+            assert!(line.len() < 4096);
+            let json = line
+                .strip_prefix("# prismpm-compiler-phase-diagnostic ")
+                .unwrap();
+            let value: serde_json::Value = serde_json::from_str(json).unwrap();
+            assert_eq!(value["phases"].as_array().unwrap().len(), 12);
+            assert!(seen.insert((
+                value["owner"].as_str().unwrap().to_owned(),
+                value["index"].as_u64().unwrap()
+            )));
+        }
+        assert_eq!(seen.len(), 256);
+        assert_eq!(transcript.matches("competing stdout ").count(), 256);
+    }
     use std::path::PathBuf;
+
+    #[test]
+    fn compiler_phase_diagnostics_are_closed_bounded_and_not_acceptance() {
+        let record = serde_json::json!({"scope":"compiler-phase-diagnostic-not-acceptance",
+            "phases":[{"phase":"kernel-export","calls":2,"failures":1,"elapsed_ms":123}]});
+        let encode =
+            |value: &serde_json::Value| format!("# prismpm-compiler-phase-summary {value}\n");
+        assert!(super::phase_summary(encode(&record).as_bytes()).is_some());
+        for invalid in [
+            serde_json::json!({"scope":"acceptance","phases":record["phases"]}),
+            serde_json::json!({"scope":record["scope"],"phases":[],"secret":"credential"}),
+            serde_json::json!({"scope":record["scope"],"phases":[]}),
+        ] {
+            assert!(super::phase_summary(encode(&invalid).as_bytes()).is_none());
+        }
+        for (field, value) in [
+            ("phase", serde_json::json!("/private/path")),
+            ("calls", serde_json::json!(0)),
+            ("calls", serde_json::json!(1_000_001)),
+            ("failures", serde_json::json!(3)),
+            ("elapsed_ms", serde_json::json!(1_200_001)),
+            ("elapsed_ms", serde_json::json!(-1)),
+            ("elapsed_ms", serde_json::json!(0.5)),
+            ("extra", serde_json::json!("secret")),
+        ] {
+            let mut invalid = record.clone();
+            invalid["phases"][0][field] = value;
+            assert!(super::phase_summary(encode(&invalid).as_bytes()).is_none());
+        }
+        let mut duplicate = record.clone();
+        duplicate["phases"]
+            .as_array_mut()
+            .unwrap()
+            .push(record["phases"][0].clone());
+        assert!(super::phase_summary(encode(&duplicate).as_bytes()).is_none());
+        assert!(super::phase_summary(encode(&record).repeat(2).as_bytes()).is_none());
+        assert!(super::phase_summary(b"# prismpm-compiler-phase-summary malformed\n").is_none());
+    }
 
     #[test]
     fn failure_excerpts_are_bounded_and_preserve_both_stream_ends() {
@@ -269,27 +546,38 @@ mod tests {
         use std::io::{BufRead, Read, Write};
         use std::process::{Command, Stdio};
         const CHILD: &str = "PRISMPM_NODE_DIAGNOSTICS_CHILD";
-        if std::env::var_os(CHILD).is_some() {
+        if let Some(mode) = std::env::var_os(CHILD) {
             let temporary = tempfile::tempdir().unwrap();
             std::fs::write(
                 temporary.path().join("one.mjs"),
                 "import{test}from'node:test';test('one',()=>{});",
             )
             .unwrap();
-            let failure = std::panic::catch_unwind(|| {
+            if mode == "success" {
                 verify(
                     temporary.path(),
                     "diagnostic-probe",
                     &["one.mjs"],
-                    2,
+                    1,
                     "10000",
-                )
-            })
-            .unwrap_err();
-            assert!(failure
-                .downcast_ref::<String>()
-                .unwrap()
-                .contains("incomplete test suite"));
+                );
+            } else {
+                assert_eq!(mode, "failure");
+                let failure = std::panic::catch_unwind(|| {
+                    verify(
+                        temporary.path(),
+                        "diagnostic-probe",
+                        &["one.mjs"],
+                        2,
+                        "10000",
+                    )
+                })
+                .unwrap_err();
+                assert!(failure
+                    .downcast_ref::<String>()
+                    .unwrap()
+                    .contains("incomplete test suite"));
+            }
             std::io::stderr()
                 .write_all(b"PRISMPM_DIAGNOSTICS_READY\n")
                 .unwrap();
@@ -297,50 +585,76 @@ mod tests {
             std::io::stdin().read_exact(&mut [0u8; 1]).unwrap();
             return;
         }
-        let mut child = Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
-                "cases::node_suite::tests::diagnostics_precede_libtest_summary",
-                "--test-threads=1",
-            ])
-            .env(CHILD, "1")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
-        let stderr = child.stderr.take().unwrap();
-        let (sender, receiver) = std::sync::mpsc::channel();
-        let reader = std::thread::spawn(move || {
-            let mut observed = String::new();
-            for line in std::io::BufReader::new(stderr).lines() {
-                let line = line.unwrap();
-                observed.push_str(&line);
-                observed.push('\n');
-                if line == "PRISMPM_DIAGNOSTICS_READY" {
-                    sender.send(observed).unwrap();
-                    break;
+        for mode in ["failure", "success"] {
+            let mut child = Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "cases::node_suite::tests::diagnostics_precede_libtest_summary",
+                    "--test-threads=1",
+                ])
+                .env(CHILD, mode)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            let stderr = child.stderr.take().unwrap();
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let reader = std::thread::spawn(move || {
+                let mut observed = String::new();
+                for line in std::io::BufReader::new(stderr).lines() {
+                    let line = line.unwrap();
+                    observed.push_str(&line);
+                    observed.push('\n');
+                    if line == "PRISMPM_DIAGNOSTICS_READY" {
+                        sender.send(observed).unwrap();
+                        break;
+                    }
                 }
+            });
+            let observed = receiver.recv_timeout(std::time::Duration::from_secs(30));
+            if observed.is_err() {
+                let _ = child.kill();
+                let _ = child.wait();
             }
-        });
-        let observed = receiver.recv_timeout(std::time::Duration::from_secs(30));
-        if observed.is_err() {
-            let _ = child.kill();
-            let _ = child.wait();
+            let observed = observed.expect("immediate diagnostics before child test completion");
+            assert!(child.try_wait().unwrap().is_none());
+            child.stdin.take().unwrap().write_all(b"x").unwrap();
+            let output = child.wait_with_output().unwrap();
+            reader.join().unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stdout)
+            );
+            if mode == "failure" {
+                assert!(observed.contains("assertion: diagnostic-probe: incomplete test suite"));
+                assert!(observed.contains("# pass 1"));
+            } else {
+                let prefix = "# prismpm-node-owner-diagnostic ";
+                let rows = observed
+                    .lines()
+                    .filter_map(|line| line.strip_prefix(prefix))
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    rows.len(),
+                    1,
+                    "one direct completion diagnostic before libtest summary"
+                );
+                let record: serde_json::Value = serde_json::from_str(rows[0]).unwrap();
+                assert_eq!(record["scope"], "node-owner-diagnostic-not-acceptance");
+                assert_eq!(record["owner"], "diagnostic-probe");
+                assert_eq!(record["files"], 1);
+                assert_eq!(record["tests"], 1);
+                assert!(record["elapsed_ms"].as_u64().unwrap() < 10000);
+                assert_eq!(record.as_object().unwrap().len(), 5);
+                assert!(
+                    !observed.contains("# pass 1"),
+                    "success diagnostics do not dump child output"
+                );
+            }
+            assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
         }
-        let observed = observed.expect("immediate diagnostics before child test completion");
-        assert!(child.try_wait().unwrap().is_none());
-        child.stdin.take().unwrap().write_all(b"x").unwrap();
-        let output = child.wait_with_output().unwrap();
-        reader.join().unwrap();
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stdout)
-        );
-        assert!(observed.contains("assertion: diagnostic-probe: incomplete test suite"));
-        assert!(observed.contains("# pass 1"));
-        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
     }
 
     #[test]

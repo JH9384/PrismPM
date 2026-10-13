@@ -54,8 +54,11 @@ fi
 node "$root/sdk/bootstrap/runner.mjs" "$prior" --project "$envelope" build --json >"$work/prior-build.json"
 node "$root/scripts/bootstrap-evidence.mjs" capture "$envelope" \
   "$work/prior-projection.json" "$work/prior-build.json" "$work/prior-capture.json"
+# Keep compilation out of the sealed dependency tree, including when a caller
+# supplies a Cargo target directory. The existing private workspace owns cleanup.
 if ! cargo run --locked --offline --quiet --manifest-path \
-  "$root/vendor/lexlean/Cargo.toml" -- --project "$envelope/lexlean.toml" lock; then
+  "$root/vendor/lexlean/Cargo.toml" --target-dir "$work/lexlean-target" \
+  -- --project "$envelope/lexlean.toml" lock; then
   exit 1
 fi
 if ! cargo run --locked --offline --quiet --package prismpm -- \

@@ -174,6 +174,17 @@ test('completion evidence requires the actual correlated event and its exact clo
   assert(owner.includes("for (const trigger of matrix.triggers) for (const control of ['omit-finished', 'malformed-finished'])"));
   assert(owner.includes("assert.equal(receipt.failure_code, 'PORTABLE_REQUEST_COMPLETION')"));
   assert(owner.includes('assert.equal(negativeControls.length, 12)'));
+  const specification = read('SPEC.md');
+  const requirements = ['Eight further live controls remove or corrupt the actual request-completion',
+    'All twelve controls are mandatory and cannot weaken'];
+  const requireSpecification = value => {
+    for (const requirement of requirements) assert(value.includes(requirement),
+      'the normative specification must retain every completion control');
+  };
+  requireSpecification(specification);
+  for (const requirement of requirements) assert.throws(() =>
+    requireSpecification(specification.replace(requirement, '')),
+    /the normative specification must retain every completion control/);
 });
 
 test('completion controls mutate only the real source listener and refuse missing or ambiguous targets', () => {

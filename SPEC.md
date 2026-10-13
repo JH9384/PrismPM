@@ -208,6 +208,10 @@ fresh source-bound oracle compiler: 18 interaction cases per profile and trigger
 plus three separately labeled infrastructure cases per profile (78 cases).
 Four additional live negative controls reject a no-op response probe and a
 wrong-status failure masquerading as envelope-validation evidence.
+Eight further live controls remove or corrupt the actual request-completion
+diagnostic listener for both profiles and both triggers; the completion predicate
+itself must refuse them. All twelve controls are mandatory and cannot weaken
+application-response acceptance.
 Every outcome is retained; no missing, failed, timed-out, or skipped case passes.
 Each case binds the live Controller-verified model, archive, Wasm and verification
 manifest, and its Linux subreaper must establish descendant cleanup before the

@@ -10,6 +10,9 @@ import {captureWpt, verifyNativeWpt} from './wpt.mjs';
 test('complete pinned original ECDSA source and independent native vectors', () => {
   const capture = captureWpt();
   assert.equal(capture.names.length, 324);
+  assert.equal(createHash('sha256').update(JSON.stringify(capture.names)).digest('hex'),
+    '03ebd57abddb1cb3aacc3fb73ad3176721a61e3f2d4eb09e9e43743df4948772',
+    'every original upstream test name remains registered');
   assert.equal(verifyNativeWpt(capture).length, 96);
 });
 

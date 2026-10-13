@@ -3,6 +3,14 @@
 Status: **incomplete; not accepted**. No SDK image, public Browser runtime,
 account, mailbox, organization or Foundry release is accepted by this work.
 
+## Accepted upstream oracle — 13 October 2026
+
+The complete seven-file ECDSA oracle closure now pins upstream commit
+`37260931105fff57b17bbb80d15fd44b1eb3b930`, which merged WPT #63475.
+All 324 original test names and 96 native vectors remain required; no assertion
+or engine is omitted. Historical failures below remain unaccepted. Fresh
+three-engine, generated-owner and installed-SDK qualification remain required.
+
 ## Current integration — 2026-10-08
 
 DK-32 is restored beside the current DK-29/DK-33/DK-34/DK-37/DK-38 owners.

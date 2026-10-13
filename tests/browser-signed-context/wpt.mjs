@@ -22,10 +22,10 @@ export function captureWpt(directory = root) {
   const manifestBytes = read('source.json', directory), manifest = JSON.parse(manifestBytes);
   // Independently acquired original bytes were checked against every upstream
   // Git blob at the fixed commit; replacement inventory is not supplier proof.
-  assert.equal(digest(manifestBytes), 'd166bfb9a7093084ab1032bcefaea122f047b62571750bc8038a83f5fa250136',
+  assert.equal(digest(manifestBytes), '2906c275caed0ea6dc1096de054e2e1c67f7ccd098d6d692530b56431478b4b7',
     'independently verified upstream WPT manifest');
   assert.equal(manifest.repository, 'https://github.com/web-platform-tests/wpt');
-  assert.equal(manifest.revision, '986e75d7897742148c16253c08c50c8ba0e7b0f7');
+  assert.equal(manifest.revision, '37260931105fff57b17bbb80d15fd44b1eb3b930');
   assert.equal(manifest.entry, scripts.at(-1));
   assert.deepEqual(manifest.globals, ['window', 'dedicatedworker']);
   assert.deepEqual(manifest.files.map(row => row.path).sort(), expectedFiles);
@@ -102,7 +102,7 @@ export async function collectBrowserWpt(engine, capture = captureWpt()) {
         worker.onerror = event => {clearTimeout(timer); worker.terminate(); reject(Error(event.message));};
       }));
       assert.deepEqual(failures, []); capture.unchanged();
-      return {engine, version: browser.version(), revision: '986e75d7897742148c16253c08c50c8ba0e7b0f7', manifest: capture.manifest,
+      return {engine, version: browser.version(), revision: '37260931105fff57b17bbb80d15fd44b1eb3b930', manifest: capture.manifest,
         window: window.tests.length, dedicatedworker: worker.tests.length,
         results: {window, dedicatedworker: worker}};
     } finally {

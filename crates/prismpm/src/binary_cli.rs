@@ -291,7 +291,7 @@ mod execution_tests {
             .filter(|v| !v.is_empty())
             .collect::<Vec<_>>();
         assert_eq!(generated, names);
-        assert_eq!(registry["capability"].as_str(), Some("DK-29"));
+        assert_eq!(registry["capability"].as_str(), Some("DK-36"));
         let semantics = module["declarations"]
             .as_array()
             .unwrap()

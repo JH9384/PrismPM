@@ -316,6 +316,59 @@ test('serial View and Custody owners preserve fresh tools and every product veri
   }
 });
 
+test('additional serial compiler owners preserve all independent models, mutations and post-retirement evidence', () => {
+  const families = [
+    {name:'effects', caller:'sdk/browser/effects-test.mjs',
+      mutants:"['binding', 'trailing', 'unknown']", invocation:'verifyModelMutation(kind, owner)'},
+    {name:'budget', caller:'sdk/browser/budget-model-test.mjs',
+      mutants:"['identity', 'policy', 'manifest', 'request', 'coverage', 'order', 'limit']",
+      invocation:'verifyModelMutation(kind,inputs,owner,'},
+    {name:'operation-journal', caller:'tests/browser-operation-journal/checks.mjs',
+      mutants:"['binding', 'trailing', 'reservation', 'payload', 'partition']",
+      invocation:'verifyModelMutation(kind, owner)'},
+  ];
+  for (const family of families) {
+    const compile = readFileSync(join(repository, 'tests/browser-' + family.name + '/compile.mjs'), 'utf8');
+    const caller = readFileSync(join(repository, family.caller), 'utf8');
+    const checks = readFileSync(join(repository, 'tests/browser-' + family.name + '/checks.mjs'), 'utf8');
+    const check = (compiled, owned, oracle) => {
+      for (const anchor of ["requireCompilerOwner(compilerOwner, '" + family.name + "')",
+        'shared.runDriver(', 'shared.runExporter(', 'if (shared) shared.verify()',
+        "run('lake', ['build', 'PrismGenerated'], lean)", 'verifyEvidence',
+        "readFileSync(join(verified.root, 'build-manifest.json'))",
+        "readFileSync(join(verified.root, 'attestation.json'))"])
+        assert(compiled.includes(anchor), 'retained fresh model/tool/proof boundary: ' + anchor);
+      for (const anchor of ["createCompilerOwner('" + family.name + "')",
+        'verifyCompilerOwnerSubstitutions(owner)', family.mutants, family.invocation,
+        'owner.close()', 'build.verifyEvidence()', 'compiler owner closed'])
+        assert(owned.includes(anchor), 'complete actual serial owner: ' + anchor);
+      assert(oracle.includes('executeWasm('), 'every generated Wasm execution remains');
+      assert(oracle.includes('native output mismatch'), 'actual generated native mutants remain');
+      assert(oracle.includes('generated Wasm output mismatch'), 'actual generated Wasm mutants remain');
+      const close = owned.indexOf('owner.close()');
+      assert(close >= 0 && owned.indexOf('build.verifyEvidence()') > close,
+        'proof/source checks follow actual compiler retirement');
+      const productChecks = [...owned.matchAll(/captureVerificationProducts\(build\.work/g)].map(row => row.index);
+      assert.equal(productChecks.length, 2);
+      assert(productChecks[0] < close && productChecks[1] > close,
+        'actual complete product snapshots surround compiler retirement');
+    };
+    check(compile, caller, checks);
+    for (const anchor of ['shared.runDriver(', 'shared.runExporter(', 'verifyEvidence']) {
+      assert.throws(() => check(compile.replaceAll(anchor, 'REMOVED'), caller, checks), anchor);
+    }
+    for (const anchor of [family.mutants, family.invocation, 'owner.close()', 'build.verifyEvidence()']) {
+      assert.throws(() => check(compile, caller.replaceAll(anchor, 'REMOVED'), checks), anchor);
+    }
+    for (const anchor of ['native output mismatch', 'generated Wasm output mismatch'])
+      assert.throws(() => check(compile, caller, checks.replaceAll(anchor, 'REMOVED')), anchor);
+    const moved = caller.replace('build.verifyEvidence();', '')
+      .replace('owner.close()', '(build.verifyEvidence(), owner.close())');
+    assert.notEqual(moved, caller);
+    assert.throws(() => check(compile, moved, checks), 'pre-retirement-only proof checks');
+  }
+});
+
 test('actual Cargo and Lake retirement preserves all non-cache evidence and exact original tool identities', t => {
   const f = fixture(t);
   const binary = readFileSync(join(f.target,'debug/publication-admission-driver'));

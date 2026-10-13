@@ -7,9 +7,10 @@ import {runInNewContext} from 'node:vm';
 import test from 'node:test';
 import {captureCompilerInputs, createCompilerOwner, requireCompilerOwner} from './compiler-owner.mjs';
 import {compilerDriverDirectory} from './compiler-owner-checks.mjs';
+import {captureVerificationProducts} from './verification-products.mjs';
 
-test('driver substitution lookup includes the two registered private families and rejects missing or ambiguous source inventory', () => {
-  for (const directory of ['browser-view', 'browser-custody']) {
+test('driver substitution lookup includes every registered private family and rejects missing or ambiguous source inventory', () => {
+  for (const directory of ['browser-view', 'browser-custody', 'browser-effects', 'browser-budget', 'browser-operation-journal']) {
     const path = 'tests/' + directory + '/driver/src/main.rs';
     assert.equal(compilerDriverDirectory({[path]: 'not-authority'}), 'tests/' + directory + '/driver');
   }
@@ -135,6 +136,66 @@ test('fresh independent drivers pin hash optimization without changing construct
   }
 });
 
+test('product preservation detects generated source proof package native Wasm and custody defects', t => {
+  for (const family of ['effects', 'budget', 'operation-journal']) {
+    const work=fs.mkdtempSync(join(tmpdir(),'prismpm-product-preservation-'));
+    t.after(()=>fs.rmSync(work,{recursive:true,force:true}));
+    const put=(relative,bytes='product-preservation unit fixture')=>{
+      const path=join(work,relative);fs.mkdirSync(join(path,'..'),{recursive:true});
+      fs.writeFileSync(path,bytes);return path;
+    };
+    const paths=['project/source.lex.tex','lean/modules/source','export/kernel.ir',
+      'generated/Cargo.toml','runner/src/main.rs',
+      'native-target/release/browser-'+family+'-runner'];
+    if(family==='operation-journal')paths.push('generated-b/Cargo.toml');
+    const guests=family==='effects'?['a','b','echo']:family==='budget'?['a','b']:
+      ['a','b','echo','journal','partition','journal-b','partition-b'];
+    for(const guest of guests)paths.push('guest-'+guest+'/Cargo.toml',
+      'guest-'+guest+'/target/wasm32-unknown-unknown/release/product.wasm');
+    for(const path of paths)put(path);
+    const native=join(work,'native-target/release/browser-'+family+'-runner');
+    const linked=join(work,'native-target/release/cargo-deps-link');
+    fs.linkSync(native,linked);
+    const linkedProducts=captureVerificationProducts(work,family);
+    assert.equal(linkedProducts.files.find(row=>row.path.endsWith('-runner')).links,'2',
+      'preserve genuine Cargo-style product link count, not single-link source policy');
+    fs.appendFileSync(linked,'changed through link');
+    assert.throws(()=>assert.deepEqual(captureVerificationProducts(work,family),linkedProducts));
+    fs.writeFileSync(linked,'product-preservation unit fixture');
+    const verify=(snapshot)=>assert.deepEqual(captureVerificationProducts(work,family),snapshot);
+    for(const relative of paths) {
+      const path=join(work,relative),before=captureVerificationProducts(work,family);
+      const bytes=fs.readFileSync(path);
+      fs.appendFileSync(path,'changed');
+      assert.throws(()=>verify(before),undefined,'changed actual product: '+relative);
+      fs.writeFileSync(path,bytes);
+      const restored=captureVerificationProducts(work,family);
+      fs.renameSync(path,path+'-saved');
+      assert.throws(()=>verify(restored),undefined,'deleted actual product: '+relative);
+      fs.renameSync(path+'-saved',path);
+    }
+    const path=join(work,paths[0]),before=captureVerificationProducts(work,family);
+    fs.renameSync(path,path+'-saved');fs.copyFileSync(path+'-saved',path);
+    assert.throws(()=>verify(before),undefined,'same-byte replacement is not original product custody');
+    fs.unlinkSync(path);fs.renameSync(path+'-saved',path);
+    const current=captureVerificationProducts(work,family),mode=fs.lstatSync(path).mode;
+    fs.chmodSync(path,mode^0o040);
+    assert.throws(()=>verify(current),undefined,'product mode change');
+    fs.chmodSync(path,mode);
+    const stable=captureVerificationProducts(work,family);
+    put('generated/added');
+    assert.throws(()=>verify(stable),undefined,'added package artifact');
+    fs.unlinkSync(join(work,'generated/added'));
+    fs.renameSync(path,path+'-saved');fs.symlinkSync(path+'-saved',path);
+    assert.throws(()=>captureVerificationProducts(work,family),/aliases|unaliased/);
+    fs.unlinkSync(path);fs.renameSync(path+'-saved',path);
+    const root=join(work,'lean'),rootMode=fs.lstatSync(root).mode;
+    fs.chmodSync(root,rootMode|0o020);
+    assert.throws(()=>captureVerificationProducts(work,family),/group\/other writable/);
+    fs.chmodSync(root,rootMode);
+  }
+});
+
 test('compiler owner refuses malformed or incomplete input closures before building', () => {
   let called = false;
   const accessor = {get malicious() {called = true; return '0'.repeat(64);}};
@@ -143,7 +204,7 @@ test('compiler owner refuses malformed or incomplete input closures before build
     assert.throws(() => createCompilerOwner('view', inputs),
       /compiler input (map|path|digest|closure)/);
   assert.equal(called, false, 'input accessors cannot run before immutable capture');
-  for (const name of ['view', 'custody']) {
+  for (const name of ['view', 'custody', 'effects', 'budget', 'operation-journal']) {
     const inputs = captureCompilerInputs(name);
     for (const missing of ['tests/browser-view/compile.mjs', 'tests/browser-view/compiler-artifact.mjs', 'vendor/lean4-prod/lean.tar']) {
       const changed = {...inputs}; delete changed[missing];

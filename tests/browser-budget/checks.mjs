@@ -33,9 +33,10 @@ export function inventory(){
  for(const row of maxima)assert.ok(row.request.length<=67108864&&row.response.length===1);
  return {vectors:vectors.length,maxima:maxima.map(row=>({id:row.id,input:row.request.length,output:row.response.length}))};
 }
-export async function verifyWire(t,sources){
+export async function verifyWire(t,sources,compilerOwner=null){
  assertFrozenInputs(sources);
- const vectors=corpus(),maxima=maximumCorpus(),bounds=inventory(),build=prepare(null,sources);
+ const vectors=corpus(),maxima=maximumCorpus(),bounds=inventory(),build=prepare(null,sources,compilerOwner);
+ t.diagnostic(JSON.stringify({compilerOwner:build.compilerOwner,preparationMs:build.preparationMs}));
  const file=join(build.work,'vectors.tsv');writeFileSync(file,tsv(vectors),{flag:'wx'});
  const binaries=[...maxima,overFrame()].map(row=>{const input=join(build.work,row.id+'.request'),output=join(build.work,row.id+'.response');writeFileSync(input,row.request,{flag:'wx'});writeFileSync(output,row.response,{flag:'wx'});return {...row,input,output};});
  for(const standard of[true,false])await prerequisite(t,'complete resource budget corpus and maxima in generated '+(standard?'std':'no_std'),()=>{
@@ -48,12 +49,13 @@ export async function verifyWire(t,sources){
  const evidence={source:build.verified.source_id,attestation:build.verified.attestation_id,ir:build.generation.ir_sha256,wasm:sha(build.wasmBytes),bounds,maximum:build.maximum,sources,cacheRetirement:build.cacheRetirement};
  writeFileSync(join(build.work,'budget-wire-evidence.json'),JSON.stringify(evidence,null,2)+'\n',{flag:'wx'});t.diagnostic(JSON.stringify(evidence));return build;
 }
-export function verifyModelMutation(kind,sources){
+export function verifyModelMutation(kind,sources,compilerOwner=null,diagnostic=()=>{}){
  const selected={identity:'BudgetApplication',policy:'RequestedPolicy',manifest:'ManifestInvalidLimit',request:'Crossdigest1',coverage:'MissingRow',order:'BothOrder',limit:'digestLength4'}[kind];
  const vector=corpus().find(row=>row.id===selected);assert.ok(vector);
- const build=prepare(kind,sources),file=join(build.work,'mutation.tsv');writeFileSync(file,tsv([vector]),{flag:'wx'});
+ const build=prepare(kind,sources,compilerOwner),file=join(build.work,'mutation.tsv');writeFileSync(file,tsv([vector]),{flag:'wx'});
  for(const standard of[true,false])assert.throws(()=>run(build.compileNative(standard),[file],build.runner),/native output mismatch/);
  assert.throws(()=>executeWasm(build.wasmBytes,[vector]),/generated Wasm output mismatch/);
  assertFrozenInputs(sources);
+ diagnostic({kind,compilerOwner:build.compilerOwner,preparationMs:build.preparationMs});
  return {kind,source:build.verified.source_id,attestation:build.verified.attestation_id,ir:build.generation.ir_sha256,wasm:sha(build.wasmBytes),vector:vector.id,request:sha(vector.request),response:sha(vector.response),cacheRetirement:build.cacheRetirement};
 }

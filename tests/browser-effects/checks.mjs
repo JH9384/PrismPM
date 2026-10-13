@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {prepare, run, sha, repository} from './compile.mjs';
+import {captureCompilerInputs} from '../browser-view/compiler-owner.mjs';
 import {corpus, maximumCorpus, boundaryCorpus} from './corpus.mjs';
 import {prerequisite} from '../browser-view/prerequisites.mjs';
 import {inspectEffectModule} from '../../sdk/browser/effects-module.mjs';
@@ -35,18 +36,37 @@ export function executeWasm(bytes, vectors) {
   return {maximumBytes: maximum, declaredPages: limits.maximumPages};
 }
 
-export async function verifyWire(t) {
+export function sourceClosure() {
   const oraclePaths = ['tests/browser-effects/checks.mjs', 'tests/browser-effects/corpus.mjs',
     'tests/browser-effects/compile.mjs', 'tests/browser-effects/runner.rs',
     'tests/browser-effects/driver/Cargo.toml', 'tests/browser-effects/driver/Cargo.lock',
     'tests/browser-effects/driver/src/main.rs', 'tests/browser-workspace/src/main.rs',
-    'tests/browser-journal/driver/src/main.rs', 'sdk/browser/effects-wire.mjs', 'sdk/browser/effects-module.mjs'];
-  const oracleClosure = () => Object.fromEntries(oraclePaths.map(path => [path, sha(readFileSync(join(repository, path)))]));
-  const oracleSources = oracleClosure();
+    'tests/browser-journal/driver/src/main.rs', 'sdk/browser/effects-wire.mjs', 'sdk/browser/effects-module.mjs',
+    'sdk/browser/effects-test.mjs', 'sdk/browser/effects.mjs', 'sdk/browser/identity.mjs',
+    'sdk/browser/store.mjs', 'sdk/browser/credential-custody.mjs',
+    'sdk/browser/browser-test-server.mjs', 'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
+    'tests/browser-effects/browser.mjs', 'tests/browser-effects/browser-fixture.mjs',
+    'tests/browser-effects/src/Fixture.lex.tex', 'tests/browser-view/prerequisites.mjs',
+    'tests/browser-view/compiler-owner-checks.mjs',
+    'tests/browser-view/verification-products.mjs',
+    'tests/fixtures/library/native-library/project/lexlean.toml',
+    'stdlib/src/Foundation/Browser/Application/V1/Effects.lex.tex',
+    'stdlib/src/Foundation/Browser/Application/V1/EffectsWire.lex.tex',
+    'stdlib/src/Foundation/Bytes.lex.tex', 'stdlib/src/Foundation/Codec.lex.tex',
+    'stdlib/src/Foundation/Codec/Cbor/V1/Primitive.lex.tex', 'model/browser-effect-diagnostics.json',
+    'LICENSE-MIT', 'LICENSE-APACHE'];
+  return {...captureCompilerInputs('effects'),
+    ...Object.fromEntries(oraclePaths.map(path => [path, sha(readFileSync(join(repository, path)))]))};
+}
+
+export async function verifyWire(t, compilerOwner = null) {
+  const oracleSources = sourceClosure();
+  if (compilerOwner) for (const [path, digest] of Object.entries(compilerOwner.evidence.inputs))
+    assert.equal(oracleSources[path], digest, 'compiler tool closure differs from frozen effects inputs');
   const vectors = [...corpus(), ...boundaryCorpus()];
   assert.equal(corpus().length, 216);
   assert.equal(vectors.length, 242);
-  const build = prepare();
+  const build = prepare(null, compilerOwner);
   t.after(() => rmSync(build.work, {recursive: true, force: true}));
   const file = join(build.work, 'vectors.tsv'); writeFileSync(file, tsv(vectors), {flag: 'wx'});
   const maximum = maximumCorpus();
@@ -64,19 +84,19 @@ export async function verifyWire(t) {
   await prerequisite(t, 'every generated wire vector twice in fresh bounded Core-Wasm, including full active/waiter/completion state', () => {
     build.maximum = executeWasm(build.wasmBytes, [...vectors, ...maximum]);
   });
-  assert.deepEqual(oracleClosure(), oracleSources, 'wire acceptance source closure remained frozen');
+  assert.deepEqual(sourceClosure(), oracleSources, 'wire acceptance source closure remained frozen');
   t.diagnostic(JSON.stringify({source: build.verified.source_id, attestation: build.verified.attestation_id,
     ir: build.generation.ir_sha256, wasm: sha(build.wasmBytes), guest: sha(build.guestBytes),
-    maximum: build.maximum, vectors: vectors.length, oracleSources,
+    maximum: build.maximum, vectors: vectors.length, oracleSources, compiler: build.compilerOwner, preparationMs: build.preparationMs,
     bounds: maximum.map(row => ({id: row.id, input: row.request.length, output: row.response.length,
       request: sha(row.request), response: sha(row.response)}))}));
   return build;
 }
 
-export function verifyModelMutation(kind) {
+export function verifyModelMutation(kind, compilerOwner = null) {
   const selected = {binding: 'CompletionSubstitution', trailing: 'Trailing', unknown: 'UnknownRetainsBoth'}[kind];
   const vector = corpus().find(row => row.id === selected); assert.ok(vector);
-  const build = prepare(kind);
+  const build = prepare(kind, compilerOwner);
   try {
     const file = join(build.work, 'mutation.tsv'); writeFileSync(file, tsv([vector]), {flag: 'wx'});
     for (const standard of [true, false]) {
@@ -84,6 +104,7 @@ export function verifyModelMutation(kind) {
       assert.throws(() => run(executable, [file], build.runner), /native output mismatch/, 'real generated ' + kind + ' mutant must fail');
     }
     assert.throws(() => executeWasm(build.wasmBytes, [vector]), /generated Wasm output mismatch/, 'real generated Wasm mutation');
+    return {mutation: kind, compiler: build.compilerOwner, source: build.verified.source_id, preparationMs: build.preparationMs};
   } finally { rmSync(build.work, {recursive: true, force: true}); }
 }
 

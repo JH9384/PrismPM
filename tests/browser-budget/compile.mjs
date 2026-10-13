@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {run, sha} from '../browser-view/compile.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
+import {requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -20,6 +21,8 @@ export function frozenInputs() {
     'sdk/browser/budget-model-test.mjs','sdk/browser/effects-module.mjs','sdk/browser/effects-wire.mjs','sdk/browser/identity.mjs',
     'crates/prismpm/src/holo/browser_application.rs',
     'tests/browser-view/compile.mjs','tests/browser-view/driver-cache.mjs','tests/browser-view/prerequisites.mjs',
+    'tests/browser-view/compiler-owner.mjs','tests/browser-view/compiler-artifact.mjs','tests/browser-view/compiler-owner-checks.mjs',
+    'tests/browser-view/verification-products.mjs',
     'tests/fixtures/library/native-library/project/lexlean.toml',
     'model/dependencies.toml','model/authorities.toml','lean-toolchain','rust-toolchain.toml','LICENSE-MIT','LICENSE-APACHE',
     'vendor/lean4-prod/lean.tar','vendor/lean4-prod/rust/MANIFEST.sha256','vendor/lexlean/MANIFEST.sha256',
@@ -92,10 +95,14 @@ function stageCompiler(work, inputs) {
   }};
 }
 
-export function prepare(mutation, inputs) {
+export function prepare(mutation, inputs, compilerOwner = null) {
+  const started = performance.now();
   assert.ok([null,'identity','policy','manifest','request','coverage','order','limit'].includes(mutation));
   for (const key of Object.keys(process.env)) assert.ok(!key.startsWith('PRISMPM_BUDGET_'), 'budget acceptance refuses bypass ' + key);
   assertFrozenInputs(inputs);
+  const shared = compilerOwner === null ? null : requireCompilerOwner(compilerOwner, 'budget');
+  if (shared) for (const [path, digest] of Object.entries(shared.evidence.inputs))
+    assert.equal(inputs[path], digest, 'compiler tool closure differs from frozen budget inputs');
   const work = mkdtempSync(join(tmpdir(), 'prismpm-budget-'));
   const sourcePath = name => join(name === 'Fixture' ? draft : join(repository, 'stdlib'), 'src', ...name.split('.')) + '.lex.tex';
   const sources = new Map(modules.map(name => [name, readFileSync(sourcePath(name))]));
@@ -137,13 +144,18 @@ export function prepare(mutation, inputs) {
     writeFileSync(join(project, 'lakefile.toml'), 'name = "budget_conformance"\nversion = "0.1.0"\n', {flag: 'wx'});
     copyFileSync(join(repository, 'lean-toolchain'), join(project, 'lean-toolchain'));
     copyFileSync(join(repository, 'rust-toolchain.toml'), join(work, 'rust-toolchain.toml'));
-    const driverTarget = join(work, 'driver-target');
-    const compiler = stageCompiler(work, inputs);
-    run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0',
-      '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
-    const driver = join(driverTarget, 'debug/browser-budget-driver');
+    let compiler, invokeDriver;
+    if (shared) invokeDriver = args => shared.runDriver(args, repository);
+    else {
+      const driverTarget = join(work, 'driver-target');
+      compiler = stageCompiler(work, inputs);
+      run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0',
+        '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
+      const driver = join(driverTarget, 'debug/browser-budget-driver');
+      invokeDriver = args => run(driver, args, repository);
+    }
     run('lake', ['update'], project);
-    const verified = JSON.parse(run(driver, ['verify', join(project, 'lexlean.toml')], repository));
+    const verified = JSON.parse(invokeDriver(['verify', join(project, 'lexlean.toml')]));
     assert.deepEqual(verified.modules, modules);
     const manifestBytes = readFileSync(join(verified.root, 'build-manifest.json'));
     const attestationBytes = readFileSync(join(verified.root, 'attestation.json'));
@@ -171,15 +183,20 @@ export function prepare(mutation, inputs) {
     copyFileSync(join(repository, 'lean-toolchain'), join(lean, 'lean-toolchain'));
     writeFileSync(join(lean, 'lakefile.toml'), 'name = "budget_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + modules.map(name => '"PrismPM.' + name + '"').join(',') + ']\n', {flag: 'wx'});
     run('lake', ['build', 'PrismGenerated'], lean);
-    const exporter = join(work, 'exporter'); mkdirSync(exporter);
-    run('tar', ['-xf', join(repository, 'vendor/lean4-prod/lean.tar'), '-C', exporter], repository);
-    run('lake', ['build', 'prod-export'], exporter);
+    const exporter = join(work, 'exporter');
+    if (!shared) {
+      mkdirSync(exporter);
+      run('tar', ['-xf', join(repository, 'vendor/lean4-prod/lean.tar'), '-C', exporter], repository);
+      run('lake', ['build', 'prod-export'], exporter);
+    }
+    const invokeExporter = args => shared ? shared.runExporter(args, join(lean, '.lake/build/lib/lean'))
+      : run(join(exporter, '.lake/build/bin/prod-export'), args, exporter, {LEAN_PATH: join(lean, '.lake/build/lib/lean')});
     const exported = join(work, 'export');
     const roots = ['PrismPM.Fixture.budgetProbeBytes'];
-    run(join(exporter, '.lake/build/bin/prod-export'), ['--module', 'PrismPM.Fixture', ...roots.flatMap(root => ['--root', root]),
-      '--ir-module', 'BrowserBudget', '--out', exported], exporter, {LEAN_PATH: join(lean, '.lake/build/lib/lean')});
+    invokeExporter(['--module', 'PrismPM.Fixture', ...roots.flatMap(root => ['--root', root]),
+      '--ir-module', 'BrowserBudget', '--out', exported]);
     const generated = join(work, 'generated'), ir = join(exported, 'kernel.ir');
-    const generation = JSON.parse(run(driver, ['native', ir, generated, repository], repository));
+    const generation = JSON.parse(invokeDriver(['native', ir, generated, repository]));
     const runner = join(work, 'runner'); mkdirSync(join(runner, 'src'), {recursive: true});
     copyFileSync(join(draft, 'runner.rs'), join(runner, 'src/main.rs'));
     writeFileSync(join(runner, 'Cargo.lock'), 'version = 4\n[[package]]\nname = "browser-budget-core-probe"\nversion = "0.1.0"\n[[package]]\nname = "browser-budget-runner"\nversion = "0.1.0"\ndependencies = ["browser-budget-core-probe"]\n', {flag: 'wx'});
@@ -191,18 +208,28 @@ export function prepare(mutation, inputs) {
     const guests = [];
     for (const [label, mode] of [['a', 'wasm'], ['b', 'wasm']]) {
       const guest = join(work, 'guest-' + label);
-      assert.deepEqual(JSON.parse(run(driver, [mode, ir, guest, repository], repository)), generation);
+      assert.deepEqual(JSON.parse(invokeDriver([mode, ir, guest, repository])), generation);
       run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--release'], guest, {CARGO_TARGET_DIR: join(guest, 'target')});
       guests.push(readFileSync(join(guest, 'target/wasm32-unknown-unknown/release/browser_budget_' + 'wire' + '_probe.wasm')));
     }
     assert.deepEqual(guests[0], guests[1], 'two independent generated Core-Wasm packages');
-    pins(); compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+    pins(); if (shared) shared.verify(); else compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
     for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'frozen source ' + module);
     // Completed private tool caches only; source, proof, IR and outputs remain.
-    const cacheRetirement = retireCompletedCompilerCaches(work, 'budget');
-    compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+    const cacheRetirement = shared ? null : retireCompletedCompilerCaches(work, 'budget');
+    if (shared) shared.verify(); else compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
     assertFrozenInputs(inputs);
+    const verifyEvidence = () => {
+      assertFrozenInputs(inputs);
+      assert.deepEqual(readFileSync(join(verified.root, 'build-manifest.json')), manifestBytes);
+      assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);
+      assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+      for (const [module, bytes] of originals)
+        assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'retained model source ' + module);
+    };
+    verifyEvidence();
     completed = true;
-    return {work, sources, verified, generation, compileNative, runner, wasmBytes: guests[0], cacheRetirement};
+    return {work, sources, verified, generation, compileNative, runner, wasmBytes: guests[0], cacheRetirement,
+      compilerOwner: shared?.identity ?? null, preparationMs: performance.now() - started, verifyEvidence};
   } finally { if (!completed) process.stderr.write('Retained incomplete budget diagnostic build ' + work + '\n'); }
 }

@@ -12,6 +12,9 @@ import {captureCompilerArtifact, compilerReadBarrier, observeCompilerRuntimeFile
 const families = Object.freeze({
   view: Object.freeze({directory: 'browser-view', executable: 'browser-workspace-view-driver'}),
   custody: Object.freeze({directory: 'browser-custody', executable: 'browser-custody-driver'}),
+  effects: Object.freeze({directory: 'browser-effects', executable: 'browser-effects-driver'}),
+  budget: Object.freeze({directory: 'browser-budget', executable: 'browser-budget-driver'}),
+  'operation-journal': Object.freeze({directory: 'browser-operation-journal', executable: 'browser-operation-journal-driver'}),
 });
 const owners = new WeakMap();
 function family(name) {

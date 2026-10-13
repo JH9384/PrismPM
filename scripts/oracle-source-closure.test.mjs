@@ -15,7 +15,7 @@ const git = (repo, args, options = {}) => execFileSync('git', args, {
 
 // Reconstruct checkout content from index blobs, never the local working tree.
 // Compare sibling names before descending, exactly as regular_tree in Rust.
-function indexDigest(repo, prefix, env = process.env) {
+function indexDigest(repo, prefix, env = process.env, profile = {}) {
   const rows = git(repo, ['ls-files', '--stage', '-z', '--', `${prefix}/`], { env })
     .toString('utf8').split('\0').filter(Boolean).map(row => {
       const match = /^(100644|100755) ([a-f0-9]{40}|[a-f0-9]{64}) 0\t(.+)$/.exec(row);
@@ -27,6 +27,7 @@ function indexDigest(repo, prefix, env = process.env) {
     });
   assert.ok(rows.length, 'corpus has no tracked files');
   rows.sort((left, right) => {
+    if (profile.global) return Buffer.compare(Buffer.from(left.path), Buffer.from(right.path));
     const a = left.path.split('/');
     const b = right.path.split('/');
     for (let i = 0; i < Math.min(a.length, b.length); i++) {
@@ -39,6 +40,8 @@ function indexDigest(repo, prefix, env = process.env) {
     env, input: rows.map(row => `${row.oid}\n`).join(''),
   });
   const digest = createHash('sha256');
+  if (profile.files) assert.deepEqual(rows.map(row => row.path), Object.keys(profile.files)
+    .sort((a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b))));
   let offset = 0;
   for (const row of rows) {
     const end = blobs.indexOf(10, offset);
@@ -50,6 +53,12 @@ function indexDigest(repo, prefix, env = process.env) {
     assert.ok(Number.isSafeInteger(size));
     offset = end + 1;
     assert.ok(offset + size < blobs.length, 'Git blob is truncated');
+    if (profile.files) {
+      assert.deepEqual(profile.files[row.path], {
+        bytes: size,
+        sha256: createHash('sha256').update(blobs.subarray(offset, offset + size)).digest('hex'),
+      }, `imported member differs from tracked bytes: ${row.path}`);
+    }
     const name = Buffer.from(row.path);
     const nameLength = Buffer.alloc(8);
     const byteLength = Buffer.alloc(8);
@@ -62,6 +71,63 @@ function indexDigest(repo, prefix, env = process.env) {
   assert.equal(offset, blobs.length, 'Git returned unexpected blob content');
   return digest.digest('hex');
 }
+
+test('OSCAL import descriptors bind the complete globally sorted validator corpora without acceptance claims', () => {
+  const imported = JSON.parse(readFileSync(join(root, 'standards/imports/oscal-json-structural.json')));
+  const source = readFileSync(join(root, 'sdk/oracles/oscal/src/main.rs'), 'utf8');
+  const runtime = [...source.matchAll(/\btree\(\s*"([^"]+)",\s*"([a-f0-9]{64})",\s*(\d+),/g)]
+    .map(row => ({directory: 'standards/corpora/' + row[1], digest: row[2], files: Number(row[3])}));
+  assert.equal(runtime.length, 2, 'both original validator corpus bindings are required');
+  const verify = value => {
+    assert.equal(value.schema, 'prismpm/oscal-json-import-sources/1');
+    assert.equal(value.scope, 'immutable-source-acquisition-only');
+    assert.equal(value.oracle_acceptance, false);
+    assert.equal(value.complete_standard_acceptance, false);
+    assert.equal(value.tree_encoding, 'globally byte-sorted relative UTF-8 file paths; each path and its content preceded by unsigned 64-bit big-endian byte length');
+    assert.deepEqual(value.corpora.map(row => row.directory), runtime.map(row => row.directory));
+    for (const [index, row] of value.corpora.entries()) {
+      assert.equal(row.expected_files, runtime[index].files);
+      assert.equal(Object.keys(row.files).length, row.expected_files);
+      assert.equal(row.expected_tree, runtime[index].digest);
+      assert.equal(indexDigest(root, row.directory, process.env, {global: true, files: row.files}), row.expected_tree);
+    }
+  };
+  verify(imported);
+  for (const change of [
+    value => { value.tree_encoding = 'directory traversal order'; },
+    value => { value.corpora[0].expected_tree = 'd76b20f487c40a66ce929fe821ff8a36fac2dc33a7f0ade347086b23e84b3335'; },
+    value => { delete value.corpora[0].files.LICENSE; },
+    value => { value.corpora[0].files.LICENSE.sha256 = '0'.repeat(64); },
+    value => { value.oracle_acceptance = true; },
+    value => { value.complete_standard_acceptance = true; },
+  ]) {
+    const altered = structuredClone(imported); change(altered);
+    assert.throws(() => verify(altered), undefined, 'incorrect corpus custody or acceptance must be refused');
+  }
+});
+
+test('global corpus inventory follows UTF-8 byte order rather than UTF-16 code-unit order', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'prismpm-corpus-utf8-'));
+  try {
+    git(scratch, ['init', '--quiet']);
+    git(scratch, ['config', 'core.autocrlf', 'false']);
+    mkdirSync(join(scratch, 'corpus'));
+    const files = {};
+    for (const name of ['\u{10000}', '\uE000']) {
+      const bytes = Buffer.from(name + '\n');
+      writeFileSync(join(scratch, 'corpus', name), bytes);
+      files[name] = {bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex')};
+    }
+    git(scratch, ['add', '--', 'corpus']);
+    const names = Object.keys(files);
+    assert.notDeepEqual(names.slice().sort(), names.slice()
+      .sort((a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b))));
+    assert.equal(indexDigest(scratch, 'corpus', process.env, {global: true, files}),
+      indexDigest(scratch, 'corpus', process.env, {global: true}));
+  } finally {
+    rmSync(scratch, {recursive: true});
+  }
+});
 
 test('OpenID corpus index reproduces the unchanged authoritative tree digest', () => {
   const catalog = readFileSync(join(root, 'model/authorities.toml'), 'utf8');

@@ -3,14 +3,14 @@
   "scope": "immutable-source-acquisition-only",
   "oracle_acceptance": false,
   "complete_standard_acceptance": false,
-  "tree_encoding": "ordered relative UTF-8 path and content; each preceded by unsigned 64-bit big-endian byte length",
+  "tree_encoding": "globally byte-sorted relative UTF-8 file paths; each path and its content preceded by unsigned 64-bit big-endian byte length",
   "corpora": [
     {
       "directory": "standards/corpora/json-schema-draft7",
       "repository": "https://github.com/json-schema-org/JSON-Schema-Test-Suite",
       "revision": "c9510e3bf8a896c3cba4e08509cf752b4f30dff8",
       "archive_sha256": "cf0e16252ef08add662b9db2b7f0f099644cdaffd1c429b1ce9212cebf086aba",
-      "expected_tree": "d76b20f487c40a66ce929fe821ff8a36fac2dc33a7f0ade347086b23e84b3335",
+      "expected_tree": "194c92717167698830d5b88e1912d4e561edd33a7f2e995a3654f6a909da1e83",
       "expected_files": 121,
       "selection": "All 37 mandatory draft7 files; all four OSCAL format files; all 79 remote resources; LICENSE",
       "cases": {

@@ -350,8 +350,8 @@ RUN set -eu; \
       /etc/apt/sources.list.d/ubuntu.sources \
     && rm /etc/apt/sources.list.d/nodesource.list \
     && test "$(find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name ubuntu.sources -print -quit)" = "" \
-    && apt-get update \
-    && apt-get install --no-install-recommends --yes \
+    && apt-get --error-on=any -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update \
+    && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install --no-install-recommends --yes \
       "build-essential=${build_essential}" \
       "pkg-config=${pkg_config}" \
     && dpkg-query -W -f='${binary:Package}\t${Version}\n' \

@@ -1,7 +1,9 @@
 // Internal image-input wiring checks. No test fixture is SDK acceptance.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
 import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -90,6 +92,92 @@ function imageStages(recipe) {
   }
   return stages;
 }
+
+test('pinned runtime package acquisition is bounded and refuses incomplete indexes', () => {
+  const recipe = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');
+  const check = text => {
+    const commands = imageStages(text).get('runtime_base').instructions;
+    const acquisition = commands.filter(command => command.includes('apt-get '));
+    assert.equal(acquisition.length, 1, 'one signed snapshot acquisition owner');
+    const command = acquisition[0].replace(/\s+/g, ' ');
+    assert.equal(hash(command), '051220661a34f8b3db5c48635c0a10e93565fdd1b471f60d2063520f52ad6f8e',
+      'the complete signed snapshot acquisition and cleanup instruction must remain unchanged');
+    const update = 'apt-get --error-on=any -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update';
+    const install = 'apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install --no-install-recommends --yes "build-essential=${build_essential}" "pkg-config=${pkg_config}"';
+    assert.deepEqual(command.split(' && ').filter(segment => segment.includes('apt-get')), [update, install],
+      'the exact update and install must execute unconditionally in that order without overrides');
+    assert(command.includes('test "$(find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name ubuntu.sources -print -quit)" = ""'));
+    assert(!/allow-unauthenticated|allow-insecure|Check-Valid-Until|Check-Date|ignore-missing|fix-missing|trusted=yes|\|\| true/.test(command));
+  };
+  check(recipe);
+  for (const [from, to] of [
+    ['--error-on=any ', ''], ['Acquire::Retries=3', 'Acquire::Retries=0'],
+    ['Acquire::http::Timeout=30', 'Acquire::http::Timeout=0'],
+    ['Acquire::https::Timeout=30', 'Acquire::https::Timeout=0'],
+    ['"build-essential=${build_essential}"', 'build-essential'],
+    ['"pkg-config=${pkg_config}"', 'pkg-config'],
+    [' install --no-install-recommends', ' install --allow-unauthenticated --no-install-recommends'],
+    ['&& apt-get --error-on=any', '&& true # apt-get --error-on=any'],
+    ['&& apt-get -o Acquire::Retries=3', '&& true # apt-get -o Acquire::Retries=3'],
+    ['Acquire::https::Timeout=30 update', 'Acquire::https::Timeout=30 -o Acquire::Retries=0 update'],
+    [' install --no-install-recommends', ' -o Acquire::Retries=0 install --no-install-recommends'],
+    [' update \\\n', ' update || true \\\n'],
+    [' install --no-install-recommends', ' install --ignore-missing --no-install-recommends'],
+    ['rm /etc/apt/sources.list.d/nodesource.list', 'true'],
+    ['${snapshot}#', 'https://archive.ubuntu.com/ubuntu/#'],
+    ['--error-on=any', '--error-on=any -o Acquire::Check-Valid-Until=false'],
+    ['--error-on=any', '--error-on=any -o Acquire::AllowInsecureRepositories=true'],
+  ]) assert.throws(() => check(recipe.replace(from, to)));
+  for (const option of ['Acquire::Retries=3', 'Acquire::http::Timeout=30', 'Acquire::https::Timeout=30']) {
+    const at = recipe.lastIndexOf(option);
+    assert(at > recipe.indexOf(option), 'both actual update and install must own the bound');
+    assert.throws(() => check(recipe.slice(0, at) + option.replace(/=\d+$/, '=0') + recipe.slice(at + option.length)));
+  }
+  for (const operation of ['update', 'install']) {
+    const expression = operation === 'update' ? /apt-get --error-on=any[^\n]+update/ : /apt-get -o[^\n]+install --no-install-recommends --yes/;
+    assert.throws(() => check(recipe.replace(expression, 'true')));
+  }
+  assert.equal(readFileSync(new URL('../sdk/runtime-os.lock', import.meta.url), 'utf8'),
+    '# Runtime packages added to the digest-pinned Playwright base image.\n'
+    + '# The snapshot URI makes transitive apt resolution immutable.\n'
+    + 'snapshot=https://snapshot.ubuntu.com/ubuntu/20260901T000000Z/\n'
+    + 'build-essential=12.10ubuntu1\n'
+    + 'pkg-config=1.8.1-2build1\n');
+});
+
+test('real APT refuses transient index failure before package installation', {timeout: 30000}, async t => {
+  const work = mkdtempSync(join(tmpdir(), 'prismpm-apt-index-owner-'));
+  t.after(() => rmSync(work, {recursive: true}));
+  let requests = 0;
+  const server = createServer((_request, response) => {
+    requests++; response.writeHead(503); response.end('transient index acquisition failure\n');
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(() => new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve())));
+  const source = join(work, 'sources.list');
+  writeFileSync(source, `deb http://127.0.0.1:${server.address().port}/ immutable main\n`);
+  const invoke = async strict => {
+    const root = join(work, strict ? 'strict' : 'counterfactual');
+    mkdirSync(join(root, 'state/lists/partial'), {recursive: true});
+    mkdirSync(join(root, 'cache'), {recursive: true});
+    const argv = ['-o', `Dir::State=${join(root, 'state')}`, '-o', `Dir::Cache=${join(root, 'cache')}`,
+      '-o', `Dir::Etc::sourcelist=${source}`, '-o', 'Dir::Etc::sourceparts=-',
+      '-o', 'Acquire::Retries=3', '-o', 'Acquire::http::Timeout=30', '-o', 'Acquire::https::Timeout=30',
+      ...(strict ? ['--error-on=any'] : []), 'update'];
+    const child = spawn('apt-get', argv, {env: {...process.env, http_proxy: '', https_proxy: '',
+      HTTP_PROXY: '', HTTPS_PROXY: '', ALL_PROXY: '', no_proxy: '127.0.0.1'}});
+    let output = '';
+    for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => {
+      output += bytes; if (output.length > 65536) child.kill();
+    });
+    const [status, signal] = await once(child, 'close');
+    assert.equal(signal, null); assert.match(output, /503/);
+    return status;
+  };
+  assert.equal(await invoke(true), 100, 'the actual APT oracle must fail closed');
+  assert.equal(await invoke(false), 0, 'the former update semantics must reproduce the false-success defect');
+  assert(requests >= 2 && requests <= 8, 'both acquisitions must use finite retry counts');
+});
 
 test('development and SDK recipes share the exact isolated pinned Rust tool construction', () => {
   const sdk = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');

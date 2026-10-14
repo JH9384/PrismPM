@@ -77,10 +77,13 @@ COPY sdk/oracles/package.json sdk/oracles/package-lock.json /opt/prismpm/oracles
 RUN npm ci --ignore-scripts --omit=dev --prefix /opt/prismpm/oracles \
     && node -e 'if(require("/opt/prismpm/oracles/node_modules/playwright/package.json").version!=="1.62.1")process.exit(1)'
 
-RUN cargo install --locked wasm-bindgen-cli --version 0.2.122 \
-    && cargo install --locked wasm-tools --version 1.258.0 \
-    && cargo install --locked wasmtime-cli --version 48.0.1 \
-    && cargo install --locked cargo-local-registry --version 0.2.12
+RUN test ! -e /opt/prismpm/rust-oracle-target \
+    && mkdir -p -m 0700 /opt/prismpm/rust-oracle-target \
+    && cargo install --locked --target-dir /opt/prismpm/rust-oracle-target wasm-bindgen-cli --version 0.2.122 \
+    && cargo install --locked --target-dir /opt/prismpm/rust-oracle-target wasm-tools --version 1.258.0 \
+    && cargo install --locked --target-dir /opt/prismpm/rust-oracle-target wasmtime-cli --version 48.0.1 \
+    && cargo install --locked --target-dir /opt/prismpm/rust-oracle-target cargo-local-registry --version 0.2.12 \
+    && rm -rf /opt/prismpm/rust-oracle-target
 
 RUN curl -sSfL https://github.com/leanprover/elan/releases/download/v4.2.3/elan-x86_64-unknown-linux-gnu.tar.gz -o elan.tar.gz \
     && echo "df0b2b3a439961ffcbb3985214365ffe40f49bc871df04dff268c7d8e21ca8b2  elan.tar.gz" | sha256sum -c - \

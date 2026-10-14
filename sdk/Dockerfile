@@ -90,10 +90,13 @@ RUN case "$TARGETARCH" in \
     && rm /tmp/elan/elan-init \
     && rmdir /tmp/elan
 
-RUN cargo install --locked wasm-bindgen-cli --version 0.2.122
-RUN cargo install --locked wasm-tools --version 1.258.0
-RUN cargo install --locked wasmtime-cli --version 48.0.1
-RUN cargo install --locked cargo-local-registry --version 0.2.12
+RUN test ! -e /opt/prismpm/rust-oracle-target \
+    && mkdir -p -m 0700 /opt/prismpm/rust-oracle-target \
+    && cargo install --locked --target-dir /opt/prismpm/rust-oracle-target wasm-bindgen-cli --version 0.2.122 \
+    && cargo install --locked --target-dir /opt/prismpm/rust-oracle-target wasm-tools --version 1.258.0 \
+    && cargo install --locked --target-dir /opt/prismpm/rust-oracle-target wasmtime-cli --version 48.0.1 \
+    && cargo install --locked --target-dir /opt/prismpm/rust-oracle-target cargo-local-registry --version 0.2.12 \
+    && rm -rf /opt/prismpm/rust-oracle-target
 RUN rm -rf /usr/local/cargo/registry /usr/local/cargo/git
 
 RUN case "$TARGETARCH" in \

@@ -257,8 +257,17 @@ fn captured_modules(
         let module = modules[0];
         let actual_imports = module.imports().iter().cloned().collect::<BTreeSet<_>>();
         let expected_imports = source.imports.iter().cloned().collect::<BTreeSet<_>>();
+        // Compare the complete public snapshot protocol, not LexLean's private
+        // serde-skipped elaboration cache populated only in live snapshots.
+        let actual_semantic = module
+            .semantic()
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|e| invalid(e.to_string()))?;
+        let expected_semantic =
+            serde_json::to_value(&source.semantic).map_err(|e| invalid(e.to_string()))?;
         if module.source().sha256().to_string() != source.digest
-            || module.semantic() != Some(&source.semantic)
+            || actual_semantic.as_ref() != Some(&expected_semantic)
             || actual_imports != expected_imports
             || actual_imports.len() != module.imports().len()
         {
@@ -403,6 +412,24 @@ mod tests {
         assert!(sources.contains_key(ADMISSION));
         assert!(sources.contains_key("Production.BrowserSystem"));
         assert!(sources.contains_key("Production.Core"));
+        let public_snapshot = serde_json::to_value(&snapshot).unwrap();
+        let roundtrip: SemanticSnapshot = serde_json::from_value(public_snapshot.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&roundtrip).unwrap(), public_snapshot);
+        let roundtrip_sources =
+            capture(&roundtrip, &conditional_lock(), "Production.BrowserSystem").unwrap();
+        assert_eq!(
+            sources.keys().collect::<Vec<_>>(),
+            roundtrip_sources.keys().collect::<Vec<_>>()
+        );
+        for (name, source) in &sources {
+            let actual = &roundtrip_sources[name];
+            assert_eq!(actual.digest, source.digest);
+            assert_eq!(actual.imports, source.imports);
+            assert_eq!(
+                serde_json::to_value(&actual.semantic).unwrap(),
+                serde_json::to_value(&source.semantic).unwrap()
+            );
+        }
     }
 
     #[test]
@@ -437,7 +464,14 @@ mod tests {
     fn actual_embedded_source_rejects_changed_snapshot_views_and_lock_inventory() {
         let snapshot = embedded_snapshot();
         let original = serde_json::to_value(&snapshot).unwrap();
-        for defect in ["source", "semantic", "declaration", "imports"] {
+        for defect in [
+            "source",
+            "semantic",
+            "semantic-body",
+            "missing-semantic",
+            "declaration",
+            "imports",
+        ] {
             let mut altered = original.clone();
             let module = altered["modules"]
                 .as_array_mut()
@@ -445,11 +479,23 @@ mod tests {
                 .iter_mut()
                 .find(|module| module["name"] == LINKAGE)
                 .unwrap();
+            let original_module = module.clone();
             match defect {
                 "source" => module["source"]["sha256"] = json!("0".repeat(64)),
                 "semantic" => {
                     module["semantic"]["declarations"][0]["name"] = json!("ChangedMember")
                 }
+                "semantic-body" => {
+                    let declaration = module["semantic"]["declarations"]
+                        .as_array_mut()
+                        .unwrap()
+                        .iter_mut()
+                        .find(|declaration| declaration["kind"] == "definition")
+                        .unwrap();
+                    assert_ne!(declaration["body"], json!({"kind":"nat","value":"0"}));
+                    declaration["body"] = json!({"kind":"nat","value":"0"});
+                }
+                "missing-semantic" => module["semantic"] = Value::Null,
                 "declaration" => {
                     module["declarations"][0]["linked_ir"]["name"] = json!("ChangedMember")
                 }
@@ -459,11 +505,27 @@ mod tests {
                     .push(json!("Foreign.Module")),
                 _ => unreachable!(),
             }
+            if defect == "semantic-body" {
+                for field in ["source", "imports", "declarations"] {
+                    assert_eq!(module[field], original_module[field]);
+                }
+                assert_ne!(module["semantic"], original_module["semantic"]);
+            }
             let altered: SemanticSnapshot = serde_json::from_value(altered).unwrap();
             assert!(
                 capture(&altered, &conditional_lock(), "Production.BrowserSystem").is_err(),
                 "{defect}"
             );
+            if matches!(defect, "semantic-body" | "missing-semantic") {
+                let error = capture(&altered, &conditional_lock(), "Production.BrowserSystem")
+                    .err()
+                    .expect("public semantic substitution must be rejected");
+                assert_eq!(error.code, "PP6101");
+                assert_eq!(
+                    error.message,
+                    "proved SDK source bytes, semantic declarations or imports were substituted"
+                );
+            }
         }
         for defect in ["missing", "duplicate", "digest", "kind"] {
             let mut lock = conditional_lock();

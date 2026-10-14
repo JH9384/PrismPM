@@ -1,7 +1,7 @@
 // Preservation of actual generated products; never generation or acceptance by itself.
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {closeSync, constants, fstatSync, lstatSync, openSync, readSync, readdirSync, realpathSync} from 'node:fs';
+import {closeSync, constants, fstatSync, lstatSync, openSync, opendirSync, readSync, realpathSync} from 'node:fs';
 import {join} from 'node:path';
 
 // Cargo may hard-link a genuine release product to its deps output. Preserve
@@ -36,6 +36,9 @@ export function captureVerificationProducts(work, family) {
       'maxroute','maxsink','maxfield','maxsecret','progress','maxprogress'],
   };
   assert(Object.hasOwn(guestsByFamily, family));
+  const labels = guestsByFamily[family];
+  const cacheTargets = new Set(family === 'presentation' ? []
+    : labels.map(name => join(work, 'guest-' + name, 'target')));
   assert.equal(realpathSync(work), work, 'unaliased verification workspace');
   const rows = [], directories = [];
   let bytes = 0;
@@ -50,29 +53,45 @@ export function captureVerificationProducts(work, family) {
       gid:stat.gid.toString(), mode:Number(stat.mode), links:stat.nlink.toString(),
       size:Number(stat.size), mtime:stat.mtimeNs.toString(), ctime:stat.ctimeNs.toString()});
   }
-  function tree(path) {
+  function names(path) {
+    const result = [], stream = opendirSync(path, {bufferSize:1});
+    try { for (let entry; (entry = stream.readSync()) !== null;) {
+      assert(result.length < 8192, 'bounded generated directory entries'); result.push(entry.name);
+    } } finally {stream.closeSync();}
+    return result.sort();
+  }
+  function tree(path, depth = 0) {
+    assert(depth <= 64, 'bounded generated directory depth');
     assert.equal(realpathSync(path), path, 'unaliased generated directory');
-    const stat = lstatSync(path);
+    const stat = lstatSync(path, {bigint:true});
     assert(stat.isDirectory(), 'actual generated directory required');
-    assert.equal(stat.uid, process.getuid(), 'owned generated directory');
-    assert.equal(stat.mode & 0o022, 0, 'generated directory cannot be group/other writable');
-    directories.push({path:path.slice(work.length + 1), device:stat.dev, inode:stat.ino,
-      uid:stat.uid, gid:stat.gid, mode:stat.mode});
+    assert.equal(stat.uid, BigInt(process.getuid()), 'owned generated directory');
+    assert.equal(stat.mode & 0o022n, 0n, 'generated directory cannot be group/other writable');
+    directories.push({path:path.slice(work.length + 1), device:stat.dev.toString(), inode:stat.ino.toString(),
+      uid:stat.uid.toString(), gid:stat.gid.toString(), mode:Number(stat.mode), links:stat.nlink.toString(),
+      size:stat.size.toString(), mtime:stat.mtimeNs.toString(), ctime:stat.ctimeNs.toString()});
     assert(directories.length <= 8192, 'bounded generated directory inventory');
-    for (const name of readdirSync(path).sort()) {
-      // Cargo targets are reconstructible cache. Their actual Wasm/native
-      // products are selected separately below, not omitted from preservation.
-      if (name === 'target') continue;
-      const child = join(path, name), value = lstatSync(child);
+    for (const name of names(path)) {
+      const child = join(path, name), value = lstatSync(child, {bigint:true});
       assert(!value.isSymbolicLink(), 'generated products cannot be aliases');
-      if (value.isDirectory()) tree(child); else {assert(value.isFile()); regular(child);}
+      // Only actual guest-root Cargo caches are excluded; nested source,
+      // proof and package directories named "target" remain products.
+      if (cacheTargets.has(child)) {
+        assert(value.isDirectory() && value.uid === BigInt(process.getuid())
+          && (value.mode & 0o022n) === 0n, 'owned real guest Cargo cache required');
+        continue;
+      }
+      if (value.isDirectory()) tree(child, depth + 1); else {assert(value.isFile()); regular(child);}
     }
+    const after = lstatSync(path, {bigint:true});
+    for (const key of ['dev','ino','uid','gid','mode','nlink','size','mtimeNs','ctimeNs'])
+      assert.equal(after[key], stat[key], 'generated directory changed during observation');
+    assert.equal(realpathSync(path), path, 'generated directory ancestry changed');
   }
   for (const name of ['project', 'lean', 'export', 'generated',
     ...(family === 'presentation' ? ['licenses', 'runner-std', 'runner-no-std'] : ['runner'])]) tree(join(work, name));
   if (family === 'operation-journal') tree(join(work, 'generated-b'));
-  const guests = readdirSync(work).filter(name => name.startsWith('guest-')).sort();
-  const labels = guestsByFamily[family];
+  const guests = names(work).filter(name => name.startsWith('guest-'));
   const guestDirectories = labels.map(name => 'guest-' + name);
   const expectedGuests = family === 'presentation'
     ? [...guestDirectories, ...labels.map(name => 'guest-target-' + name),
@@ -84,7 +103,7 @@ export function captureVerificationProducts(work, family) {
     tree(join(work, name));
     const target = family === 'presentation' ? 'guest-target-' + name.slice('guest-'.length) : name + '/target';
     const release = join(work, target, 'wasm32-unknown-unknown/release');
-    const outputs = readdirSync(release).filter(path => path.endsWith('.wasm')).sort();
+    const outputs = names(release).filter(path => path.endsWith('.wasm'));
     assert.equal(outputs.length, 1, 'one actual generated guest product');
     regular(join(release, outputs[0]));
     if (family === 'presentation') regular(join(work, name + '-execution.wasm'));

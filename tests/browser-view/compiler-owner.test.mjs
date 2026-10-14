@@ -201,6 +201,15 @@ test('product preservation detects generated source proof package native Wasm an
     put('generated/added');
     assert.throws(()=>verify(stable),undefined,'added package artifact');
     fs.unlinkSync(join(work,'generated/added'));
+    for (const relative of ['generated/src/target', 'project/src/target', 'lean/modules/target', 'export/target']) {
+      const prior = captureVerificationProducts(work,family);
+      const payload = put(relative + '/payload');
+      assert.throws(()=>verify(prior),undefined,'nested source/proof/package target cannot hide an artifact: '+relative);
+      const captured = captureVerificationProducts(work,family);
+      fs.appendFileSync(payload,'changed');
+      assert.throws(()=>verify(captured),undefined,'nested target payload change: '+relative);
+      fs.unlinkSync(payload);fs.rmdirSync(join(work,relative));
+    }
     fs.renameSync(path,path+'-saved');fs.symlinkSync(path+'-saved',path);
     assert.throws(()=>captureVerificationProducts(work,family),/aliases|unaliased/);
     fs.unlinkSync(path);fs.renameSync(path+'-saved',path);
@@ -238,4 +247,92 @@ test('compiler owner refuses malformed or incomplete input closures before build
     }
     assert.throws(() => createCompilerOwner(name, {...inputs, unexpected: '0'.repeat(64)}), /complete closed compiler input closure/);
   }
+});
+
+// Complete preservation fixtures only, not generated-model or compiler acceptance.
+function productGuardFixture(t) {
+  const work = fs.mkdtempSync(join(tmpdir(), 'prismpm-product-guard-'));
+  t.after(() => fs.rmSync(work, {recursive:true, force:true}));
+  const put = (relative, bytes = 'product custody guard fixture') => {
+    const path = join(work, relative);
+    fs.mkdirSync(join(path, '..'), {recursive:true}); fs.writeFileSync(path, bytes);
+    return path;
+  };
+  for (const path of ['project/source.lex.tex', 'lean/modules/source', 'export/kernel.ir',
+    'generated/Cargo.toml', 'runner/src/main.rs', 'native-target/release/browser-effects-runner',
+    ...['a', 'b', 'echo'].flatMap(name => ['guest-' + name + '/Cargo.toml',
+      'guest-' + name + '/target/wasm32-unknown-unknown/release/product.wasm'])]) put(path);
+  return {work, put, capture: () => captureVerificationProducts(work, 'effects')};
+}
+
+test('product preservation admits depth 64 and refuses the next actual product directory', t => {
+  const {work, capture} = productGuardFixture(t);
+  let path = join(work, 'generated');
+  for (let depth = 1; depth <= 64; depth++) {path = join(path, 'd'); fs.mkdirSync(path);}
+  const admitted = capture();
+  assert(admitted.directories.some(row => row.path === path.slice(work.length + 1)));
+  fs.mkdirSync(join(path, 'd'));
+  assert.throws(capture, /bounded generated directory depth/);
+});
+
+test('product preservation bounds actual directory enumeration at exactly 8192 entries', t => {
+  const {work, put, capture} = productGuardFixture(t);
+  // The workspace inventory is enumerated in full, including non-guest entries;
+  // these do not consume the separate retained-file inventory budget.
+  for (let count = fs.readdirSync(work).length; count < 8192; count++)
+    put('entry-' + count.toString().padStart(5, '0'), '');
+  assert.equal(fs.readdirSync(work).length, 8192);
+  capture();
+  put('entry-over-limit', '');
+  assert.throws(capture, /bounded generated directory entries/);
+});
+
+test('product preservation refuses aliases files and writable exact guest cache roots', t => {
+  const {work, capture} = productGuardFixture(t);
+  const target = join(work, 'guest-a/target'), saved = join(work, 'preserved-cache-target');
+  capture(); fs.renameSync(target, saved);
+  fs.writeFileSync(target, 'not a Cargo cache directory');
+  assert.throws(capture, /owned real guest Cargo cache required/);
+  fs.unlinkSync(target); fs.symlinkSync(saved, target);
+  assert.throws(capture, /generated products cannot be aliases/);
+  fs.unlinkSync(target); fs.renameSync(saved, target);
+  const mode = fs.lstatSync(target).mode;
+  fs.chmodSync(target, mode | 0o020);
+  assert.throws(capture, /owned real guest Cargo cache required/);
+  fs.chmodSync(target, mode); capture();
+});
+
+test('product preservation retains all nine directory fields and refuses metadata drift during traversal', t => {
+  const {work, capture} = productGuardFixture(t);
+  const before = capture(), directory = join(work, 'project');
+  for (const row of before.directories) {
+    const value = fs.lstatSync(join(work, row.path), {bigint:true});
+    assert.deepEqual(row, {path:row.path, device:value.dev.toString(), inode:value.ino.toString(),
+      uid:value.uid.toString(), gid:value.gid.toString(), mode:Number(value.mode),
+      links:value.nlink.toString(), size:value.size.toString(),
+      mtime:value.mtimeNs.toString(), ctime:value.ctimeNs.toString()});
+  }
+  const stamp = fs.lstatSync(directory);
+  fs.utimesSync(directory, stamp.atime, new Date(stamp.mtimeMs + 2000));
+  const changed = capture();
+  assert.deepEqual(changed.files, before.files, 'directory-only change preserves every file');
+  assert.notDeepEqual(changed.directories, before.directories, 'directory timestamps are custody');
+  const source = fs.readFileSync(new URL('./verification-products.mjs', import.meta.url), 'utf8');
+  const begin = source.indexOf('function observeProduct(path) {');
+  assert(begin >= 0);
+  const body = source.slice(begin);
+  assert.equal(body.split('export function captureVerificationProducts(').length, 2);
+  let injected = false;
+  const observingCapture = runInNewContext(body.replace('export function captureVerificationProducts(',
+    'function captureVerificationProducts(') + '\ncaptureVerificationProducts;',
+    {...fs, assert, createHash, join, Buffer, process, readSync(...args) {
+      if (!injected) {
+        injected = true;
+        const value = fs.lstatSync(directory);
+        fs.utimesSync(directory, value.atime, new Date(value.mtimeMs + 2000));
+      }
+      return fs.readSync(...args);
+    }});
+  assert.throws(() => observingCapture(work, 'effects'), /generated directory changed during observation/);
+  assert.equal(injected, true, 'actual filesystem mutation occurred within the real file read');
 });

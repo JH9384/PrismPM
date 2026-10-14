@@ -1440,6 +1440,19 @@ every library artifact byte. Registry-format consumers of the exact package
 execute every modeled acceptance root under both `std` and `no_std + alloc`;
 false results, computation errors, omissions and changed bytes fail closed.
 
+Within one Linux library verification worker, build and independent replay
+may share only a freshly acquired, source-bound private exporter tool package.
+Both phases retain distinct generated Lean, proof, export and package work;
+each executes the original Lake build/export and Cargo package commands.
+Complete source, compiled-runtime, executable and namespace custody is checked
+around actual children, including failures, and owned retirement completes
+before acceptance publication. The original process-record schema and thirteen
+verification processes are unchanged; warm build output remains actual output.
+The library generator identity binds the complete owner/helper source closure.
+Public standalone builds and each separate verification/root start cold; no
+SDK seed, caller cache, generated-model result or cross-invocation owner is used.
+Application and generic stdlib/full-runtime verification remain unchanged.
+
 Only then are `prismpm/library-acceptance/1` and
 `prismpm/library-verification-manifest/1` atomically published. This is finite
 native-code evidence, not a universal semantic proof, standards certification,

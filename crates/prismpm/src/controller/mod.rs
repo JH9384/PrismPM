@@ -21,6 +21,34 @@ use std::path::{Component, Path, PathBuf};
 
 const VERIFY_WORKER_STACK_BYTES: usize = 16 * 1024 * 1024;
 
+fn library_generator_identity() -> String {
+    let mut source = b"prismpm/library-generator/2\0".to_vec();
+    for (path, bytes) in [
+        (
+            "library_build.rs",
+            include_bytes!("../library_build.rs").as_slice(),
+        ),
+        (
+            "library_exporter.rs",
+            include_bytes!("../library_exporter.rs").as_slice(),
+        ),
+        (
+            "library_exporter/custody.rs",
+            include_bytes!("../library_exporter/custody.rs").as_slice(),
+        ),
+        (
+            "library_exporter/directory.rs",
+            include_bytes!("../library_exporter/directory.rs").as_slice(),
+        ),
+    ] {
+        source.extend_from_slice(path.as_bytes());
+        source.push(0);
+        source.extend_from_slice(&(bytes.len() as u64).to_be_bytes());
+        source.extend_from_slice(bytes);
+    }
+    content_id(&source)
+}
+
 thread_local! {
     static VERIFY_WORKER_ACTIVE: Cell<bool> = const { Cell::new(false) };
 }
@@ -600,6 +628,15 @@ impl Controller {
         request: BuildRequest,
         release: Option<&str>,
     ) -> Result<BuildResult, PrismError> {
+        self.build_release_with_library_exporter(request, release, None)
+    }
+
+    pub(crate) fn build_release_with_library_exporter(
+        &self,
+        request: BuildRequest,
+        release: Option<&str>,
+        exporter: Option<&mut crate::library_exporter::LibraryExporterOwner>,
+    ) -> Result<BuildResult, PrismError> {
         let prepared = self.prepare_release(request.config_path.as_deref(), release)?;
         if let Some(application) = &prepared.model.application {
             crate::holo::browser_application::require_runtime(application)?;
@@ -763,13 +800,27 @@ impl Controller {
             artifacts.extend(application_artifacts);
         }
         if prepared.model.library.is_some() {
-            artifacts.extend(crate::library_build::generate(
-                &self.root,
-                &prepared.model,
-                &prepared.model_bytes,
-                &lex_root,
-                &lex_manifest_bytes,
-            )?);
+            artifacts.extend(match exporter {
+                Some(owner) => {
+                    crate::library_build::generate_owned(
+                        &self.root,
+                        &prepared.model,
+                        &prepared.model_bytes,
+                        &lex_root,
+                        &lex_manifest_bytes,
+                        owner,
+                        crate::library_exporter::Phase::Build,
+                    )?
+                    .artifacts
+                }
+                None => crate::library_build::generate(
+                    &self.root,
+                    &prepared.model,
+                    &prepared.model_bytes,
+                    &lex_root,
+                    &lex_manifest_bytes,
+                )?,
+            });
         }
         if let Some(system) = &prepared.system {
             artifacts.push(("system.prism.json".to_owned(), system.bytes().to_vec()));
@@ -821,8 +872,7 @@ impl Controller {
         }
         if prepared.model.library.is_some() {
             inputs["library_artifacts_sha256"] = json!(content_id(&encode_value(&json!(rows))?));
-            inputs["library_generator_sha256"] =
-                json!(content_id(include_bytes!("../library_build.rs")));
+            inputs["library_generator_sha256"] = json!(library_generator_identity());
             inputs["schema"] = json!("prismpm/build-inputs/3");
         }
         let build_id = content_id(&encode_value(&inputs)?);
@@ -1011,6 +1061,61 @@ mod release_tests;
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn library_generator_binds_each_actual_cold_owner_source_without_hash_overrides() {
+        let paths = [
+            "library_build.rs",
+            "library_exporter.rs",
+            "library_exporter/custody.rs",
+            "library_exporter/directory.rs",
+        ];
+        let parts = [
+            include_bytes!("../library_build.rs").as_slice(),
+            include_bytes!("../library_exporter.rs").as_slice(),
+            include_bytes!("../library_exporter/custody.rs").as_slice(),
+            include_bytes!("../library_exporter/directory.rs").as_slice(),
+        ];
+        let encode = |parts: &[Vec<u8>], paths: &[&str]| {
+            let mut bytes = b"prismpm/library-generator/2\0".to_vec();
+            for (path, part) in paths.iter().zip(parts) {
+                bytes.extend_from_slice(path.as_bytes());
+                bytes.push(0);
+                bytes.extend_from_slice(&(part.len() as u64).to_be_bytes());
+                bytes.extend_from_slice(part);
+            }
+            super::content_id(&bytes)
+        };
+        let originals = parts.map(<[u8]>::to_vec);
+        let actual = super::library_generator_identity();
+        assert_eq!(actual, encode(&originals, &paths));
+        for index in 0..parts.len() {
+            let mut changed = originals.clone();
+            changed[index].push(0);
+            assert_ne!(actual, encode(&changed, &paths));
+            let omitted = originals
+                .iter()
+                .enumerate()
+                .filter(|(at, _)| *at != index)
+                .map(|(_, part)| part.clone())
+                .collect::<Vec<_>>();
+            let omitted_paths = paths
+                .iter()
+                .enumerate()
+                .filter(|(at, _)| *at != index)
+                .map(|(_, path)| *path)
+                .collect::<Vec<_>>();
+            assert_ne!(actual, encode(&omitted, &omitted_paths));
+        }
+        let mut renamed = paths;
+        renamed[0] = "other-library-build.rs";
+        assert_ne!(actual, encode(&originals, &renamed));
+        let mut redistributed = originals.clone();
+        let byte = redistributed[0].pop().unwrap();
+        redistributed[1].insert(0, byte);
+        assert_eq!(originals.concat(), redistributed.concat());
+        assert_ne!(actual, encode(&redistributed, &paths));
+    }
+
     #[test]
     fn execution_boundary_rejects_wrong_native_inventory() {
         crate::sdk::execution_binding_regression(

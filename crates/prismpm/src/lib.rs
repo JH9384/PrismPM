@@ -21,6 +21,7 @@ pub mod diagnostics;
 pub mod error;
 pub mod holo;
 mod library_build;
+mod library_exporter;
 mod library_verification;
 pub mod lifecycle;
 pub mod oci;

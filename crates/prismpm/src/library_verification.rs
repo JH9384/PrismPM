@@ -23,6 +23,7 @@ pub(crate) struct LibraryVerification<'a> {
     pub(crate) lex_attestation_id: String,
     pub(crate) lex_snapshot: Value,
     pub(crate) processes: Vec<ProcessRecord>,
+    pub(crate) exporter: Option<crate::library_exporter::LibraryExporterOwner>,
 }
 
 /// Audit every selected source declaration, including imported namespaces.
@@ -191,13 +192,24 @@ pub(crate) fn run(mut context: LibraryVerification<'_>) -> Result<VerifyResult, 
         .map_err(|error| PrismError::new("PP4002", error.to_string()))?;
     // The controller build is export A. This independently exports and packages
     // the attested Lean closure as export B; both complete byte sets must agree.
-    let replay = crate::library_build::generate_recorded(
-        context.repository_root,
-        &context.model,
-        &context.model_bytes,
-        &lex_root,
-        &lex_manifest,
-    )?;
+    let replay = match context.exporter.as_mut() {
+        Some(owner) => crate::library_build::generate_owned(
+            context.repository_root,
+            &context.model,
+            &context.model_bytes,
+            &lex_root,
+            &lex_manifest,
+            owner,
+            crate::library_exporter::Phase::Replay,
+        )?,
+        None => crate::library_build::generate_recorded(
+            context.repository_root,
+            &context.model,
+            &context.model_bytes,
+            &lex_root,
+            &lex_manifest,
+        )?,
+    };
     let expected_paths = context.build_manifest["files"]
         .as_array()
         .ok_or_else(|| PrismError::new("PP4004", "library build manifest files are absent"))?
@@ -299,6 +311,9 @@ pub(crate) fn run(mut context: LibraryVerification<'_>) -> Result<VerifyResult, 
         }
         executions.push(json!({"mode":mode,"roots":library.acceptance_roots,"status":"passed"}));
         context.processes.push(record);
+    }
+    if let Some(owner) = context.exporter.take() {
+        owner.finish()?;
     }
     let bindings = replay
         .artifacts

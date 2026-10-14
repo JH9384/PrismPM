@@ -143,6 +143,53 @@ fn accepted(project: &Path, verified: &prismpm::controller::VerifyResult) {
     let processes = manifest["processes"].as_array().unwrap();
     assert!(!processes.is_empty());
     assert!(processes.iter().all(|row| row["exit_code"] == 0));
+    assert_eq!(
+        processes
+            .iter()
+            .map(|row| row["tool"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "lean-version",
+            "lake-version",
+            "rustfmt-version",
+            "rustc-version",
+            "timeout-version",
+            "lake-build-generated",
+            "lean4-prod-build",
+            "prod-export",
+            "native-library-package",
+            "native-library-std-lock",
+            "native-library-std-acceptance",
+            "native-library-no_std-lock",
+            "native-library-no_std-acceptance",
+        ],
+        "all thirteen original actual commands remain mandatory"
+    );
+    for process in processes {
+        assert_eq!(
+            process
+                .as_object()
+                .unwrap()
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            [
+                "argv",
+                "executable_sha256",
+                "exit_code",
+                "stderr",
+                "stdout",
+                "tool"
+            ],
+            "original process record schema is not extended or narrowed"
+        );
+    }
+    assert_eq!(processes[5]["argv"], json!(["build", "PrismGenerated"]));
+    assert_eq!(processes[6]["argv"], json!(["build", "prod-export"]));
+    assert_eq!(
+        processes[8]["argv"],
+        json!(["package", "--locked", "--offline", "--allow-dirty"])
+    );
     for mode in ["std", "no_std"] {
         let tool = format!("native-library-{mode}-acceptance");
         let rows = processes

@@ -2397,11 +2397,14 @@ pub(crate) fn run(
     request: VerifyRequest,
     release: Option<&str>,
 ) -> Result<VerifyResult, PrismError> {
-    let build = controller.build_release(
+    let mut library_exporter =
+        cfg!(target_os = "linux").then(crate::library_exporter::LibraryExporterOwner::default);
+    let build = controller.build_release_with_library_exporter(
         BuildRequest {
             config_path: request.config_path.clone(),
         },
         release,
+        library_exporter.as_mut(),
     )?;
     let (config, _) = ProjectConfig::load(&controller.root, request.config_path.as_deref())?;
     let project_path = config.lexlean_path(&controller.root)?;
@@ -2593,6 +2596,7 @@ pub(crate) fn run(
                 lex_attestation_id,
                 lex_snapshot,
                 processes: toolchain.records,
+                exporter: library_exporter,
             },
         );
     }

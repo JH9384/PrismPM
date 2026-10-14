@@ -181,6 +181,51 @@ pub(crate) fn generate_recorded(
     lex_root: &Path,
     lex_manifest_bytes: &[u8],
 ) -> Result<GeneratedLibrary, PrismError> {
+    generate_in(
+        repository_root,
+        model,
+        model_bytes,
+        lex_root,
+        lex_manifest_bytes,
+        None,
+    )
+}
+
+pub(crate) fn generate_owned(
+    repository_root: &Path,
+    model: &ModelDocument,
+    model_bytes: &[u8],
+    lex_root: &Path,
+    lex_manifest_bytes: &[u8],
+    owner: &mut crate::library_exporter::LibraryExporterOwner,
+    phase: crate::library_exporter::Phase,
+) -> Result<GeneratedLibrary, PrismError> {
+    owner.generate(
+        repository_root,
+        phase,
+        model_bytes,
+        lex_manifest_bytes,
+        |context| {
+            generate_in(
+                repository_root,
+                model,
+                model_bytes,
+                lex_root,
+                lex_manifest_bytes,
+                Some(context),
+            )
+        },
+    )
+}
+
+fn generate_in(
+    repository_root: &Path,
+    model: &ModelDocument,
+    model_bytes: &[u8],
+    lex_root: &Path,
+    lex_manifest_bytes: &[u8],
+    mut owned: Option<&mut crate::library_exporter::Generation<'_>>,
+) -> Result<GeneratedLibrary, PrismError> {
     let library = model
         .library
         .as_ref()
@@ -190,12 +235,20 @@ pub(crate) fn generate_recorded(
         .tempdir()
         .map_err(|error| PrismError::new("PP4002", error.to_string()))?;
     let workspace = work.path();
-    let lean_package = workspace.join("lean4-prod");
-    std::fs::create_dir(&lean_package)
-        .map_err(|error| PrismError::new("PP4002", error.to_string()))?;
-    tar::Archive::new(Cursor::new(LEAN4_PROD_ARCHIVE))
-        .unpack(&lean_package)
-        .map_err(|error| PrismError::new("PP5008", format!("pinned lean4-prod: {error}")))?;
+    let lean_package = match owned.as_ref() {
+        Some(context) => context.package().to_owned(),
+        None => {
+            let package = workspace.join("lean4-prod");
+            std::fs::create_dir(&package)
+                .map_err(|error| PrismError::new("PP4002", error.to_string()))?;
+            tar::Archive::new(Cursor::new(LEAN4_PROD_ARCHIVE))
+                .unpack(&package)
+                .map_err(|error| {
+                    PrismError::new("PP5008", format!("pinned lean4-prod: {error}"))
+                })?;
+            package
+        }
+    };
 
     let manifest: Value = serde_json::from_slice(lex_manifest_bytes)
         .map_err(|error| PrismError::new("PP4004", format!("LexLean manifest: {error}")))?;
@@ -257,9 +310,24 @@ pub(crate) fn generate_recorded(
         b"leanprover/lean4:v4.32.1\n",
     )?;
     let lake = executable("lake")?;
-    let replacements = [(workspace, "$LIBRARY_WORK"), (repository_root, "$PROJECT")];
+    let mut replacements = vec![(workspace, "$LIBRARY_WORK"), (repository_root, "$PROJECT")];
+    if owned.is_some() {
+        replacements.insert(0, (lean_package.as_path(), "$LEAN4_PROD"));
+    }
     let no_env = BTreeMap::new();
     let mut processes = Vec::new();
+    let mut execute = |tool: &str,
+                       program: &Path,
+                       args: &[String],
+                       cwd: &Path,
+                       environment: &BTreeMap<String, String>,
+                       replacements: &[(&Path, &str)],
+                       code: &'static str| {
+        match owned.as_deref_mut() {
+            Some(context) => context.run(tool, program, args, cwd, environment, replacements, code),
+            None => run_process(tool, program, args, cwd, environment, replacements, code),
+        }
+    };
     for (tool, directory, args) in [
         (
             "lake-build-generated",
@@ -272,7 +340,7 @@ pub(crate) fn generate_recorded(
             vec!["build".to_owned(), "prod-export".to_owned()],
         ),
     ] {
-        processes.push(run_process(
+        processes.push(execute(
             tool,
             &lake,
             &args,
@@ -303,7 +371,7 @@ pub(crate) fn generate_recorded(
             .to_string_lossy()
             .into_owned(),
     )]);
-    processes.push(run_process(
+    processes.push(execute(
         "prod-export",
         &lake,
         &arguments,
@@ -375,7 +443,7 @@ pub(crate) fn generate_recorded(
         ),
         ("CARGO_NET_OFFLINE".to_owned(), "true".to_owned()),
     ]);
-    processes.push(run_process(
+    processes.push(execute(
         "native-library-package",
         &executable("cargo")?,
         &["package", "--locked", "--offline", "--allow-dirty"].map(str::to_owned),

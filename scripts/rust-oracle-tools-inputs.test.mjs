@@ -179,14 +179,14 @@ test('actual workflow keeps source tests unconditional and the complete native g
     const gate=source.slice(end,source.indexOf('      - uses: actions/upload-artifact',end));
     assert(gate.includes("if: steps.inputs.outputs.changed == 'true'"));
     assert.equal(gate.split('--target rust_oracle_tools').length,3);
-    for(const point of ['assert.equal(steps.length, 4','${id} CACHED','development.sha256 target/rust-oracle-tools/sdk.sha256',
+    for(const point of ['assert.equal(steps.length, 1','${id} CACHED','development.sha256 target/rust-oracle-tools/sdk.sha256',
       'cargo-local-registry','wasm-bindgen-test-runner','wasm2es6js','wasm-tools','wasmtime','--network none --read-only'])assert(gate.includes(point));
     assert(source.includes('native construction not run; no qualification established.'));
   };
   check(original);
   for(const mutant of [original.replace("if: steps.inputs.outputs.changed == 'true'","if: steps.inputs.outputs.changed == 'false'"),
     original.replace('node --test scripts/sdk-image-inputs.test.mjs','true'),
-    original.replace('assert.equal(steps.length, 4','assert.equal(steps.length, 3')])assert.throws(()=>check(mutant));
+    original.replace('assert.equal(steps.length, 1','assert.equal(steps.length, 0')])assert.throws(()=>check(mutant));
 });
 test('actual tool verifier requires fresh construction before within-job reuse',t=>{
   const workflow=originals.get('.github/workflows/rust-oracle-tools.yml');
@@ -197,21 +197,33 @@ test('actual tool verifier requires fresh construction before within-job reuse',
   const root=mkdtempSync(join(tmpdir(),'rust-tool-construction-'));
   t.after(()=>rmSync(root,{recursive:true,force:true}));
   mkdirSync(join(root,'target/rust-oracle-tools'),{recursive:true});
-  const trace=cached=>Array.from({length:4},(_,index)=>{
-    const id=`#${index+10}`;
-    return `${id} [rust_oracle_tools ${index+2}/5] RUN cargo install --locked --root /opt/prismpm/rust-oracle-tools tool-${index}\n${id} ${cached?'CACHED':'DONE 123.4s'}`;
-  }).join('\n');
+  const tools=[['wasm-bindgen-cli','0.2.122'],['wasm-tools','1.258.0'],
+    ['wasmtime-cli','48.0.1'],['cargo-local-registry','0.2.12']];
+  const command=['test ! -e /opt/prismpm/rust-oracle-target','mkdir -p -m 0700 /opt/prismpm/rust-oracle-target',
+    ...tools.map(([name,version])=>`cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target ${name} --version ${version}`),
+    'rm -rf /opt/prismpm/rust-oracle-target'].join(' && ');
+  const header=`#10 [rust_oracle_tools 2/2] RUN ${command}`;
+  const records=tools.flatMap(([name,version])=>[
+    `#10 0.416   Installing ${name} v${version}`,
+    `#10 61.72    Installed package \`${name} v${version}\` (executable \`${name}\`)`]);
+  const cold=[header,...records,'#10 DONE 123.4s'].join('\n');
+  const warm=[header,'#10 CACHED'].join('\n');
   const run=(development,sdk)=>{
     for(const [image,log] of [['development',development],['sdk',sdk]])
       writeFileSync(join(root,`target/rust-oracle-tools/${image}.log`),log);
     return execFileSync(process.execPath,['--input-type=module','--eval',verifier],
       {cwd:root,encoding:'utf8',timeout:5000,stdio:'pipe'});
   };
-  const cold=trace(false),warm=trace(true);
   run(cold,warm);
   for(const [development,sdk] of [[warm,warm],[cold,cold],[cold.replace('#10 DONE 123.4s','#10 ERROR failed'),warm],
-    [cold,warm.replace('#10 CACHED','#10 DONE 1.0s')],[cold.replaceAll('#11','#10'),warm],
-    [cold.split('\n').slice(0,-2).join('\n'),warm],[cold,'']])
+    [cold,warm.replace('#10 CACHED','#10 DONE 1.0s')],[cold+'\n'+header,warm],
+    [cold.replace(records.at(-1),'unrelated output'),warm],[cold,''],
+    [cold.replace(records[0],records[0].replace('0.2.122','0.2.121')),warm],
+    [cold.replace(records[0],records[0]+'0'),warm],
+    [cold+'\n'+records[0],warm],[cold+'\n#10 DONE 2.0s',warm],
+    [cold.replace(' && rm -rf /opt/prismpm/rust-oracle-target',''),warm],
+    [cold.replace('mkdir -p -m 0700','mkdir -m 0700'),warm],
+    [cold,warm+'\n'+records[0]]])
     assert.throws(()=>run(development,sdk));
   const check=source=>{
     const gate=source.slice(source.indexOf('      - name: Build both exact tool stages'),source.indexOf('      - uses: actions/upload-artifact'));

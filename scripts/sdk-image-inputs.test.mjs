@@ -232,13 +232,38 @@ test('real APT refuses transient index failure before package installation', {ti
   assert(requests >= 2 && requests <= 8, 'both acquisitions must use finite retry counts');
 });
 
+test('real tool-target initialization creates absent parents and rejects retained targets', t => {
+  const root = mkdtempSync(join(tmpdir(), 'rust-tool-target-init-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  for (const path of ['../.devcontainer/Dockerfile', '../sdk/Dockerfile']) {
+    const recipe = readFileSync(new URL(path, import.meta.url), 'utf8');
+    const command = imageStages(recipe).get('rust_oracle_tools').instructions.find(line => line.startsWith('RUN '));
+    const initialization = command.slice(4).split(' && cargo install ')[0];
+    for (const missingParents of [false, true]) {
+      const target = join(root, path.includes('.devcontainer') ? 'dev' : 'sdk', String(missingParents), 'absent-parent', 'target');
+      const quoted = "'" + target.replaceAll("'", "'\\''") + "'";
+      const actual = initialization.replaceAll('/opt/prismpm/rust-oracle-target', quoted);
+      if (missingParents) {
+        assert.throws(() => execFileSync('/bin/sh', ['-eu', '-c', actual.replace('mkdir -p -m 0700', 'mkdir -m 0700')], {stdio: 'pipe', timeout: 5000}));
+      }
+      execFileSync('/bin/sh', ['-eu', '-c', actual], {stdio: 'pipe', timeout: 5000});
+      assert.equal(lstatSync(target).mode & 0o777, 0o700);
+      assert.throws(() => execFileSync('/bin/sh', ['-eu', '-c', actual], {stdio: 'pipe', timeout: 5000}));
+    }
+  }
+});
+
 test('development and SDK recipes share the exact isolated pinned Rust tool construction', () => {
   const sdk = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');
   const dev = readFileSync(new URL('../.devcontainer/Dockerfile', import.meta.url), 'utf8');
-  const instructions = ['ENV SOURCE_DATE_EPOCH=0', ...[
+  const builds = [
     ['wasm-bindgen-cli', '0.2.122'], ['wasm-tools', '1.258.0'],
     ['wasmtime-cli', '48.0.1'], ['cargo-local-registry', '0.2.12'],
-  ].map(([name, version]) => `RUN cargo install --locked --root /opt/prismpm/rust-oracle-tools ${name} --version ${version}`)];
+  ].map(([name, version]) => `cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target ${name} --version ${version}`);
+  const instructions = ['ENV SOURCE_DATE_EPOCH=0', 'RUN ' + [
+    'test ! -e /opt/prismpm/rust-oracle-target', 'mkdir -p -m 0700 /opt/prismpm/rust-oracle-target',
+    ...builds, 'rm -rf /opt/prismpm/rust-oracle-target',
+  ].join(' && ')];
   const check = recipe => {
     assert.equal(recipe.split('\n')[0], '# syntax=docker/dockerfile:1.12@sha256:93bfd3b68c109427185cd78b4779fc82b484b0b7618e36d0f104d4d801e66d25');
     assert.deepEqual(imageStages(recipe).get('rust_oracle_tools'), {
@@ -256,6 +281,14 @@ test('development and SDK recipes share the exact isolated pinned Rust tool cons
       recipe.replace('wasm-tools --version 1.258.0', 'wasm-tools --version 1.257.0'),
       recipe.replace('ENV SOURCE_DATE_EPOCH=0', 'ENV SOURCE_DATE_EPOCH=0\nCOPY . /source'),
       recipe.replace('/rust-oracle-tools/bin/ /usr/local/cargo/bin/', '/rust-oracle-tools/ /usr/local/cargo/bin/'),
+      recipe.replace('test ! -e /opt/prismpm/rust-oracle-target && ', ''),
+      recipe.replace('mkdir -p -m 0700 /opt/prismpm/rust-oracle-target', 'mkdir -p -m 0777 /opt/prismpm/rust-oracle-target'),
+      recipe.replace('mkdir -p -m 0700', 'mkdir -m 0700'),
+      recipe.replace('--target-dir /opt/prismpm/rust-oracle-target ', ''),
+      recipe.replaceAll('--target-dir /opt/prismpm/rust-oracle-target', '--target-dir /tmp/ambient-target'),
+      recipe.replace(' && rm -rf /opt/prismpm/rust-oracle-target', ''),
+      recipe.replace('ENV SOURCE_DATE_EPOCH=0', 'ENV SOURCE_DATE_EPOCH=0\nENV CARGO_TARGET_DIR=/tmp/global'),
+      recipe.replace('RUN test ! -e', 'RUN --mount=type=cache,target=/opt/prismpm/rust-oracle-target test ! -e'),
     ]) assert.throws(() => check(changed));
   }
 });

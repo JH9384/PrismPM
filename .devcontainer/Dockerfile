@@ -2,10 +2,9 @@
 # Keep this source-independent stage identical in both image recipes.
 FROM docker.io/library/rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97 AS rust_oracle_tools
 ENV SOURCE_DATE_EPOCH=0
-RUN cargo install --locked --root /opt/prismpm/rust-oracle-tools wasm-bindgen-cli --version 0.2.122
-RUN cargo install --locked --root /opt/prismpm/rust-oracle-tools wasm-tools --version 1.258.0
-RUN cargo install --locked --root /opt/prismpm/rust-oracle-tools wasmtime-cli --version 48.0.1
-RUN cargo install --locked --root /opt/prismpm/rust-oracle-tools cargo-local-registry --version 0.2.12
+# One fresh layer-local target reuses only Cargo-validated dependencies between
+# four real installations. Same-layer cleanup keeps build products out of images.
+RUN test ! -e /opt/prismpm/rust-oracle-target && mkdir -p -m 0700 /opt/prismpm/rust-oracle-target && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target wasm-bindgen-cli --version 0.2.122 && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target wasm-tools --version 1.258.0 && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target wasmtime-cli --version 48.0.1 && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target cargo-local-registry --version 0.2.12 && rm -rf /opt/prismpm/rust-oracle-target
 
 FROM docker.io/library/docker:28.4.0-cli@sha256:6a73c9433f2ba4279815be1e60f5739288b939dda1e48151d8c393537802de37 AS docker_cli
 FROM mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e AS browser_oracle

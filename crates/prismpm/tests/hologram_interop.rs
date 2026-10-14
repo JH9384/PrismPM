@@ -65,7 +65,7 @@ fn test_hologram_oracle_pinned_source_identities() {
     );
     assert_eq!(
         sha256_file(&r.join("crates/prismpm/src/embedded/hologram-oracle.browser.mjs")),
-        "24c416d5da274acc7f038eb8e5867dd4fa04b4cbbefca3d3d3c41961466e2744",
+        "268cd1d4904839dfd8cbd64a150305fe58d314f378d480c4c1eacd6ebf88429e",
         "hologram-oracle browser.mjs checksum changed"
     );
 
@@ -408,7 +408,7 @@ fn test_hologram_oracle_negative_probes_reject_wrong_subject_edition_and_mutatio
         "guest_allocation_boundary": "verified",
         "intent_vectors": 5,
         "portable_browser": {
-            "browser_version": "151.0.7922.34",
+            "browser_version": "157.0.8099.0",
             "cases": cases,
             "engine": "chromium",
             "playwright": "1.62.1",

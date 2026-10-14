@@ -160,7 +160,7 @@ function main(){
  const actual=report.portable_browser;
  assert.equal(actual.schema,'prismpm/portable-browser-oracle/1');assert.equal(actual.status,'passed');
  assert.equal(actual.skipped,0);assert.equal(actual.retries,0);assert.equal(actual.profile,profile.profile);
- assert.equal(actual.browser_version,'151.0.7922.34');assert.equal(actual.playwright,'1.62.1');
+ assert.equal(actual.browser_version,'157.0.8099.0');assert.equal(actual.playwright,'1.62.1');
  assert.deepEqual(actual.vector_indexes,profile.vector_indexes);
  assert.deepEqual(actual.cases,profile.journeys.map(name=>({name,status:'passed',attempts:1})));
  requireObservationWitnesses(rows,mode,expectedObservationSubmissions(profile,trigger));

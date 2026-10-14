@@ -811,7 +811,7 @@ pub(crate) fn validate_hologram_oracle_report(
         .map(|name| json!({"name":name,"status":"passed","attempts":1}))
         .collect::<Vec<_>>();
     let expected = json!({"schema":"prismpm/portable-browser-oracle/1", "profile":profile,
-        "engine":"chromium", "browser_version":"151.0.7922.34", "playwright":"1.62.1",
+        "engine":"chromium", "browser_version":"157.0.8099.0", "playwright":"1.62.1",
         "cases":cases, "vector_indexes":indexes, "skipped":0, "retries":0, "status":"passed"});
     if report["portable_browser"] != expected {
         return Err(invalid());

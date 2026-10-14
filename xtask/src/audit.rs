@@ -847,10 +847,126 @@ pub fn audit_runtime_oracle_separation(root: &Path) -> Result<(), Fail> {
     Ok(())
 }
 
+fn audit_chromium_input(root: &Path, lock: &toml::Value) -> Result<(), Fail> {
+    let table = lock
+        .get("chromium-headless-input")
+        .and_then(toml::Value::as_table)
+        .ok_or("tools.lock has no chromium-headless-input table")?;
+    let keys: BTreeSet<&str> = table.keys().map(String::as_str).collect();
+    if keys
+        != BTreeSet::from([
+            "authority",
+            "authority_sha256",
+            "channel",
+            "installer",
+            "installer_sha256",
+            "version",
+        ])
+    {
+        return Err("Chromium input fields differ from the closed lock profile".into());
+    }
+    for (key, expected) in [
+        ("version", "157.0.8099.0"),
+        ("channel", "Canary"),
+        ("authority", "sdk/browser-engine/authority.json"),
+        ("installer", "sdk/browser-engine/install.py"),
+    ] {
+        if table.get(key).and_then(toml::Value::as_str) != Some(expected) {
+            return Err(format!("Chromium input {key} differs").into());
+        }
+    }
+    for (key, path) in [
+        ("authority_sha256", "sdk/browser-engine/authority.json"),
+        ("installer_sha256", "sdk/browser-engine/install.py"),
+    ] {
+        let digest = format!(
+            "{:x}",
+            sha2::Sha256::digest(std::fs::read(root.join(path))?)
+        );
+        if table.get(key).and_then(toml::Value::as_str) != Some(digest.as_str()) {
+            return Err(format!("Chromium input {key} differs from actual source bytes").into());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod chromium_input_tests {
+    use super::audit_chromium_input;
+
+    #[test]
+    fn actual_toml_parser_and_source_joins_refuse_lock_substitutions() {
+        let root = repo_model::repo_root();
+        let original = std::fs::read_to_string(root.join("tools.lock")).unwrap();
+        let lock: toml::Value = toml::from_str(&original).unwrap();
+        audit_chromium_input(&root, &lock).unwrap();
+        for change in 0..10 {
+            let mut value = lock.clone();
+            let table = value["chromium-headless-input"].as_table_mut().unwrap();
+            match change {
+                0 => {
+                    table.remove("authority_sha256");
+                }
+                1 => {
+                    table.insert("extra".into(), "not admitted".into());
+                }
+                2 => {
+                    table.insert("version".into(), "151.0.7922.34".into());
+                }
+                3 => {
+                    table.insert("channel".into(), "Stable".into());
+                }
+                4 => {
+                    table.insert("authority".into(), "sdk/browser-engine/install.py".into());
+                }
+                5 => {
+                    table.insert(
+                        "installer".into(),
+                        "sdk/browser-engine/authority.json".into(),
+                    );
+                }
+                6 => {
+                    table.insert("authority_sha256".into(), "0".repeat(64).into());
+                }
+                7 => {
+                    table.insert("installer_sha256".into(), "0".repeat(64).into());
+                }
+                8 => {
+                    table.insert("version".into(), 157_i64.into());
+                }
+                _ => {
+                    value
+                        .as_table_mut()
+                        .unwrap()
+                        .remove("chromium-headless-input");
+                }
+            }
+            assert!(
+                audit_chromium_input(&root, &value).is_err(),
+                "change {change}"
+            );
+        }
+        for changed in [
+            original.replace("[chromium-headless-input]", "[other-input]"),
+            original.replace("[chromium-headless-input]", "# [chromium-headless-input]"),
+            original.replace(
+                "[chromium-headless-input]",
+                "[chromium-headless-input]\nversion = \"duplicate\"",
+            ),
+        ] {
+            assert_ne!(changed, original);
+            assert!(toml::from_str::<toml::Value>(&changed)
+                .map(|value| audit_chromium_input(&root, &value).is_err())
+                .unwrap_or(true));
+        }
+    }
+}
+
 /// Audit pinned tool installers and full-SHA CI actions.
 pub fn audit_tools_ci(root: &Path) -> Result<(), Fail> {
     let tools = std::fs::read_to_string(root.join("tools.lock"))?;
     let lock: toml::Value = toml::from_str(&tools)?;
+    audit_chromium_input(root, &lock)?;
     let dockerfile = std::fs::read_to_string(root.join(".devcontainer/Dockerfile"))?;
     let hosts = lock
         .get("support")

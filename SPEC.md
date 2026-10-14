@@ -3163,7 +3163,7 @@ execution. Deployment, promotion, recovery and other operations never enter
 this cancellation group. All existing SDK inputs and outputs are preserved.
 The key is validated in a separate, non-concurrent job before the execution
 job can enter its group; invalid keys cannot cancel a valid invocation.
-The existing `TM-03` owner runs all 19 Action controls and all 11 CI-capacity
+The existing `TM-03` owner runs all 19 Action controls and all 13 CI-capacity
 controls together. The full source audit additionally owns all 26 diagnostic
 transport controls; its previous file inventory and compiler-phase controls
 remain selected. CI-capacity controls preserve all six current SDK-candidate

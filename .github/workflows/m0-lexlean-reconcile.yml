@@ -88,10 +88,6 @@ jobs:
           while IFS= read -r config; do
             directory="$(dirname "$config")"
             test -f "$directory/lexlean.lock" || continue
-            if test "$directory" = "./tests/negative/lock/stale/project"; then
-              echo "retaining deliberate stale-lock fixture: $directory"
-              continue
-            fi
             echo "relocking $directory"
             # Normal lock authoring creates a build-root lock file. Retire that
             # temporary root through the same compiler before fixture readers.

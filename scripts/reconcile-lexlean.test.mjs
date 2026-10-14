@@ -188,6 +188,57 @@ test('reconciliation workflow pins selected source and has no repository writer'
  assert.ok(workflow.indexOf('--validate-generated')>workflow.indexOf('just package-release-crates-check'));
 });
 
+function assertCompleteRelocking(workflow) {
+ const start=workflow.indexOf('      - name: Update the root dependency lock and every real LexLean consumer\n');
+ const end=workflow.indexOf('      - name: Regenerate owned PrismPM evidence through the pinned devcontainer\n',start);
+ assert(start>=0 && end>start);
+ assert.equal(workflow.slice(start,end), String.raw`      - name: Update the root dependency lock and every real LexLean consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          export RUSTUP_TOOLCHAIN=1.97.1
+          mkdir -p "$RUNNER_TEMP/m0-reconciliation-diagnostics"
+          exec > "$RUNNER_TEMP/m0-reconciliation-diagnostics/relock-step.log" 2>&1
+          target="$RUNNER_TEMP/vendor-lexlean-target"
+          CARGO_TARGET_DIR="$target" cargo build --locked --offline --manifest-path vendor/lexlean/Cargo.toml --bin lexlean
+          lexlean="$target/debug/lexlean"
+          while IFS= read -r config; do
+            directory="$(dirname "$config")"
+            test -f "$directory/lexlean.lock" || continue
+            echo "relocking $directory"
+            # Normal lock authoring creates a build-root lock file. Retire that
+            # temporary root through the same compiler before fixture readers.
+            (cd "$directory" && "$lexlean" lock && "$lexlean" clean)
+          done < <(find . \
+            -path './vendor' -prune -o \
+            -path './target' -prune -o \
+            -name lexlean.toml -type f -print | sort)
+
+`);
+}
+
+test('every locked consumer including the checksum-mutation baseline is normally relocked',()=>{
+ const workflow=readFileSync(join(repository,'.github/workflows/m0-lexlean-reconcile.yml'),'utf8');
+ assertCompleteRelocking(workflow);
+ const mutations=[
+  workflow.replace('echo "relocking $directory"', 'if test "$directory" = "./tests/negative/lock/stale/project"; then continue; fi\n            echo "relocking $directory"'),
+  workflow.replace('test -f "$directory/lexlean.lock" || continue', 'continue'),
+  workflow.replace('cargo build --locked --offline --manifest-path', 'cargo build --manifest-path'),
+  workflow.replace('"$lexlean" lock && "$lexlean" clean', '"$lexlean" lock'),
+  workflow.replace('"$lexlean" lock && "$lexlean" clean', '"$lexlean" lock && "$lexlean" clean || true'),
+  workflow.replace('"$lexlean" lock && "$lexlean" clean', '"$lexlean" lock --check && "$lexlean" clean'),
+  workflow.replace('-name lexlean.toml -type f -print | sort)', '-name lexlean.toml -type f -print | head -n 1)'),
+  workflow.replace('(cd "$directory" && "$lexlean" lock && "$lexlean" clean)', 'if false; then (cd "$directory" && "$lexlean" lock && "$lexlean" clean); fi'),
+  workflow.replace("            -path './vendor'", "            # split the continued find command\n            -path './vendor'"),
+  workflow.replace("            -path './vendor'", "\n            -path './vendor'"),
+  workflow.replace('          done < <(find .', '        done < <(find .'),
+ ];
+ for(const mutation of mutations) {
+  assert.notEqual(mutation,workflow);
+  assert.throws(()=>assertCompleteRelocking(mutation),assert.AssertionError);
+ }
+});
+
 test('real offline Cargo metadata refuses a fresh empty input cache before any build',t=>{
  const root=mkdtempSync(join(tmpdir(),'reconcile-empty-cargo-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
  const cache=join(root,'cargo');mkdirSync(cache);

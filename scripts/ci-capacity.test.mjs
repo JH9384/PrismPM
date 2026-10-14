@@ -81,6 +81,53 @@ test('parallel policy refuses missing, duplicated, weakened or unbounded executi
   }
 });
 
+function workspaceUnitOwnership(source) {
+  const signature = 'fn run_unit_tests(root: &Path) -> Result<(), Fail> {';
+  const start = source.indexOf(signature), end = source.indexOf('\nfn validate_all(', start);
+  assert(start >= 0 && end > start && source.indexOf(signature, start + 1) === -1);
+  let body = source.slice(start + signature.length, end)
+    .replace(/^\s*\/\/[^\n]*$/gm, '').trim();
+  const progress = /^println!\("Running workspace unit and integration tests"\);\s*/.exec(body);
+  assert(progress); body = body.slice(progress[0].length);
+  const statements = [], arguments_ = [];
+  for (let index = 0; index < 2; index++) {
+    const statement = /^command\(\s*root,\s*"cargo",\s*&\[([\s\S]*?)\],?\s*\)\?;\s*/.exec(body);
+    assert(statement, 'both complete Cargo unit owners must execute and propagate failure');
+    statements.push(statement[0].trimEnd());
+    arguments_.push(JSON.parse('[' + statement[1].replace(/,\s*$/, '') + ']'));
+    body = body.slice(statement[0].length);
+  }
+  assert.match(body, /^Ok\(\(\)\)\s*\}$/);
+  assert.deepEqual(arguments_, [
+    ['test', '--workspace', '--bins', '--lib', '--tests', '--exclude', 'repo-conformance',
+      '--all-features', '--locked', '--offline'],
+    ['test', '--package', 'repo-conformance', '--lib', '--bins', '--all-features', '--locked', '--offline'],
+  ]);
+  return statements;
+}
+
+test('workspace units own conformance library and binaries without duplicate integration execution', () => {
+  workspaceUnitOwnership(readFileSync(new URL('../xtask/src/main.rs', import.meta.url), 'utf8'));
+});
+
+test('unit ownership refuses missing regressions, repeated integration, hidden execution and swallowed failures', () => {
+  const source = readFileSync(new URL('../xtask/src/main.rs', import.meta.url), 'utf8');
+  const [workspace, conformance] = workspaceUnitOwnership(source);
+  for (const mutate of [
+    value => value.replace(conformance, ''),
+    value => value.replace(conformance, conformance + conformance),
+    value => value.replace(conformance, conformance.replace('"--lib"', '"--tests"')),
+    value => value.replace(conformance, conformance.replace('"--bins",', '')),
+    value => value.replace(conformance, conformance.replace('"--all-features",', '')),
+    value => value.replace(conformance, conformance.replace('"--offline"', '"--frozen"')),
+    value => value.replace(workspace, workspace.replace('"--exclude",', '')),
+    value => value.replace(conformance, conformance.replace(')?;', ');')),
+    value => value.replace(conformance, 'if false { ' + conformance + ' }'),
+    value => value.replace(conformance, 'return Ok(());\n' + conformance),
+    value => value.replace(conformance, 'let _ = ' + conformance),
+  ]) assert.throws(() => workspaceUnitOwnership(mutate(source)));
+});
+
 test('read-only source workflows supersede by repository and ref, never unique run ID', () => {
   for (const name of ['ci-parallel', 'vv', 'bootstrap', 'reproducibility', 'honesty']) {
     const value = workflow(name);

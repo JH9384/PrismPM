@@ -261,6 +261,22 @@ fn run_unit_tests(root: &Path) -> Result<(), Fail> {
             "--offline",
         ],
     )?;
+    // The separately owned integration suite must not run twice. Its library
+    // and binary regressions still belong to the complete workspace unit gate.
+    command(
+        root,
+        "cargo",
+        &[
+            "test",
+            "--package",
+            "repo-conformance",
+            "--lib",
+            "--bins",
+            "--all-features",
+            "--locked",
+            "--offline",
+        ],
+    )?;
     Ok(())
 }
 

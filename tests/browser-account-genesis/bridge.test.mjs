@@ -25,6 +25,30 @@ test('private account factory captures closed data options and refuses shape-onl
   assert.equal(read, false);
 });
 
+test('account construction authoring command refuses invalid or overwrite paths before compilation', t => {
+  const root=mkdtempSync(join(tmpdir(),'prismpm-account-proposal-cli-'));
+  t.after(()=>rmSync(root,{recursive:true,force:true}));
+  const generator=join(repository,'sdk/generate-account-genesis.mjs');
+  const absent=join(root,'absent'),existing=join(root,'existing'),alias=join(root,'alias');
+  mkdirSync(existing);symlinkSync(existing,alias);
+  const cases=[[],['unknown'],['check','extra'],['install','extra'],['proposal'],
+    ['proposal',absent],['proposal',absent,''],['proposal',absent,'  '],
+    ['proposal',absent,'x'.repeat(1025)],['proposal','relative','reason'],
+    ['proposal',repository,'reason'],['proposal',join(repository,'proposal-output'),'reason'],
+    ['proposal',join(root,'missing-parent','output'),'reason'],['proposal',existing,'reason'],
+    ['proposal',join(alias,'output'),'reason']];
+  for(const args of cases) {
+    const child=spawnSync(process.execPath,[generator,...args],
+      {encoding:'utf8',timeout:10000,maxBuffer:1048576});
+    assert.equal(child.error,undefined);assert.equal(child.signal,null);
+    assert.equal(child.status,1,JSON.stringify(args)+': '+child.stdout+child.stderr);
+    assert.equal(child.stdout,'');
+    assert.doesNotMatch(child.stderr,/Retained failed compiler owner|Retained incomplete account-genesis/,
+      'refusal precedes real compiler ownership');
+  }
+  assert.equal(lstatSync(absent,{throwIfNoEntry:false}),undefined);
+});
+
 test('canonical binding data cannot substitute for an actual unmutated model constructor', t => {
   const source = readFileSync(new URL('../../sdk/browser/account-genesis-binding.mjs', import.meta.url), 'utf8');
   assert.equal(renderAccountGenesisBinding({...accountGenesisBinding}), source);

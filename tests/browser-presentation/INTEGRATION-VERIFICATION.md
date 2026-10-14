@@ -1,4 +1,8 @@
-# Integrated status owner
+# Historical integrated status owner
+
+Current registrations require all 39 DK-23 checks and 43 DK-15 checks.
+The component receipts below retain their historical sources and inventories;
+they do not qualify the current source or installed SDK.
 
 Port of PR50 onto the current compiler-custody and browser-environment stack.
 Presentation model, wire tags, structural limits and the stdlib archive are
@@ -8,8 +12,9 @@ The private adapter retains its connected atomic status node and inserts text
 only after mounting its role/live semantics. Identical text is not rewritten.
 Mount/removal failure terminates ownership and removes listeners.
 
-DK23 owns 37 checks: wire 5, DOM 5, replay 2, provenance 7 and generated SDK owner
-18. The current P-256 integration retains DK15's 36 checks and DK29's separate
+At this historical checkpoint, DK23 owned 37 checks: wire 5, DOM 5, replay 2,
+provenance 7 and generated SDK owner 18. Its P-256 integration retained
+DK15's 36 checks and DK29's separate
 38-check exporter-seed owner. These counts describe registered suites, not
 qualification of this presentation owner on the current integration head.
 The compiler uses the current exact compiler-only input inventory and closed
@@ -30,8 +35,8 @@ cargo fmt --all also visits excluded generated dependencies and reports their
 existing unformatted generated code; that diagnostic is retained, not corrected
 by editing generated sources.
 
-Required before acceptance: exact-head independent review, current native CI,
-complete 37-check generated owner with unchanged five compiled source mutants
+Required before current acceptance: exact-head independent review, current native CI,
+complete 39-check owner with unchanged five compiled source mutants
 and every 64-MiB maximum, then unchanged full V&V and immutable installed SDK/
 downstream qualification. No component check satisfies those obligations.
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {execFile} from 'node:child_process';
-import {mkdtempSync, writeFileSync, rmSync, symlinkSync} from 'node:fs';
+import {execFile,spawnSync} from 'node:child_process';
+import {linkSync,mkdtempSync, writeFileSync, rmSync, symlinkSync,unlinkSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -65,4 +65,32 @@ test('CLI command custody refuses aliased, noncanonical, duplicate-key and overs
   assert.deepEqual(verifiedCommands(path),[]);
   const alias = join(directory,'alias'); symlinkSync(path,alias);
   assert.throws(() => verifiedCommands(alias));
+  const peer=join(directory,'hardlink');linkSync(path,peer);
+  assert.throws(()=>verifiedCommands(path),/single-link/);unlinkSync(peer);
+  assert.deepEqual(verifiedCommands(path),[]);
+});
+
+test('command custody rejects actual parent replacement while retaining the unchanged open inode', () => {
+  const source=`import assert from 'node:assert/strict';
+    import {createRequire,syncBuiltinESMExports} from 'node:module';
+    import {mkdtempSync,mkdirSync,readFileSync,renameSync,rmSync,writeFileSync} from 'node:fs';
+    import {tmpdir} from 'node:os';import {join} from 'node:path';
+    import {verifiedCommands} from ${JSON.stringify(new URL('./metadata-cli.mjs',import.meta.url).href)};
+    const root=mkdtempSync(join(tmpdir(),'metadata-held-name-')),directory=join(root,'owned');mkdirSync(directory);
+    const path=join(directory,'commands.json'),saved=join(root,'retained-original');
+    writeFileSync(path,'{"commands":[],"schema":"prismpm/sdk-inventory/1"}');
+    const bytes=readFileSync(path);assert.deepEqual(verifiedCommands(path),[]);
+    const fs=createRequire(import.meta.url)('node:fs'),original=fs.readSync;let replaced=false;
+    try {
+      fs.readSync=(...args)=>{const count=original(...args);if(!replaced){
+        replaced=true;renameSync(directory,saved);mkdirSync(directory);writeFileSync(path,bytes);
+      }return count;};syncBuiltinESMExports();
+      assert.throws(()=>verifiedCommands(path),/descriptor or name changed/);assert(replaced);
+    } finally {fs.readSync=original;syncBuiltinESMExports();rmSync(root,{recursive:true,force:true});}
+    console.log('PASS actual unchanged-descriptor parent replacement refused');`;
+  const child=spawnSync(process.execPath,['--input-type=module','-e',source],
+    {encoding:'utf8',timeout:10000,maxBuffer:1048576});
+  assert.equal(child.error,undefined);assert.equal(child.signal,null);
+  assert.equal(child.status,0,child.stdout+child.stderr);
+  assert.equal(child.stdout,'PASS actual unchanged-descriptor parent replacement refused\n');
 });

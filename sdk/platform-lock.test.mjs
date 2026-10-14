@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { link, mkdtemp, mkdir, readFile, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { createRequire } from 'node:module';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { fixture as metadataFixture } from './metadata-test-fixture.mjs';
 import { capturePlatformLock, createPlatformLock, parseSdkIndex, validateInventory } from './platform-lock.mjs';
 import { ociFixtureManifest } from './oci-test-fixture.mjs';
@@ -262,6 +264,64 @@ test('wrong architecture, swapped inventories, missing files, changed standards 
     await writeFile(`${directory}/arm64/standards.lock`, standards);
     await rm(`${directory}/arm64/inventory.json`); await assert.rejects(create);
   } finally { await rm(directory, {recursive: true, force: true}); }
+});
+
+test('platform evidence rejects hardlinks, aliases and oversized files across every captured input', async () => {
+  const directory=await mkdtemp(join(tmpdir(),'prismpm-platform-custody-'));
+  try {
+    const {reference,inventories}=await fixture(directory);
+    const create=()=>createPlatformLock(directory,reference,inventories.get('amd64'),standards,'x64');
+    const paths=['index.json',...['amd64','arm64'].flatMap(architecture=>
+      ['image.json','inventory.json','standards.lock'].map(name=>architecture+'/'+name))];
+    for(const relative of paths) {
+      const path=join(directory,relative),saved=path+'.original',peer=path+'.peer';
+      const bytes=await readFile(path);
+      await link(path,peer);await assert.rejects(create(),/single-link/);await unlink(peer);
+      await rename(path,saved);await symlink(saved,path);await assert.rejects(create(),/aliased/);
+      await unlink(path);await rename(saved,path);
+      const maximum=relative==='index.json'?1024*1024:relative.endsWith('standards.lock')?16*1024*1024:8*1024*1024;
+      await writeFile(path,Buffer.alloc(maximum+1));await assert.rejects(create(),/byte bound/);
+      await writeFile(path,bytes);assert.equal((await create()).schema,'prismpm/sdk-lock/2');
+    }
+  } finally {await rm(directory,{recursive:true,force:true});}
+});
+
+test('platform capture refuses a real namespace replacement after opening the original index', async () => {
+  const root=await mkdtemp(join(tmpdir(),'prismpm-platform-held-name-'));
+  const directory=join(root,'owned'),saved=join(root,'original');await mkdir(directory);
+  const fs=createRequire(import.meta.url)('node:fs/promises'),original=fs.open;let replaced=false;
+  try {
+    const {reference,inventories}=await fixture(directory);
+    const index=await readFile(join(directory,'index.json'));
+    fs.open=async(...args)=>{
+      const handle=await original(...args);
+      if(!replaced&&args[0]===join(directory,'index.json')) {
+        replaced=true;await rename(directory,saved);await mkdir(directory);
+        await writeFile(join(directory,'index.json'),index);
+      }
+      return handle;
+    };syncBuiltinESMExports();
+    await assert.rejects(createPlatformLock(directory,reference,inventories.get('amd64'),standards,'x64'),
+      /descriptor or name changed/);
+    assert(replaced,'actual opened index and replaced containing directory');
+  } finally {fs.open=original;syncBuiltinESMExports();await rm(root,{recursive:true,force:true});}
+});
+
+test('public index CLI reads bounded pipe input and emits no partial result on refusal', async () => {
+  const directory=await mkdtemp(join(tmpdir(),'prismpm-platform-index-cli-'));
+  try {
+    const {reference,index}=await fixture(directory);
+    const args=[fileURLToPath(new URL('./platform-lock.mjs',import.meta.url)),'index',reference];
+    const invoke=input=>spawnSync(process.execPath,args,{input,encoding:'utf8',timeout:10000,maxBuffer:1048576});
+    const result=invoke(index);assert.equal(result.error,undefined);assert.equal(result.signal,null);
+    assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');
+    assert.equal(result.stdout,parseSdkIndex(index,reference).map(child=>child.architecture+' '+child.reference+'\n').join(''));
+    for(const input of [Buffer.alloc(2*1024*1024),Buffer.concat([index,Buffer.from('x')]),Buffer.alloc(0)]) {
+      const refused=invoke(input);assert.equal(refused.signal,null);assert.equal(refused.status,1,refused.stderr);
+      // Early close of oversized input can report EPIPE to the supplying process.
+      assert(refused.error===undefined||refused.error.code==='EPIPE');assert.equal(refused.stdout,'');
+    }
+  } finally {await rm(directory,{recursive:true,force:true});}
 });
 
 test('public capture uses only the seven bounded OCI reads', async t => {

@@ -138,14 +138,21 @@ test('fresh independent drivers pin hash optimization without changing construct
 });
 
 test('compiler owner refuses malformed or incomplete input closures before building', () => {
+  const families = ['view', 'effects', 'presentation', 'session', 'operation-journal', 'budget', 'custody', 'p256', 'signed-context', 'session-operation', 'pkce', 'holo-primary-component', 'session-retention', 'publication-linkage', 'account-genesis', 'publication'];
+  const source = fs.readFileSync(new URL('./compiler-owner.mjs', import.meta.url), 'utf8');
+  const begin = source.indexOf('const families = Object.freeze({');
+  const end = source.indexOf('\nconst owners = ', begin);
+  assert(begin >= 0 && end > begin);
+  const registered = runInNewContext(source.slice(begin, end) + '\nObject.keys(families);');
+  assert.deepEqual([...registered].sort(), [...families].sort(), 'every registered family retains all malformed-input controls');
   let called = false;
   const accessor = {get malicious() {called = true; return '0'.repeat(64);}};
-  for (const inputs of [null, [], accessor, {'../escape': '0'.repeat(64)},
+  for (const family of families) for (const inputs of [null, [], accessor, {'../escape': '0'.repeat(64)},
     {'vendor/lexlean/MANIFEST.sha256': 'invalid'}, {'a': null}, {'a': 42}, {}])
-    assert.throws(() => createCompilerOwner('view', inputs),
+    assert.throws(() => createCompilerOwner(family, inputs),
       /compiler input (map|path|digest|closure)/);
   assert.equal(called, false, 'input accessors cannot run before immutable capture');
-  for (const name of ['view', 'effects', 'presentation', 'session', 'operation-journal', 'budget', 'custody', 'p256', 'signed-context', 'session-operation', 'pkce', 'holo-primary-component', 'session-retention', 'publication-linkage']) {
+  for (const name of families) {
     const inputs = captureCompilerInputs(name);
     for (const missing of ['tests/browser-view/compile.mjs', 'tests/browser-view/compiler-artifact.mjs', 'vendor/lean4-prod/lean.tar']) {
       const changed = {...inputs}; delete changed[missing];

@@ -76,6 +76,14 @@ order; revision is a stale-event guard, not principal/session authority. The
 private dispatcher must independently authenticate and authorize commands.
 The existence or enabled state of a control grants no effect or role.
 
+The adapter connects an empty `role=status`, `aria-atomic=true` region before
+inserting a message and retains that same connected element across revisions.
+Only changed text is written; identical-frame replay is silent. Modeled live
+mode still applies, and a status update does not itself request focus. These
+DOM obligations follow [W3C ARIA22](https://www.w3.org/WAI/WCAG22/Techniques/aria/ARIA22).
+DOM observation does not prove screen-reader speech, announcement timing or
+complete WCAG conformance; assistive-technology assessment remains required.
+
 Each private dispatch callback receives `(intentBytes, token)` and returns one
 final frame or Promise. `progressPresentation(view, token, bytes)` admits
 intermediate frames only for that adapter's live opaque token. Both objects

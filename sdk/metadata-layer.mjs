@@ -104,7 +104,17 @@ export function verifyBlob(bytes, expected, maximum) {
 
 export function parseManifest(bytes, expected) {
   descriptor(expected, limits.document, media + 'manifest.v1+json');
-  const value = parseJson(verifyBlob(bytes, expected, limits.document));
+  const value = parseJson(verifyBlob(bytes, expected, limits.document), (token, path) => {
+    // Descriptor and schema numbers are admitted from their original decimal
+    // tokens before binary64 rounding can turn a fraction into an integer.
+    // Opaque extension fields retain the ordinary JSON numeric domain.
+    if (path.length === 1 && path[0] === 'schemaVersion')
+      assert.equal(boundedPositiveInteger(token, 2), 2, 'OCI schema version differs');
+    if (path.length === 2 && path[0] === 'config' && path[1] === 'size')
+      boundedPositiveInteger(token, limits.document);
+    if (path.length === 3 && path[0] === 'layers' && Number.isInteger(path[1]) && path[2] === 'size')
+      boundedPositiveInteger(token, Number.MAX_SAFE_INTEGER);
+  });
   caseKeys(value, ['schemaVersion', 'mediaType', 'config', 'layers', 'subject', 'annotations', 'artifactType']);
   assert.equal(value.schemaVersion, 2);
   assert.equal(value.mediaType, media + 'manifest.v1+json');

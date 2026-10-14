@@ -58,7 +58,7 @@ fn copy_tree(source: &Path, destination: &Path) {
     }
 }
 
-fn calculator_project() -> tempfile::TempDir {
+pub(super) fn calculator_project() -> tempfile::TempDir {
     let temporary = tempfile::tempdir().unwrap();
     let example = repository().join("examples/Calculator");
     copy_tree(&example.join("src"), &temporary.path().join("src"));
@@ -711,6 +711,148 @@ fn named_releases() -> tempfile::TempDir {
     std::fs::write(root.join("src/Release.lex.tex"), source).unwrap();
     relock(root);
     temporary
+}
+
+#[test]
+fn complete_named_release_projection_is_safe_on_a_small_caller_stack() {
+    // This is the same complete 108-element certificate fixture used by the
+    // original release build/verification case, not a shortened model.
+    let temporary = named_releases();
+    let controller = Controller::load(temporary.path()).unwrap();
+    std::thread::Builder::new()
+        .name("small-model-caller".to_owned())
+        .stack_size(2 * 1024 * 1024)
+        .spawn(move || {
+            let _temporary = temporary;
+            let checked = controller
+                .check(CheckRequest { config_path: None })
+                .unwrap();
+            assert_eq!(checked.schema, "prismpm/check-result/1");
+            assert_eq!(checked.entity_count, 0);
+            for digest in [checked.semantic_id, checked.snapshot_id, checked.model_id] {
+                assert_eq!(digest.len(), 64);
+                assert!(digest.bytes().all(|byte| byte.is_ascii_hexdigit()));
+            }
+            let systems = controller.production_systems().unwrap();
+            assert_eq!(systems.len(), 2);
+            assert_eq!(systems[0].value()["product"]["version"], "A");
+            assert_eq!(systems[1].value()["product"]["version"], "B");
+            // Closed system-domain JSON may cross the boundary. Its existing
+            // public consumer also clones and drops it on the caller stack.
+            for system in &systems {
+                let value = system.value().clone();
+                assert_eq!(value, *system.value());
+                drop(value);
+            }
+            drop(systems);
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn prepared_work_preserves_the_verification_reentrancy_scope() {
+    let temporary = calculator_project();
+    let controller = Controller::load(temporary.path()).unwrap();
+    let plan = model_worker::Plan::load(temporary.path(), None).unwrap();
+    model_worker::run(&plan, model_worker::Kind::Verification, || {
+        let _guard = VerifyWorkerGuard::enter()?;
+        let thread = std::thread::current().id();
+        controller.with_prepared_release(None, None, |_| {
+            assert_eq!(std::thread::current().id(), thread);
+            assert_eq!(ensure_verification_not_active().unwrap_err().code, "PP5008");
+            assert_eq!(
+                controller
+                    .verify(VerifyRequest { config_path: None })
+                    .unwrap_err()
+                    .code,
+                "PP5008"
+            );
+            Ok(true)
+        })?;
+        Ok(())
+    })
+    .unwrap();
+    ensure_verification_not_active().unwrap();
+}
+
+#[test]
+fn actual_prepared_snapshot_unwinds_inside_its_model_worker() {
+    let temporary = calculator_project();
+    let controller = Controller::load(temporary.path()).unwrap();
+    let error = controller
+        .with_prepared_release::<bool>(None, None, |_| {
+            panic!("unwind after the actual selected compiler snapshot was prepared");
+        })
+        .unwrap_err();
+    assert_eq!(error.code, "PP9001");
+    controller
+        .check(CheckRequest { config_path: None })
+        .unwrap();
+    ensure_verification_not_active().unwrap();
+}
+
+#[test]
+fn changed_model_budget_is_refused_before_loading_the_engine() {
+    let temporary = calculator_project();
+    let controller = Controller::load(temporary.path()).unwrap();
+    let plan = model_worker::Plan::load(temporary.path(), None).unwrap();
+    let path = temporary.path().join("lexlean.toml");
+    let original = std::fs::read_to_string(&path).unwrap();
+    let changed = original.replace("max_scope_depth = 1024", "max_scope_depth = 2048");
+    assert_ne!(original, changed, "the actual selected budget must change");
+    let error = model_worker::run(&plan, model_worker::Kind::Model, || {
+        std::fs::write(&path, changed).unwrap();
+        let _prepared = controller.prepare_release_in_worker(&plan, None)?;
+        Ok(())
+    })
+    .unwrap_err();
+    assert_eq!(error.code, "PP9001");
+    assert!(error.message.contains("configuration changed"));
+    assert!(!temporary.path().join(".prism/build").exists());
+}
+
+#[test]
+fn verification_selection_reload_cannot_change_its_worker_binding() {
+    let temporary = calculator_project();
+    let controller = Controller::load(temporary.path()).unwrap();
+    let plan = model_worker::Plan::load(temporary.path(), None).unwrap();
+    let path = temporary.path().join("prismpm.toml");
+    let original = std::fs::read_to_string(&path).unwrap();
+    let changed = original.replace("lexlean.toml", "another.toml");
+    assert_ne!(original, changed);
+    let error = model_worker::run(&plan, model_worker::Kind::Verification, || {
+        let _guard = VerifyWorkerGuard::enter()?;
+        std::fs::write(&path, changed).unwrap();
+        controller.check_model_configuration(None)
+    })
+    .unwrap_err();
+    assert_eq!(error.code, "PP9001");
+    assert!(error.message.contains("configuration changed"));
+    assert!(!temporary.path().join(".prism/build").exists());
+    ensure_verification_not_active().unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn existing_selected_configuration_hardlink_is_accepted() {
+    let temporary = calculator_project();
+    let original = temporary.path().join("lexlean.toml");
+    let alias = temporary.path().join("chosen.toml");
+    std::fs::hard_link(original, &alias).unwrap();
+    let path = temporary.path().join("prismpm.toml");
+    let selected = std::fs::read_to_string(&path)
+        .unwrap()
+        .replace("lexlean.toml", "chosen.toml");
+    std::fs::write(path, selected).unwrap();
+    let plan = model_worker::Plan::load(temporary.path(), None).unwrap();
+    assert_eq!(plan.project_file.as_std_path(), alias);
+    plan.observe().unwrap();
+    model_worker::run(&plan, model_worker::Kind::Model, || {
+        model_worker::require_current_selection(temporary.path(), None)
+    })
+    .unwrap();
 }
 
 fn assert_receipt(root: &Path, receipt: &VerifyResult, build: &BuildResult) {

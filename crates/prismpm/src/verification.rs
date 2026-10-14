@@ -2617,6 +2617,7 @@ pub(crate) fn run(
         release,
         Some(&mut exporter_owner),
     )?;
+    controller.check_model_configuration(request.config_path.as_deref())?;
     let (config, _) = ProjectConfig::load(&controller.root, request.config_path.as_deref())?;
     let project_path = config.lexlean_path(&controller.root)?;
     let project_path = camino::Utf8PathBuf::from_path_buf(project_path)
@@ -2626,7 +2627,9 @@ pub(crate) fn run(
         .ok_or_else(|| PrismError::new("PP1001", "LexLean project path has no parent"))?;
     let preflight_replacements = [(controller.root.as_path(), "$PROJECT")];
     let toolchain = preflight_toolchain(project_root.as_std_path(), &preflight_replacements)?;
-    let lex_engine = Engine::load(&project_path).map_err(|error| {
+    let lex_engine = Engine::load(&project_path);
+    controller.check_model_configuration(request.config_path.as_deref())?;
+    let lex_engine = lex_engine.map_err(|error| {
         PrismError::from_lexlean(
             "PP5001",
             "LexLean verify load failed",
@@ -2634,18 +2637,19 @@ pub(crate) fn run(
             config.limits.max_diagnostics,
         )
     })?;
-    let lex_verified = lex_engine
-        .verify(LexVerifyRequest {
-            selection: Selection::Entrypoints,
-        })
-        .map_err(|error| {
-            PrismError::from_lexlean(
-                "PP5001",
-                "LexLean verification failed",
-                error,
-                config.limits.max_diagnostics,
-            )
-        })?;
+    controller.check_model_configuration(request.config_path.as_deref())?;
+    let lex_verified = lex_engine.verify(LexVerifyRequest {
+        selection: Selection::Entrypoints,
+    });
+    controller.check_model_configuration(request.config_path.as_deref())?;
+    let lex_verified = lex_verified.map_err(|error| {
+        PrismError::from_lexlean(
+            "PP5001",
+            "LexLean verification failed",
+            error,
+            config.limits.max_diagnostics,
+        )
+    })?;
     // The independently published verification result owns its identities and
     // paths. Do not retain the loaded source engine during native compilation.
     drop(lex_engine);

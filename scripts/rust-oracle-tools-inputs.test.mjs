@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync,chmodSync,symlinkSync,linkSync} from 'node:fs';
 import {join,dirname} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -99,6 +100,64 @@ test('missing base, dirty inputs and malformed stage cannot authorize a skip',t=
   const added=fixture(t),path='scripts/rust-oracle-tools-inputs.test.mjs';
   added.git('rm',path);const base=added.commit();added.put(path,originals.get(path));added.commit();
   assert.equal(toolInputChanges(added.root,base).changed,true,'new qualification dependency requires real builds');
+});
+test('first rollout binds complete legacy and mixed base recipes and requires native construction',t=>{
+  const legacy=path=>{
+    const image=originals.get(path).split('\n').find(line=>/^FROM \S+@sha256:[0-9a-f]{64}/u.test(line));
+    assert(image);
+    return `${image.replace(/ AS \S+$/u,' AS legacy')}\nRUN printf '%s\\n' legacy-tool-installation\n`;
+  };
+  for(const selected of [[files[0]],[files[1]],files.slice(0,2)]) {
+    const f=fixture(t);
+    for(const path of selected)f.put(path,legacy(path));
+    const base=f.commit();
+    for(const path of selected)f.put(path,originals.get(path));
+    f.commit();const result=toolInputChanges(f.root,base);
+    assert.equal(result.changed,true);
+    assert.equal(result.scope,'change-detection-only-not-qualification');
+    assert.equal(result.base_revision,base);
+    for(const row of result.stages) {
+      const bytes=selected.includes(row.path)?legacy(row.path):toolStage(originals.get(row.path));
+      assert.equal(row.base_sha256,createHash('sha256').update(bytes).digest('hex'));
+      assert.equal(row.head_sha256,createHash('sha256').update(toolStage(originals.get(row.path))).digest('hex'));
+    }
+  }
+});
+test('legacy transition never accepts malformed declared stages, unknown recipes or invalid source identities',async t=>{
+  for(const prior of ['unrecognized recipe\n',
+    originals.get(files[0]).replace(' AS rust_oracle_tools',' AS RUST_ORACLE_TOOLS'),
+    originals.get(files[0])+'\nFROM duplicate AS rust_oracle_tools\n',
+    originals.get(files[0]).replace(/^# syntax=[^\n]+\n/u,''),
+    'x'.repeat(256*1024+1)]) {
+    const f=fixture(t);f.put(files[0],prior);const base=f.commit();
+    f.put(files[0],originals.get(files[0]));f.commit();
+    assert.throws(()=>toolInputChanges(f.root,base));
+  }
+  const invalid=fixture(t);
+  invalid.put(files[0],Buffer.from([0xff]));const base=invalid.commit();
+  invalid.put(files[0],originals.get(files[0]));invalid.commit();
+  assert.throws(()=>toolInputChanges(invalid.root,base));
+  const missing=fixture(t);missing.git('rm',files[0]);const absent=missing.commit();
+  missing.put(files[0],originals.get(files[0]));missing.commit();
+  assert.throws(()=>toolInputChanges(missing.root,absent));
+  const malformedHead=fixture(t);
+  malformedHead.put(files[0],originals.get(files[0]).replace(' AS rust_oracle_tools',' AS other'));
+  malformedHead.commit();assert.throws(()=>toolInputChanges(malformedHead.root,malformedHead.base));
+  const f=fixture(t),path=files[0];
+  const image=originals.get(path).split('\n').find(line=>/^FROM \S+@sha256:[0-9a-f]{64}/u.test(line));
+  assert(image);const legacy=`${image.replace(/ AS \S+$/u,' AS legacy')}\n`;
+  f.put(path,legacy);const legacyBase=f.commit();f.put(path,originals.get(path));f.commit();
+  const source=originals.get('scripts/rust-oracle-tools-inputs.mjs');
+  const guard='previous=prior;legacyBase=true;';assert.equal(source.split(guard).length,2);
+  const mutant=join(f.root,'legacy-mutant.mjs');
+  writeFileSync(mutant,source.replace(guard,'previous=current;legacyBase=false;'));
+  const changed=await import(pathToFileURL(mutant));
+  const expected=toolInputChanges(f.root,legacyBase),actual=changed.toolInputChanges(f.root,legacyBase);
+  assert.equal(expected.changed,true);
+  const originalHash=createHash('sha256').update(legacy).digest('hex');
+  assert.equal(expected.stages[0].base_sha256,originalHash);
+  assert.throws(()=>assert.equal(actual.changed,true),assert.AssertionError);
+  assert.throws(()=>assert.equal(actual.stages[0].base_sha256,originalHash),assert.AssertionError);
 });
 test('heredoc and escaped logical-line ambiguity binds the complete recipe',()=>{
   for(const replacement of ['RUN cat <<EOF\nFROM literal-data\nEOF\nENV SOURCE_DATE_EPOCH=0',

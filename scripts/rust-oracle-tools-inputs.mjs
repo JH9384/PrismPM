@@ -73,15 +73,32 @@ export function toolInputChanges(root,base=null) {
       `${path==='scripts/vv.sh'?'100755':'100644'} ${oid} 0\t${path}\n`,'one unchanged tracked index input');
     workingInput(root,path,expected);
   }
-  const stages=recipes.map(path=>({path,head_sha256:digest(toolStage(blob(root,head,path))),
-    base_sha256:base===null?null:digest(toolStage(blob(root,base,path)))}));
+  let legacyBase=false;
+  const stages=recipes.map(path=>{
+    const current=toolStage(blob(root,head,path));
+    const prior=base===null?null:blob(root,base,path);
+    let previous=null;
+    if(prior!==null) {
+      assert(Buffer.byteLength(prior)<=256*1024,'bounded base recipe required');
+      if(/\brust_oracle_tools\b/iu.test(prior))previous=toolStage(prior);
+      else {
+        // A regular, bounded authoritative pre-stage Git recipe cannot
+        // authorize reuse. Bind its complete original bytes and force the
+        // unchanged full native-construction owner on first rollout.
+        assert.match(prior,/^FROM \S+@sha256:[0-9a-f]{64}(?: AS \S+)?$/mu,
+          'recognized pinned legacy base recipe required');
+        previous=prior;legacyBase=true;
+      }
+    }
+    return {path,head_sha256:digest(current),base_sha256:previous===null?null:digest(previous)};
+  });
   const dependencies=harness.map(path=>{
     const prior=base===null?null:blob(root,base,path,true);
     return {path,head_sha256:digest(blob(root,head,path)),base_sha256:prior===null?null:digest(prior)};
   });
   return {schema:'prismpm/rust-tool-input-change/1',scope:'change-detection-only-not-qualification',
     head_revision:head,base_revision:base,
-    changed:base===null||[...stages,...dependencies].some(row=>row.head_sha256!==row.base_sha256),
+    changed:base===null||legacyBase||[...stages,...dependencies].some(row=>row.head_sha256!==row.base_sha256),
     stages,dependencies};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {

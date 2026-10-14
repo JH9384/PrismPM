@@ -11,7 +11,12 @@ import {captureCompilerArtifact, compilerReadBarrier, observeCompilerRuntimeFile
 
 const families = Object.freeze({
   view: Object.freeze({directory: 'browser-view', executable: 'browser-workspace-view-driver'}),
+  effects: Object.freeze({directory: 'browser-effects', executable: 'browser-effects-driver'}),
+  presentation: Object.freeze({directory: 'browser-presentation', executable: 'browser-presentation-driver'}),
+  'operation-journal': Object.freeze({directory: 'browser-operation-journal', executable: 'browser-operation-journal-driver'}),
+  budget: Object.freeze({directory: 'browser-budget', executable: 'browser-budget-driver'}),
   custody: Object.freeze({directory: 'browser-custody', executable: 'browser-custody-driver'}),
+  publication: Object.freeze({directory: 'publication-admission', executable: 'publication-admission-driver'}),
 });
 const owners = new WeakMap();
 function family(name) {
@@ -23,7 +28,9 @@ function requiredInputs(name) {
   const paths = new Set([manifest, manifest.replace('Cargo.toml', 'Cargo.lock'), manifest.replace('Cargo.toml', 'src/main.rs'),
     'lean-toolchain', 'rust-toolchain.toml', 'model/dependencies.toml', 'model/authorities.toml',
     'vendor/lean4-prod/lean.tar', 'tests/browser-view/compile.mjs', 'tests/browser-view/driver-cache.mjs',
-    'tests/browser-view/compiler-owner.mjs', 'tests/browser-view/compiler-artifact.mjs']);
+    'tests/browser-view/compiler-owner.mjs', 'tests/browser-view/compiler-artifact.mjs',
+    'tests/browser-view/compiler-owner-checks.mjs', 'tests/browser-view/serial-compiler-owner.mjs',
+    'tests/browser-view/verification-products.mjs']);
   for (const tree of ['vendor/lexlean', 'vendor/lean4-prod/rust']) {
     const manifestPath = tree + '/MANIFEST.sha256'; paths.add(manifestPath);
     for (const line of file(join(repository, manifestPath)).toString().trimEnd().split('\n')) {

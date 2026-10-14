@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
+import {withCompilerOwner} from '../browser-view/serial-compiler-owner.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {verifyWire,verifyModelMutation,inventory,prerequisite} from './checks.mjs';
@@ -27,9 +28,15 @@ test('OC-09 owns distinct source publication stages and preserves public deploym
 });
 
 test('OC-09 complete generated conditional publication admission', {timeout:3500000}, async t=>{
- const inputs=frozenInputs(),build=await verifyWire(t,inputs),mutants=[];
- await prerequisite(t,'closed protocol diagnostics and complete independent wire shape',inventory);
- for(const kind of['binding','coverage','timeline','trailing','preimage','partition'])mutants.push(await prerequisite(t,'actual LexLean '+kind+' defect fails native and Wasm',()=>verifyModelMutation(kind,inputs)));
- assert.deepEqual(frozenInputs(),inputs,'immutable complete owning source/tool input closure');
- writeFileSync(join(build.work,'publication-acceptance.json'),JSON.stringify({capability:'OC-09',scope:'conditional-source-admission-only',source:build.verified.source_id,attestation:build.verified.attestation_id,maximum:build.maximum,mutants,inputs,cacheRetirement:build.cacheRetirement},null,2)+'\n',{flag:'wx'});
+ const inputs=frozenInputs();
+ const completed=await withCompilerOwner(t,'publication',async(compiler,retain)=>{
+   const build=await verifyWire(t,inputs,compiler),mutants=[];retain(build);
+   await prerequisite(t,'closed protocol diagnostics and complete independent wire shape',inventory);
+   for(const kind of['binding','coverage','timeline','trailing','preimage','partition'])mutants.push(await prerequisite(t,'actual LexLean '+kind+' defect fails native and Wasm',()=>verifyModelMutation(kind,inputs,compiler)));
+   assert.deepEqual(frozenInputs(),inputs,'immutable complete owning source/tool input closure');
+   return {build,mutants};
+ });
+ const {build,mutants}=completed.result;
+ assert.deepEqual(frozenInputs(),inputs,'complete owning source/tool closure survives retirement');
+ writeFileSync(join(build.work,'publication-acceptance.json'),JSON.stringify({capability:'OC-09',scope:'conditional-source-admission-only',source:build.verified.source_id,attestation:build.verified.attestation_id,maximum:build.maximum,mutants,inputs,cacheRetirement:completed.retirement,compiler:completed.compiler},null,2)+'\n',{flag:'wx'});
 });

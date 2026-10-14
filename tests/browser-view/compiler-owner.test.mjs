@@ -7,6 +7,8 @@ import {runInNewContext} from 'node:vm';
 import test from 'node:test';
 import {captureCompilerInputs, createCompilerOwner, requireCompilerOwner} from './compiler-owner.mjs';
 import {compilerDriverDirectory} from './compiler-owner-checks.mjs';
+import {captureVerificationProducts} from './verification-products.mjs';
+import {withCompilerOwner} from './serial-compiler-owner.mjs';
 
 test('driver substitution lookup includes the two registered private families and rejects missing or ambiguous source inventory', () => {
   for (const directory of ['browser-view', 'browser-custody']) {
@@ -53,6 +55,89 @@ test('compiler owner refuses forged handles and unregistered tool families', () 
     assert.throws(() => requireCompilerOwner(value, {}), /actual fresh compiler owner/);
   for (const name of ['', '../escape', 'caller-driver', null, {toString() {throw Error('coercion');}}])
     assert.throws(() => createCompilerOwner(name, {}), /registered compiler family/);
+});
+
+test('all five existing adapters reject forged owners before any construction', async () => {
+  for (const family of ['effects', 'presentation', 'operation-journal', 'budget', 'publication']) {
+    const path = family === 'publication' ? '../publication-admission/compile.mjs' : '../browser-' + family + '/compile.mjs';
+    const {prepare} = await import(path);
+    for (const forged of [{}, {runDriver() {}, runExporter() {}, verify() {}}]) {
+      const args = family === 'operation-journal' ? [null, false, forged]
+        : ['budget', 'publication'].includes(family) ? [null, undefined, forged] : [null, forged];
+      assert.throws(() => prepare(...args), /actual fresh compiler owner/, family);
+    }
+  }
+});
+
+test('five-family serial entry points reject unknown families without constructing tools', async () => {
+  for (const family of ['', 'view', 'custody', 'session', 'p256', '../escape', null])
+    await assert.rejects(withCompilerOwner({}, family, () => {}), /existing serial compiler family/);
+  for (const directory of ['browser-effects', 'browser-presentation', 'browser-operation-journal', 'browser-budget', 'publication-admission']) {
+    const path = 'tests/' + directory + '/driver/src/main.rs';
+    assert.equal(compilerDriverDirectory({[path]: 'not-authority'}), 'tests/' + directory + '/driver');
+  }
+  for (const directory of ['browser-session', 'browser-p256', 'holo-primary-component', 'publication-context-linkage'])
+    assert.throws(() => compilerDriverDirectory({['tests/' + directory + '/driver/src/main.rs']: 'not-authority'}), /one source-bound family driver/);
+});
+
+test('five existing adapters preserve exact driver and exporter arguments across shared-tool dispatch', () => {
+  // Argument-boundary unit only; no recorder is compiler or SDK evidence.
+  for (const family of ['effects', 'presentation', 'operation-journal', 'budget', 'publication']) {
+    const path = family === 'publication' ? '../publication-admission/compile.mjs' : '../browser-' + family + '/compile.mjs';
+    const source = fs.readFileSync(new URL(path, import.meta.url), 'utf8');
+    const check = text => {
+      assert(text.includes("requireCompilerOwner(compilerOwner, '" + family + "')"));
+      const begin = text.indexOf('    let compiler, invokeDriver;');
+      const end = text.indexOf('\n    }', begin);
+      assert(begin >= 0 && end > begin, 'one shared/fresh driver construction branch');
+      const driver = text.slice(begin, end + '\n    }'.length);
+      const observed = [];
+      const shared = {runDriver(...args) {observed.push(['driver', ...args]);}};
+      const invoke = runInNewContext(driver + '\ninvokeDriver;', {
+        shared, join, work:'/actual-private-work', repository:'/actual-source', inputs:{},
+        stageCompiler() {return {manifest:'/actual-captured-driver/Cargo.toml'};},
+        createPrivateDriverTarget() {return '/actual-private-work/driver-target';},
+        run(...args) {observed.push(['unexpected-fallback', ...args]);},
+      });
+      const argv = ['verify', '/actual-private-subject/project/lexlean.toml'];
+      invoke(argv);
+      assert.deepEqual(JSON.parse(JSON.stringify(observed)), [['driver', argv, '/actual-source']]);
+      const exporter = /const invokeExporter = args => shared \?[\s\S]*?;\n/.exec(text);
+      assert(exporter, 'one unchanged model-path exporter boundary');
+      const exported = [];
+      const invokeExporter = runInNewContext(exporter[0] + '\ninvokeExporter;', {
+        shared:{runExporter(...args) {exported.push(args);}}, join,
+        lean:'/actual-private-subject/lean', exporter:{bin:'/must-not-adopt',dir:'/must-not-adopt'},
+        run() {assert.fail('shared path adopted an independent or cached executable');},
+      });
+      const roots = ['--module','PrismPM.Fixture','--root','PrismPM.Fixture.root','--out','/actual-private-subject/export'];
+      invokeExporter(roots);
+      assert.deepEqual(JSON.parse(JSON.stringify(exported)), [[roots, '/actual-private-subject/lean/.lake/build/lib/lean']]);
+      assert(text.includes("invokeDriver(['verify', join(project, 'lexlean.toml')])"));
+      assert(text.includes("invokeDriver(['native', ir, generated, repository])"));
+      assert(text.includes('invokeDriver([mode, ir, guest, repository])'));
+      assert(text.includes("run('lake', ['build', 'PrismGenerated'], lean)"));
+      assert(text.includes("'two independent generated Core-Wasm packages'"));
+      assert(text.includes('if (shared) shared.verify(); else compiler.unchanged();'));
+    };
+    check(source);
+    for (const [from, to] of [
+      ["requireCompilerOwner(compilerOwner, '" + family + "')", "requireCompilerOwner(compilerOwner, 'absent-family')"],
+      ['if (shared) invokeDriver =', 'if (false) invokeDriver ='],
+      ['shared.runDriver(args, repository)', 'shared.runDriver(args, work)'],
+      ["shared.runExporter(args, join(lean, '.lake/build/lib/lean'))", "shared.runExporter(args, '/prior-export')"],
+      ["invokeDriver(['verify', join(project, 'lexlean.toml')])", "invokeDriver(['check', join(project, 'lexlean.toml')])"],
+      ["invokeDriver(['native', ir, generated, repository])", "invokeDriver(['native', ir, generated, work])"],
+      ['invokeDriver([mode, ir, guest, repository])', 'invokeDriver([mode, ir, generated, repository])'],
+      ["run('lake', ['build', 'PrismGenerated'], lean)", 'undefined'],
+      ["'two independent generated Core-Wasm packages'", "'REMOVED'"],
+      ['if (shared) shared.verify(); else compiler.unchanged();', 'undefined;'],
+    ]) {
+      assert(source.includes(from), 'real mutation anchor: ' + family + ': ' + from);
+      const changed = source.replaceAll(from, to); assert.notEqual(changed, source);
+      assert.throws(() => check(changed), undefined, family + ': ' + from);
+    }
+  }
 });
 
 test('fresh independent drivers pin hash optimization without changing construction or acceptance',()=>{
@@ -135,17 +220,103 @@ test('fresh independent drivers pin hash optimization without changing construct
   }
 });
 
+test('product preservation detects generated source proof package native Wasm and custody defects', t => {
+  for (const family of ['effects', 'budget', 'operation-journal', 'presentation', 'publication']) {
+    const work=fs.mkdtempSync(join(tmpdir(),'prismpm-product-preservation-'));
+    t.after(()=>fs.rmSync(work,{recursive:true,force:true}));
+    const put=(relative,bytes='product-preservation unit fixture')=>{
+      const path=join(work,relative);fs.mkdirSync(join(path,'..'),{recursive:true});
+      fs.writeFileSync(path,bytes);return path;
+    };
+    const executable=family==='publication'?'publication-admission-runner':'browser-'+family+'-runner';
+    const paths=['project/source.lex.tex','lean/modules/source','export/kernel.ir',
+      'generated/Cargo.toml',
+      ...['runner/src/main.rs','native-target/release/'+executable]];
+    if(family==='operation-journal')paths.push('generated-b/Cargo.toml');
+    const guests=family==='effects'?['a','b','echo']:['budget','publication'].includes(family)?['a','b']:
+      family==='presentation'?['a','b','fixture','labels','intent','secret','route','sink',
+        'maxroute','maxsink','maxfield','maxsecret','progress','maxprogress']:
+        ['a','b','echo','journal','partition','journal-b','partition-b'];
+    for(const guest of guests)paths.push('guest-'+guest+'/Cargo.toml',
+      ('guest-'+guest+'/target')
+        +'/wasm32-unknown-unknown/release/product.wasm');
+    for(const path of paths)put(path);
+    const native=join(work,'native-target'+'/release/'+executable);
+    const linked=join(native,'../cargo-deps-link');
+    fs.linkSync(native,linked);
+    const linkedProducts=captureVerificationProducts(work,family);
+    assert.equal(linkedProducts.files.find(row=>row.path===native.slice(work.length+1)).links,'2',
+      'preserve genuine Cargo-style product link count, not single-link source policy');
+    fs.appendFileSync(linked,'changed through link');
+    assert.throws(()=>assert.deepEqual(captureVerificationProducts(work,family),linkedProducts));
+    fs.writeFileSync(linked,'product-preservation unit fixture');
+    const verify=(snapshot)=>assert.deepEqual(captureVerificationProducts(work,family),snapshot);
+    for(const relative of paths) {
+      const path=join(work,relative),before=captureVerificationProducts(work,family);
+      const bytes=fs.readFileSync(path);
+      fs.appendFileSync(path,'changed');
+      assert.throws(()=>verify(before),undefined,'changed actual product: '+relative);
+      fs.writeFileSync(path,bytes);
+      const restored=captureVerificationProducts(work,family);
+      fs.renameSync(path,path+'-saved');
+      assert.throws(()=>verify(restored),undefined,'deleted actual product: '+relative);
+      fs.renameSync(path+'-saved',path);
+    }
+    const path=join(work,paths[0]),before=captureVerificationProducts(work,family);
+    fs.renameSync(path,path+'-saved');fs.copyFileSync(path+'-saved',path);
+    assert.throws(()=>verify(before),undefined,'same-byte replacement is not original product custody');
+    fs.unlinkSync(path);fs.renameSync(path+'-saved',path);
+    const current=captureVerificationProducts(work,family),mode=fs.lstatSync(path).mode;
+    fs.chmodSync(path,mode^0o040);
+    assert.throws(()=>verify(current),undefined,'product mode change');
+    fs.chmodSync(path,mode);
+    const stable=captureVerificationProducts(work,family);
+    put('generated/added');
+    assert.throws(()=>verify(stable),undefined,'added package artifact');
+    fs.unlinkSync(join(work,'generated/added'));
+    for (const relative of ['generated/src/target', 'project/src/target', 'lean/modules/target', 'export/target']) {
+      const prior = captureVerificationProducts(work,family);
+      const payload = put(relative + '/payload');
+      assert.throws(()=>verify(prior),undefined,'nested source/proof/package target cannot hide an artifact: '+relative);
+      const captured = captureVerificationProducts(work,family);
+      fs.appendFileSync(payload,'changed');
+      assert.throws(()=>verify(captured),undefined,'nested target payload change: '+relative);
+      fs.unlinkSync(payload);fs.rmdirSync(join(work,relative));
+    }
+    fs.renameSync(path,path+'-saved');fs.symlinkSync(path+'-saved',path);
+    assert.throws(()=>captureVerificationProducts(work,family),/aliases|unaliased/);
+    fs.unlinkSync(path);fs.renameSync(path+'-saved',path);
+    const root=join(work,'lean'),rootMode=fs.lstatSync(root).mode;
+    fs.chmodSync(root,rootMode|0o020);
+    assert.throws(()=>captureVerificationProducts(work,family),/group\/other writable/);
+    fs.chmodSync(root,rootMode);
+    const guest=join(work,'guest-'+guests[0]);
+    fs.renameSync(guest,guest+'-substituted');
+    assert.throws(()=>captureVerificationProducts(work,family),/exact independent generated guest inventory/);
+    fs.renameSync(guest+'-substituted',guest);
+  }
+});
+
 test('compiler owner refuses malformed or incomplete input closures before building', () => {
+  const families = ['view', 'custody', 'effects', 'presentation', 'operation-journal', 'budget', 'publication'];
+  const source = fs.readFileSync(new URL('./compiler-owner.mjs', import.meta.url), 'utf8');
+  const begin = source.indexOf('const families = Object.freeze({');
+  const end = source.indexOf('\nconst owners = ', begin);
+  assert(begin >= 0 && end > begin);
+  const registered = runInNewContext(source.slice(begin, end) + '\nObject.keys(families);');
+  assert.deepEqual([...registered].sort(), [...families].sort(), 'exact existing-family input closure');
   let called = false;
   const accessor = {get malicious() {called = true; return '0'.repeat(64);}};
-  for (const inputs of [null, [], accessor, {'../escape': '0'.repeat(64)},
+  for (const family of families) for (const inputs of [null, [], accessor, {'../escape': '0'.repeat(64)},
     {'vendor/lexlean/MANIFEST.sha256': 'invalid'}, {'a': null}, {'a': 42}, {}])
-    assert.throws(() => createCompilerOwner('view', inputs),
+    assert.throws(() => createCompilerOwner(family, inputs),
       /compiler input (map|path|digest|closure)/);
   assert.equal(called, false, 'input accessors cannot run before immutable capture');
-  for (const name of ['view', 'custody']) {
+  for (const name of families) {
     const inputs = captureCompilerInputs(name);
-    for (const missing of ['tests/browser-view/compile.mjs', 'tests/browser-view/compiler-artifact.mjs', 'vendor/lean4-prod/lean.tar']) {
+    for (const missing of ['tests/browser-view/compile.mjs', 'tests/browser-view/compiler-artifact.mjs',
+      'tests/browser-view/compiler-owner-checks.mjs', 'tests/browser-view/serial-compiler-owner.mjs',
+      'tests/browser-view/verification-products.mjs', 'vendor/lean4-prod/lean.tar']) {
       const changed = {...inputs}; delete changed[missing];
       assert.throws(() => createCompilerOwner(name, changed), /complete closed compiler input closure/);
     }

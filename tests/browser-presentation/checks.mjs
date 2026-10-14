@@ -33,12 +33,12 @@ export function executeWasm(bytes, rows, inputMaximum = 67108864) {
   return {maximumBytes: maximum, declaredPages: memory.maximumPages};
 }
 
-export async function verifyWire(t) {
+export async function verifyWire(t, compilerOwner = null) {
   const sourceNames = ['compile.mjs', 'checks.mjs', 'corpus.mjs', 'maximum-fixtures.mjs', 'runner.rs',
     'driver/Cargo.toml', 'driver/Cargo.lock', 'driver/src/main.rs'];
   const capture = () => Object.fromEntries(sourceNames.map(path => [path,
     sha(readFileSync(join(repository, 'tests/browser-presentation', path)))]));
-  const frozen = capture(), build = prepare();
+  const frozen = capture(), build = prepare(null, compilerOwner);
   t.after(() => rmSync(build.work, {recursive: true, force: true}));
   const intentRows = Array.from({length: 17}, (_, code) => ({id: 'IntentCase' + code,
     request: Uint8Array.of(code), response: Uint8Array.of([0, 10, 14, 16].includes(code) ? 245 : 244)}));
@@ -148,18 +148,20 @@ export function replayBrowser(build, result, stem = 'observed-browser') {
   }
 }
 
-export function verifyModelMutation(kind) {
+export function verifyModelMutation(kind, compilerOwner = null) {
   const secret = ['secretbound', 'secretroute'].includes(kind);
   const progress = kind === 'progress';
   const row = progress ? {id: 'ProgressCaseMutation', request: Uint8Array.of(5), response: Uint8Array.of(244)} : secret ? {id: 'BrowserRouteMutation',
     request: encodeWire([1, 1, 202, [[6, 'x'.repeat(kind === 'secretbound' ? 65 : 64)], [7, ''], [8, 10]]]),
     response: Uint8Array.of(kind === 'secretbound' ? 244 : 245)}
     : corpus().find(row => row.id === ({binding: 'WrongBindingKind', trailing: 'Trailing'}[kind]));
-  assert.ok(row); const build = prepare(kind);
+  assert.ok(row); const build = prepare(kind, compilerOwner);
   try {
     const path = join(build.work, 'mutation.tsv'); writeFileSync(path, tsv([row]), {flag: 'wx'});
     for (const standard of [true, false]) assert.throws(() => run(build.compileNative(standard), [path], build.runner), /native output mismatch/);
     assert.throws(() => executeWasm(progress ? build.progressBytes : secret ? build.routeBytes : build.wasmBytes, [row], progress ? 32 : secret ? 4096 : 67108864), /generated Wasm output mismatch/);
+    build.verifyEvidence();
+    if (compilerOwner) assert.equal(build.compilerOwner, compilerOwner.identity);
   } finally { rmSync(build.work, {recursive: true, force: true}); }
 }
 

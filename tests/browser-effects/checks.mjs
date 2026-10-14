@@ -35,7 +35,7 @@ export function executeWasm(bytes, vectors) {
   return {maximumBytes: maximum, declaredPages: limits.maximumPages};
 }
 
-export async function verifyWire(t) {
+export async function verifyWire(t, compilerOwner = null) {
   const oraclePaths = ['tests/browser-effects/checks.mjs', 'tests/browser-effects/corpus.mjs',
     'tests/browser-effects/compile.mjs', 'tests/browser-effects/runner.rs',
     'tests/browser-effects/driver/Cargo.toml', 'tests/browser-effects/driver/Cargo.lock',
@@ -46,7 +46,7 @@ export async function verifyWire(t) {
   const vectors = [...corpus(), ...boundaryCorpus()];
   assert.equal(corpus().length, 216);
   assert.equal(vectors.length, 242);
-  const build = prepare();
+  const build = prepare(null, compilerOwner);
   t.after(() => rmSync(build.work, {recursive: true, force: true}));
   const file = join(build.work, 'vectors.tsv'); writeFileSync(file, tsv(vectors), {flag: 'wx'});
   const maximum = maximumCorpus();
@@ -73,10 +73,10 @@ export async function verifyWire(t) {
   return build;
 }
 
-export function verifyModelMutation(kind) {
+export function verifyModelMutation(kind, compilerOwner = null) {
   const selected = {binding: 'CompletionSubstitution', trailing: 'Trailing', unknown: 'UnknownRetainsBoth'}[kind];
   const vector = corpus().find(row => row.id === selected); assert.ok(vector);
-  const build = prepare(kind);
+  const build = prepare(kind, compilerOwner);
   try {
     const file = join(build.work, 'mutation.tsv'); writeFileSync(file, tsv([vector]), {flag: 'wx'});
     for (const standard of [true, false]) {
@@ -84,6 +84,8 @@ export function verifyModelMutation(kind) {
       assert.throws(() => run(executable, [file], build.runner), /native output mismatch/, 'real generated ' + kind + ' mutant must fail');
     }
     assert.throws(() => executeWasm(build.wasmBytes, [vector]), /generated Wasm output mismatch/, 'real generated Wasm mutation');
+    build.verifyEvidence();
+    if (compilerOwner) assert.equal(build.compilerOwner, compilerOwner.identity);
   } finally { rmSync(build.work, {recursive: true, force: true}); }
 }
 

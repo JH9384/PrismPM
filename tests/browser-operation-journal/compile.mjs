@@ -5,6 +5,7 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {createPrivateDriverTarget, ensureProdExport, run, sha} from '../browser-view/compile.mjs';
+import {requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 export {ensureProdExport, run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -66,7 +67,8 @@ function stageCompiler(work) {
   }};
 }
 
-export function prepare(mutation = null, sourceOnly = false) {
+export function prepare(mutation = null, sourceOnly = false, compilerOwner = null) {
+  const shared = compilerOwner === null ? null : requireCompilerOwner(compilerOwner, 'operation-journal');
   assert.ok([null, 'binding', 'trailing', 'reservation', 'payload', 'partition'].includes(mutation));
   for (const key of Object.keys(process.env)) assert.ok(!/^PRISMPM_(?:EFFECT|JOURNAL)_/.test(key), 'effects acceptance refuses bypass ' + key);
   pins();
@@ -123,13 +125,18 @@ export function prepare(mutation = null, sourceOnly = false) {
     writeFileSync(join(project, 'lakefile.toml'), 'name = "operation_journal_conformance"\nversion = "0.1.0"\n', {flag: 'wx'});
     copyFileSync(join(repository, 'lean-toolchain'), join(project, 'lean-toolchain'));
     copyFileSync(join(repository, 'rust-toolchain.toml'), join(work, 'rust-toolchain.toml'));
-    const driverTarget = createPrivateDriverTarget(work);
-    const compiler = stageCompiler(work);
-    run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0', '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
-    const driver = join(driverTarget, 'debug/browser-operation-journal-driver');
-    if (sourceOnly) { const checked = JSON.parse(run(driver, ['check', join(project, 'lexlean.toml')], repository)); assert.deepEqual(checked.modules, modules); completed = true; return {work, checked}; }
+    let compiler, invokeDriver;
+    if (shared) invokeDriver = args => shared.runDriver(args, repository);
+    else {
+      const driverTarget = createPrivateDriverTarget(work);
+      compiler = stageCompiler(work);
+      run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0', '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', compiler.manifest], work, {CARGO_TARGET_DIR: driverTarget});
+      const driver = join(driverTarget, 'debug/browser-operation-journal-driver');
+      invokeDriver = args => run(driver, args, repository);
+    }
+    if (sourceOnly) { const checked = JSON.parse(invokeDriver(['check', join(project, 'lexlean.toml')])); assert.deepEqual(checked.modules, modules); completed = true; return {work, checked}; }
     run('lake', ['update'], project);
-    const verified = JSON.parse(run(driver, ['verify', join(project, 'lexlean.toml')], repository));
+    const verified = JSON.parse(invokeDriver(['verify', join(project, 'lexlean.toml')]));
     assert.deepEqual(verified.modules, modules);
     const manifestBytes = readFileSync(join(verified.root, 'build-manifest.json'));
     const attestationBytes = readFileSync(join(verified.root, 'attestation.json'));
@@ -157,15 +164,17 @@ export function prepare(mutation = null, sourceOnly = false) {
     copyFileSync(join(repository, 'lean-toolchain'), join(lean, 'lean-toolchain'));
     writeFileSync(join(lean, 'lakefile.toml'), 'name = "operation_journal_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + modules.map(name => '"PrismPM.' + name + '"').join(',') + ']\n', {flag: 'wx'});
     run('lake', ['build', 'PrismGenerated'], lean);
-    const {dir: exporter, bin: prodExport} = ensureProdExport(repository, work);
+    const exporter = shared ? null : ensureProdExport(repository, work);
+    const invokeExporter = args => shared ? shared.runExporter(args, join(lean, '.lake/build/lib/lean'))
+      : run(exporter.bin, args, exporter.dir, {LEAN_PATH: join(lean, '.lake/build/lib/lean')});
     const exported = join(work, 'export');
     const roots = ['PrismPM.Foundation.Browser.Application.V1.OperationJournalWire.journalWireBytes', 'PrismPM.Foundation.Browser.Application.V1.OperationJournalWire.journalPartitionBytes', 'PrismPM.Foundation.Browser.Application.V1.EffectsWire.effectWireBytes', 'PrismPM.Fixture.fixtureEchoBytes'].sort();
-    run(prodExport, ['--module', 'PrismPM.Fixture', ...roots.flatMap(root => ['--root', root]),
-      '--ir-module', 'BrowserOperationJournal', '--out', exported], exporter, {LEAN_PATH: join(lean, '.lake/build/lib/lean')});
+    invokeExporter(['--module', 'PrismPM.Fixture', ...roots.flatMap(root => ['--root', root]),
+      '--ir-module', 'BrowserOperationJournal', '--out', exported]);
     const generated = join(work, 'generated'), ir = join(exported, 'kernel.ir');
-    const generation = JSON.parse(run(driver, ['native', ir, generated, repository], repository));
+    const generation = JSON.parse(invokeDriver(['native', ir, generated, repository]));
     const generatedAgain = join(work, 'generated-b');
-    assert.deepEqual(JSON.parse(run(driver, ['native', ir, generatedAgain, repository], repository)), generation);
+    assert.deepEqual(JSON.parse(invokeDriver(['native', ir, generatedAgain, repository])), generation);
     const tree = directory => readdirSync(directory, {recursive: true, withFileTypes: true})
       .filter(entry => entry.isFile()).map(entry => {
         const absolute = join(entry.parentPath, entry.name);
@@ -184,16 +193,25 @@ export function prepare(mutation = null, sourceOnly = false) {
     for (const [label, mode] of [['a', 'wasm'], ['b', 'wasm'], ['echo', 'guest'], ['journal', 'journal'], ['partition', 'partition'],
       ['journal-b', 'journal'], ['partition-b', 'partition']]) {
       const guest = join(work, 'guest-' + label);
-      assert.deepEqual(JSON.parse(run(driver, [mode, ir, guest, repository], repository)), generation);
+      assert.deepEqual(JSON.parse(invokeDriver([mode, ir, guest, repository])), generation);
       run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--release'], guest, {CARGO_TARGET_DIR: join(guest, 'target')});
       guests.push(readFileSync(join(guest, 'target/wasm32-unknown-unknown/release/browser_operation_journal_' + (mode === 'guest' ? 'guest' : mode === 'wasm' ? 'wire' : mode) + '_probe.wasm')));
     }
     assert.deepEqual(guests[0], guests[1], 'two independent generated Core-Wasm packages');
     assert.deepEqual(guests[3], guests[5], 'two independent generated journal packages');
     assert.deepEqual(guests[4], guests[6], 'two independent generated partition packages');
-    pins(); compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+    pins(); if (shared) shared.verify(); else compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
     for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'frozen source ' + module);
+    const verifyEvidence = () => {
+      pins();
+      assert.deepEqual(readFileSync(join(verified.root, 'build-manifest.json')), manifestBytes);
+      assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);
+      assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+      for (const [module, bytes] of originals)
+        assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'retained model source ' + module);
+    };
+    verifyEvidence();
     completed = true;
-    return {work, sources, verified, generation, compileNative, runner, wasmBytes: guests[0], guestBytes: guests[2], journalBytes: guests[3], partitionBytes: guests[4]};
+    return {work, sources, verified, generation, compileNative, runner, compilerOwner: shared?.identity ?? null, verifyEvidence, wasmBytes: guests[0], guestBytes: guests[2], journalBytes: guests[3], partitionBytes: guests[4]};
   } finally { if (!completed) process.stderr.write('Retained incomplete operation-journal diagnostic build ' + work + '\n'); }
 }

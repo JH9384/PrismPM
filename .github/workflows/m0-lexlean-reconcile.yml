@@ -98,6 +98,7 @@ jobs:
             -name lexlean.toml -type f -print | sort)
 
       - name: Regenerate owned PrismPM evidence through the pinned devcontainer
+        id: generated_prefix
         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca
         with:
           push: never
@@ -146,8 +147,6 @@ jobs:
             just package-release-crates-check
             rm -r -- "$stage"
 
-            node scripts/reconcile-lexlean.mjs --validate-generated
-
       - name: Preserve an inert patch and its selected-source identity
         shell: bash
         run: |
@@ -175,6 +174,22 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Run the complete generated-evidence audit through the pinned devcontainer
+        # Fresh shared goldens must be reviewable before their native profiles
+        # can be regenerated. This audit remains mandatory and fail-closed;
+        # proposal preservation or upload cannot suppress it.
+        if: ${{ always() && !cancelled() && steps.generated_prefix.outcome == 'success' }}
+        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca
+        with:
+          push: never
+          runCmd: |
+            set -euo pipefail
+            export CARGO_NET_OFFLINE=true
+            export CARGO_HOME="$PWD/target/m0-locked-cargo-inputs"
+            mkdir -p target/m0-reconciliation-diagnostics
+            exec > target/m0-reconciliation-diagnostics/validation-step.log 2>&1
+            node scripts/reconcile-lexlean.mjs --validate-generated
+
       - name: Preserve preparation diagnostics even after failure
         if: always()
         shell: bash
@@ -191,6 +206,9 @@ jobs:
           fi
           if test -f target/m0-reconciliation-diagnostics/generation-step.log; then
             cp target/m0-reconciliation-diagnostics/generation-step.log "$diagnostics/"
+          fi
+          if test -f target/m0-reconciliation-diagnostics/validation-step.log; then
+            cp target/m0-reconciliation-diagnostics/validation-step.log "$diagnostics/"
           fi
           if test -f model/dependencies.toml; then
             cp model/dependencies.toml "$diagnostics/observed-dependencies.toml"

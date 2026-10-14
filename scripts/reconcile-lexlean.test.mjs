@@ -144,8 +144,11 @@ function assertLockedAcquisition(workflow){
  assert.ok(phase.includes('manifests=(Cargo.toml _m0/lexlean/Cargo.toml vendor/lexlean/Cargo.toml vendor/lean4-prod/rust/Cargo.toml stdlib/generated/package/Cargo.toml)'));
  assert.ok(phase.includes('CARGO_NET_OFFLINE=false cargo fetch --locked --manifest-path "$manifest"'));
  assert.equal((workflow.match(/CARGO_NET_OFFLINE=false/g)??[]).length,1);
- assert.ok(workflow.includes('export CARGO_HOME="$PWD/target/m0-locked-cargo-inputs"'));
- const generation=workflow.slice(workflow.indexOf('      - name: Regenerate owned PrismPM evidence through the pinned devcontainer\n'));
+ const generationStart=workflow.indexOf('      - name: Regenerate owned PrismPM evidence through the pinned devcontainer\n');
+ const generationEnd=workflow.indexOf('      - name: Preserve an inert patch and its selected-source identity\n',generationStart);
+ assert.ok(generationStart>=0 && generationEnd>generationStart);
+ const generation=workflow.slice(generationStart,generationEnd);
+ assert.ok(generation.includes('export CARGO_HOME="$PWD/target/m0-locked-cargo-inputs"'));
  assert.ok(generation.indexOf('export CARGO_NET_OFFLINE=true')>=0 && generation.indexOf('export CARGO_NET_OFFLINE=true')<generation.indexOf('just codegen'));
 }
 
@@ -186,6 +189,73 @@ test('reconciliation workflow pins selected source and has no repository writer'
  assert.ok(cloneIdentity>=0 && cloneIdentity<workflow.indexOf('rm -rf _m0'));
  assert.ok(workflow.includes('test -z "$(git -C _m0/lexlean status --porcelain=v1 --untracked-files=all)"'));
  assert.ok(workflow.indexOf('--validate-generated')>workflow.indexOf('just package-release-crates-check'));
+});
+
+function assertReviewableGenerationBeforeCompleteAudit(workflow) {
+ const names={"g":"      - name: Regenerate owned PrismPM evidence through the pinned devcontainer\n","p":"      - name: Preserve an inert patch and its selected-source identity\n","u":"      - name: Upload the reviewable preparation patch\n","v":"      - name: Run the complete generated-evidence audit through the pinned devcontainer\n","d":"      - name: Preserve preparation diagnostics even after failure\n"};
+ const positions=Object.values(names).map(name=>{
+  assert.equal(workflow.split(name).length,2);
+  return workflow.indexOf(name);
+ });
+ assert(positions.every((position,index)=>index===0 || position>positions[index-1]));
+ const [generation,preservation,upload,validation,diagnostics]=positions;
+ assert.equal(workflow.slice(generation,preservation),"      - name: Regenerate owned PrismPM evidence through the pinned devcontainer\n        id: generated_prefix\n        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca\n        with:\n          push: never\n          runCmd: |\n            set -euo pipefail\n            export CARGO_NET_OFFLINE=true\n            # Same acquired input cache, resolved inside this container's\n            # workspace. This is never a compiler/output or acceptance cache.\n            export CARGO_HOME=\"$PWD/target/m0-locked-cargo-inputs\"\n            mkdir -p target/m0-reconciliation-diagnostics\n            exec > target/m0-reconciliation-diagnostics/generation-step.log 2>&1\n            just codegen\n            just fixtures-write\n            just golden-write \"M0 issue #5: reconcile reviewed LexLean PR68 0865df4e540ca643b090a29e9df6d319d6906da6\"\n            just stdlib-package-write\n            stage=\"$(mktemp -d)\"\n            cp -a stdlib/generated/package \"$stage/stdlib\"\n            (\n              cd \"$stage/stdlib\"\n              CARGO_NET_OFFLINE=true cargo package --locked --offline --target-dir target\n            )\n            cp \"$stage/stdlib/target/package/prism-stdlib-0.2.0.crate\" \\\n              stdlib/generated/prism-stdlib-0.2.0.crate\n            crate_sha=\"$(sha256sum stdlib/generated/prism-stdlib-0.2.0.crate | cut -d' ' -f1)\"\n            semantic_id=\"$(python3 - <<'PY'\n            import json\n            print(json.load(open(\"tests/golden/stdlib/build/model.prism.json\"))[\"provenance\"][\"semantic_id\"])\n            PY\n            )\"\n            python3 - \"$crate_sha\" \"$semantic_id\" <<'PY'\n            import json, pathlib, sys\n            crate_sha, semantic_id = sys.argv[1:]\n            value = {\n                \"crate_path\": \"stdlib/generated/prism-stdlib-0.2.0.crate\",\n                \"crate_sha256\": crate_sha,\n                \"schema\": \"prismpm/stdlib-release/1\",\n                \"semantic_id\": semantic_id,\n            }\n            pathlib.Path(\"stdlib/release.json\").write_text(\n                json.dumps(value, separators=(\",\", \":\"), sort_keys=True)\n            )\n            PY\n            just golden-check\n            just stdlib-package-check\n            just check-fixtures\n            just package-release-crates-check\n            rm -r -- \"$stage\"\n\n");
+ assert.equal(workflow.slice(validation,diagnostics),"      - name: Run the complete generated-evidence audit through the pinned devcontainer\n        # Fresh shared goldens must be reviewable before their native profiles\n        # can be regenerated. This audit remains mandatory and fail-closed;\n        # proposal preservation or upload cannot suppress it.\n        if: ${{ always() && !cancelled() && steps.generated_prefix.outcome == 'success' }}\n        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca\n        with:\n          push: never\n          runCmd: |\n            set -euo pipefail\n            export CARGO_NET_OFFLINE=true\n            export CARGO_HOME=\"$PWD/target/m0-locked-cargo-inputs\"\n            mkdir -p target/m0-reconciliation-diagnostics\n            exec > target/m0-reconciliation-diagnostics/validation-step.log 2>&1\n            node scripts/reconcile-lexlean.mjs --validate-generated\n\n");
+ const proposal=workflow.slice(preservation,validation);
+ assert.equal(proposal,"      - name: Preserve an inert patch and its selected-source identity\n        shell: bash\n        run: |\n          set -euo pipefail\n          evidence=\"$RUNNER_TEMP/m0-reconciliation\"\n          mkdir -p \"$evidence\"\n          git diff --check\n          # Intent-to-add includes new generated files without committing them.\n          git add -N -- .\n          git diff --binary HEAD > \"$evidence/reconciliation.patch\"\n          # A fully revalidated, already-reconciled dependency may have no diff.\n          # Empty patches are preparation outcomes, never acceptance evidence.\n          git status --short > \"$evidence/worktree-status.txt\"\n          git rev-parse HEAD > \"$evidence/prismpm-source.txt\"\n          cp \"$RUNNER_TEMP/m0-reconcile.json\" \"$evidence/dependency.json\"\n          printf '%s\\n' \\\n            'Preparation only. Complete source and installed-SDK V&V, both platforms, security, reproducibility and publication remain required.' \\\n            > \"$evidence/UNACCEPTED.txt\"\n          sha256sum \"$evidence/reconciliation.patch\" > \"$evidence/SHA256SUMS\"\n      - name: Upload the reviewable preparation patch\n        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02\n        with:\n          name: m0-lexlean-reconciliation-proposal\n          path: ${{ runner.temp }}/m0-reconciliation/\n          if-no-files-found: error\n          retention-days: 7\n\n");
+ assert.match(proposal,/git diff --binary HEAD/);
+ assert.match(proposal,/Preparation only\. Complete source and installed-SDK V&V, both platforms, security, reproducibility and publication remain required\./);
+ assert.match(proposal,/> "\$evidence\/UNACCEPTED\.txt"/);
+ assert.match(proposal,/if-no-files-found: error/);
+ assert.doesNotMatch(workflow,/continue-on-error:|allow_failure|--skip|--exclude/);
+ assert.equal(workflow.split('node scripts/reconcile-lexlean.mjs --validate-generated').length,2);
+ assert.ok(workflow.includes('cp target/m0-reconciliation-diagnostics/validation-step.log "$diagnostics/"'));
+ assertLockedAcquisition(workflow);
+}
+
+test('normal generation exports only an unaccepted proposal before the mandatory complete audit',()=>{
+ const workflow=readFileSync(join(repository,'.github/workflows/m0-lexlean-reconcile.yml'),'utf8');
+ assertReviewableGenerationBeforeCompleteAudit(workflow);
+ const validation='            node scripts/reconcile-lexlean.mjs --validate-generated';
+ const mutations=[
+  workflow.replace('        id: generated_prefix\n',''),
+  workflow.replace(validation,''),
+  workflow.replace(validation,validation+' || true'),
+  workflow.replace(validation,'            if false; then '+validation.trim()+'; fi'),
+  workflow.replace("steps.generated_prefix.outcome == 'success'","steps.generated_prefix.outcome != 'failure'"),
+  workflow.replace("always() && !cancelled() && steps.generated_prefix.outcome == 'success'","success()"),
+  workflow.replace("steps.generated_prefix.outcome == 'success'","steps.generated_prefix.outcome == 'success' && steps.upload.outcome == 'success'"),
+  workflow.replace('      - name: Run the complete generated-evidence audit','      - name: Missing complete generated-evidence audit'),
+  workflow.replace('            just package-release-crates-check\n',''),
+  workflow.replace('            just check-fixtures\n',''),
+  workflow.replace('            just stdlib-package-check\n',''),
+  workflow.replace('            just golden-check\n',''),
+  workflow.replace('            rm -r -- "$stage"\n',''),
+  workflow.replace('Preparation only. Complete source','Accepted. Complete source'),
+  workflow.replace('if-no-files-found: error','if-no-files-found: ignore'),
+  workflow.replace('      - name: Upload the reviewable preparation patch\n','      - name: Missing proposal upload\n'),
+  workflow.replace('        id: generated_prefix\n','        id: generated_prefix\n        continue-on-error: true\n'),
+  workflow.replace('cp target/m0-reconciliation-diagnostics/validation-step.log "$diagnostics/"','true'),
+  workflow.replace('      - name: Preserve an inert patch and its selected-source identity\n','      - name: Preserve an inert patch and its selected-source identity\n        if: false\n'),
+  workflow.replace('      - name: Upload the reviewable preparation patch\n','      - name: Upload the reviewable preparation patch\n        if: false\n'),
+  workflow.replace('actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02','actions/upload-artifact@main'),
+  workflow.replace('path: ${{ runner.temp }}/m0-reconciliation/','path: ${{ runner.temp }}/wrong-proposal/'),
+  workflow.replace('git diff --binary HEAD > "$evidence/reconciliation.patch"','git diff --binary HEAD > "$evidence/reconciliation.patch" || true'),
+ ];
+ const validationStart=workflow.indexOf('      - name: Run the complete generated-evidence audit');
+ for(const [before,after] of [
+  ['devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca','devcontainers/ci@main'],
+  ['export CARGO_NET_OFFLINE=true','export CARGO_NET_OFFLINE=false'],
+  ['export CARGO_HOME="$PWD/target/m0-locked-cargo-inputs"','export CARGO_HOME=/other-cache'],
+  ['set -euo pipefail','set +e'],
+ ]) mutations.push(workflow.slice(0,validationStart)+workflow.slice(validationStart).replace(before,after));
+ const proposalStart=workflow.indexOf('      - name: Preserve an inert patch and its selected-source identity');
+ const diagnosticsStart=workflow.indexOf('      - name: Preserve preparation diagnostics even after failure');
+ mutations.push(workflow.slice(0,proposalStart)+workflow.slice(validationStart,diagnosticsStart)+workflow.slice(proposalStart,validationStart)+workflow.slice(diagnosticsStart));
+ for(const mutation of mutations) {
+  assert.notEqual(mutation,workflow);
+  assert.throws(()=>assertReviewableGenerationBeforeCompleteAudit(mutation),assert.AssertionError);
+ }
 });
 
 function assertCompleteRelocking(workflow) {

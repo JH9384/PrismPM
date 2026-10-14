@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const helper = 'scripts/fetch-oracle-cargo.sh';
@@ -13,6 +14,16 @@ const pinned = [
   'tests/hologram-oracle/Cargo.lock',
   'tests/holo-codec-oracle/Cargo.toml',
   'tests/holo-codec-oracle/Cargo.lock',
+  'tests/holo-browser-codec/Cargo.toml',
+  'tests/holo-browser-codec/Cargo.lock',
+  'tests/holo-primary-component/driver/Cargo.toml',
+  'tests/holo-primary-component/driver/Cargo.lock',
+  'tests/browser-pkce/driver/Cargo.toml',
+  'tests/browser-pkce/driver/Cargo.lock',
+  'tests/browser-session-operation/driver/Cargo.toml',
+  'tests/browser-session-operation/driver/Cargo.lock',
+  'tests/browser-signed-context/driver/Cargo.toml',
+  'tests/browser-signed-context/driver/Cargo.lock',
   'tests/browser-workspace/Cargo.toml',
   'tests/browser-workspace/Cargo.lock',
   'tests/browser-envelope/driver/Cargo.toml',
@@ -126,6 +137,66 @@ test('changed pinned inputs and embedded divergence fail before Cargo acquisitio
   } finally {
     rmSync(scratch, { recursive: true });
   }
+});
+
+test('acquisition covers the actual test-manifest census and every registered compiler family', () => {
+  const manifests = [];
+  const visit = directory => {
+    for (const entry of readdirSync(join(root, directory), {withFileTypes: true})) {
+      if (['target', 'node_modules', '.git'].includes(entry.name)) continue;
+      const path = directory + '/' + entry.name;
+      if (entry.isDirectory()) visit(path);
+      else if (entry.name === 'Cargo.toml') {
+        assert(entry.isFile(), 'test manifest must be a regular source file: ' + path);
+        manifests.push(path);
+      }
+    }
+  };
+  visit('tests');
+  const script = readFileSync(join(root, helper), 'utf8');
+  const checksums = script.split("<<'CHECKSUMS'\n")[1]?.split('\nCHECKSUMS\n')[0];
+  assert(checksums);
+  const rows = checksums.split('\n').map(line => {
+    const row = /^([a-f0-9]{64})  ([A-Za-z0-9_./-]+)$/.exec(line);
+    assert(row, 'exact acquisition checksum row');
+    return row[2];
+  });
+  assert.equal(new Set(rows).size, rows.length, 'unique acquisition inputs');
+  assert.deepEqual([...rows].sort(), [...pinned].sort());
+  const loop = script.split('for manifest in ')[1]?.split('; do')[0];
+  assert(loop);
+  const acquired = loop.replaceAll('\\', '').trim().split(/\s+/);
+  assert.equal(acquired[0], '"$oracle_work/harness/Cargo.toml"');
+  acquired[0] = 'tests/hologram-oracle/Cargo.toml';
+  const registry = readFileSync(join(root, 'tests/browser-view/compiler-owner.mjs'), 'utf8');
+  const begin = registry.indexOf('const families = Object.freeze({');
+  const end = registry.indexOf('\nconst owners = ', begin);
+  assert(begin >= 0 && end > begin);
+  const families = [...runInNewContext(
+    registry.slice(begin, end) + '\nObject.values(families).map(row => row.directory);',
+    {}, {timeout: 1000}
+  )].map(directory => 'tests/' + directory + '/driver/Cargo.toml');
+  const coverage = (pins, owners, actual = manifests, registered = families) => {
+    assert.equal(new Set(owners).size, owners.length, 'unique acquisition owners');
+    assert.deepEqual([...owners].sort(), pins.filter(path => path.endsWith('/Cargo.toml')).sort());
+    for (const manifest of actual) {
+      assert(pins.includes(manifest), 'missing actual manifest pin: ' + manifest);
+      assert(pins.includes(manifest.replace('Cargo.toml', 'Cargo.lock')), 'missing actual lock pin: ' + manifest);
+      assert(owners.includes(manifest), 'missing actual locked metadata owner: ' + manifest);
+    }
+    for (const manifest of registered)
+      assert(actual.includes(manifest), 'registered compiler family is outside the covered census: ' + manifest);
+  };
+  coverage(rows, acquired);
+  for (const manifest of manifests) {
+    assert.throws(() => coverage(rows.filter(path => path !== manifest), acquired), manifest);
+    const lock = manifest.replace('Cargo.toml', 'Cargo.lock');
+    assert.throws(() => coverage(rows.filter(path => path !== lock), acquired), lock);
+    assert.throws(() => coverage(rows, acquired.filter(path => path !== manifest)), manifest);
+  }
+  const newManifest = 'tests/new-consumer/driver/Cargo.toml';
+  assert.throws(() => coverage(rows, acquired, [...manifests, newManifest]), 'new consumer cannot bypass acquisition');
+  assert.throws(() => coverage(rows, acquired, manifests, [...families, newManifest]), 'new family cannot bypass the actual census');
 });
 
 test('source and SDK acquisition share the helper before the SDK cache is frozen', () => {

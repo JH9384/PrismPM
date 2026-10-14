@@ -17,6 +17,16 @@ ec19fdecf241b6e502726c1740bdc962dffc7fc1eaf456468ba0836b8fb2272a  tests/hologram
 16e2a6e4ce47c12b3510813b605897a377981b8314d031775a4ec99e89b5c277  tests/hologram-oracle/Cargo.lock
 5be0cb25a1bc7ebff4a709c6dd4c724ae787c6d97e4e9b0a9070ca2cafa71f89  tests/holo-codec-oracle/Cargo.toml
 8ab0b99efa9ab6f44d9368d026aefadcefae4640cc92c814947609b41aaf0df4  tests/holo-codec-oracle/Cargo.lock
+ec81bd62c5874aaea817f464a808a7c573b0333cef7366c72f2d9def2fbf17fc  tests/holo-browser-codec/Cargo.toml
+0074e95dc75e42ad8f802da1b5d51aca3b212e6a6cb0970e1907ec9d040dc88c  tests/holo-browser-codec/Cargo.lock
+4dd15f80c01d69faca648ab395ace50d011bc432a6f9366bd2728047c64b097f  tests/holo-primary-component/driver/Cargo.toml
+de5501406cb55fd264f6ade6966d0498bfb2980864ddea34c9e842c08ca95840  tests/holo-primary-component/driver/Cargo.lock
+f47de2480171c5a472195bd28d5f493a63eb8de77aa56b2efac6e20206cd1cc4  tests/browser-pkce/driver/Cargo.toml
+3c5c02d77d212861985ee7d6d5658e693b8e9b2fbfcac4a75a9e8fae4aa7192a  tests/browser-pkce/driver/Cargo.lock
+706f54f5e894732179faf1a183e791bf2053674dc9cff4f54e7b38894642d826  tests/browser-session-operation/driver/Cargo.toml
+53d3f9642ec2e21195a1106cc7aff4272f74ac22310757849cd094aa8ba431f9  tests/browser-session-operation/driver/Cargo.lock
+f235a287b2de052206be0951ce0669cae230f5145c1a0a564d0d48551f803039  tests/browser-signed-context/driver/Cargo.toml
+c46e6b2e18edefe7556f42864d8bffbcf949bb7d14e8f7109e702ef00e0dc1d5  tests/browser-signed-context/driver/Cargo.lock
 1e0a368fc436907ea62dab3cf44d73a4aad133584ae6dd9799d741aa82fe1f68  tests/browser-workspace/Cargo.toml
 3d27b77bec3b81bc28bbcac4e606bb0dfe83df7bc900e3607fbb08ad73dc03fa  tests/browser-workspace/Cargo.lock
 a8ddd90c616555741a750f91d820b80827438612523624c5afdc7e0301a76493  tests/browser-envelope/driver/Cargo.toml
@@ -88,6 +98,11 @@ cp tests/hologram-oracle/src/main.rs "$oracle_work/harness/src/main.rs"
 
 for manifest in "$oracle_work/harness/Cargo.toml" \
   tests/holo-codec-oracle/Cargo.toml \
+  tests/holo-browser-codec/Cargo.toml \
+  tests/holo-primary-component/driver/Cargo.toml \
+  tests/browser-pkce/driver/Cargo.toml \
+  tests/browser-session-operation/driver/Cargo.toml \
+  tests/browser-signed-context/driver/Cargo.toml \
   tests/browser-workspace/Cargo.toml \
   tests/browser-envelope/driver/Cargo.toml \
   tests/browser-journal/driver/Cargo.toml \

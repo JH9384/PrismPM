@@ -100,10 +100,10 @@ test('pinned runtime package acquisition is bounded and refuses incomplete index
     const acquisition = commands.filter(command => command.includes('apt-get '));
     assert.equal(acquisition.length, 1, 'one signed snapshot acquisition owner');
     const command = acquisition[0].replace(/\s+/g, ' ');
-    assert.equal(hash(command), '051220661a34f8b3db5c48635c0a10e93565fdd1b471f60d2063520f52ad6f8e',
+    assert.equal(hash(command), 'f384f79a7f25b79e0dca7de3f66d9cf747414d61f054567f54e15a09aa91906d',
       'the complete signed snapshot acquisition and cleanup instruction must remain unchanged');
-    const update = 'apt-get --error-on=any -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update';
-    const install = 'apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install --no-install-recommends --yes "build-essential=${build_essential}" "pkg-config=${pkg_config}"';
+    const update = 'apt-get --error-on=any -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::http::Pipeline-Depth=0 -o Acquire::https::Pipeline-Depth=0 update';
+    const install = 'apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::http::Pipeline-Depth=0 -o Acquire::https::Pipeline-Depth=0 install --no-install-recommends --yes "build-essential=${build_essential}" "pkg-config=${pkg_config}"';
     assert.deepEqual(command.split(' && ').filter(segment => segment.includes('apt-get')), [update, install],
       'the exact update and install must execute unconditionally in that order without overrides');
     assert(command.includes('test "$(find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name ubuntu.sources -print -quit)" = ""'));
@@ -114,12 +114,14 @@ test('pinned runtime package acquisition is bounded and refuses incomplete index
     ['--error-on=any ', ''], ['Acquire::Retries=3', 'Acquire::Retries=0'],
     ['Acquire::http::Timeout=30', 'Acquire::http::Timeout=0'],
     ['Acquire::https::Timeout=30', 'Acquire::https::Timeout=0'],
+    ['Acquire::http::Pipeline-Depth=0', 'Acquire::http::Pipeline-Depth=1'],
+    ['Acquire::https::Pipeline-Depth=0', 'Acquire::https::Pipeline-Depth=1'],
     ['"build-essential=${build_essential}"', 'build-essential'],
     ['"pkg-config=${pkg_config}"', 'pkg-config'],
     [' install --no-install-recommends', ' install --allow-unauthenticated --no-install-recommends'],
     ['&& apt-get --error-on=any', '&& true # apt-get --error-on=any'],
     ['&& apt-get -o Acquire::Retries=3', '&& true # apt-get -o Acquire::Retries=3'],
-    ['Acquire::https::Timeout=30 update', 'Acquire::https::Timeout=30 -o Acquire::Retries=0 update'],
+    ['Acquire::https::Pipeline-Depth=0 update', 'Acquire::https::Pipeline-Depth=0 -o Acquire::Retries=0 update'],
     [' install --no-install-recommends', ' -o Acquire::Retries=0 install --no-install-recommends'],
     [' update \\\n', ' update || true \\\n'],
     [' install --no-install-recommends', ' install --ignore-missing --no-install-recommends'],
@@ -128,10 +130,12 @@ test('pinned runtime package acquisition is bounded and refuses incomplete index
     ['--error-on=any', '--error-on=any -o Acquire::Check-Valid-Until=false'],
     ['--error-on=any', '--error-on=any -o Acquire::AllowInsecureRepositories=true'],
   ]) assert.throws(() => check(recipe.replace(from, to)));
-  for (const option of ['Acquire::Retries=3', 'Acquire::http::Timeout=30', 'Acquire::https::Timeout=30']) {
+  const options = ['Acquire::Retries=3', 'Acquire::http::Timeout=30', 'Acquire::https::Timeout=30',
+    'Acquire::http::Pipeline-Depth=0', 'Acquire::https::Pipeline-Depth=0'];
+  for (const option of options) {
     const at = recipe.lastIndexOf(option);
     assert(at > recipe.indexOf(option), 'both actual update and install must own the bound');
-    assert.throws(() => check(recipe.slice(0, at) + option.replace(/=\d+$/, '=0') + recipe.slice(at + option.length)));
+    assert.throws(() => check(recipe.slice(0, at) + option.replace(/=\d+$/, option.endsWith('=0') ? '=1' : '=0') + recipe.slice(at + option.length)));
   }
   for (const operation of ['update', 'install']) {
     const expression = operation === 'update' ? /apt-get --error-on=any[^\n]+update/ : /apt-get -o[^\n]+install --no-install-recommends --yes/;
@@ -143,6 +147,13 @@ test('pinned runtime package acquisition is bounded and refuses incomplete index
     + 'snapshot=https://snapshot.ubuntu.com/ubuntu/20260901T000000Z/\n'
     + 'build-essential=12.10ubuntu1\n'
     + 'pkg-config=1.8.1-2build1\n');
+  const configured = spawnSync('apt-config', options.flatMap(option => ['-o', option]).concat('dump'),
+    {encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024});
+  assert.equal(configured.error, undefined); assert.equal(configured.signal, null); assert.equal(configured.status, 0);
+  for (const option of options) {
+    const [key, value] = option.split('=');
+    assert(configured.stdout.split('\n').includes(`${key} "${value}";`), 'actual APT option must remain effective');
+  }
 });
 
 test('real APT refuses transient index failure before package installation', {timeout: 30000}, async t => {
@@ -163,6 +174,7 @@ test('real APT refuses transient index failure before package installation', {ti
     const argv = ['-o', `Dir::State=${join(root, 'state')}`, '-o', `Dir::Cache=${join(root, 'cache')}`,
       '-o', `Dir::Etc::sourcelist=${source}`, '-o', 'Dir::Etc::sourceparts=-',
       '-o', 'Acquire::Retries=3', '-o', 'Acquire::http::Timeout=30', '-o', 'Acquire::https::Timeout=30',
+      '-o', 'Acquire::http::Pipeline-Depth=0', '-o', 'Acquire::https::Pipeline-Depth=0',
       ...(strict ? ['--error-on=any'] : []), 'update'];
     const child = spawn('apt-get', argv, {env: {...process.env, http_proxy: '', https_proxy: '',
       HTTP_PROXY: '', HTTPS_PROXY: '', ALL_PROXY: '', no_proxy: '127.0.0.1'}});

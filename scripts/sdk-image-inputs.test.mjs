@@ -100,13 +100,21 @@ test('pinned runtime package acquisition is bounded and refuses incomplete index
     const acquisition = commands.filter(command => command.includes('apt-get '));
     assert.equal(acquisition.length, 1, 'one signed snapshot acquisition owner');
     const command = acquisition[0].replace(/\s+/g, ' ');
-    assert.equal(hash(command), 'af82b7bdcdf88663df8ca7603a594552855124d86096c61453d15e1fcff82808',
+    assert.equal(hash(command), 'b44daff2cec315e3672cfa332a5a50769910d35167f3444dfc23160cd518c3a7',
       'the complete signed snapshot acquisition and cleanup instruction must remain unchanged');
     const update = 'apt-get --error-on=any -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::http::Pipeline-Depth=0 -o Acquire::https::Pipeline-Depth=0 -o Acquire::CompressionTypes::Order=xz update';
     const install = 'apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::http::Pipeline-Depth=0 -o Acquire::https::Pipeline-Depth=0 -o Acquire::CompressionTypes::Order=xz install --no-install-recommends --yes "build-essential=${build_essential}" "pkg-config=${pkg_config}"';
     assert.deepEqual(command.split(' && ').filter(segment => segment.includes('apt-get')), [update, install],
       'the exact update and install must execute unconditionally in that order without overrides');
     assert(command.includes('test "$(find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name ubuntu.sources -print -quit)" = ""'));
+    const admission = phase => `/usr/bin/python3 -I -B /opt/prismpm/runtime-sources/configure.py ${phase} --architecture "$TARGETARCH" --snapshot "${'${snapshot}'}"`;
+    assert.equal(command.split(admission('prepare')).length, 2);
+    assert.equal(command.split(admission('verify')).length, 2);
+    assert(command.indexOf(admission('prepare')) < command.indexOf('rm /etc/apt/sources.list.d/nodesource.list'));
+    assert(command.indexOf('rm /etc/apt/sources.list.d/nodesource.list') < command.indexOf(admission('verify')));
+    assert(command.indexOf(admission('verify')) < command.indexOf(update), 'closed native sources must be verified before any acquisition');
+    assert(commands.includes('COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/runtime-sources/configure.py /opt/prismpm/runtime-sources/configure.py'));
+    assert(commands.includes('COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/runtime-sources/fixtures/amd64.nodesource.list /prepared/source/sdk/runtime-sources/fixtures/arm64.nodesource.list /opt/prismpm/runtime-sources/fixtures/'));
     assert(!/allow-unauthenticated|allow-insecure|Check-Valid-Until|Check-Date|ignore-missing|fix-missing|trusted=yes|\|\| true/.test(command));
   };
   check(recipe);
@@ -130,10 +138,17 @@ test('pinned runtime package acquisition is bounded and refuses incomplete index
     [' update \\\n', ' update || true \\\n'],
     [' install --no-install-recommends', ' install --ignore-missing --no-install-recommends'],
     ['rm /etc/apt/sources.list.d/nodesource.list', 'true'],
-    ['${snapshot}#', 'https://archive.ubuntu.com/ubuntu/#'],
+    ['--snapshot "${snapshot}"', '--snapshot "https://archive.ubuntu.com/ubuntu/"'],
+    ['configure.py prepare', 'configure.py verify'],
+    ['configure.py verify', 'configure.py prepare'],
+    ['configure.py prepare --architecture "$TARGETARCH"', 'configure.py prepare --architecture "amd64"'],
     ['--error-on=any', '--error-on=any -o Acquire::Check-Valid-Until=false'],
     ['--error-on=any', '--error-on=any -o Acquire::AllowInsecureRepositories=true'],
-  ]) assert.throws(() => check(recipe.replace(from, to)));
+  ]) {
+    assert(recipe.includes(from), `runtime mutation anchor missing: ${from}`);
+    assert.notEqual(from, to);
+    assert.throws(() => check(recipe.replace(from, to)), `runtime mutation must refuse: ${from}`);
+  }
   const options = ['Acquire::Retries=3', 'Acquire::http::Timeout=30', 'Acquire::https::Timeout=30',
     'Acquire::http::Pipeline-Depth=0', 'Acquire::https::Pipeline-Depth=0', 'Acquire::CompressionTypes::Order=xz'];
   for (const option of options) {
@@ -148,6 +163,15 @@ test('pinned runtime package acquisition is bounded and refuses incomplete index
     const expression = operation === 'update' ? /apt-get --error-on=any[^\n]+update/ : /apt-get -o[^\n]+install --no-install-recommends --yes/;
     assert.throws(() => check(recipe.replace(expression, 'true')));
   }
+  for (const phase of ['prepare', 'verify']) {
+    const invocation = `/usr/bin/python3 -I -B /opt/prismpm/runtime-sources/configure.py ${phase} --architecture "$TARGETARCH" --snapshot "${'${snapshot}'}"`;
+    assert(recipe.includes(invocation), 'both source-admission mutation anchors must exist');
+    for (const replacement of ['true', invocation.replace('--architecture "$TARGETARCH"', '--architecture "amd64"'),
+      invocation.replace('--snapshot "${snapshot}"', '--snapshot "https://archive.ubuntu.com/ubuntu/"')]) {
+      assert.notEqual(replacement, invocation);
+      assert.throws(() => check(recipe.replace(invocation, replacement)));
+    }
+  }
   assert.equal(readFileSync(new URL('../sdk/runtime-os.lock', import.meta.url), 'utf8'),
     '# Runtime packages added to the digest-pinned Playwright base image.\n'
     + '# The snapshot URI makes transitive apt resolution immutable.\n'
@@ -161,6 +185,15 @@ test('pinned runtime package acquisition is bounded and refuses incomplete index
     const [key, value] = option.split('=');
     assert(configured.stdout.split('\n').includes(`${key} "${value}";`), 'actual APT option must remain effective');
   }
+});
+
+test('both native runtime source profiles and real filesystem refusals are executable', () => {
+  const result = spawnSync('/usr/bin/python3', ['-I', '-B',
+    new URL('../sdk/runtime-sources/configure_test.py', import.meta.url).pathname],
+  {encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024});
+  assert.equal(result.error, undefined); assert.equal(result.signal, null);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /Ran 14 tests/);
 });
 
 test('real APT refuses transient index failure before package installation', {timeout: 30000}, async t => {

@@ -335,6 +335,8 @@ RUN python3 -B /opt/prismpm/browser-engine/install_test.py \
 
 ARG SOURCE_DATE_EPOCH=0
 COPY --from=source_inputs /prepared/source/sdk/runtime-os.lock /tmp/prismpm-runtime-os.lock
+COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/runtime-sources/configure.py /opt/prismpm/runtime-sources/configure.py
+COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/runtime-sources/fixtures/amd64.nodesource.list /prepared/source/sdk/runtime-sources/fixtures/arm64.nodesource.list /opt/prismpm/runtime-sources/fixtures/
 
 # Downstream template gates compile their small repository-specific policy
 # crates inside the SDK. Resolve the native linker exclusively from one
@@ -345,11 +347,10 @@ RUN set -eu; \
     build_essential=$(sed -n 's/^build-essential=//p' /tmp/prismpm-runtime-os.lock); \
     pkg_config=$(sed -n 's/^pkg-config=//p' /tmp/prismpm-runtime-os.lock); \
     test -n "$snapshot"; test -n "$build_essential"; test -n "$pkg_config"; \
-    sed -i \
-      "s#http://azure.archive.ubuntu.com/ubuntu/#${snapshot}#; s#http://security.ubuntu.com/ubuntu/#${snapshot}#" \
-      /etc/apt/sources.list.d/ubuntu.sources \
+    /usr/bin/python3 -I -B /opt/prismpm/runtime-sources/configure.py prepare --architecture "$TARGETARCH" --snapshot "${snapshot}" \
     && rm /etc/apt/sources.list.d/nodesource.list \
     && test "$(find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name ubuntu.sources -print -quit)" = "" \
+    && /usr/bin/python3 -I -B /opt/prismpm/runtime-sources/configure.py verify --architecture "$TARGETARCH" --snapshot "${snapshot}" \
     && apt-get --error-on=any -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::http::Pipeline-Depth=0 -o Acquire::https::Pipeline-Depth=0 -o Acquire::CompressionTypes::Order=xz update \
     && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::http::Pipeline-Depth=0 -o Acquire::https::Pipeline-Depth=0 -o Acquire::CompressionTypes::Order=xz install --no-install-recommends --yes \
       "build-essential=${build_essential}" \

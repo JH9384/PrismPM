@@ -3,8 +3,7 @@
 use super::invalid;
 use crate::error::PrismError;
 use crate::holo::canonical::content_id;
-use lexlean::ir::semantic::SemanticModule;
-use lexlean::SemanticSnapshot;
+use lexlean::{SemanticSnapshot, SnapshotSemanticModule};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Cursor, Read};
@@ -18,7 +17,7 @@ pub(super) const ADMISSION: &str = "Production.PublicationAdmission.V1";
 pub(super) struct Source {
     pub(super) digest: String,
     pub(super) imports: Vec<String>,
-    pub(super) semantic: SemanticModule,
+    pub(super) semantic: SnapshotSemanticModule,
 }
 
 fn archive_rows(bytes: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, PrismError> {
@@ -138,7 +137,7 @@ fn parse_source(bytes: &[u8], expected: &str) -> Result<Source, PrismError> {
     // LexLean source permits JSON layout inside the macro. The captured source
     // hash binds those bytes; the independently compared typed AST binds meaning.
     let semantic =
-        serde_json::from_str::<SemanticModule>(body).map_err(|e| invalid(e.to_string()))?;
+        serde_json::from_str::<SnapshotSemanticModule>(body).map_err(|e| invalid(e.to_string()))?;
     Ok(Source {
         digest: content_id(bytes),
         imports,

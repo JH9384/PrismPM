@@ -160,7 +160,7 @@ export function dockerArguments(source, revision, target, closure, args) {
 
 // Dependency injection is confined to unit transport tests, which execute a
 // recording Docker executable. The CLI always performs real acquisition.
-export function buildImage(source, revision, target, args, prepare = prepareImageInputs) {
+function constructImage(source, revision, target, args, prepare) {
   const work = mkdtempSync(join(tmpdir(), 'prismpm-sdk-image-'));
   const identity = lstatSync(work);
   try {
@@ -205,8 +205,23 @@ export function buildImage(source, revision, target, args, prepare = prepareImag
     finally { verify(); }
     if (result.error) throw result.error;
     assert.equal(result.signal, null, 'SDK image construction interrupted');
-    return result.status;
+    return {status: result.status,
+      input_policy: Buffer.from(canonical(policy)),
+      input_manifest: Buffer.from(canonical(manifest))};
   } finally { removeOwned(work, identity); }
+}
+
+export function buildImage(source, revision, target, args, prepare = prepareImageInputs) {
+  return constructImage(source, revision, target, args, prepare).status;
+}
+
+// A separate source-CI constructor exposes only the actual complete verified
+// inputs of this construction. No caller-provided receipt can replace them.
+// It does not qualify the built SDK or any consuming gate.
+export function buildImageWithInputs(source, revision, args, prepare = prepareImageInputs) {
+  const result = constructImage(source, revision, 'runtime', args, prepare);
+  assert.equal(result.status, 0, 'source-CI SDK input construction failed');
+  return result;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

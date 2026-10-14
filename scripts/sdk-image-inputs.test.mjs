@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { buildImage, captureImageInputs, dockerArguments, inputPolicy, prepareImageInputs, stageImageInputs } from './sdk-image-inputs.mjs';
+import { buildImage, buildImageWithInputs, captureImageInputs, dockerArguments, inputPolicy, prepareImageInputs, stageImageInputs } from './sdk-image-inputs.mjs';
 import { validateImageInputMetadata } from '../sdk/inventory-metadata.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -348,6 +348,47 @@ function recordingDocker(t, work, action = '') {
 }
 
 const records = path => readFileSync(path, 'utf8').trimEnd().split('\n').map(line => JSON.parse(line));
+
+test('source-CI construction retains actual complete verified inputs only after successful transport', t => {
+  const f = fixture(t), record = recordingDocker(t, f.work);
+  let captured;
+  const prepare = (source, revision, destination) => {
+    assert.equal(source, f.source); assert.equal(revision, f.revision);
+    const policy = f.capture(destination);
+    captured = {policy: Buffer.from(canonical(policy)), manifest: readFileSync(join(destination, 'manifest.json'))};
+    return policy;
+  };
+  const result = buildImageWithInputs(f.source, f.revision, [], prepare);
+  assert.deepEqual(Object.keys(result).sort(), ['input_manifest', 'input_policy', 'status']);
+  assert.equal(result.status, 0); assert.equal(records(record).length, 1);
+  const argv = records(record)[0].args;
+  assert.equal(argv.filter(value => value === '--target').length, 1);
+  assert.equal(argv[argv.indexOf('--target') + 1], 'runtime');
+  assert(result.input_policy.equals(captured.policy));
+  assert(result.input_manifest.equals(captured.manifest));
+  const manifest = JSON.parse(result.input_manifest);
+  assert.deepEqual(manifest.policy, JSON.parse(result.input_policy));
+  assert.equal(manifest.source.revision, f.revision);
+  assert.equal(manifest.source.tree, git(f.source, 'rev-parse', 'HEAD^{tree}'));
+  assert(manifest.source.files.length > 0 && manifest.source.object_count > 0);
+  assert.deepEqual(manifest.artifacts.map(row => row.path), ['advisory.pack', 'bootstrap.tar.gz', 'source.pack']);
+  process.env.IMAGE_DOCKER_STATUS = '23';
+  assert.throws(() => buildImageWithInputs(f.source, f.revision, [], prepare), /construction failed/);
+  assert.equal(records(record).length, 2); delete process.env.IMAGE_DOCKER_STATUS;
+  assert.throws(() => buildImageWithInputs(f.source, f.revision, [], () => inputPolicy(f.source, f.revision)));
+  assert.equal(records(record).length, 2, 'incomplete acquisition must never run Docker');
+});
+
+test('source-CI construction refuses post-build custody drift instead of publishing inputs', t => {
+  const f = fixture(t), record = recordingDocker(t, f.work,
+    "fs.chmodSync(recipe,0o600);fs.appendFileSync(recipe,'\\nchanged source-CI recipe\\n');");
+  for (const status of [0, 23]) {
+    process.env.IMAGE_DOCKER_STATUS = String(status);
+    assert.throws(() => buildImageWithInputs(f.source, f.revision, [], (_source, _revision, destination) => f.capture(destination)),
+      /recipe context custody changed/);
+  }
+  assert.equal(records(record).length, 2);
+});
 
 test('build wrapper prepares and verifies real inputs before invoking Docker exactly once and preserves failure', t => {
   const f = fixture(t), record = recordingDocker(t, f.work);

@@ -5,6 +5,7 @@ import test from 'node:test';
 import {frozenInputs,assertFrozenInputs,prepare} from '../../tests/browser-budget/compile.mjs';
 import {createCompilerOwner,requireCompilerOwner} from '../../tests/browser-view/compiler-owner.mjs';
 import {verifyCompilerOwnerSubstitutions} from '../../tests/browser-view/compiler-owner-checks.mjs';
+import {captureVerificationProducts} from '../../tests/browser-view/verification-products.mjs';
 const inputs=frozenInputs();
 
 test('DK-27 owns actual imported request admission without public runtime enablement', () => {
@@ -30,11 +31,17 @@ test('DK-27 generated per-resource budgets retain exact source, maxima and negat
     })));
   }
   assertFrozenInputs(inputs);
+  const products=captureVerificationProducts(build.work,'budget');
   const retirement=owner.close();
+  assert.deepEqual(captureVerificationProducts(build.work,'budget'),products,
+    'complete generated products unchanged through compiler retirement');
+  assertFrozenInputs(inputs);
+  build.verifyEvidence();
   assert.throws(()=>requireCompilerOwner(owner,'budget'),/compiler owner closed/);
   assert.throws(()=>owner.close(),/compiler owner closed/);
   t.diagnostic(JSON.stringify({compiler:owner.evidence,substitutions,retirement}));
   writeFileSync(join(build.work, 'budget-acceptance.json'), JSON.stringify({capability:'DK-27',
     scope:'conditional-per-resource-budget-only', source:build.verified.source_id,
-    attestation:build.verified.attestation_id, maximum:build.maximum, inputs, mutants}, null, 2) + '\n', {flag:'wx'});
+    attestation:build.verified.attestation_id, maximum:build.maximum, inputs, mutants,
+    compiler:owner.identity, retirement}, null, 2) + '\n', {flag:'wx'});
 });

@@ -204,8 +204,18 @@ export function prepare(mutation = null, sourceOnly = false, compilerOwner = nul
     assert.deepEqual(guests[4], guests[6], 'two independent generated partition packages');
     pins(); if (shared) shared.verify(); else compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
     for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'frozen source ' + module);
+    const verifyEvidence = () => {
+      pins();
+      assert.deepEqual(readFileSync(join(verified.root, 'build-manifest.json')), manifestBytes);
+      assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);
+      assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+      for (const [module, bytes] of originals)
+        assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'retained model source ' + module);
+    };
+    verifyEvidence();
     const cacheRetirement = shared ? null : retireCompletedCompilerCaches(work, 'operation-journal');
+    verifyEvidence();
     completed = true;
-    return {work, sources, verified, generation, compileNative, runner, cacheRetirement, compilerOwner: shared?.identity ?? null, preparationMs: performance.now() - started, wasmBytes: guests[0], guestBytes: guests[2], journalBytes: guests[3], partitionBytes: guests[4]};
+    return {work, sources, verified, generation, compileNative, runner, cacheRetirement, compilerOwner: shared?.identity ?? null, preparationMs: performance.now() - started, verifyEvidence, wasmBytes: guests[0], guestBytes: guests[2], journalBytes: guests[3], partitionBytes: guests[4]};
   } finally { if (!completed) process.stderr.write('Retained incomplete operation-journal diagnostic build ' + work + '\n'); }
 }

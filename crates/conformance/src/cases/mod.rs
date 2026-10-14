@@ -2735,7 +2735,7 @@ fn verify_template(root: &Path, id: &str) {
                 id,
                 &[
                     ("action/entrypoint.test.mjs", 19),
-                    ("scripts/ci-capacity.test.mjs", 10),
+                    ("scripts/ci-capacity.test.mjs", 11),
                 ],
                 "120000",
             );

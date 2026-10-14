@@ -7,6 +7,7 @@ import {verifyWire,verifyModelMutation,inventory,prerequisite} from './checks.mj
 import {frozenInputs,prepare} from './compile.mjs';
 import {captureCompilerInputs,createCompilerOwner,requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {verifyCompilerOwnerSubstitutions} from '../browser-view/compiler-owner-checks.mjs';
+import {captureVerificationProducts} from '../browser-view/verification-products.mjs';
 
 test('OC-09 owns distinct source publication stages and preserves public deployment refusal', () => {
   const source = readFileSync(new URL('../../stdlib/src/Production/PublicationAdmission/V1.lex.tex', import.meta.url), 'utf8');
@@ -51,8 +52,12 @@ test('OC-09 complete generated conditional publication admission', {timeout:3500
   assert.equal(subject.cacheRetirement,null,'borrowed compiler tools are not yet retired');
  }
  const subjectMilliseconds=performance.now()-started;
+ const products=captureVerificationProducts(build.work,'publication');
  retirementAttempted=true;const cacheRetirement=compiler.close();retired=true;
  assert.deepEqual(frozenInputs(),inputs,'complete publication inputs changed during final compiler retirement');
+ assert.deepEqual(captureVerificationProducts(build.work,'publication'),products,
+  'complete generated products unchanged through compiler retirement');
+ build.verifyEvidence();
  assert.equal(cacheRetirement.status,'retired');assert.equal(cacheRetirement.compiler,compiler.identity);
  assert.throws(()=>requireCompilerOwner(compiler,'publication'),/compiler owner closed/);
  assert.throws(()=>compiler.close(),/compiler owner closed/);

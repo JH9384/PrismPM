@@ -1,5 +1,12 @@
 # PrismPM falsifiability and verification record
 
+## Unaccepted integration checkpoint (2026-10-14)
+
+The production-component/compiler reconciliation is preparation only. Current
+generated stdlib, both native records, installed SDK, downstream/security checks
+and both complete consecutive 15-gate VV passes still require fresh qualification.
+Records below retain their historical revisions and do not qualify this checkpoint.
+
 ## Integrated source release binding (2026-10-08)
 
 The current 117-root generated package binds IR
@@ -3427,3 +3434,101 @@ their synthetic smoke facts are unit evidence only. Actual AMD64 failure cause,
 complete current source qualification and real dual-native construction remain
 pending. No smoke step, result requirement, deadline or protected publication
 job changes.
+
+The following retained donor history does not qualify this integrated source,
+its generated products, either full V&V pass, the SDK or the release.
+
+## Exact LexLean reconciliation preparation (compression M0 issue 5)
+
+The preparation workflow `.github/workflows/m0-lexlean-reconcile.yml` is based
+on the existing main-replay repair PR #129 at
+`c28f119e69635d7dd50650305619fdb0aa368af4`. It selects LexLean
+`3e79a5a0e7059dc3a425aa17010e0a6721b24c44` without resolving a moving ref again.
+The repaired PrismPM source is still unaccepted: the earlier PR #129 full-VV
+attempt did not complete its first pass, and the second pass never began.
+
+`scripts/reconcile-lexlean.mjs` reuses the exact-package preparation developed
+on `feat/reconcile-lexlean-main`, including its corrected file hashing. It
+uses LexLean's owning package commands, compares two package invocations,
+checks the selected source against package provenance, and prepares the
+vendored dependency and Cargo lock. `--validate-generated` runs the supported
+`xtask validate` dispatcher only after normal writers finish. There is no
+public `xtask audit-dependencies` command; `validate` includes that private
+audit together with the other model and source checks. The workflow follows
+normal lock, fixture, golden and stdlib generation with independent comparator
+commands and preserves a binary patch. It has no repository or registry write
+permissions, commit, push, merge or publication step.
+
+Preparation is not an SDK freeze. No generated package, compiler compatibility,
+complete V&V, runtime capability, platform, security, reproducibility or release
+acceptance is claimed by the local checks below. Actual packaging and generation
+still require execution in the prescribed Rust/devcontainer environment. Both
+complete source V&V passes, both installed native SDK lanes and every existing
+release prerequisite remain mandatory before acceptance or immutable publication.
+
+Local checks on 2026-10-10 used Node 24.19.0; the workflow selects Node 22.23.2
+and Rust 1.97.1. The complete helper suite passed 10/10 tests, including an actual Git checkout
+boundary that refuses both untracked and tracked source changes before any
+Cargo command, while allowing ignored build outputs. Its actual CLI
+subprocess uses an explicitly synthetic Cargo executable to qualify argument,
+working-directory and failure propagation; this does not stand in for Cargo or
+compiler execution. YAML parsing, exact Action pins, every shell body, Node
+syntax and diff whitespace were checked. Running the unchanged devcontainer
+preflight with the helper tests produced 11 passes and 4 failures because the
+local environment has no Docker executable (`spawnSync docker ENOENT`). Those
+four tests remain enabled and require the real environment.
+
+| Planted defect | Gate and observed rejection | Restored result |
+| --- | --- | --- |
+| In an isolated source copy, replace the supported validation subcommand with `audit-dependencies`. | The complete `node --test scripts/reconcile-lexlean.test.mjs` invocation exited 1; its actual validation-CLI test rejected the child status 2 and `unsupported xtask command` diagnostic. | The unmodified helper suite passed all 9 tests, with no skipped cases. |
+
+Successful preparation preserves the proposal separately from the diagnostic
+artifact. Step logs and any partial dependency record are retained with
+`always()` and an explicit diagnostic-only, unaccepted marker, including when
+preparation fails.
+
+The same suite checks actual SHA-256 manifest values, missing archive/symlink
+refusal, the real xtask dispatcher binding, nonzero child propagation and the
+workflow's immutable source/read-only publication boundary. These are narrowly
+scoped preparation regressions, not evidence for any unexecuted SDK gate.
+
+### Selected LexLean adapter source boundary
+
+The actual preparation run
+[38023254837](https://github.com/UOR-Foundation/PrismPM/actions/runs/38023254837)
+at `b927c2d2b0713ebb34782a90dae040340d805026` failed at the final source audit.
+It had completed exact clean LexLean packaging and relocking, the 357-file
+golden writer and independent comparator, the stdlib source writer and
+independent comparator, all 19 fixtures, and exact compiler/stdlib archive
+reproduction. These are intermediate results, not a successful preparation or
+SDK acceptance. The stale-lock fixture's expected LLC0102 diagnostic is retained.
+
+The source audit rejected
+`vendor/lexlean/language/lcnf-1.2/extract.lean`. Selected LexLean's §22.10
+explicitly defines that file as its immutable Lean-authority adapter. The
+correction admits only this exact path after the existing complete dependency
+checksum/tree audit and explicit archive/tree registration checks, with package
+VCS revision, crate path and clean provenance binding. The repository root and
+vendor ancestors must be real directories, not symlinks. It does not exempt the
+vendor directory or change the PrismPM-owned Lean prohibition.
+
+The retained diagnostic artifact is
+[11660921743](https://github.com/UOR-Foundation/PrismPM/actions/runs/38023254837/artifacts/11660921743),
+ZIP SHA-256 `475bbf3d55630c21513193aedcbaf60ee838c50429f36383097369288f0cc516`.
+Its original generation transcript SHA-256 is
+`8d81095781c7c41a7fca28a6b9a1346b8944755dfe06414b8aab448d5bd52b2d`.
+The recorded LexLean crate SHA-256 is
+`fdc1fc344571357394da9292580af798d4f1a297213885e044aee44dbb6940ca`,
+bound to source `3e79a5a0e7059dc3a425aa17010e0a6721b24c44` and source tree
+`8a47aa0d8aea3d2ef5a542853f9694f999496979`. No generated package bytes were
+recreated from those digest strings or imported from this failed run.
+
+Seven Rust source-audit tests cover the exact positive fixture, changed adapter
+bytes, extra pinned Lean and lakefile paths, PrismPM-owned Lean, wrong revision,
+wrong crate path, dirty provenance, missing archive/tree registration and a
+missing manifest, plus symlinked repository/vendor ancestors on Unix. The
+preparation workflow executes these focused tests before
+regeneration; complete V&V still executes the complete workspace suite. Local
+Rust execution is unavailable, so these new tests and the corrected hosted
+preparation remain unverified until their actual runs complete. The unchanged
+Node preparation suite passes 10/10 locally; it is not Rust-gate evidence.

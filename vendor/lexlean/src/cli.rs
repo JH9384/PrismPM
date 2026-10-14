@@ -73,8 +73,9 @@ enum CommandKind {
         /// The Lean module prefix.
         #[arg(long)]
         module_prefix: String,
-        /// Fixed source-language version. Language 1.1 creates a source-free
-        /// Lake workspace; 1.0 retains the historical host-module skeleton.
+        /// Fixed source-language version. Languages 1.1 and 1.2 create a
+        /// source-free Lake workspace; 1.0 retains the historical
+        /// host-module skeleton.
         #[arg(long, default_value = "1.0", value_parser = ["1.0", "1.1", "1.2"])]
         language: String,
     },
@@ -673,6 +674,7 @@ fn init_project(
         lexicon_sources: vec![LexiconSource::Builtin {
             package: "lexlean.std.nat".to_owned(),
         }],
+        artifact_sources: Vec::new(),
         limits: INIT_LIMITS,
         pdf: None,
     };
@@ -790,6 +792,9 @@ fn write_skeleton(destination: &Utf8Path, files: &[(String, Vec<u8>)]) -> Result
 /// directory are the §8.3 environment diagnostic, never a panic.
 #[must_use]
 pub fn main_entry() -> i32 {
+    // Only the executable ends its children when it is interrupted: a host
+    // that calls `run` owns its signals (see `verify::lifeline`).
+    crate::verify::lifeline::arm();
     let mut stdout = std::io::stdout();
     let mut stderr = std::io::stderr();
     let mut arguments: Vec<String> = Vec::new();

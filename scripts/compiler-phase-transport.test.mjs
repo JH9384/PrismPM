@@ -107,12 +107,14 @@ test('compiler elapsed excludes diagnostic retries',()=>{
   assert.equal(JSON.parse(record.toString().slice('# prismpm-compiler-phase '.length)).elapsed_ms,12);
 });
 
-test('actual diagnostic hook preserves valid bounded JSON while stdout and stderr are active',()=>{
+for (const driver of ['browser-session-driver', 'browser-workspace-view-driver'])
+test('actual diagnostic hook preserves valid bounded JSON while stdout and stderr are active'
+  + (driver === 'browser-session-driver' ? '' : ' for workspace view'),()=>{
   const program=`import{writeSync}from'node:fs';
     import{observeCompilerPhase}from ${JSON.stringify(new URL('../tests/browser-view/compile.mjs',import.meta.url).href)};
     for(let i=0;i<512;i++){
       writeSync(1,'concurrent stdout '+i+'\\n');
-      observeCompilerPhase('/private/driver-target/debug/browser-session-driver',['verify'],performance.now(),i%2===0);
+      observeCompilerPhase(${JSON.stringify('/private/driver-target/debug/' + driver)},['verify'],performance.now(),i%2===0);
     }`;
   const environment={...process.env};delete environment.NODE_TEST_CONTEXT;
   const child=spawnSync(process.execPath,['--input-type=module','-e',program],

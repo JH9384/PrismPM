@@ -8,13 +8,16 @@ import re
 import stat
 import subprocess
 import sys
+import time
 import tomllib
 
 SOURCE = Path("/workspace")
 BASE = Path("/opt/prismpm/cargo-home")
 FETCH = Path("/tmp/prismpm-golden-fetch/cache")
 OUTPUT = Path("/tmp/prismpm-dependency-supplement")
-OWNER = Path("/tmp/prismpm-golden-cargo")
+OWNER = Path("/tmp/prismpm-golden-state/cargo")
+MANIFESTS = ("Cargo.toml", "vendor/lexlean/Cargo.toml",
+             "vendor/lean4-prod/rust/Cargo.toml", "stdlib/generated/package/Cargo.toml")
 REGISTRY = "index.crates.io-1949cf8c6b5b557f"
 LIMIT = 256 * 1024 * 1024
 TOTAL = 128 * 1024 * 1024
@@ -74,7 +77,7 @@ def inputs(source):
 
     # Follow the actual workspace/path-dependency graph, not unrelated oracle
     # fixtures or symlinked packaged documentation elsewhere in the checkout.
-    pending = [source / "Cargo.toml"]
+    pending = [source / relative for relative in MANIFESTS]
     seen = set()
     while pending:
         path = Path(os.path.abspath(pending.pop()))
@@ -82,6 +85,14 @@ def inputs(source):
             continue
         seen.add(path)
         document = capture(path)
+        for ancestor in (path.parent, *path.parent.parents):
+            if not ancestor.is_relative_to(source):
+                break
+            for name in ("config", "config.toml"):
+                if ancestor == source and name == "config.toml":
+                    continue
+                require(not os.path.lexists(ancestor / ".cargo" / name),
+                        "unexpected Cargo configuration refused")
         # Cargo permits inherited workspace dependencies/lints even when the
         # package was reached through a path edge rather than as a member.
         for ancestor in path.parent.parents:
@@ -126,29 +137,39 @@ def inputs(source):
             require(set(config) <= {"alias"} and isinstance(config.get("alias", {}), dict) and
                     all(isinstance(value, str) for value in config.get("alias", {}).values()),
                     "source Cargo configuration needs explicit review")
-    require("Cargo.lock" in rows and "Cargo.toml" in rows, "workspace inputs missing")
+    require(all(relative in rows and str(Path(relative).with_name("Cargo.lock")) in rows
+                for relative in MANIFESTS), "selected workspace inputs missing")
     return rows
 
 
 def locked(source):
-    raw = regular(source / "Cargo.lock", 8 * 1024 * 1024)
-    document = tomllib.loads(raw.decode("utf-8"))
-    require(document.get("version") in {3, 4}, "unsupported Cargo lock")
     rows = {}
-    for row in document["package"]:
-        if "source" not in row:
-            continue
-        require(row["source"] == "registry+https://github.com/rust-lang/crates.io-index",
-                "only the canonical crates.io registry may be acquired")
-        name, version, checksum = row["name"], row["version"], row["checksum"]
-        require(re.fullmatch(r"[A-Za-z0-9_-]+", name) and
-                re.fullmatch(r"[A-Za-z0-9.+_-]+", version) and
-                re.fullmatch(r"[0-9a-f]{64}", checksum), "invalid locked crate identity")
-        key = f"{name}-{version}.crate"
-        require(key not in rows, "duplicate locked crate")
-        rows[key] = {"name": name, "version": version, "checksum": checksum}
+    root_hash = None
+    for relative in MANIFESTS:
+        raw = regular((source / relative).with_name("Cargo.lock"), 8 * 1024 * 1024)
+        if relative == "Cargo.toml":
+            root_hash = digest(raw)
+        document = tomllib.loads(raw.decode("utf-8"))
+        require(document.get("version") in {3, 4}, "unsupported Cargo lock")
+        seen = set()
+        for row in document["package"]:
+            if "source" not in row:
+                continue
+            require(row["source"] == "registry+https://github.com/rust-lang/crates.io-index",
+                    "only the canonical crates.io registry may be acquired")
+            name, version, checksum = row["name"], row["version"], row["checksum"]
+            require(re.fullmatch(r"[A-Za-z0-9_-]+", name) and
+                    re.fullmatch(r"[A-Za-z0-9.+_-]+", version) and
+                    re.fullmatch(r"[0-9a-f]{64}", checksum), "invalid locked crate identity")
+            key = f"{name}-{version}.crate"
+            require(key not in seen, "duplicate locked crate")
+            seen.add(key)
+            selected = {"name": name, "version": version, "checksum": checksum}
+            require(key not in rows or rows[key] == selected,
+                    "independent locked crate identities conflict")
+            rows[key] = selected
     require(0 < len(rows) <= 4096, "locked crate count bound exceeded")
-    return digest(raw), rows
+    return root_hash, rows
 
 
 def index_path(name):
@@ -293,8 +314,13 @@ if __name__ == "__main__":
     if sys.argv[1] == "prepare":
         before = inputs(SOURCE)
         locked(SOURCE)
-        subprocess.run(["cargo", "fetch", "--locked", "--manifest-path", "/workspace/Cargo.toml"],
-                       cwd=SOURCE, check=True, timeout=600)
+        deadline = time.monotonic() + 600
+        for relative in MANIFESTS:
+            remaining = deadline - time.monotonic()
+            require(remaining > 0, "complete Cargo acquisition deadline exceeded")
+            subprocess.run(["cargo", "fetch", "--locked", "--manifest-path", str(SOURCE / relative)],
+                           cwd=SOURCE, check=True, timeout=remaining)
+            require(inputs(SOURCE) == before, "source changed during Cargo acquisition")
         require(inputs(SOURCE) == before, "source changed during Cargo acquisition")
         supplement(SOURCE, BASE, FETCH, OUTPUT)
     else:

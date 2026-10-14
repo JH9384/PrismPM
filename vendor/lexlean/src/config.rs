@@ -168,6 +168,17 @@ pub struct PdfProvider {
     pub resources: Vec<String>,
 }
 
+/// Language 1.2: one content-addressed model artifact (§10.1, §17.12): a
+/// confined regular project file whose bytes have exactly this SHA-256.
+/// Model declarations name artifacts by digest only, never by path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArtifactSource {
+    /// The SHA-256 of the file's bytes.
+    pub sha256: Sha256Digest,
+    /// The project-relative file.
+    pub path: String,
+}
+
 /// The validated project configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectConfig {
@@ -189,6 +200,8 @@ pub struct ProjectConfig {
     pub lean_workspace: String,
     /// Configured lexicon sources, sorted by package.
     pub lexicon_sources: Vec<LexiconSource>,
+    /// Language 1.2: model artifact sources, sorted by digest.
+    pub artifact_sources: Vec<ArtifactSource>,
     /// The explicit resource policy.
     pub limits: Limits,
     /// The optional PDF provider.
@@ -210,6 +223,8 @@ struct RawProject {
     lean_toolchain: String,
     #[serde(rename = "lexicon_source")]
     lexicon_sources: Vec<RawLexiconSource>,
+    #[serde(default, rename = "artifact_source")]
+    artifact_sources: Option<Vec<RawArtifactSource>>,
     limits: Limits,
     pdf: Option<RawPdf>,
 }
@@ -227,6 +242,13 @@ struct RawLexiconSource {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct RawArtifactSource {
+    sha256: String,
+    path: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct RawPdf {
     mode: String,
     program: String,
@@ -240,6 +262,59 @@ struct RawPdf {
 
 fn config_error(path: &str, message: impl Into<String>) -> Diagnostic {
     Diagnostic::new(code!("LLC0101"), message).with_span(Span::whole_file(path))
+}
+
+/// The Lean roots this compiler ships or generates beside a project's own:
+/// the certificate library (`LexLeanPreservation`), the certificates and
+/// their audit (`LexLeanPreserve`, `LexLeanAudit`), the runtime and the model
+/// and collection helpers its generated modules open (`LexLeanRuntime`,
+/// `LexLeanCollections`, `LexLeanModels`, `LexLeanReasoning`, `LexLeanCore`), and what the
+/// extraction and the probes compile (`LexLeanExtract`, `LexLeanProbe`,
+/// `LexLeanIdentityProbe`, `LexLeanTokenProbe`).
+/// `LexLeanTarget`, the root of the calculus modules the library imports, is
+/// the one a project may take (the compiler's own project does), but not for
+/// a module with a production root: see [`SHIPPED_TARGET_ROOT`].
+pub const SHIPPED_ROOTS: [&str; 12] = [
+    "LexLeanAudit",
+    "LexLeanCollections",
+    "LexLeanCore",
+    "LexLeanExtract",
+    "LexLeanIdentityProbe",
+    "LexLeanModels",
+    "LexLeanPreservation",
+    "LexLeanPreserve",
+    "LexLeanProbe",
+    "LexLeanReasoning",
+    "LexLeanRuntime",
+    "LexLeanTokenProbe",
+];
+
+/// The root of the calculus modules that the certificate library imports.
+/// A project may name its modules under it, but the certificates of a root
+/// of such a project would import its module as the library's: its modules
+/// have no production root.
+pub const SHIPPED_TARGET_ROOT: &str = "LexLeanTarget";
+
+/// Whether `root` is a module root a project may not take as the first
+/// segment of its `module_prefix`: the roots of the pinned toolchain's
+/// libraries (a module `Lean.Main` would be found beside `Lean.Elab`, and
+/// `leanchecker` replays against the toolchain's `Lean`), `IO`, a namespace
+/// of Lean's prelude that generated Lean refuses to name, and the roots this
+/// compiler ships or generates ([`SHIPPED_ROOTS`]).
+#[must_use]
+pub fn is_reserved_module_root(root: &str) -> bool {
+    [
+        "Init",
+        "Std",
+        "Lean",
+        "Lake",
+        "LakeMain",
+        "LeanChecker",
+        "LeanIR",
+        "IO",
+    ]
+    .contains(&root)
+        || SHIPPED_ROOTS.contains(&root)
 }
 
 /// Is `text` a project-relative path: nonempty, `/`-separated, no leading
@@ -366,6 +441,20 @@ pub fn parse_project(path: &str, bytes: &[u8]) -> Result<ProjectConfig, Vec<Diag
         diagnostics.push(config_error(
             path,
             format!("`{}` is not a valid module prefix", raw.module_prefix),
+        ));
+    }
+    if let Some(root) = raw
+        .module_prefix
+        .split('.')
+        .next()
+        .filter(|root| is_reserved_module_root(root))
+    {
+        diagnostics.push(config_error(
+            path,
+            format!(
+                "module_prefix `{}` begins with `{root}`, a module root of the pinned Lean toolchain, a root of the Lean this compiler ships, or the namespace `IO` of its prelude, which the modules of a project would share",
+                raw.module_prefix
+            ),
         ));
     }
     if raw.lean_toolchain != crate::LEAN_TOOLCHAIN {
@@ -628,6 +717,67 @@ pub fn parse_project(path: &str, bytes: &[u8]) -> Result<ProjectConfig, Vec<Diag
         ));
     }
 
+    // Language 1.2 model artifacts: unique paths, strictly sorted by digest,
+    // never inside the build root (§10.1, §17.12).
+    let mut artifact_sources = Vec::new();
+    if let Some(raw_artifacts) = &raw.artifact_sources {
+        if raw.language != crate::LANGUAGE_1_2 {
+            diagnostics.push(config_error(
+                path,
+                format!(
+                    "artifact_source is a language-1.2 field; language {} has no model artifacts",
+                    raw.language
+                ),
+            ));
+        }
+        let mut paths = std::collections::BTreeSet::new();
+        for raw_artifact in raw_artifacts {
+            if !is_project_relative(&raw_artifact.path) {
+                diagnostics.push(config_error(
+                    path,
+                    format!(
+                        "artifact_source path `{}` is not project-relative",
+                        raw_artifact.path
+                    ),
+                ));
+            } else if is_project_relative(&raw.build_root)
+                && path_overlaps(&raw.build_root, &raw_artifact.path)
+            {
+                diagnostics.push(config_error(
+                    path,
+                    format!(
+                        "artifact_source path `{}` lies inside the build root",
+                        raw_artifact.path
+                    ),
+                ));
+            }
+            if !paths.insert(raw_artifact.path.clone()) {
+                diagnostics.push(config_error(
+                    path,
+                    format!("artifact_source path `{}` is repeated", raw_artifact.path),
+                ));
+            }
+            artifact_sources.push(ArtifactSource {
+                sha256: parse_hex64(
+                    path,
+                    "artifact_source.sha256",
+                    &raw_artifact.sha256,
+                    &mut diagnostics,
+                ),
+                path: raw_artifact.path.clone(),
+            });
+        }
+        if !raw_artifacts
+            .windows(2)
+            .all(|pair| pair[0].sha256 < pair[1].sha256)
+        {
+            diagnostics.push(config_error(
+                path,
+                "artifact_source tables must be strictly sorted by sha256",
+            ));
+        }
+    }
+
     // The optional PDF provider (§10.3, §19.7).
     let pdf = match &raw.pdf {
         None => None,
@@ -755,6 +905,7 @@ pub fn parse_project(path: &str, bytes: &[u8]) -> Result<ProjectConfig, Vec<Diag
             lockfile: raw.lockfile,
             lean_workspace: raw.lean_workspace,
             lexicon_sources: sources,
+            artifact_sources,
             limits: raw.limits,
             pdf,
         })
@@ -859,6 +1010,16 @@ impl ProjectConfig {
                 }
             }
         }
+        // Written only when present, so a project without model artifacts
+        // keeps its canonical bytes and configuration digest.
+        for artifact in &self.artifact_sources {
+            out.push_str("\n[[artifact_source]]\n");
+            out.push_str(&format!(
+                "sha256 = {}\n",
+                toml_string(&artifact.sha256.to_hex())
+            ));
+            out.push_str(&format!("path = {}\n", toml_string(&artifact.path)));
+        }
         out.push_str("\n[limits]\n");
         for (name, value) in self.limits.rows() {
             out.push_str(&format!("{name} = {value}\n"));
@@ -893,5 +1054,70 @@ impl ProjectConfig {
     #[must_use]
     pub fn config_sha256(&self) -> Sha256Digest {
         Sha256Digest::of(self.canonical_toml().as_bytes())
+    }
+}
+
+#[cfg(test)]
+mod reserved_root_tests {
+    use super::is_reserved_module_root;
+
+    /// The first segment of a module prefix may not be a module root of the
+    /// pinned toolchain or `IO`; a project's own roots, including the ones
+    /// this repository's examples use, are free.
+    #[test]
+    fn a_toolchain_root_is_reserved_and_a_project_root_is_not() {
+        for reserved in [
+            "Init",
+            "Std",
+            "Lean",
+            "Lake",
+            "LakeMain",
+            "LeanChecker",
+            "LeanIR",
+            "IO",
+            "LexLeanPreserve",
+            "LexLeanPreservation",
+            "LexLeanRuntime",
+            "LexLeanAudit",
+        ] {
+            assert!(is_reserved_module_root(reserved), "{reserved}");
+        }
+        for free in [
+            "Production",
+            "LexLeanExample",
+            "LexLeanTarget",
+            "LexLeanExamples",
+            "Leanish",
+            "Initial",
+            "Nat",
+        ] {
+            assert!(!is_reserved_module_root(free), "{free}");
+        }
+    }
+
+    /// Every root of the shipped library, of the certificates, and of the
+    /// calculus modules is reserved, or is the one documented exception.
+    #[test]
+    fn every_shipped_root_is_reserved() {
+        let library = crate::production::preserve::library().expect("the shipped library");
+        let mut roots: std::collections::BTreeSet<String> = library
+            .modules
+            .iter()
+            .filter_map(|module| module.split('.').next().map(str::to_owned))
+            .collect();
+        roots.insert(
+            crate::production::preserve::AUDIT_MODULE
+                .split('.')
+                .next()
+                .expect("a root")
+                .to_owned(),
+        );
+        roots.insert("LexLeanTarget".to_owned());
+        for root in roots {
+            assert!(
+                is_reserved_module_root(&root) || root == super::SHIPPED_TARGET_ROOT,
+                "`{root}` is a root of the shipped library and may be a module prefix"
+            );
+        }
     }
 }

@@ -1,0 +1,1060 @@
+# language/production-1.2.toml --- the closed production-eligibility registry
+# of language 1.2 (SPEC.md §17.13).
+#
+# This file is language data: it is embedded in the compiler and hashed into
+# the language-1.2 compiler-semantics ID, so changing a disposition changes
+# what LexLean accepts and therefore its identity. Every semantic construct
+# kind of `lexlean/semantic-module/2` has exactly one row; the conformance
+# suite fails when a construct has no row, when a row names no construct,
+# and when the compiler's disposition disagrees with its row.
+
+spec = "lexlean/production/1"
+
+[[target]]
+id = "rust-core"
+statement = "Safe Rust using only the core library: no heap allocation, 64-bit natural and integer representations."
+allocation = false
+natural_bits = 64
+integer_bits = 64
+
+[[target]]
+id = "rust-std"
+statement = "Safe Rust with the standard library: heap allocation, 64-bit natural and integer representations."
+allocation = true
+natural_bits = 64
+integer_bits = 64
+
+[[effect]]
+id = "allocation"
+statement = "The realization allocates heap storage; allocation failure stops it with an explicit failure."
+
+[[effect]]
+id = "overflow"
+statement = "A natural-number or mathematical-integer value outside the target width stops the realization with an explicit overflow failure; it is never wrapped or truncated."
+
+[[effect]]
+id = "recursion"
+statement = "The realization recurses to a depth bounded only by its input; exhausting the stack stops it with an explicit failure."
+
+[[construct]]
+key = "type.type"
+disposition = "formal-only"
+allocation = false
+overflow = []
+recursion = false
+note = "A universe is never a runtime value."
+
+[[construct]]
+key = "type.parameter"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Instantiated at every use; a production root has no type parameters."
+
+[[construct]]
+key = "type.nat"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Realized in the target's natural-number width."
+
+[[construct]]
+key = "type.bool"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.prop"
+disposition = "formal-only"
+allocation = false
+overflow = []
+recursion = false
+note = "A proposition is never a runtime value."
+
+[[construct]]
+key = "type.unit"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.int"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Realized in the target's integer width."
+
+[[construct]]
+key = "type.int8"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.int16"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.int32"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.int64"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.uint8"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.uint16"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.uint32"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.uint64"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.string"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.bytes"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.ordering"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.option"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.result"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.list"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.named"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Decided by the declaration row of the named type."
+
+[[construct]]
+key = "type.product"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.function"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "A second-class, non-escaping closure; never part of a production root signature."
+
+[[construct]]
+key = "type.map"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.set"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "type.contract_violation"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "A refusal is a pair of Booleans, plain data with exactly four values."
+
+[[construct]]
+key = "type.reasoning_failure"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "A reasoning failure is a pair of Booleans, plain data with exactly four values."
+
+[[construct]]
+key = "term.var"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.nat"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "The literal must fit the target's natural-number width."
+
+[[construct]]
+key = "term.integer"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "A mathematical Int literal must fit the target's integer width."
+
+[[construct]]
+key = "term.string"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.bytes"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.primitive"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.bool"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.unit"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.nil"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.cons"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.record"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.constructor"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.instance_value"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Adds the resolved instance to the runtime closure."
+
+[[construct]]
+key = "term.project"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.call"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Adds the callee instance to the runtime closure."
+
+[[construct]]
+key = "term.if"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.match"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.eq"
+disposition = "formal-only"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.le"
+disposition = "formal-only"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.lt"
+disposition = "formal-only"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.add"
+disposition = "runtime"
+allocation = false
+overflow = ["nat"]
+recursion = false
+
+[[construct]]
+key = "term.beq"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.ble"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.blt"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.and"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.prop_and"
+disposition = "formal-only"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.or"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.not"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.implies"
+disposition = "formal-only"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.iff"
+disposition = "formal-only"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.forall"
+disposition = "formal-only"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.let"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.pair"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.first"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.second"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.lambda"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.apply"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.function_ref"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Adds the referenced instance to the runtime closure."
+
+[[construct]]
+key = "term.map_literal"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.set_literal"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.graph_literal"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "term.checked_apply"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Realized through its elaboration: lets, Boolean validator calls, conditionals, and Result constructors."
+
+[[construct]]
+key = "constructor.nat_succ"
+disposition = "runtime"
+allocation = false
+overflow = ["nat"]
+recursion = false
+note = "The successor constructor of Nat is an addition of one."
+
+[[construct]]
+key = "primitive.subtract"
+disposition = "runtime"
+allocation = false
+overflow = ["int"]
+recursion = false
+
+[[construct]]
+key = "primitive.multiply"
+disposition = "runtime"
+allocation = false
+overflow = ["int", "nat"]
+recursion = false
+
+[[construct]]
+key = "primitive.quotient"
+disposition = "runtime"
+allocation = false
+overflow = ["int"]
+recursion = false
+
+[[construct]]
+key = "primitive.remainder"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.negate"
+disposition = "runtime"
+allocation = false
+overflow = ["int"]
+recursion = false
+
+[[construct]]
+key = "primitive.checked_convert"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.checked_add"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.checked_subtract"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.checked_multiply"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.checked_negate"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.checked_quotient"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.bit_and"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.bit_or"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.bit_xor"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.bit_not"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.shift_left"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.shift_right"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.append"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.length"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.index"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.slice"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.utf8_encode"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.utf8_decode"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.compare_bytes"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.equal"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.split_exact"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.join"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.parse_decimal"
+disposition = "runtime"
+allocation = false
+overflow = ["int", "nat"]
+recursion = false
+
+[[construct]]
+key = "primitive.format_decimal"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.map_insert"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.map_remove"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.map_lookup"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.map_contains"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.map_size"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.map_keys"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.map_values"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.map_entries"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.map_fold"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.set_insert"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.set_remove"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.set_contains"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.set_size"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.set_elements"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.set_union"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.set_intersection"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.set_difference"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.set_fold"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.list_fold"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.iterate"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.iterate_until"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.graph_successors"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.graph_reachable"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.graph_topological"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+
+[[construct]]
+key = "primitive.less_than"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "A key comparison."
+
+[[construct]]
+key = "declaration.structure"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "declaration.class"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "declaration.instance"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "declaration.inductive"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "declaration.inductive.recursive"
+disposition = "runtime"
+allocation = true
+overflow = []
+recursion = false
+note = "A recursive inductive is realized with heap-allocated boxes."
+
+[[construct]]
+key = "declaration.definition"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+
+[[construct]]
+key = "declaration.definition.recursive"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = true
+note = "Recursion depth is bounded only by the input."
+
+[[construct]]
+key = "declaration.theorem"
+disposition = "erased"
+allocation = false
+overflow = []
+recursion = false
+note = "Proof-only: recorded as an erased dependency, never realized."
+
+[[construct]]
+key = "declaration.artifact"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "A constant of its decoded value; the embedded bytes are never realized."
+
+[[construct]]
+key = "declaration.contract"
+disposition = "erased"
+allocation = false
+overflow = []
+recursion = false
+note = "Specification only: its predicates are propositions; its validators are ordinary definitions."
+
+[[construct]]
+key = "declaration.realization"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Realized through the ordinary definitions it elaborates to."
+
+[[construct]]
+key = "declaration.evidence"
+disposition = "erased"
+allocation = false
+overflow = []
+recursion = false
+note = "Proof-only: its claims are theorems, never realized."
+
+[[construct]]
+key = "declaration.model"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "A definition applying its realization."
+
+[[construct]]
+key = "declaration.logic"
+disposition = "erased"
+allocation = false
+overflow = []
+recursion = false
+note = "Specification only: its relation, invariant, and ranking are propositions and measures of proofs."
+
+[[construct]]
+key = "declaration.inference_rule"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Realized through its guard, conclusion, candidates, and guarded application."
+
+[[construct]]
+key = "declaration.verifier"
+disposition = "erased"
+allocation = false
+overflow = []
+recursion = false
+note = "Specification only: its check is an ordinary definition and its theorems are never realized."
+
+[[construct]]
+key = "declaration.reasoner"
+disposition = "runtime"
+allocation = false
+overflow = []
+recursion = false
+note = "Realized through the bounded loops and step types it elaborates to; its generated theorems are erased."

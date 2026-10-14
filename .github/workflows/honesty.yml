@@ -1,15 +1,17 @@
 name: Honesty Gate
 
-# Also included in both complete vv.yml passes; these checks remain additive.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
-
-permissions:
-  contents: read
+  pull_request:
 
 concurrency:
   group: honesty-${{ github.repository }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   honesty:

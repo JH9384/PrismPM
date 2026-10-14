@@ -31,16 +31,6 @@ function replaceFixture(root, path, from, to) {
   writeFileSync(target, original.replace(from, () => to));
 }
 function selectorFixture(root, options) {
-  replaceFixture(root, 'bin/cargo', "deepEqual(args,['xtask','vv'])",
-    'deepEqual(args,' + JSON.stringify(options.selectorArgs) + ')');
-  const node = readFileSync(join(root, 'bin/node'), 'utf8');
-  const rows = node.split('\n').filter(line => line.includes("if(args[0]==='--test' && args[1]==='scripts/devcontainer-init.test.mjs')"));
-  assert.equal(rows.length, 1, 'one unchanged lifecycle fixture');
-  assert.equal(rows[0].split('process.exit(0)').length, 2);
-  replaceFixture(root, 'bin/node', rows[0], rows[0].replace('process.exit(0)',
-    'process.exit(' + (options.initFailure ?? 0) + ')'));
-  writeFileSync(join(root, 'scripts/bootstrap-verify.sh'),
-    `node -e 'require("node:fs").appendFileSync("session.jsonl",JSON.stringify({kind:"bootstrap",args:process.argv.slice(1)})+"\\n")' -- "$@"\nexit ${options.bootstrapFailure ?? 0}\n`);
   if (options.refuseSdk) replaceFixture(root, 'bin/docker', "record('docker');",
     "record('docker');process.exit(97);");
 }
@@ -52,7 +42,7 @@ function completeSourceInvocation(result, args, status, image = null) {
   assert.equal(result.status, status, result.stderr);
   assert.deepEqual(result.rows.map(row => row.kind), preflightKinds, 'all three ordered preflights');
   assert.deepEqual(result.rows[0].args, ['scripts/browser-environment-preflight.mjs']);
-  assert.deepEqual(result.rows[1].args, ['--test', 'scripts/devcontainer-init.test.mjs']);
+  assert.deepEqual(result.rows[1].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs']);
   assert.deepEqual(result.rows[2].args, ['--check-source']);
   assert.deepEqual(result.rows[3].args, ['xtask', ...args]);
   assert.equal(result.rows[3].image, image);
@@ -284,7 +274,7 @@ for (const [name, from, to, args] of [
 }
 for (const [name, line, expectedKinds] of [
   ['browser readiness', 'bash scripts/browser-environment-preflight.sh\n', ['init', 'bootstrap', 'cargo']],
-  ['source lifecycle', 'node --test scripts/devcontainer-init.test.mjs\n', ['browser-ready', 'bootstrap', 'cargo']],
+  ['source lifecycle', 'node --test scripts/devcontainer-init.test.mjs scripts/reconcile-lexlean.test.mjs\n', ['browser-ready', 'bootstrap', 'cargo']],
   ['bootstrap source', 'bash scripts/bootstrap-verify.sh --check-source\n', ['browser-ready', 'init', 'cargo']],
 ]) {
   test(`actual shell mutant omitting ${name} is refused by ordered preflight witness`, t => {
@@ -297,5 +287,122 @@ for (const [name, line, expectedKinds] of [
     assert.deepEqual(result.rows.map(row => row.kind), expectedKinds);
     assert.deepEqual(result.rows.at(-1).args, ['xtask', ...args]);
     assert.throws(() => completeSourceInvocation(result, args, 0), /all three ordered preflights/);
+  });
+}
+
+// Retain every authored reconciliation-owner case alongside the existing
+// browser/selector controls. Instrumented boundaries never qualify an SDK.
+for (const first of [0, 29]) {
+  test(`exact package-api preserves preflights, owning command and exit ${first} without SDK acquisition`, t => {
+    const result = run(t, {first, expectedCargoArgs: ['xtask', 'package-api']}, ['package-api']);
+    assert.equal(result.status, first, result.stderr);
+    assert.deepEqual(result.rows.map(row => row.kind), ['browser-ready', 'init', 'bootstrap', 'cargo']);
+    assert.deepEqual(result.rows[1].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs']);
+    assert.deepEqual(result.rows[2].args, ['--check-source']);
+    assert.deepEqual(result.rows[3].args, ['xtask', 'package-api']);
+    assert.equal(result.rows[3].image, null);
+  });
+}
+for (const args of [[], ['vv'], ['package-api', 'extra'], ['package-api', ''],
+  ['PACKAGE-API'], ['Package-api'], [''], ['unknown']]) {
+  test(`non-source-only arguments retain SDK preparation: ${JSON.stringify(args)}`, t => {
+    const expectedCargoArgs = ['xtask', ...(args.length ? args : ['vv'])];
+    const result = run(t, {expectedCargoArgs}, args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.rows.filter(row => row.kind === 'build').length, 1);
+    const calls = result.rows.filter(row => row.kind === 'cargo');
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].args, expectedCargoArgs);
+    assert.equal(calls[0].image, `127.0.0.1:43567/prismpm-vv-sdk@sha256:${'b'.repeat(64)}`);
+    assert(result.rows.indexOf(calls[0]) > result.rows.findIndex(row => row.kind === 'bootstrap'));
+    assert(result.rows.some(row => row.kind === 'docker' && row.args.slice(0, 2).join(' ') === 'container rm'));
+  });
+}
+test('--with-sdk package-api retains its explicit owned SDK session', t => {
+  const result = run(t, {expectedCargoArgs: ['xtask', 'package-api']},
+    ['--with-sdk', 'cargo', 'xtask', 'package-api']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.rows.filter(row => row.kind === 'build').length, 1);
+  assert.equal(result.rows.find(row => row.kind === 'cargo').image,
+    `127.0.0.1:43567/prismpm-vv-sdk@sha256:${'b'.repeat(64)}`);
+});
+for (const [options, expectedKinds, status] of [
+  [{initFailure: 31}, ['browser-ready', 'init'], 31],
+  [{bootstrapFailure: 37}, ['browser-ready', 'init', 'bootstrap'], 37],
+]) {
+  test(`package-api cannot bypass a failed preflight: ${JSON.stringify(options)}`, t => {
+    const result = run(t, {...options, expectedCargoArgs: ['xtask', 'package-api']}, ['package-api']);
+    assert.equal(result.status, status, result.stderr);
+    assert.deepEqual(result.rows.map(row => row.kind), expectedKinds);
+  });
+}
+test('exact package-api preserves an independently supplied immutable SDK reference', t => {
+  const image = `ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:${'c'.repeat(64)}`;
+  const result = run(t, {image, expectedCargoArgs: ['xtask', 'package-api']}, ['package-api']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(result.rows.map(row => row.kind), ['browser-ready', 'init', 'bootstrap', 'cargo']);
+  assert.equal(result.rows[3].image, image);
+});
+
+for (const category of ['holo-stdlib', 'desktop-browser']) {
+  const args = ['conformance', category];
+  const expectedCargoArgs = ['xtask', ...args];
+  for (const first of [0, 29]) {
+    test(`exact source-only ${category} preserves both preflights and cargo exit ${first}`, t => {
+      const result = run(t, {first, expectedCargoArgs}, args);
+      assert.equal(result.status, first, result.stderr);
+      assert.deepEqual(result.rows.map(row => row.kind), ['browser-ready', 'init', 'bootstrap', 'cargo']);
+      assert.deepEqual(result.rows[1].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs']);
+      assert.deepEqual(result.rows[2].args, ['--check-source']);
+      assert.deepEqual(result.rows[3].args, expectedCargoArgs);
+      assert.equal(result.rows[3].image, null);
+    });
+  }
+  for (const [options, expectedKinds, status] of [
+    [{initFailure: 31}, ['browser-ready', 'init'], 31],
+    [{bootstrapFailure: 37}, ['browser-ready', 'init', 'bootstrap'], 37],
+  ]) {
+    test(`source-only ${category} cannot bypass failed preflight ${status}`, t => {
+      const result = run(t, {...options, expectedCargoArgs}, args);
+      assert.equal(result.status, status, result.stderr);
+      assert.deepEqual(result.rows.map(row => row.kind), expectedKinds);
+    });
+  }
+  test(`source-only ${category} preserves a supplied immutable image without Docker changes`, t => {
+    const image = `ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:${'c'.repeat(64)}`;
+    const result = run(t, {image, expectedCargoArgs}, args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.rows.map(row => row.kind), ['browser-ready', 'init', 'bootstrap', 'cargo']);
+    assert.deepEqual(result.rows[3].args, expectedCargoArgs);
+    assert.equal(result.rows[3].image, image);
+  });
+  test(`explicit --with-sdk ${category} still creates its owned immutable SDK session`, t => {
+    const result = run(t, {expectedCargoArgs}, ['--with-sdk', 'cargo', ...expectedCargoArgs]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.rows.filter(row => row.kind === 'build').length, 1);
+    const call = result.rows.find(row => row.kind === 'cargo');
+    assert.deepEqual(call.args, expectedCargoArgs);
+    assert.equal(call.image, `127.0.0.1:43567/prismpm-vv-sdk@sha256:${'b'.repeat(64)}`);
+  });
+}
+
+for (const args of [
+  ['conformance'], ['conformance', 'all'], ['conformance', 'contracts'],
+  ['conformance', 'core'], ['conformance', 'system-oci'],
+  ['conformance', 'verification-schemas'], ['CONFORMANCE', 'holo-stdlib'],
+  ['conformance', 'Holo-stdlib'], ['conformance', 'Desktop-browser'],
+  ['conformance', 'holo-stdlib', 'extra'], ['conformance', 'holo-stdlib', ''],
+  ['conformance', 'desktop-browser', 'extra'], ['conformance', 'desktop-browser', ''],
+]) {
+  test(`image-consuming or nonexact category arguments retain acquisition: ${JSON.stringify(args)}`, t => {
+    const expectedCargoArgs = ['xtask', ...args];
+    const result = run(t, {expectedCargoArgs}, args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.rows.filter(row => row.kind === 'build').length, 1);
+    const calls = result.rows.filter(row => row.kind === 'cargo');
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].args, expectedCargoArgs);
+    assert.equal(calls[0].image, `127.0.0.1:43567/prismpm-vv-sdk@sha256:${'b'.repeat(64)}`);
+    assert(result.rows.indexOf(calls[0]) > result.rows.findIndex(row => row.kind === 'bootstrap'));
   });
 }

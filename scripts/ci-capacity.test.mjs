@@ -24,8 +24,16 @@ const commands = [
   ['Packaging, API & Upstream Conformance', 120, './scripts/vv.sh package-api'],
 ];
 
+function sourceEvents(name, value) {
+  const expected = ['ci-parallel', 'honesty', 'reproducibility'].includes(name)
+    ? {pull_request: null, push: {branches: ['main']}, workflow_dispatch: null}
+    : name === 'vv' ? {push: {branches: ['main']}, workflow_dispatch: null}
+      : {workflow_dispatch: null};
+  assert.deepEqual(value.on, expected, name + ': complete source trigger contract');
+}
+
 function parallelContract(value) {
-  assert.deepEqual(Object.keys(value.on), ['workflow_dispatch']);
+  sourceEvents('ci-parallel', value);
   assert.deepEqual(Object.keys(value.jobs), ['gate']);
   const job = value.jobs.gate;
   assert.equal(job.name, '${{ matrix.name }}');
@@ -66,7 +74,7 @@ test('parallel policy refuses missing, duplicated, weakened or unbounded executi
     v => v.jobs.gate.if = 'false',
     v => v.jobs.extra = v.jobs.gate,
     v => v.on.pull_request = {},
-    v => v.on.push = {branches: ['main']},
+    v => v.on.push = {branches: ['other']},
   ]) {
     const value = structuredClone(original); mutate(value);
     assert.throws(() => parallelContract(value));
@@ -76,16 +84,38 @@ test('parallel policy refuses missing, duplicated, weakened or unbounded executi
 test('read-only source workflows supersede by repository and ref, never unique run ID', () => {
   for (const name of ['ci-parallel', 'vv', 'bootstrap', 'reproducibility', 'honesty']) {
     const value = workflow(name);
-    if (name !== 'vv') {
-      // All original commands remain available for manual diagnosis; the two
-      // complete normative passes alone own automatic aggregate acceptance.
-      assert.deepEqual(Object.keys(value.on), ['workflow_dispatch']);
-    }
+    sourceEvents(name, value);
     assert.equal(value.concurrency['cancel-in-progress'], true);
     assert(value.concurrency.group.includes('github.repository'));
     assert(value.concurrency.group.includes('github.ref'));
     assert(!value.concurrency.group.includes('github.run_id'));
     assert.deepEqual(value.permissions, {contents: 'read'});
+  }
+});
+
+test('source trigger policy refuses missing filtered broadened or redundant execution', () => {
+  for (const name of ['ci-parallel', 'honesty', 'reproducibility', 'vv', 'bootstrap']) {
+    const original = workflow(name);
+    const mutations = [
+      value => delete value.on.workflow_dispatch,
+      value => value.on.schedule = [{cron: '* * * * *'}],
+      value => value.on.pull_request_target = null,
+    ];
+    if (['ci-parallel', 'honesty', 'reproducibility'].includes(name)) {
+      mutations.push(value => delete value.on.pull_request,
+        value => value.on.pull_request = {branches: ['main']},
+        value => value.on.pull_request = {paths: ['src/**']});
+    } else mutations.push(value => value.on.pull_request = null);
+    if (name !== 'bootstrap') {
+      mutations.push(value => delete value.on.push,
+        value => value.on.push = null,
+        value => value.on.push = {branches: ['main', 'other']},
+        value => value.on.push = {branches: ['main'], paths: ['src/**']});
+    } else mutations.push(value => value.on.push = {branches: ['main']});
+    for (const mutate of mutations) {
+      const value = structuredClone(original); mutate(value);
+      assert.throws(() => sourceEvents(name, value), name);
+    }
   }
 });
 

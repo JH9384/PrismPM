@@ -4,13 +4,14 @@ use crate::contracts::CanonicalDocument;
 use crate::error::PrismError;
 use crate::holo::canonical::encode_value;
 use lexlean::SemanticSnapshot;
-use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) mod browser;
 
-const INGRESS_NGINX_KIND: &[u8] = include_bytes!("../adapters/ingress-nginx-kind-v1.15.1.yaml");
+// Generated from the unchanged, digest-pinned upstream YAML by the registered
+// js-yaml projection writer. This is not an arbitrary YAML parsing interface.
+const INGRESS_NGINX_KIND: &[u8] = include_bytes!("../adapters/ingress-nginx-kind-v1.15.1.json");
 
 // Production.SystemValidation.modelEntityCount counts the product plus these
 // collections; modelIdsGloballyUnique checks that same complete identity set.
@@ -2226,20 +2227,13 @@ fn ingress_controller_resources(target: &Value) -> Result<Vec<Value>, PrismError
     if target["ingress_class_name"].is_null() {
         return Ok(Vec::new());
     }
-    let mut resources = serde_yaml::Deserializer::from_slice(INGRESS_NGINX_KIND)
-        .map(|document| {
-            Value::deserialize(document).map_err(|error| {
-                PrismError::new(
-                    "PP7101",
-                    format!("pinned ingress controller manifest: {error}"),
-                )
-            })
-        })
-        .filter_map(|result| match result {
-            Ok(Value::Null) => None,
-            other => Some(other),
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut resources: Vec<Value> =
+        serde_json::from_slice(INGRESS_NGINX_KIND).map_err(|error| {
+            PrismError::new(
+                "PP7101",
+                format!("pinned ingress controller manifest: {error}"),
+            )
+        })?;
     // The pinned ingress manifest spells the empty ConfigMap as `data: null`.
     // Emit an empty map, as required by the authoritative core/v1 schema;
     // preserve the imported source and every configured value unchanged.
@@ -2955,17 +2949,16 @@ mod tests {
 
     #[test]
     fn ingress_projection_normalizes_only_empty_configmap_data() {
-        use serde::Deserialize;
         use serde_json::Value;
 
         let resources = super::ingress_controller_resources(&json!({
             "ingress_class_name": "nginx"
         }))
         .unwrap();
-        let imported = serde_yaml::Deserializer::from_slice(super::INGRESS_NGINX_KIND)
-            .map(|document| Value::deserialize(document).unwrap())
-            .filter(|document| !document.is_null())
-            .collect::<Vec<_>>();
+        // The registered Node owner separately checks this entire unnormalized
+        // array against the pinned YAML, including order and every value.
+        let imported: Vec<Value> = serde_json::from_slice(super::INGRESS_NGINX_KIND).unwrap();
+        assert_eq!(imported.len(), 19);
         assert_eq!(resources.len(), imported.len());
         let mut normalized = 0;
         for (actual, mut original) in resources.into_iter().zip(imported) {
@@ -2982,6 +2975,12 @@ mod tests {
         assert!(super::ingress_controller_resources(&json!({}))
             .unwrap()
             .is_empty());
+        assert_eq!(
+            super::ingress_controller_resources(&json!({"ingress_class_name": "unknown"}))
+                .unwrap_err()
+                .code,
+            "PP7101"
+        );
     }
 
     #[test]

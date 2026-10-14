@@ -401,11 +401,10 @@ test('all observed workflows retain their full gates, always stop/upload, and ke
   assert.match(readFileSync(join(repository, 'xtask/src/main.rs'), 'utf8'), /"scripts\/ci-observe\.test\.mjs"/);
 });
 
-test('one normative workflow owns automatic complete acceptance on PRs and main', () => {
+test('one normative workflow owns complete main acceptance and source owners cover every PR', () => {
   const names = ['bootstrap.yml', 'ci-parallel.yml', 'honesty.yml', 'reproducibility.yml'];
   const check = (normative, diagnostics) => {
-    assert.deepEqual(Object.keys(normative.on).sort(), ['pull_request', 'push', 'workflow_dispatch']);
-    for (const event of ['pull_request', 'push']) assert.deepEqual(normative.on[event], {branches: ['main']});
+    assert.deepEqual(normative.on, {push: {branches: ['main']}, workflow_dispatch: null});
     assert.deepEqual(normative.permissions, {contents: 'read'});
     assert.deepEqual(normative.concurrency, {
       group: 'vv-${{ github.repository }}-${{ github.ref }}',
@@ -426,13 +425,15 @@ test('one normative workflow owns automatic complete acceptance on PRs and main'
       + 'node scripts/ci-observe.mjs run target/ci-diagnostics/vv-first -- just vv\n'
       + 'node scripts/ci-observe.mjs run target/ci-diagnostics/vv-second -- just vv\n'
       + 'PRISMPM_VV\n)"\n');
-    for (const diagnostic of diagnostics) assert.deepEqual(Object.keys(diagnostic.on), ['workflow_dispatch']);
+    for (const [index, diagnostic] of diagnostics.entries()) assert.deepEqual(diagnostic.on,
+      index === 0 ? {workflow_dispatch: null}
+        : {push: {branches: ['main']}, workflow_dispatch: null, pull_request: null});
   };
   const normative = workflow('vv.yml'), diagnostics = names.map(workflow);
   check(normative, diagnostics);
   for (const alter of [
-    value => { delete value.on.pull_request; },
-    value => { value.on.pull_request.paths = ['crates/**']; },
+    value => { delete value.on.push; },
+    value => { value.on.pull_request = {paths: ['crates/**']}; },
     value => { value.jobs.vv.if = 'false'; },
     value => { value.jobs.vv['continue-on-error'] = true; },
     value => { value.jobs.vv.steps.find(step => step.with?.runCmd).if = 'false'; },
@@ -450,5 +451,9 @@ test('one normative workflow owns automatic complete acceptance on PRs and main'
   for (let index = 0; index < diagnostics.length; index++) {
     const changed = structuredClone(diagnostics); changed[index].on.pull_request = {};
     assert.throws(() => check(normative, changed));
+    if (index > 0) for (const event of ['pull_request', 'push', 'workflow_dispatch']) {
+      const omitted = structuredClone(diagnostics); delete omitted[index].on[event];
+      assert.throws(() => check(normative, omitted));
+    }
   }
 });

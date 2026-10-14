@@ -24,6 +24,7 @@ export function frozenInputs() {
     'tests/browser-view/compile.mjs', 'tests/browser-view/driver-cache.mjs',
     'tests/browser-view/compiler-owner.mjs', 'tests/browser-view/compiler-artifact.mjs',
     'tests/browser-view/compiler-owner-checks.mjs',
+    'tests/browser-view/verification-products.mjs',
     'tests/browser-view/prerequisites.mjs', 'sdk/browser/effects-module.mjs',
     'sdk/browser/effects-wire.mjs', 'sdk/browser/identity.mjs',
     'crates/prismpm/src/lifecycle.rs', 'model/publication-admission-diagnostics.json',
@@ -67,6 +68,7 @@ function pins() {
 }
 
 export function prepare(mutation = null, inputs = frozenInputs(), compilerOwner = null) {
+  const started = performance.now();
   assert.deepEqual(frozenInputs(), inputs, 'complete owning input closure changed before compilation');
   assert.ok([null, 'binding', 'coverage', 'timeline', 'trailing', 'preimage', 'partition'].includes(mutation));
   for (const key of Object.keys(process.env)) assert.ok(!key.startsWith('PRISMPM_PUBLICATION_'), 'publication acceptance refuses bypass ' + key);
@@ -190,6 +192,14 @@ export function prepare(mutation = null, inputs = frozenInputs(), compilerOwner 
     assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);
     for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'retained source ' + module);
     assert.deepEqual(frozenInputs(), inputs, 'complete owning input closure changed after compilation');
+    const verifyEvidence = () => {
+      assert.deepEqual(frozenInputs(), inputs, 'complete retained publication input closure');
+      assert.deepEqual(readFileSync(join(verified.root, 'build-manifest.json')), manifestBytes);
+      assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);
+      assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+      for (const [module, bytes] of originals)
+        assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'retained model source ' + module);
+    };
     // Borrowed tools stay live only in this serial owner. Every model/proof/IR
     // and generated std/no_std/two-Wasm build remains fresh and independent.
     const cacheRetirement = ownsCompiler ? compiler.close() : null;
@@ -197,8 +207,10 @@ export function prepare(mutation = null, inputs = frozenInputs(), compilerOwner 
     for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'post-retirement source ' + module);
     assert.deepEqual(readFileSync(join(verified.root, 'build-manifest.json')), manifestBytes);
     assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);
+    verifyEvidence();
     completed = true;
     return {work, sources, verified, generation, compileNative, runner, wasmBytes: guests[0], cacheRetirement,
+      verifyEvidence, preparationMs: performance.now() - started,
       compiler: {identity: compiler.identity, evidence: compiler.evidence}};
   } finally { if (!completed) process.stderr.write('Retained incomplete publication diagnostic build ' + work + '\n'); }
 }

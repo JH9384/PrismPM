@@ -3,8 +3,11 @@ import test from 'node:test';
 import {createCompilerOwner, requireCompilerOwner} from '../../tests/browser-view/compiler-owner.mjs';
 import {verifyWire, replayBrowser, verifyModelMutation, verifyInventory, prerequisite} from '../../tests/browser-presentation/checks.mjs';
 import {verifyJourneys, verifyMutants, verifyMaximum} from '../../tests/browser-presentation/browser.mjs';
+import {frozenInputs, assertFrozenInputs} from '../../tests/browser-presentation/compile.mjs';
+import {captureVerificationProducts} from '../../tests/browser-view/verification-products.mjs';
 
 test('DK-23 actual generated closed presentation and private browser execution', {timeout: 3500000}, async t => {
+  const inputs = frozenInputs();
   const mask = process.umask();
   let owner;
   try { owner = createCompilerOwner('presentation'); }
@@ -32,7 +35,12 @@ test('DK-23 actual generated closed presentation and private browser execution',
     verifyModelMutation(kind, build);
   });
   build.unchanged();
+  const products = captureVerificationProducts(build.work, 'presentation');
   const retirement = owner.close();
+  assert.deepEqual(captureVerificationProducts(build.work, 'presentation'), products,
+    'complete generated products unchanged through compiler retirement');
+  assertFrozenInputs(inputs);
+  build.verifyEvidence();
   assert.throws(() => requireCompilerOwner(owner, 'presentation'), /compiler owner closed/);
   assert.throws(() => owner.close(), /compiler owner closed/);
   t.diagnostic(JSON.stringify({compiler: owner.evidence, substitutions, retirement}));

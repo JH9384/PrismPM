@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -330,4 +330,65 @@ test('tracked source manifest changes for changed bytes, added tracked paths and
     assert.throws(() => sourceManifest(root), /not a bounded regular file/);
     assert.throws(() => canonical(JSON.parse('{"n":9007199254740993}')), /unsafe JSON integer/);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+function bootstrapLockProbe(source, status = 0) {
+  const block = source.match(/^if ! cargo run[^\n]*[\s\S]*?\$root\/vendor\/lexlean\/Cargo\.toml[\s\S]*?^fi$/m);
+  assert(block, 'bootstrap must retain its owning LexLean lock command');
+  const directory = mkdtempSync(join(tmpdir(), 'prismpm-bootstrap-lock-probe.'));
+  try {
+    const root = join(directory, 'source with spaces');
+    const work = join(directory, 'private work with spaces');
+    const bin = join(directory, 'bin');
+    const capture = join(directory, 'argv.json');
+    mkdirSync(join(root, 'vendor/lexlean'), { recursive: true });
+    mkdirSync(join(work, 'envelope'), { recursive: true });
+    mkdirSync(bin);
+    // Invocation/fault-injection fixture only; it is not a compiler or
+    // bootstrap acceptance oracle. Execute the actual unchanged shell block.
+    writeFileSync(join(bin, 'cargo'), `#!${process.execPath}\nimport fs from 'node:fs';\nfs.writeFileSync(process.env.CAPTURE, JSON.stringify(process.argv.slice(2)));\nprocess.exit(Number(process.env.PROBE_STATUS));\n`, { mode: 0o755 });
+    const script = join(directory, 'lock.sh');
+    writeFileSync(script, `set -euo pipefail\nroot=$1\nwork=$2\nenvelope="$work/envelope"\n${block[0]}\n`);
+    const result = spawnSync('/bin/bash', [script, root, work], {
+      timeout: 10000, maxBuffer: 65536,
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CAPTURE: capture,
+        PROBE_STATUS: String(status), CARGO_TARGET_DIR: join(root, 'vendor/lexlean/target') }
+    });
+    assert.equal(result.error, undefined);
+    return { result, argv: JSON.parse(readFileSync(capture, 'utf8')), root, work };
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+}
+
+function validateBootstrapLockProbe({ result, argv, root, work }) {
+  assert.equal(result.status, 0, result.stderr?.toString());
+  assert.deepEqual(argv, ['run', '--locked', '--offline', '--quiet', '--manifest-path',
+    join(root, 'vendor/lexlean/Cargo.toml'), '--target-dir', join(work, 'lexlean-target'),
+    '--', '--project', join(work, 'envelope/lexlean.toml'), 'lock']);
+}
+
+test('bootstrap LexLean lock keeps all flags and isolates compilation from the sealed package', () => {
+  const source = readFileSync(new URL('./bootstrap-verify.sh', import.meta.url), 'utf8');
+  validateBootstrapLockProbe(bootstrapLockProbe(source));
+});
+
+test('bootstrap LexLean lock preserves its owning failure boundary', () => {
+  const source = readFileSync(new URL('./bootstrap-verify.sh', import.meta.url), 'utf8');
+  const { result, argv } = bootstrapLockProbe(source, 77);
+  assert.equal(result.status, 1);
+  assert.equal(argv.at(-1), 'lock');
+});
+
+test('bootstrap LexLean lock regression rejects real target and flag mutations', () => {
+  const source = readFileSync(new URL('./bootstrap-verify.sh', import.meta.url), 'utf8');
+  for (const [before, after] of [
+    [' --locked', ''],
+    [' --offline', ''],
+    [' --target-dir "$work/lexlean-target"', ''],
+    [' --target-dir "$work/lexlean-target"', ' --target-dir "$root/vendor/lexlean/target"']
+  ]) {
+    assert.equal(source.split(before).length, before.startsWith(' --target-dir') ? 2 : 6);
+    const mutated = source.replace(before, after);
+    assert.notEqual(mutated, source);
+    assert.throws(() => validateBootstrapLockProbe(bootstrapLockProbe(mutated)), { code: 'ERR_ASSERTION' });
+  }
 });

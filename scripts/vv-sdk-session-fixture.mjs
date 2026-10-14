@@ -7,7 +7,10 @@ export function sessionFixture(root, environment = process.env, options = {}) {
   mkdirSync(join(root, 'bin'), {recursive: true});
   copyFileSync(new URL('./vv.sh', import.meta.url), join(root, 'scripts/vv.sh'));
   copyFileSync(new URL('./browser-environment-preflight.sh', import.meta.url), join(root, 'scripts/browser-environment-preflight.sh'));
-  writeFileSync(join(root, 'scripts/bootstrap-verify.sh'), 'exit 0\n');
+  writeFileSync(join(root, 'scripts/bootstrap-verify.sh'),
+    options.selectorArgs !== undefined || options.expectedCargoArgs !== undefined
+      ? `node -e 'require("node:fs").appendFileSync("session.jsonl",JSON.stringify({kind:"bootstrap",args:process.argv.slice(1)})+"\\n")' -- "$@"\nexit ${options.bootstrapFailure ?? 0}\n`
+      : 'exit 0\n');
   const executable = (name, body) => {
     const path = join(root, 'bin', name);
     writeFileSync(path, `#!${process.execPath}\n${body}\n`);
@@ -16,7 +19,7 @@ export function sessionFixture(root, environment = process.env, options = {}) {
   const preamble = `const fs=require('node:fs');const args=process.argv.slice(2);const record=(kind)=>fs.appendFileSync('session.jsonl',JSON.stringify({kind,args,image:process.env.PRISMPM_TEST_SDK_IMAGE??null})+'\\n');`;
   executable('node', preamble + `
     if(args[0]==='scripts/browser-environment-preflight.mjs'){record('browser-ready');if(${!!options.readDuringPreparation})fs.appendFileSync('preparation-stdin',fs.readFileSync(0));process.exit(${options.browserFailure ?? 0});}
-    if(args[0]==='--test' && args[1]==='scripts/devcontainer-init.test.mjs'){record('init');if(${!!options.readDuringPreparation})fs.appendFileSync('preparation-stdin',fs.readFileSync(0));process.exit(0);}
+    if(args[0]==='--test' && args[1]==='scripts/devcontainer-init.test.mjs'){record('init');if(${!!options.readDuringPreparation})fs.appendFileSync('preparation-stdin',fs.readFileSync(0));process.exit(${options.initFailure ?? 0});}
     if(args[0]==='scripts/registry-smoke.mjs'){record('registry-ready');process.exit(${options.registryFailure ?? 0});}
     if(args[0]==='scripts/sdk-image-inputs.mjs'){record('build');if(${!!options.buildFailureAfterLoad})fs.writeFileSync('loaded-tag',args.at(-1));process.exit(${options.buildFailureAfterLoad ? 43 : options.buildFailure ?? 0});}
     if(${!!options.release} && args[0]==='scripts/release-gate-evidence.mjs'){
@@ -49,7 +52,7 @@ export function sessionFixture(root, environment = process.env, options = {}) {
     if(operation==='container rm' && ${!!options.cleanupFailure})process.exit(41);
   `);
   executable('cargo', preamble + `
-    require('node:assert/strict').deepEqual(args,['xtask','vv']);record('cargo');
+    require('node:assert/strict').deepEqual(args,${JSON.stringify(options.expectedCargoArgs ?? options.selectorArgs ?? ['xtask','vv'])});record('cargo');
     const n=fs.existsSync('count')?Number(fs.readFileSync('count'))+1:1;fs.writeFileSync('count',String(n));
     process.exit(n===1?${options.first ?? 0}:${options.second ?? 0});
   `);

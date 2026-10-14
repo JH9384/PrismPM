@@ -814,11 +814,36 @@ manifest.
 
 All source/config/package inputs are confined regular files. Symlinks,
 absolute paths, traversal, hidden adjacent dependencies, generated source in
-the repository, handwritten Lean, unsafe Rust, unregistered public errors,
+the repository, handwritten PrismPM Lean, unsafe Rust, unregistered public errors,
 unbounded child output, and mutable dependency references are rejected. Build
 and verification are offline. Canonical platform-independent artifacts contain
 no absolute checkout path, hostname, locale text, random identifier, timestamp,
 or traversal-order dependence.
+
+The only imported Lean-source exception is the registered LexLean 0.3.0 package
+at reviewed revision `0865df4e540ca643b090a29e9df6d319d6906da6`. Its exact
+18-file compiler-authority closure is `language/lcnf-1.2/extract.lean` plus the
+following 17 paths under `language/preservation-1.2/`, all inside `vendor/lexlean/`:
+`library/LexLeanPreservation/{Compose,Core,Fixed,Keys,Primitives,RustBase,RustCorr,RustLemmas,RustMatches,RustSound,Templates,Validate,Values}.lean`
+and `modules/LexLeanTarget/{RustSemantics,RustSyntax,TargetSemantics,TargetSyntax}.lean`.
+These braces enumerate the named files; they are not a wildcard admission rule.
+The extraction adapter and preservation library are untouched dependency-owned
+compiler authorities, not PrismPM-authored models or proofs. Admission verifies
+the complete dependency register, package and tree checksums, exact selected
+revision and crate path, and clean package VCS provenance. It then independently
+decodes the registered archive and requires the exact 18-member Lean set and
+complete archive-member/tree-manifest membership and byte equality, including
+the package VCS file and every non-Lean file. Only the extracted tree's root
+`MANIFEST.sha256` and `lexlean-0.3.0.crate`, added by the normal package importer,
+are excluded from archive membership; no nested path or `target/` is excluded.
+Duplicate, traversing, aliased, nonregular, missing, substituted or additional
+Lean members are refused, including a separately resealed tree. Archive admission
+is bounded to 32 MiB compressed, 128 MiB expanded, 32 MiB per physical member,
+8,192 physical headers and 4,096 logical members; it rejects hidden trailing data
+and validates physical extents before interpreting GNU long-name metadata.
+Both the archive and complete LexLean tree must be registered. No other vendored
+Lean path is admitted, even when checksummed. This boundary cannot introduce
+handwritten PrismPM definitions, proofs or replacement application behavior.
 
 `cargo xtask vv` is the sole normative acceptance entry point and `just vv` is
 its alias. It performs these 15 non-mutating gates in order: formatting; model,
@@ -856,6 +881,17 @@ also owns the exporter; there is no implicit standalone temporary cache. An exec
 existence or a Lake fingerprint is not compiler-source provenance. This fresh
 construction boundary does not qualify future compiler-seed reuse or establish
 application acceptance by itself.
+
+An already constructed owner may lend its immutable compiler handle through
+the owner-scoped API only to serial requests in the same owner, registered
+family, and identical complete immutable compiler/tool input-digest closure.
+This in-process owner-scoped borrow is not a shared exporter cache or
+compiler-seed reuse: the owner retains the busy lock, performs the source,
+toolchain, runtime and executable pre/post checks, and alone controls retirement.
+Each borrower still creates its own diagnostic and output workspace and performs
+fresh model/source staging, generation, kernel, native/no_std, Core-Wasm, oracle,
+negative and final-custody checks; generated artifacts, results, evidence and SDK
+inputs are never borrowed.
 
 Browser verification drivers likewise use absent targets beneath owned private
 workspaces. They do not adopt executables from a shared Cargo target, even when
@@ -3127,7 +3163,7 @@ execution. Deployment, promotion, recovery and other operations never enter
 this cancellation group. All existing SDK inputs and outputs are preserved.
 The key is validated in a separate, non-concurrent job before the execution
 job can enter its group; invalid keys cannot cancel a valid invocation.
-The existing `TM-03` owner runs all 19 Action controls and all 10 CI-capacity
+The existing `TM-03` owner runs all 19 Action controls and all 11 CI-capacity
 controls together. The full source audit additionally owns all 26 diagnostic
 transport controls; its previous file inventory and compiler-phase controls
 remain selected. CI-capacity controls preserve all six current SDK-candidate

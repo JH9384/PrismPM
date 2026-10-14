@@ -4,6 +4,7 @@ import {join} from 'node:path';
 import {prepare, repository, draft, run, sha} from './compile.mjs';
 import {createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {verifyCompilerOwnerSubstitutions} from '../browser-view/compiler-owner-checks.mjs';
+import {captureVerificationProducts} from '../browser-view/verification-products.mjs';
 import {corpus, historyCorpus, maximumCorpus, partitionCorpus} from './corpus.mjs';
 import {prerequisite} from '../browser-view/prerequisites.mjs';
 import {executeWasm, tsv} from '../browser-effects/checks.mjs';
@@ -67,6 +68,7 @@ export function sourceClosure() {
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
     'tests/browser-view/compile.mjs', 'tests/browser-view/driver-cache.mjs', 'tests/browser-view/prerequisites.mjs',
     'tests/browser-view/compiler-artifact.mjs', 'tests/browser-view/compiler-owner-checks.mjs', 'tests/browser-view/compiler-owner.mjs',
+    'tests/browser-view/verification-products.mjs',
     'tests/browser-effects/checks.mjs', 'tests/browser-effects/compile.mjs', 'tests/browser-effects/corpus.mjs',
     'tests/browser-custody/compile.mjs', 'tests/browser-custody/checks.mjs', 'tests/browser-custody/corpus.mjs',
     'tests/browser-custody/browser.mjs', 'tests/browser-custody/browser-fixture.mjs', 'LICENSE-MIT', 'LICENSE-APACHE',
@@ -91,12 +93,14 @@ export function sourceClosure() {
       shared.push(path);
     }
   }
-  return Object.fromEntries([...local.map(file => [file, join(draft, file)]), ...shared.map(file => [file, join(repository, file)])]
+  return Object.fromEntries([...local.map(file => ['tests/browser-operation-journal/' + file, join(draft, file)]), ...shared.map(file => [file, join(repository, file)])]
     .map(([name, file]) => [name, sha(readFileSync(file))]));
 }
 
 export async function verifyWire(t, compilerOwner = null) {
   const before = sourceClosure(), bounds = verifyInventory(), vectors = [...corpus(), ...historyCorpus()];
+  if (compilerOwner) for (const [path, digest] of Object.entries(compilerOwner.evidence.inputs))
+    assert.equal(before[path], digest, 'compiler tool closure differs from frozen journal inputs');
   assert.equal(corpus().length, 68); assert.equal(historyCorpus().length, 1024);
   const maximum = maximumCorpus(), partitions = partitionCorpus(); assert.equal(maximum.length, 4); assert.equal(partitions.length, 7);
   const build = prepare(null, false, compilerOwner), file = join(build.work, 'vectors.tsv'); writeFileSync(file, tsv(vectors), {flag: 'wx'});
@@ -145,6 +149,7 @@ export function verifyModelMutation(kind, compilerOwner = null) {
 }
 
 export async function verifyOperationJournal(t) {
+  const inputs = sourceClosure();
   let build, custody, passed = false;
   try {
     const owner = createCompilerOwner('operation-journal');
@@ -161,7 +166,12 @@ export async function verifyOperationJournal(t) {
     for (const kind of ['binding', 'trailing', 'reservation', 'payload', 'partition']) await prerequisite(t, 'actual source/kernel journal mutation ' + kind, () => {
       const result = verifyModelMutation(kind, owner); assert.equal(result.compilerOwner, owner.identity); t.diagnostic(JSON.stringify(result));
     });
+    const products = captureVerificationProducts(build.work, 'operation-journal');
     const retirement = owner.close();
+    assert.deepEqual(captureVerificationProducts(build.work, 'operation-journal'), products,
+      'complete generated products unchanged through compiler retirement');
+    build.verifyEvidence();
+    assert.deepEqual(sourceClosure(), inputs, 'complete journal inputs unchanged through compiler retirement');
     assert.throws(() => requireCompilerOwner(owner, 'operation-journal'), /compiler owner closed/);
     assert.throws(() => owner.close(), /compiler owner closed/);
     t.diagnostic(JSON.stringify({compiler: owner.evidence, substitutions, retirement}));

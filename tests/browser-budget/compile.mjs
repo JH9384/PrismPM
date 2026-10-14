@@ -22,6 +22,7 @@ export function frozenInputs() {
     'crates/prismpm/src/holo/browser_application.rs',
     'tests/browser-view/compile.mjs','tests/browser-view/driver-cache.mjs','tests/browser-view/prerequisites.mjs',
     'tests/browser-view/compiler-owner.mjs','tests/browser-view/compiler-artifact.mjs','tests/browser-view/compiler-owner-checks.mjs',
+    'tests/browser-view/verification-products.mjs',
     'tests/fixtures/library/native-library/project/lexlean.toml',
     'model/dependencies.toml','model/authorities.toml','lean-toolchain','rust-toolchain.toml','LICENSE-MIT','LICENSE-APACHE',
     'vendor/lean4-prod/lean.tar','vendor/lean4-prod/rust/MANIFEST.sha256','vendor/lexlean/MANIFEST.sha256',
@@ -100,6 +101,8 @@ export function prepare(mutation, inputs, compilerOwner = null) {
   for (const key of Object.keys(process.env)) assert.ok(!key.startsWith('PRISMPM_BUDGET_'), 'budget acceptance refuses bypass ' + key);
   assertFrozenInputs(inputs);
   const shared = compilerOwner === null ? null : requireCompilerOwner(compilerOwner, 'budget');
+  if (shared) for (const [path, digest] of Object.entries(shared.evidence.inputs))
+    assert.equal(inputs[path], digest, 'compiler tool closure differs from frozen budget inputs');
   const work = mkdtempSync(join(tmpdir(), 'prismpm-budget-'));
   const sourcePath = name => join(name === 'Fixture' ? draft : join(repository, 'stdlib'), 'src', ...name.split('.')) + '.lex.tex';
   const sources = new Map(modules.map(name => [name, readFileSync(sourcePath(name))]));
@@ -216,8 +219,17 @@ export function prepare(mutation, inputs, compilerOwner = null) {
     const cacheRetirement = shared ? null : retireCompletedCompilerCaches(work, 'budget');
     if (shared) shared.verify(); else compiler.unchanged(); assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
     assertFrozenInputs(inputs);
+    const verifyEvidence = () => {
+      assertFrozenInputs(inputs);
+      assert.deepEqual(readFileSync(join(verified.root, 'build-manifest.json')), manifestBytes);
+      assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);
+      assert.equal(generation.ir_sha256, sha(readFileSync(ir)));
+      for (const [module, bytes] of originals)
+        assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'retained model source ' + module);
+    };
+    verifyEvidence();
     completed = true;
     return {work, sources, verified, generation, compileNative, runner, wasmBytes: guests[0], cacheRetirement,
-      compilerOwner: shared?.identity ?? null, preparationMs: performance.now() - started};
+      compilerOwner: shared?.identity ?? null, preparationMs: performance.now() - started, verifyEvidence};
   } finally { if (!completed) process.stderr.write('Retained incomplete budget diagnostic build ' + work + '\n'); }
 }

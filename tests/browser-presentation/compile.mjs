@@ -36,7 +36,7 @@ export function frozenInputs() {
     ...['compile.mjs', 'prerequisites.mjs', 'compiler-owner.mjs', 'compiler-owner-checks.mjs',
       'compiler-owner.test.mjs', 'compiler-artifact.mjs', 'compiler-artifact.test.mjs',
       'generated-package.mjs', 'generated-package.test.mjs', 'generated-wasm.mjs',
-      'generated-wasm.test.mjs', 'driver-cache.mjs'].map(path => 'tests/browser-view/' + path),
+      'generated-wasm.test.mjs', 'driver-cache.mjs', 'verification-products.mjs'].map(path => 'tests/browser-view/' + path),
     'tests/browser-view/file-custody.mjs', 'tests/browser-view/file-custody.test.mjs',
     'tests/fixtures/library/native-library/project/lexlean.toml', 'model/authorities.toml',
     'model/dependencies.toml', 'rust-toolchain.toml', 'lean-toolchain', 'LICENSE-MIT', 'LICENSE-APACHE',
@@ -116,10 +116,13 @@ export function checkSource() {
 }
 export const prepare = (mutation, baseline, inputs, compiler) => prepareStage(mutation, false, baseline, inputs, compiler);
 function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
+  const started = performance.now();
   assert.ok([null, 'binding', 'trailing', 'secretbound', 'secretroute', 'progress'].includes(mutation));
   for (const key of Object.keys(process.env)) assert.ok(!key.startsWith('PRISMPM_PRESENTATION_'), 'presentation acceptance refuses bypass ' + key);
   assertFrozenInputs(inputs);
   const compiler = requireCompilerOwner(compilerOwner, 'presentation');
+  for (const [path, digest] of Object.entries(compiler.evidence.inputs))
+    assert.equal(inputs[path]?.sha256, digest, 'compiler tool closure differs from frozen presentation inputs');
   const work = mkdtempSync(join(tmpdir(), 'prismpm-presentation-'));
   const sourcePath = name => join(name === 'Fixture' ? draft : join(repository, 'stdlib'), 'src', ...name.split('.')) + '.lex.tex';
   const sources = new Map(modules.map(name => [name, capturedInput(modulePath(name), inputs)]));
@@ -258,8 +261,8 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
       assert.deepEqual(nativeIdentity(record.path, '1'), record.privateIdentity, 'immutable actual presentation observer');
       return record.path;
     }
-    function unchanged() {
-      requireCompilerOwner(compiler, 'presentation'); assertFrozenInputs(inputs);
+    function verifyEvidence() {
+      assertFrozenInputs(inputs);
       for (const package_ of packages.values()) package_.verify();
       for (const artifact of artifacts.values()) artifact.verify();
       for (const record of nativePrograms.values()) checkedNative(record);
@@ -272,6 +275,11 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
         manifestBytes: readFileSync(join(verified.root, 'build-manifest.json')),
         attestationBytes: readFileSync(join(verified.root, 'attestation.json')),
         generated: readLean(join(verified.root, 'modules')), staged: readLean(lean), outputs: readOutputs()});
+      for (const [module, bytes] of originals)
+        assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'retained model source ' + module);
+    }
+    function unchanged() {
+      requireCompilerOwner(compiler, 'presentation'); verifyEvidence();
     }
     function compileNative(standard) {
       assert.equal(typeof standard, 'boolean'); unchanged();
@@ -315,7 +323,8 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
     unchanged();
     for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'frozen source ' + module);
     completed = true;
-    const fixed = {work, sources, verified, generation, compileNative, runNative, unchanged, inputs, compilerOwner: compiler,
+    const fixed = {work, sources, verified, generation, compileNative, runNative, unchanged, verifyEvidence,
+      preparationMs: performance.now() - started, inputs, compilerOwner: compiler,
       provenance: provenance.evidence,
       generatedPackages: Object.freeze(Object.fromEntries([...packages].map(([name, value]) => [name, value.files]))),
       wasmArtifacts: Object.freeze(Object.fromEntries(artifacts)),

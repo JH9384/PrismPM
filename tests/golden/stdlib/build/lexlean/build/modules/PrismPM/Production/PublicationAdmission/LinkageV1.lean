@@ -513,7 +513,7 @@ public structure PublicationPreimages where
 
 @[expose] public def publicationLinkagePublicationFilesAt (items : PublicationFiles) (offset : Nat) : Option (PublicationFile) := publicationLinkagePublicationFilesAtChunks ((items).chunks) (offset) (256)
 
-@[expose] public def publicationLinkageTextLess (left : String) (right : String) : Bool := (LexLeanRuntime.equal ((LexLeanRuntime.compareBytes ((LexLeanRuntime.utf8Encode (left) : ByteArray)) ((LexLeanRuntime.utf8Encode (right) : ByteArray)) : Ordering)) ((LexLeanRuntime.compareBytes (_root_.ByteArray.mk #[_root_.UInt8.ofNat (nat_lit 0)]) (_root_.ByteArray.mk #[_root_.UInt8.ofNat (nat_lit 1)]) : Ordering)) : Bool)
+@[expose] public def publicationLinkageTextLess (left : String) (right : String) : Bool := (LexLeanRuntime.equal ((LexLeanRuntime.compareBytes ((LexLeanRuntime.utf8Encode (left) : ByteArray)) ((LexLeanRuntime.utf8Encode (right) : ByteArray)) : Ordering)) ((LexLeanRuntime.compareBytes (_root_.ByteArray.mk #[(_root_.UInt8.ofNat (nat_lit 0))]) (_root_.ByteArray.mk #[(_root_.UInt8.ofNat (nat_lit 1))]) : Ordering)) : Bool)
 
 public structure PublicationScan where
   valid : Bool
@@ -605,10 +605,10 @@ public structure PublicationScan where
   | records, id, lower, upper, Nat.succ rest => (match (Nat.blt (lower) (upper)) with | Bool.false => Option.none | Bool.true => (match publicationLinkageRecordCompareAt (records) (id) ((LexLeanRuntime.quotient ((lower + upper)) (2) (0) : Nat)) with | Option.none => Option.none | Option.some order => (match (Nat.beq (order) (0)) with | Bool.false => (match (Nat.beq (order) (1)) with | Bool.false => publicationLinkageRecordIndex (records) (id) (((LexLeanRuntime.quotient ((lower + upper)) (2) (0) : Nat) + 1)) (upper) (rest) | Bool.true => Option.some ((LexLeanRuntime.quotient ((lower + upper)) (2) (0) : Nat))) | Bool.true => publicationLinkageRecordIndex (records) (id) (lower) ((LexLeanRuntime.quotient ((lower + upper)) (2) (0) : Nat)) (rest))))
 
 @[expose] public def publicationLinkageZeroMarks : (fuel : Nat) -> ByteArray
-  | Nat.zero => _root_.ByteArray.mk #[_root_.UInt8.ofNat (nat_lit 0)]
+  | Nat.zero => _root_.ByteArray.mk #[(_root_.UInt8.ofNat (nat_lit 0))]
   | Nat.succ rest => (LexLeanRuntime.append (publicationLinkageZeroMarks (rest)) (publicationLinkageZeroMarks (rest)) : ByteArray)
 
-@[expose] public def publicationLinkageMark (marks : ByteArray) (offset : Nat) : Option (ByteArray) := (match (LexLeanRuntime.slice (marks) (offset) (1) : Option (ByteArray)) with | Option.none => Option.none | Option.some item => (match (LexLeanRuntime.equal (item) (_root_.ByteArray.mk #[_root_.UInt8.ofNat (nat_lit 0)]) : Bool) with | Bool.false => Option.none | Bool.true => (match (LexLeanRuntime.slice (marks) (0) (offset) : Option (ByteArray)) with | Option.none => Option.none | Option.some before => (match (LexLeanRuntime.slice (marks) ((offset + 1)) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (marks) : Nat)) ((offset + 1)) : Nat)) : Option (ByteArray)) with | Option.none => Option.none | Option.some after => Option.some ((LexLeanRuntime.append ((LexLeanRuntime.append (before) (_root_.ByteArray.mk #[_root_.UInt8.ofNat (nat_lit 1)]) : ByteArray)) (after) : ByteArray))))))
+@[expose] public def publicationLinkageMark (marks : ByteArray) (offset : Nat) : Option (ByteArray) := (match (LexLeanRuntime.slice (marks) (offset) (1) : Option (ByteArray)) with | Option.none => Option.none | Option.some item => (match (LexLeanRuntime.equal (item) (_root_.ByteArray.mk #[(_root_.UInt8.ofNat (nat_lit 0))]) : Bool) with | Bool.false => Option.none | Bool.true => (match (LexLeanRuntime.slice (marks) (0) (offset) : Option (ByteArray)) with | Option.none => Option.none | Option.some before => (match (LexLeanRuntime.slice (marks) ((offset + 1)) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (marks) : Nat)) ((offset + 1)) : Nat)) : Option (ByteArray)) with | Option.none => Option.none | Option.some after => Option.some ((LexLeanRuntime.append ((LexLeanRuntime.append (before) (_root_.ByteArray.mk #[(_root_.UInt8.ofNat (nat_lit 1))]) : ByteArray)) (after) : ByteArray))))))
 
 public structure PublicationIndexBatch where
   indices : List (Nat)

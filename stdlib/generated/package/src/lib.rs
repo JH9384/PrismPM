@@ -1816,17 +1816,17 @@ pub fn byteWindowView(view: &crate::WorkspaceByteView, start: u64, count: u64) -
 
 pub fn createWorkspace(event: &crate::AuthenticatedEvent) -> crate::WorkspaceTransition {
     { let _x_86 = (event).action; match _x_86 {
-        crate::WorkspaceAction::Genesis => { let _x_274 = &(event).parent; { let _x_275 = 0; { let _x_312 = workspaceBytesEqual((_x_274).as_ref(), &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]); match _x_312 {
-        false => { let _x_503 = crate::WorkspaceError::StaleParent; { let _x_504 = crate::WorkspaceTransition::Rejected { field_0: _x_503 }; _x_504 } },
-        true => { let _x_505 = (event).sequence; { let _x_506 = (_x_505 == _x_275); match _x_506 {
-        false => { let _x_527 = crate::WorkspaceError::StaleSequence; { let _x_528 = crate::WorkspaceTransition::Rejected { field_0: _x_527 }; _x_528 } },
-        true => { let _x_530 = &(event).body; { let _x_531 = (_x_530).len() as u64; { let _x_532 = (_x_531 == _x_275); match _x_532 {
-        false => { let _x_545 = crate::WorkspaceError::BadEncoding; { let _x_546 = crate::WorkspaceTransition::Rejected { field_0: _x_545 }; _x_546 } },
-        true => { let _x_547 = &(event).workspace; { let _x_548 = &(event).author; { let _x_549 = &(event).eventId; { let _x_553 = crate::WorkspaceState { workspace: alloc::borrow::ToOwned::to_owned(_x_547), owner: alloc::borrow::ToOwned::to_owned(_x_548), head: alloc::borrow::ToOwned::to_owned(_x_549), sequence: _x_275, members: alloc::vec::Vec::<u8>::new(), messages: alloc::vec::Vec::<u8>::new(), messageCount: _x_275, seen: alloc::borrow::ToOwned::to_owned(_x_549) }; { let _x_554 = crate::WorkspaceTransition::Accepted { field_0: _x_553 }; _x_554 } } } } },
+        crate::WorkspaceAction::Genesis => { let _x_274 = &(event).parent; { let _x_275 = 0; { let _x_313 = workspaceBytesEqual((_x_274).as_ref(), &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]); match _x_313 {
+        false => { let _x_504 = crate::WorkspaceError::StaleParent; { let _x_505 = crate::WorkspaceTransition::Rejected { field_0: _x_504 }; _x_505 } },
+        true => { let _x_506 = (event).sequence; { let _x_507 = (_x_506 == _x_275); match _x_507 {
+        false => { let _x_528 = crate::WorkspaceError::StaleSequence; { let _x_529 = crate::WorkspaceTransition::Rejected { field_0: _x_528 }; _x_529 } },
+        true => { let _x_531 = &(event).body; { let _x_532 = (_x_531).len() as u64; { let _x_533 = (_x_532 == _x_275); match _x_533 {
+        false => { let _x_546 = crate::WorkspaceError::BadEncoding; { let _x_547 = crate::WorkspaceTransition::Rejected { field_0: _x_546 }; _x_547 } },
+        true => { let _x_548 = &(event).workspace; { let _x_549 = &(event).author; { let _x_550 = &(event).eventId; { let _x_554 = crate::WorkspaceState { workspace: alloc::borrow::ToOwned::to_owned(_x_548), owner: alloc::borrow::ToOwned::to_owned(_x_549), head: alloc::borrow::ToOwned::to_owned(_x_550), sequence: _x_275, members: alloc::vec::Vec::<u8>::new(), messages: alloc::vec::Vec::<u8>::new(), messageCount: _x_275, seen: alloc::borrow::ToOwned::to_owned(_x_550) }; { let _x_555 = crate::WorkspaceTransition::Accepted { field_0: _x_554 }; _x_555 } } } } },
     } } } },
     } } },
     } } } },
-        _ => { let _x_370 = crate::WorkspaceError::GenesisRequired; { let _x_371 = crate::WorkspaceTransition::Rejected { field_0: _x_370 }; _x_371 } },
+        _ => { let _x_371 = crate::WorkspaceError::GenesisRequired; { let _x_372 = crate::WorkspaceTransition::Rejected { field_0: _x_371 }; _x_372 } },
     } }
 }
 
@@ -2240,17 +2240,17 @@ fn __prod_borrowed_readU24At(value: &[u8], offset: u64) -> Result<u64, crate::Co
 pub fn reduceAuthenticatedEvent(state: Option<crate::WorkspaceState>, event: &crate::AuthenticatedEvent) -> Result<crate::WorkspaceTransition, crate::ComputeError> {
     Ok({ let _x_101 = &(event).workspace; { let _x_102 = (_x_101).len() as u64; { let _x_103 = 32; { let _x_106 = (_x_102 == _x_103); match _x_106 {
         false => { let _y_111 = _x_106; match _y_111 {
-        false => { let _x_537 = crate::WorkspaceError::BadIdentity; { let _x_538 = crate::WorkspaceTransition::Rejected { field_0: _x_537 }; _x_538 } },
-        true => { let _x_528 = 4096; { let _x_529 = &(event).body; { let _x_530 = (_x_529).len() as u64; { let _x_531 = (_x_528 < _x_530); match _x_531 {
+        false => { let _x_541 = crate::WorkspaceError::BadIdentity; { let _x_542 = crate::WorkspaceTransition::Rejected { field_0: _x_541 }; _x_542 } },
+        true => { let _x_532 = 4096; { let _x_533 = &(event).body; { let _x_534 = (_x_533).len() as u64; { let _x_535 = (_x_532 < _x_534); match _x_535 {
         false => match state {
-        None => { let _x_532 = createWorkspace(&(event)); _x_532 },
-        Some(val_533) => { let _x_534 = reduceExistingWorkspace(&(val_533), &(event))?; _x_534 },
+        None => { let _x_536 = createWorkspace(&(event)); _x_536 },
+        Some(val_537) => { let _x_538 = reduceExistingWorkspace(&(val_537), &(event))?; _x_538 },
     },
-        true => { let _x_535 = crate::WorkspaceError::MessageBodyLimit; { let _x_536 = crate::WorkspaceTransition::Rejected { field_0: _x_535 }; _x_536 } },
+        true => { let _x_539 = crate::WorkspaceError::MessageBodyLimit; { let _x_540 = crate::WorkspaceTransition::Rejected { field_0: _x_539 }; _x_540 } },
     } } } } },
     } },
-        true => { let _x_330 = &(event).eventId; { let _x_331 = (_x_330).len() as u64; { let _x_332 = 32; { let _x_333 = (_x_331 == _x_332); match _x_333 {
-        false => { let prod_local_0 = _x_333; match prod_local_0 {
+        true => { let _x_331 = &(event).eventId; { let _x_332 = (_x_331).len() as u64; { let _x_333 = 32; { let _x_334 = (_x_332 == _x_333); match _x_334 {
+        false => { let prod_local_0 = _x_334; match prod_local_0 {
         false => { let prod_local_1 = crate::WorkspaceError::BadIdentity; { let prod_local_2 = crate::WorkspaceTransition::Rejected { field_0: prod_local_1 }; prod_local_2 } },
         true => { let prod_local_3 = 4096; { let prod_local_4 = &(event).body; { let prod_local_5 = (prod_local_4).len() as u64; { let prod_local_6 = (prod_local_3 < prod_local_5); match prod_local_6 {
         false => match state {
@@ -2260,8 +2260,8 @@ pub fn reduceAuthenticatedEvent(state: Option<crate::WorkspaceState>, event: &cr
         true => { let prod_local_10 = crate::WorkspaceError::MessageBodyLimit; { let prod_local_11 = crate::WorkspaceTransition::Rejected { field_0: prod_local_10 }; prod_local_11 } },
     } } } } },
     } },
-        true => { let _x_391 = &(event).parent; { let _x_392 = (_x_391).len() as u64; { let _x_393 = 32; { let _x_394 = (_x_392 == _x_393); match _x_394 {
-        false => { let prod_local_12 = _x_394; match prod_local_12 {
+        true => { let _x_393 = &(event).parent; { let _x_394 = (_x_393).len() as u64; { let _x_395 = 32; { let _x_396 = (_x_394 == _x_395); match _x_396 {
+        false => { let prod_local_12 = _x_396; match prod_local_12 {
         false => { let prod_local_13 = crate::WorkspaceError::BadIdentity; { let prod_local_14 = crate::WorkspaceTransition::Rejected { field_0: prod_local_13 }; prod_local_14 } },
         true => { let prod_local_15 = 4096; { let prod_local_16 = &(event).body; { let prod_local_17 = (prod_local_16).len() as u64; { let prod_local_18 = (prod_local_15 < prod_local_17); match prod_local_18 {
         false => match state {
@@ -2271,8 +2271,8 @@ pub fn reduceAuthenticatedEvent(state: Option<crate::WorkspaceState>, event: &cr
         true => { let prod_local_22 = crate::WorkspaceError::MessageBodyLimit; { let prod_local_23 = crate::WorkspaceTransition::Rejected { field_0: prod_local_22 }; prod_local_23 } },
     } } } } },
     } },
-        true => { let _x_443 = &(event).author; { let _x_444 = (_x_443).len() as u64; { let _x_445 = 32; { let _x_446 = (_x_444 == _x_445); match _x_446 {
-        false => { let prod_local_24 = _x_446; match prod_local_24 {
+        true => { let _x_446 = &(event).author; { let _x_447 = (_x_446).len() as u64; { let _x_448 = 32; { let _x_449 = (_x_447 == _x_448); match _x_449 {
+        false => { let prod_local_24 = _x_449; match prod_local_24 {
         false => { let prod_local_25 = crate::WorkspaceError::BadIdentity; { let prod_local_26 = crate::WorkspaceTransition::Rejected { field_0: prod_local_25 }; prod_local_26 } },
         true => { let prod_local_27 = 4096; { let prod_local_28 = &(event).body; { let prod_local_29 = (prod_local_28).len() as u64; { let prod_local_30 = (prod_local_27 < prod_local_29); match prod_local_30 {
         false => match state {
@@ -2282,8 +2282,8 @@ pub fn reduceAuthenticatedEvent(state: Option<crate::WorkspaceState>, event: &cr
         true => { let prod_local_34 = crate::WorkspaceError::MessageBodyLimit; { let prod_local_35 = crate::WorkspaceTransition::Rejected { field_0: prod_local_34 }; prod_local_35 } },
     } } } } },
     } },
-        true => { let _x_450 = &(event).eventId; { let _x_487 = workspaceBytesEqual((_x_450).as_ref(), &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]); match _x_487 {
-        false => { let prod_local_36 = _x_446; match prod_local_36 {
+        true => { let _x_453 = &(event).eventId; { let _x_491 = workspaceBytesEqual((_x_453).as_ref(), &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]); match _x_491 {
+        false => { let prod_local_36 = _x_449; match prod_local_36 {
         false => { let prod_local_37 = crate::WorkspaceError::BadIdentity; { let prod_local_38 = crate::WorkspaceTransition::Rejected { field_0: prod_local_37 }; prod_local_38 } },
         true => { let prod_local_39 = 4096; { let prod_local_40 = &(event).body; { let prod_local_41 = (prod_local_40).len() as u64; { let prod_local_42 = (prod_local_39 < prod_local_41); match prod_local_42 {
         false => match state {
@@ -2444,40 +2444,40 @@ pub fn workspaceSigningPreimage(event: &crate::AuthenticatedEvent) -> alloc::vec
 pub fn workspaceStateValid(state: &crate::WorkspaceState) -> Result<bool, crate::ComputeError> {
     Ok({ let _x_336 = &(state).members; { let _x_337 = (_x_336).len() as u64; { let _x_338 = 33; { let _x_341 = 0; { let _x_344 = if _x_338 == 0 { _x_341 } else { _x_337 / _x_338 }; { let _x_345 = (state).sequence; { let _x_346 = (_x_344 <= _x_345); match _x_346 {
         false => _x_346,
-        true => { let _x_697 = (state).messageCount; { let _x_698 = (state).sequence; { let _x_699 = (_x_697 <= _x_698); match _x_699 {
-        false => _x_699,
-        true => { let _x_887 = &(state).workspace; { let _x_888 = (_x_887).len() as u64; { let _x_889 = 32; { let _x_890 = (_x_888 == _x_889); match _x_890 {
-        false => _x_890,
-        true => { let _x_1069 = &(state).owner; { let _x_1070 = (_x_1069).len() as u64; { let _x_1071 = 32; { let _x_1072 = (_x_1070 == _x_1071); match _x_1072 {
-        false => _x_1072,
-        true => { let _x_1242 = &(state).head; { let _x_1243 = (_x_1242).len() as u64; { let _x_1244 = 32; { let _x_1245 = (_x_1243 == _x_1244); match _x_1245 {
-        false => _x_1245,
-        true => { let _x_1407 = (state).sequence; { let _x_1408 = 1024; { let _x_1409 = (_x_1407 < _x_1408); match _x_1409 {
-        false => _x_1409,
-        true => { let _x_1558 = &(state).seen; { let _x_1559 = (_x_1558).len() as u64; { let _x_1561 = (state).sequence; { let _x_1562 = 1; { let _x_1563 = core::convert::identity::<u64>(_x_1561).checked_add(_x_1562).ok_or(crate::ComputeError::AddOverflow)?; { let _x_1564 = 32; { let _x_1565 = core::convert::identity::<u64>(_x_1563).checked_mul(_x_1564).ok_or(crate::ComputeError::MulOverflow)?; { let _x_1566 = (_x_1559 == _x_1565); match _x_1566 {
-        false => _x_1566,
-        true => { let _x_1706 = &(state).members; { let _x_1707 = (_x_1706).len() as u64; { let _x_1708 = 2079; { let _x_1709 = (_x_1707 <= _x_1708); match _x_1709 {
-        false => _x_1709,
-        true => { let _x_1838 = &(state).members; { let _x_1839 = (_x_1838).len() as u64; { let _x_1840 = 33; { let _x_1841 = 0; { let _x_1842 = if _x_1840 == 0 { _x_1841 } else { _x_1839 % _x_1840 }; { let _x_1843 = (_x_1842 == _x_1841); match _x_1843 {
-        false => _x_1843,
-        true => { let _x_1963 = (state).messageCount; { let _x_1964 = 256; { let _x_1965 = (_x_1963 <= _x_1964); match _x_1965 {
-        false => _x_1965,
-        true => { let _x_2077 = &(state).messages; { let _x_2078 = (_x_2077).len() as u64; { let _x_2079 = 1065472; { let _x_2080 = (_x_2078 <= _x_2079); match _x_2080 {
-        false => _x_2080,
-        true => { let _x_2180 = &(state).seen; { let _x_2182 = (state).sequence; { let _x_2183 = 32; { let _x_2184 = core::convert::identity::<u64>(_x_2182).checked_mul(_x_2183).ok_or(crate::ComputeError::MulOverflow)?; { let _x_2185 = &(state).head; { let _x_2186 = workspaceWindowEqual((_x_2180).as_ref(), _x_2184, _x_2183, (_x_2185).as_ref())?; match _x_2186 {
-        false => _x_2186,
-        true => { let _x_2269 = &(state).seen; { let _x_2270 = 32; { let _x_2271 = (state).sequence; { let _x_2272 = 1; { let _x_2273 = core::convert::identity::<u64>(_x_2271).checked_add(_x_2272).ok_or(crate::ComputeError::AddOverflow)?; { let _x_2274 = digestPresent(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], (_x_2269).as_ref(), _x_2270, _x_2273)?; match _x_2274 {
-        false => { let _x_2386 = &(state).seen; { let _x_2387 = 32; { let _x_2388 = (state).sequence; { let _x_2389 = 1; { let _x_2390 = core::convert::identity::<u64>(_x_2388).checked_add(_x_2389).ok_or(crate::ComputeError::AddOverflow)?; { let _x_2391 = digestsUnique((_x_2386).as_ref(), _x_2387, _x_2390)?; match _x_2391 {
-        false => _x_2391,
-        true => { let _x_2392 = &(state).members; { let _x_2393 = 33; { let _x_2396 = (_x_2392).len() as u64; { let _x_2397 = 0; { let _x_2398 = if _x_2393 == 0 { _x_2397 } else { _x_2396 / _x_2393 }; { let _x_2399 = digestsUnique((_x_2392).as_ref(), _x_2393, _x_2398)?; match _x_2399 {
-        false => _x_2399,
-        true => { let _x_2400 = &(state).owner; { let _x_2401 = &(state).members; { let _x_2404 = (_x_2401).len() as u64; { let _x_2405 = 33; { let _x_2406 = 0; { let _x_2407 = if _x_2405 == 0 { _x_2406 } else { _x_2404 / _x_2405 }; { let _x_2408 = membersWellFormed((_x_2400).as_ref(), (_x_2401).as_ref(), _x_2407)?; match _x_2408 {
-        false => _x_2408,
-        true => { let _x_2409 = &(state).messages; { let _x_2410 = &(state).seen; { let _x_2411 = 0; { let _x_2412 = (state).messageCount; { let _x_2413 = 1; { let _x_2414 = messagesWellFormed((_x_2409).as_ref(), (_x_2410).as_ref(), _x_2411, _x_2412, _x_2413)?; _x_2414 } } } } } },
+        true => { let _x_698 = (state).messageCount; { let _x_699 = (state).sequence; { let _x_700 = (_x_698 <= _x_699); match _x_700 {
+        false => _x_700,
+        true => { let _x_889 = &(state).workspace; { let _x_890 = (_x_889).len() as u64; { let _x_891 = 32; { let _x_892 = (_x_890 == _x_891); match _x_892 {
+        false => _x_892,
+        true => { let _x_1072 = &(state).owner; { let _x_1073 = (_x_1072).len() as u64; { let _x_1074 = 32; { let _x_1075 = (_x_1073 == _x_1074); match _x_1075 {
+        false => _x_1075,
+        true => { let _x_1246 = &(state).head; { let _x_1247 = (_x_1246).len() as u64; { let _x_1248 = 32; { let _x_1249 = (_x_1247 == _x_1248); match _x_1249 {
+        false => _x_1249,
+        true => { let _x_1412 = (state).sequence; { let _x_1413 = 1024; { let _x_1414 = (_x_1412 < _x_1413); match _x_1414 {
+        false => _x_1414,
+        true => { let _x_1564 = &(state).seen; { let _x_1565 = (_x_1564).len() as u64; { let _x_1567 = (state).sequence; { let _x_1568 = 1; { let _x_1569 = core::convert::identity::<u64>(_x_1567).checked_add(_x_1568).ok_or(crate::ComputeError::AddOverflow)?; { let _x_1570 = 32; { let _x_1571 = core::convert::identity::<u64>(_x_1569).checked_mul(_x_1570).ok_or(crate::ComputeError::MulOverflow)?; { let _x_1572 = (_x_1565 == _x_1571); match _x_1572 {
+        false => _x_1572,
+        true => { let _x_1713 = &(state).members; { let _x_1714 = (_x_1713).len() as u64; { let _x_1715 = 2079; { let _x_1716 = (_x_1714 <= _x_1715); match _x_1716 {
+        false => _x_1716,
+        true => { let _x_1846 = &(state).members; { let _x_1847 = (_x_1846).len() as u64; { let _x_1848 = 33; { let _x_1849 = 0; { let _x_1850 = if _x_1848 == 0 { _x_1849 } else { _x_1847 % _x_1848 }; { let _x_1851 = (_x_1850 == _x_1849); match _x_1851 {
+        false => _x_1851,
+        true => { let _x_1972 = (state).messageCount; { let _x_1973 = 256; { let _x_1974 = (_x_1972 <= _x_1973); match _x_1974 {
+        false => _x_1974,
+        true => { let _x_2087 = &(state).messages; { let _x_2088 = (_x_2087).len() as u64; { let _x_2089 = 1065472; { let _x_2090 = (_x_2088 <= _x_2089); match _x_2090 {
+        false => _x_2090,
+        true => { let _x_2191 = &(state).seen; { let _x_2193 = (state).sequence; { let _x_2194 = 32; { let _x_2195 = core::convert::identity::<u64>(_x_2193).checked_mul(_x_2194).ok_or(crate::ComputeError::MulOverflow)?; { let _x_2196 = &(state).head; { let _x_2197 = workspaceWindowEqual((_x_2191).as_ref(), _x_2195, _x_2194, (_x_2196).as_ref())?; match _x_2197 {
+        false => _x_2197,
+        true => { let _x_2281 = &(state).seen; { let _x_2282 = 32; { let _x_2283 = (state).sequence; { let _x_2284 = 1; { let _x_2285 = core::convert::identity::<u64>(_x_2283).checked_add(_x_2284).ok_or(crate::ComputeError::AddOverflow)?; { let _x_2286 = digestPresent(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], (_x_2281).as_ref(), _x_2282, _x_2285)?; match _x_2286 {
+        false => { let _x_2398 = &(state).seen; { let _x_2399 = 32; { let _x_2400 = (state).sequence; { let _x_2401 = 1; { let _x_2402 = core::convert::identity::<u64>(_x_2400).checked_add(_x_2401).ok_or(crate::ComputeError::AddOverflow)?; { let _x_2403 = digestsUnique((_x_2398).as_ref(), _x_2399, _x_2402)?; match _x_2403 {
+        false => _x_2403,
+        true => { let _x_2404 = &(state).members; { let _x_2405 = 33; { let _x_2408 = (_x_2404).len() as u64; { let _x_2409 = 0; { let _x_2410 = if _x_2405 == 0 { _x_2409 } else { _x_2408 / _x_2405 }; { let _x_2411 = digestsUnique((_x_2404).as_ref(), _x_2405, _x_2410)?; match _x_2411 {
+        false => _x_2411,
+        true => { let _x_2412 = &(state).owner; { let _x_2413 = &(state).members; { let _x_2416 = (_x_2413).len() as u64; { let _x_2417 = 33; { let _x_2418 = 0; { let _x_2419 = if _x_2417 == 0 { _x_2418 } else { _x_2416 / _x_2417 }; { let _x_2420 = membersWellFormed((_x_2412).as_ref(), (_x_2413).as_ref(), _x_2419)?; match _x_2420 {
+        false => _x_2420,
+        true => { let _x_2421 = &(state).messages; { let _x_2422 = &(state).seen; { let _x_2423 = 0; { let _x_2424 = (state).messageCount; { let _x_2425 = 1; { let _x_2426 = messagesWellFormed((_x_2421).as_ref(), (_x_2422).as_ref(), _x_2423, _x_2424, _x_2425)?; _x_2426 } } } } } },
     } } } } } } } },
     } } } } } } },
     } } } } } } },
-        true => { let _x_2284 = false; _x_2284 },
+        true => { let _x_2296 = false; _x_2296 },
     } } } } } } },
     } } } } } } },
     } } } } },
@@ -3907,42 +3907,42 @@ pub fn workspaceJournalBytes(request: alloc::vec::Vec<u8>) -> Result<alloc::vec:
 
 pub fn workspaceJournalOperation(operation: &crate::WorkspaceByteView, payload: &crate::WorkspaceByteView) -> Result<alloc::vec::Vec<u8>, crate::ComputeError> {
     Ok({ let _x_451 = &(operation).bytes; { let _x_458 = workspaceBytesEqual((_x_451).as_ref(), &[0]); match _x_458 {
-        false => { let _x_899 = &(operation).bytes; { let _x_906 = workspaceBytesEqual((_x_899).as_ref(), &[1]); match _x_906 {
-        false => { let _x_1174 = &(operation).bytes; { let _x_1181 = workspaceBytesEqual((_x_1174).as_ref(), &[2]); match _x_1181 {
-        false => { let _x_1410 = &(operation).bytes; { let _x_1417 = workspaceBytesEqual((_x_1410).as_ref(), &[3]); match _x_1417 {
-        false => { let _x_1611 = &(operation).bytes; { let _x_1618 = workspaceBytesEqual((_x_1611).as_ref(), &[4]); match _x_1618 {
-        false => { let _x_1773 = &(operation).bytes; { let _x_1780 = workspaceBytesEqual((_x_1773).as_ref(), &[5]); match _x_1780 {
-        false => { let _x_1795 = &(operation).bytes; { let _x_1802 = workspaceBytesEqual((_x_1795).as_ref(), &[6]); match _x_1802 {
+        false => { let _x_900 = &(operation).bytes; { let _x_907 = workspaceBytesEqual((_x_900).as_ref(), &[1]); match _x_907 {
+        false => { let _x_1176 = &(operation).bytes; { let _x_1183 = workspaceBytesEqual((_x_1176).as_ref(), &[2]); match _x_1183 {
+        false => { let _x_1413 = &(operation).bytes; { let _x_1420 = workspaceBytesEqual((_x_1413).as_ref(), &[3]); match _x_1420 {
+        false => { let _x_1615 = &(operation).bytes; { let _x_1622 = workspaceBytesEqual((_x_1615).as_ref(), &[4]); match _x_1622 {
+        false => { let _x_1778 = &(operation).bytes; { let _x_1785 = workspaceBytesEqual((_x_1778).as_ref(), &[5]); match _x_1785 {
+        false => { let _x_1800 = &(operation).bytes; { let _x_1807 = workspaceBytesEqual((_x_1800).as_ref(), &[6]); match _x_1807 {
         false => alloc::vec![11],
-        true => { let _x_1813 = &(payload).bytes; { let _x_1814 = workspaceEnvelopeBytes(alloc::borrow::ToOwned::to_owned(_x_1813))?; _x_1814 } },
+        true => { let _x_1818 = &(payload).bytes; { let _x_1819 = workspaceEnvelopeBytes(alloc::borrow::ToOwned::to_owned(_x_1818))?; _x_1819 } },
     } } },
-        true => { let _x_1928 = &(payload).bytes; { let _x_1929 = (_x_1928).len() as u64; { let _x_1930 = 96; { let _x_1931 = (_x_1929 == _x_1930); match _x_1931 {
-        false => { let _y_1933 = _x_1931; match _y_1933 {
+        true => { let _x_1934 = &(payload).bytes; { let _x_1935 = (_x_1934).len() as u64; { let _x_1936 = 96; { let _x_1937 = (_x_1935 == _x_1936); match _x_1937 {
+        false => { let _y_1939 = _x_1937; match _y_1939 {
         false => alloc::vec![9],
-        true => { let _x_1958 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let _x_2003 = { let mut __value = _x_1958; __value.extend_from_slice(&alloc::vec![112, 114, 105, 115, 109, 112, 109, 47, 106, 111, 117, 114, 110, 97, 108, 45, 99, 111, 109, 109, 105, 116, 47, 49, 0]); __value }; { let _x_2004 = &(payload).bytes; { let _x_2005 = { let mut __value = _x_2003; __value.extend_from_slice(&_x_2004); __value }; _x_2005 } } } },
+        true => { let _x_1964 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let _x_2010 = { let mut __value = _x_1964; __value.extend_from_slice(&alloc::vec![112, 114, 105, 115, 109, 112, 109, 47, 106, 111, 117, 114, 110, 97, 108, 45, 99, 111, 109, 109, 105, 116, 47, 49, 0]); __value }; { let _x_2011 = &(payload).bytes; { let _x_2012 = { let mut __value = _x_2010; __value.extend_from_slice(&_x_2011); __value }; _x_2012 } } } },
     } },
-        true => { let _x_2038 = 32; { let _x_2039 = byteWindowView(&(payload), _x_2038, _x_2038); { let _x_2040 = (_x_2039).len() as u64; { let _x_2041 = (_x_2040 == _x_2038); match _x_2041 {
-        false => { let _y_2043 = _x_2041; match _y_2043 {
+        true => { let _x_2045 = 32; { let _x_2046 = byteWindowView(&(payload), _x_2045, _x_2045); { let _x_2047 = (_x_2046).len() as u64; { let _x_2048 = (_x_2047 == _x_2045); match _x_2048 {
+        false => { let _y_2050 = _x_2048; match _y_2050 {
         false => alloc::vec![9],
-        true => { let _x_2062 = 64; { let _x_2063 = 32; { let _x_2064 = byteWindowView(&(payload), _x_2062, _x_2063); { let _x_2065 = (_x_2064).len() as u64; { let _x_2066 = (_x_2065 == _x_2063); match _x_2066 {
-        false => { let prod_local_3 = _x_2066; match prod_local_3 {
+        true => { let _x_2069 = 64; { let _x_2070 = 32; { let _x_2071 = byteWindowView(&(payload), _x_2069, _x_2070); { let _x_2072 = (_x_2071).len() as u64; { let _x_2073 = (_x_2072 == _x_2070); match _x_2073 {
+        false => { let prod_local_3 = _x_2073; match prod_local_3 {
         false => alloc::vec![9],
         true => { let prod_local_13 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let prod_local_32 = { let mut __value = prod_local_13; __value.extend_from_slice(&alloc::vec![112, 114, 105, 115, 109, 112, 109, 47, 106, 111, 117, 114, 110, 97, 108, 45, 99, 111, 109, 109, 105, 116, 47, 49, 0]); __value }; { let prod_local_33 = &(payload).bytes; { let prod_local_34 = { let mut __value = prod_local_32; __value.extend_from_slice(&prod_local_33); __value }; prod_local_34 } } } },
     } },
-        true => { let _x_2070 = 64; { let _x_2071 = 32; { let _x_2072 = byteWindowView(&(payload), _x_2070, _x_2071); { let _x_2073 = zeroDigest(); { let _x_2074 = workspaceBytesEqual((_x_2072).as_ref(), (_x_2073).as_ref()); match _x_2074 {
-        false => { let prod_local_35 = _x_2066; match prod_local_35 {
+        true => { let _x_2077 = 64; { let _x_2078 = 32; { let _x_2079 = byteWindowView(&(payload), _x_2077, _x_2078); { let _x_2080 = zeroDigest(); { let _x_2081 = workspaceBytesEqual((_x_2079).as_ref(), (_x_2080).as_ref()); match _x_2081 {
+        false => { let prod_local_35 = _x_2073; match prod_local_35 {
         false => alloc::vec![9],
         true => { let prod_local_45 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let prod_local_64 = { let mut __value = prod_local_45; __value.extend_from_slice(&alloc::vec![112, 114, 105, 115, 109, 112, 109, 47, 106, 111, 117, 114, 110, 97, 108, 45, 99, 111, 109, 109, 105, 116, 47, 49, 0]); __value }; { let prod_local_65 = &(payload).bytes; { let prod_local_66 = { let mut __value = prod_local_64; __value.extend_from_slice(&prod_local_65); __value }; prod_local_66 } } } },
     } },
-        true => { let prod_local_67 = _x_1618; match prod_local_67 {
+        true => { let prod_local_67 = _x_1622; match prod_local_67 {
         false => alloc::vec![9],
         true => { let prod_local_77 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let prod_local_96 = { let mut __value = prod_local_77; __value.extend_from_slice(&alloc::vec![112, 114, 105, 115, 109, 112, 109, 47, 106, 111, 117, 114, 110, 97, 108, 45, 99, 111, 109, 109, 105, 116, 47, 49, 0]); __value }; { let prod_local_97 = &(payload).bytes; { let prod_local_98 = { let mut __value = prod_local_96; __value.extend_from_slice(&prod_local_97); __value }; prod_local_98 } } } },
     } },
     } } } } } },
     } } } } } },
     } },
-        true => { let _x_2080 = 32; { let _x_2081 = byteWindowView(&(payload), _x_2080, _x_2080); { let _x_2082 = zeroDigest(); { let _x_2083 = workspaceBytesEqual((_x_2081).as_ref(), (_x_2082).as_ref()); match _x_2083 {
-        false => { let prod_local_99 = _x_2041; match prod_local_99 {
+        true => { let _x_2087 = 32; { let _x_2088 = byteWindowView(&(payload), _x_2087, _x_2087); { let _x_2089 = zeroDigest(); { let _x_2090 = workspaceBytesEqual((_x_2088).as_ref(), (_x_2089).as_ref()); match _x_2090 {
+        false => { let prod_local_99 = _x_2048; match prod_local_99 {
         false => alloc::vec![9],
         true => { let prod_local_104 = 64; { let prod_local_105 = 32; { let prod_local_106 = byteWindowView(&(payload), prod_local_104, prod_local_105); { let prod_local_107 = (prod_local_106).len() as u64; { let prod_local_108 = (prod_local_107 == prod_local_105); match prod_local_108 {
         false => { let prod_local_109 = prod_local_108; match prod_local_109 {
@@ -3954,14 +3954,14 @@ pub fn workspaceJournalOperation(operation: &crate::WorkspaceByteView, payload: 
         false => alloc::vec![9],
         true => { let prod_local_156 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let prod_local_175 = { let mut __value = prod_local_156; __value.extend_from_slice(&alloc::vec![112, 114, 105, 115, 109, 112, 109, 47, 106, 111, 117, 114, 110, 97, 108, 45, 99, 111, 109, 109, 105, 116, 47, 49, 0]); __value }; { let prod_local_176 = &(payload).bytes; { let prod_local_177 = { let mut __value = prod_local_175; __value.extend_from_slice(&prod_local_176); __value }; prod_local_177 } } } },
     } },
-        true => { let prod_local_178 = _x_1618; match prod_local_178 {
+        true => { let prod_local_178 = _x_1622; match prod_local_178 {
         false => alloc::vec![9],
         true => { let prod_local_188 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let prod_local_207 = { let mut __value = prod_local_188; __value.extend_from_slice(&alloc::vec![112, 114, 105, 115, 109, 112, 109, 47, 106, 111, 117, 114, 110, 97, 108, 45, 99, 111, 109, 109, 105, 116, 47, 49, 0]); __value }; { let prod_local_208 = &(payload).bytes; { let prod_local_209 = { let mut __value = prod_local_207; __value.extend_from_slice(&prod_local_208); __value }; prod_local_209 } } } },
     } },
     } } } } } },
     } } } } } },
     } },
-        true => { let prod_local_210 = _x_1618; match prod_local_210 {
+        true => { let prod_local_210 = _x_1622; match prod_local_210 {
         false => alloc::vec![9],
         true => { let prod_local_215 = 64; { let prod_local_216 = 32; { let prod_local_217 = byteWindowView(&(payload), prod_local_215, prod_local_216); { let prod_local_218 = (prod_local_217).len() as u64; { let prod_local_219 = (prod_local_218 == prod_local_216); match prod_local_219 {
         false => { let prod_local_220 = prod_local_219; match prod_local_220 {
@@ -3973,7 +3973,7 @@ pub fn workspaceJournalOperation(operation: &crate::WorkspaceByteView, payload: 
         false => alloc::vec![9],
         true => { let prod_local_267 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let prod_local_286 = { let mut __value = prod_local_267; __value.extend_from_slice(&alloc::vec![112, 114, 105, 115, 109, 112, 109, 47, 106, 111, 117, 114, 110, 97, 108, 45, 99, 111, 109, 109, 105, 116, 47, 49, 0]); __value }; { let prod_local_287 = &(payload).bytes; { let prod_local_288 = { let mut __value = prod_local_286; __value.extend_from_slice(&prod_local_287); __value }; prod_local_288 } } } },
     } },
-        true => { let prod_local_289 = _x_1618; match prod_local_289 {
+        true => { let prod_local_289 = _x_1622; match prod_local_289 {
         false => alloc::vec![9],
         true => { let prod_local_299 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let prod_local_318 = { let mut __value = prod_local_299; __value.extend_from_slice(&alloc::vec![112, 114, 105, 115, 109, 112, 109, 47, 106, 111, 117, 114, 110, 97, 108, 45, 99, 111, 109, 109, 105, 116, 47, 49, 0]); __value }; { let prod_local_319 = &(payload).bytes; { let prod_local_320 = { let mut __value = prod_local_318; __value.extend_from_slice(&prod_local_319); __value }; prod_local_320 } } } },
     } },
@@ -3984,26 +3984,26 @@ pub fn workspaceJournalOperation(operation: &crate::WorkspaceByteView, payload: 
     } } } } },
     } } } } },
     } } },
-        true => { let _x_2109 = 9; { let _x_2111 = &(payload).bytes; { let _x_2112 = (_x_2111).len() as u64; { let _x_2113 = (_x_2109 <= _x_2112); match _x_2113 {
+        true => { let _x_2116 = 9; { let _x_2118 = &(payload).bytes; { let _x_2119 = (_x_2118).len() as u64; { let _x_2120 = (_x_2116 <= _x_2119); match _x_2120 {
         false => alloc::vec![1],
-        true => { let _x_2124 = &(payload).bytes; { let _x_2125 = 0; { let _x_2126 = __prod_borrowed_readU24At((_x_2124).as_ref(), _x_2125)?; { let _x_2127 = 3; { let _x_2128 = __prod_borrowed_readU24At((_x_2124).as_ref(), _x_2127)?; { let _x_2129 = 6; { let _x_2130 = __prod_borrowed_readU24At((_x_2124).as_ref(), _x_2129)?; { let _x_2131 = journalReplayCompleteFields(&(payload), _x_2126, _x_2128, _x_2130)?; _x_2131 } } } } } } } },
+        true => { let _x_2131 = &(payload).bytes; { let _x_2132 = 0; { let _x_2133 = __prod_borrowed_readU24At((_x_2131).as_ref(), _x_2132)?; { let _x_2134 = 3; { let _x_2135 = __prod_borrowed_readU24At((_x_2131).as_ref(), _x_2134)?; { let _x_2136 = 6; { let _x_2137 = __prod_borrowed_readU24At((_x_2131).as_ref(), _x_2136)?; { let _x_2138 = journalReplayCompleteFields(&(payload), _x_2133, _x_2135, _x_2137)?; _x_2138 } } } } } } } },
     } } } } },
     } } },
-        true => { let _x_2144 = 3; { let _x_2146 = &(payload).bytes; { let _x_2147 = (_x_2146).len() as u64; { let _x_2148 = (_x_2144 <= _x_2147); match _x_2148 {
+        true => { let _x_2151 = 3; { let _x_2153 = &(payload).bytes; { let _x_2154 = (_x_2153).len() as u64; { let _x_2155 = (_x_2151 <= _x_2154); match _x_2155 {
         false => alloc::vec![1],
-        true => { let _x_2159 = &(payload).bytes; { let _x_2160 = 0; { let _x_2161 = __prod_borrowed_readU24At((_x_2159).as_ref(), _x_2160)?; { let _x_2162 = journalReplayBytes(&(payload), _x_2161)?; _x_2162 } } } },
+        true => { let _x_2166 = &(payload).bytes; { let _x_2167 = 0; { let _x_2168 = __prod_borrowed_readU24At((_x_2166).as_ref(), _x_2167)?; { let _x_2169 = journalReplayBytes(&(payload), _x_2168)?; _x_2169 } } } },
     } } } } },
     } } },
-        true => { let _x_2180 = &(payload).bytes; { let _x_2181 = (_x_2180).len() as u64; { let _x_2182 = 290; { let _x_2183 = (_x_2181 == _x_2182); match _x_2183 {
+        true => { let _x_2187 = &(payload).bytes; { let _x_2188 = (_x_2187).len() as u64; { let _x_2189 = 290; { let _x_2190 = (_x_2188 == _x_2189); match _x_2190 {
         false => alloc::vec![1],
-        true => { let _x_2194 = 0; { let _x_2195 = 129; { let _x_2196 = byteWindowView(&(payload), _x_2194, _x_2195); { let _x_2197 = crate::WorkspaceByteView { bytes: _x_2196 }; { let _x_2198 = 161; { let _x_2199 = byteWindowView(&(payload), _x_2195, _x_2198); { let _x_2200 = crate::WorkspaceByteView { bytes: _x_2199 }; { let _x_2201 = finishJournalCommit(&(_x_2197), &(_x_2200))?; _x_2201 } } } } } } } },
+        true => { let _x_2201 = 0; { let _x_2202 = 129; { let _x_2203 = byteWindowView(&(payload), _x_2201, _x_2202); { let _x_2204 = crate::WorkspaceByteView { bytes: _x_2203 }; { let _x_2205 = 161; { let _x_2206 = byteWindowView(&(payload), _x_2202, _x_2205); { let _x_2207 = crate::WorkspaceByteView { bytes: _x_2206 }; { let _x_2208 = finishJournalCommit(&(_x_2204), &(_x_2207))?; _x_2208 } } } } } } } },
     } } } } },
     } } },
-        true => { let _x_910 = journalAppendBytes(&(payload))?; _x_910 },
+        true => { let _x_911 = journalAppendBytes(&(payload))?; _x_911 },
     } } },
-        true => { let _x_2224 = journalHeadValid(&(payload))?; match _x_2224 {
+        true => { let _x_2231 = journalHeadValid(&(payload))?; match _x_2231 {
         false => alloc::vec![2],
-        true => { let _x_2246 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let _x_2247 = &(payload).bytes; { let _x_2248 = { let mut __value = _x_2246; __value.extend_from_slice(&_x_2247); __value }; _x_2248 } } },
+        true => { let _x_2253 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0]); __value }; { let _x_2254 = &(payload).bytes; { let _x_2255 = { let mut __value = _x_2253; __value.extend_from_slice(&_x_2254); __value }; _x_2255 } } },
     } },
     } } })
 }
@@ -6904,12 +6904,12 @@ pub fn browserValidArchiveBody(body: &[u8]) -> Result<bool, crate::ComputeError>
     Ok({ let _x_46 = 202; { let _x_50 = (body).len() as u64; { let _x_51 = (_x_46 <= _x_50); match _x_51 {
         false => { let _y_56 = _x_51; match _y_56 {
         false => _y_56,
-        true => { let _x_177 = 0; { let _x_178 = 8; { let _x_179 = wireRowsValid((body).as_ref(), _x_177, _x_46, _x_178)?; match _x_179 {
-        false => _x_179,
-        true => { let _x_180 = browserWireBodyPayloadsValid((body).as_ref())?; _x_180 },
+        true => { let _x_178 = 0; { let _x_179 = 8; { let _x_180 = wireRowsValid((body).as_ref(), _x_178, _x_46, _x_179)?; match _x_180 {
+        false => _x_180,
+        true => { let _x_181 = browserWireBodyPayloadsValid((body).as_ref())?; _x_181 },
     } } } },
     } },
-        true => { let _x_154 = 0; { let _x_155 = 10; { let _x_175 = wireWindowEquals((body).as_ref(), _x_154, _x_155, &[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]); { let prod_local_0 = _x_175; match prod_local_0 {
+        true => { let _x_154 = 0; { let _x_155 = 10; { let _x_176 = wireWindowEquals((body).as_ref(), _x_154, _x_155, &[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]); { let prod_local_0 = _x_176; match prod_local_0 {
         false => prod_local_0,
         true => { let prod_local_1 = 0; { let prod_local_2 = 8; { let prod_local_3 = wireRowsValid((body).as_ref(), prod_local_1, _x_46, prod_local_2)?; match prod_local_3 {
         false => prod_local_3,
@@ -7110,12 +7110,12 @@ pub fn validArchiveBody(body: &[u8]) -> Result<bool, crate::ComputeError> {
     Ok({ let _x_46 = 202; { let _x_50 = (body).len() as u64; { let _x_51 = (_x_46 <= _x_50); match _x_51 {
         false => { let _y_56 = _x_51; match _y_56 {
         false => _y_56,
-        true => { let _x_177 = 0; { let _x_178 = 8; { let _x_179 = wireRowsValid((body).as_ref(), _x_177, _x_46, _x_178)?; match _x_179 {
-        false => _x_179,
-        true => { let _x_180 = wireBodyPayloadsValid((body).as_ref())?; _x_180 },
+        true => { let _x_178 = 0; { let _x_179 = 8; { let _x_180 = wireRowsValid((body).as_ref(), _x_178, _x_46, _x_179)?; match _x_180 {
+        false => _x_180,
+        true => { let _x_181 = wireBodyPayloadsValid((body).as_ref())?; _x_181 },
     } } } },
     } },
-        true => { let _x_154 = 0; { let _x_155 = 10; { let _x_175 = wireWindowEquals((body).as_ref(), _x_154, _x_155, &[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]); { let prod_local_0 = _x_175; match prod_local_0 {
+        true => { let _x_154 = 0; { let _x_155 = 10; { let _x_176 = wireWindowEquals((body).as_ref(), _x_154, _x_155, &[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]); { let prod_local_0 = _x_176; match prod_local_0 {
         false => prod_local_0,
         true => { let prod_local_1 = 0; { let prod_local_2 = 8; { let prod_local_3 = wireRowsValid((body).as_ref(), prod_local_1, _x_46, prod_local_2)?; match prod_local_3 {
         false => prod_local_3,
@@ -7516,34 +7516,34 @@ fn __prod_borrowed_wireRowOffset(body: &[u8], index: u64) -> Result<u64, crate::
 
 pub fn wireRowsValid(x_1: &[u8], mut x_2: u64, mut x_3: u64, mut x_4: u64) -> Result<bool, crate::ComputeError> {
     loop { return Ok(match x_4 {
-        0 => { let _x_313 = (x_1).len() as u64; (x_3 == _x_313) },
-        _ => { let n_154 = (x_4).saturating_sub(1); { let _x_320 = 8; { let _x_321 = (x_2 < _x_320); match _x_321 {
-        false => { let _y_323 = _x_321; match _y_323 {
-        false => _y_323,
-        true => { let _x_463 = 10; { let _x_465 = 24; { let _x_466 = core::convert::identity::<u64>(x_2).checked_mul(_x_465).ok_or(crate::ComputeError::MulOverflow)?; { let _x_467 = core::convert::identity::<u64>(_x_463).checked_add(_x_466).ok_or(crate::ComputeError::AddOverflow)?; { let _x_468 = 1; { let _x_469 = wireSectionKind(x_2); { let _x_470 = wireWindowEquals((x_1).as_ref(), _x_467, _x_468, (_x_469).as_ref()); match _x_470 {
-        false => { let _y_472 = _x_470; match _y_472 {
-        false => _y_472,
-        true => { let _x_505 = core::convert::identity::<u64>(x_2).checked_add(_x_468).ok_or(crate::ComputeError::AddOverflow)?; { let _x_506 = __prod_borrowed_wireRowLength((x_1).as_ref(), x_2)?; { let _x_507 = core::convert::identity::<u64>(x_3).checked_add(_x_506).ok_or(crate::ComputeError::AddOverflow)?; { (x_2, x_3, x_4,) = (_x_505, _x_507, n_154,); continue; } } } },
+        0 => { let _x_314 = (x_1).len() as u64; (x_3 == _x_314) },
+        _ => { let n_154 = (x_4).saturating_sub(1); { let _x_321 = 8; { let _x_322 = (x_2 < _x_321); match _x_322 {
+        false => { let _y_324 = _x_322; match _y_324 {
+        false => _y_324,
+        true => { let _x_466 = 10; { let _x_468 = 24; { let _x_469 = core::convert::identity::<u64>(x_2).checked_mul(_x_468).ok_or(crate::ComputeError::MulOverflow)?; { let _x_470 = core::convert::identity::<u64>(_x_466).checked_add(_x_469).ok_or(crate::ComputeError::AddOverflow)?; { let _x_471 = 1; { let _x_472 = wireSectionKind(x_2); { let _x_473 = wireWindowEquals((x_1).as_ref(), _x_470, _x_471, (_x_472).as_ref()); match _x_473 {
+        false => { let _y_475 = _x_473; match _y_475 {
+        false => _y_475,
+        true => { let _x_509 = core::convert::identity::<u64>(x_2).checked_add(_x_471).ok_or(crate::ComputeError::AddOverflow)?; { let _x_510 = __prod_borrowed_wireRowLength((x_1).as_ref(), x_2)?; { let _x_511 = core::convert::identity::<u64>(x_3).checked_add(_x_510).ok_or(crate::ComputeError::AddOverflow)?; { (x_2, x_3, x_4,) = (_x_509, _x_511, n_154,); continue; } } } },
     } },
-        true => { let _x_480 = 11; { let _x_482 = 24; { let _x_483 = core::convert::identity::<u64>(x_2).checked_mul(_x_482).ok_or(crate::ComputeError::MulOverflow)?; { let _x_484 = core::convert::identity::<u64>(_x_480).checked_add(_x_483).ok_or(crate::ComputeError::AddOverflow)?; { let _x_485 = 7; { let _x_496 = wireWindowEquals((x_1).as_ref(), _x_484, _x_485, &[0, 0, 0, 0, 0, 0, 0]); match _x_496 {
-        false => { let prod_local_0 = _x_496; match prod_local_0 {
+        true => { let _x_483 = 11; { let _x_485 = 24; { let _x_486 = core::convert::identity::<u64>(x_2).checked_mul(_x_485).ok_or(crate::ComputeError::MulOverflow)?; { let _x_487 = core::convert::identity::<u64>(_x_483).checked_add(_x_486).ok_or(crate::ComputeError::AddOverflow)?; { let _x_488 = 7; { let _x_500 = wireWindowEquals((x_1).as_ref(), _x_487, _x_488, &[0, 0, 0, 0, 0, 0, 0]); match _x_500 {
+        false => { let prod_local_0 = _x_500; match prod_local_0 {
         false => prod_local_0,
-        true => { let prod_local_1 = core::convert::identity::<u64>(x_2).checked_add(_x_468).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_2 = __prod_borrowed_wireRowLength((x_1).as_ref(), x_2)?; { let prod_local_3 = core::convert::identity::<u64>(x_3).checked_add(prod_local_2).ok_or(crate::ComputeError::AddOverflow)?; { (x_2, x_3, x_4,) = (prod_local_1, prod_local_3, n_154,); continue; } } } },
+        true => { let prod_local_1 = core::convert::identity::<u64>(x_2).checked_add(_x_471).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_2 = __prod_borrowed_wireRowLength((x_1).as_ref(), x_2)?; { let prod_local_3 = core::convert::identity::<u64>(x_3).checked_add(prod_local_2).ok_or(crate::ComputeError::AddOverflow)?; { (x_2, x_3, x_4,) = (prod_local_1, prod_local_3, n_154,); continue; } } } },
     } },
-        true => { let _x_497 = __prod_borrowed_wireRowOffset((x_1).as_ref(), x_2)?; { let _x_498 = (_x_497 == x_3); match _x_498 {
-        false => { let prod_local_5 = _x_498; match prod_local_5 {
+        true => { let _x_501 = __prod_borrowed_wireRowOffset((x_1).as_ref(), x_2)?; { let _x_502 = (_x_501 == x_3); match _x_502 {
+        false => { let prod_local_5 = _x_502; match prod_local_5 {
         false => prod_local_5,
-        true => { let prod_local_6 = core::convert::identity::<u64>(x_2).checked_add(_x_468).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_7 = __prod_borrowed_wireRowLength((x_1).as_ref(), x_2)?; { let prod_local_8 = core::convert::identity::<u64>(x_3).checked_add(prod_local_7).ok_or(crate::ComputeError::AddOverflow)?; { (x_2, x_3, x_4,) = (prod_local_6, prod_local_8, n_154,); continue; } } } },
+        true => { let prod_local_6 = core::convert::identity::<u64>(x_2).checked_add(_x_471).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_7 = __prod_borrowed_wireRowLength((x_1).as_ref(), x_2)?; { let prod_local_8 = core::convert::identity::<u64>(x_3).checked_add(prod_local_7).ok_or(crate::ComputeError::AddOverflow)?; { (x_2, x_3, x_4,) = (prod_local_6, prod_local_8, n_154,); continue; } } } },
     } },
-        true => { let _x_499 = __prod_borrowed_wireRowLength((x_1).as_ref(), x_2)?; { let _x_502 = (x_1).len() as u64; { let _x_503 = core::convert::identity::<u64>(_x_502).saturating_sub(x_3); { let _x_504 = (_x_499 <= _x_503); { let prod_local_10 = _x_504; match prod_local_10 {
+        true => { let _x_503 = __prod_borrowed_wireRowLength((x_1).as_ref(), x_2)?; { let _x_506 = (x_1).len() as u64; { let _x_507 = core::convert::identity::<u64>(_x_506).saturating_sub(x_3); { let _x_508 = (_x_503 <= _x_507); { let prod_local_10 = _x_508; match prod_local_10 {
         false => prod_local_10,
-        true => { let prod_local_11 = core::convert::identity::<u64>(x_2).checked_add(_x_468).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_12 = __prod_borrowed_wireRowLength((x_1).as_ref(), x_2)?; { let prod_local_13 = core::convert::identity::<u64>(x_3).checked_add(prod_local_12).ok_or(crate::ComputeError::AddOverflow)?; { (x_2, x_3, x_4,) = (prod_local_11, prod_local_13, n_154,); continue; } } } },
+        true => { let prod_local_11 = core::convert::identity::<u64>(x_2).checked_add(_x_471).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_12 = __prod_borrowed_wireRowLength((x_1).as_ref(), x_2)?; { let prod_local_13 = core::convert::identity::<u64>(x_3).checked_add(prod_local_12).ok_or(crate::ComputeError::AddOverflow)?; { (x_2, x_3, x_4,) = (prod_local_11, prod_local_13, n_154,); continue; } } } },
     } } } } } },
     } } },
     } } } } } } },
     } } } } } } } },
     } },
-        true => { let _x_460 = (x_1).len() as u64; { let _x_461 = (x_3 <= _x_460); { let prod_local_15 = _x_461; match prod_local_15 {
+        true => { let _x_463 = (x_1).len() as u64; { let _x_464 = (x_3 <= _x_463); { let prod_local_15 = _x_464; match prod_local_15 {
         false => prod_local_15,
         true => { let prod_local_16 = 10; { let prod_local_17 = 24; { let prod_local_18 = core::convert::identity::<u64>(x_2).checked_mul(prod_local_17).ok_or(crate::ComputeError::MulOverflow)?; { let prod_local_19 = core::convert::identity::<u64>(prod_local_16).checked_add(prod_local_18).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_20 = 1; { let prod_local_21 = wireSectionKind(x_2); { let prod_local_22 = wireWindowEquals((x_1).as_ref(), prod_local_19, prod_local_20, (prod_local_21).as_ref()); match prod_local_22 {
         false => { let prod_local_24 = prod_local_22; match prod_local_24 {
@@ -10623,10 +10623,10 @@ pub fn interactionPendingValid(state: &crate::WorkspaceByteView) -> Result<bool,
 pub fn interactionPresentation(state: &crate::WorkspaceByteView) -> Result<alloc::vec::Vec<u8>, crate::ComputeError> {
     Ok({ let _x_5 = 0; { let _x_13 = 1; { let _x_22 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0, 80, 86, 78, 1]); __value }; { let _x_23 = 70; { let _x_28 = byteWindowView(&(state), _x_23, _x_13); { let _x_29 = { let mut __append = (_x_22, _x_28); __append.0.extend(__append.1); __append.0 }; { let _x_33 = 3; { let _x_36 = 75; { let _x_39 = 73; { let _x_42 = interactionU16(&(state), _x_39)?; { let _x_192 = core::convert::identity::<u64>(_x_36).checked_add(_x_42).ok_or(crate::ComputeError::AddOverflow)?; { let _x_196 = core::convert::identity::<u64>(_x_33).checked_add(_x_192).ok_or(crate::ComputeError::AddOverflow)?; { let _x_45 = interactionU24(&(state), _x_192)?; { let _x_200 = core::convert::identity::<u64>(_x_196).checked_add(_x_45).ok_or(crate::ComputeError::AddOverflow)?; { let _x_47 = byteWindowView(&(state), _x_200, _x_13); { let _x_48 = { let mut __append = (_x_29, _x_47); __append.0.extend(__append.1); __append.0 }; { let _x_49 = 71; { let _x_52 = byteWindowView(&(state), _x_49, _x_13); { let _x_53 = { let mut __append = (_x_48, _x_52); __append.0.extend(__append.1); __append.0 }; { let _x_54 = interactionControls(&(state))?; { let _x_55 = { let mut __append = (_x_53, _x_54); __append.0.extend(__append.1); __append.0 }; { let _x_56 = workspaceViewFocus(&(state))?; { let _x_57 = interactionFocusCode(_x_56); { let _x_58 = { let mut __append = (_x_55, _x_57); __append.0.extend(__append.1); __append.0 }; { let _x_59 = workspaceViewLiveMode(&(state))?; { let _x_60 = interactionLiveCode(_x_59); { let _x_61 = { let mut __append = (_x_58, _x_60); __append.0.extend(__append.1); __append.0 }; { let _x_62 = 36; { let _x_65 = 32; { let _x_68 = byteWindowView(&(state), _x_62, _x_65); { let _x_69 = { let mut __append = (_x_61, _x_68); __append.0.extend(__append.1); __append.0 }; { let _x_154 = byteWindowView(&(state), _x_196, _x_45); { let _x_155 = (_x_154).len() as u64; { let _x_158 = (_x_155 == _x_5); match _x_158 {
         false => { let _x_247 = byteWindowView(&(state), _x_196, _x_45); { let _x_248 = 34; { let _x_249 = byteWindow(_x_247.clone(), _x_248, _x_65); { let _x_250 = { let mut __append = (alloc::vec::Vec::<u8>::new(), _x_249); __append.0.extend(__append.1); __append.0 }; { let _x_251 = crate::WorkspaceByteView { bytes: _x_247.clone() }; { let _x_252 = 66; { let _x_253 = interactionU16(&(_x_251), _x_252)?; { let _x_254 = encodeU16(_x_253); { let _x_255 = { let mut __append = (_x_250, _x_254); __append.0.extend(__append.1); __append.0 }; { let _x_256 = 68; { let _x_257 = interactionU16(&(_x_251), _x_256)?; { let _x_258 = encodeU16(_x_257); { let _x_259 = { let mut __append = (_x_255, _x_258); __append.0.extend(__append.1); __append.0 }; { let _x_260 = byteWindow(_x_247.clone(), _x_23, _x_13); { let _x_261 = crate::WorkspaceByteView { bytes: _x_260 }; { let _x_262 = interactionOctet(&(_x_261)); { let _x_263 = encodeOctet(_x_262); { let _x_264 = { let mut __append = (_x_259, _x_263); __append.0.extend(__append.1); __append.0 }; { let _x_278 = interactionU16(&(_x_251), _x_49)?; { let _x_279 = byteWindow(_x_247.clone(), _x_39, _x_278); { let _x_280 = (_x_279).len() as u64; { let _x_281 = (_x_280 == _x_5); match _x_281 {
-        false => { let _y_283 = alloc::vec![1]; { let _x_284 = { let mut __append = (_x_264, _y_283); __append.0.extend(__append.1); __append.0 }; { let _x_285 = 76; { let _x_286 = core::convert::identity::<u64>(_x_285).checked_add(_x_278).ok_or(crate::ComputeError::AddOverflow)?; { let _x_287 = core::convert::identity::<u64>(_x_39).checked_add(_x_278).ok_or(crate::ComputeError::AddOverflow)?; { let _x_288 = interactionU24(&(_x_251), _x_287)?; { let _x_289 = byteWindow(_x_247.clone(), _x_286, _x_288); { let _x_290 = (_x_289).len() as u64; { let _x_291 = encodeU24(_x_290); { let _x_292 = { let mut __append = (_x_284, _x_291); __append.0.extend(__append.1); __append.0 }; { let _x_293 = { let mut __append = (_x_292, _x_289); __append.0.extend(__append.1); __append.0 }; { let _x_326 = { let mut __append = (_x_69, _x_293); __append.0.extend(__append.1); __append.0 }; _x_326 } } } } } } } } } } } },
+        false => { let _y_283 = alloc::vec![1]; { let _x_284 = { let mut __append = (_x_264, _y_283); __append.0.extend(__append.1); __append.0 }; { let _x_285 = 76; { let _x_286 = core::convert::identity::<u64>(_x_285).checked_add(_x_278).ok_or(crate::ComputeError::AddOverflow)?; { let _x_287 = core::convert::identity::<u64>(_x_39).checked_add(_x_278).ok_or(crate::ComputeError::AddOverflow)?; { let _x_288 = interactionU24(&(_x_251), _x_287)?; { let _x_289 = byteWindow(_x_247.clone(), _x_286, _x_288); { let _x_290 = (_x_289).len() as u64; { let _x_291 = encodeU24(_x_290); { let _x_292 = { let mut __append = (_x_284, _x_291); __append.0.extend(__append.1); __append.0 }; { let _x_293 = { let mut __append = (_x_292, _x_289); __append.0.extend(__append.1); __append.0 }; { let _x_327 = { let mut __append = (_x_69, _x_293); __append.0.extend(__append.1); __append.0 }; _x_327 } } } } } } } } } } } },
         true => { let prod_local_0 = alloc::vec![0]; { let prod_local_1 = { let mut __append = (_x_264, prod_local_0); __append.0.extend(__append.1); __append.0 }; { let prod_local_2 = 76; { let prod_local_3 = core::convert::identity::<u64>(prod_local_2).checked_add(_x_278).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_4 = core::convert::identity::<u64>(_x_39).checked_add(_x_278).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_5 = interactionU24(&(_x_251), prod_local_4)?; { let prod_local_6 = byteWindow(_x_247.clone(), prod_local_3, prod_local_5); { let prod_local_7 = (prod_local_6).len() as u64; { let prod_local_8 = encodeU24(prod_local_7); { let prod_local_9 = { let mut __append = (prod_local_1, prod_local_8); __append.0.extend(__append.1); __append.0 }; { let prod_local_10 = { let mut __append = (prod_local_9, prod_local_6); __append.0.extend(__append.1); __append.0 }; { let prod_local_11 = { let mut __append = (_x_69, prod_local_10); __append.0.extend(__append.1); __append.0 }; prod_local_11 } } } } } } } } } } } },
     } } } } } } } } } } } } } } } } } } } } } } },
-        true => { let _x_310 = zeroDigest(); { let _x_311 = { let mut __append = (alloc::vec::Vec::<u8>::new(), _x_310); __append.0.extend(__append.1); __append.0 }; { let _x_325 = { let mut __value = _x_311; __value.extend_from_slice(&alloc::vec![0, 0, 0, 0, 0, 0, 0, 0, 0]); __value }; { let _x_246 = { let mut __append = (_x_69, _x_325); __append.0.extend(__append.1); __append.0 }; _x_246 } } } },
+        true => { let _x_310 = zeroDigest(); { let _x_311 = { let mut __append = (alloc::vec::Vec::<u8>::new(), _x_310); __append.0.extend(__append.1); __append.0 }; { let _x_326 = { let mut __value = _x_311; __value.extend_from_slice(&alloc::vec![0, 0, 0, 0, 0, 0, 0, 0, 0]); __value }; { let _x_246 = { let mut __append = (_x_69, _x_326); __append.0.extend(__append.1); __append.0 }; _x_246 } } } },
     } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } })
 }
 

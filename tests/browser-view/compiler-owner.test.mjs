@@ -8,6 +8,11 @@ import test from 'node:test';
 import {captureCompilerInputs, createCompilerOwner, requireCompilerOwner} from './compiler-owner.mjs';
 import {compilerDriverDirectory} from './compiler-owner-checks.mjs';
 import {captureVerificationProducts} from './verification-products.mjs';
+import * as effectsAdapter from '../browser-effects/compile.mjs';
+import * as presentationAdapter from '../browser-presentation/compile.mjs';
+import * as operationJournalAdapter from '../browser-operation-journal/compile.mjs';
+import * as budgetAdapter from '../browser-budget/compile.mjs';
+import * as publicationAdapter from '../publication-admission/compile.mjs';
 
 test('driver substitution lookup includes P256 and rejects missing or ambiguous source inventory', () => {
   for (const directory of ['browser-view', 'browser-session', 'browser-p256', 'browser-signed-context', 'browser-session-operation', 'browser-pkce', 'holo-primary-component', 'publication-admission', 'publication-context-linkage', 'browser-session-journal-retention',
@@ -58,6 +63,266 @@ test('compiler owner refuses forged handles and unregistered tool families', () 
     assert.throws(() => requireCompilerOwner(value, {}), /actual fresh compiler owner/);
   for (const name of ['', '../escape', 'caller-driver', null, {toString() {throw Error('coercion');}}])
     assert.throws(() => createCompilerOwner(name, {}), /registered compiler family/);
+});
+
+test('all five existing adapters reject forged owners before any construction', () => {
+  const adapters = {effects:effectsAdapter, presentation:presentationAdapter,
+    'operation-journal':operationJournalAdapter, budget:budgetAdapter, publication:publicationAdapter};
+  for (const [family, adapter] of Object.entries(adapters)) {
+    const inputs = ['budget', 'presentation', 'publication'].includes(family) ? adapter.frozenInputs() : null;
+    for (const forged of [{}, {runDriver() {}, runExporter() {}, verify() {}}]) {
+      const args = family === 'operation-journal' ? [null, false, forged]
+        : family === 'presentation' ? [null, null, inputs, forged]
+          : ['budget', 'publication'].includes(family) ? [null, inputs, forged] : [null, forged];
+      assert.throws(() => adapter.prepare(...args), /actual fresh compiler owner/, family);
+    }
+  }
+});
+
+test('five existing adapters preserve exact driver and exporter arguments across shared-tool dispatch', () => {
+  // Argument-boundary unit only; no recorder is compiler or SDK evidence.
+  for (const family of ['effects', 'presentation', 'operation-journal', 'budget', 'publication']) {
+    const path = family === 'publication' ? '../publication-admission/compile.mjs' : '../browser-' + family + '/compile.mjs';
+    const source = fs.readFileSync(new URL(path, import.meta.url), 'utf8');
+    const central = ['presentation', 'publication'].includes(family);
+    const licenseRoot = family === 'presentation' ? 'licenses' : 'repository';
+    const verifyCall = central ? "compiler.runDriver(['verify', join(project, 'lexlean.toml')], work)"
+      : "invokeDriver(['verify', join(project, 'lexlean.toml')])";
+    const nativeCall = central ? "compiler.runDriver(['native', ir, generated, " + licenseRoot + "], work)"
+      : "invokeDriver(['native', ir, generated, repository])";
+    const wasmCall = central ? 'compiler.runDriver([mode, ir, guest, ' + licenseRoot + '], work)'
+      : 'invokeDriver([mode, ir, guest, repository])';
+    const finalBarrier = family === 'presentation'
+      ? "requireCompilerOwner(compiler, 'presentation'); verifyEvidence();"
+      : family === 'publication' ? 'pins(); compiler.verify();' : 'if (shared) shared.verify(); else compiler.unchanged();';
+    const check = text => {
+      assert(text.includes("requireCompilerOwner(compilerOwner, '" + family + "')"));
+      const observed = [];
+      const owner = {runDriver(...args) {observed.push(args);}, runExporter() {}};
+      const context = {join, work:'/actual-private-work', repository:'/actual-source',
+        project:'/actual-private-subject/project', ir:'/actual-private-subject/export/kernel.ir',
+        generated:'/actual-private-subject/generated', guest:'/actual-private-subject/guest-a',
+        licenses:'/actual-private-subject/licenses', mode:'wasm'};
+      if (central) {
+        const binding = /const compiler = [\s\S]*?;/.exec(text);
+        assert(binding, 'one genuine central compiler binding');
+        const selections = [];
+        const compiler = runInNewContext(binding[0] + '\ncompiler;', {
+          compilerOwner:owner,
+          requireCompilerOwner(value, selected) {selections.push([value, selected]); return value;},
+          createCompilerOwner() {assert.fail('borrowed path cannot construct a second compiler');},
+          captureCompilerInputs() {assert.fail('borrowed path cannot replace selected compiler inputs');},
+        });
+        assert.equal(compiler, owner);
+        assert.equal(selections.length, 1); assert.equal(selections[0][0], owner); assert.equal(selections[0][1], family);
+        for (const call of [verifyCall, nativeCall, wasmCall]) {
+          assert(text.includes(call), 'exact central driver call: ' + call);
+          runInNewContext(call, {...context, compiler});
+        }
+        assert.deepEqual(JSON.parse(JSON.stringify(observed)), [
+          [['verify', '/actual-private-subject/project/lexlean.toml'], '/actual-private-work'],
+          [['native', context.ir, context.generated, context[licenseRoot]], '/actual-private-work'],
+          [['wasm', context.ir, context.guest, context[licenseRoot]], '/actual-private-work'],
+        ]);
+      } else {
+        const begin = text.indexOf('    let compiler, invokeDriver;');
+        const end = text.indexOf('\n    }', begin);
+        assert(begin >= 0 && end > begin, 'one shared/fresh driver construction branch');
+        const invoke = runInNewContext(text.slice(begin, end + '\n    }'.length) + '\ninvokeDriver;', {
+          ...context, shared:owner, inputs:{},
+          stageCompiler() {return {manifest:'/actual-captured-driver/Cargo.toml'};},
+          createPrivateDriverTarget() {return '/actual-private-work/driver-target';},
+          run() {assert.fail('shared path cannot adopt a fallback compiler');},
+        });
+        const argv = ['verify', '/actual-private-subject/project/lexlean.toml'];
+        invoke(argv);
+        assert.deepEqual(JSON.parse(JSON.stringify(observed)), [[argv, '/actual-source']]);
+      }
+      const exported = [];
+      const roots = ['PrismPM.Fixture.root'], lean = '/actual-private-subject/lean', out = '/actual-private-subject/export';
+      if (central) {
+        const exporter = /compiler\.runExporter\(\['--module', 'PrismPM\.Fixture', \.\.\.roots\.flatMap\(root => \['--root', root\]\),[\s\S]*?\], join\(lean, '\.lake\/build\/lib\/lean'\)\)/.exec(text);
+        assert(exporter, 'one central exporter bound to this fresh generated Lean');
+        runInNewContext(exporter[0], {join, roots, lean, exported:out,
+          compiler:{runExporter(...args) {exported.push(args);}}});
+        assert.deepEqual(JSON.parse(JSON.stringify(exported)), [[
+          ['--module', 'PrismPM.Fixture', '--root', roots[0], '--ir-module',
+            family === 'presentation' ? 'BrowserPresentation' : 'BrowserPublication', '--out', out],
+          lean + '/.lake/build/lib/lean',
+        ]]);
+      } else {
+        const exporter = /const invokeExporter = args => shared \?[\s\S]*?;\n/.exec(text);
+        assert(exporter, 'one unchanged model-path exporter boundary');
+        const invokeExporter = runInNewContext(exporter[0] + '\ninvokeExporter;', {
+          shared:{runExporter(...args) {exported.push(args);}}, join, lean,
+          exporter:{bin:'/must-not-adopt',dir:'/must-not-adopt'},
+          run() {assert.fail('shared path adopted an independent or cached executable');},
+        });
+        const args = ['--module','PrismPM.Fixture','--root',roots[0],'--out',out];
+        invokeExporter(args);
+        assert.deepEqual(JSON.parse(JSON.stringify(exported)), [[args, lean + '/.lake/build/lib/lean']]);
+      }
+      for (const call of [verifyCall, nativeCall, wasmCall]) assert(text.includes(call));
+      assert(text.includes("run('lake', ['build', 'PrismGenerated'], lean)"));
+      assert(text.includes("'two independent generated Core-Wasm packages'"));
+      assert(text.includes(finalBarrier));
+    };
+    check(source);
+    const mutations = [
+      ["requireCompilerOwner(compilerOwner, '" + family + "')", "requireCompilerOwner(compilerOwner, 'absent-family')"],
+      central ? ['compiler.runDriver(', 'untrusted.runDriver('] : ['if (shared) invokeDriver =', 'if (false) invokeDriver ='],
+      central ? [verifyCall, verifyCall.replace('], work)', '], repository)')]
+        : ['shared.runDriver(args, repository)', 'shared.runDriver(args, work)'],
+      central ? ["], join(lean, '.lake/build/lib/lean'))", "], '/prior-export')"]
+        : ["shared.runExporter(args, join(lean, '.lake/build/lib/lean'))", "shared.runExporter(args, '/prior-export')"],
+      [verifyCall, verifyCall.replace("['verify',", "['check',")],
+      [nativeCall, nativeCall.replace(', ' + licenseRoot + ']', ', work]')],
+      [wasmCall, wasmCall.replace(', guest,', ', generated,')],
+      ["run('lake', ['build', 'PrismGenerated'], lean)", 'undefined'],
+      ["'two independent generated Core-Wasm packages'", "'REMOVED'"],
+      [finalBarrier, 'undefined;'],
+    ];
+    assert.equal(mutations.length, 10, 'every original dispatch and refusal mutation remains');
+    for (const [from, to] of mutations) {
+      assert(source.includes(from), 'real mutation anchor: ' + family + ': ' + from);
+      const changed = source.replaceAll(from, to); assert.notEqual(changed, source);
+      assert.throws(() => check(changed), undefined, family + ': ' + from);
+    }
+  }
+});
+
+test('all four generated mutant owners recheck final evidence and actual compiler identity after execution', () => {
+  // Execute the actual owner function with boundary fixtures; this is not
+  // generated-model, native/Wasm, compiler, SDK or full-gate qualification.
+  for (const family of ['budget', 'effects', 'operation-journal', 'publication']) {
+    const directory = family === 'publication' ? 'publication-admission' : 'browser-' + family;
+    const source = fs.readFileSync(new URL('../' + directory + '/checks.mjs', import.meta.url), 'utf8');
+    const begin = source.indexOf('export function verifyModelMutation(');
+    const next = source.indexOf('\nexport ', begin + 1);
+    assert(begin >= 0);
+    const body = source.slice(begin, next < 0 ? source.length : next).replace('export function ', 'function ');
+    const ownerJoin = /if\s*\(compilerOwner\)\s*assert\.equal\(build\.(?:compilerOwner|compiler\.identity),\s*compilerOwner\.identity(?:,[^;]*)?\);/.exec(body);
+    assert(ownerJoin, 'one actual provided-owner identity join: ' + family);
+    const invoke = (text, {wrongOwner = false, evidenceFailure = false} = {}) => {
+      const events = [], vector = {id:({budget:'BudgetApplication',effects:'CompletionSubstitution',
+        'operation-journal':'TerminalMismatch3',publication:'ContextChangedSubjectsource'})[family],
+      request:Buffer.alloc(0),response:Buffer.alloc(0)};
+      const identity = wrongOwner ? 'foreign-owner' : 'actual-owner';
+      const build = {work:'/private/mutant',runner:'/private/mutant/runner',compilerOwner:identity,
+        compiler:{identity},verified:{source_id:'source',attestation_id:'attestation'},generation:{ir_sha256:'ir'},
+        wasmBytes:Buffer.alloc(0),journalBytes:Buffer.alloc(0),partitionBytes:Buffer.alloc(0),
+        compileNative(standard) {events.push(standard ? 'std' : 'no-std'); return '/private/native';},
+        verifyEvidence() {events.push('evidence'); if (evidenceFailure) throw Error('actual final evidence refusal');}};
+      const inputs = {}, function_ = runInNewContext(text + '\nverifyModelMutation;', {
+        assert, Buffer, join, prepare:() => build, corpus:() => [vector], partitionCorpus:() => [vector],
+        tsv:() => '', writeFileSync() {}, rmSync() {events.push('cleanup');}, assertFrozenInputs() {}, frozenInputs:() => inputs,
+        sha:() => 'digest', run() {throw Error('native output mismatch');},
+        executeWasm() {events.push('wasm'); throw Error('generated Wasm output mismatch');},
+      });
+      const args = ['budget', 'publication'].includes(family)
+        ? [family === 'budget' ? 'identity' : 'binding', inputs, {identity:'actual-owner'}]
+        : ['binding', {identity:'actual-owner'}];
+      let error;
+      try {function_(...args);} catch (caught) {error = caught;}
+      return {events, error};
+    };
+    const check = text => {
+      const completed = invoke(text), successCleanup = ['effects', 'operation-journal'].includes(family) ? ['cleanup'] : [];
+      const failureCleanup = family === 'effects' ? ['cleanup'] : [];
+      assert.ifError(completed.error);
+      assert.deepEqual(completed.events, ['std', 'no-std', 'wasm', 'evidence', ...successCleanup],
+        'final source/proof/IR check follows both real execution boundaries: ' + family);
+      const foreign = invoke(text, {wrongOwner:true});
+      assert.equal(foreign.error?.code, 'ERR_ASSERTION', 'actual identity assertion refuses the foreign compiler');
+      assert.equal(foreign.error.actual, 'foreign-owner');
+      assert.equal(foreign.error.expected, 'actual-owner');
+      assert.deepEqual(foreign.events, failureCleanup, 'identity refusal preserves existing cleanup policy: ' + family);
+      const refused = invoke(text, {evidenceFailure:true});
+      assert.match(String(refused.error), /actual final evidence refusal/);
+      assert.deepEqual(refused.events, ['std', 'no-std', 'wasm', 'evidence', ...failureCleanup],
+        'final evidence refusal preserves existing cleanup policy: ' + family);
+    };
+    check(body);
+    if (family === 'effects') {
+      const outside = body.replace(ownerJoin[0], '').replace('  try {', ownerJoin[0] + '\n  try {');
+      assert.notEqual(outside, body, 'actual existing Effects cleanup boundary');
+      assert.throws(() => check(outside), /identity refusal preserves existing cleanup policy/,
+        'moving the identity guard outside the existing try must lose cleanup and fail its witness');
+    }
+    const noEvidence = body.replace('build.verifyEvidence();', '');
+    assert.notEqual(noEvidence, body);
+    assert.throws(() => check(noEvidence), undefined, 'missing final evidence check: ' + family);
+    const noJoin = body.replace(ownerJoin[0], '');
+    assert.notEqual(noJoin, body);
+    assert.throws(() => check(noJoin), undefined, 'missing provided-owner join: ' + family);
+    const early = body.replace('build.verifyEvidence();', '').replace(
+      'assert.throws(()=>executeWasm(', 'build.verifyEvidence();assert.throws(()=>executeWasm(');
+    const spacedEarly = early === noEvidence ? noEvidence.replace(
+      'assert.throws(() => executeWasm(', 'build.verifyEvidence();assert.throws(() => executeWasm(') : early;
+    assert.notEqual(spacedEarly, noEvidence, 'actual final Wasm invocation anchor: ' + family);
+    assert.throws(() => check(spacedEarly), undefined, 'evidence cannot precede final execution: ' + family);
+  }
+});
+
+test('four serial owners retire exactly once on early failure without retrying an attempted close', () => {
+  // Source-extracted lifecycle unit, not a substitute for the owning compiler
+  // executions or provider/container retirement evidence.
+  const owners = [
+    ['budget', '../../sdk/browser/budget-model-test.mjs'],
+    ['effects', '../../sdk/browser/effects-test.mjs'],
+    ['presentation', '../../sdk/browser/presentation.test.mjs'],
+    ['operation-journal', '../browser-operation-journal/checks.mjs'],
+  ];
+  for (const [family, path] of owners) {
+    const source = fs.readFileSync(new URL(path, import.meta.url), 'utf8');
+    const check = text => {
+      const after = /t\.after\(\(\)\s*=>\s*\{[\s\S]*?if\s*\(!retirementAttempted\)\s*\{\s*retirementAttempted\s*=\s*true;\s*owner\.close\(\);\s*\}[\s\S]*?\}\);/.exec(text);
+      const normal = /retirementAttempted\s*=\s*true;\s*const retirement\s*=\s*owner\.close\(\);/.exec(text);
+      assert(after && normal, 'both actual once-only retirement paths: ' + family);
+      const creation = text.indexOf("createCompilerOwner('" + family + "')");
+      const boundary = family === 'presentation' ? text.indexOf('finally { assert.equal(process.umask()')
+        : text.indexOf('verifyCompilerOwnerSubstitutions(owner)');
+      assert(creation >= 0 && creation < after.index && after.index + after[0].length < boundary,
+        'failure retirement is armed before substitution, model execution or final umask assertion');
+      const lifecycle = (closeFails = false) => {
+        const events = [], callbacks = [];
+        const finish = runInNewContext('let retirementAttempted = false;\n' + after[0]
+          + '\n() => {' + normal[0] + '};', {
+          t:{after(callback) {callbacks.push(callback);}},
+          owner:{close() {events.push('close'); if (closeFails) throw Error('actual retirement refusal');}},
+        });
+        assert.equal(callbacks.length, 1);
+        return {events, finish, cleanup:callbacks[0]};
+      };
+      for (const failure of ['substitution', 'action']) {
+        const early = lifecycle();
+        assert.throws(() => {throw Error('actual early ' + failure + ' refusal');}, /actual early/);
+        early.cleanup(); early.cleanup();
+        assert.deepEqual(early.events, ['close'], 'one fallback close after early ' + failure);
+      }
+      const completed = lifecycle(); completed.finish(); completed.cleanup(); completed.cleanup();
+      assert.deepEqual(completed.events, ['close'], 'successful normal close is never repeated');
+      const refused = lifecycle(true);
+      assert.throws(refused.finish, /actual retirement refusal/);
+      refused.cleanup(); refused.cleanup();
+      assert.deepEqual(refused.events, ['close'], 'failed normal close is never retried');
+      const fallbackRefused = lifecycle(true);
+      assert.throws(fallbackRefused.cleanup, /actual retirement refusal/); fallbackRefused.cleanup();
+      assert.deepEqual(fallbackRefused.events, ['close'], 'failed fallback close is never retried');
+    };
+    check(source);
+    const after = /t\.after\(\(\)\s*=>\s*\{[\s\S]*?if\s*\(!retirementAttempted\)\s*\{\s*retirementAttempted\s*=\s*true;\s*owner\.close\(\);\s*\}[\s\S]*?\}\);/.exec(source);
+    const normal = /retirementAttempted\s*=\s*true;\s*const retirement\s*=\s*owner\.close\(\);/.exec(source);
+    for (const changed of [
+      source.replace(after[0], ''),
+      source.replace(normal[0], normal[0].replace(/retirementAttempted\s*=\s*true;/, '')),
+      source.replace(after[0], after[0].replace(/retirementAttempted\s*=\s*true;/, '')),
+      source.replace(after[0], '') + '\n' + after[0],
+    ]) {
+      assert.notEqual(changed, source);
+      assert.throws(() => check(changed), undefined, 'deleted or moved real retirement guard: ' + family);
+    }
+  }
 });
 
 test('fresh independent drivers pin hash optimization without changing construction or acceptance',()=>{
@@ -241,10 +506,15 @@ test('compiler owner refuses malformed or incomplete input closures before build
   assert.equal(called, false, 'input accessors cannot run before immutable capture');
   for (const name of families) {
     const inputs = captureCompilerInputs(name);
-    for (const missing of ['tests/browser-view/compile.mjs', 'tests/browser-view/compiler-artifact.mjs', 'vendor/lean4-prod/lean.tar']) {
+    for (const missing of ['tests/browser-view/compile.mjs', 'tests/browser-view/compiler-artifact.mjs',
+      'tests/browser-view/compiler-owner-checks.mjs',
+      'tests/browser-view/verification-products.mjs', 'vendor/lean4-prod/lean.tar']) {
       const changed = {...inputs}; delete changed[missing];
       assert.throws(() => createCompilerOwner(name, changed), /complete closed compiler input closure/);
     }
+    for (const substituted of ['tests/browser-view/compiler-owner-checks.mjs', 'tests/browser-view/verification-products.mjs'])
+      assert.throws(() => createCompilerOwner(name, {...inputs, [substituted]:'0'.repeat(64)}),
+        /captured compiler source/, 'actual helper digest substitution: ' + name + ': ' + substituted);
     assert.throws(() => createCompilerOwner(name, {...inputs, unexpected: '0'.repeat(64)}), /complete closed compiler input closure/);
   }
 });

@@ -52,9 +52,12 @@ export async function verifyWire(t,sources,compilerOwner=null){
 export function verifyModelMutation(kind,sources,compilerOwner=null,diagnostic=()=>{}){
  const selected={identity:'BudgetApplication',policy:'RequestedPolicy',manifest:'ManifestInvalidLimit',request:'Crossdigest1',coverage:'MissingRow',order:'BothOrder',limit:'digestLength4'}[kind];
  const vector=corpus().find(row=>row.id===selected);assert.ok(vector);
- const build=prepare(kind,sources,compilerOwner),file=join(build.work,'mutation.tsv');writeFileSync(file,tsv([vector]),{flag:'wx'});
+ const build=prepare(kind,sources,compilerOwner),file=join(build.work,'mutation.tsv');
+ if(compilerOwner)assert.equal(build.compilerOwner,compilerOwner.identity);
+ writeFileSync(file,tsv([vector]),{flag:'wx'});
  for(const standard of[true,false])assert.throws(()=>run(build.compileNative(standard),[file],build.runner),/native output mismatch/);
  assert.throws(()=>executeWasm(build.wasmBytes,[vector]),/generated Wasm output mismatch/);
+ build.verifyEvidence();
  assertFrozenInputs(sources);
  diagnostic({kind,compilerOwner:build.compilerOwner,preparationMs:build.preparationMs});
  return {kind,source:build.verified.source_id,attestation:build.verified.attestation_id,ir:build.generation.ir_sha256,wasm:sha(build.wasmBytes),vector:vector.id,request:sha(vector.request),response:sha(vector.response),cacheRetirement:build.cacheRetirement};

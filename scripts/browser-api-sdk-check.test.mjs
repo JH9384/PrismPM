@@ -136,7 +136,7 @@ test('private prerequisite source closure includes complete fixture directories 
 });
 
 test('installed source roots cover every actual frozen private prerequisite compiler input',async()=>{
- for(const path of ['tests/browser-budget/compile.mjs','tests/browser-contextual-effects/checks.mjs','tests/browser-dynamic-choice/compile.mjs','tests/browser-signed-context/compile.mjs','tests/browser-session-operation/compile.mjs','tests/browser-pkce/compile.mjs','tests/holo-primary-component/compile.mjs','tests/browser-presentation/compile.mjs','tests/browser-session/compile.mjs','tests/browser-semantic-presentation/compile.mjs']){
+ for(const path of ['tests/browser-budget/compile.mjs','tests/browser-contextual-effects/checks.mjs','tests/browser-dynamic-choice/compile.mjs','tests/browser-signed-context/compile.mjs','tests/browser-session-operation/compile.mjs','tests/browser-pkce/compile.mjs','tests/holo-primary-component/compile.mjs','tests/browser-presentation/compile.mjs','tests/browser-session/compile.mjs','tests/browser-semantic-presentation/compile.mjs','tests/publication-admission/compile.mjs']){
   const {frozenInputs}=await import(new URL('../'+path,import.meta.url));
   const inputs=frozenInputs();
   if(Object.hasOwn(inputs,'scripts/browser-api-sdk-check.mjs'))
@@ -805,11 +805,13 @@ test('release acceptance actually invokes every closed owning suite and rejects 
  assert.equal(calls.length,34);
  assert.deepEqual(calls.map(args=>args.slice(4)),executions.map(row=>row.files));
  assert.deepEqual(calls.map(args=>args[3]),executions.map(row=>'--test-timeout='+row.deadline));
- const view=suites.find(row=>row.id==='DK-15');assert.equal(view.minimum,43);
+ const view=suites.find(row=>row.id==='DK-15');assert.equal(view.minimum,47);
  assert.equal(suites.find(row=>row.id==='DK-34').minimum,22);
  assert.equal(suites.find(row=>row.id==='DK-33').minimum,17);
- for(const [index,path] of view.files.entries())put(root,path,testSource(index===0?31:1));
- await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/,'omitting the bounded streaming regression must refuse36 tests');
+ for(const first of [31,41]){
+  for(const [index,path] of view.files.entries())put(root,path,testSource(index===0?first:1));
+  await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/,'complete compiler custody owner refuses '+(first+5)+' tests');
+ }
  testFixtures(root);
  const path='sdk/browser/identity.test.mjs',second='sdk/browser/identity.browser.test.mjs';
  put(root,path,testSource(1));put(root,second,testSource(1));await assert.rejects(()=>runSuites(root,spawnSync,()=>{}),/incomplete test suite/);
@@ -862,7 +864,7 @@ test('owning release test kills a removed complete-TAP acceptance guard',async t
  const source=readFileSync(new URL('./browser-api-sdk-check.mjs',import.meta.url),'utf8');
  for(const [before,after,witness] of [
   ['const tests=verifyTap(output.stdout,execution.minimum)',"const tests=Number(/^# tests ([0-9]+)$/m.exec(output.stdout)[1])",/Missing expected rejection/],
-  ["{id:'DK-15',minimum:43","{id:'DK-15',minimum:42",/42 !== 43/],
+  ["{id:'DK-15',minimum:47","{id:'DK-15',minimum:46",/46 !== 47/],
   ["{id:'DK-34',minimum:22","{id:'DK-34',minimum:21",/21 !== 22/],
   ["{id:'DK-33',minimum:17","{id:'DK-33',minimum:16",/16 !== 17/],
  ]){

@@ -9,8 +9,13 @@ import {captureVerificationProducts} from '../../tests/browser-view/verification
 test('DK-23 actual generated closed presentation and private browser execution', {timeout: 3500000}, async t => {
   const inputs = frozenInputs();
   const mask = process.umask();
-  let owner;
-  try { owner = createCompilerOwner('presentation'); }
+  let owner, retirementAttempted = false;
+  try {
+    owner = createCompilerOwner('presentation');
+    t.after(() => {
+      if (!retirementAttempted) {retirementAttempted = true; owner.close();}
+    });
+  }
   finally { assert.equal(process.umask(), mask, 'compiler construction restores the caller mask'); }
   const build = await verifyWire(t, owner); assert.equal(build.compilerOwner, owner);
   const substitutions = build.compilerSubstitutions;
@@ -36,6 +41,7 @@ test('DK-23 actual generated closed presentation and private browser execution',
   });
   build.unchanged();
   const products = captureVerificationProducts(build.work, 'presentation');
+  retirementAttempted = true;
   const retirement = owner.close();
   assert.deepEqual(captureVerificationProducts(build.work, 'presentation'), products,
     'complete generated products unchanged through compiler retirement');

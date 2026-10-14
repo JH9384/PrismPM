@@ -98,12 +98,14 @@ export function verifyModelMutation(kind, compilerOwner = null) {
   const vector = corpus().find(row => row.id === selected); assert.ok(vector);
   const build = prepare(kind, compilerOwner);
   try {
+    if (compilerOwner) assert.equal(build.compilerOwner, compilerOwner.identity);
     const file = join(build.work, 'mutation.tsv'); writeFileSync(file, tsv([vector]), {flag: 'wx'});
     for (const standard of [true, false]) {
       const executable = build.compileNative(standard);
       assert.throws(() => run(executable, [file], build.runner), /native output mismatch/, 'real generated ' + kind + ' mutant must fail');
     }
     assert.throws(() => executeWasm(build.wasmBytes, [vector]), /generated Wasm output mismatch/, 'real generated Wasm mutation');
+    build.verifyEvidence();
     return {mutation: kind, compiler: build.compilerOwner, source: build.verified.source_id, preparationMs: build.preparationMs};
   } finally { rmSync(build.work, {recursive: true, force: true}); }
 }

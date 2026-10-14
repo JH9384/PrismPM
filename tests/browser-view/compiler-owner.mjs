@@ -37,7 +37,8 @@ function requiredInputs(name) {
   const paths = new Set([manifest, manifest.replace('Cargo.toml', 'Cargo.lock'), manifest.replace('Cargo.toml', 'src/main.rs'),
     'lean-toolchain', 'rust-toolchain.toml', 'model/dependencies.toml', 'model/authorities.toml',
     'vendor/lean4-prod/lean.tar', 'tests/browser-view/compile.mjs', 'tests/browser-view/driver-cache.mjs',
-    'tests/browser-view/compiler-owner.mjs', 'tests/browser-view/compiler-artifact.mjs']);
+    'tests/browser-view/compiler-owner.mjs', 'tests/browser-view/compiler-artifact.mjs',
+    'tests/browser-view/compiler-owner-checks.mjs', 'tests/browser-view/verification-products.mjs']);
   for (const tree of ['vendor/lexlean', 'vendor/lean4-prod/rust']) {
     const manifestPath = tree + '/MANIFEST.sha256'; paths.add(manifestPath);
     for (const line of file(join(repository, manifestPath)).toString().trimEnd().split('\n')) {

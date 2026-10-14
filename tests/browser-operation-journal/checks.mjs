@@ -134,11 +134,13 @@ export function verifyModelMutation(kind, compilerOwner = null) {
     payload: 'PayloadMissing', partition: 'Partition1048576'}[kind];
   const vector = (kind === 'partition' ? partitionCorpus() : corpus()).find(row => row.id === selected); assert.ok(vector);
   const build = prepare(kind, false, compilerOwner); let passed = false;
+  if (compilerOwner) assert.equal(build.compilerOwner, compilerOwner.identity);
   try {
     const file = join(build.work, 'mutation.tsv'); writeFileSync(file, tsv([vector]), {flag: 'wx'});
     for (const standard of [true, false]) assert.throws(() => run(build.compileNative(standard), [file], build.runner), /native output mismatch/, kind + ' native mutant');
     assert.throws(() => executeWasm(kind === 'partition' ? build.partitionBytes : build.journalBytes, [vector]),
       /generated Wasm output mismatch/, kind + ' actual Wasm mutant');
+    build.verifyEvidence();
     passed = true;
     return {kind, compilerOwner: build.compilerOwner, preparationMs: build.preparationMs,
       cacheRetirement: build.cacheRetirement, source: build.verified.source_id,
@@ -153,6 +155,10 @@ export async function verifyOperationJournal(t) {
   let build, custody, passed = false;
   try {
     const owner = createCompilerOwner('operation-journal');
+    let retirementAttempted = false;
+    t.after(() => {
+      if (!retirementAttempted) {retirementAttempted = true; owner.close();}
+    });
     const substitutions = verifyCompilerOwnerSubstitutions(owner);
     await prerequisite(t, 'registered errors and complete closed structural byte budgets', () => verifyInventory());
     await prerequisite(t, 'genuine source, kernel and generated operation-journal closure', async child => {
@@ -167,6 +173,7 @@ export async function verifyOperationJournal(t) {
       const result = verifyModelMutation(kind, owner); assert.equal(result.compilerOwner, owner.identity); t.diagnostic(JSON.stringify(result));
     });
     const products = captureVerificationProducts(build.work, 'operation-journal');
+    retirementAttempted = true;
     const retirement = owner.close();
     assert.deepEqual(captureVerificationProducts(build.work, 'operation-journal'), products,
       'complete generated products unchanged through compiler retirement');

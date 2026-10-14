@@ -9,6 +9,10 @@ import {verifyJourneys, verifyHostMutants} from '../../tests/browser-effects/bro
 test('DK-20 generated bounded byte effects and real private browser execution', {timeout: 3500000}, async t => {
   const inputs = sourceClosure();
   const owner = createCompilerOwner('effects');
+  let retirementAttempted = false;
+  t.after(() => {
+    if (!retirementAttempted) {retirementAttempted = true; owner.close();}
+  });
   const substitutions = verifyCompilerOwnerSubstitutions(owner);
   const build = await verifyWire(t, owner); assert.equal(build.compilerOwner, owner.identity);
   await prerequisite(t, 'actual browser effects and exact std/no_std native transcripts', child => verifyJourneys(child, build));
@@ -18,6 +22,7 @@ test('DK-20 generated bounded byte effects and real private browser execution', 
     await prerequisite(t, 'actual LexLean ' + kind + ' mutation fails generated native and Wasm assertions', () => {t.diagnostic(JSON.stringify(verifyModelMutation(kind, owner)));});
   }
   const products = captureVerificationProducts(build.work, 'effects');
+  retirementAttempted = true;
   const retirement = owner.close();
   assert.deepEqual(captureVerificationProducts(build.work, 'effects'), products,
     'complete generated products unchanged through compiler retirement');

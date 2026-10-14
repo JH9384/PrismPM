@@ -54,8 +54,11 @@ export async function verifyWire(t,inputs=frozenInputs(),compilerOwner=null){
 export function verifyModelMutation(kind,inputs=frozenInputs(),compilerOwner=null){
  const selected={binding:'ContextChangedSubjectsource',coverage:'CoveragePreMissing',timeline:'DeploymentBeforeAuthorization',trailing:'Trailing',preimage:'ContextPreimageFieldinstance',partition:'FlatBoundary65Prepare'}[kind];
  const vector=corpus().find(row=>row.id===selected);assert.ok(vector);
- const build=prepare(kind,inputs,compilerOwner),file=join(build.work,'mutation.tsv');writeFileSync(file,tsv([vector]),{flag:'wx'});
+ const build=prepare(kind,inputs,compilerOwner),file=join(build.work,'mutation.tsv');
+ if(compilerOwner)assert.equal(build.compiler.identity,compilerOwner.identity);
+ writeFileSync(file,tsv([vector]),{flag:'wx'});
  for(const standard of[true,false])assert.throws(()=>run(build.compileNative(standard),[file],build.runner),/native output mismatch/);
  assert.throws(()=>executeWasm(build.wasmBytes,[vector]),/generated Wasm output mismatch/);
+ build.verifyEvidence();
  return {kind,source:build.verified.source_id,attestation:build.verified.attestation_id,ir:build.generation.ir_sha256,wasm:sha(build.wasmBytes),vector:vector.id,request:sha(vector.request),response:sha(vector.response),cacheRetirement:build.cacheRetirement,compiler:build.compiler};
 }

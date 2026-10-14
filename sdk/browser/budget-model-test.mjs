@@ -21,7 +21,12 @@ test('DK-27 owns actual imported request admission without public runtime enable
 
 test('DK-27 generated per-resource budgets retain exact source, maxima and negative admission', {timeout:3500000}, async t => {
   const {verifyWire, verifyModelMutation, inventory, prerequisite} = await import('../../tests/browser-budget/checks.mjs');
-  const owner = createCompilerOwner('budget'), substitutions = verifyCompilerOwnerSubstitutions(owner);
+  const owner = createCompilerOwner('budget');
+  let retirementAttempted = false;
+  t.after(() => {
+    if (!retirementAttempted) {retirementAttempted = true; owner.close();}
+  });
+  const substitutions = verifyCompilerOwnerSubstitutions(owner);
   const build = await verifyWire(t,inputs,owner), mutants = [];
   assert.equal(build.compilerOwner,owner.identity);
   await prerequisite(t, 'independent complete budget corpus inventory', inventory);
@@ -32,6 +37,7 @@ test('DK-27 generated per-resource budgets retain exact source, maxima and negat
   }
   assertFrozenInputs(inputs);
   const products=captureVerificationProducts(build.work,'budget');
+  retirementAttempted = true;
   const retirement=owner.close();
   assert.deepEqual(captureVerificationProducts(build.work,'budget'),products,
     'complete generated products unchanged through compiler retirement');

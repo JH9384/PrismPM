@@ -55,3 +55,18 @@ reuses captured verification/export tools and an explicitly different upstream
 code generator; it is not the fresh pinned compiler-owner receipt. The full
 DK-34 owner, installed SDK, account/signed-context integration and Foundry
 acceptance still require completion with the accepted compiler closure.
+
+## Earlier conditional replay
+
+This historical receipt does not qualify the current integration.
+
+The DK-32 integration also replays this unchanged 1,505-case corpus against
+compiler capture `4fd80efbaf6bab84acde401eadc9ccdb73a30898`. The retained IR's
+seven-module source hashes and exact axiom policies match the original kernel
+attestation; this replay does not rerun that kernel. Native std/no_std, Wasm
+and all three engines pass twice, with every actual browser transcript replayed
+in both native modes and corrupted transcripts refused. Observed memory and
+allocator limits are unchanged. Receipt in `prismpm-signed-context-point-owner`:
+`/tmp/point-p256-replay/result.json`, SHA-256
+`1d0f5869414356211a493ed77d2034cc5300fa2ddd79816e625ad932873f643e`.
+This additional conditional evidence does not replace either complete owner.

@@ -322,11 +322,13 @@ const expectedMatrices = {
   'sdk-candidate': {
     build: platforms.map(({os, arch}) => ({runner: os, architecture: arch})),
     'unpublished-construction': platforms.map(({os, arch}) => ({runner: os, architecture: arch})),
+    'unpublished-prerequisites': platforms.map(({os, arch}) => ({os, arch, phase: 'prerequisites'})),
+    'unpublished-installed': platforms.map(({os, arch}) => ({os, arch, phase: 'installed'})),
   },
   'native-golden': {'native-source-review': platforms},
 };
 
-// These six current union jobs have distinct publication/construction policy.
+// Six original union jobs and two additive unpublished qualification owners.
 // Bind their complete original bodies, not only the older donor build matrix;
 // only the explicitly reviewed timeout and matrix concurrency fields differ.
 const candidateJobs = {
@@ -336,6 +338,8 @@ const candidateJobs = {
   publish: [60, 'eed34aecea86d7fb123167999bb1a0048f62609f6fc91d6979eeb0dcb8340128'],
   'unpublished-construction': [180, '1d3f4bfbee8ab48dcb68a2a754be821358dcd5658ea7993ad4e32aee7c023254'],
   'construction-integrity': [90, '6cf032e9b0febd74a52489ce4f06439f93ddebb3e13910e503e9f68f90fc3fa7'],
+  'unpublished-prerequisites': [360, 'eaa51e906cb16a3b390033e524e84548554ce7fbdb38a9148fbdeb80d02e2938'],
+  'unpublished-installed': [360, 'fb575ed29295c2c233a4ca401e6915c35994ed2a8e805845fe293304c567f86c'],
 };
 function candidateContract(value) {
   assert.deepEqual(Object.keys(value.jobs), Object.keys(candidateJobs));
@@ -346,6 +350,15 @@ function candidateContract(value) {
     assert.equal(job['timeout-minutes'], timeout);
     delete job['timeout-minutes'];
     if (job.strategy) delete job.strategy['max-parallel'];
+    if (id === 'input-policy') {
+      // Strip ONLY the exact additional mutual-exclusion block after checking
+      // it. The unchanged original policy still has its original whole hash.
+      const extra = 'if test -n "$QUALIFICATION_SELECTION"; then\n  test "$DEVELOPMENT_ONLY" = false\n  test -z "$SOURCE_REVISION"\n  test -z "$INTEGRITY_SELECTION"\n  test "$WORKFLOW_REVISION" = "$GITHUB_SHA"\nfi\n';
+      assert.equal(job.steps[0].env.QUALIFICATION_SELECTION, '${{ inputs.unpublished_qualification }}');
+      assert(job.steps[0].run.endsWith(extra));
+      delete job.steps[0].env.QUALIFICATION_SELECTION;
+      job.steps[0].run = job.steps[0].run.slice(0, -extra.length);
+    }
     assert.equal(createHash('sha256').update(JSON.stringify(canonical(job))).digest('hex'), digest, id);
   }
 }

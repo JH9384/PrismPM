@@ -19,6 +19,11 @@ on:
         required: false
         type: string
         default: ""
+      unpublished_qualification:
+        description: Closed same-source construction selection for original installed native owners only; no publication or release acceptance
+        required: false
+        type: string
+        default: ""
 
 permissions: {}
 concurrency:
@@ -38,6 +43,7 @@ jobs:
           DEVELOPMENT_ONLY: ${{ inputs.development_only }}
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
           INTEGRITY_SELECTION: ${{ inputs.construction_integrity }}
+          QUALIFICATION_SELECTION: ${{ inputs.unpublished_qualification }}
         run: |
           [[ "$DEVELOPMENT_ONLY" = true || "$DEVELOPMENT_ONLY" = false ]]
           if test -n "$SOURCE_REVISION"; then
@@ -48,6 +54,12 @@ jobs:
           if test -n "$INTEGRITY_SELECTION"; then
             test "$DEVELOPMENT_ONLY" = false
             test -z "$SOURCE_REVISION"
+          fi
+          if test -n "$QUALIFICATION_SELECTION"; then
+            test "$DEVELOPMENT_ONLY" = false
+            test -z "$SOURCE_REVISION"
+            test -z "$INTEGRITY_SELECTION"
+            test "$WORKFLOW_REVISION" = "$GITHUB_SHA"
           fi
   policy:
     needs: input-policy
@@ -145,7 +157,6 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
-
   publish:
     needs: build
     if: github.repository == 'UOR-Foundation/PrismPM' && github.ref == 'refs/heads/main'
@@ -351,6 +362,135 @@ jobs:
         with:
           name: original-sdk-integrity-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/construction-integrity/
+          if-no-files-found: error
+          compression-level: 6
+          retention-days: 14
+
+  unpublished-prerequisites:
+    needs: input-policy
+    if: github.repository == 'UOR-Foundation/PrismPM' && github.event_name == 'workflow_dispatch' && inputs.unpublished_qualification != '' && !inputs.development_only && inputs.construction_source_revision == '' && inputs.construction_integrity == ''
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: amd64
+            phase: prerequisites
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            phase: prerequisites
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: root-a
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=docker.io/moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - name: Qualify the exact original native images without publication
+        shell: bash
+        env:
+          CONSTRUCTION_SELECTION: ${{ inputs.unpublished_qualification }}
+          GH_TOKEN: ${{ github.token }}
+          ARCHITECTURE: ${{ matrix.arch }}
+          PHASE: ${{ matrix.phase }}
+        run: |
+          set -euo pipefail
+          test "$(git -C root-a rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git -C root-a status --porcelain)"
+          printf '%s' "$GH_TOKEN" | env -u GH_TOKEN bash root-a/scripts/unpublished-sdk-qualification.sh \
+            "$CONSTRUCTION_SELECTION" "$ARCHITECTURE" "$PHASE" \
+            "$RUNNER_TEMP/unpublished-sdk-$ARCHITECTURE-$PHASE"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: unpublished-sdk-qualification-${{ matrix.arch }}-${{ matrix.phase }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/*.json
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/*.stdout
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/*.stderr
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/*.status
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/*.txt
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/inner/*.json
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/inner/*.stdout
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/inner/*.stderr
+            root-a/target/library-sdk-evidence/
+            sdk-${{ matrix.arch }}-full-sdk-vv/
+            sdk-${{ matrix.arch }}-full-sdk-vv-outer-owner/
+            sdk-${{ matrix.arch }}-product-cli/
+          if-no-files-found: error
+          compression-level: 6
+          retention-days: 14
+  unpublished-installed:
+    needs: [input-policy, unpublished-prerequisites]
+    if: github.repository == 'UOR-Foundation/PrismPM' && github.event_name == 'workflow_dispatch' && inputs.unpublished_qualification != '' && !inputs.development_only && inputs.construction_source_revision == '' && inputs.construction_integrity == ''
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: amd64
+            phase: installed
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            phase: installed
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: root-a
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=docker.io/moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - name: Qualify the exact original native images without publication
+        shell: bash
+        env:
+          CONSTRUCTION_SELECTION: ${{ inputs.unpublished_qualification }}
+          GH_TOKEN: ${{ github.token }}
+          ARCHITECTURE: ${{ matrix.arch }}
+          PHASE: ${{ matrix.phase }}
+        run: |
+          set -euo pipefail
+          test "$(git -C root-a rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git -C root-a status --porcelain)"
+          printf '%s' "$GH_TOKEN" | env -u GH_TOKEN bash root-a/scripts/unpublished-sdk-qualification.sh \
+            "$CONSTRUCTION_SELECTION" "$ARCHITECTURE" "$PHASE" \
+            "$RUNNER_TEMP/unpublished-sdk-$ARCHITECTURE-$PHASE"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: unpublished-sdk-qualification-${{ matrix.arch }}-${{ matrix.phase }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/*.json
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/*.stdout
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/*.stderr
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/*.status
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/*.txt
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/inner/*.json
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/inner/*.stdout
+            ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/inner/*.stderr
+            root-a/target/library-sdk-evidence/
+            sdk-${{ matrix.arch }}-full-sdk-vv/
+            sdk-${{ matrix.arch }}-full-sdk-vv-outer-owner/
+            sdk-${{ matrix.arch }}-product-cli/
           if-no-files-found: error
           compression-level: 6
           retention-days: 14

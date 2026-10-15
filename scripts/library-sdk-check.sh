@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # Additional native-profile evidence, never full SDK or product acceptance.
 set -euo pipefail
-test "$#" -eq 2 || { echo 'usage: library-sdk-check.sh IMAGE@sha256:DIGEST SOURCE_COMMIT' >&2; exit 64; }
+test "$#" -eq 2 -o "$#" -eq 3 || { echo 'usage: library-sdk-check.sh IMAGE@sha256:DIGEST SOURCE_COMMIT [EXPLICIT_REGISTRY_CA]' >&2; exit 64; }
 image=$1
 revision=$2
 root=$(cd "$(dirname "$0")/.." && pwd -P)
 helper="$root/scripts/library-sdk-check.mjs"
+qualification_trust=()
+if test "$#" -eq 3; then
+  node "$root/scripts/sdk-qualification-trust.mjs" "$3"
+  export NODE_EXTRA_CA_CERTS=$3
+  qualification_trust=(--mount "type=bind,source=$3,target=/run/prismpm-qualification-ca.crt,readonly" --env NODE_EXTRA_CA_CERTS=/run/prismpm-qualification-ca.crt)
+fi
 [[ $image =~ ^[a-z0-9][a-z0-9./:_-]*@sha256:[0-9a-f]{64}$ ]] || exit 64
 [[ $revision =~ ^[0-9a-f]{40}$ ]] || exit 64
 test "$(git -C "$root" rev-parse HEAD)" = "$revision"
@@ -53,7 +59,7 @@ if test -d "$registry_directory"; then
 fi
 container=$(docker container create --entrypoint node --user "$(id -u):$(id -g)" --read-only --network bridge --cap-drop ALL \
   --security-opt no-new-privileges --memory 512m --pids-limit 128 --tmpfs /tmp:rw,nosuid,nodev,size=64m \
-  "${credential_mount[@]}" --env DOCKER_CONFIG=/run/prismpm-registry-auth \
+  "${credential_mount[@]}" "${qualification_trust[@]}" --env DOCKER_CONFIG=/run/prismpm-registry-auth \
   --workdir /opt/prismpm/share/conformance-root "$image" \
   scripts/library-sdk-check.mjs acquire-lock "$image")
 [[ $container =~ ^[0-9a-f]{64}$ ]] || exit 1

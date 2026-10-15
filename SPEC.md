@@ -1895,11 +1895,28 @@ or qualify provider authentication, registry availability, expanded filesystem
 semantics, SDK execution, fullVV, release or product readiness. Those acceptance
 requirements remain unchanged.
 
+The registered SDK candidate workflow's closed `unpublished_qualification` mode
+selects one exact source/run/attempt and both original construction artifacts.
+It excludes development publication, construction and integrity-only modes;
+both native prerequisite lanes precede the installed lanes. Each runner admits the
+complete original archives, imports copied sealed-stage blob bytes into an owned
+TLS registry, and publishes the unchanged two-child index only after both imports.
+It measures expanded layer lengths and original DiffIDs without filesystem
+extraction. Actual storage admissions preserve the original reserves; inadequate
+hosted capacity fails without qualification. Explicit read-only CA plumbing changes
+only transport trust, never image bytes, oracle cases, limits or acceptance readers.
+The existing browser/library/migration/metadata, two complete installed V&V passes,
+and product owners run unchanged on both native platforms before their original
+criteria can be accepted. Private-registry execution is not publication, signing,
+release promotion or immutable downstream Hologram adoption; those remain required
+where specified. Unit TLS/archive fixtures are never installed-image evidence.
+
 The additive `construction_integrity` workflow mode authenticates fixed GitHub
 API responses and selects an explicit source/run/attempt/two-artifact tuple.
 It is mutually exclusive with construction and publication. Older construction
 workflows have six jobs; newer ones additionally require the integrity owner to
-be skipped when admitting genuine native construction. Independently Git-selected
+be skipped when admitting genuine native construction. The current profile also
+requires both unpublished-qualification jobs to be skipped. Independently Git-selected
 source workflow bytes select a closed reviewed digest profile and its exact job
 inventory; unknown profiles or omitted jobs fail closed. The acquisition owner
 reads only bounded original stored-ZIP metadata ranges, admits source standards,

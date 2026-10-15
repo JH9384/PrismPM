@@ -20,8 +20,8 @@ function validate(text){
  const input=w.jobs['input-policy'];assert.deepEqual(input.permissions,{});
  assert.equal(input.if,"github.repository == 'UOR-Foundation/PrismPM'");
  assert.equal(input.steps.length,1);
- assert.deepEqual(input.steps[0].env,{SOURCE_REVISION:'${{ inputs.construction_source_revision }}',DEVELOPMENT_ONLY:'${{ inputs.development_only }}',WORKFLOW_REVISION:'${{ github.workflow_sha }}',INTEGRITY_SELECTION:'${{ inputs.construction_integrity }}'});
- assert.equal(input.steps[0].run,'[[ "$DEVELOPMENT_ONLY" = true || "$DEVELOPMENT_ONLY" = false ]]\nif test -n "$SOURCE_REVISION"; then\n  [[ "$SOURCE_REVISION" =~ ^[0-9a-f]{40}$ ]]\n  test "$DEVELOPMENT_ONLY" = false\n  test "$SOURCE_REVISION" = "$WORKFLOW_REVISION"\nfi\nif test -n "$INTEGRITY_SELECTION"; then\n  test "$DEVELOPMENT_ONLY" = false\n  test -z "$SOURCE_REVISION"\nfi\n');
+ assert.deepEqual(input.steps[0].env,{SOURCE_REVISION:'${{ inputs.construction_source_revision }}',DEVELOPMENT_ONLY:'${{ inputs.development_only }}',WORKFLOW_REVISION:'${{ github.workflow_sha }}',INTEGRITY_SELECTION:'${{ inputs.construction_integrity }}',QUALIFICATION_SELECTION:'${{ inputs.unpublished_qualification }}'});
+ assert.equal(input.steps[0].run,'[[ "$DEVELOPMENT_ONLY" = true || "$DEVELOPMENT_ONLY" = false ]]\nif test -n "$SOURCE_REVISION"; then\n  [[ "$SOURCE_REVISION" =~ ^[0-9a-f]{40}$ ]]\n  test "$DEVELOPMENT_ONLY" = false\n  test "$SOURCE_REVISION" = "$WORKFLOW_REVISION"\nfi\nif test -n "$INTEGRITY_SELECTION"; then\n  test "$DEVELOPMENT_ONLY" = false\n  test -z "$SOURCE_REVISION"\nfi\nif test -n "$QUALIFICATION_SELECTION"; then\n  test "$DEVELOPMENT_ONLY" = false\n  test -z "$SOURCE_REVISION"\n  test -z "$INTEGRITY_SELECTION"\n  test "$WORKFLOW_REVISION" = "$GITHUB_SHA"\nfi\n');
  const steps=j.steps;assert.equal(steps.length,7);assert(steps.every(s=>!s['continue-on-error']));
  assert(steps.filter(s=>s.uses).every(s=>/^[a-zA-Z0-9_./-]+@[a-f0-9]{40}$/.test(s.uses)));
  assert(!JSON.stringify(j).match(/login-action|setup-qemu|packages:|id-token:|attestations:|secrets\.|github\.token|GH_TOKEN|GITHUB_TOKEN/));
@@ -77,7 +77,7 @@ test('construction policy rejects privilege, target and native-host substitution
 test('actual input admission shell rejects ambiguous, malformed and injected revisions',()=>{
  const script=load(raw()).jobs['input-policy'].steps[0].run;
  for(const [revision,development,accepted] of [['','false',true],['','true',true],['a'.repeat(40),'false',true],['b'.repeat(40),'false',false],['a'.repeat(40),'true',false],['main','false',false],['a'.repeat(39),'false',false],['a'.repeat(41),'false',false],['A'.repeat(40),'false',false],['a'.repeat(40)+'\n','false',false],['$(exit 0)','false',false],['','yes',false],['','true\n',false]]){
-  const r=spawnSync('/bin/bash',['--noprofile','--norc','-euo','pipefail','-c',script],{env:{PATH:process.env.PATH,SOURCE_REVISION:revision,DEVELOPMENT_ONLY:development,WORKFLOW_REVISION:'a'.repeat(40),INTEGRITY_SELECTION:''},encoding:'utf8',timeout:5000});
+  const r=spawnSync('/bin/bash',['--noprofile','--norc','-euo','pipefail','-c',script],{env:{PATH:process.env.PATH,SOURCE_REVISION:revision,DEVELOPMENT_ONLY:development,WORKFLOW_REVISION:'a'.repeat(40),GITHUB_SHA:'a'.repeat(40),INTEGRITY_SELECTION:'',QUALIFICATION_SELECTION:''},encoding:'utf8',timeout:5000});
   assert.ifError(r.error);assert.equal(r.signal,null);assert.equal(r.status===0,accepted,JSON.stringify({revision,development}));
  }
 });

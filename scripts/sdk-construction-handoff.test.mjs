@@ -93,7 +93,7 @@ test('both exact native metadata handoffs compose a deterministic explicitly unq
  assert.equal(index.scope,'composed-index-only-not-registry-or-installed-qualification');assert.equal(index.status,undefined);
 });
 test('additive integrity owner must be skipped and cannot replace original native construction',()=>{
- const f=fixture();f.workflow=readFileSync(new URL('../.github/workflows/sdk-candidate.yml',import.meta.url));
+ const f=fixture();f.workflow=readFileSync(new URL('../tests/sdk-construction/sdk-candidate-seven.yml',import.meta.url));
  f.authority.jobs.push({...f.authority.jobs[3],id:7,name:'construction-integrity'});assert.doesNotThrow(()=>f.admit());
  const omitted=fixture();omitted.workflow=f.workflow;assert.throws(()=>omitted.admit(),/complete original/);
  const unknown=fixture();unknown.workflow=Buffer.concat([unknown.workflow,Buffer.from('\n')]);assert.throws(()=>unknown.admit(),/unreviewed source workflow/);
@@ -103,9 +103,10 @@ test('additive integrity owner must be skipped and cannot replace original nativ
  }
  const g=fixture();g.authority.jobs[5]={...g.authority.jobs[3],id:6,name:'construction-integrity'};assert.throws(()=>g.admit());
 });
-test('the current seven-job workflow profile is exact and bounds or command mutations fail closed',()=>{
+test('the current nine-job workflow profile is exact and bounds or command mutations fail closed',()=>{
  const current=readFileSync(new URL('../.github/workflows/sdk-candidate.yml',import.meta.url));
- const f=fixture();f.workflow=current;f.authority.jobs.push({...f.authority.jobs[3],id:7,name:'construction-integrity'});
+ const skipped=f=>{for(const [i,name]of['construction-integrity','unpublished-prerequisites','unpublished-installed'].entries())f.authority.jobs.push({...f.authority.jobs[3],id:7+i,name});};
+ const f=fixture();f.workflow=current;skipped(f);
  assert.doesNotThrow(()=>f.admit());
  for(const mutation of [
   ['timeout-minutes: 180','timeout-minutes: 179'],
@@ -114,9 +115,21 @@ test('the current seven-job workflow profile is exact and bounds or command muta
  ]){
   const altered=Buffer.from(current.toString().replace(mutation[0],mutation[1]));
   assert.notDeepEqual(altered,current,'the mutation must reach the actual workflow');
-  const bad=fixture();bad.workflow=altered;bad.authority.jobs.push({...bad.authority.jobs[3],id:7,name:'construction-integrity'});
+  const bad=fixture();bad.workflow=altered;skipped(bad);
   assert.throws(()=>bad.admit(),/unreviewed source workflow profile/);
  }
+ for(const name of['unpublished-prerequisites','unpublished-installed'])for(const mutate of[j=>j.conclusion='success',j=>j.name='foreign-owner',j=>j.run_attempt=2,j=>j.id=6]){
+  const bad=fixture();bad.workflow=current;skipped(bad);mutate(bad.authority.jobs.find(j=>j.name===name));assert.throws(()=>bad.admit());
+ }
+ for(const name of['construction-integrity','unpublished-prerequisites','unpublished-installed']){
+  const bad=fixture();bad.workflow=current;skipped(bad);bad.authority.jobs=bad.authority.jobs.filter(j=>j.name!==name);assert.throws(()=>bad.admit(),/complete original/);
+ }
+ const qualificationOnly=fixture();qualificationOnly.workflow=current;skipped(qualificationOnly);
+ for(const job of qualificationOnly.authority.jobs){
+  if(job.name.startsWith('Unpublished native SDK construction'))job.conclusion='skipped';
+  if(job.name==='unpublished-prerequisites'||job.name==='unpublished-installed')job.conclusion='success';
+ }
+ assert.throws(()=>qualificationOnly.admit(),'a successful installed-qualification run cannot substitute for original native construction');
 });
 test('provider admission rejects wrong repository workflow source run attempt and failed native jobs',()=>{
  for(const mutate of [f=>f.authority.run.repository.full_name='other/repo',f=>f.authority.run.head_repository.id=2,

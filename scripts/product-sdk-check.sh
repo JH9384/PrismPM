@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Genuine product CLI construction after both immutable SDK children exist.
 set -euo pipefail
-test "$#" -eq 3 || { echo 'usage: product-sdk-check.sh SDK_INDEX@sha256:DIGEST SOURCE_COMMIT NEW_EVIDENCE_DIR' >&2; exit 64; }
+test "$#" -eq 3 -o "$#" -eq 4 || { echo 'usage: product-sdk-check.sh SDK_INDEX@sha256:DIGEST SOURCE_COMMIT NEW_EVIDENCE_DIR [EXPLICIT_REGISTRY_CA]' >&2; exit 64; }
 image=$1
 revision=$2
 evidence=$3
 root=$(cd "$(dirname "$0")/.." && pwd -P)
 helper="$root/scripts/product-sdk-check.mjs"
+qualification_trust=()
+if test "$#" -eq 4; then
+  node "$root/scripts/sdk-qualification-trust.mjs" "$4"
+  export NODE_EXTRA_CA_CERTS=$4
+  qualification_trust=(--mount "type=bind,source=$4,target=/run/prismpm-qualification-ca.crt,readonly" --env NODE_EXTRA_CA_CERTS=/run/prismpm-qualification-ca.crt)
+fi
 [[ $image =~ ^[a-z0-9][a-z0-9./:_-]*@sha256:[0-9a-f]{64}$ ]] || exit 64
 [[ $revision =~ ^[0-9a-f]{40}$ ]] || exit 64
 test "$(git -C "$root" rev-parse HEAD)" = "$revision"
@@ -59,6 +65,7 @@ receiver_volume=$(docker volume create)
 socket_gid=$(stat -c '%g' /var/run/docker.sock)
 [[ $socket_gid =~ ^[0-9]+$ ]] || exit 1
 container=$(docker container create --user 1000:1000 --group-add "$socket_gid" --read-only --cap-drop ALL --platform "linux/$architecture" \
+  "${qualification_trust[@]}" \
   --security-opt no-new-privileges --mount "type=volume,source=$project_volume,target=/tmp" \
   --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
   --env PRISMPM_EPHEMERAL_HOME=1 --env CARGO_BUILD_JOBS=2 \

@@ -207,6 +207,7 @@ pub(crate) fn run_export_with_custody(
 /// This is deliberately a cold acquisition: no caller-selected Lake cache is
 /// consulted, and callers must still execute the actual exporter build.
 pub(crate) fn acquire(destination: &Path) -> Result<(), PrismError> {
+    custody::validate_archive()?;
     std::fs::create_dir(destination)
         .map_err(|error| PrismError::new("PP5008", format!("fresh exporter directory: {error}")))?;
     #[cfg(unix)]

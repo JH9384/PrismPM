@@ -205,7 +205,7 @@ impl Snapshot {
 
 struct SourceMember {
     directory: bool,
-    mode: u32,
+    mode: Option<u32>,
     bytes: Vec<u8>,
 }
 
@@ -229,11 +229,20 @@ fn charge_build(entries: &mut usize, bytes: &mut u64, length: u64) -> Result<(),
 }
 
 fn source_members() -> Result<BTreeMap<String, SourceMember>, PrismError> {
-    source_members_from(super::ARCHIVE)
+    let members = source_members_from(super::ARCHIVE)?;
+    if !members.contains_key("Prod/Export.lean") || !members.contains_key("lean-toolchain") {
+        return Err(failure());
+    }
+    Ok(members)
+}
+
+pub(super) fn validate_archive() -> Result<(), PrismError> {
+    source_members().map(|_| ())
 }
 
 fn source_members_from(archive: impl Read) -> Result<BTreeMap<String, SourceMember>, PrismError> {
     let mut members = BTreeMap::new();
+    let mut headers = std::collections::BTreeSet::new();
     let mut total = 0_u64;
     for entry in tar::Archive::new(archive)
         .entries()
@@ -242,7 +251,12 @@ fn source_members_from(archive: impl Read) -> Result<BTreeMap<String, SourceMemb
         let mut entry = entry.map_err(|_| failure())?;
         let path = entry.path().map_err(|_| failure())?.into_owned();
         let name = member_name(&path)?;
-        if name == ".lake" || name.starts_with(".lake/") || name.is_empty() {
+        if name == ".lake"
+            || name.starts_with(".lake/")
+            || name.is_empty()
+            || name.len() > 4096
+            || !headers.insert(name.clone())
+        {
             return Err(failure());
         }
         let directory = entry.header().entry_type().is_dir();
@@ -250,6 +264,9 @@ fn source_members_from(archive: impl Read) -> Result<BTreeMap<String, SourceMemb
             return Err(failure());
         }
         let mode = entry.header().mode().map_err(|_| failure())?;
+        if mode & 0o7000 != 0 {
+            return Err(failure());
+        }
         let length = entry.size();
         // Charge the source-only budget before allocating or reading a body.
         // It must never borrow the independent 512-MiB build-tree allowance.
@@ -263,18 +280,45 @@ fn source_members_from(archive: impl Read) -> Result<BTreeMap<String, SourceMemb
             .take(length + 1)
             .read_to_end(&mut bytes)
             .map_err(|_| failure())?;
-        if bytes.len() as u64 != length
-            || members
-                .insert(
-                    name,
-                    SourceMember {
-                        directory,
-                        mode,
-                        bytes,
-                    },
-                )
-                .is_some()
+        if bytes.len() as u64 != length {
+            return Err(failure());
+        }
+        // Admit precisely missing parent directories, never arbitrary nodes.
+        // File-only archives derive them without an invented header mode.
+        // A later explicit directory header supplies its authoritative mode.
+        for parent in path
+            .ancestors()
+            .skip(1)
+            .filter(|path| !path.as_os_str().is_empty())
         {
+            let parent = member_name(parent)?;
+            if members
+                .get(&parent)
+                .is_some_and(|row: &SourceMember| !row.directory)
+            {
+                return Err(failure());
+            }
+            members.entry(parent).or_insert(SourceMember {
+                directory: true,
+                mode: None,
+                bytes: Vec::new(),
+            });
+        }
+        if members
+            .get(&name)
+            .is_some_and(|row| !directory || !row.directory || row.mode.is_some())
+        {
+            return Err(failure());
+        }
+        members.insert(
+            name,
+            SourceMember {
+                directory,
+                mode: Some(mode),
+                bytes,
+            },
+        );
+        if members.len() > FILES {
             return Err(failure());
         }
     }
@@ -283,6 +327,189 @@ fn source_members_from(archive: impl Read) -> Result<BTreeMap<String, SourceMemb
 
 pub(super) fn capture(root: &Path) -> Result<Snapshot, PrismError> {
     capture_members(root, source_members()?, true)
+}
+
+pub(super) fn capture_optional(root: &Path) -> Result<Snapshot, PrismError> {
+    capture_members(root, source_members()?, false)
+}
+
+pub(super) fn require_executable(root: &Path) -> Result<(), PrismError> {
+    let path = root.join(".lake/build/bin/prod-export");
+    let metadata = std::fs::symlink_metadata(&path).map_err(|_| failure())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if metadata.mode() & 0o111 == 0 || metadata.nlink() != 1 {
+            return Err(failure());
+        }
+    }
+    capture_file(&path).map(|_| ())
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct FileWitness(Identity, String);
+
+/// Full bounded bytes and all native fields, before and after the held read.
+/// Trusted toolchain files can have existing hard links; their exact link
+/// count is conserved, not adopted as a package-source permission.
+pub(super) fn capture_file(path: &Path) -> Result<FileWitness, PrismError> {
+    if path.canonicalize().ok().as_deref() != Some(path) {
+        return Err(failure());
+    }
+    let metadata = std::fs::symlink_metadata(path).map_err(|_| failure())?;
+    if !metadata.is_file() || metadata.len() == 0 || metadata.len() > FILE_BYTES {
+        return Err(failure());
+    }
+    let before = identity(&metadata);
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(
+            (rustix::fs::OFlags::NOFOLLOW | rustix::fs::OFlags::NONBLOCK).bits() as i32,
+        );
+    }
+    let mut file = options.open(path).map_err(|_| failure())?;
+    if identity(&file.metadata().map_err(|_| failure())?) != before {
+        return Err(failure());
+    }
+    let mut digest = Sha256::new();
+    let mut count = 0_u64;
+    let mut buffer = [0_u8; 65536];
+    loop {
+        let length = file.read(&mut buffer).map_err(|_| failure())?;
+        if length == 0 {
+            break;
+        }
+        count += length as u64;
+        if count > metadata.len() {
+            return Err(failure());
+        }
+        digest.update(&buffer[..length]);
+    }
+    if count != metadata.len()
+        || identity(&file.metadata().map_err(|_| failure())?) != before
+        || identity(&std::fs::symlink_metadata(path).map_err(|_| failure())?) != before
+        || path.canonicalize().ok().as_deref() != Some(path)
+    {
+        return Err(failure());
+    }
+    Ok(FileWitness(before, format!("{:x}", digest.finalize())))
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct LauncherWitness {
+    selected: Identity,
+    target: Option<std::path::PathBuf>,
+    resolved: std::path::PathBuf,
+    file: FileWitness,
+}
+
+/// Preserve the original executable selector's permitted proxy path rather
+/// than changing the actual command to its resolution. Bind both that exact
+/// path (including an existing symlink) and the complete resolved file.
+pub(super) fn capture_launcher(path: &Path) -> Result<LauncherWitness, PrismError> {
+    let selected = identity(&std::fs::symlink_metadata(path).map_err(|_| failure())?);
+    let target = if std::fs::symlink_metadata(path)
+        .map_err(|_| failure())?
+        .file_type()
+        .is_symlink()
+    {
+        Some(std::fs::read_link(path).map_err(|_| failure())?)
+    } else {
+        None
+    };
+    let resolved = path.canonicalize().map_err(|_| failure())?;
+    let file = capture_file(&resolved)?;
+    if identity(&std::fs::symlink_metadata(path).map_err(|_| failure())?) != selected
+        || path.canonicalize().ok().as_deref() != Some(resolved.as_path())
+        || (target.is_some() && std::fs::read_link(path).ok() != target)
+    {
+        return Err(failure());
+    }
+    Ok(LauncherWitness {
+        selected,
+        target,
+        resolved,
+        file,
+    })
+}
+
+/// Hold actual cwd ancestry while the child runs. Build commands legitimately
+/// add children, so size/link/timestamp changes are observed but do not replace
+/// the original held directory's device/inode/owner/group/mode identity.
+pub(super) struct Cwd {
+    path: std::path::PathBuf,
+    held: std::fs::File,
+    original: Identity,
+}
+
+impl Cwd {
+    pub(super) fn open(path: &Path) -> Result<Self, PrismError> {
+        if path.canonicalize().ok().as_deref() != Some(path) {
+            return Err(failure());
+        }
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.custom_flags(
+                (rustix::fs::OFlags::DIRECTORY
+                    | rustix::fs::OFlags::NOFOLLOW
+                    | rustix::fs::OFlags::CLOEXEC)
+                    .bits() as i32,
+            );
+        }
+        let held = options.open(path).map_err(|_| failure())?;
+        let metadata = held.metadata().map_err(|_| failure())?;
+        if !metadata.is_dir() {
+            return Err(failure());
+        }
+        let original = identity(&metadata);
+        let result = Self {
+            path: path.to_owned(),
+            held,
+            original,
+        };
+        result.verify()?;
+        Ok(result)
+    }
+    pub(super) fn verify(&self) -> Result<(), PrismError> {
+        if self.path.canonicalize().ok().as_deref() != Some(self.path.as_path()) {
+            return Err(failure());
+        }
+        for current in [
+            self.held.metadata().map_err(|_| failure())?,
+            std::fs::symlink_metadata(&self.path).map_err(|_| failure())?,
+        ] {
+            let after = identity(&current);
+            #[cfg(unix)]
+            if !after.directory
+                || (
+                    after.native.0,
+                    after.native.1,
+                    after.native.2,
+                    after.native.6,
+                    after.native.7,
+                ) != (
+                    self.original.native.0,
+                    self.original.native.1,
+                    self.original.native.2,
+                    self.original.native.6,
+                    self.original.native.7,
+                )
+            {
+                return Err(failure());
+            }
+            #[cfg(not(unix))]
+            if after != self.original {
+                return Err(failure());
+            }
+        }
+        Ok(())
+    }
 }
 
 pub(super) fn capture_source(root: &Path) -> Result<Snapshot, PrismError> {
@@ -347,7 +574,10 @@ fn capture_members(
         #[cfg(unix)]
         {
             use std::os::unix::fs::MetadataExt;
-            if metadata.mode() & 0o7000 != 0 || (metadata.is_file() && metadata.nlink() != 1) {
+            if metadata.uid() != rustix::process::geteuid().as_raw()
+                || metadata.mode() & 0o7000 != 0
+                || (metadata.is_file() && metadata.nlink() != 1)
+            {
                 return Err(failure());
             }
         }
@@ -384,7 +614,7 @@ fn capture_members(
             #[cfg(unix)]
             {
                 use std::os::unix::fs::MetadataExt;
-                if metadata.mode() & 0o777 != *_mode & 0o777 {
+                if _mode.is_some_and(|mode| metadata.mode() & 0o777 != mode & 0o777) {
                     return Err(failure());
                 }
             }
@@ -802,8 +1032,11 @@ mod tests {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(member.mode))
-                    .unwrap();
+                std::fs::set_permissions(
+                    &path,
+                    std::fs::Permissions::from_mode(member.mode.expect("file header mode")),
+                )
+                .unwrap();
             }
             assert!(capture(&root).is_ok());
         }
@@ -895,5 +1128,291 @@ mod tests {
         assert!(capture(&root).is_err());
         std::fs::remove_file(&member).unwrap();
         assert!(capture(&root).is_ok());
+    }
+}
+
+#[cfg(all(test, unix))]
+mod cold_library_tests {
+    use super::*;
+    use std::os::unix::fs::{symlink, PermissionsExt};
+
+    fn fixture(compiled: bool) -> (tempfile::TempDir, std::path::PathBuf) {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("package");
+        std::fs::create_dir(&path).unwrap();
+        tar::Archive::new(std::io::Cursor::new(super::super::ARCHIVE))
+            .unpack(&path)
+            .unwrap();
+        if compiled {
+            // Unaccepted filesystem custody fixture, not exporter behavior.
+            std::fs::create_dir_all(path.join(".lake/build/bin")).unwrap();
+            std::fs::write(
+                path.join(".lake/build/bin/prod-export"),
+                b"unaccepted custody fixture",
+            )
+            .unwrap();
+            std::fs::set_permissions(
+                path.join(".lake/build/bin/prod-export"),
+                std::fs::Permissions::from_mode(0o700),
+            )
+            .unwrap();
+            std::fs::write(
+                path.join(".lake/build/member.olean"),
+                b"held compiled member",
+            )
+            .unwrap();
+            std::fs::write(path.join(".lake/build/member.trace"), b"initial trace").unwrap();
+        }
+        (temporary, path)
+    }
+
+    // Unit variants retain only genuine selected archive headers and payloads;
+    // neither these archives nor the filesystem fixture qualify an exporter.
+    fn selected_archive_variant(include_directories: bool, duplicate_directory: bool) -> Vec<u8> {
+        assert!(!duplicate_directory || include_directories);
+        let mut files = Vec::new();
+        let mut directories = Vec::new();
+        for entry in tar::Archive::new(std::io::Cursor::new(super::super::ARCHIVE))
+            .entries()
+            .unwrap()
+        {
+            let mut entry = entry.unwrap();
+            let header = entry.header().clone();
+            let mut bytes = Vec::new();
+            entry.read_to_end(&mut bytes).unwrap();
+            if header.entry_type().is_file() {
+                files.push((header, bytes));
+            } else {
+                assert!(header.entry_type().is_dir());
+                assert!(bytes.is_empty());
+                directories.push((header, bytes));
+            }
+        }
+        let mut writer = tar::Builder::new(Vec::new());
+        for (header, bytes) in &files {
+            writer.append(header, bytes.as_slice()).unwrap();
+        }
+        if include_directories {
+            // Reordering the real directories after their real descendants
+            // exercises replacement of inferred parents by authoritative modes.
+            for (header, bytes) in &directories {
+                writer.append(header, bytes.as_slice()).unwrap();
+            }
+        }
+        if duplicate_directory {
+            let (header, bytes) = directories.first().unwrap();
+            writer.append(header, bytes.as_slice()).unwrap();
+        }
+        writer.into_inner().unwrap()
+    }
+
+    #[test]
+    fn original_file_only_archive_derives_exact_owned_parent_closure() {
+        let (_temporary, path) = fixture(false);
+        let expected = source_members().unwrap();
+        assert!(expected["Prod"].directory);
+        assert!(expected["Prod/Export.lean"].mode.is_some());
+        // Compare every explicit member to its real selected header, including
+        // directory modes; do not assume the donor's file-only archive shape.
+        for entry in tar::Archive::new(std::io::Cursor::new(super::super::ARCHIVE))
+            .entries()
+            .unwrap()
+        {
+            let entry = entry.unwrap();
+            let name = member_name(&entry.path().unwrap()).unwrap();
+            let member = &expected[&name];
+            assert_eq!(member.directory, entry.header().entry_type().is_dir());
+            assert_eq!(member.mode, Some(entry.header().mode().unwrap()));
+        }
+        let snapshot = capture_source(&path).unwrap();
+        assert_eq!(snapshot.0.len(), expected.len() + 1);
+
+        let file_only = selected_archive_variant(false, false);
+        let implicit = source_members_from(file_only.as_slice()).unwrap();
+        assert!(implicit.keys().eq(expected.keys()));
+        assert!(implicit["Prod"].directory && implicit["Prod"].mode.is_none());
+        for (name, member) in &implicit {
+            let original = &expected[name];
+            assert_eq!(member.directory, original.directory);
+            assert_eq!(member.bytes, original.bytes);
+            if member.directory {
+                assert!(member.mode.is_none());
+            } else {
+                assert_eq!(member.mode, original.mode);
+            }
+        }
+        assert_eq!(
+            capture_members(&path, implicit, false).unwrap().0.len(),
+            expected.len() + 1
+        );
+
+        let directories_last = selected_archive_variant(true, false);
+        let upgraded = source_members_from(directories_last.as_slice()).unwrap();
+        assert!(upgraded.keys().eq(expected.keys()));
+        for (name, member) in &upgraded {
+            let original = &expected[name];
+            assert_eq!(member.directory, original.directory);
+            assert_eq!(member.mode, original.mode);
+            assert_eq!(member.bytes, original.bytes);
+        }
+        assert_eq!(
+            capture_members(&path, upgraded, false).unwrap().0.len(),
+            expected.len() + 1
+        );
+        let duplicate = selected_archive_variant(true, true);
+        assert!(source_members_from(duplicate.as_slice()).is_err());
+
+        std::fs::create_dir(path.join("unexpected")).unwrap();
+        assert!(capture_source(&path).is_err());
+        let implicit = source_members_from(file_only.as_slice()).unwrap();
+        assert!(capture_members(&path, implicit, false).is_err());
+    }
+
+    #[test]
+    fn archive_duplicate_prefix_alias_and_build_state_refuse_before_extraction() {
+        let archive = |paths: &[(&str, u8)]| {
+            let mut writer = tar::Builder::new(Vec::new());
+            for (path, kind) in paths {
+                let mut header = tar::Header::new_gnu();
+                header.set_entry_type(tar::EntryType::new(*kind));
+                header.set_mode(0o644);
+                header.set_size(0);
+                header.set_cksum();
+                writer
+                    .append_data(&mut header, path, std::io::empty())
+                    .unwrap();
+            }
+            writer.into_inner().unwrap()
+        };
+        for paths in [
+            vec![("a", b'0'), ("a", b'0')],
+            vec![("a", b'0'), ("a/b", b'0')],
+            vec![("a/b", b'0'), ("a", b'0')],
+            vec![("a", b'2')],
+            vec![(".lake/state", b'0')],
+        ] {
+            assert!(source_members_from(archive(&paths).as_slice()).is_err());
+        }
+    }
+
+    #[test]
+    fn cold_source_hash_inode_link_mode_and_alias_are_original_custody() {
+        for kind in ["bytes", "inode", "link", "mode", "alias"] {
+            let (_temporary, root) = fixture(false);
+            let before = capture_source(&root).unwrap();
+            let path = root.join("Prod/Export.lean");
+            match kind {
+                "bytes" => std::fs::write(&path, b"altered actual compiler source").unwrap(),
+                "inode" => {
+                    let old = root.parent().unwrap().join("saved");
+                    std::fs::rename(&path, &old).unwrap();
+                    std::fs::copy(old, &path).unwrap();
+                }
+                "link" => std::fs::hard_link(&path, root.parent().unwrap().join("linked")).unwrap(),
+                "mode" => {
+                    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap()
+                }
+                "alias" => {
+                    std::fs::remove_file(&path).unwrap();
+                    symlink(root.join("lean-toolchain"), &path).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                capture_source(&root).map_or(true, |after| before != after),
+                "{kind}"
+            );
+        }
+    }
+
+    #[test]
+    fn warm_runtime_accepts_only_original_trace_refresh_not_compiled_or_source_drift() {
+        let (_temporary, root) = fixture(true);
+        let before = capture(&root).unwrap();
+        std::fs::write(
+            root.join(".lake/build/member.trace"),
+            b"normal refreshed trace",
+        )
+        .unwrap();
+        assert!(before.same_compiler(&capture(&root).unwrap()));
+        for name in [".lake/build/member.olean", ".lake/build/bin/prod-export"] {
+            let (_temporary, root) = fixture(true);
+            let before = capture(&root).unwrap();
+            let path = root.join(name);
+            let bytes = std::fs::read(&path).unwrap();
+            std::fs::write(&path, &bytes).unwrap();
+            std::fs::File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_times(
+                    std::fs::FileTimes::new()
+                        .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(1)),
+                )
+                .unwrap();
+            assert!(
+                !before.same_compiler(&capture(&root).unwrap()),
+                "full metadata {name}"
+            );
+        }
+        let (_temporary, root) = fixture(true);
+        let before = capture(&root).unwrap();
+        std::fs::write(root.join(".lake/added"), b"unexpected warm member").unwrap();
+        assert!(!before.same_compiler(&capture(&root).unwrap()));
+    }
+
+    #[test]
+    fn complete_build_entry_and_per_file_bounds_are_enforced_before_retention() {
+        let (_temporary, root) = fixture(true);
+        let initial = capture(&root)
+            .unwrap()
+            .0
+            .keys()
+            .filter(|name| name.as_str() == ".lake" || name.starts_with(".lake/"))
+            .count();
+        for index in initial..FILES {
+            std::fs::write(root.join(format!(".lake/entry-{index}")), []).unwrap();
+        }
+        capture(&root).expect("complete original build entry allowance");
+        std::fs::write(root.join(".lake/one-over"), []).unwrap();
+        assert!(capture(&root).is_err());
+        let (_temporary, root) = fixture(true);
+        let file = std::fs::File::create(root.join(".lake/too-large")).unwrap();
+        file.set_len(FILE_BYTES + 1).unwrap();
+        assert!(capture(&root).is_err());
+    }
+
+    #[test]
+    fn actual_cwd_and_launcher_witness_refuse_replacement_and_metadata_changes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let cwd = temporary.path().join("cwd");
+        std::fs::create_dir(&cwd).unwrap();
+        let held = Cwd::open(&cwd).unwrap();
+        // Real build growth is permitted, but never replacement of the cwd.
+        std::fs::write(cwd.join("actual-child"), b"child").unwrap();
+        held.verify().unwrap();
+        std::fs::rename(&cwd, temporary.path().join("original")).unwrap();
+        std::fs::create_dir(&cwd).unwrap();
+        assert!(held.verify().is_err());
+        let path = temporary.path().join("launcher");
+        std::fs::write(&path, b"actual bounded bytes").unwrap();
+        let original = capture_file(&path).unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode ^ 0o040)).unwrap();
+        assert_ne!(capture_file(&path).unwrap(), original);
+        let alias = temporary.path().join("alias");
+        symlink(&path, &alias).unwrap();
+        assert!(capture_file(&alias).is_err());
+        let selected = capture_launcher(&alias).unwrap();
+        assert_eq!(capture_launcher(&alias).unwrap(), selected);
+        let replacement = temporary.path().join("replacement");
+        std::fs::copy(&path, &replacement).unwrap();
+        std::fs::remove_file(&alias).unwrap();
+        symlink(&replacement, &alias).unwrap();
+        assert_ne!(
+            capture_launcher(&alias).unwrap(),
+            selected,
+            "proxy redirection is not byte equality"
+        );
     }
 }

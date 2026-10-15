@@ -5,6 +5,7 @@ use crate::verification::ProcessRecord;
 use crate::PrismError;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,6 +36,19 @@ pub(crate) struct GenerationContext<'a> {
     snapshot: &'a custody::Snapshot,
     first: bool,
     built: std::cell::RefCell<Option<custody::Snapshot>>,
+    package: &'a Path,
+    namespace: &'a super::directory::Directory,
+    directory: std::cell::RefCell<&'a mut super::directory::Directory>,
+    library: std::cell::RefCell<LibraryGeneration>,
+}
+
+struct LibraryGeneration {
+    required: bool,
+    commands: usize,
+    workspace: Option<PathBuf>,
+    previous_workspace: Option<PathBuf>,
+    snapshot: custody::Snapshot,
+    build_authorized: bool,
 }
 
 impl GenerationContext<'_> {
@@ -42,7 +56,7 @@ impl GenerationContext<'_> {
         self.receipt
     }
     pub(crate) fn before_build(&self, project: &Path, package: &Path) -> Result<(), PrismError> {
-        if self.first {
+        let checked = if self.first {
             super::before_first_build(project, package, self.receipt, self.snapshot)
         } else if custody::capture(package)? == *self.snapshot {
             Ok(())
@@ -50,7 +64,10 @@ impl GenerationContext<'_> {
             Err(failure(
                 "private exporter custody changed before phased build",
             ))
-        }
+        };
+        checked?;
+        self.library.borrow_mut().build_authorized = true;
+        Ok(())
     }
     pub(crate) fn after_build(&self, package: &Path) -> Result<custody::Snapshot, PrismError> {
         if self.built.borrow().is_some() {
@@ -71,6 +88,167 @@ impl GenerationContext<'_> {
         }
         *self.built.borrow_mut() = Some(after.clone());
         Ok(after)
+    }
+
+    /// One invocation-local owner guards the four actual library commands;
+    /// authenticated SDK acquisition and exporter execution evidence stay in
+    /// the same generic owner used by the other generated products.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn run_library(
+        &self,
+        tool: &str,
+        program: &Path,
+        args: &[String],
+        cwd: &Path,
+        environment: &BTreeMap<String, String>,
+        replacements: &[(&Path, &str)],
+        code: &'static str,
+    ) -> Result<ProcessRecord, PrismError> {
+        let mut state = self.library.borrow_mut();
+        let expected = [
+            "lake-build-generated",
+            "lean4-prod-build",
+            "prod-export",
+            "native-library-package",
+        ];
+        if !state.required || state.commands >= expected.len() || tool != expected[state.commands] {
+            return Err(failure("original library command order required"));
+        }
+        if state.commands == 0 {
+            if args != ["build", "PrismGenerated"] || !environment.is_empty()
+                || cwd.canonicalize().ok().as_deref() != Some(cwd)
+                || state.previous_workspace.as_deref() == Some(cwd)
+                || [".lake", "export", "package"].iter().any(|name| {
+                    !matches!(std::fs::symlink_metadata(cwd.join(name)), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+                })
+            {
+                return Err(failure("fresh independent generated library workspace required"));
+            }
+            state.workspace = Some(cwd.to_owned());
+        }
+        let workspace = state
+            .workspace
+            .as_deref()
+            .expect("first actual command binds workspace");
+        let valid = match state.commands {
+            0 => cwd == workspace,
+            1 => {
+                state.build_authorized
+                    && cwd == self.package
+                    && args == ["build", "prod-export"]
+                    && environment.is_empty()
+            }
+            2 => {
+                cwd == self.package
+                    && args.starts_with(&["exe".to_owned(), "prod-export".to_owned()])
+                    && environment
+                        == &BTreeMap::from([(
+                            "LEAN_PATH".to_owned(),
+                            workspace
+                                .join(".lake/build/lib/lean")
+                                .to_string_lossy()
+                                .into_owned(),
+                        )])
+            }
+            3 => {
+                cwd == workspace.join("package")
+                    && args == ["package", "--locked", "--offline", "--allow-dirty"]
+                    && environment
+                        == &BTreeMap::from([
+                            (
+                                "CARGO_HOME".to_owned(),
+                                workspace.join("cargo-home").to_string_lossy().into_owned(),
+                            ),
+                            ("CARGO_NET_OFFLINE".to_owned(), "true".to_owned()),
+                        ])
+            }
+            _ => false,
+        };
+        if !valid {
+            return Err(failure("original library command/cwd/environment differs"));
+        }
+        self.directory.borrow().ready()?;
+        self.namespace.ready()?;
+        let before = custody::capture_optional(self.package)?;
+        if before != state.snapshot {
+            return Err(failure("exporter changed before actual command"));
+        }
+        let program_before = custody::capture_launcher(program)?;
+        let directory = custody::Cwd::open(cwd)?;
+        let result = if state.commands == 2 {
+            let built = self.built.borrow();
+            let expected = built
+                .as_ref()
+                .ok_or_else(|| failure("original library build custody absent"))?;
+            super::run_export_with_custody(
+                tool,
+                program,
+                args,
+                cwd,
+                environment,
+                replacements,
+                code,
+                self.receipt,
+                expected,
+            )
+        } else {
+            crate::verification::run_process(
+                tool,
+                program,
+                args,
+                cwd,
+                environment,
+                replacements,
+                code,
+            )
+        };
+        // A failed command is not an exemption from native/source custody.
+        let checked: Result<(), PrismError> = (|| {
+            directory.verify()?;
+            if custody::capture_launcher(program)? != program_before {
+                return Err(failure("actual library launcher changed during command"));
+            }
+            self.directory.borrow().ready()?;
+            self.namespace.ready()?;
+            let after = custody::capture_optional(self.package)?;
+            let unchanged = if state.commands == 1 {
+                if self.first && *self.receipt == super::cold_acquisition() {
+                    before.same_source(&after)
+                } else {
+                    before.same_compiler(&after)
+                }
+            } else {
+                before == after
+            };
+            if !unchanged {
+                return Err(failure(
+                    "exporter source/runtime changed during actual command",
+                ));
+            }
+            if state.commands >= 1 && result.is_ok() {
+                custody::require_executable(self.package)?;
+            }
+            self.directory
+                .borrow_mut()
+                .bind_package(self.package, &after)?;
+            state.snapshot = after;
+            Ok(())
+        })();
+        match (result, checked) {
+            (Err(mut original), Err(custody)) => {
+                original.message.push_str(&format!(
+                    "; exporter custody also failed: {}",
+                    custody.message
+                ));
+                Err(original)
+            }
+            (Err(original), _) => Err(original),
+            (Ok(_), Err(custody)) => Err(custody),
+            (Ok(record), Ok(())) => {
+                state.commands += 1;
+                Ok(record)
+            }
+        }
     }
 }
 
@@ -126,6 +304,10 @@ pub(crate) struct VerifyExporterOwner {
     package: Option<Package>,
     phases: Vec<Value>,
     poisoned: bool,
+    project: Option<PathBuf>,
+    project_identity: Option<custody::Cwd>,
+    inputs: Option<(String, String)>,
+    workspace: Option<PathBuf>,
 }
 
 fn failure(message: &str) -> PrismError {
@@ -144,6 +326,30 @@ impl VerifyExporterOwner {
         phase: Phase,
         model: &[u8],
         lex_manifest: &[u8],
+        generation: impl FnOnce(&Path, &GenerationContext<'_>) -> Result<T, PrismError>,
+    ) -> Result<T, PrismError> {
+        self.generate_for(project, phase, model, lex_manifest, false, generation)
+    }
+
+    pub(crate) fn generate_library<T: ProductEvidence>(
+        &mut self,
+        project: &Path,
+        phase: Phase,
+        model: &[u8],
+        lex_manifest: &[u8],
+        generation: impl FnOnce(&Path, &GenerationContext<'_>) -> Result<T, PrismError>,
+    ) -> Result<T, PrismError> {
+        self.generate_for(project, phase, model, lex_manifest, true, generation)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn generate_for<T: ProductEvidence>(
+        &mut self,
+        project: &Path,
+        phase: Phase,
+        model: &[u8],
+        lex_manifest: &[u8],
+        library_required: bool,
         generation: impl FnOnce(&Path, &GenerationContext<'_>) -> Result<T, PrismError>,
     ) -> Result<T, PrismError> {
         if !cfg!(all(
@@ -169,7 +375,14 @@ impl VerifyExporterOwner {
         }
         // Poison first: every error, including an unwind, prevents reuse.
         self.poisoned = true;
-        let result = self.generate_inner(project, phase, model, lex_manifest, generation);
+        let result = self.generate_inner(
+            project,
+            phase,
+            model,
+            lex_manifest,
+            library_required,
+            generation,
+        );
         if result.is_err() {
             if let Err(mut cleanup) = self.abort() {
                 cleanup.message.push_str(&format!(
@@ -197,20 +410,39 @@ impl VerifyExporterOwner {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn generate_inner<T: ProductEvidence>(
         &mut self,
         project: &Path,
         phase: Phase,
         model: &[u8],
         lex_manifest: &[u8],
+        library_required: bool,
         generation: impl FnOnce(&Path, &GenerationContext<'_>) -> Result<T, PrismError>,
     ) -> Result<T, PrismError> {
         let project = project
             .canonicalize()
             .map_err(|_| failure("private exporter project is unavailable"))?;
+        if let Some(original) = &self.project_identity {
+            original.verify()?;
+        }
+        let inputs = (digest(model), digest(lex_manifest));
+        if self.project.as_ref().is_some_and(|prior| prior != &project)
+            || self.inputs.as_ref().is_some_and(|prior| prior != &inputs)
+        {
+            return Err(failure(
+                "private exporter project or generation inputs changed",
+            ));
+        }
+        if phase == Phase::Replay && self.package.is_none() {
+            return Err(failure("original private exporter absent before replay"));
+        }
         let inventory = crate::sdk::exporter_seed_inventory(&project)?;
         let lock_authority = crate::sdk::exporter_lock_authority(&project)?;
         if self.package.is_none() {
+            self.project_identity = Some(custody::Cwd::open(&project)?);
+            self.project = Some(project.clone());
+            self.inputs = Some(inputs);
             let directory = super::directory::Directory::temporary(
                 "prismpm-verify-exporter-",
                 None,
@@ -276,10 +508,51 @@ impl VerifyExporterOwner {
                 .expect("original acquisition custody"),
             first: self.phases.is_empty(),
             built: Default::default(),
+            package: &package.path,
+            namespace: package.namespace.as_ref().expect("original namespace"),
+            directory: std::cell::RefCell::new(&mut package.directory),
+            library: std::cell::RefCell::new(LibraryGeneration {
+                required: library_required,
+                commands: 0,
+                workspace: None,
+                previous_workspace: self.workspace.clone(),
+                snapshot: package
+                    .snapshot
+                    .as_ref()
+                    .expect("original acquisition custody")
+                    .clone(),
+                build_authorized: false,
+            }),
         };
-        let product = generation(&package.path, &context)?;
+        let result = generation(&package.path, &context);
+        let built = context.built.borrow().clone();
+        let (commands, workspace, last_snapshot) = {
+            let state = context.library.borrow();
+            (
+                state.commands,
+                state.workspace.clone(),
+                state.snapshot.clone(),
+            )
+        };
+        drop(context);
+        if library_required {
+            package.snapshot = Some(last_snapshot);
+        }
+        let product = result?;
+        if library_required
+            && (product.role() != "library"
+                || commands != 4
+                || product.processes().iter().map(|row| row.tool.as_str()).ne([
+                    "lake-build-generated",
+                    "lean4-prod-build",
+                    "prod-export",
+                    "native-library-package",
+                ]))
+        {
+            return Err(failure("all four original library generation commands and actual process records are required"));
+        }
         let snapshot = custody::capture(&package.path)?;
-        if context.built.into_inner().as_ref() != Some(&snapshot) {
+        if built.as_ref() != Some(&snapshot) {
             return Err(failure(
                 "private exporter post-build custody absent or changed after generation",
             ));
@@ -330,6 +603,9 @@ impl VerifyExporterOwner {
         package.snapshot = Some(snapshot);
         package.executable = Some(executable);
         self.phases.push(record);
+        if library_required {
+            self.workspace = workspace;
+        }
         self.poisoned = false;
         Ok(product)
     }
@@ -342,6 +618,10 @@ impl VerifyExporterOwner {
                 "private exporter requires both complete generation phases",
             ));
         }
+        self.project_identity
+            .as_ref()
+            .ok_or_else(|| failure("original project identity absent"))?
+            .verify()?;
         let record = json!({"schema":"prismpm/verification-exporter-owner/1","phases":self.phases});
         validate_record(
             &record,
@@ -502,6 +782,281 @@ pub(crate) fn validate_record(
         }
     }
     Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod cold_library_tests {
+    use super::*;
+    use crate::library_build::GeneratedLibrary;
+
+    #[test]
+    fn cold_owner_never_admits_missing_reordered_or_fabricated_generation_phases() {
+        let project = tempfile::tempdir().unwrap();
+        let mut owner = VerifyExporterOwner::default();
+        let error = owner
+            .generate_library::<GeneratedLibrary>(
+                project.path(),
+                Phase::Replay,
+                b"model",
+                b"manifest",
+                |_, _| panic!("reordered phase must not construct or invoke anything"),
+            )
+            .err()
+            .unwrap();
+        assert_eq!(error.code, "PP5008");
+        assert!(owner.package.is_none());
+        assert!(owner.finish().is_err());
+        let mut owner = VerifyExporterOwner::default();
+        let mut actual_package = None;
+        assert!(
+            owner
+                .generate_library::<GeneratedLibrary>(
+                    project.path(),
+                    Phase::ControllerBuild,
+                    b"model",
+                    b"manifest",
+                    |package, _| {
+                        actual_package = Some(package.parent().unwrap().to_owned());
+                        Ok(GeneratedLibrary {
+                            artifacts: Vec::new(),
+                            processes: Vec::new(),
+                        })
+                    }
+                )
+                .is_err(),
+            "empty outputs and records cannot replace real commands"
+        );
+        assert!(owner.package.is_none());
+        assert!(owner.finish().is_err());
+        assert!(!actual_package.unwrap().exists());
+    }
+
+    #[test]
+    fn cold_owner_acquires_original_archive_and_poisoned_or_unwound_work_cannot_reuse_it() {
+        let project = tempfile::tempdir().unwrap();
+        let mut owner = VerifyExporterOwner::default();
+        let mut path = None;
+        let error = owner
+            .generate_library::<GeneratedLibrary>(
+                project.path(),
+                Phase::ControllerBuild,
+                b"model",
+                b"manifest",
+                |package, _context| {
+                    path = Some(package.to_owned());
+                    assert!(!package.join(".lake").exists());
+                    custody::capture_source(package)?;
+                    Err(failure("original deliberate pre-command failure"))
+                },
+            )
+            .err()
+            .unwrap();
+        assert_eq!(error.message, "original deliberate pre-command failure");
+        assert!(owner
+            .generate_library::<GeneratedLibrary>(
+                project.path(),
+                Phase::ControllerBuild,
+                b"model",
+                b"manifest",
+                |_, _| { panic!("poisoned generation cannot invoke a callback") }
+            )
+            .is_err());
+        drop(owner);
+        assert!(!path.unwrap().exists());
+        let mut owner = VerifyExporterOwner::default();
+        let mut path = None;
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = owner.generate_library::<GeneratedLibrary>(
+                project.path(),
+                Phase::ControllerBuild,
+                b"model",
+                b"manifest",
+                |package, _context| {
+                    path = Some(package.to_owned());
+                    panic!("deliberate generation unwind")
+                },
+            );
+        }));
+        assert!(result.is_err());
+        assert!(owner.poisoned);
+        assert!(owner.finish().is_err());
+        assert!(!path.unwrap().exists());
+    }
+
+    #[test]
+    fn original_source_substitution_refuses_before_any_real_compiler_command() {
+        for target in ["Prod/Export.lean", "lean-toolchain"] {
+            let project = tempfile::tempdir().unwrap();
+            let work = tempfile::tempdir().unwrap();
+            let mut owner = VerifyExporterOwner::default();
+            let error = owner
+                .generate_library::<GeneratedLibrary>(
+                    project.path(),
+                    Phase::ControllerBuild,
+                    b"model",
+                    b"manifest",
+                    |package, context| {
+                        std::fs::write(package.join(target), b"actual source substitution")
+                            .unwrap();
+                        context.run_library(
+                            "lake-build-generated",
+                            &crate::verification::executable("lake")?,
+                            &["build".to_owned(), "PrismGenerated".to_owned()],
+                            work.path(),
+                            &BTreeMap::new(),
+                            &[],
+                            "PP5004",
+                        )?;
+                        panic!("changed source cannot reach an actual compiler result")
+                    },
+                )
+                .err()
+                .unwrap();
+            assert_eq!(error.code, "PP5008", "{target}: {error:?}");
+            assert!(owner.finish().is_err());
+        }
+    }
+
+    #[test]
+    fn actual_lake_failure_preserves_original_stage_error_and_prohibits_publication() {
+        let project = tempfile::tempdir().unwrap();
+        let empty_workspace = tempfile::tempdir().unwrap();
+        let mut owner = VerifyExporterOwner::default();
+        let error = owner
+            .generate_library::<GeneratedLibrary>(
+                project.path(),
+                Phase::ControllerBuild,
+                b"model",
+                b"manifest",
+                |_package, context| {
+                    // This is the original real command with an intentionally absent
+                    // model project, not a surrogate compiler or a successful product.
+                    context.run_library(
+                        "lake-build-generated",
+                        &crate::verification::executable("lake")?,
+                        &["build".to_owned(), "PrismGenerated".to_owned()],
+                        empty_workspace.path(),
+                        &BTreeMap::new(),
+                        &[],
+                        "PP5004",
+                    )?;
+                    panic!("the genuine malformed-workspace build must fail")
+                },
+            )
+            .err()
+            .unwrap();
+        assert_eq!(error.code, "PP5004", "{error:?}");
+        assert!(owner.finish().is_err());
+        assert!(!project.path().join(".prism/verified").exists());
+    }
+
+    #[test]
+    fn wrong_command_and_prior_model_cache_refuse_before_any_executable_selection() {
+        for cache in [false, true] {
+            let project = tempfile::tempdir().unwrap();
+            let work = tempfile::tempdir().unwrap();
+            if cache {
+                std::fs::create_dir(work.path().join(".lake")).unwrap();
+            }
+            let mut owner = VerifyExporterOwner::default();
+            let error = owner
+                .generate_library::<GeneratedLibrary>(
+                    project.path(),
+                    Phase::ControllerBuild,
+                    b"model",
+                    b"manifest",
+                    |_package, context| {
+                        context.run_library(
+                            if cache {
+                                "lake-build-generated"
+                            } else {
+                                "prod-export"
+                            },
+                            Path::new("/nonexistent/cannot-execute"),
+                            &["build".to_owned(), "PrismGenerated".to_owned()],
+                            work.path(),
+                            &BTreeMap::new(),
+                            &[],
+                            "PP5004",
+                        )?;
+                        panic!("invalid command or stale model cache cannot execute")
+                    },
+                )
+                .err()
+                .unwrap();
+            assert_eq!(error.code, "PP5008");
+            assert!(error.message.contains(if cache {
+                "fresh independent"
+            } else {
+                "command order"
+            }));
+            assert!(owner.finish().is_err());
+        }
+    }
+
+    #[test]
+    fn replay_project_model_and_manifest_binding_reject_before_materialization() {
+        let original = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        // Negative predicate state only: no package, command, accepted first
+        // phase or successful finish is manufactured by these private units.
+        for (project, model, manifest) in [
+            (other.path(), b"model".as_slice(), b"manifest".as_slice()),
+            (
+                original.path(),
+                b"changed".as_slice(),
+                b"manifest".as_slice(),
+            ),
+            (original.path(), b"model".as_slice(), b"changed".as_slice()),
+        ] {
+            let mut owner = VerifyExporterOwner::default();
+            owner.project = Some(original.path().to_owned());
+            owner.inputs = Some((digest(b"model"), digest(b"manifest")));
+            owner.phases.push(json!({"phase":"controller-build"}));
+            let error = owner
+                .generate_library::<GeneratedLibrary>(
+                    project,
+                    Phase::Replay,
+                    model,
+                    manifest,
+                    |_, _| panic!("mismatched replay cannot materialize tools or execute"),
+                )
+                .err()
+                .unwrap();
+            assert_eq!(error.code, "PP5008");
+            assert!(error.message.contains("inputs changed"));
+            assert!(owner.package.is_none());
+            assert!(owner.finish().is_err());
+        }
+        let parent = tempfile::tempdir().unwrap();
+        let project = parent.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        let mut owner = VerifyExporterOwner::default();
+        owner.project = Some(project.clone());
+        owner.project_identity = Some(custody::Cwd::open(&project).unwrap());
+        owner.inputs = Some((digest(b"model"), digest(b"manifest")));
+        owner.phases.push(json!({"phase":"controller-build"}));
+        let displaced = parent.path().join("original-project");
+        std::fs::rename(&project, &displaced).unwrap();
+        std::fs::create_dir(&project).unwrap();
+        std::fs::write(project.join("foreign-marker"), b"retain replacement").unwrap();
+        assert!(owner
+            .generate_library::<GeneratedLibrary>(
+                &project,
+                Phase::Replay,
+                b"model",
+                b"manifest",
+                |_, _| { panic!("same-path project replacement cannot invoke replay") },
+            )
+            .is_err());
+        assert!(owner.package.is_none());
+        assert!(owner.finish().is_err());
+        assert!(displaced.exists());
+        assert_eq!(
+            std::fs::read(project.join("foreign-marker")).unwrap(),
+            b"retain replacement"
+        );
+    }
 }
 
 #[cfg(all(test, unix))]

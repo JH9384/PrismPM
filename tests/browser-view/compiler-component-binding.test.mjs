@@ -27,5 +27,10 @@ for (const [family, component] of [['publication-linkage', publication], ['sessi
     join(subset, inputs);
     for (const mismatched of [missing, changed])
       assert.throws(() => join(subset, mismatched), /actual compiler input belongs to complete/);
+    for (const path of ['tests/browser-view/compiler-owner-checks.mjs', 'tests/browser-view/verification-products.mjs']) {
+      assert.equal(inputs[path], subset[path], 'owning compiler helper is captured: ' + path);
+      const omitted = {...inputs}; delete omitted[path];
+      assert.throws(() => join(subset, omitted), /actual compiler input belongs to complete/);
+    }
   });
 }

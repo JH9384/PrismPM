@@ -38,7 +38,7 @@ export function frozenInputs() {
       'runner.rs', ...witnesses, 'context-fields-runner.rs', 'context-fields-corpus.mjs', 'execute.mjs', 'CONTRACT.md', 'CONTRACT.cddl'].map(path => 'tests/publication-context-linkage/' + path),
     'tests/publication-admission/corpus.mjs', 'tests/browser-view/compiler-component-binding.test.mjs',
     ...['compile.mjs', 'driver-cache.mjs', 'prerequisites.mjs', 'generated-package.mjs',
-      'generated-wasm.mjs'].map(path => 'tests/browser-view/' + path),
+      'generated-wasm.mjs', 'verification-products.mjs'].map(path => 'tests/browser-view/' + path),
     'tests/fixtures/library/native-library/project/lexlean.toml', 'model/authorities.toml',
     'SPEC.md', 'model/ids.toml', 'features/suites/oci.feature',
     'crates/conformance/src/cases/mod.rs', 'crates/conformance/src/cases/node_suite.rs', 'crates/conformance/tests/conformance.rs',

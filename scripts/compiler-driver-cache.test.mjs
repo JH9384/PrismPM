@@ -524,7 +524,7 @@ test('additional serial compiler owners preserve all independent models, mutatio
       assert(oracle.includes('native output mismatch'), 'actual generated native mutants remain');
       assert(oracle.includes('generated Wasm output mismatch'), 'actual generated Wasm mutants remain');
       const close = owned.indexOf(closeAnchor);
-      assert(close >= 0 && owned.indexOf('build.verifyEvidence()') > close,
+      assert(close >= 0 && owned.indexOf('build.verifyEvidence()', close + closeAnchor.length) > close,
         'proof/source checks follow actual compiler retirement');
       const productChecks = [...owned.matchAll(/captureVerificationProducts\(build\.work/g)].map(row => row.index);
       assert.equal(productChecks.length, 2);
@@ -540,7 +540,14 @@ test('additional serial compiler owners preserve all independent models, mutatio
     }
     for (const anchor of ['native output mismatch', 'generated Wasm output mismatch'])
       assert.throws(() => check(compile, ownedSource, checks.replaceAll(anchor, 'REMOVED')), anchor);
-    const moved = ownedSource.replace('build.verifyEvidence();', '')
+    // Mutation owners may also verify their own products earlier. Target the
+    // serial owner's actual post-retirement barrier, not the first call.
+    const barrier = 'build.verifyEvidence();';
+    const postClose = ownedSource.indexOf(barrier, ownedSource.indexOf(closeAnchor) + closeAnchor.length);
+    assert(postClose >= 0, 'actual post-retirement proof barrier exists');
+    const removed = ownedSource.slice(0, postClose) + ownedSource.slice(postClose + barrier.length);
+    assert.throws(() => check(compile, removed, checks), 'missing post-retirement proof checks');
+    const moved = removed
       .replace(closeAnchor, 'build.verifyEvidence();\n'+closeAnchor);
     assert.notEqual(moved, ownedSource);
     assert.throws(() => check(compile, moved, checks), 'pre-retirement-only proof checks');

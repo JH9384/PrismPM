@@ -5,7 +5,7 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {run, sha} from '../browser-view/compile.mjs';
-import {captureCompilerInputs, createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {compilerInputPaths, captureCompilerInputs, createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
 import {captureFile, capturedFile} from '../browser-view/file-custody.mjs';
@@ -52,6 +52,7 @@ export function frozenInputs() {
       const row = /^([0-9a-f]{64})  ([A-Za-z0-9_./-]+)$/.exec(line); assert.ok(row);
       files.add(tree + '/' + row[2]);
     }
+  for (const path of compilerInputPaths('presentation')) files.add(path);
   return Object.freeze(Object.fromEntries([...files].sort().map(path => [path, captureFile(join(repository, path)).evidence])));
 }
 

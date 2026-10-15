@@ -4,7 +4,7 @@ import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {mutateSource,mutations} from './mutations.mjs';
-import {captureCompilerInputs, createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {compilerInputPaths, captureCompilerInputs, createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {captureFile, capturedFile} from '../browser-view/file-custody.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm,requireGeneratedWasm} from '../browser-view/generated-wasm.mjs';
@@ -63,6 +63,7 @@ export function frozenInputs() {
     'tests/browser-view/workspace-products.mjs',
     'vendor/lean4-prod/lean.tar','vendor/lean4-prod/rust/MANIFEST.sha256','vendor/lexlean/MANIFEST.sha256',
   ]);
+  for (const path of compilerInputPaths('session')) files.add(path);
   const captured = new Map();
   const read = path => {
     assert.ok(files.has(path), 'registered complete session input required');

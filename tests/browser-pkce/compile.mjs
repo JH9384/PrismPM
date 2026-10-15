@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {run, sha} from '../browser-view/compile.mjs';
-import {createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {compilerInputPaths, createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {captureCompilerArtifact, requireCompilerArtifact} from '../browser-view/compiler-artifact.mjs';
 import {captureFile, capturedFile} from '../browser-view/file-custody.mjs';
 import {captureKernelProvenance} from '../browser-view/kernel-provenance.mjs';
@@ -69,6 +69,7 @@ export function frozenInputs() {
       const input = tree + '/' + relative; assert.equal(sha(read(input)), digest); files.add(input);
     }
   }
+  for (const path of compilerInputPaths('pkce')) files.add(path);
   const captures = new Map([...files].sort().map(path => [path, captureFile(join(repository, path))]));
   const inputs = Object.freeze(Object.fromEntries([...captures].map(([path, row]) => [path, row.evidence.sha256])));
   for (const [path, bytes] of modules) assert.equal(sha(bytes), inputs[path], 'captured static module ' + path);

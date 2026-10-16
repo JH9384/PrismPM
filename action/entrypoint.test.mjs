@@ -75,7 +75,7 @@ function verifyExportInvocation(result, f, ref = reference, destination = 'publi
   assert.equal(args[cli - 1], sdk);
   assert.deepEqual(args.slice(0, cli - 1), ['run', '--rm', '--user', `${process.getuid()}:${process.getgid()}`,
     '--env', 'HOME=/tmp/prismpm-home', '--env', 'PRISMPM_EPHEMERAL_HOME=1',
-    '--tmpfs', '/tmp:rw,exec,nosuid,size=1g', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+    '--tmpfs', '/tmp:rw,exec,nosuid,size=2g', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
     '--network', 'none', '--volume', `${f.workspace}:${f.workspace}`,
     '--env', `PRISMPM_SOURCE_REVISION=${revision}`]);
   for (const projection of result.calls.slice(1)) {
@@ -102,7 +102,7 @@ function verifyPublicationInvocation(result, f, ref = reference, url = publicati
   assert.equal(args[cli - 1], sdk);
   assert.deepEqual(args.slice(0, cli - 1), ['run', '--rm', '--user', `${process.getuid()}:${process.getgid()}`,
     '--env', 'HOME=/tmp/prismpm-home', '--env', 'PRISMPM_EPHEMERAL_HOME=1',
-    '--tmpfs', '/tmp:rw,exec,nosuid,size=1g', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+    '--tmpfs', '/tmp:rw,exec,nosuid,size=2g', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
     '--volume', `${f.workspace}:${f.workspace}`,
     '--env', `PRISMPM_SOURCE_REVISION=${revision}`]);
   for (const projection of result.calls.slice(1)) {
@@ -220,6 +220,7 @@ test('owning adapter assertions reject real argument and host-isolation defects'
     ['args+=(export-browser "$reference" --output "$export_output")',
       'args+=(export-browser "$reference" --output "$project/$export_output")'],
     ['network_args=(--network none)', 'network_args=(--network host)'],
+    ['--tmpfs /tmp:rw,exec,nosuid,size=2g', '--tmpfs /tmp:rw,exec,nosuid,size=1g'],
   ]) {
     assert.equal(source.split(before).length, 2, 'mutation must change exactly one owning statement');
     const path = join(f.root, 'mutant.sh'); writeFileSync(path, source.replace(before, after));

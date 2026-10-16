@@ -1482,12 +1482,14 @@ oracles, adapters, and conformance tooling. Its canonical inventory maps every
 permitted subprocess name to version, platform and SHA-256. An undeclared or
 changed executable, including one found earlier on `PATH`, is rejected.
 
-The installed SDK launcher sets the process soft stack limit to 65,536 KiB
-before running the requested command. This bounded resource is inherited by
+The installed SDK launcher and native CLI set the process soft stack limit to
+65,536 KiB before running the requested command. This bounded resource is inherited by
 compiler children even when their environment is sanitized. The host hard
 limit is unchanged; a lower hard limit refuses execution before the requested
-command starts. Source, installed-image and native construction tests exercise
-the actual launcher and child limits.
+command starts. The CLI enforces this bound even when a later `docker exec`
+process bypasses the container entrypoint; an insufficient hard limit is
+`PP5401`. Source, installed-image and native construction tests exercise
+the actual launcher, CLI entry path and child limits.
 
 `prismpm/sdk-lock/2` pins the exact multi-platform SDK index bytes and digest,
 exactly one `linux/amd64` and one `linux/arm64` child manifest, and each child's

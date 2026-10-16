@@ -27,6 +27,7 @@ mod library_verification;
 pub mod lifecycle;
 pub mod oci;
 pub mod operations;
+mod process_resources;
 mod release_verification;
 pub mod sdk;
 pub mod supply_chain;

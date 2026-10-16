@@ -82,6 +82,7 @@ case "${1:-}" in
         --security-opt no-new-privileges "$image" "$@"
     }
     test "$(sdk id -u)" = 1000
+    PRISMPM_TEST_SDK_IMAGE="$image" node --test "$(dirname "$helper")/sdk-runtime-exec.test.mjs"
     sdk prismpm --json completion bash > "$evidence/cli.json"
     sdk cat /opt/prismpm/share/inventory.json > "$evidence/inventory.json"
     sdk cat /opt/prismpm/share/standards.lock > "$evidence/standards.lock"

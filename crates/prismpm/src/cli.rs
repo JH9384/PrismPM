@@ -983,7 +983,7 @@ pub fn run() -> ExitCode {
         }
     };
 
-    match execute(&cli) {
+    match crate::process_resources::configure().and_then(|()| execute(&cli)) {
         Ok((value, human)) => {
             let result = if cli.json {
                 canonical(&value).and_then(|bytes| write_line(std::io::stdout().lock(), &bytes))

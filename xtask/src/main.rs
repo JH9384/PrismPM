@@ -571,6 +571,14 @@ fn check_sdk_runtime_boundary() -> Result<(), Fail> {
 fn check_sdk_runtime_boundary_for_image(image: &str) -> Result<(), Fail> {
     validate_sdk_runtime_reference(image)?;
 
+    let process_resource_tests = Command::new("node")
+        .args(["--test", "scripts/sdk-runtime-exec.test.mjs"])
+        .env("PRISMPM_TEST_SDK_IMAGE", image)
+        .status()?;
+    if !process_resource_tests.success() {
+        return Err("SDK docker-exec process resource tests failed".into());
+    }
+
     let infrastructure_tests = Command::new("docker")
         .args([
             "run",

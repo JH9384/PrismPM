@@ -223,6 +223,12 @@ level = "build"
 statement = "The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application."
 
 [[id]]
+id = "HO-16"
+suite = "holo"
+level = "build"
+statement = "The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults."
+
+[[id]]
 id = "CT-01"
 suite = "controller"
 level = "build"

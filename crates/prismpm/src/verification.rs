@@ -20,6 +20,7 @@ use std::process::{Command, Stdio};
 
 const CHILD_OUTPUT_LIMIT: usize = 16_777_216;
 const CHILD_TIMEOUT_SECONDS: &str = "300";
+const GENERATED_NATIVE_BUILD_TIMEOUT_SECONDS: &str = "600";
 const ROOTS_SOURCE: &str = include_str!("../model/runtime-roots.toml");
 const STDLIB_EXPORTS_SOURCE: &str = include_str!("../model/stdlib-exports.toml");
 const EXECUTION_CORPUS_SOURCE: &str = include_str!("../model/execution-corpus.toml");
@@ -1060,6 +1061,37 @@ fn failure_excerpt(output: &str) -> String {
         &output[..prefix],
         suffix - prefix,
         &output[suffix..]
+    )
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum NativeCompilation {
+    Library,
+    Application,
+}
+
+pub(crate) fn run_native_compilation(
+    phase: NativeCompilation,
+    program: &Path,
+    args: &[String],
+    cwd: &Path,
+    replacements: &[(&Path, &str)],
+    failure_code: &'static str,
+) -> Result<ProcessRecord, PrismError> {
+    let tool = match phase {
+        NativeCompilation::Library => "lake-build-generated",
+        NativeCompilation::Application => "application-lean",
+    };
+    run_process_limited(
+        tool,
+        program,
+        args,
+        cwd,
+        &BTreeMap::new(),
+        replacements,
+        failure_code,
+        GENERATED_NATIVE_BUILD_TIMEOUT_SECONDS,
+        CHILD_OUTPUT_LIMIT,
     )
 }
 
@@ -2326,6 +2358,14 @@ fn run_application(
         "core-wasm/{}_core_wasm.wasm",
         application.cargo_name().replace('-', "_")
     ));
+    crate::application_build::validate_application_core_resources(
+        application,
+        &std::fs::read(&wasm_path).map_err(|error| PrismError::new("PP5103", error.to_string()))?,
+        &std::fs::read(build_root.join("application/target-profile.json"))
+            .map_err(|error| PrismError::new("PP5103", error.to_string()))?,
+        &std::fs::read(build_root.join("core-wasm/package/generation-manifest.json"))
+            .map_err(|error| PrismError::new("PP5103", error.to_string()))?,
+    )?;
     processes.extend(run_hologram_oracle(
         controller,
         build_root,
@@ -2917,12 +2957,11 @@ pub(crate) fn run(
     let rustc = toolchain.rustc;
     let no_env = BTreeMap::new();
     let mut processes = toolchain.records;
-    processes.push(run_process(
-        "lake-build-generated",
+    processes.push(run_native_compilation(
+        NativeCompilation::Library,
         &lake,
         &["build".to_owned(), "PrismGenerated".to_owned()],
         workspace,
-        &no_env,
         &replacements,
         "PP5001",
     )?);
@@ -3385,6 +3424,57 @@ mod tests {
 
     fn limited(program: &str, args: &[&str], timeout: &str, output: usize) -> PrismError {
         limited_with_code(program, args, timeout, output, "PP5001")
+    }
+
+    #[test]
+    fn native_compile_deadline_is_owned_and_other_phase_budgets_stay_closed() {
+        let node = executable("node").unwrap();
+        let observe = r#"process.stdout.write(JSON.stringify(require('node:fs').readFileSync('/proc/'+process.ppid+'/cmdline','utf8').split('\0').slice(1,4)))"#;
+        for phase in [NativeCompilation::Library, NativeCompilation::Application] {
+            let record = run_native_compilation(
+                phase,
+                &node,
+                &["-e".to_owned(), observe.to_owned()],
+                Path::new("/tmp"),
+                &[],
+                "PP5001",
+            )
+            .unwrap();
+            let actual: Value = serde_json::from_str(&record.stdout).unwrap();
+            assert_eq!(actual, json!(["--signal=TERM", "--kill-after=5", "600"]));
+        }
+        for (tool, budget, expected) in [
+            ("leanchecker", CHILD_TIMEOUT_SECONDS, "300"),
+            (
+                "hologram-oracle-build",
+                HOLOGRAM_ORACLE_BUILD_TIMEOUT_SECONDS,
+                "900",
+            ),
+            (
+                "hologram-oracle",
+                HOLOGRAM_ORACLE_RUN_TIMEOUT_SECONDS,
+                "600",
+            ),
+        ] {
+            let record = run_process_limited(
+                "native-deadline-policy-observer",
+                &node,
+                &["-e".to_owned(), observe.to_owned()],
+                Path::new("/tmp"),
+                &BTreeMap::new(),
+                &[],
+                "PP5001",
+                budget,
+                CHILD_OUTPUT_LIMIT,
+            )
+            .unwrap();
+            let actual: Value = serde_json::from_str(&record.stdout).unwrap();
+            assert_eq!(
+                actual,
+                json!(["--signal=TERM", "--kill-after=5", expected]),
+                "{tool}"
+            );
+        }
     }
 
     #[test]

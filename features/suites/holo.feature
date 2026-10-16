@@ -1,5 +1,12 @@
 Feature: holo
 
+  @HO-16 @build
+  Scenario: The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults.
+    Given a source-owned text/2 application with explicit Core-Wasm memory and stack bounds
+    When the generated guest executes and ordinary and source-free verification inspect its actual binary limits
+    Then declared and actual limits agree and malformed or substituted budgets are rejected
+    And text/1 application metadata and generated guest defaults retain their existing contract
+
   @HO-14 @build
   Scenario: Pinned BLAKE3 vectors qualify every imported digest mode, streaming partition and content-identity result without claiming cryptographic proof or durable native storage.
     Given all 35 immutable upstream vectors and their complete licensed source closure

@@ -154,6 +154,34 @@ At least one vector must have request length exactly equal to that guest
 allocation bound, so independent runtime verification checks its modeled
 response without assuming that it equals an empty-request response.
 
+The separate `Foundation.View.Text.V2.Model.TextApplication` declares
+`prismpm/text-application/2` in closed `prismpm/model-document/5`. It retains
+the V1 byte-request and View contract and adds explicit `coreMemoryPages` and
+`coreStackBytes` UInt32 values. These bounds apply to the import-free Core-Wasm
+guest only. The separately generated browser wasm-bindgen adapter retains its
+own allocator and runtime contract. Memory pages are 64 KiB, with an exact
+maximum from 1 through 32767. Stack bytes are positive, aligned to 16 bytes,
+and strictly below the maximum memory size; both byte allocation caps must fit
+that maximum. The stack bound covers the LLVM linear-memory stack region,
+not the Wasm engine call stack or the SDK compiler process stack.
+
+Only an exact source-owned V2 declaration admits these fields; missing,
+explicit-null, mistyped or undeclared fields and mismatched module, profile or
+schema are rejected. V1 keeps its unchanged application DTO and target/1
+package generation with 32 pages and 65536 stack bytes. SDK provenance identities
+continue to reflect the actual emitter revision. V2 emits target/2 metadata and
+immutable `__stack_low` and `__stack_high` linker globals. Build, ordinary
+verification and retained source-free release verification inspect the actual
+Wasm memory section and global initializers: one internal unshared wasm32
+memory, no imports or start function, exact modeled maximum, and an ordered
+stack interval of exactly the modeled size within initial memory. The closed
+LLVM guest must have exactly one mutable global: its unexported i32 stack
+pointer, initialized to the aligned upper boundary. Captured
+target and generation metadata must agree with the accepted application model.
+Changing a metadata hash alone cannot authorize a different binary resource
+budget. The bump allocator is cumulative per guest instance; declared capacity
+is a limit, and executable acceptance establishes sufficiency for the corpus.
+
 The text View transports strictly encode UTF-8 requests and display strictly
 decoded UTF-8 responses, with byte limits derived from the application.
 Application request parsing and response semantics remain LexLean-authored;
@@ -758,8 +786,14 @@ and the list-input checks to pass.
 
 Every child is launched directly, never through a shell, with environment
 cleared except the minimum pinned tool homes/path plus an explicit `LEAN_PATH`
-for named export. Each child has a 300-second timeout, TERM then a five-second
-KILL grace period, and independent 16,777,216-byte stdout/stderr limits.
+for named export. The default child timeout is 300 seconds. Fresh generated
+native Lean compilation has a fixed 600-second timeout for its complete module
+graph, through the closed library and application compilation phases
+`lake-build-generated` and `application-lean`. The independent Hologram oracle
+compiler retains 900 seconds and its
+execution retains 600 seconds. Every phase uses TERM then a five-second KILL
+grace period and independent 16,777,216-byte stdout/stderr limits. Named export,
+per-module kernel checks and browser deadlines retain their existing bounds.
 Process records contain normalized arguments/output, exit status, and SHA-256
 of the executable bytes. Timeout, signal, overflow, malformed output, nonzero
 exit, or missing executable is a registered failure.
@@ -966,7 +1000,8 @@ golden generation. This component check does not authorize SDK acceptance.
 
 Source development and test profiles optimize only the `sha2` dependency at
 level 3. Complete per-invocation SDK inventory and executable byte checks,
-native golden write/repeat commands and deadlines remain unchanged; caller
+native golden write/repeat commands and the fixed phase budgets in §8 remain
+mandatory; caller
 compiler/profile environment overrides do not enter the native review container.
 
 Private browser compiler-driver builds use that same fixed SHA2-only setting.
@@ -1346,7 +1381,8 @@ traced `moreLeanArgs = ["-j2"]` for their actual compiler invocations. Caller
 environment overrides cannot change these generated-project settings. These
 controls are not a replacement for process memory limits and do not claim to
 cap every compiler or exporter subprocess's operating-system thread count.
-All generated-module builds, exports, kernel checks and deadlines are retained.
+All generated-module builds, exports and kernel checks execute under the fixed
+phase budgets in §8.
 Seed files are bounded to 4,096 entries, 256 MiB per file and 512 MiB total.
 SDK tree enumeration streams directory entries before applying bounds, closes
 every iterator, and preserves canonical bytewise ordering. Source construction
@@ -1473,8 +1509,8 @@ manifest publication. Ordinary non-application/non-library verification retains
 its one fresh acquisition and actual export; it has no duplicated A/B package.
 Neither seed validity nor faster acquisition establishes SDK or application
 acceptance. SDK qualification requires measured cold/seeded equivalence on
-both native platforms with genuine relocated traces, without trace rewriting,
-deadline inflation or reuse of acceptance results.
+both native platforms with genuine relocated traces under the same fixed §8
+phase budgets, without trace rewriting or reuse of acceptance results.
 
 The PrismPM 0.3 SDK consists of the CLI/library, LexLean, exact Lean and
 lean4-prod tools, prism-stdlib, schemas, standard bindings, redistributable
@@ -3293,6 +3329,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `HO-13` | `holo` | The modeled browser-surface wire codec preserves legacy bytes, reproduces pinned upstream framing in generated std and no_std code, and rejects malformed or mixed profiles without granting browser authority. | §3 |
 | `HO-14` | `holo` | Pinned BLAKE3 vectors qualify every imported digest mode, streaming partition and content-identity result without claiming cryptographic proof or durable native storage. | §3 |
 | `HO-15` | `holo` | The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application. | §3 |
+| `HO-16` | `holo` | The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults. | §3 |
 | `CT-01` | `controller` | The Controller API exposes owned request and result types for load, check, and build. | §4 |
 | `CT-02` | `controller` | The Controller encapsulates LexLean Engine operations without exposing internal compiler types. | §4 |
 | `CT-03` | `controller` | prismpm check validates models in memory without modifying the filesystem. | §4 |

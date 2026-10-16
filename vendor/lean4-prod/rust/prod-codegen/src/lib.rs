@@ -128,7 +128,10 @@ use ownership::{expression_type, pattern_types, LocalTypes};
 use prod_ir::{Alt, CtorDecl, Definition, Expr, Module, Type, TypeDecl};
 
 pub use c_abi::{generate_c_bindings, CAbiError, CBindings};
-pub use core_wasm::{generate_core_wasm_package, CoreWasmSpec};
+pub use core_wasm::{
+    generate_core_wasm_package, generate_core_wasm_package_v2, validate_core_wasm_resources,
+    CoreWasmSpec,
+};
 pub use package::{
     generate_cargo_package, CargoDependency, CargoPackageSpec, GeneratedPackage, PackageFile,
 };

@@ -16,6 +16,26 @@ import {retirementFaults,retirementDriver,retirementSummary,requirePrimaryBodyFa
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const matrix = JSON.parse(read('tests/data/portable-oracle-matrix.json'));
 
+test('text_v2_resource_bounds preserve raw text through the actual browser oracle functions', async () => {
+  const source = read('crates/prismpm/src/embedded/hologram-oracle.browser.mjs');
+  const selection = source.slice(source.indexOf('const text = '), source.indexOf('const cases = [];'));
+  const functions = source.slice(source.indexOf('async function fill('), source.indexOf('const valid = app.acceptance_vectors'));
+  assert(selection.startsWith('const text = '));
+  assert(functions.startsWith('async function fill('));
+  const request = '1\tmatmul\t1\t1\t1\t-9\t7\n🌱';
+  const response = '1\tok\t1\t1\t-63\n<safe text>';
+  const vector = {request: [...new TextEncoder().encode(request)], response: [...new TextEncoder().encode(response)]};
+  for (const profile of ['prismpm/text-application/1', 'prismpm/text-application/2']) {
+    const fills = [];
+    const page = {locator: selector => ({fill: async value => fills.push([selector, value])})};
+    const actual = await runInNewContext(`(async () => {${selection}\n${functions}\nawait fill(vector); return {display: displayed(vector), applicable: applicable(vector)};})()`,
+      {assert, app: {profile, view: {}, request_maximum: 4096}, page, vector, TextDecoder, Uint8Array});
+    assert.deepEqual(fills, [['#request', request]], profile);
+    assert.equal(actual.display, response, profile);
+    assert.equal(actual.applicable, true, profile);
+  }
+});
+
 test('delayed module fault retires its exact route before the unchanged retained-input submission', async () => {
   const source=read('crates/prismpm/src/embedded/hologram-oracle.browser.mjs');
   const start=source.indexOf("  await journey('delayed-init', async () => {");

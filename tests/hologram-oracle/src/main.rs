@@ -269,6 +269,29 @@ fn bytes(value: &Value, field: &str) -> Result<Vec<u8>, String> {
         .collect()
 }
 
+fn allocation_boundary(
+    profile: Option<&str>,
+    allocation_cap: usize,
+    vectors: &[(Vec<u8>, Vec<u8>)],
+) -> Result<(Vec<u8>, Vec<u8>), String> {
+    if matches!(
+        profile,
+        Some("prismpm/text-application/1" | "prismpm/text-application/2")
+    ) {
+        vectors
+            .iter()
+            .find(|(request, _)| request.len() == allocation_cap)
+            .cloned()
+            .ok_or_else(|| "text model has no explicit guest-allocation-boundary vector".to_owned())
+    } else {
+        let (_, response) = vectors
+            .iter()
+            .find(|(request, _)| request.is_empty())
+            .ok_or("model has no empty malformed-request vector")?;
+        Ok((vec![b'x'; allocation_cap], response.clone()))
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut arguments = std::env::args_os().skip(1);
@@ -415,22 +438,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .as_u64()
             .ok_or("model has no guest allocation cap")?,
     )?;
-    let (boundary_request, boundary_response) =
-        if application["profile"] == "prismpm/text-application/1" {
-            let vector = vectors
-                .iter()
-                .find(|vector| {
-                    bytes(vector, "request").is_ok_and(|request| request.len() == allocation_cap)
-                })
-                .ok_or("text model has no explicit guest-allocation-boundary vector")?;
-            (bytes(vector, "request")?, bytes(vector, "response")?)
-        } else {
-            let vector = vectors
-                .iter()
-                .find(|vector| vector["request"].as_array().is_some_and(Vec::is_empty))
-                .ok_or("model has no empty malformed-request vector")?;
-            (vec![b'x'; allocation_cap], bytes(vector, "response")?)
-        };
+    let boundary_vectors = vectors
+        .iter()
+        .map(|vector| Ok((bytes(vector, "request")?, bytes(vector, "response")?)))
+        .collect::<Result<Vec<_>, String>>()?;
+    let (boundary_request, boundary_response) = allocation_boundary(
+        application["profile"].as_str(),
+        allocation_cap,
+        &boundary_vectors,
+    )?;
     let at_cap = session.invoke(vec![boundary_request]).await?;
     if at_cap.outputs != vec![boundary_response] {
         return Err("guest allocation cap did not return the modeled boundary response".into());

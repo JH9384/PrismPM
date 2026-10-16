@@ -84,8 +84,12 @@ pub fn validate(doc: &ModelDocument) -> Result<(), PrismError> {
         "prismpm/model-document/3"
     } else if matches!(&doc.application, Some(Application::Browser(_))) {
         "prismpm/model-document/4"
-    } else if matches!(&doc.application, Some(Application::Text(_))) {
-        "prismpm/model-document/2"
+    } else if let Some(Application::Text(application)) = &doc.application {
+        if application.profile == "prismpm/text-application/2" {
+            "prismpm/model-document/5"
+        } else {
+            "prismpm/model-document/2"
+        }
     } else {
         "prismpm/model-document/1"
     };
@@ -459,7 +463,25 @@ pub(crate) fn validate_text_application(
                         .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
             })
     };
-    if application.profile != "prismpm/text-application/1"
+    let resource_profile_valid = match (
+        application.profile.as_str(),
+        application.core_memory_pages,
+        application.core_stack_bytes,
+    ) {
+        ("prismpm/text-application/1", None, None) => true,
+        ("prismpm/text-application/2", Some(pages), Some(stack)) => {
+            let bytes = u64::from(pages) * 65_536;
+            (1..=32_767).contains(&pages)
+                && stack > 0
+                && stack % 16 == 0
+                && u64::from(stack) < bytes
+                && u64::from(application.request_maximum) <= bytes
+                && u64::from(application.response_maximum) <= bytes
+                && u64::from(application.guest_allocation_maximum) <= bytes
+        }
+        _ => false,
+    };
+    if !resource_profile_valid
         || application.core_contract != "hologram:guest/core-wasm@1"
         || application.request_maximum == 0
         || application.response_maximum == 0

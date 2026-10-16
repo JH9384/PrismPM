@@ -586,32 +586,46 @@ pub fn project_application(
     let view_layer = u8::try_from(unsigned(&fields, "viewLayer", "uint8")?)
         .map_err(|_| PrismError::new("PP2001", "viewLayer exceeds UInt8"))?;
     let application = if fields.contains_key("profile") {
-        exact_fields(
-            &fields,
-            &[
-                "profile",
-                "name",
-                "cargoName",
-                "cargoVersion",
-                "cargoDescription",
-                "cargoRepository",
-                "cargoHomepage",
-                "libraryRoots",
-                "acceptanceVectors",
-                "entryRoot",
-                "coreContract",
-                "requestMaximum",
-                "responseMaximum",
-                "guestAllocationMaximum",
-                "capabilitiesEmpty",
-                "fatArchive",
-                "primaryLayer",
-                "viewLayer",
-                "view",
-            ],
-        )?;
+        let profile = string(&fields, "profile")?;
+        let resource_profile = profile == "prismpm/text-application/2";
+        let resource_type = member_name(declaration) == Some("TextApplication")
+            && declaration
+                .pointer("/result/member/module")
+                .and_then(Value::as_str)
+                == Some("Foundation.View.Text.V2.Model");
+        if resource_profile != resource_type {
+            return Err(PrismError::new(
+                "PP2009",
+                "text/2 resources require the exact source-owned Text.V2 application type and profile",
+            ));
+        }
+        let mut expected_fields = vec![
+            "profile",
+            "name",
+            "cargoName",
+            "cargoVersion",
+            "cargoDescription",
+            "cargoRepository",
+            "cargoHomepage",
+            "libraryRoots",
+            "acceptanceVectors",
+            "entryRoot",
+            "coreContract",
+            "requestMaximum",
+            "responseMaximum",
+            "guestAllocationMaximum",
+            "capabilitiesEmpty",
+            "fatArchive",
+            "primaryLayer",
+            "viewLayer",
+            "view",
+        ];
+        if resource_profile {
+            expected_fields.extend(["coreMemoryPages", "coreStackBytes"]);
+        }
+        exact_fields(&fields, &expected_fields)?;
         Application::Text(Box::new(TextApplicationModel {
-            profile: string(&fields, "profile")?,
+            profile,
             name: string(&fields, "name")?,
             cargo_name: string(&fields, "cargoName")?,
             cargo_version: string(&fields, "cargoVersion")?,
@@ -625,6 +639,22 @@ pub fn project_application(
             request_maximum,
             response_maximum,
             guest_allocation_maximum,
+            core_memory_pages: if resource_profile {
+                Some(
+                    u32::try_from(unsigned(&fields, "coreMemoryPages", "uint32")?)
+                        .map_err(|_| PrismError::new("PP2001", "coreMemoryPages exceeds UInt32"))?,
+                )
+            } else {
+                None
+            },
+            core_stack_bytes: if resource_profile {
+                Some(
+                    u32::try_from(unsigned(&fields, "coreStackBytes", "uint32")?)
+                        .map_err(|_| PrismError::new("PP2001", "coreStackBytes exceeds UInt32"))?,
+                )
+            } else {
+                None
+            },
             capabilities_empty: boolean(&fields, "capabilitiesEmpty")?,
             fat_archive: boolean(&fields, "fatArchive")?,
             primary_layer,
@@ -673,6 +703,9 @@ fn projected_document(
     let document = ModelDocument {
         schema: match &application {
             Application::Legacy(_) => "prismpm/model-document/1",
+            Application::Text(value) if value.profile == "prismpm/text-application/2" => {
+                "prismpm/model-document/5"
+            }
             Application::Text(_) => "prismpm/model-document/2",
             Application::Browser(_) => "prismpm/model-document/4",
         }

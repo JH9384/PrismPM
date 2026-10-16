@@ -226,6 +226,32 @@ impl Application {
             Self::Browser(value) => value.view_layer,
         }
     }
+
+    /// Core-Wasm guest memory bound; legacy profiles retain 32 pages.
+    pub fn core_memory_pages(&self) -> u32 {
+        match self {
+            Self::Text(value) if value.profile == "prismpm/text-application/2" => {
+                value.core_memory_pages.unwrap_or(32)
+            }
+            _ => 32,
+        }
+    }
+
+    /// Explicit Core-Wasm linear-memory stack bound, present only for text/2.
+    pub fn core_stack_bytes(&self) -> Option<u32> {
+        match self {
+            Self::Text(value) if value.profile == "prismpm/text-application/2" => {
+                value.core_stack_bytes
+            }
+            _ => None,
+        }
+    }
+}
+
+fn present_resource_bound<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<u32>, D::Error> {
+    u32::deserialize(deserializer).map(Some)
 }
 
 /// A capability-free UTF-8 byte-request application, independent of domain semantics.
@@ -260,6 +286,20 @@ pub struct TextApplicationModel {
     pub response_maximum: u32,
     /// Guest input allocation cap.
     pub guest_allocation_maximum: u32,
+    /// Explicit Core-Wasm guest memory pages, required only by text/2.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_resource_bound"
+    )]
+    pub core_memory_pages: Option<u32>,
+    /// Explicit Core-Wasm linear-memory stack bytes, required only by text/2.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_resource_bound"
+    )]
+    pub core_stack_bytes: Option<u32>,
     /// Whether the capability request is canonically empty.
     pub capabilities_empty: bool,
     /// Whether the application requests a composed fat archive.

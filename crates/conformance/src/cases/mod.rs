@@ -410,6 +410,70 @@ pub fn run_at(root: &Path, id: &str) {
             "3600000",
         ),
 
+        "HO-16" => {
+            let browser = Command::new("timeout")
+                .args([
+                    "90",
+                    "node",
+                    "--test",
+                    "--test-timeout=60000",
+                    "--test-name-pattern=^text_v2_resource_bounds",
+                    "scripts/portable-oracle-matrix.test.mjs",
+                ])
+                .current_dir(root)
+                .output()
+                .expect("HO-16 executes its bounded actual browser-oracle regression");
+            assert!(
+                browser.status.success(),
+                "HO-16 browser oracle: {}\n{}",
+                String::from_utf8_lossy(&browser.stdout),
+                String::from_utf8_lossy(&browser.stderr)
+            );
+            let browser_stdout = String::from_utf8_lossy(&browser.stdout);
+            assert!(
+                browser_stdout.lines().any(|line| line == "# pass 1")
+                    && browser_stdout.lines().any(|line| line == "# fail 0"),
+                "HO-16 requires its one actual named browser-oracle regression"
+            );
+            for (package, target) in [
+                ("prod-codegen", Some("core_wasm_fixtures")),
+                ("prismpm", Some("text_application")),
+                ("prismpm", Some("text_v2_contract")),
+                ("prismpm", None),
+            ] {
+                let mut command = Command::new("cargo");
+                command.args(["test", "--locked", "--offline", "-p", package]);
+                if let Some(target) = target {
+                    command.args(["--test", target]);
+                } else {
+                    command.arg("--lib");
+                }
+                let output = command
+                    .args(["text_v2_resource_bounds", "--", "--nocapture"])
+                    // The outer conformance Cargo owner may retain its target
+                    // lock while tests execute. Use one disjoint target for the
+                    // actual resource suites; never nest into that lock.
+                    .env(
+                        "CARGO_TARGET_DIR",
+                        root.join("target/conformance-text-v2-resources"),
+                    )
+                    .current_dir(root)
+                    .output()
+                    .expect("HO-16 executes its actual generated resource and projection tests");
+                assert!(
+                    output.status.success(),
+                    "HO-16 {package}/{target:?}: {}\n{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                assert!(
+                    stdout.contains("test result: ok.") && !stdout.contains("running 0 tests"),
+                    "HO-16 requires nonempty executed resource tests: {package}/{target:?}"
+                );
+            }
+        }
+
         "CT-01" | "CT-02" | "CT-03" | "CT-04" | "CT-05" | "CT-06" | "CT-07" | "CT-08" | "CT-09"
         | "CT-10" | "CT-11" => {
             verify_controller(root, id);

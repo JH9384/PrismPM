@@ -5,12 +5,13 @@ use crate::holo::archive::{compose_application, ApplicationArchiveInput, Archive
 use crate::holo::browser_application::BrowserApplication;
 use crate::holo::canonical::{content_id, encode_value};
 use crate::holo::model_document::{Application, ApplicationModel, ModelDocument};
-use crate::verification::{executable, run_process};
+use crate::verification::{executable, run_native_compilation, run_process, NativeCompilation};
 use prod_codegen::{
-    generate_cargo_package, generate_core_wasm_package, generate_holoview_bundle,
-    generate_text_view_v1, generate_view_v1, BrowserAdapterBinding, CargoDependency,
-    CargoPackageSpec, CoreWasmSpec, EvaluatedViewV1, GeneratedPackage, GeneratedViewV1,
-    PackageFile, TextBrowserAdapterBinding, TextViewV1, ViewOperation,
+    generate_cargo_package, generate_core_wasm_package, generate_core_wasm_package_v2,
+    generate_holoview_bundle, generate_text_view_v1, generate_view_v1,
+    validate_core_wasm_resources, BrowserAdapterBinding, CargoDependency, CargoPackageSpec,
+    CoreWasmSpec, EvaluatedViewV1, GeneratedPackage, GeneratedViewV1, PackageFile,
+    TextBrowserAdapterBinding, TextViewV1, ViewOperation,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -806,12 +807,11 @@ fn generate_in(
         (repository_root, "$PROJECT"),
     ];
     let no_env = BTreeMap::new();
-    let generated_process = run_process(
-        "application-lean",
+    let generated_process = run_native_compilation(
+        NativeCompilation::Application,
         &lake,
         &["build".to_owned(), "PrismGenerated".to_owned()],
         workspace,
-        &no_env,
         &replacements,
         "PP5001",
     )?;
@@ -990,18 +990,19 @@ fn generate_in(
         .rsplit('.')
         .next()
         .ok_or_else(|| PrismError::new("PP2001", "application entry root is malformed"))?;
-    let core_package = generate_core_wasm_package(
-        &module,
-        &CoreWasmSpec {
-            crate_name: format!("{}-core-wasm", application.cargo_name()),
-            entry: entry.to_owned(),
-            export_name: "holo_run".to_owned(),
-            input_allocation_cap: application.guest_allocation_maximum(),
-            output_allocation_cap: application.response_maximum(),
-            maximum_pages: 32,
-            input_ir_sha256: sha256(&kernel_bytes),
-        },
-    )
+    let core_spec = CoreWasmSpec {
+        crate_name: format!("{}-core-wasm", application.cargo_name()),
+        entry: entry.to_owned(),
+        export_name: "holo_run".to_owned(),
+        input_allocation_cap: application.guest_allocation_maximum(),
+        output_allocation_cap: application.response_maximum(),
+        maximum_pages: application.core_memory_pages(),
+        input_ir_sha256: sha256(&kernel_bytes),
+    };
+    let core_package = match application.core_stack_bytes() {
+        Some(stack) => generate_core_wasm_package_v2(&module, &core_spec, stack),
+        None => generate_core_wasm_package(&module, &core_spec),
+    }
     .map_err(|error| PrismError::new("PP5101", error.to_string()))?;
     let core_root = workspace.join("core-wasm");
     publish_package(&core_root, &core_package)?;
@@ -1020,6 +1021,12 @@ fn generate_in(
         .join(format!("{wasm_stem}.wasm"));
     let wasm = std::fs::read(&wasm_path)
         .map_err(|error| PrismError::new("PP5101", format!("Core-Wasm output: {error}")))?;
+    validate_core_wasm_resources(
+        &wasm,
+        application.core_memory_pages(),
+        application.core_stack_bytes(),
+    )
+    .map_err(|error| PrismError::new("PP5103", error.to_string()))?;
 
     let generated_core_sha = sha256(
         package
@@ -1109,14 +1116,7 @@ fn generate_in(
     let browser_projection_sha = sha256(&browser_provenance);
     let source_manifest =
         source_manifest(model, lex_manifest_bytes, &kernel_bytes, &coverage_bytes)?;
-    let target_profile = encode_value(&json!({
-        "contract": application.core_contract(),
-        "export": "holo_run",
-        "input_allocation_cap": application.guest_allocation_maximum(),
-        "maximum_pages": 32,
-        "response_maximum": application.response_maximum(),
-        "schema": "lean4-prod/core-wasm-target/1"
-    }))?;
+    let target_profile = encode_value(&application_target_profile(application))?;
     let lcnf_manifest = encode_value(&json!({
         "coverage_sha256": sha256(&coverage_bytes),
         "kernel_ir_sha256": sha256(&kernel_bytes),
@@ -1416,5 +1416,209 @@ mod tests {
             .code,
             "PP5203"
         );
+    }
+}
+
+/// The model-owned target metadata, shared by generation and source-free
+/// verification. V1 retains its original closed target/1 representation.
+pub(crate) fn application_target_profile(application: &Application) -> Value {
+    let mut target = json!({
+        "contract": application.core_contract(),
+        "export": "holo_run",
+        "input_allocation_cap": application.guest_allocation_maximum(),
+        "maximum_pages": application.core_memory_pages(),
+        "response_maximum": application.response_maximum(),
+        "schema": "lean4-prod/core-wasm-target/1"
+    });
+    if let Some(bytes) = application.core_stack_bytes() {
+        target["schema"] = json!("lean4-prod/core-wasm-target/2");
+        target["stack_bytes"] = json!(bytes);
+    }
+    target
+}
+
+/// Check both captured declarations and actual binary resources. This requires
+/// no source workspace, compiler invocation, or regenerated acceptance record.
+pub(crate) fn validate_application_core_resources(
+    application: &Application,
+    wasm: &[u8],
+    target: &[u8],
+    generation: &[u8],
+) -> Result<(), PrismError> {
+    let target: Value = serde_json::from_slice(target).map_err(|error| {
+        PrismError::new("PP5103", format!("Core-Wasm target metadata: {error}"))
+    })?;
+    if target != application_target_profile(application) {
+        return Err(PrismError::new(
+            "PP5103",
+            "Core-Wasm target metadata differs from the source-owned model",
+        ));
+    }
+    let generation: Value = serde_json::from_slice(generation).map_err(|error| {
+        PrismError::new("PP5103", format!("Core-Wasm generation metadata: {error}"))
+    })?;
+    let mut fields = vec![
+        "entry",
+        "export",
+        "files",
+        "input_allocation_cap",
+        "input_ir_sha256",
+        "maximum_pages",
+        "output_allocation_cap",
+        "schema",
+    ];
+    if application.core_stack_bytes().is_some() {
+        fields.push("stack_bytes");
+    }
+    let exact = generation.as_object().is_some_and(|record| {
+        record.keys().map(String::as_str).collect::<BTreeSet<_>>()
+            == fields.into_iter().collect::<BTreeSet<_>>()
+    });
+    let schema = if application.core_stack_bytes().is_some() {
+        "lean4-prod/core-wasm-target/2"
+    } else {
+        "lean4-prod/core-wasm-target/1"
+    };
+    if !exact
+        || generation["schema"] != schema
+        || generation["entry"] != application.entry_root().rsplit('.').next().unwrap_or("")
+        || generation["export"] != "holo_run"
+        || generation["maximum_pages"] != application.core_memory_pages()
+        || generation["input_allocation_cap"] != application.guest_allocation_maximum()
+        || generation["output_allocation_cap"] != application.response_maximum()
+        || application
+            .core_stack_bytes()
+            .is_some_and(|bytes| generation["stack_bytes"] != bytes)
+    {
+        return Err(PrismError::new(
+            "PP5103",
+            "Core-Wasm generation bounds differ from the source-owned model",
+        ));
+    }
+    validate_core_wasm_resources(
+        wasm,
+        application.core_memory_pages(),
+        application.core_stack_bytes(),
+    )
+    .map_err(|error| PrismError::new("PP5103", error.to_string()))
+}
+
+#[cfg(test)]
+mod resource_tests {
+    use super::*;
+
+    #[test]
+    fn text_v2_resource_bounds_source_free_binding_rejects_coherent_metadata_forgery() {
+        let mut value: Value = serde_json::from_slice(include_bytes!(
+            "../../../tests/data/text-model-document.json"
+        ))
+        .unwrap();
+        value["schema"] = json!("prismpm/model-document/5");
+        value["application"]["profile"] = json!("prismpm/text-application/2");
+        value["application"]["core_memory_pages"] = json!(64);
+        value["application"]["core_stack_bytes"] = json!(131072);
+        let model: ModelDocument = serde_json::from_value(value).unwrap();
+        crate::holo::validate::validate(&model).unwrap();
+        let application = model.application.as_ref().unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let wat = directory.path().join("guest.wat");
+        let wasm = directory.path().join("guest.wasm");
+        let source = r#"(module
+          (memory (export "memory") 3 64)
+          (global (export "__stack_low") i32 (i32.const 0))
+          (global (export "__stack_high") i32 (i32.const 131072))
+          (global $stack_pointer (mut i32) (i32.const 131072))
+          (func (export "holo_alloc") (param i32) (result i32) i32.const 0)
+          (func (export "holo_run") (param i32 i32) (result i64) i64.const 0))"#;
+        let parse = |source: &str| {
+            std::fs::write(&wat, source).unwrap();
+            let output = std::process::Command::new("wasm-tools")
+                .arg("parse")
+                .arg(&wat)
+                .arg("--output")
+                .arg(&wasm)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            std::fs::read(&wasm).unwrap()
+        };
+        let binary = parse(source);
+        let target = application_target_profile(application);
+        let generation = json!({
+            "entry": application.entry_root().rsplit('.').next().unwrap(), "export": "holo_run", "files": [],
+            "input_allocation_cap": application.guest_allocation_maximum(), "input_ir_sha256": "0".repeat(64),
+            "maximum_pages": 64, "output_allocation_cap": application.response_maximum(),
+            "schema": "lean4-prod/core-wasm-target/2", "stack_bytes": 131072
+        });
+        let check = |binary: &[u8], target: &Value, generation: &Value| {
+            validate_application_core_resources(
+                application,
+                binary,
+                &serde_json::to_vec(target).unwrap(),
+                &serde_json::to_vec(generation).unwrap(),
+            )
+        };
+        check(&binary, &target, &generation).unwrap();
+        for (key, replacement) in [
+            ("maximum_pages", json!(65)),
+            ("stack_bytes", json!(131088)),
+            ("schema", json!("lean4-prod/core-wasm-target/1")),
+            ("export", json!("other")),
+        ] {
+            let mut forged_target = target.clone();
+            forged_target[key] = replacement.clone();
+            let mut forged_generation = generation.clone();
+            forged_generation[key] = replacement;
+            assert_eq!(
+                check(&binary, &forged_target, &forged_generation)
+                    .unwrap_err()
+                    .code,
+                "PP5103"
+            );
+            assert_eq!(
+                check(&binary, &target, &forged_generation)
+                    .unwrap_err()
+                    .code,
+                "PP5103"
+            );
+        }
+        // Hashes/inventories can be recomputed around these captured bytes;
+        // the actual memory and stack sections must still match the model.
+        for forged in [
+            source.replace(
+                "(global $stack_pointer (mut i32) (i32.const 131072))",
+                "(global $stack_pointer (mut i32) (i32.const 4096))",
+            ),
+            source.replace("3 64", "3 63"),
+            source.replace("3 64", "3 65"),
+            source.replace("i32.const 131072", "i32.const 131088"),
+        ] {
+            assert_eq!(
+                check(&parse(&forged), &target, &generation)
+                    .unwrap_err()
+                    .code,
+                "PP5103"
+            );
+        }
+        let mut unknown = generation.clone();
+        unknown["unmodeled_override"] = json!(64);
+        assert_eq!(
+            check(&binary, &target, &unknown).unwrap_err().code,
+            "PP5103"
+        );
+        let mut legacy = model.clone();
+        if let Some(Application::Text(text)) = legacy.application.as_mut() {
+            text.profile = "prismpm/text-application/1".into();
+            text.core_memory_pages = None;
+            text.core_stack_bytes = None;
+        }
+        let legacy_target = application_target_profile(legacy.application.as_ref().unwrap());
+        assert_eq!(legacy_target["maximum_pages"], 32);
+        assert_eq!(legacy_target["schema"], "lean4-prod/core-wasm-target/1");
+        assert!(legacy_target.get("stack_bytes").is_none());
     }
 }

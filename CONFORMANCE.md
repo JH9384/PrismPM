@@ -118,6 +118,7 @@ The three honesty levels:
 | `HO-13` | `build` | The modeled browser-surface wire codec preserves legacy bytes, reproduces pinned upstream framing in generated std and no_std code, and rejects malformed or mixed profiles without granting browser authority. |
 | `HO-14` | `build` | Pinned BLAKE3 vectors qualify every imported digest mode, streaming partition and content-identity result without claiming cryptographic proof or durable native storage. |
 | `HO-15` | `build` | The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application. |
+| `HO-16` | `build` | The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults. |
 
 ## lifecycle
 

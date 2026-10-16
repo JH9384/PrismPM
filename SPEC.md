@@ -3227,6 +3227,18 @@ by `prismpm authority resolve`. Validation remains offline. Acquisition does
 not authorize redistribution, preserve deleted historical generations, or
 establish a successful vulnerability scan.
 
+Image and source vulnerability scans stage the same verified locked databases
+in a private, invocation-owned directory under the project cache. Their child
+processes receive explicit `HOME`, `XDG_CACHE_HOME` and `TMPDIR` paths inside
+that directory; ambient temporary-directory settings cannot redirect scan
+storage. Image extraction and other scanner scratch data use the workspace
+filesystem rather than the SDK's bounded system temporary filesystem. Scan
+directories are distinct across invocations and are retired on success or
+failure without deleting immutable authority inputs or accepted scan receipts.
+Random workspace paths are normalized before scan evidence is retained. This
+storage allocation does not change database bytes, freshness, scanner identity,
+offline arguments, platform coverage, findings policy or execution bounds.
+
 OpenTelemetry logs, metrics and traces use modeled resource attributes,
 correlation and redaction and are accepted by an unmodified pinned Collector.
 Post-deployment evidence binds endpoint contracts, dependencies, migrations,
@@ -3509,7 +3521,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `SC-01` | `supply-chain` | SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure. | §16 |
 | `SC-02` | `supply-chain` | in-toto Statement v1 and SLSA 1.2 provenance bind subjects, builders, sources, parameters, dependencies, and objectively supported build level. | §16 |
 | `SC-03` | `supply-chain` | Sigstore verification enforces exact trusted issuer, subject, repository, workflow, ref, environment, certificate, and transparency policy. | §16 |
-| `SC-04` | `supply-chain` | Vulnerability and license results identify their immutable inputs and freshness and stale evidence cannot satisfy current policy. | §16 |
+| `SC-04` | `supply-chain` | Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage and stale evidence cannot satisfy current policy. | §16 |
 | `SC-05` | `supply-chain` | Source, locks, artifacts, plans, OCI content, BOMs, attestations, logs, and evidence are verified free of secret values. | §16 |
 | `SC-06` | `supply-chain` | Supply-chain policy rejects wrong subjects or builders, incomplete graphs, tampering, unsigned promotion, and unsupported claims. | §16 |
 | `TM-01` | `template-ci` | The versioned UOR template contract preserves repository honesty, anti-vacuity, generated registers, and planted-defect policy. | §17 |

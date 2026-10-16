@@ -257,7 +257,7 @@ The three honesty levels:
 | `SC-01` | `build` | SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure. |
 | `SC-02` | `build` | in-toto Statement v1 and SLSA 1.2 provenance bind subjects, builders, sources, parameters, dependencies, and objectively supported build level. |
 | `SC-03` | `build` | Sigstore verification enforces exact trusted issuer, subject, repository, workflow, ref, environment, certificate, and transparency policy. |
-| `SC-04` | `build` | Vulnerability and license results identify their immutable inputs and freshness and stale evidence cannot satisfy current policy. |
+| `SC-04` | `build` | Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage and stale evidence cannot satisfy current policy. |
 | `SC-05` | `build` | Source, locks, artifacts, plans, OCI content, BOMs, attestations, logs, and evidence are verified free of secret values. |
 | `SC-06` | `build` | Supply-chain policy rejects wrong subjects or builders, incomplete graphs, tampering, unsigned promotion, and unsupported claims. |
 

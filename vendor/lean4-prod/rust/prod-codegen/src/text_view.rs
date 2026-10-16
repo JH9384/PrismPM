@@ -98,13 +98,22 @@ fn shared_javascript(view: &TextViewV1) -> String {
     )
 }
 
-fn adapter(view: &TextViewV1, binding: &TextBrowserAdapterBinding) -> GeneratedPackage {
+fn adapter(
+    view: &TextViewV1,
+    binding: &TextBrowserAdapterBinding,
+    fallible: bool,
+) -> GeneratedPackage {
     let cargo = format!(
         "[package]\nname = \"{}\"\nversion = \"{}\"\nedition = \"2021\"\npublish = false\n\n[lib]\ncrate-type = [\"cdylib\"]\n\n[dependencies]\njs-sys = \"=0.3.99\"\nwasm-bindgen = \"=0.2.122\"\n{} = \"={}\"\n",
         binding.package_name, binding.package_version, binding.core_crate_name, binding.core_crate_version,
     );
+    let result_adapter = if fallible {
+        ".map_err(|error| { let failure = js_sys::Error::new(&format!(\"{error:?}\")); failure.set_name(\"ComputeError\"); JsValue::from(failure) })?"
+    } else {
+        ""
+    };
     let source = format!(
-        "use wasm_bindgen::prelude::*;\n\n// Transport copies allocate only after their byte limits are checked.\n// The core's own allocation bound remains an application-model obligation.\n#[wasm_bindgen]\npub fn invoke_bytes(input: JsValue) -> Result<js_sys::Uint8Array, JsValue> {{\n    let input = input.dyn_into::<js_sys::Uint8Array>().map_err(|_| JsValue::from_str(\"expected Uint8Array\"))?;\n    if input.length() > {} {{ return Err(JsValue::from_str(\"input byte limit\")); }}\n    let bytes = input.to_vec();\n    core::str::from_utf8(&bytes).map_err(|_| JsValue::from_str(\"invalid input UTF-8\"))?;\n    let output = {}::{}(bytes);\n    if output.len() > {} {{ return Err(JsValue::from_str(\"output byte limit\")); }}\n    core::str::from_utf8(&output).map_err(|_| JsValue::from_str(\"invalid output UTF-8\"))?;\n    Ok(js_sys::Uint8Array::from(output.as_slice()))\n}}\n",
+        "use wasm_bindgen::prelude::*;\n\n// Transport copies allocate only after their byte limits are checked.\n// The core's own allocation bound remains an application-model obligation.\n#[wasm_bindgen]\npub fn invoke_bytes(input: JsValue) -> Result<js_sys::Uint8Array, JsValue> {{\n    let input = input.dyn_into::<js_sys::Uint8Array>().map_err(|_| JsValue::from_str(\"expected Uint8Array\"))?;\n    if input.length() > {} {{ return Err(JsValue::from_str(\"input byte limit\")); }}\n    let bytes = input.to_vec();\n    core::str::from_utf8(&bytes).map_err(|_| JsValue::from_str(\"invalid input UTF-8\"))?;\n    let output = {}::{}(bytes){result_adapter};\n    if output.len() > {} {{ return Err(JsValue::from_str(\"output byte limit\")); }}\n    core::str::from_utf8(&output).map_err(|_| JsValue::from_str(\"invalid output UTF-8\"))?;\n    Ok(js_sys::Uint8Array::from(output.as_slice()))\n}}\n",
         view.max_input_bytes, binding.core_crate_name.replace('-', "_"), binding.core_function, view.max_output_bytes,
     );
     let mut files = vec![file("Cargo.toml", cargo), file("src/lib.rs", source)];
@@ -141,6 +150,32 @@ pub fn generate_text_view_v1(
     view: &TextViewV1,
     binding: &TextBrowserAdapterBinding,
 ) -> Result<GeneratedViewV1, Error> {
+    generate(view, binding, false)
+}
+
+/// Generate the same closed View using the exact module's byte-entry effect.
+///
+/// Infallible entries preserve `generate_text_view_v1` bytes. Checked failures
+/// propagate as JavaScript errors named `ComputeError`, retaining the variant;
+/// they never become successful empty responses.
+pub fn generate_text_view_v1_for_module(
+    module: &prod_ir::Module,
+    view: &TextViewV1,
+    binding: &TextBrowserAdapterBinding,
+) -> Result<GeneratedViewV1, Error> {
+    validate(view, binding)?;
+    generate(
+        view,
+        binding,
+        crate::byte_entry_is_fallible(module, &binding.core_function)?,
+    )
+}
+
+fn generate(
+    view: &TextViewV1,
+    binding: &TextBrowserAdapterBinding,
+    fallible: bool,
+) -> Result<GeneratedViewV1, Error> {
     validate(view, binding)?;
     let html = index_html(view);
     let shared = shared_javascript(view);
@@ -161,7 +196,7 @@ pub fn generate_text_view_v1(
         file("app.js", hologram_js),
         file("index.html", html),
     ];
-    let browser_adapter = adapter(view, binding);
+    let browser_adapter = adapter(view, binding, fallible);
     let hologram_bundle = generate_holoview_bundle(&hologram_assets)?;
     let view_manifest = file("view-manifest.json", format!(
         "{{\"browser_adapter\":[{}],\"generated_core_sha256\":{},\"hologram_bundle\":{{\"path\":{},\"sha256\":{}}},\"max_input_bytes\":{},\"max_output_bytes\":{},\"model_id\":{},\"profile\":\"prism.text-view/1\",\"projections\":[{{\"files\":[{}],\"target\":\"browser-wasm-bindgen\"}},{{\"files\":[{}],\"target\":\"hologram-intent-v1\"}}],\"schema\":\"lean4-prod/text-view-projection/1\",\"view_model_id\":{}}}\n",

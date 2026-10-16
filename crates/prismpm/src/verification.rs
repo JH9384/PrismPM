@@ -2308,6 +2308,7 @@ fn copy_application_package(build_root: &Path, destination: &Path) -> Result<(),
 
 fn application_harness(
     application: &crate::holo::model_document::Application,
+    module: &prod_ir::Module,
 ) -> Result<String, PrismError> {
     let crate_name = application.cargo_name().replace('-', "_");
     let entry = application
@@ -2315,14 +2316,21 @@ fn application_harness(
         .rsplit('.')
         .next()
         .ok_or_else(|| PrismError::new("PP2001", "application entry root is malformed"))?;
+    let fallible = prod_codegen::byte_entry_is_fallible(module, entry)
+        .map_err(|error| PrismError::new("PP4102", format!("application entry effect: {error}")))?;
     let vectors = application
         .acceptance_vectors()
         .iter()
         .enumerate()
         .map(|(index, vector)| {
+            let expected = if fallible {
+                format!("Ok(vec!{:?})", vector.response)
+            } else {
+                format!("vec!{:?}", vector.response)
+            };
             format!(
-                "    assert_eq!({crate_name}::{entry}(vec!{:?}), vec!{:?}, \"acceptance vector {index}\");\n",
-                vector.request, vector.response
+                "    assert_eq!({crate_name}::{entry}(vec!{:?}), {expected}, \"acceptance vector {index}\");\n",
+                vector.request
             )
         })
         .collect::<String>();
@@ -2350,6 +2358,13 @@ fn run_application(
         )
     })?;
     verify_application_build_closure(build_root, &build_manifest)?;
+    let harness = {
+        // Derive the entry effect from the captured, manifest-bound IR, using
+        // the same analysis as the actual generated Rust signature.
+        let kernel = std::fs::read_to_string(build_root.join("cargo/kernel.ir"))
+            .map_err(|error| PrismError::new("PP5004", format!("application kernel: {error}")))?;
+        application_harness(application, &parse_kernel(&kernel)?)?
+    };
     let holo_path = build_root.join(format!("{}.holo", application.name()));
     let holo = std::fs::read(&holo_path)
         .map_err(|error| PrismError::new("PP4002", format!("{}: {error}", holo_path.display())))?;
@@ -2473,10 +2488,7 @@ fn run_application(
         )
         .as_bytes(),
     )?;
-    write(
-        &consumer.join("src/main.rs"),
-        application_harness(application)?.as_bytes(),
-    )?;
+    write(&consumer.join("src/main.rs"), harness.as_bytes())?;
     processes.push(run_process(
         "application-consumer-lock",
         &cargo,
@@ -3264,6 +3276,137 @@ pub(crate) fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn text_v2_resource_bounds_native_harness_tracks_entry_effect() {
+        let checked_ir = r#"(module HarnessEffect
+          (def checked ((count Nat)) Nat (add count 18446744073709551615))
+          (def dispatch ((input Bytes)) Bytes
+            (if (eq (call checked (length input)) 18446744073709551615)
+              (bytes 65) input)))"#;
+        let infallible_ir = r#"(module HarnessEffect
+          (def unusedChecked ((count Nat)) Nat (add count 18446744073709551615))
+          (def dispatch ((input Bytes)) Bytes input))"#;
+        for (name, ir, request, response, expected_failure) in [
+            ("checked-success", checked_ir, vec![], vec![65], None),
+            (
+                "checked-overflow",
+                checked_ir,
+                vec![1],
+                vec![1],
+                Some("Err(AddOverflow)"),
+            ),
+            (
+                "checked-wrong-response",
+                checked_ir,
+                vec![],
+                vec![66],
+                Some("acceptance vector 0"),
+            ),
+            (
+                "unrelated-checked-definition",
+                infallible_ir,
+                vec![7],
+                vec![7],
+                None,
+            ),
+        ] {
+            let module = parse_kernel(ir).unwrap();
+            let mut fixture: Value = serde_json::from_slice(include_bytes!(
+                "../../../tests/data/text-model-document.json"
+            ))
+            .unwrap();
+            fixture["application"]["cargo_name"] = json!("harness-effect");
+            fixture["application"]["entry_root"] = json!("HarnessEffect.dispatch");
+            fixture["application"]["acceptance_vectors"] =
+                json!([{ "request": request, "response": response }]);
+            let fixture: crate::holo::model_document::ModelDocument =
+                serde_json::from_value(fixture).unwrap();
+            let application = fixture.application.as_ref().unwrap();
+            let package = prod_codegen::generate_cargo_package(
+                &module,
+                &prod_codegen::CargoPackageSpec {
+                    name: "harness-effect".to_owned(),
+                    version: "0.1.0".to_owned(),
+                    description: "Generated native entry-effect regression".to_owned(),
+                    repository: "https://github.com/UOR-Foundation/PrismPM".to_owned(),
+                    homepage: "https://github.com/UOR-Foundation/PrismPM".to_owned(),
+                    readme: "Generated native entry-effect regression.\n".to_owned(),
+                    license_mit: include_str!("../../../LICENSE-MIT").to_owned(),
+                    license_apache: include_str!("../../../LICENSE-APACHE").to_owned(),
+                    input_sha256: format!("{:x}", Sha256::digest(ir.as_bytes())),
+                    dependencies: vec![],
+                },
+            )
+            .unwrap();
+            let library = &package
+                .files
+                .iter()
+                .find(|file| file.path == "src/lib.rs")
+                .unwrap()
+                .bytes;
+            let directory = tempfile::tempdir().unwrap();
+            let root = directory.path();
+            write(&root.join("lib.rs"), library).unwrap();
+            let harness = application_harness(application, &module).unwrap();
+            if name == "unrelated-checked-definition" {
+                assert_eq!(harness, "fn main() {\n    assert_eq!(harness_effect::dispatch(vec![7]), vec![7], \"acceptance vector 0\");\n}\n");
+            }
+            write(&root.join("consumer.rs"), harness.as_bytes()).unwrap();
+            let rustc = executable("rustc").unwrap();
+            let no_env = BTreeMap::new();
+            let replacements = [(root, "$HARNESS_TEST")];
+            run_process(
+                "native-harness-core",
+                &rustc,
+                &[
+                    "--edition=2021".to_owned(),
+                    "--crate-type=rlib".to_owned(),
+                    "--crate-name=harness_effect".to_owned(),
+                    "lib.rs".to_owned(),
+                    "-o".to_owned(),
+                    "libharness_effect.rlib".to_owned(),
+                ],
+                root,
+                &no_env,
+                &replacements,
+                "PP6003",
+            )
+            .unwrap();
+            run_process(
+                "native-harness-consumer",
+                &rustc,
+                &[
+                    "--edition=2021".to_owned(),
+                    "consumer.rs".to_owned(),
+                    "--extern=harness_effect=libharness_effect.rlib".to_owned(),
+                    "-o".to_owned(),
+                    "consumer".to_owned(),
+                ],
+                root,
+                &no_env,
+                &replacements,
+                "PP6003",
+            )
+            .unwrap();
+            let execution = run_process(
+                "native-harness-corpus",
+                &root.join("consumer"),
+                &[],
+                root,
+                &no_env,
+                &replacements,
+                "PP6003",
+            );
+            if let Some(expected) = expected_failure {
+                let error = execution.unwrap_err();
+                assert_eq!(error.code, "PP6003");
+                assert!(error.message.contains(expected), "{name}: {error:?}");
+            } else {
+                execution.unwrap();
+            }
+        }
+    }
 
     #[test]
     fn application_regeneration_requires_every_identical_artifact() {

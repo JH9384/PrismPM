@@ -7,11 +7,11 @@ use crate::holo::canonical::{content_id, encode_value};
 use crate::holo::model_document::{Application, ApplicationModel, ModelDocument};
 use crate::verification::{executable, run_native_compilation, run_process, NativeCompilation};
 use prod_codegen::{
-    generate_cargo_package, generate_core_wasm_package, generate_core_wasm_package_v2,
-    generate_holoview_bundle, generate_text_view_v1, generate_view_v1,
-    validate_core_wasm_resources, BrowserAdapterBinding, CargoDependency, CargoPackageSpec,
-    CoreWasmSpec, EvaluatedViewV1, GeneratedPackage, GeneratedViewV1, PackageFile,
-    TextBrowserAdapterBinding, TextViewV1, ViewOperation,
+    byte_entry_is_fallible, generate_cargo_package, generate_core_wasm_package,
+    generate_core_wasm_package_v2, generate_holoview_bundle, generate_text_view_v1_for_module,
+    generate_view_v1, validate_core_wasm_resources, BrowserAdapterBinding, CargoDependency,
+    CargoPackageSpec, CoreWasmSpec, EvaluatedViewV1, GeneratedPackage, GeneratedViewV1,
+    PackageFile, TextBrowserAdapterBinding, TextViewV1, ViewOperation,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -116,6 +116,62 @@ fn publish_package(root: &Path, package: &GeneratedPackage) -> Result<(), PrismE
     Ok(())
 }
 
+fn core_wasm_cargo_environment(
+    package: &GeneratedPackage,
+    base: &BTreeMap<String, String>,
+    workspace: &Path,
+    registry_source: &Path,
+) -> Result<BTreeMap<String, String>, PrismError> {
+    let invalid = || {
+        PrismError::new(
+            "PP5101",
+            "generated Core-Wasm Cargo rustflags are malformed",
+        )
+    };
+    let config = package
+        .files
+        .iter()
+        .find(|file| file.path == ".cargo/config.toml")
+        .ok_or_else(invalid)?;
+    let document: toml::Value =
+        toml::from_str(std::str::from_utf8(&config.bytes).map_err(|_| invalid())?)
+            .map_err(|_| invalid())?;
+    let owned = document
+        .get("target")
+        .and_then(|value| value.get("wasm32-unknown-unknown"))
+        .and_then(|value| value.get("rustflags"))
+        .and_then(toml::Value::as_array)
+        .filter(|flags| !flags.is_empty())
+        .ok_or_else(invalid)?;
+    let mut flags = owned
+        .iter()
+        .map(|flag| flag.as_str().map(str::to_owned).ok_or_else(invalid))
+        .collect::<Result<Vec<_>, _>>()?;
+    flags.extend([
+        format!(
+            "--remap-path-prefix={}=$APPLICATION_WORK",
+            workspace.to_string_lossy()
+        ),
+        format!(
+            "--remap-path-prefix={}=$CARGO_REGISTRY_SRC",
+            registry_source.to_string_lossy()
+        ),
+    ]);
+    if flags
+        .iter()
+        .any(|flag| flag.is_empty() || flag.contains(['\0', '\u{1f}']))
+    {
+        return Err(invalid());
+    }
+    // Cargo gives environment rustflags precedence over its generated config.
+    // Encode each owned argument separately so remapping preserves the linker
+    // resource contract and paths containing spaces retain their boundaries.
+    let mut env = base.clone();
+    env.remove("RUSTFLAGS");
+    env.insert("CARGO_ENCODED_RUSTFLAGS".to_owned(), flags.join("\u{1f}"));
+    Ok(env)
+}
+
 fn dependency<'a>(
     register: &'a DependencyRegister,
     id: &str,
@@ -191,6 +247,7 @@ fn view_value(
 }
 
 fn generate_browser_view_v1(
+    module: &prod_ir::Module,
     application: &BrowserApplication,
     model_id: &str,
     view_model_id: &str,
@@ -205,8 +262,15 @@ fn generate_browser_view_v1(
     let cargo_toml = format!(
         "[package]\nname = \"{package_name}\"\nversion = \"{package_version}\"\nedition = \"2021\"\npublish = false\n\n[lib]\ncrate-type = [\"cdylib\"]\n\n[dependencies]\njs-sys = \"=0.3.99\"\nwasm-bindgen = \"=0.2.122\"\n{core_crate_name} = \"={package_version}\"\n"
     );
+    let result_adapter = if byte_entry_is_fallible(module, entry)
+        .map_err(|error| PrismError::new("PP5203", error.to_string()))?
+    {
+        ".map_err(|error| { let failure = js_sys::Error::new(&format!(\"{error:?}\")); failure.set_name(\"ComputeError\"); JsValue::from(failure) })?"
+    } else {
+        ""
+    };
     let adapter_src = format!(
-        "use wasm_bindgen::prelude::*;\n\n// Transport copies allocate only after their byte limits are checked.\n// The core's own allocation bound remains an application-model obligation.\n#[wasm_bindgen]\npub fn invoke_bytes(input: JsValue) -> Result<js_sys::Uint8Array, JsValue> {{\n    let input = input.dyn_into::<js_sys::Uint8Array>().map_err(|_| JsValue::from_str(\"expected Uint8Array\"))?;\n    if input.length() > {} {{ return Err(JsValue::from_str(\"input byte limit\")); }}\n    let bytes = input.to_vec();\n    let output = {}::{}(bytes);\n    if output.len() > {} {{ return Err(JsValue::from_str(\"output byte limit\")); }}\n    Ok(js_sys::Uint8Array::from(output.as_slice()))\n}}\n",
+        "use wasm_bindgen::prelude::*;\n\n// Transport copies allocate only after their byte limits are checked.\n// The core's own allocation bound remains an application-model obligation.\n#[wasm_bindgen]\npub fn invoke_bytes(input: JsValue) -> Result<js_sys::Uint8Array, JsValue> {{\n    let input = input.dyn_into::<js_sys::Uint8Array>().map_err(|_| JsValue::from_str(\"expected Uint8Array\"))?;\n    if input.length() > {} {{ return Err(JsValue::from_str(\"input byte limit\")); }}\n    let bytes = input.to_vec();\n    let output = {}::{}(bytes){result_adapter};\n    if output.len() > {} {{ return Err(JsValue::from_str(\"output byte limit\")); }}\n    Ok(js_sys::Uint8Array::from(output.as_slice()))\n}}\n",
         application.guest_allocation_maximum, core_crate_snake, entry, application.response_maximum,
     );
     let mut adapter_files = vec![
@@ -328,84 +392,91 @@ fn generate_browser_view_v1(
 }
 
 fn application_view(
+    module: &prod_ir::Module,
     model: &ModelDocument,
     application: &Application,
     core_sha: &str,
 ) -> Result<(GeneratedViewV1, String, String), PrismError> {
-    let (generated, model_id, view_model_id) = match application {
-        Application::Browser(application) => {
-            let model_id = content_id(&encode_value(
-                &serde_json::to_value(model)
-                    .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
-            )?);
-            let view_model_id = content_id(&encode_value(
-                &serde_json::to_value(&application.view)
-                    .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
-            )?);
-            let entry =
-                application.entry_root.rsplit('.').next().ok_or_else(|| {
+    let (generated, model_id, view_model_id) =
+        match application {
+            Application::Browser(application) => {
+                let model_id = content_id(&encode_value(
+                    &serde_json::to_value(model)
+                        .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
+                )?);
+                let view_model_id = content_id(&encode_value(
+                    &serde_json::to_value(&application.view)
+                        .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
+                )?);
+                let entry = application.entry_root.rsplit('.').next().ok_or_else(|| {
                     PrismError::new("PP2001", "application entry root is malformed")
                 })?;
-            let generated =
-                generate_browser_view_v1(application, &model_id, &view_model_id, core_sha, entry);
-            return Ok((generated?, model_id, view_model_id));
-        }
-        Application::Legacy(application) => {
-            let evaluated = view_value(model, application, core_sha);
-            let generated = generate_view_v1(
-                &evaluated,
-                &BrowserAdapterBinding {
-                    package_name: format!("{}-browser", application.cargo_name),
-                    package_version: application.cargo_version.clone(),
-                    core_crate_name: application.cargo_name.clone(),
-                    core_crate_version: application.cargo_version.clone(),
-                    core_operation_type: application.operation_type.clone(),
-                    core_error_type: application.error_type.clone(),
-                    core_function: application.function_name.clone(),
-                },
-            );
-            (generated, evaluated.model_id, evaluated.view_model_id)
-        }
-        Application::Text(application) => {
-            let model_id = content_id(&encode_value(
-                &serde_json::to_value(model)
-                    .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
-            )?);
-            let view_model_id = content_id(&encode_value(
-                &serde_json::to_value(&application.view)
-                    .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
-            )?);
-            let entry =
-                application.entry_root.rsplit('.').next().ok_or_else(|| {
+                let generated = generate_browser_view_v1(
+                    module,
+                    application,
+                    &model_id,
+                    &view_model_id,
+                    core_sha,
+                    entry,
+                );
+                return Ok((generated?, model_id, view_model_id));
+            }
+            Application::Legacy(application) => {
+                let evaluated = view_value(model, application, core_sha);
+                let generated = generate_view_v1(
+                    &evaluated,
+                    &BrowserAdapterBinding {
+                        package_name: format!("{}-browser", application.cargo_name),
+                        package_version: application.cargo_version.clone(),
+                        core_crate_name: application.cargo_name.clone(),
+                        core_crate_version: application.cargo_version.clone(),
+                        core_operation_type: application.operation_type.clone(),
+                        core_error_type: application.error_type.clone(),
+                        core_function: application.function_name.clone(),
+                    },
+                );
+                (generated, evaluated.model_id, evaluated.view_model_id)
+            }
+            Application::Text(application) => {
+                let model_id = content_id(&encode_value(
+                    &serde_json::to_value(model)
+                        .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
+                )?);
+                let view_model_id = content_id(&encode_value(
+                    &serde_json::to_value(&application.view)
+                        .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
+                )?);
+                let entry = application.entry_root.rsplit('.').next().ok_or_else(|| {
                     PrismError::new("PP2001", "application entry root is malformed")
                 })?;
-            let evaluated = TextViewV1 {
-                title: application.view.title.clone(),
-                heading: application.view.heading.clone(),
-                input_label: application.view.input_label.clone(),
-                submit_label: application.view.submit_label.clone(),
-                output_label: application.view.output_label.clone(),
-                input_error: application.view.input_error.clone(),
-                response_error: application.view.response_error.clone(),
-                max_input_bytes: application.request_maximum,
-                max_output_bytes: application.response_maximum,
-                model_id: model_id.clone(),
-                view_model_id: view_model_id.clone(),
-                generated_core_sha256: core_sha.to_owned(),
-            };
-            let generated = generate_text_view_v1(
-                &evaluated,
-                &TextBrowserAdapterBinding {
-                    package_name: format!("{}-browser", application.cargo_name),
-                    package_version: application.cargo_version.clone(),
-                    core_crate_name: application.cargo_name.clone(),
-                    core_crate_version: application.cargo_version.clone(),
-                    core_function: entry.to_owned(),
-                },
-            );
-            (generated, model_id, view_model_id)
-        }
-    };
+                let evaluated = TextViewV1 {
+                    title: application.view.title.clone(),
+                    heading: application.view.heading.clone(),
+                    input_label: application.view.input_label.clone(),
+                    submit_label: application.view.submit_label.clone(),
+                    output_label: application.view.output_label.clone(),
+                    input_error: application.view.input_error.clone(),
+                    response_error: application.view.response_error.clone(),
+                    max_input_bytes: application.request_maximum,
+                    max_output_bytes: application.response_maximum,
+                    model_id: model_id.clone(),
+                    view_model_id: view_model_id.clone(),
+                    generated_core_sha256: core_sha.to_owned(),
+                };
+                let generated = generate_text_view_v1_for_module(
+                    module,
+                    &evaluated,
+                    &TextBrowserAdapterBinding {
+                        package_name: format!("{}-browser", application.cargo_name),
+                        package_version: application.cargo_version.clone(),
+                        core_crate_name: application.cargo_name.clone(),
+                        core_crate_version: application.cargo_version.clone(),
+                        core_function: entry.to_owned(),
+                    },
+                );
+                (generated, model_id, view_model_id)
+            }
+        };
     Ok((
         generated.map_err(|error| PrismError::new("PP5203", error.to_string()))?,
         model_id,
@@ -432,18 +503,29 @@ fn source_manifest(
     }))
 }
 
-fn package_readme(application: &Application) -> String {
+fn package_readme(
+    module: &prod_ir::Module,
+    application: &Application,
+) -> Result<String, PrismError> {
     let entry = application
         .entry_root()
         .rsplit('.')
         .next()
         .expect("validated application entry root");
+    let result_adapter = if !matches!(application, Application::Legacy(_))
+        && byte_entry_is_fallible(module, entry)
+            .map_err(|error| PrismError::new("PP4102", error.to_string()))?
+    {
+        ".expect(\"generated core entry failed\")"
+    } else {
+        ""
+    };
     let example = application
         .acceptance_vectors()
         .first()
         .map(|vector| {
             format!(
-                "use {}::{};\n\nassert_eq!({}(vec!{:?}), vec!{:?});",
+                "use {}::{};\n\nassert_eq!({}(vec!{:?}){result_adapter}, vec!{:?});",
                 application.cargo_name().replace('-', "_"),
                 entry,
                 entry,
@@ -458,12 +540,12 @@ fn package_readme(application: &Application) -> String {
                 entry
             )
         });
-    format!(
+    Ok(format!(
         "# {}\n\n{}\n\nThis package is generated from the authoritative Prism application model. Do not edit generated Rust.\n\n```rust\n{}\n```\n",
         application.name(),
         application.cargo_description(),
         example
-    )
+    ))
 }
 
 fn cargo_home(workspace: &Path, registry: &Path) -> Result<PathBuf, PrismError> {
@@ -881,7 +963,7 @@ fn generate_in(
             description: application.cargo_description().clone(),
             repository: application.cargo_repository().clone(),
             homepage: application.cargo_homepage().clone(),
-            readme: package_readme(application),
+            readme: package_readme(&module, application)?,
             license_mit: LICENSE_MIT.to_owned(),
             license_apache: LICENSE_APACHE.to_owned(),
             input_sha256: sha256(&kernel_bytes),
@@ -1006,12 +1088,14 @@ fn generate_in(
     .map_err(|error| PrismError::new("PP5101", error.to_string()))?;
     let core_root = workspace.join("core-wasm");
     publish_package(&core_root, &core_package)?;
+    let core_cargo_env =
+        core_wasm_cargo_environment(&core_package, &cargo_env, workspace, &registry_sources[0])?;
     run(
         "application-core-wasm",
         &cargo,
         &["build", "--locked", "--offline", "--release"],
         &core_root,
-        &cargo_env,
+        &core_cargo_env,
         &replacements,
         "PP5101",
     )?;
@@ -1038,7 +1122,7 @@ fn generate_in(
             .as_slice(),
     );
     let (generated_view, view_document_id, view_model_id) =
-        application_view(model, application, &generated_core_sha)?;
+        application_view(&module, model, application, &generated_core_sha)?;
     add_application_to_registry(&registry, application, &crate_bytes, &stdlib.crate_sha256)?;
     let browser_root = workspace.join("browser-adapter");
     publish_package(&browser_root, &generated_view.browser_adapter)?;
@@ -1274,6 +1358,14 @@ fn generate_in(
 mod tests {
     use super::*;
 
+    fn text_entry_module() -> prod_ir::Module {
+        prod_ir::parser::parse_module(
+            "(module TextFixture (def dispatch ((input Bytes)) Bytes input))",
+        )
+        .unwrap()
+        .1
+    }
+
     fn text_model() -> ModelDocument {
         serde_json::from_slice(include_bytes!(
             "../../../tests/data/text-model-document.json"
@@ -1368,8 +1460,10 @@ mod tests {
         let model = text_model();
         let application = model.application.as_ref().unwrap();
         let core = "12".repeat(32);
-        let (first, model_id, view_id) = application_view(&model, application, &core).unwrap();
-        let (second, _, _) = application_view(&model, application, &core).unwrap();
+        let (first, model_id, view_id) =
+            application_view(&text_entry_module(), &model, application, &core).unwrap();
+        let (second, _, _) =
+            application_view(&text_entry_module(), &model, application, &core).unwrap();
         assert_eq!(first, second);
         assert_eq!(model_id, content_id(&encode_canonical_model(&model)));
         let manifest: Value = serde_json::from_slice(&first.view_manifest.bytes).unwrap();
@@ -1388,9 +1482,10 @@ mod tests {
         let binding: Value = serde_json::from_slice(&binding.bytes).unwrap();
         assert_eq!(binding["core_function"], "dispatch");
         assert_eq!(binding["core_crate"], "prism-text-request");
-        let changed_core = application_view(&model, application, &"34".repeat(32))
-            .unwrap()
-            .0;
+        let changed_core =
+            application_view(&text_entry_module(), &model, application, &"34".repeat(32))
+                .unwrap()
+                .0;
         assert_ne!(changed_core.view_manifest, first.view_manifest);
         assert_ne!(changed_core.browser_adapter, first.browser_adapter);
     }
@@ -1408,6 +1503,7 @@ mod tests {
         application.view.input_label.clear();
         assert_eq!(
             application_view(
+                &text_entry_module(),
                 &model,
                 model.application.as_ref().unwrap(),
                 &"12".repeat(32)
@@ -1506,6 +1602,252 @@ pub(crate) fn validate_application_core_resources(
 #[cfg(test)]
 mod resource_tests {
     use super::*;
+
+    #[test]
+    fn text_v2_resource_bounds_fallible_browser_entry_propagates_compute_error() {
+        let ir = r#"(module BrowserEffect
+          (def checked ((count Nat)) Nat (add count 18446744073709551615))
+          (def dispatch ((input Bytes)) Bytes
+            (if (eq (call checked (length input)) 18446744073709551615)
+              (bytes 65) input)))"#;
+        let (remaining, module) = prod_ir::parser::parse_module(ir).unwrap();
+        assert!(remaining.trim().is_empty());
+        let model: ModelDocument = serde_json::from_slice(include_bytes!(
+            "../../../tests/data/text-model-document.json"
+        ))
+        .unwrap();
+        let application = model.application.as_ref().unwrap();
+        let stdlib: StdlibRelease = serde_json::from_str(STDLIB_RELEASE_SOURCE).unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let workspace = directory.path();
+        let package = generate_cargo_package(
+            &module,
+            &CargoPackageSpec {
+                name: application.cargo_name().clone(),
+                version: application.cargo_version().clone(),
+                description: application.cargo_description().clone(),
+                repository: application.cargo_repository().clone(),
+                homepage: application.cargo_homepage().clone(),
+                readme: "Generated checked-entry regression.\n".into(),
+                license_mit: LICENSE_MIT.into(),
+                license_apache: LICENSE_APACHE.into(),
+                input_sha256: sha256(ir.as_bytes()),
+                dependencies: vec![CargoDependency {
+                    name: "prism-stdlib".into(),
+                    version: "0.2.0".into(),
+                    checksum: stdlib.crate_sha256.clone(),
+                    default_features: false,
+                    features: vec![],
+                }],
+            },
+        )
+        .unwrap();
+        let core_root = workspace.join("core");
+        publish_package(&core_root, &package).unwrap();
+        let registry = stdlib_registry(workspace, &stdlib).unwrap();
+        let home = cargo_home(workspace, &registry).unwrap();
+        let env = BTreeMap::from([
+            ("CARGO_HOME".into(), home.to_string_lossy().into_owned()),
+            ("CARGO_NET_OFFLINE".into(), "true".into()),
+        ]);
+        let cargo = executable("cargo").unwrap();
+        run(
+            "application-cargo-package",
+            &cargo,
+            &["package", "--locked", "--offline", "--allow-dirty"],
+            &core_root,
+            &env,
+            &[],
+            "PP4102",
+        )
+        .unwrap();
+        let crate_bytes = std::fs::read(core_root.join("target/package").join(format!(
+            "{}-{}.crate",
+            application.cargo_name(),
+            application.cargo_version()
+        )))
+        .unwrap();
+        add_application_to_registry(&registry, application, &crate_bytes, &stdlib.crate_sha256)
+            .unwrap();
+        let generated = application_view(&module, &model, application, &"12".repeat(32))
+            .unwrap()
+            .0;
+        let browser = workspace.join("browser");
+        publish_package(&browser, &generated.browser_adapter).unwrap();
+        run(
+            "browser-adapter-lock",
+            &cargo,
+            &["generate-lockfile", "--offline"],
+            &browser,
+            &env,
+            &[],
+            "PP5203",
+        )
+        .unwrap();
+        run(
+            "browser-adapter-wasm",
+            &cargo,
+            &[
+                "build",
+                "--locked",
+                "--offline",
+                "--release",
+                "--target",
+                "wasm32-unknown-unknown",
+            ],
+            &browser,
+            &env,
+            &[],
+            "PP5203",
+        )
+        .unwrap();
+        let wasm = browser
+            .join("target/wasm32-unknown-unknown/release")
+            .join(format!(
+                "{}_browser.wasm",
+                application.cargo_name().replace('-', "_")
+            ));
+        let binding = workspace.join("binding");
+        run(
+            "browser-adapter-bindgen",
+            &executable("wasm-bindgen").unwrap(),
+            &[
+                wasm.to_str().unwrap(),
+                "--target",
+                "nodejs",
+                "--out-dir",
+                binding.to_str().unwrap(),
+            ],
+            workspace,
+            &env,
+            &[],
+            "PP5203",
+        )
+        .unwrap();
+        let script = workspace.join("check.cjs");
+        std::fs::write(&script, format!(r#"
+          const assert = require('node:assert/strict');
+          const adapter = require('./binding/{}_browser.js');
+          assert.deepEqual([...adapter.invoke_bytes(new Uint8Array())], [65]);
+          assert.throws(() => adapter.invoke_bytes(Uint8Array.of(1)),
+            error => error instanceof Error && error.name === 'ComputeError' && error.message === 'AddOverflow');
+          assert.deepEqual([...adapter.invoke_bytes(new Uint8Array())], [65]);
+        "#, application.cargo_name().replace('-', "_"))).unwrap();
+        run(
+            "browser-adapter-effect-runtime",
+            &executable("node").unwrap(),
+            &[script.to_str().unwrap()],
+            workspace,
+            &env,
+            &[],
+            "PP5203",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn text_v2_resource_bounds_normal_owner_preserves_package_linker_flags() {
+        let ir = "(module ResourceFlags (def entry ((input Bytes)) Bytes input))";
+        let (remaining, module) = prod_ir::parser::parse_module(ir).unwrap();
+        assert!(remaining.trim().is_empty());
+        let directory = tempfile::tempdir().unwrap();
+        let workspace = directory.path().join("application work with spaces");
+        let registry_source = directory.path().join("registry source with spaces");
+        let mut base = BTreeMap::new();
+        base.insert("CARGO_NET_OFFLINE".to_owned(), "true".to_owned());
+        base.insert(
+            "RUSTFLAGS".to_owned(),
+            "--remap-path-prefix=/old=$OLD".to_owned(),
+        );
+        for (name, pages, stack) in [("legacy", 32, None), ("text-v2", 64, Some(131072))] {
+            let spec = CoreWasmSpec {
+                crate_name: format!("resource-flags-{name}"),
+                entry: "entry".to_owned(),
+                export_name: "holo_run".to_owned(),
+                input_allocation_cap: 128,
+                output_allocation_cap: 128,
+                maximum_pages: pages,
+                input_ir_sha256: sha256(ir.as_bytes()),
+            };
+            let package = match stack {
+                Some(bytes) => generate_core_wasm_package_v2(&module, &spec, bytes),
+                None => generate_core_wasm_package(&module, &spec),
+            }
+            .unwrap();
+            let root = directory.path().join(name);
+            publish_package(&root, &package).unwrap();
+            let env =
+                core_wasm_cargo_environment(&package, &base, &workspace, &registry_source).unwrap();
+            assert!(!env.contains_key("RUSTFLAGS"));
+            let flags = env["CARGO_ENCODED_RUSTFLAGS"]
+                .split('\u{1f}')
+                .collect::<Vec<_>>();
+            assert!(flags.contains(
+                &format!(
+                    "--remap-path-prefix={}=$APPLICATION_WORK",
+                    workspace.display()
+                )
+                .as_str()
+            ));
+            assert!(flags.contains(
+                &format!(
+                    "--remap-path-prefix={}=$CARGO_REGISTRY_SRC",
+                    registry_source.display()
+                )
+                .as_str()
+            ));
+            run(
+                "application-core-wasm",
+                &executable("cargo").unwrap(),
+                &["build", "--locked", "--offline", "--release"],
+                &root,
+                &env,
+                &[],
+                "PP5101",
+            )
+            .unwrap();
+            let binary = root
+                .join("target/wasm32-unknown-unknown/release")
+                .join(format!("resource_flags_{}.wasm", name.replace('-', "_")));
+            validate_core_wasm_resources(&std::fs::read(binary).unwrap(), pages, stack).unwrap();
+            assert_eq!(base["RUSTFLAGS"], "--remap-path-prefix=/old=$OLD");
+        }
+    }
+
+    #[test]
+    fn text_v2_resource_bounds_normal_owner_rejects_malformed_owned_flags() {
+        for config in [
+            None,
+            Some("[target]"),
+            Some("not TOML"),
+            Some("[target.wasm32-unknown-unknown]\nrustflags = []"),
+            Some("[target.wasm32-unknown-unknown]\nrustflags = [1]"),
+            Some("[target.wasm32-unknown-unknown]\nrustflags = [\"\"]"),
+            Some("[target.wasm32-unknown-unknown]\nrustflags = [\"\\u001f\"]"),
+            Some("[target.wasm32-unknown-unknown]\nrustflags = [\"\\u0000\"]"),
+        ] {
+            let package = GeneratedPackage {
+                files: config
+                    .into_iter()
+                    .map(|text| PackageFile {
+                        path: ".cargo/config.toml".into(),
+                        bytes: text.as_bytes().to_vec(),
+                    })
+                    .collect(),
+            };
+            assert_eq!(
+                core_wasm_cargo_environment(
+                    &package,
+                    &BTreeMap::new(),
+                    Path::new("work"),
+                    Path::new("registry")
+                )
+                .unwrap_err()
+                .code,
+                "PP5101"
+            );
+        }
+    }
 
     #[test]
     fn text_v2_resource_bounds_source_free_binding_rejects_coherent_metadata_forgery() {

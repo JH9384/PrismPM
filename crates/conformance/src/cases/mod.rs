@@ -437,6 +437,7 @@ pub fn run_at(root: &Path, id: &str) {
             );
             for (package, target) in [
                 ("prod-codegen", Some("core_wasm_fixtures")),
+                ("prod-codegen", Some("text_view")),
                 ("prismpm", Some("text_application")),
                 ("prismpm", Some("text_v2_contract")),
                 ("prismpm", None),

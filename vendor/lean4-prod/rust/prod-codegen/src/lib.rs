@@ -136,7 +136,9 @@ pub use package::{
     generate_cargo_package, CargoDependency, CargoPackageSpec, GeneratedPackage, PackageFile,
 };
 pub use sdk::{generate_sdks, SdkBindings};
-pub use text_view::{generate_text_view_v1, TextBrowserAdapterBinding, TextViewV1};
+pub use text_view::{
+    generate_text_view_v1, generate_text_view_v1_for_module, TextBrowserAdapterBinding, TextViewV1,
+};
 pub use view::{
     generate_holoview_bundle, generate_view_v1, BrowserAdapterBinding, EvaluatedViewV1,
     GeneratedViewV1, ViewOperation,
@@ -596,6 +598,29 @@ fn signatures<'m>(defs: &'m [Definition]) -> Signatures<'m> {
             return shapes;
         }
     }
+}
+
+/// Determine the checked-error convention of an exact `Bytes -> Bytes` entry.
+///
+/// Uses the same whole-module least fixpoint as generated Rust and Core-Wasm;
+/// unrelated checked definitions do not make an infallible entry fallible.
+/// Rejects a missing entry, a different public ABI, or an unsupported module.
+pub fn byte_entry_is_fallible(module: &Module, entry: &str) -> Result<bool, Error> {
+    let definition = module
+        .definitions
+        .iter()
+        .find(|definition| definition.name == entry)
+        .ok_or_else(|| Error::UnresolvedCall(entry.to_string()))?;
+    if definition.params.len() != 1
+        || definition.params[0].1 != Type::Bytes
+        || definition.ret != Type::Bytes
+    {
+        return Err(Error::OpaqueType(
+            "byte entry must be Bytes -> Bytes".to_string(),
+        ));
+    }
+    generate_module(module)?;
+    Ok(signatures(&module.definitions).get(entry) == Some(&Shape::Fallible))
 }
 
 /// Does this expression perform, or reach, an operation that can fail?

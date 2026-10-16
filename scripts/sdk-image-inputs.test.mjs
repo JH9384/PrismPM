@@ -93,6 +93,35 @@ function imageStages(recipe) {
   return stages;
 }
 
+test('read-only helper copies retain searchable SDK ancestors for unprivileged consumers', () => {
+  const recipe = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');
+  const check = text => {
+    const stages = imageStages(text);
+    for (const [name, directories] of [
+      ['build', ['/opt/prismpm', '/opt/prismpm/browser']],
+      ['runtime_base', ['/opt/prismpm', '/opt/prismpm/browser-engine', '/opt/prismpm/runtime-sources', '/opt/prismpm/runtime-sources/fixtures']],
+    ]) {
+      const commands = stages.get(name).instructions;
+      const firstReadOnlyCopy = commands.findIndex(command => command.startsWith('COPY ') && command.includes('--chmod=0444'));
+      assert(firstReadOnlyCopy >= 0);
+      const created = commands.slice(0, firstReadOnlyCopy).filter(command => command.startsWith('RUN install -d -m 0755 '));
+      for (const directory of directories) {
+        assert(created.some(command => command.split(' ').includes(directory)), `${name}: searchable ${directory} must precede read-only copying`);
+      }
+    }
+  };
+  check(recipe);
+  for (const [from, to] of [
+    ['RUN install -d -m 0755 /opt/prismpm /opt/prismpm/browser\n', ''],
+    ['RUN install -d -m 0755 /opt/prismpm /opt/prismpm/browser-engine /opt/prismpm/runtime-sources /opt/prismpm/runtime-sources/fixtures\n', ''],
+    ['install -d -m 0755', 'install -d -m 0444'],
+    ['/opt/prismpm/runtime-sources/fixtures\n', '/opt/prismpm/runtime-sources/other\n'],
+  ]) {
+    assert.notEqual(recipe.replace(from, to), recipe);
+    assert.throws(() => check(recipe.replace(from, to)));
+  }
+});
+
 test('pinned runtime package acquisition is bounded and refuses incomplete indexes', () => {
   const recipe = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');
   const check = text => {

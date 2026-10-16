@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {readFileSync, readdirSync} from 'node:fs';
 import test from 'node:test';
 
 function docker(args) {
@@ -8,6 +10,35 @@ function docker(args) {
   assert.equal(child.signal, null);
   return child;
 }
+
+test('actual unprivileged SDK consumers read exact immutable helper bytes', () => {
+  const image = process.env.PRISMPM_TEST_SDK_IMAGE;
+  assert.match(image ?? '', /^[a-z0-9./_:-]+@sha256:[0-9a-f]{64}$/);
+  const recipe = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');
+  const browser = recipe.split('\n').find(line => line.startsWith('COPY --from=source_inputs --chmod=0444 ') && line.endsWith(' /opt/prismpm/browser/'));
+  assert(browser);
+  const paths = browser.split(' ').filter(path => path.startsWith('/prepared/source/')).map(path => path.slice('/prepared/source/'.length));
+  for (const name of readdirSync(new URL('../sdk/browser-engine/', import.meta.url))) paths.push(`sdk/browser-engine/${name}`);
+  paths.push('sdk/runtime-sources/configure.py', 'sdk/runtime-sources/fixtures/amd64.nodesource.list', 'sdk/runtime-sources/fixtures/arm64.nodesource.list');
+  const expected = paths.map(path => [`/opt/prismpm/${path.slice(4)}`, createHash('sha256').update(readFileSync(new URL(`../${path}`, import.meta.url))).digest('hex')]);
+  const script = `
+    const assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto'),path=require('node:path');
+    assert.equal(process.getuid(),1000);
+    const expected=${JSON.stringify(expected)};
+    for(const [file,hash] of expected){
+      for(let directory=path.dirname(file);directory!=='/';directory=path.dirname(directory)){
+        const mode=fs.statSync(directory).mode;
+        assert.equal(mode&0o111,0o111,directory+' must be searchable');assert.equal(mode&0o022,0,directory+' must not be group/other writable');
+      }
+      assert.equal(fs.statSync(file).mode&0o222,0,file+' must remain read-only');
+      assert.equal(crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),hash,file+' must retain source bytes');
+    }
+    console.log(JSON.stringify({checked:expected.length}));
+  `;
+  const result = docker(['run', '--rm', '--user', '1000:1000', '--network', 'none', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--entrypoint', 'node', image, '-e', script]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).checked, expected.length);
+});
 
 test('actual docker exec CLI refuses a hard stack cap that bypasses the SDK entrypoint', () => {
   const image = process.env.PRISMPM_TEST_SDK_IMAGE;

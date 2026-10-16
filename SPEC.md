@@ -2027,6 +2027,14 @@ claim atomic isolation against a same-user filesystem attacker.
 This is image-input construction; full V&V execution, freshness, independent
 native-platform and immutable-image acceptance remain separate gates.
 
+Read-only helper copies MUST enter explicitly created, searchable SDK
+directories. Both build and native runtime stages create their required
+`/opt/prismpm` helper ancestors as mode 0755 before `COPY --chmod=0444`;
+copied helper files retain their exact committed bytes and read-only modes.
+Native image construction executes its launcher tests as UID 1000. Original
+image smoke additionally reads and hashes the installed helper files as that
+unprivileged user, including browser, browser-engine and runtime-source trees.
+
 Release reproducibility reads both complete local OCI layer closures, not just
 their index-selected manifests and configurations. Each declared layer must
 be an independent regular, unaliased file with its exact descriptor size and

@@ -3291,6 +3291,9 @@ transport controls; its previous file inventory and compiler-phase controls
 remain selected. CI-capacity controls preserve all six current SDK-candidate
 lanes, including input policy, unpublished construction and archive integrity,
 without treating any diagnostic or construction lane as SDK acceptance.
+The Action CLI container uses a bounded 2 GiB `/tmp` tmpfs so the immutable
+SDK's private Cargo home can initialize for a non-root caller. Its isolated
+JSON-output projections retain their separate 64 MiB tmpfs and no project mount.
 
 The shared Action exposes `export-browser` with `reference` and `output` inputs
 passed unchanged to the SDK's existing command. The SDK owns immutable-reference,

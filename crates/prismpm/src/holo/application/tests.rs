@@ -133,8 +133,9 @@ fn acceptance_tail_aliases_preserve_owner_and_repeated_heads() {
     let right = closed(acceptance("01", "02"));
     let unqualified_head = json!({"kind":"call","function":{"name":"vector"},"arguments":[]});
     let last = closed(json!({"kind":"cons","head":unqualified_head,"tail":{"kind":"nil"}}));
-    let middle =
-        closed(json!({"kind":"cons","head":unqualified_head,"tail":alias("Other","last")}));
+    let middle = closed(json!({"kind":"cons","head":unqualified_head,"tail":
+        {"kind":"call","function":{"name":"last"},"arguments":[]}
+    }));
     let definitions = BTreeMap::from([
         (("Here".to_owned(), "vector".to_owned()), &wrong),
         (("Other".to_owned(), "vector".to_owned()), &right),
@@ -175,6 +176,12 @@ fn acceptance_tail_alias_cycles_and_open_values_are_typed_failures() {
         (("Second".to_owned(), "next".to_owned()), &second),
         (("First".to_owned(), "open".to_owned()), &open),
     ]);
+    for tail in [alias("First", "self"), alias("First", "next")] {
+        let fields = BTreeMap::from([("acceptanceVectors", ("First", &tail))]);
+        let error = acceptance_vectors(&definitions, &fields).unwrap_err();
+        assert_eq!(error.code, "PP2001");
+        assert!(error.message.contains("cyclic alias"));
+    }
     for tail in [
         alias("First", "self"),
         alias("First", "next"),
@@ -216,8 +223,7 @@ fn acceptance_tail_alias_budget_is_shared_across_list_chunks() {
     );
     let over_limit = alias("Chunks", "item0");
     let fields = BTreeMap::from([("acceptanceVectors", ("Chunks", &over_limit))]);
-    assert_eq!(
-        acceptance_vectors(&definitions, &fields).unwrap_err().code,
-        "PP2001"
-    );
+    let error = acceptance_vectors(&definitions, &fields).unwrap_err();
+    assert_eq!(error.code, "PP2001");
+    assert!(error.message.contains("alias budget"));
 }

@@ -2252,7 +2252,8 @@ to closed list definitions, including imported chunks. Iterative expansion
 preserves order and duplicates for validation; it never sorts or drops roots.
 Each list is limited to 65,536 projection steps before materialization can grow
 unboundedly. Unsupported expressions, cycles or budget exhaustion fail with
-`PP2001`; the 1,024-root limit remains unchanged. Application metadata is unchanged.
+`PP2001`; the 1,024-root limit remains unchanged. These root-list forms do not
+change application root metadata.
 Malformed metadata fails with `PP4004`; unresolved or wrongly typed roots fail
 with `PP2001`.
 

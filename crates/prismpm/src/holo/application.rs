@@ -50,13 +50,23 @@ fn definition<'a>(
 
 fn evaluated<'a>(
     definitions: &'a Definitions<'a>,
-    mut module: &'a str,
-    mut value: &'a Value,
+    module: &'a str,
+    value: &'a Value,
 ) -> Result<(&'a str, &'a Value), PrismError> {
     let mut remaining = MAX_METADATA_ALIASES;
     let mut visited = BTreeSet::new();
+    evaluated_with_state(definitions, module, value, &mut remaining, &mut visited)
+}
+
+fn evaluated_with_state<'a>(
+    definitions: &'a Definitions<'a>,
+    mut module: &'a str,
+    mut value: &'a Value,
+    remaining: &mut usize,
+    visited: &mut BTreeSet<(&'a str, &'a str)>,
+) -> Result<(&'a str, &'a Value), PrismError> {
     while value.get("kind").and_then(Value::as_str) == Some("call") {
-        remaining = remaining.checked_sub(1).ok_or_else(|| {
+        *remaining = remaining.checked_sub(1).ok_or_else(|| {
             PrismError::new("PP2001", "application metadata exceeds the alias budget")
         })?;
         let arguments = value
@@ -393,12 +403,15 @@ fn bytes(value: &Value, field: &str) -> Result<Vec<u8>, PrismError> {
 
 fn acceptance_vectors(
     definitions: &Definitions<'_>,
-    module: &str,
     fields: &BTreeMap<&str, (&str, &Value)>,
 ) -> Result<Vec<ApplicationAcceptanceVector>, PrismError> {
-    let (_, mut value) = field(fields, "acceptanceVectors")?;
+    let (mut module, mut value) = field(fields, "acceptanceVectors")?;
     let mut result = Vec::new();
+    let mut remaining = MAX_METADATA_ALIASES;
+    let mut visited = BTreeSet::new();
     loop {
+        (module, value) =
+            evaluated_with_state(definitions, module, value, &mut remaining, &mut visited)?;
         match value.get("kind").and_then(Value::as_str) {
             Some("nil") => return Ok(result),
             Some("cons") => {
@@ -544,12 +557,13 @@ pub fn project_application(
         super::browser_application::validate_roots(&browser, snapshot)?;
         return projected_document(snapshot, Application::Browser(Box::new(browser)));
     }
-    let fields = record(
+    let fields = record_with_unevaluated_fields(
         &definitions,
         module,
         declaration
             .get("body")
             .ok_or_else(|| PrismError::new("PP2001", "application has no body"))?,
+        &["acceptanceVectors"],
     )?;
     if fields
         .get("profile")
@@ -605,7 +619,7 @@ pub fn project_application(
             cargo_repository: string(&fields, "cargoRepository")?,
             cargo_homepage: string(&fields, "cargoHomepage")?,
             library_roots: string_list(&fields, "libraryRoots")?,
-            acceptance_vectors: acceptance_vectors(&definitions, module, &fields)?,
+            acceptance_vectors: acceptance_vectors(&definitions, &fields)?,
             entry_root: string(&fields, "entryRoot")?,
             core_contract: string(&fields, "coreContract")?,
             request_maximum,
@@ -629,7 +643,7 @@ pub fn project_application(
             operation_type: string(&fields, "operationType")?,
             error_type: string(&fields, "errorType")?,
             function_name: string(&fields, "functionName")?,
-            acceptance_vectors: acceptance_vectors(&definitions, module, &fields)?,
+            acceptance_vectors: acceptance_vectors(&definitions, &fields)?,
             entry_root: string(&fields, "entryRoot")?,
             core_contract: string(&fields, "coreContract")?,
             request_maximum,

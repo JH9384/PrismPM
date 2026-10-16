@@ -2263,6 +2263,13 @@ Cycles, missing definitions, open calls and budget exhaustion fail with
 `PP2001`, never a stack overflow or a silent module fallback. Independent fields
 may reuse an alias. Root-list expansion retains its separate bounds above.
 
+Application acceptance-vector lists also admit closed zero-argument aliases
+at every list tail, including imported chunks. Iterative expansion preserves
+each vector and its order and resolves unqualified head aliases in the list
+chunk's owning module. One shared 65,536-call budget and cycle set cover the
+complete list spine; independent vector fields may reuse aliases. Malformed or
+open tails, cycles and exhausted budgets fail with `PP2001`.
+
 `check` remains read-only. `build` uses the pinned named exporter and code
 generator to produce the complete native package and `.crate`, typed LCNF,
 roots, coverage and model binding. `prismpm/build-inputs/3` binds the complete

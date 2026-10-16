@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+# Generated Lean modules require more than the common 8 MiB process default.
+# Keep this resource bound explicit and inherited by sanitized child processes;
+# changing only compiler environment variables would be lost at that boundary.
+ulimit -S -s 65536
+
 # This image intentionally starts as root only long enough to adapt an optional
 # host Docker socket.  Ensure the environment follows the permanent SDK user
 # before any cache setup or requested command executes.

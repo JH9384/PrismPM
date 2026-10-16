@@ -390,7 +390,9 @@ ENV CARGO_HOME=/home/vscode/.cargo \
     PATH=/usr/local/elan/bin:/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin
 
 RUN --network=none --mount=type=tmpfs,target=/tmp,size=805306368 \
-    node /opt/prismpm/exporter-seed.mjs /opt/prismpm/share/conformance-root /opt/prismpm/share/exporter-seed \
+    setpriv --reuid=1000 --regid=1000 --clear-groups \
+      node --test /opt/prismpm/share/conformance-root/scripts/sdk-runtime-stack.test.mjs \
+    && node /opt/prismpm/exporter-seed.mjs /opt/prismpm/share/conformance-root /opt/prismpm/share/exporter-seed \
     && PRISMPM_ARTIFACT_INVENTORY=/opt/prismpm/artifact-inventory.json \
       node /opt/prismpm/generate-inventory.mjs /opt/prismpm/share/inventory.json \
     && sha256sum /opt/prismpm/share/inventory.json > /opt/prismpm/share/inventory.sha256 \

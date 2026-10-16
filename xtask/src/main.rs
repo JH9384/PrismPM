@@ -590,6 +590,7 @@ fn check_sdk_runtime_boundary_for_image(image: &str) -> Result<(), Fail> {
             image,
             "--test",
             "scripts/sdk-candidate.test.mjs",
+            "scripts/sdk-runtime-stack.test.mjs",
             "sdk/platform-lock.test.mjs",
         ])
         .status()?;

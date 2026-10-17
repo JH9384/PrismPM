@@ -1199,6 +1199,38 @@ fn verify_image_scan(
     Ok(value)
 }
 
+fn advisory_docker_environment() -> BTreeMap<String, String> {
+    ["DOCKER_CONFIG", "BUILDX_CONFIG"]
+        .into_iter()
+        .filter_map(|name| {
+            std::env::var_os(name)
+                .map(|value| (name.to_owned(), value.to_string_lossy().into_owned()))
+        })
+        .collect()
+}
+
+fn run_advisory_docker(
+    root: &Path,
+    tool: &str,
+    arguments: &[String],
+    replacements: &[(&Path, &str)],
+    timeout_seconds: &str,
+    output_limit: usize,
+) -> Result<crate::verification::ProcessRecord, PrismError> {
+    let docker = crate::sdk::executable("docker")?;
+    crate::verification::run_process_limited(
+        tool,
+        &docker,
+        arguments,
+        root,
+        &advisory_docker_environment(),
+        replacements,
+        "PP7801",
+        timeout_seconds,
+        output_limit,
+    )
+}
+
 /// Acquire and scan every modeled component and SDK image during the explicit online phase.
 pub(crate) fn fetch_image_advisories(
     root: &Path,
@@ -1220,7 +1252,6 @@ pub(crate) fn fetch_image_advisories(
     }
     let database_set_digest = sha(&encode_value(&database_facts)?);
     let images = required_image_inputs(root, systems)?;
-    let docker = crate::sdk::executable("docker")?;
     let scanner = crate::sdk::executable("osv-scanner")?;
     let scan_workspace = OsvScanWorkspace::new(root)?;
     stage_osv_databases(scan_workspace.home.path(), &databases)?;
@@ -1233,9 +1264,9 @@ pub(crate) fn fetch_image_advisories(
     }
     let mut records = Vec::new();
     for image in images {
-        let index_record = crate::verification::run_process_limited(
+        let index_record = run_advisory_docker(
+            root,
             "docker-image-index",
-            &docker,
             &[
                 "buildx".to_owned(),
                 "imagetools".to_owned(),
@@ -1243,10 +1274,7 @@ pub(crate) fn fetch_image_advisories(
                 "--raw".to_owned(),
                 image.reference.clone(),
             ],
-            root,
-            &BTreeMap::new(),
             &[(root, "$PROJECT")],
-            "PP7801",
             "120s",
             16 * 1024 * 1024,
         )?;
@@ -1299,9 +1327,9 @@ pub(crate) fn fetch_image_advisories(
             }
             std::fs::create_dir_all(destination.parent().expect("scan cache parent"))
                 .map_err(|error| PrismError::new("PP7801", format!("image scan cache: {error}")))?;
-            crate::verification::run_process_limited(
+            run_advisory_docker(
+                root,
                 "docker-pull-advisory-subject",
-                &docker,
                 &[
                     "image".to_owned(),
                     "pull".to_owned(),
@@ -1309,25 +1337,19 @@ pub(crate) fn fetch_image_advisories(
                     platform.to_owned(),
                     platform_reference.clone(),
                 ],
-                root,
-                &BTreeMap::new(),
                 &[(root, "$PROJECT")],
-                "PP7801",
                 "900s",
                 4 * 1024 * 1024,
             )?;
-            let inspected = crate::verification::run_process_limited(
+            let inspected = run_advisory_docker(
+                root,
                 "docker-inspect-advisory-subject",
-                &docker,
                 &[
                     "image".to_owned(),
                     "inspect".to_owned(),
                     platform_reference.clone(),
                 ],
-                root,
-                &BTreeMap::new(),
                 &[(root, "$PROJECT")],
-                "PP7801",
                 "60s",
                 4 * 1024 * 1024,
             )?;
@@ -1354,9 +1376,9 @@ pub(crate) fn fetch_image_advisories(
                 .tempfile_in(destination.parent().expect("scan cache parent"))
                 .map_err(|error| PrismError::new("PP7801", format!("image archive: {error}")))?;
             let archive_path = archive.path().to_path_buf();
-            crate::verification::run_process_limited(
+            run_advisory_docker(
+                root,
                 "docker-save-advisory-subject",
-                &docker,
                 &[
                     "image".to_owned(),
                     "save".to_owned(),
@@ -1364,10 +1386,7 @@ pub(crate) fn fetch_image_advisories(
                     archive_path.to_string_lossy().into_owned(),
                     platform_reference,
                 ],
-                root,
-                &BTreeMap::new(),
                 &[(&archive_path, "$IMAGE_ARCHIVE"), (root, "$PROJECT")],
-                "PP7801",
                 "900s",
                 4 * 1024 * 1024,
             )?;
@@ -4289,6 +4308,103 @@ pub(crate) fn attach_build_evidence(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    #[test]
+    fn image_scan_workspace_docker_children_preserve_private_configuration() {
+        use std::os::unix::fs::PermissionsExt;
+        use std::path::PathBuf;
+        const CHILD: &str = "PRISMPM_DOCKER_CONFIG_TEST_CHILD";
+        const FIXTURE: &str = "PRISMPM_DOCKER_CONFIG_TEST_FIXTURE";
+        if std::env::var_os(CHILD).is_some() {
+            let root = PathBuf::from(std::env::var_os(FIXTURE).expect("private fixture root"));
+            let credentials = root.join("home/.docker");
+            assert!(
+                std::fs::write(credentials.join("must-not-write"), b"refuse").is_err(),
+                "the genuine Docker child must receive read-only credentials"
+            );
+            let before = std::fs::read(credentials.join("config.json")).unwrap();
+            let record = super::run_advisory_docker(
+                &root,
+                "docker-buildx-private-config",
+                &[
+                    "buildx".to_owned(),
+                    "ls".to_owned(),
+                    "--format".to_owned(),
+                    "json".to_owned(),
+                ],
+                &[(&root, "$DOCKER_FIXTURE")],
+                "30s",
+                4 * 1024 * 1024,
+            )
+            .expect("pinned Buildx uses writable private state beside read-only credentials");
+            let rows = record
+                .stdout
+                .lines()
+                .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+                .collect::<Vec<_>>();
+            assert!(
+                !rows.is_empty(),
+                "real Buildx must list its daemon-backed builder"
+            );
+            assert!(rows.iter().any(|row| row["Driver"] == "docker"));
+            let environment = super::advisory_docker_environment();
+            assert_eq!(
+                environment.keys().map(String::as_str).collect::<Vec<_>>(),
+                ["BUILDX_CONFIG", "DOCKER_CONFIG"]
+            );
+            assert_eq!(environment["DOCKER_CONFIG"], credentials.to_str().unwrap());
+            assert_eq!(
+                environment["BUILDX_CONFIG"],
+                root.join("buildx").to_str().unwrap()
+            );
+            assert_eq!(
+                std::fs::read(credentials.join("config.json")).unwrap(),
+                before
+            );
+            assert!(!credentials.join("buildx").exists());
+            assert!(
+                std::fs::read_dir(root.join("buildx"))
+                    .unwrap()
+                    .next()
+                    .is_some(),
+                "real Buildx must write its private configuration"
+            );
+            return;
+        }
+        let owned = tempfile::tempdir().unwrap();
+        let external = std::env::var_os(FIXTURE);
+        let root = external
+            .as_ref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| owned.path().to_owned());
+        let credentials = root.join("home/.docker");
+        if external.is_none() {
+            std::fs::create_dir_all(&credentials).unwrap();
+            std::fs::create_dir(root.join("buildx")).unwrap();
+            std::fs::write(credentials.join("config.json"), b"{}\n").unwrap();
+            std::fs::set_permissions(&credentials, std::fs::Permissions::from_mode(0o555)).unwrap();
+        }
+        // A fresh process gives this fixture private HOME/credential/builder
+        // variables without mutating the parallel Rust test environment. Its
+        // HOME is never rewritten by a devcontainer initialization wrapper.
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "supply_chain::tests::image_scan_workspace_docker_children_preserve_private_configuration", "--nocapture"])
+            .env(CHILD, "1").env(FIXTURE, &root)
+            .env("HOME", root.join("home"))
+            .env("DOCKER_CONFIG", &credentials)
+            .env("BUILDX_CONFIG", root.join("buildx"))
+            .output().unwrap();
+        if external.is_none() {
+            std::fs::set_permissions(&credentials, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        assert!(
+            output.status.success(),
+            "actual private Docker child: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
     fn cargo_inventory_fixture() -> (tempfile::TempDir, std::path::PathBuf) {
         let fixture = tempfile::tempdir().unwrap();
         let root = fixture.path().join("project with spaces");

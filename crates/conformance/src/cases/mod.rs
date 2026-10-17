@@ -2654,9 +2654,9 @@ fn verify_supply_chain(id: &str) {
                 .split_once(" passed; ")
                 .and_then(|(passed, _)| passed.parse::<usize>().ok());
             assert!(
-                passed.is_some_and(|passed| passed > 0)
+                passed == Some(6)
                     && summaries[0].contains("; 0 failed; 0 ignored; 0 measured;"),
-                "SC-04 requires nonempty executed storage tests without omissions: {stdout}"
+                "SC-04 requires all six executed storage and Docker configuration tests without omissions: {stdout}"
             );
         }
         "SC-05" => {

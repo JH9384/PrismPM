@@ -3135,6 +3135,11 @@ provenance bind exact subjects, source revision, builder, external parameters
 and resolved dependencies. The claimed SLSA level is limited to evidence
 provided by the accepted build platform.
 
+Docker children used to acquire advisory image subjects explicitly preserve the
+selected `DOCKER_CONFIG` and `BUILDX_CONFIG`. Read-only registry credentials and
+writable private Buildx state remain separate; generic process environment
+clearing and scanner configuration are unchanged.
+
 Local Cargo package checksums use the actual source trees selected by locked,
 offline Cargo metadata. Normalized `$PROJECT/` manifest paths are resolved
 within the project before filesystem reads; malformed tokens, traversal,
@@ -3456,7 +3461,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `SC-01` | `supply-chain` | SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure; local Cargo package checksums resolve normalized project manifests without weakening path confinement. | §16 |
 | `SC-02` | `supply-chain` | in-toto Statement v1 and SLSA 1.2 provenance bind subjects, builders, sources, parameters, dependencies, and objectively supported build level. | §16 |
 | `SC-03` | `supply-chain` | Sigstore verification enforces exact trusted issuer, subject, repository, workflow, ref, environment, certificate, and transparency policy. | §16 |
-| `SC-04` | `supply-chain` | Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage and stale evidence cannot satisfy current policy. | §16 |
+| `SC-04` | `supply-chain` | Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage, Docker image children preserve separate credential and builder configuration, and stale evidence cannot satisfy current policy. | §16 |
 | `SC-05` | `supply-chain` | Source, locks, artifacts, plans, OCI content, BOMs, attestations, logs, and evidence are verified free of secret values. | §16 |
 | `SC-06` | `supply-chain` | Supply-chain policy rejects wrong subjects or builders, incomplete graphs, tampering, unsigned promotion, and unsupported claims. | §16 |
 | `TM-01` | `template-ci` | The versioned UOR template contract preserves repository honesty, anti-vacuity, generated registers, and planted-defect policy. | §17 |

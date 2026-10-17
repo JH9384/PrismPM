@@ -250,6 +250,14 @@ pub struct DisplaySpec {
     pub maximum_details: u32,
 }
 
+/// Closed browser Wasm cache policy owned by the source execution model.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WasmCachePolicy {
+    /// Fetch the deployed Wasm without reusing a prior HTTP cache entry.
+    #[serde(rename = "no-store")]
+    NoStore,
+}
+
 /// Source-owned Execution presentation record.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -260,6 +268,8 @@ pub struct Execution {
     pub cancel_label: String,
     /// Modeled retryLabel value.
     pub retry_label: String,
+    /// Required source-owned Wasm cache policy, with no implicit default.
+    pub wasm_cache_policy: WasmCachePolicy,
 }
 
 /// Source-owned WorkbenchView presentation record.

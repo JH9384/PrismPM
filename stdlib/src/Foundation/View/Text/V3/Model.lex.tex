@@ -134,6 +134,13 @@ inductive{
   constructors: [{name: System, fields: []}, {name: Light, fields: []}, {name: Dark, fields: []}]
 }
 
+inductive{
+  name: WasmCachePolicy,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: NoStore, fields: []}]
+}
+
 structure{
   name: Choice,
   type_parameters: [],
@@ -284,7 +291,8 @@ structure{
   fields: [
     {name: timeoutMilliseconds, type: UInt32},
     {name: cancelLabel, type: String},
-    {name: retryLabel, type: String}
+    {name: retryLabel, type: String},
+    {name: wasmCachePolicy, type: WasmCachePolicy}
   ]
 }
 

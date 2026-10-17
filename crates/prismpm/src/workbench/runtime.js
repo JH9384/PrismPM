@@ -150,7 +150,7 @@ export function mount(root=document.body) {
 
 async function workerMain() {
   let invoke;
-  try{const binding=await import(BINDING);if(typeof binding.default!=='function'||typeof binding.invoke_bytes!=='function')throw new Error('binding exports');await binding.default();invoke=binding.invoke_bytes;self.postMessage({type:'ready'});}catch{self.postMessage({type:'failure',kind:'load'});return;}
+  try{const binding=await import(BINDING);if(typeof binding.default!=='function'||typeof binding.invoke_bytes!=='function')throw new Error('binding exports');const wasm=await fetch(new URL(BINDING.replace(/\.js$/, '_bg.wasm'),import.meta.url),{cache:VIEW.execution.wasm_cache_policy,mode:'same-origin',redirect:'error'});if(!wasm.ok)throw new Error('Wasm fetch');await binding.default({module_or_path:wasm});invoke=binding.invoke_bytes;self.postMessage({type:'ready'});}catch{self.postMessage({type:'failure',kind:'load'});return;}
   self.onmessage=({data})=>{if(data?.type!=='invoke'||!Number.isSafeInteger(data.generation)||!(data.input instanceof Uint8Array)||data.input.byteLength>INPUT_LIMIT)return;try{const output=invoke(data.input);if(!(output instanceof Uint8Array)||output.byteLength>OUTPUT_LIMIT)throw new Error('response bound');self.postMessage({type:'result',generation:data.generation,output},[output.buffer]);}catch{self.postMessage({type:'failure',kind:'compute',generation:data.generation});}};
 }
 if(typeof WorkerGlobalScope!=='undefined'&&self instanceof WorkerGlobalScope){if(TRANSPORT==='browser')void workerMain();}

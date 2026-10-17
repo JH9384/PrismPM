@@ -118,7 +118,8 @@
   "execution": {
     "timeout_milliseconds": 30000,
     "cancel_label": "Cancel calculation",
-    "retry_label": "Try again"
+    "retry_label": "Try again",
+    "wasm_cache_policy": "no-store"
   },
   "labels": {
     "navigation": "navigation label",

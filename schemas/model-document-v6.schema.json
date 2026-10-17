@@ -875,12 +875,19 @@
         "retry_label": {
           "type": "string",
           "maxLength": 1048576
+        },
+        "wasm_cache_policy": {
+          "type": "string",
+          "enum": [
+            "no-store"
+          ]
         }
       },
       "required": [
         "timeout_milliseconds",
         "cancel_label",
-        "retry_label"
+        "retry_label",
+        "wasm_cache_policy"
       ]
     },
     "WorkbenchView": {

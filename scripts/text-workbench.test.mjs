@@ -16,6 +16,10 @@ const executablePath = process.arch === 'arm64'
   : '/ms-playwright/chromium_headless_shell-cft-157.0.8099.0/chrome-headless-shell-linux64/chrome-headless-shell';
 const copy = value => JSON.parse(JSON.stringify(value));
 const US = '\u001f';
+// A real minimal Wasm module exports revision() = 1; the final constant byte
+// becomes 2 for the successor. This exercises loading, never application math.
+const oldWasm = Buffer.from('0061736d010000000105016000017f03020100070c01087265766973696f6e00000a0601040041010b', 'hex');
+const currentWasm = Buffer.from(oldWasm);currentWasm[currentWasm.length - 2] = 2;
 let browser;
 before(async () => {
   assert.equal(require('playwright/package.json').version, '1.62.1');
@@ -27,6 +31,7 @@ after(async () => {await browser?.close();});
 function viewData() {
   const view = copy(fixture.workbench);
   view.execution.timeout_milliseconds = 1000;
+  view.execution.wasm_cache_policy = 'no-store';
   return view;
 }
 function runtime(view = viewData(), source = template, transport = 'browser', outputLimit = 16384) {
@@ -46,7 +51,7 @@ async function parser(view = viewData(), source = template, outputLimit = 16384)
 function bindingSource(load, configuration) {
   return `const CONFIG=${JSON.stringify(configuration)};const LOAD=${load};
 const decode=new TextDecoder('utf-8',{fatal:true});const encode=new TextEncoder();
-export default async function(){const delay=CONFIG.delayFirst&&LOAD===1?CONFIG.delayFirst:CONFIG.delay;if(delay)await new Promise(resolve=>setTimeout(resolve,delay));}
+export default async function(options){if(options!==undefined){if(!(options.module_or_path instanceof Response))throw new Error('expected explicit Wasm response');await WebAssembly.instantiateStreaming(options.module_or_path);}const delay=CONFIG.delayFirst&&LOAD===1?CONFIG.delayFirst:CONFIG.delay;if(delay)await new Promise(resolve=>setTimeout(resolve,delay));}
 export function invoke_bytes(bytes){
  const text=decode.decode(bytes);const split=text.indexOf('\\u001f');const prefix=text.slice(0,split);const input=text.slice(split+1);
  if(input==='throw')throw new Error('private fixture failure');
@@ -76,6 +81,8 @@ async function withPage(run, {source = template, view = viewData(), delayScript 
       const load = ++loads;
       if (failFirstLoad && load === 1) {response.statusCode = 503;response.end('unavailable');}
       else {response.setHeader('content-type', 'text/javascript');response.end(bindingSource(load, configuration));}
+    } else if (request.url === '/binding_bg.wasm') {
+      response.setHeader('content-type', 'application/wasm');response.end(currentWasm);
     } else if (request.url === '/_hologram/intent') {
       let body = '';for await (const chunk of request) body += chunk;
       const invocation = JSON.parse(body);invocations.push(invocation);
@@ -494,4 +501,50 @@ test('text_v3_workbench example picker retains a modeled prompt and enables only
     await page.keyboard.press('Tab');assert.equal(await page.locator('#load-example').evaluate(node => node === document.activeElement), true);
     await page.keyboard.press('Space');assert.equal(await page.locator('#field-message').inputValue(), 'hello');
   }, {view});
+});
+
+async function httpCacheProbe(source) {
+  const view = viewData();const requests = [];let revision = 1;
+  const binding = `let revision;const decoder=new TextDecoder();const encoder=new TextEncoder();
+export default async function(options){const response=await(options===undefined?fetch(new URL('./binding_bg.wasm',import.meta.url)):options.module_or_path);if(!(response instanceof Response))throw new Error('expected a real Response');const result=await WebAssembly.instantiateStreaming(response);revision=result.instance.exports.revision();}
+export function invoke_bytes(bytes){const input=decoder.decode(bytes).split('\\u001f').slice(1).join('\\u001f');const value='REVISION '+revision;return encoder.encode(JSON.stringify({version:1,status:'ok',operation:'echo',message:'The actual Wasm revision produced this marker.',rows:1,columns:1,cells:[value],details:[],request:input,response:value,error:''}));}`;
+  const server = createServer((request, response) => {
+    const entry = {path: request.url, revision};requests.push(entry);
+    response.setHeader('cache-control', 'no-store');
+    if (request.url === '/binding_bg.wasm') {
+      response.setHeader('cache-control', 'public, max-age=600');response.setHeader('content-type', 'application/wasm');
+      response.end(revision === 1 ? oldWasm : currentWasm);
+    } else if (request.url === '/binding.js') {response.setHeader('content-type', 'text/javascript');response.end(binding);}
+    else if (request.url === '/app.js') {response.setHeader('content-type', 'text/javascript');response.end(runtime(view, source));}
+    else if (request.url === '/warm') {response.setHeader('content-type', 'text/html');response.end('<!doctype html><title>Normal HTTP cache warmup</title>');}
+    else if (request.url === '/') {response.setHeader('content-type', 'text/html');response.end('<!doctype html><html lang="en"><meta charset="utf-8"><title>Cache owner</title><body><script type="module" src="/app.js"></script></body></html>');}
+    else {response.statusCode = 404;response.end('not found');}
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const context = await browser.newContext();const page = await context.newPage();const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto(origin + '/warm');
+    assert.equal(await page.evaluate(async () => {
+      const response = await fetch('/binding_bg.wasm');
+      const {instance} = await WebAssembly.instantiateStreaming(response);return instance.exports.revision();
+    }), 1, 'the old real Wasm must be in the normal HTTP cache before the successor starts');
+    assert.equal(requests.filter(row => row.path === '/binding_bg.wasm').length, 1);
+    revision = 2;
+    await page.goto(origin + '/');await enabled(page);await submit(page, 'cache proof');await state(page, 'ready');
+    assert.equal(await page.locator('#result').textContent(), 'REVISION 2', 'a new worker must initialize from current Wasm rather than a cached predecessor');
+    assert.deepEqual(requests.filter(row => row.path === '/binding_bg.wasm').map(row => row.revision), [1, 2], 'the worker must perform a fresh same-origin Wasm request');
+    assert.deepEqual(errors, []);
+    assert.equal(view.execution.wasm_cache_policy, 'no-store');
+  } finally {
+    await context.close();server.closeAllConnections();await new Promise(resolve => server.close(resolve));
+  }
+}
+
+test('text_v3_workbench normal HTTP cache cannot substitute a predecessor Wasm for a new worker', async () => {
+  await httpCacheProbe(template);
+  const policy = 'cache:VIEW.execution.wasm_cache_policy,';assert.equal(template.split(policy).length, 2);
+  await assert.rejects(httpCacheProbe(template.replace(policy, '')), error => error instanceof assert.AssertionError
+    && error.actual === 'REVISION 1' && error.expected === 'REVISION 2');
 });

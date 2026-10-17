@@ -221,7 +221,15 @@ Comfortable/Compact, Balanced/Wide and System/Light/Dark are finite token choice
 finite automated/keyboard/layout checks are not a universal accessibility claim.
 
 Browser computation runs in a module Worker loaded from the same `app.js` URL,
-without blob URLs or a seventh asset. Initialization and execution have modeled
+without blob URLs or a seventh asset. Its required source-owned
+`Execution.wasmCachePolicy` has the single closed `WasmCachePolicy.NoStore`
+constructor, projected as `execution.wasm_cache_policy: "no-store"`. The worker
+explicitly fetches its same-origin generated Wasm with that HTTP cache policy,
+refuses redirects and unsuccessful responses, and passes the response to the
+unchanged byte binding initializer. It cannot silently reuse a previous
+deployment's cached Wasm; there is no omitted-field default or cache opt-out.
+The Hologram intent projection does not fetch standalone browser Wasm.
+Initialization and execution have modeled
 100–120000 ms deadlines. Busy state paints independently of computation. Cancel
 and timeout terminate the worker; retry recreates it and recomputes an actual
 captured request. Input edits, operation/example changes and reset invalidate
@@ -240,7 +248,7 @@ vectors up to the request cap as real direct invocations and partitions the UI
 corpus explicitly into representable frames, reserved-separator/required-input
 refusals, HTML-normalized inputs and unrepresentable arity/Choice frames. Missing,
 extra, reordered or forged journey/index evidence cannot satisfy verification.
-Actual worker lifecycle tests, bounded result negatives and native compiled
+Actual HTTP-cache return-visitor and worker lifecycle tests, bounded result negatives and native compiled
 source-fixture verification supplement model/projection/schema mutation checks.
 
 The separate `Foundation.View.Text.V2.Model.TextApplication` declares
@@ -3573,7 +3581,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `HO-15` | `holo` | The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application. | §3 |
 | `HO-16` | `holo` | The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults. | §3 |
 | `HO-17` | `holo` | The explicit text/3 profile models its command-line surface in source and generates static musl programs whose bounded raw input, model-owned help and version, declared exit-code map and registered usage, I/O and fault diagnostics are accepted against the Core-Wasm entry for every vector, without handwritten product code or any claim about targets not executed. | §3 |
-| `HO-19` | `holo` | The optional Text/3 workbench binds typed source-owned guidance, forms, examples and error recovery to real byte-guest results, six exact portable assets and cancellable browser worker execution while preserving Text/1 and Text/2 resource semantics and the text/3 command-line surface. | §3 |
+| `HO-19` | `holo` | The optional Text/3 workbench binds typed source-owned guidance, forms, examples, error recovery and mandatory no-store Wasm acquisition to real byte-guest results, six exact portable assets and cancellable browser worker execution while preserving Text/1 and Text/2 resource semantics and the text/3 command-line surface. | §3 |
 | `CT-01` | `controller` | The Controller API exposes owned request and result types for load, check, and build. | §4 |
 | `CT-02` | `controller` | The Controller encapsulates LexLean Engine operations without exposing internal compiler types. | §4 |
 | `CT-03` | `controller` | prismpm check validates models in memory without modifying the filesystem. | §4 |

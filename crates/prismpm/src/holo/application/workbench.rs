@@ -85,6 +85,7 @@ fn source_shape(name: &str) -> Option<&'static [(&'static str, &'static str)]> {
             ("timeoutMilliseconds", "UInt32"),
             ("cancelLabel", "String"),
             ("retryLabel", "String"),
+            ("wasmCachePolicy", "WasmCachePolicy"),
         ]),
         "WorkbenchView" => Some(&[
             ("title", "String"),
@@ -133,6 +134,7 @@ fn enum_values(name: &str) -> Option<&'static [&'static str]> {
         "Density" => Some(&["Comfortable", "Compact"]),
         "Width" => Some(&["Balanced", "Wide"]),
         "ColorScheme" => Some(&["System", "Light", "Dark"]),
+        "WasmCachePolicy" => Some(&["NoStore"]),
         _ => None,
     }
 }
@@ -219,7 +221,11 @@ fn metadata(
                 "workbench enum requires its exact source-owned constructor",
             ));
         }
-        return Ok(Value::String(expected.unwrap().to_ascii_lowercase()));
+        return Ok(Value::String(if kind == "WasmCachePolicy" {
+            "no-store".to_owned()
+        } else {
+            expected.unwrap().to_ascii_lowercase()
+        }));
     }
     let shape = source_shape(kind).ok_or_else(|| invalid("workbench metadata type is unknown"))?;
     if value.pointer("/type/module").and_then(Value::as_str)

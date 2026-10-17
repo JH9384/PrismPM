@@ -527,10 +527,18 @@ pub fn project_snapshot(snapshot: &SemanticSnapshot) -> Result<ModelDocument, Pr
 /// Compute the canonical tree digest of the exact declared emitter inputs.
 #[must_use]
 pub fn compute_emitter_semantics_id() -> String {
-    const INPUTS: [(&str, &[u8]); 20] = [
+    const INPUTS: [(&str, &[u8]); 27] = [
+        (
+            "crates/prismpm/src/application_build.rs",
+            include_bytes!("../application_build.rs"),
+        ),
         (
             "crates/prismpm/src/holo/application.rs",
             include_bytes!("application.rs"),
+        ),
+        (
+            "crates/prismpm/src/holo/application/workbench.rs",
+            include_bytes!("application/workbench.rs"),
         ),
         (
             "crates/prismpm/src/holo/browser_application.rs",
@@ -556,11 +564,11 @@ pub fn compute_emitter_semantics_id() -> String {
             "crates/prismpm/src/holo/library/roots.rs",
             include_bytes!("library/roots.rs"),
         ),
+        ("crates/prismpm/src/holo/mod.rs", include_bytes!("mod.rs")),
         (
             "crates/prismpm/src/holo/model_document.rs",
             include_bytes!("model_document.rs"),
         ),
-        ("crates/prismpm/src/holo/mod.rs", include_bytes!("mod.rs")),
         (
             "crates/prismpm/src/holo/projector.rs",
             include_bytes!("projector.rs"),
@@ -572,6 +580,22 @@ pub fn compute_emitter_semantics_id() -> String {
         (
             "crates/prismpm/src/holo/validate.rs",
             include_bytes!("validate.rs"),
+        ),
+        (
+            "crates/prismpm/src/holo/workbench.rs",
+            include_bytes!("workbench.rs"),
+        ),
+        (
+            "crates/prismpm/src/workbench.rs",
+            include_bytes!("../workbench.rs"),
+        ),
+        (
+            "crates/prismpm/src/workbench/runtime.js",
+            include_bytes!("../workbench/runtime.js"),
+        ),
+        (
+            "crates/prismpm/src/workbench/style.css",
+            include_bytes!("../workbench/style.css"),
         ),
         (
             "model/projection.toml",
@@ -604,6 +628,10 @@ pub fn compute_emitter_semantics_id() -> String {
         (
             "schemas/model-document.schema.json",
             include_bytes!("../../schemas/model-document.schema.json"),
+        ),
+        (
+            "schemas/workbench-view-projection.schema.json",
+            include_bytes!("../../schemas/workbench-view-projection.schema.json"),
         ),
     ];
     let mut hasher = Sha256::new();

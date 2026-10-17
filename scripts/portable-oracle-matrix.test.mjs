@@ -18,9 +18,9 @@ const matrix = JSON.parse(read('tests/data/portable-oracle-matrix.json'));
 
 test('text_v2_resource_bounds preserve raw text through the actual browser oracle functions', async () => {
   const source = read('crates/prismpm/src/embedded/hologram-oracle.browser.mjs');
-  const selection = source.slice(source.indexOf('const text = '), source.indexOf('const cases = [];'));
+  const selection = source.slice(source.indexOf('const workbench = '), source.indexOf('const cases = [];'));
   const functions = source.slice(source.indexOf('async function fill('), source.indexOf('const valid = app.acceptance_vectors'));
-  assert(selection.startsWith('const text = '));
+  assert(selection.startsWith('const workbench = '));
   assert(functions.startsWith('async function fill('));
   const request = '1\tmatmul\t1\t1\t1\t-9\t7\n🌱';
   const response = '1\tok\t1\t1\t-63\n<safe text>';
@@ -36,6 +36,51 @@ test('text_v2_resource_bounds preserve raw text through the actual browser oracl
   }
 });
 
+test('text_v3_workbench actual oracle maps guided and raw frames and discloses every UI exception', async () => {
+  const source = read('crates/prismpm/src/embedded/hologram-oracle.browser.mjs');
+  const execute = async (program, {request, field = {id:'message', kind:'multiline', required:true, choices:[]},
+    fields = null, eligible = true, category = null, expectedFill = null}) => {
+    const selection = program.slice(program.indexOf('const workbench = '), program.indexOf('const cases = [];'));
+    const frame = program.slice(program.indexOf('function frame(vector) {'), program.indexOf('// Failure-only observations,'));
+    const functions = program.slice(program.indexOf('async function fill('), program.indexOf('const valid = app.acceptance_vectors'));
+    assert(selection.startsWith('const workbench = ')); assert(frame.startsWith('function frame(vector) {'));
+    const vector = {request: [...Buffer.from(request)], response: [...Buffer.from(JSON.stringify({response:'exact underlying wire'}))]};
+    const app = {profile:'prismpm/text-application/3', request_maximum:4096, acceptance_vectors:[vector],
+      workbench:{raw:{request_prefix:'ui-raw-v1'},operations:[{id:'echo',request_prefix:'ui-echo-v1',fields:fields??[field]}]}};
+    const fills = [];
+    const page = {locator: selector => ({evaluate: async fn => fn({tagName:selector==='#field-message'&&field.kind==='choice'?'SELECT':'TEXTAREA'}),
+      fill: async value => fills.push([selector,value]), selectOption: async value => fills.push([selector,value])})};
+    const actual = await runInNewContext(`(async()=>{${selection}\nconst transportRejectedIndexes=[],textareaNormalizedIndexes=[],unrepresentableFrameIndexes=[];\n${frame}\n${functions}\nconst eligible=applicable(vector);if(eligible)await fill(vector);return{eligible,display:displayed(vector),transportRejectedIndexes,textareaNormalizedIndexes,unrepresentableFrameIndexes};})()`,
+      {assert,app,page,vector,TextDecoder,Uint8Array});
+    assert.equal(actual.eligible,eligible);
+    assert.equal(actual.display,'exact underlying wire');
+    for(const name of ['transportRejectedIndexes','textareaNormalizedIndexes','unrepresentableFrameIndexes'])
+      assert.deepEqual(Array.from(actual[name]),name===category?[0]:[]);
+    if(expectedFill)assert.deepEqual(fills,expectedFill);
+  };
+  const probes = [
+    {request:'ui-raw-v1\u001fhello',expectedFill:[['#request','hello']]},
+    {request:'ui-echo-v1\u001fhello',expectedFill:[['#operation','echo'],['#field-message','hello']]},
+    {request:'ui-raw-v1\u001fhello\u001fworld',eligible:false,category:'transportRejectedIndexes'},
+    {request:'ui-raw-v1\u001fhello\r\nworld',eligible:false,category:'textareaNormalizedIndexes'},
+    {request:'ui-echo-v1\u001fhello',fields:[{id:'message',kind:'multiline',required:false,choices:[]},
+      {id:'other',kind:'multiline',required:false,choices:[]}],eligible:false,category:'unrepresentableFrameIndexes'},
+    {request:'ui-echo-v1\u001fmissing',field:{id:'message',kind:'choice',required:true,choices:[{value:'hello'}]},eligible:false,category:'unrepresentableFrameIndexes'},
+    {request:'ui-echo-v1\u001f',eligible:false,category:'transportRejectedIndexes'},
+    {request:'ui-echo-v1\u001fhello\nworld',field:{id:'message',kind:'text',required:true,choices:[]},eligible:false,category:'textareaNormalizedIndexes'},
+    {request:'ui-echo-v1\u001fhello\nworld',expectedFill:[['#operation','echo'],['#field-message','hello\nworld']]},
+    {request:'unframed original wire',eligible:false},
+    {request:'ui-raw-v1\u001f'+'x'.repeat(4097),eligible:false},
+  ];
+  for(const probe of probes)await execute(source,probe);
+  const strip='request.slice(view.raw.request_prefix.length + 1)';
+  assert.equal(source.split(strip).length,2);
+  await assert.rejects(execute(source.replace(strip,'request.slice(view.raw.request_prefix.length)'),probes[0]),assert.AssertionError);
+  const arity='  assert.equal(values.length, operation.fields.length);';
+  assert.equal(source.split(arity).length,2);
+  await assert.rejects(execute(source.replace(arity,''),probes[4]),assert.AssertionError);
+});
+
 test('delayed module fault retires its exact route before the unchanged retained-input submission', async () => {
   const source=read('crates/prismpm/src/embedded/hologram-oracle.browser.mjs');
   const start=source.indexOf("  await journey('delayed-init', async () => {");
@@ -49,8 +94,8 @@ test('delayed module fault retires its exact route before the unchanged retained
     evaluate:async()=> 'x'};
   const context={async route(pattern,value){assert.equal(pattern,'**/app.js');handler=value;events.push('route');},newPage:async()=>page,
     async unroute(pattern,value){assert.equal(pattern,'**/app.js');assert.equal(value,handler);assert(continued);events.push('unroute');},close:async()=>events.push('close')};
-  await runInNewContext('(async()=>{'+body+'})()', {assert,browser:{newContext:async()=>context},origin:'http://127.0.0.1',recovery,text:true,view:{response_error:'not ready'},decode:new TextDecoder(),Uint8Array,
-    journey:async(name,run)=>{assert.equal(name,'delayed-init');await run();},fill:async()=>events.push('fill'),shows:async()=>{},
+  await runInNewContext('(async()=>{'+body+'})()', {assert,browser:{newContext:async()=>context},origin:'http://127.0.0.1',recovery,workbench:false,text:true,view:{response_error:'not ready'},decode:new TextDecoder(),Uint8Array,
+    journey:async(name,run)=>{assert.equal(name,'delayed-init');await run();},fill:async()=>events.push('fill'),statusShows:async()=>{},
     submit:async(vector,target,keyboard,options)=>{assert.equal(vector,recovery);assert.equal(target,page);assert.equal(keyboard,false);assert.equal(options.fillInputs,false);assert(events.includes('unroute'));events.push('submit');}});
   assert.deepEqual(events,['route','goto','fill','continued','unroute','submit','close']);
 });
@@ -1169,7 +1214,7 @@ test('failure-only client observation is bounded and emits no document text or r
   const state = {output: {textContent: privateText}, form: {hasAttribute: () => true}, button: {disabled: false}};
   const document = {querySelector: selector => ({'#result': state.output, '#application-form': state.form, '#submit': state.button})[selector]};
   const observeFactory = runInNewContext('(' + source.slice(start, end) + ')',
-    {setTimeout, clearTimeout, document, text: true, view: {response_error: 'expected-error'}});
+    {setTimeout, clearTimeout, document, workbench: false, text: true, view: {response_error: 'expected-error'}});
   const observe = (target, expected) => observeFactory(target, () => expected);
   const target = {isClosed: () => false, evaluate: async (fn, args) => fn(args)};
   const plain = value => JSON.parse(JSON.stringify(value));

@@ -18,6 +18,7 @@ mod owner_timing;
 mod saved_recovery;
 mod scoped_administration;
 mod text_cli;
+mod workbench;
 
 use node_suite::verify as verify_node_suite;
 use repo_model::repo_root;
@@ -410,6 +411,8 @@ pub fn run_at(root: &Path, id: &str) {
             11,
             "3600000",
         ),
+
+        "HO-19" => workbench::verify(root),
 
         "HO-16" => {
             let browser = Command::new("timeout")
@@ -839,10 +842,12 @@ fn verify_authorities(root: &Path, id: &str) {
             assert!(authorities.iter().all(|row| row["statement"].is_string()
                 && row["source"].is_object()
                 && row.get("executable").is_none()));
-            assert!(oracles.iter().all(|row| row["executable"].is_string()
-                && row["authority_ids"]
-                    .as_array()
-                    .is_some_and(|ids| !ids.is_empty())));
+            assert!(oracles.iter().all(|row| {
+                row["executable"].is_string()
+                    && row["authority_ids"]
+                        .as_array()
+                        .is_some_and(|ids| !ids.is_empty())
+            }));
         }
         "AU-02" => {
             let temp = tempfile::tempdir().unwrap();
@@ -2722,8 +2727,7 @@ fn verify_supply_chain(id: &str) {
                 .split_once(" passed; ")
                 .and_then(|(passed, _)| passed.parse::<usize>().ok());
             assert!(
-                passed == Some(6)
-                    && summaries[0].contains("; 0 failed; 0 ignored; 0 measured;"),
+                passed == Some(6) && summaries[0].contains("; 0 failed; 0 ignored; 0 measured;"),
                 "SC-04 requires all six executed storage and Docker configuration tests without omissions: {stdout}"
             );
         }

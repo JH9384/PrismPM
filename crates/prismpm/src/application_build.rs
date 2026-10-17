@@ -296,7 +296,15 @@ fn generate_browser_view_v1(
         .join(",");
     let generation_manifest = format!(
         "{{\"core_crate\":{:?},\"core_function\":{:?},\"core_version\":{:?},\"files\":[{}],\"generated_core_sha256\":{:?},\"max_input_bytes\":{},\"max_output_bytes\":{},\"model_id\":{:?},\"profile\":\"prism.browser-view/1\",\"schema\":\"lean4-prod/browser-adapter/1\",\"view_model_id\":{:?}}}\n",
-        core_crate_name, entry, package_version, records, core_sha, application.guest_allocation_maximum, application.response_maximum, model_id, view_model_id
+        core_crate_name,
+        entry,
+        package_version,
+        records,
+        core_sha,
+        application.guest_allocation_maximum,
+        application.response_maximum,
+        model_id,
+        view_model_id
     );
     adapter_files.push(PackageFile {
         path: "generation-manifest.json".into(),
@@ -370,8 +378,13 @@ fn generate_browser_view_v1(
 
     let manifest = format!(
         "{{\"browser_adapter\":[{}],\"generated_core_sha256\":{:?},\"hologram_bundle\":{{\"path\":{:?},\"sha256\":{:?}}},\"max_input_bytes\":{},\"max_output_bytes\":{},\"model_id\":{:?},\"profile\":\"prism.browser-view/1\",\"projections\":[{},{}],\"schema\":\"lean4-prod/browser-view-projection/1\",\"view_model_id\":{:?}}}\n",
-        records, core_sha, hologram_bundle.path, sha256(&hologram_bundle.bytes),
-        application.guest_allocation_maximum, application.response_maximum, model_id,
+        records,
+        core_sha,
+        hologram_bundle.path,
+        sha256(&hologram_bundle.bytes),
+        application.guest_allocation_maximum,
+        application.response_maximum,
+        model_id,
         target_records("browser-wasm-bindgen", &browser_assets),
         target_records("hologram-intent-v1", &hologram_assets),
         view_model_id
@@ -399,6 +412,31 @@ fn application_view(
 ) -> Result<(GeneratedViewV1, String, String), PrismError> {
     let (generated, model_id, view_model_id) =
         match application {
+            Application::Text(text) if text.workbench.is_some() => {
+                let application = &text
+                    .workbench_application()
+                    .ok_or_else(|| PrismError::new("PP2009", "text/3 workbench is incomplete"))?;
+                let model_id = content_id(&encode_value(
+                    &serde_json::to_value(model)
+                        .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
+                )?);
+                let view_model_id = content_id(&encode_value(
+                    &serde_json::to_value(&application.view)
+                        .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
+                )?);
+                let entry = application.entry_root.rsplit('.').next().ok_or_else(|| {
+                    PrismError::new("PP2001", "application entry root is malformed")
+                })?;
+                let generated = crate::workbench::generate(
+                    module,
+                    application,
+                    &model_id,
+                    &view_model_id,
+                    core_sha,
+                    entry,
+                )?;
+                return Ok((generated, model_id, view_model_id));
+            }
             Application::Browser(application) => {
                 let model_id = content_id(&encode_value(
                     &serde_json::to_value(model)

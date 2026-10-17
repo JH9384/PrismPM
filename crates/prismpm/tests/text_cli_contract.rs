@@ -342,7 +342,10 @@ fn source() -> String {
         ),
         (
             "responseError := \"Invalid response\"})})".to_owned(),
-            format!("responseError := \"Invalid response\"}}), cli := {}}})", surface_notation()),
+            format!(
+                "responseError := \"Invalid response\"}}), cli := {}, workbench := (ctor Option.none [{V3}::WorkbenchView])}})",
+                surface_notation()
+            ),
         ),
         (
             "\\importmodule{Foundation.View.Text.V1.Model}".to_owned(),

@@ -235,6 +235,12 @@ level = "build"
 statement = "The explicit text/3 profile models its command-line surface in source and generates static musl programs whose bounded raw input, model-owned help and version, declared exit-code map and registered usage, I/O and fault diagnostics are accepted against the Core-Wasm entry for every vector, without handwritten product code or any claim about targets not executed."
 
 [[id]]
+id = "HO-19"
+suite = "holo"
+level = "build"
+statement = "The optional Text/3 workbench binds typed source-owned guidance, forms, examples and error recovery to real byte-guest results, six exact portable assets and cancellable browser worker execution while preserving Text/1 and Text/2 resource semantics and the text/3 command-line surface."
+
+[[id]]
 id = "CT-01"
 suite = "controller"
 level = "build"

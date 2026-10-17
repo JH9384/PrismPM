@@ -162,6 +162,9 @@
         },
         "cli": {
           "$ref": "#/$defs/text_cli"
+        },
+        "workbench": {
+          "$ref": "#/$defs/WorkbenchView"
         }
       },
       "required": [
@@ -427,6 +430,648 @@
       "required": [
         "name",
         "text"
+      ]
+    },
+    "Choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 1048576
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ]
+    },
+    "Field": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "kind": {
+          "enum": [
+            "text",
+            "multiline",
+            "natural",
+            "choice"
+          ]
+        },
+        "help": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "placeholder": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "initial_value": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "choices": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/Choice"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "kind",
+        "help",
+        "placeholder",
+        "initial_value",
+        "required",
+        "choices"
+      ]
+    },
+    "Example": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "values": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "type": "string",
+            "maxLength": 1048576
+          }
+        },
+        "expected_response": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "explanation": {
+          "type": "string",
+          "maxLength": 1048576
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "description",
+        "values",
+        "expected_response",
+        "explanation"
+      ]
+    },
+    "Operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "help": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "request_prefix": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "fields": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/Field"
+          }
+        },
+        "examples": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/Example"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "summary",
+        "help",
+        "request_prefix",
+        "fields",
+        "examples"
+      ]
+    },
+    "Section": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "paragraphs": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "type": "string",
+            "maxLength": 1048576
+          }
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "paragraphs"
+      ]
+    },
+    "Link": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "https_url": {
+          "type": "string",
+          "maxLength": 1048576
+        }
+      },
+      "required": [
+        "label",
+        "https_url"
+      ]
+    },
+    "ErrorHint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "explanation": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "recovery": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "fields": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "type": "string",
+            "maxLength": 1048576
+          }
+        }
+      },
+      "required": [
+        "code",
+        "title",
+        "explanation",
+        "recovery",
+        "fields"
+      ]
+    },
+    "StatusCopy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "initializing": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "ready": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "running": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "cancelling": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "cancelled": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "timeout": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "load_error": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "compute_error": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "input_error": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "response_error": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "script_required": {
+          "type": "string",
+          "maxLength": 16384
+        }
+      },
+      "required": [
+        "initializing",
+        "ready",
+        "running",
+        "cancelling",
+        "cancelled",
+        "timeout",
+        "load_error",
+        "compute_error",
+        "input_error",
+        "response_error",
+        "script_required"
+      ]
+    },
+    "Design": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "palette": {
+          "enum": [
+            "indigo",
+            "ocean"
+          ]
+        },
+        "density": {
+          "enum": [
+            "comfortable",
+            "compact"
+          ]
+        },
+        "width": {
+          "enum": [
+            "balanced",
+            "wide"
+          ]
+        },
+        "color_scheme": {
+          "enum": [
+            "system",
+            "light",
+            "dark"
+          ]
+        }
+      },
+      "required": [
+        "palette",
+        "density",
+        "width",
+        "color_scheme"
+      ]
+    },
+    "RawEditor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_prefix": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "help": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "placeholder": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "initial_value": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "submit_label": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "response_label": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "expanded": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request_prefix",
+        "label",
+        "help",
+        "placeholder",
+        "initial_value",
+        "submit_label",
+        "response_label",
+        "expanded"
+      ]
+    },
+    "DisplaySpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "empty_text": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "raw_label": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "maximum_cells": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "maximum_details": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        }
+      },
+      "required": [
+        "title",
+        "empty_text",
+        "raw_label",
+        "maximum_cells",
+        "maximum_details"
+      ]
+    },
+    "Execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timeout_milliseconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "cancel_label": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "retry_label": {
+          "type": "string",
+          "maxLength": 1048576
+        }
+      },
+      "required": [
+        "timeout_milliseconds",
+        "cancel_label",
+        "retry_label"
+      ]
+    },
+    "WorkbenchView": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "heading": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "purpose": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "audience": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "guidance": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "type": "string",
+            "maxLength": 1048576
+          }
+        },
+        "initial_operation": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "initial_example": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "operations": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/Operation"
+          }
+        },
+        "sections": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/Section"
+          }
+        },
+        "links": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/Link"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/ErrorHint"
+          }
+        },
+        "statuses": {
+          "$ref": "#/$defs/StatusCopy"
+        },
+        "design": {
+          "$ref": "#/$defs/Design"
+        },
+        "raw": {
+          "$ref": "#/$defs/RawEditor"
+        },
+        "response": {
+          "$ref": "#/$defs/DisplaySpec"
+        },
+        "execution": {
+          "$ref": "#/$defs/Execution"
+        },
+        "labels": {
+          "$ref": "#/$defs/WorkbenchLabels"
+        }
+      },
+      "required": [
+        "title",
+        "heading",
+        "purpose",
+        "audience",
+        "guidance",
+        "initial_operation",
+        "initial_example",
+        "operations",
+        "sections",
+        "links",
+        "errors",
+        "statuses",
+        "design",
+        "raw",
+        "response",
+        "execution",
+        "labels"
+      ]
+    },
+    "WorkbenchLabels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "navigation": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "operation": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "examples": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "load_example": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "compute": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "guide": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "links": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "fields": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "expected_response": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "result_table": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "row": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "column": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "request": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "reset": {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        "skip_to_workbench": {
+          "type": "string",
+          "maxLength": 1048576
+        }
+      },
+      "required": [
+        "navigation",
+        "operation",
+        "examples",
+        "load_example",
+        "compute",
+        "guide",
+        "links",
+        "fields",
+        "expected_response",
+        "details",
+        "result_table",
+        "row",
+        "column",
+        "request",
+        "reset",
+        "skip_to_workbench"
       ]
     }
   }

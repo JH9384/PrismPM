@@ -1120,7 +1120,7 @@ statement = "Sensitive fields, credentials, tokens, operands, history, labels, a
 id = "SC-01"
 suite = "supply-chain"
 level = "build"
-statement = "SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure."
+statement = "SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure; local Cargo package checksums resolve normalized project manifests without weakening path confinement."
 
 [[id]]
 id = "SC-02"

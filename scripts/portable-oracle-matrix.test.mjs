@@ -79,6 +79,33 @@ test('text_v3_workbench actual oracle maps guided and raw frames and discloses e
   const arity='  assert.equal(values.length, operation.fields.length);';
   assert.equal(source.split(arity).length,2);
   await assert.rejects(execute(source.replace(arity,''),probes[4]),assert.AssertionError);
+  const boundaries = async (program, workbench, button) => {
+    const start = program.indexOf("    await journey('text-response-bounds', async () => {");
+    const end = program.indexOf("    await journey('text-safe-rendering',", start);
+    assert(start >= 0 && end > start);
+    const responses = [], copies = [], clicks = [];
+    const view = {response_error:'legacy response error',statuses:{compute_error:'compute error',response_error:'response error'}};
+    const page = {
+      async route(pattern, handler) {
+        assert.equal(pattern,'**/_hologram/intent');
+        await handler({fulfill:async ({body})=>responses.push(body)});
+      },
+      async unroute(pattern) {assert.equal(pattern,'**/_hologram/intent');},
+      locator(selector) {return {async click(){clicks.push(selector);assert.equal(selector,button);}};},
+    };
+    const expected = workbench ? ['compute error','response error','compute error','compute error'] : Array(4).fill('legacy response error');
+    await runInNewContext('(async()=>{'+program.slice(start,end)+'})()', {assert,Buffer,page,view,workbench,
+      app:{response_maximum:16},recovery:{request:[120]},frame:()=>({button}),
+      journey:async(name,run)=>{assert.equal(name,'text-response-bounds');await run();},
+      fill:async()=>{},submit:async()=>{},statusShows:async copy=>{copies.push(copy);assert.equal(copy,expected[responses.length-1]);}});
+    assert.equal(responses.length,4);assert.equal(clicks.length,4);assert.deepEqual(copies,expected);
+    assert(responses[0].equals(Buffer.from([255])));
+    assert.deepEqual(JSON.parse(responses[1]),{version:1,outputs:['x'.repeat(17)]});
+    assert.deepEqual(JSON.parse(responses[2]),{version:1,outputs:[]});
+    assert.equal(responses[3].length,16*6+257);
+  };
+  await boundaries(source,true,'#submit');
+  await boundaries(source,false,'#submit');
 });
 
 test('delayed module fault retires its exact route before the unchanged retained-input submission', async () => {

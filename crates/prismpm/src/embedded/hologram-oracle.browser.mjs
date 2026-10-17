@@ -739,12 +739,14 @@ async function journey(name, work) {
   });
   if (text) {
     await journey('text-response-bounds', async () => {
-      for (const body of [Buffer.from([255]), Buffer.from(JSON.stringify({version: 1, outputs: ['x'.repeat(app.response_maximum + 1)]})),
-        Buffer.from(JSON.stringify({version: 1, outputs: []})), Buffer.from('x'.repeat(app.response_maximum * 6 + 257))]) {
+      for (const [body, status] of [[Buffer.from([255]), 'compute_error'],
+        [Buffer.from(JSON.stringify({version: 1, outputs: ['x'.repeat(app.response_maximum + 1)]})), 'response_error'],
+        [Buffer.from(JSON.stringify({version: 1, outputs: []})), 'compute_error'],
+        [Buffer.from('x'.repeat(app.response_maximum * 6 + 257)), 'compute_error']]) {
         await page.route('**/_hologram/intent', route => route.fulfill({status: 200, contentType: 'application/json', body}));
         await fill(recovery);
         await page.locator('#submit').click();
-        await statusShows(workbench ? view.statuses.compute_error : view.response_error);
+        await statusShows(workbench ? view.statuses[status] : view.response_error);
         await page.unroute('**/_hologram/intent');
         await submit(recovery);
       }

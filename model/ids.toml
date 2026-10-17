@@ -1138,7 +1138,7 @@ statement = "Sigstore verification enforces exact trusted issuer, subject, repos
 id = "SC-04"
 suite = "supply-chain"
 level = "build"
-statement = "Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage and stale evidence cannot satisfy current policy."
+statement = "Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage, Docker image children preserve separate credential and builder configuration, and stale evidence cannot satisfy current policy."
 
 [[id]]
 id = "SC-05"

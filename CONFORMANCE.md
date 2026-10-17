@@ -281,7 +281,7 @@ The three honesty levels:
 | --- | --- | --- |
 | `TM-01` | `build` | The versioned UOR template contract preserves repository honesty, anti-vacuity, generated registers, and planted-defect policy. |
 | `TM-02` | `build` | Template-derived devcontainers consume the exact signed SDK manifest digest with no floating feature, installer, action, or host-tool fallback. |
-| `TM-03` | `build` | Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI and return declared release, plan, and evidence digests. |
+| `TM-03` | `build` | Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI, isolate private builder state from read-only registry credentials, and return declared release, plan, and evidence digests. |
 | `TM-04` | `build` | Least-privilege jobs build once and pass the exact digest through protected signing, publication, deployment, and verification boundaries. |
 | `TM-05` | `build` | Template checks are read-only and explicit updates produce reviewable downstream patches or pull requests without hidden branch mutation. |
 | `TM-06` | `build` | All in-scope UOR and Prism repositories use the common SDK bootstrap while preserving their repository-specific acceptance gates. |

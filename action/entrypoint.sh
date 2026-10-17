@@ -196,6 +196,7 @@ docker run --rm \
   --user "$(id -u):$(id -g)" \
   --env HOME=/tmp/prismpm-home \
   --env PRISMPM_EPHEMERAL_HOME=1 \
+  --env BUILDX_CONFIG=/tmp/prismpm-buildx \
   --tmpfs /tmp:rw,exec,nosuid,size=2g \
   --cap-drop ALL \
   --security-opt no-new-privileges \

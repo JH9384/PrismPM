@@ -3309,6 +3309,9 @@ without treating any diagnostic or construction lane as SDK acceptance.
 The Action CLI container uses a bounded 2 GiB `/tmp` tmpfs so the immutable
 SDK's private Cargo home can initialize for a non-root caller. Its isolated
 JSON-output projections retain their separate 64 MiB tmpfs and no project mount.
+The CLI child receives `BUILDX_CONFIG=/tmp/prismpm-buildx` within that private
+tmpfs. Buildx state remains writable independently of read-only registry
+credential mounts; output projections receive no builder configuration.
 
 The shared Action exposes `export-browser` with `reference` and `output` inputs
 passed unchanged to the SDK's existing command. The SDK owns immutable-reference,
@@ -3556,7 +3559,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `SC-06` | `supply-chain` | Supply-chain policy rejects wrong subjects or builders, incomplete graphs, tampering, unsigned promotion, and unsupported claims. | §16 |
 | `TM-01` | `template-ci` | The versioned UOR template contract preserves repository honesty, anti-vacuity, generated registers, and planted-defect policy. | §17 |
 | `TM-02` | `template-ci` | Template-derived devcontainers consume the exact signed SDK manifest digest with no floating feature, installer, action, or host-tool fallback. | §17 |
-| `TM-03` | `template-ci` | Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI and return declared release, plan, and evidence digests. | §17 |
+| `TM-03` | `template-ci` | Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI, isolate private builder state from read-only registry credentials, and return declared release, plan, and evidence digests. | §17 |
 | `TM-04` | `template-ci` | Least-privilege jobs build once and pass the exact digest through protected signing, publication, deployment, and verification boundaries. | §17 |
 | `TM-05` | `template-ci` | Template checks are read-only and explicit updates produce reviewable downstream patches or pull requests without hidden branch mutation. | §17 |
 | `TM-06` | `template-ci` | All in-scope UOR and Prism repositories use the common SDK bootstrap while preserving their repository-specific acceptance gates. | §17 |

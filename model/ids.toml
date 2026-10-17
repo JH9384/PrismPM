@@ -1168,7 +1168,7 @@ statement = "Template-derived devcontainers consume the exact signed SDK manifes
 id = "TM-03"
 suite = "template-ci"
 level = "build"
-statement = "Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI and return declared release, plan, and evidence digests."
+statement = "Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI, isolate private builder state from read-only registry credentials, and return declared release, plan, and evidence digests."
 
 [[id]]
 id = "TM-04"

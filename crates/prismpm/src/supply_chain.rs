@@ -201,6 +201,63 @@ struct InventoryComponent {
 
 type CargoInventory = (Vec<InventoryComponent>, Vec<(String, String)>, Vec<String>);
 
+fn cargo_manifest_source_root(root: &Path, manifest_path: &str) -> Result<PathBuf, PrismError> {
+    let invalid = || {
+        PrismError::new(
+            "PP7801",
+            "Cargo package manifest is not a regular confined source path",
+        )
+    };
+    let project_relative = manifest_path.strip_prefix("$PROJECT/");
+    let project_root = root.canonicalize().map_err(|_| invalid())?;
+    let manifest = if let Some(relative) = project_relative {
+        if relative
+            .split('/')
+            .any(|part| matches!(part, "" | "." | ".."))
+            || Path::new(relative)
+                .components()
+                .any(|part| !matches!(part, std::path::Component::Normal(_)))
+        {
+            return Err(invalid());
+        }
+        project_root.join(relative)
+    } else {
+        // Cargo can select a genuine local dependency outside this project.
+        // Only its absolute, unmodified metadata path has that authority;
+        // malformed normalization tokens cannot introduce such a path.
+        PathBuf::from(manifest_path)
+    };
+    if !manifest.is_absolute()
+        || manifest.file_name().and_then(|name| name.to_str()) != Some("Cargo.toml")
+        || manifest.components().any(|part| {
+            !matches!(
+                part,
+                std::path::Component::Prefix(_)
+                    | std::path::Component::RootDir
+                    | std::path::Component::Normal(_)
+            )
+        })
+    {
+        return Err(invalid());
+    }
+    let mut current = PathBuf::new();
+    for part in manifest.components() {
+        current.push(part.as_os_str());
+        let metadata = std::fs::symlink_metadata(&current).map_err(|_| invalid())?;
+        if metadata.file_type().is_symlink()
+            || (current != manifest && !metadata.is_dir())
+            || (current == manifest && !metadata.is_file())
+        {
+            return Err(invalid());
+        }
+    }
+    let manifest = manifest.canonicalize().map_err(|_| invalid())?;
+    if project_relative.is_some() && !manifest.starts_with(&project_root) {
+        return Err(invalid());
+    }
+    manifest.parent().map(Path::to_owned).ok_or_else(invalid)
+}
+
 fn source_tree_digest(root: &Path) -> Result<String, PrismError> {
     let mut rows = Vec::new();
     for entry in walkdir::WalkDir::new(root).follow_links(false) {
@@ -414,10 +471,8 @@ fn cargo_inventory(root: &Path) -> Result<CargoInventory, PrismError> {
             .map(|checksum| format!("sha256:{checksum}"))
             .map(Ok)
             .unwrap_or_else(|| {
-                let parent = Path::new(manifest_path).parent().ok_or_else(|| {
-                    PrismError::new("PP7801", format!("source absent for {name}@{version}"))
-                })?;
-                source_tree_digest(parent)
+                let parent = cargo_manifest_source_root(root, manifest_path)?;
+                source_tree_digest(&parent)
             })?;
         inventory.push(InventoryComponent {
             id,
@@ -4234,6 +4289,200 @@ pub(crate) fn attach_build_evidence(
 
 #[cfg(test)]
 mod tests {
+    fn cargo_inventory_fixture() -> (tempfile::TempDir, std::path::PathBuf) {
+        let fixture = tempfile::tempdir().unwrap();
+        let root = fixture.path().join("project with spaces");
+        for directory in ["crates/app/src", "crates/model/src"] {
+            std::fs::create_dir_all(root.join(directory)).unwrap();
+        }
+        std::fs::create_dir_all(fixture.path().join("external/src")).unwrap();
+        for (file, text) in [
+            ("Cargo.toml", "[workspace]\nresolver = \"2\"\nmembers = [\"crates/app\", \"crates/model\"]\n"),
+            ("crates/app/Cargo.toml", "[package]\nname = \"inventory-app\"\nversion = \"1.0.0\"\nedition = \"2021\"\nlicense = \"MIT\"\n[dependencies]\ninventory-model = { version = \"1.0.0\", path = \"../model\" }\ninventory-external = { version = \"1.0.0\", path = \"../../../external\" }\n"),
+            ("crates/app/src/lib.rs", "pub fn value() -> u32 { inventory_model::value() + inventory_external::value() }\n"),
+            ("crates/model/Cargo.toml", "[package]\nname = \"inventory-model\"\nversion = \"1.0.0\"\nedition = \"2021\"\nlicense = \"Apache-2.0\"\n"),
+            ("crates/model/src/lib.rs", "pub fn value() -> u32 { 1 }\n"),
+        ] {
+            std::fs::write(root.join(file), text).unwrap();
+        }
+        std::fs::write(fixture.path().join("external/Cargo.toml"), "[package]\nname = \"inventory-external\"\nversion = \"1.0.0\"\nedition = \"2021\"\nlicense = \"MIT\"\n[workspace]\n").unwrap();
+        std::fs::write(
+            fixture.path().join("external/src/lib.rs"),
+            "pub fn value() -> u32 { 2 }\n",
+        )
+        .unwrap();
+        let cargo = crate::sdk::executable("cargo").unwrap();
+        crate::verification::run_process_limited(
+            "cargo-inventory-fixture-lock",
+            &cargo,
+            &["generate-lockfile".to_owned(), "--offline".to_owned()],
+            &root,
+            &std::collections::BTreeMap::new(),
+            &[],
+            "PP7801",
+            "60s",
+            1_048_576,
+        )
+        .unwrap();
+        (fixture, root)
+    }
+
+    #[test]
+    fn cargo_inventory_local_workspace_paths_bind_source_and_are_root_independent() {
+        let (_first, first) = cargo_inventory_fixture();
+        let (_second, second) = cargo_inventory_fixture();
+        let summarize = |root: &std::path::Path| {
+            let (inventory, relationships, unresolved) = super::cargo_inventory(root).unwrap();
+            assert!(unresolved.is_empty());
+            let rows = inventory
+                .into_iter()
+                .map(|item| {
+                    assert_eq!(item.kind, "cargo-package");
+                    assert_eq!(item.source, "workspace");
+                    assert!(super::digest_hex(&item.digest).is_some());
+                    (item.name, (item.id, item.digest, item.license))
+                })
+                .collect::<std::collections::BTreeMap<_, _>>();
+            assert_eq!(
+                rows.keys().map(String::as_str).collect::<Vec<_>>(),
+                ["inventory-app", "inventory-external", "inventory-model"]
+            );
+            assert_eq!(relationships.len(), 2);
+            for dependency in ["inventory-model", "inventory-external"] {
+                assert!(relationships
+                    .contains(&(rows["inventory-app"].0.clone(), rows[dependency].0.clone())));
+            }
+            (rows, relationships)
+        };
+        let original = summarize(&first);
+        assert_eq!(
+            original,
+            summarize(&second),
+            "local source checksums must not contain build-root paths"
+        );
+        std::fs::write(
+            first.join("crates/app/src/lib.rs"),
+            "pub fn value() -> u32 { 7 }\n",
+        )
+        .unwrap();
+        let changed = summarize(&first);
+        assert_ne!(original.0["inventory-app"].1, changed.0["inventory-app"].1);
+        assert_eq!(original.0["inventory-model"], changed.0["inventory-model"]);
+        assert_eq!(
+            original.0["inventory-external"],
+            changed.0["inventory-external"]
+        );
+        assert_eq!(original.1, changed.1);
+    }
+
+    #[test]
+    fn cargo_inventory_manifest_refuses_escapes_nonregular_and_symlink_inputs() {
+        let (fixture, root) = cargo_inventory_fixture();
+        let resolve = |manifest: &str| super::cargo_manifest_source_root(&root, manifest);
+        assert_eq!(
+            resolve("$PROJECT/crates/app/Cargo.toml").unwrap(),
+            root.join("crates/app")
+        );
+        let external = fixture.path().join("external/Cargo.toml");
+        assert_eq!(
+            resolve(external.to_str().unwrap()).unwrap(),
+            fixture.path().join("external")
+        );
+        for invalid in [
+            "",
+            "$PROJECT",
+            "$PROJECTevil/crates/app/Cargo.toml",
+            "$PROJECT//Cargo.toml",
+            "$PROJECT/../external/Cargo.toml",
+            "$PROJECT/crates/app/../../../external/Cargo.toml",
+            "$PROJECT/./Cargo.toml",
+            "$PROJECT/crates/./app/Cargo.toml",
+            "crates/app/Cargo.toml",
+            "$PROJECT/crates/app/not-Cargo.toml",
+            "$PROJECT/missing/Cargo.toml",
+        ] {
+            assert_eq!(resolve(invalid).unwrap_err().code, "PP7801", "{invalid}");
+        }
+        std::fs::create_dir(root.join("directory")).unwrap();
+        std::fs::create_dir(root.join("directory/Cargo.toml")).unwrap();
+        assert_eq!(
+            resolve("$PROJECT/directory/Cargo.toml").unwrap_err().code,
+            "PP7801"
+        );
+        std::fs::write(root.join("plain-file"), b"not a directory").unwrap();
+        assert_eq!(
+            resolve("$PROJECT/plain-file/Cargo.toml").unwrap_err().code,
+            "PP7801"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            for (alias, target) in [
+                ("outside-link", fixture.path().join("external")),
+                ("inside-link", root.join("crates/app")),
+            ] {
+                symlink(target, root.join(alias)).unwrap();
+                let manifest = format!("$PROJECT/{alias}/Cargo.toml");
+                assert_eq!(resolve(&manifest).unwrap_err().code, "PP7801");
+            }
+            std::fs::create_dir(root.join("manifest-link")).unwrap();
+            symlink(
+                root.join("crates/app/Cargo.toml"),
+                root.join("manifest-link/Cargo.toml"),
+            )
+            .unwrap();
+            assert_eq!(
+                resolve("$PROJECT/manifest-link/Cargo.toml")
+                    .unwrap_err()
+                    .code,
+                "PP7801"
+            );
+            symlink(
+                fixture.path().join("external"),
+                fixture.path().join("external-link"),
+            )
+            .unwrap();
+            let external_link = fixture.path().join("external-link/Cargo.toml");
+            assert_eq!(
+                resolve(external_link.to_str().unwrap()).unwrap_err().code,
+                "PP7801"
+            );
+            symlink(
+                root.join("crates/app/src/lib.rs"),
+                root.join("crates/app/src/alias.rs"),
+            )
+            .unwrap();
+            assert_eq!(
+                super::source_tree_digest(&root.join("crates/app"))
+                    .unwrap_err()
+                    .code,
+                "PP7801"
+            );
+        }
+        // The existing process normalizer replaces matching root strings.
+        // A real sibling-prefix dependency is therefore ambiguous, and cannot
+        // authorize treating a malformed project token as an external path.
+        let (alias_fixture, alias_root) = cargo_inventory_fixture();
+        std::fs::rename(
+            alias_fixture.path().join("external"),
+            alias_fixture.path().join("project with spaces-external"),
+        )
+        .unwrap();
+        let manifest = alias_root.join("crates/app/Cargo.toml");
+        let text = std::fs::read_to_string(&manifest).unwrap();
+        std::fs::write(
+            &manifest,
+            text.replace("../../../external", "../../../project with spaces-external"),
+        )
+        .unwrap();
+        let error = super::cargo_inventory(&alias_root).unwrap_err();
+        assert_eq!(error.code, "PP7801");
+        assert_eq!(
+            error.message,
+            "Cargo package manifest is not a regular confined source path"
+        );
+    }
+
     #[test]
     fn current_cosign_capture_is_pinned_or_explicitly_unavailable() {
         let installed = crate::sdk::inventory_path().is_some();

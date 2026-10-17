@@ -3135,6 +3135,16 @@ provenance bind exact subjects, source revision, builder, external parameters
 and resolved dependencies. The claimed SLSA level is limited to evidence
 provided by the accepted build platform.
 
+Local Cargo package checksums use the actual source trees selected by locked,
+offline Cargo metadata. Normalized `$PROJECT/` manifest paths are resolved
+within the project before filesystem reads; malformed tokens, traversal,
+symlink ancestors and non-file manifests fail closed. Unmodified absolute Cargo
+paths for local dependencies outside the project remain supported. Ambiguous
+replacement tokens, including project-prefix aliases, are refused rather than
+interpreted as permission to leave the project. Registry package checksums still
+come from Cargo.lock. Temporary project locations do not enter the resulting
+package identities or source-tree checksums.
+
 Production promotion requires a short-lived identity signature whose trusted
 issuer, subject, repository, workflow, ref, environment, certificate and
 transparency policy are explicit. Unsigned local development remains visibly
@@ -3443,7 +3453,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `OP-04` | `operations` | Bounded load, dependency, process, network, resource, rollout, credential, telemetry, and registry fault scenarios follow modeled policy. | §16 |
 | `OP-05` | `operations` | Observed deployment, health, drift, recovery, and failure evidence remains distinct from proof and binds the deployed release digest. | §16 |
 | `OP-06` | `operations` | Sensitive fields, credentials, tokens, operands, history, labels, and secret values are redacted from source-derived and observed evidence. | §16 |
-| `SC-01` | `supply-chain` | SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure. | §16 |
+| `SC-01` | `supply-chain` | SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure; local Cargo package checksums resolve normalized project manifests without weakening path confinement. | §16 |
 | `SC-02` | `supply-chain` | in-toto Statement v1 and SLSA 1.2 provenance bind subjects, builders, sources, parameters, dependencies, and objectively supported build level. | §16 |
 | `SC-03` | `supply-chain` | Sigstore verification enforces exact trusted issuer, subject, repository, workflow, ref, environment, certificate, and transparency policy. | §16 |
 | `SC-04` | `supply-chain` | Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage and stale evidence cannot satisfy current policy. | §16 |

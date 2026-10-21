@@ -1,4 +1,5 @@
 // Actual authored-source mutations. Only generated execution can kill them.
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 export const reservationModule = 'Foundation.Browser.Application.V1.SessionJournalReservation';
 export const reservationMutations = [
@@ -29,7 +30,7 @@ const canonical = value => Array.isArray(value) ? value.map(canonical) : value &
 export function mutateReservationSource(sources, id) {
   const mutation = reservationMutations.find(row => row.id === id); assert.ok(mutation);
   const before = sources.get(reservationModule); assert.ok(before);
-  const text = before.toString('utf8'), match = /\\semanticdata\{(.*)\}/.exec(text);
+  const text = before.toString('utf8'), match = [text, JSON.stringify(readSemantic(text))];
   const model = JSON.parse(match[1]), declaration = name => {
     const value = model.declarations.find(row => row.name === name); assert.ok(value); return value;
   };
@@ -102,7 +103,7 @@ export function mutateReservationSource(sources, id) {
     walk(declaration('sessionJournalRequiredOrdinals').body);
     assert.equal(changed, id === 'reservation-retained' || id === 'reservation-final-close' ? 4 : 1);
   }
-  sources.set(reservationModule, Buffer.from(text.replace(match[0], '\\semanticdata{' + JSON.stringify(canonical(model)) + '}')));
+  sources.set(reservationModule, Buffer.from(writeSemantic(text, canonical(model))));
   assert.notDeepEqual(sources.get(reservationModule), before);
   return mutation;
 }

@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {chmodSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -41,7 +42,7 @@ export function frozenInputs() {
     'tests/fixtures/library/native-library/project/lexlean.toml', 'model/authorities.toml',
     'model/dependencies.toml', 'rust-toolchain.toml', 'lean-toolchain', 'LICENSE-MIT', 'LICENSE-APACHE',
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json', 'model/browser-presentation-diagnostics.json',
-    'scripts/browser-api-sdk-check.mjs', 'scripts/browser-api-sdk-check.test.mjs', 'scripts/owning-node-reporter.mjs',
+    'scripts/browser-api-sdk-check.mjs', 'scripts/browser-api-sdk-check.test.mjs', 'scripts/owning-node-reporter.mjs', 'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs',
     'scripts/sdk-command-owner.mjs', 'scripts/sdk-command-owner.py',
     'sdk/account-genesis-artifact.mjs',
     'crates/conformance/src/cases/mod.rs', 'crates/conformance/tests/conformance.rs',
@@ -138,7 +139,7 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
   try {
     if (mutation) {
       const name = mutation === 'trailing' ? 'Foundation.View.Browser.V1.Wire' : 'Foundation.View.Browser.V1.Model';
-      const text = sources.get(name).toString('utf8'), matched = /\\semanticdata\{(.*)\}/.exec(text);
+      const text = sources.get(name).toString('utf8'), matched = [text, JSON.stringify(readSemantic(text))];
       const model = JSON.parse(matched[1]);
       if (mutation === 'binding') {
         const target = model.declarations.find(row => row.name === 'bindingValid');
@@ -175,7 +176,7 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
       }
       const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
         ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-      sources.set(name, Buffer.from(text.replace(matched[0], '\\semanticdata{' + JSON.stringify(canonical(model)) + '}')));
+      sources.set(name, Buffer.from(writeSemantic(text, canonical(model))));
     }
     const project = join(work, 'project');
     for (const [module, bytes] of sources) {
@@ -210,7 +211,7 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
     assert.equal(attestation.build_manifest.sha256, sha(manifestBytes));
     assert.equal(attestation.attestation_id, verified.attestation_id);
     const expected = new Map([...sources].flatMap(([module, bytes]) => {
-      const semantic = JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+      const semantic = readSemantic(bytes.toString('utf8'));
       return semantic.declarations.map(declaration => ['PrismPM.' + module + '.' + declaration.name,
         {kind: declaration.axioms?.length ? 'exact' : 'none', axioms: declaration.axioms ?? []}]);
     }));

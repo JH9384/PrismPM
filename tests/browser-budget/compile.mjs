@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -113,7 +114,7 @@ export function prepare(mutation, inputs, compilerOwner = null) {
   try {
     if (mutation) {
       const module='Foundation.Browser.Application.V1.Budget', text=sources.get(module).toString('utf8');
-      const matched=/\\semanticdata\{(.*)\}/.exec(text), model=JSON.parse(matched[1]); let changed=0;
+      const model=readSemantic(text); let changed=0;
       const selected={identity:'effectBudgetFitsManifest',policy:'effectiveRequestFits',manifest:'effectBudgetFitsManifest',request:'effectiveRequestFits',coverage:'effectBudgetFitsManifest',order:'budgetRowsFit',limit:'budgetOperationFits'}[mutation];
       function walk(value) {
         if(!value||typeof value!=='object')return;
@@ -130,7 +131,7 @@ export function prepare(mutation, inputs, compilerOwner = null) {
       const declarations=model.declarations.filter(row=>row.name===selected);assert.equal(declarations.length,1);declarations.forEach(walk);
       assert.equal(changed,mutation==='limit'?5:1,'exact production guard mutation');
       const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
-      sources.set(module,Buffer.from(text.replace(matched[0],'\\semanticdata{'+JSON.stringify(canonical(model))+'}')));
+      sources.set(module,Buffer.from(writeSemantic(text, canonical(model))));
     }
     const project = join(work, 'project');
     for (const [module, bytes] of sources) {
@@ -165,7 +166,7 @@ export function prepare(mutation, inputs, compilerOwner = null) {
     assert.equal(attestation.build_manifest.sha256, sha(manifestBytes));
     assert.equal(attestation.attestation_id, verified.attestation_id);
     const expected = new Map([...sources].flatMap(([module, bytes]) => {
-      const semantic = JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+      const semantic = readSemantic(bytes.toString('utf8'));
       return semantic.declarations.map(declaration => ['PrismPM.' + module + '.' + declaration.name,
         {kind: declaration.axioms?.length ? 'exact' : 'none', axioms: declaration.axioms ?? []}]);
     }));

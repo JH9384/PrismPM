@@ -1,3 +1,4 @@
+import {  } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {createHash, createPublicKey} from 'node:crypto';
 import {withBrowser} from '../../sdk/browser/browser-test-server.mjs';

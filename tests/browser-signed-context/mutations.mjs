@@ -1,4 +1,5 @@
 // Real source defects; the owning test must compile and execute each mutant.
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 const model = 'Foundation.Browser.Application.V1.SignedContext';
@@ -53,7 +54,7 @@ export const mutations = Object.freeze(rules.map(([id, probe]) => Object.freeze(
 export function mutateSignedContextSource(sources, id) {
   const rule = rules.find(row => row[0] === id); assert.ok(rule, 'closed source mutation');
   const [, probe, module, name, predicate, replacement, expected = 1, rootOnly = false] = rule;
-  const before = sources.get(module), text = before.toString('utf8'), original = /\\semanticdata\{(.*)\}/.exec(text);
+  const before = sources.get(module), text = before.toString('utf8'), original = [text, JSON.stringify(readSemantic(text))];
   const value = JSON.parse(original[1]), declaration = value.declarations.find(row => row.name === name); assert.ok(declaration);
   let count = 0;
   function walk(node) {
@@ -67,7 +68,7 @@ export function mutateSignedContextSource(sources, id) {
   const canonical = node => Array.isArray(node) ? node.map(canonical)
     : node && typeof node === 'object'
       ? Object.fromEntries(Object.keys(node).sort().map(key => [key, canonical(node[key])])) : node;
-  const after = Buffer.from(text.replace(original[0], '\\semanticdata{' + JSON.stringify(canonical(value)) + '}'));
+  const after = Buffer.from(writeSemantic(text, canonical(value)));
   const sha = bytes => createHash('sha256').update(bytes).digest('hex');
   assert.notEqual(sha(before), sha(after)); sources.set(module, after);
   return Object.freeze({id, probe, module, declaration: name, before: sha(before), after: sha(after)});

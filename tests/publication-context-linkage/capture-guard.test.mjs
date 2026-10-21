@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -56,7 +57,7 @@ function fixtureSyntax() {
   const names = ['Publication', 'Production.PublicationAdmission.LinkageV1', 'Production.PublicationAdmission.V1'];
   return {modules:names.map(name => {
     const path = (name === 'Publication' ? 'tests/publication-context-linkage' : 'stdlib') + '/src/' + name.replaceAll('.', '/') + '.lex.tex';
-    const semantic = JSON.parse(/\\semanticdata\{(.*)\}/.exec(readFileSync(join(repository, path), 'utf8'))[1]);
+    const semantic = readSemantic(readFileSync(join(repository, path), 'utf8'));
     return {name, source:{path}, declarations:semantic.declarations.map(row => ({logical_id:row.name, linked_ir:row}))};
   })};
 }

@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {chmodSync, copyFileSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -43,7 +44,7 @@ export function frozenInputs() {
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
     'sdk/stdlib-sources.tar',
     'model/browser-semantic-presentation-oracles.json', 'model/browser-semantic-presentation-diagnostics.json',
-    'scripts/browser-api-sdk-check.mjs', 'scripts/owning-node-reporter.mjs',
+    'scripts/browser-api-sdk-check.mjs', 'scripts/owning-node-reporter.mjs', 'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs',
     'scripts/sdk-command-owner.mjs', 'scripts/sdk-command-owner.py',
     'sdk/account-genesis-artifact.mjs',
     'vendor/lean4-prod/lean.tar', 'vendor/lean4-prod/rust/MANIFEST.sha256', 'vendor/lexlean/MANIFEST.sha256',
@@ -176,7 +177,7 @@ function prepareStage(mutation, sourceOnly, baseline, inputs) {
     assert.equal(attestation.build_manifest.sha256, sha(manifestBytes));
     assert.equal(attestation.attestation_id, verified.attestation_id);
     const expected = new Map([...sources].flatMap(([module, bytes]) => {
-      const semantic = JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+      const semantic = readSemantic(bytes.toString('utf8'));
       return semantic.declarations.map(declaration => ['PrismPM.' + module + '.' + declaration.name,
         {kind: declaration.axioms?.length ? 'exact' : 'none', axioms: declaration.axioms ?? []}]);
     }));

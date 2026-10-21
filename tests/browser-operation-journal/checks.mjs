@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
@@ -11,7 +12,7 @@ import {executeWasm, tsv} from '../browser-effects/checks.mjs';
 import {verifyBrowser, verifyHostMutations} from './browser.mjs';
 
 export function verifyInventory() {
-  const semantic = file => JSON.parse(/\\semanticdata\{(.*)\}/.exec(readFileSync(join(repository, file), 'utf8'))[1]);
+  const semantic = file => readSemantic(readFileSync(join(repository, file), 'utf8'));
   const model = semantic('stdlib/src/Foundation/Browser/Application/V1/OperationJournal.lex.tex');
   const effects = semantic('stdlib/src/Foundation/Browser/Application/V1/Effects.lex.tex');
   const cbor = semantic('stdlib/src/Foundation/Codec/Cbor/V1/Primitive.lex.tex');

@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -25,7 +26,7 @@ export function executeWasm(bytes,vectors){
  return {peak,maximumPages:16384};
 }
 export function inventory(){
- const semantic=name=>JSON.parse(readFileSync(join(repository,'stdlib/src',...name.split('.'))+'.lex.tex','utf8').match(/\\semanticdata\{(.*)\}/)[1]);
+ const semantic=name=>readSemantic(readFileSync(join(repository,'stdlib/src',...name.split('.'))+'.lex.tex','utf8'));
  const model=semantic('Production.PublicationAdmission.V1'),types=new Map(model.declarations.filter(row=>['structure','inductive'].includes(row.kind)).map(row=>[row.name,row]));
  const suffix={Trust:'TrustFact'};
  for(const [name,fields]of Object.entries(records))assert.deepEqual(types.get('Publication'+(suffix[name]??name)).fields.map(row=>row.name),fields.map(([field])=>field),'independent record wire order '+name);

@@ -1,8 +1,9 @@
 // Closed fixture authoring from the unchanged accepted reducer corpus.
+import { readSemantic, toNotation } from '../../scripts/semantic-source.mjs';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 const source=readFileSync(new URL('../../stdlib/src/Foundation/Browser/V1/WorkspaceCorpus.lex.tex',import.meta.url),'utf8');
-const payload=JSON.parse(source.split('\n').find(x=>x.startsWith('\\semanticdata{')).slice(14,-1));
+const payload=readSemantic(source);
 const original=new Map(payload.declarations.map(d=>[d.name,d]));
 const cache=new Map();
 function fixture(name){if(cache.has(name))return cache.get(name);function bytes(x){if(x.kind==='bytes')return Buffer.from(x.hex,'hex');if(x.kind==='call')return fixture(x.function.name);if(x.kind==='primitive'&&x.operation==='append')return Buffer.concat(x.arguments.map(bytes));throw Error('fixture expression');}const b=bytes(original.get(name).body);cache.set(name,b);return b;}
@@ -129,4 +130,4 @@ function history(post=false){
 }
 if(process.argv[2]==='--history'||process.argv[2]==='--history-post')process.stdout.write(history(process.argv[2]==='--history-post'));
 else if(process.argv[2]==='--tsv')process.stdout.write(vectors.map(v=>v.id+'\t'+v.request.toString('hex')+'\t'+v.response.toString('hex')+'\n').join(''));
-else process.stdout.write('\\begin{lexlean}{Foundation.Browser.V1.WorkspaceJournalCorpus}\n\\useglossary{lexlean.std.bool@1.1.0}\n\\useglossary{lexlean.std.nat@1.1.0}\n\\importmodule{Foundation.Browser.V1.WorkspaceJournal}\n\\title{Boolean}\n\\begin{semanticmodule}\n\\semanticdata{'+JSON.stringify(canonical({declarations:emitted,spec:'lexlean/semantic-module/1'}))+'}\n\\end{semanticmodule}\n\\end{lexlean}\n');
+else process.stdout.write(toNotation('\\begin{lexlean}{Foundation.Browser.V1.WorkspaceJournalCorpus}\n\\useglossary{lexlean.std.bool@1.2.0}\n\\useglossary{lexlean.std.nat@1.2.0}\n\\importmodule{Foundation.Browser.V1.WorkspaceJournal}\n\\title{Boolean}\n\\begin{semanticmodule}\n\\semanticdata{'+JSON.stringify(canonical({declarations:emitted,spec:'lexlean/semantic-module/2'}))+'}\n\\end{semanticmodule}\n\\end{lexlean}\n'));

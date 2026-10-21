@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -25,7 +26,7 @@ export function executeWasm(bytes,vectors){
  return {peak,maximumPages:16384};
 }
 export function inventory(){
- const source=JSON.parse(readFileSync(join(repository,'stdlib/src/Foundation/Browser/Application/V1/Budget.lex.tex'),'utf8').match(/\\semanticdata\{(.*)\}/)[1]);
+ const source=readSemantic(readFileSync(join(repository,'stdlib/src/Foundation/Browser/Application/V1/Budget.lex.tex'),'utf8'));
  const structures=new Map(source.declarations.filter(row=>row.kind==='structure').map(row=>[row.name,row.fields.map(field=>field.name)]));
  assert.deepEqual([...structures],[['ResourceBudget',['resource','maximum']],['EffectBudget',['application','manifest','requestedPolicy','effectivePolicy','resources']]]);
  const vectors=corpus(),maxima=maximumCorpus();assert.equal(vectors.length,179);assert.equal(maxima.length,25);

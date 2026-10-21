@@ -1,5 +1,6 @@
 // Planted source defects. Acceptance requires real compilation and behavioral
 // refusal failures; successfully editing this AST is not mutation evidence.
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 const model = 'Foundation.Browser.Application.V1.SessionJournal';
 export const metadataMutations = Object.freeze([
@@ -16,7 +17,7 @@ const canonical = value => Array.isArray(value) ? value.map(canonical) : value &
 export function mutateMetadataSource(sources, id) {
   const selected = metadataMutations.find(row => row.id === id); assert.ok(selected, 'closed metadata mutation');
   const before = sources.get(selected.module); assert.ok(Buffer.isBuffer(before));
-  const text = before.toString('utf8'), matched = /\\semanticdata\{(.*)\}/.exec(text); assert.ok(matched);
+  const text = before.toString('utf8'), matched = [text, JSON.stringify(readSemantic(text))]; assert.ok(matched);
   const data = JSON.parse(matched[1]), declaration = data.declarations.find(row => row.name === selected.definition);
   assert.ok(declaration?.body); let changed = 0;
   if (id === 'metadata-trailing') {
@@ -33,7 +34,7 @@ export function mutateMetadataSource(sources, id) {
   } else {
     declaration.body = {kind: 'or', left: declaration.body, right: {kind: 'bool', value: true}}; changed = 1;
   }
-  const after = Buffer.from(text.replace(matched[0], '\\semanticdata{' + JSON.stringify(canonical(data)) + '}'));
+  const after = Buffer.from(writeSemantic(text, canonical(data)));
   assert.notDeepEqual(after, before); sources.set(selected.module, after);
   return {id, module: selected.module, definition: selected.definition, probe: selected.probe, changed};
 }

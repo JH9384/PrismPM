@@ -1,4 +1,5 @@
 // Construction/source-interface checks; not generated retention acceptance.
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
@@ -40,7 +41,7 @@ test('retention source calls and record constructors match exact pinned signatur
   const modules = new Map();
   function capture(name) {
     if (modules.has(name)) return; const text = source(name).toString('utf8');
-    modules.set(name, JSON.parse(/\\semanticdata\{(.*)\}/.exec(text)[1]).declarations);
+    modules.set(name, readSemantic(text).declarations);
     for (const match of text.matchAll(/\\importmodule\{([^}]+)\}/g)) capture(match[1]);
   }
   capture(module + 'Wire');

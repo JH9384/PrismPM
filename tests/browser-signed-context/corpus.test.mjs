@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
@@ -50,8 +51,8 @@ test('independent signed-context exact wire bounds and complete finite inventory
     assert.ok(rows.some(row => row.id === mutation.probe));
     assert.equal([...sources].filter(([name, bytes]) => !bytes.equals(original.get(name))).length, 1);
     for (const bytes of sources.values()) {
-      const json = /\\semanticdata\{(.*)\}/.exec(bytes.toString())[1];
-      assert.equal(json, JSON.stringify(canonical(JSON.parse(json))), 'canonical actual mutant ' + mutation.id);
+      const text = bytes.toString();
+      assert.equal(writeSemantic(text, readSemantic(text)), text, 'canonical actual mutant ' + mutation.id);
     }
   }
 });
@@ -62,11 +63,10 @@ test('envelope reader binds version separately from context key and signature', 
       ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
   for (const name of ['SignedContext', 'SignedContextWire']) {
     const source = readFileSync(new URL('../../stdlib/src/Foundation/Browser/Application/V1/' + name + '.lex.tex', import.meta.url), 'utf8');
-    const json = /\\semanticdata\{(.*)\}/.exec(source)[1];
-    assert.equal(json, JSON.stringify(canonical(JSON.parse(json))), 'canonical actual semantic source ' + name);
+    assert.equal(writeSemantic(source, readSemantic(source)), source, 'canonical actual semantic source ' + name);
   }
   const text = readFileSync(new URL('../../stdlib/src/Foundation/Browser/Application/V1/SignedContextWire.lex.tex', import.meta.url), 'utf8');
-  const model = JSON.parse(/\\semanticdata\{(.*)\}/.exec(text)[1]);
+  const model = readSemantic(text);
   const reader = model.declarations.find(row => row.name === 'readSignedContextEnvelope');
   const values = [];
   function visit(node) {if (!node || typeof node !== 'object') return;
@@ -84,7 +84,7 @@ test('envelope reader binds version separately from context key and signature', 
 test('signed-context admits complete source-validated points rather than provider key shape', () => {
   const source = readFileSync(new URL('../../stdlib/src/Foundation/Browser/Application/V1/SignedContext.lex.tex', import.meta.url), 'utf8');
   assert.match(source, /\\importmodule\{Foundation\.Crypto\.P256\.Model\}/);
-  const model = JSON.parse(/\\semanticdata\{(.*)\}/.exec(source)[1]);
+  const model = readSemantic(source);
   const key = model.declarations.find(row => row.name === 'signedContextKeyValid');
   assert.equal(key.body.kind, 'and');
   assert.equal(key.body.left.function.name, 'effectSigningGrantValid');
@@ -121,7 +121,7 @@ test('validity mutants retain parameter use and exact semantic counterexamples',
   ]) {
     const sources = new Map([[name, original]]);
     mutateSignedContextSource(sources, id);
-    const data = JSON.parse(/\\semanticdata\{(.*)\}/.exec(sources.get(name).toString())[1]);
+    const data = readSemantic(sources.get(name).toString());
     const declaration = data.declarations.find(row => row.name === declarationName);
     const uses = new Set(), calls = new Set();
     function visit(node) {

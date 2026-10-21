@@ -1,4 +1,5 @@
 // Independent literal expectations; framing builders below do not run the model.
+import { toNotation } from '../../scripts/semantic-source.mjs';
 import {Buffer} from 'node:buffer';
 import {readFileSync} from 'node:fs';
 export const H=(hex)=>Buffer.from(hex,'hex'),U=value=>Buffer.from([value]);
@@ -133,5 +134,5 @@ export function semanticCorpus(){
   definition('probe'+item.id,T,{kind:'call',function:{module:'Foundation.Browser.V1.Workspace',name:'workspaceBytesEqual'},arguments:[{kind:'call',function:{module:'Foundation.View.Workspace.V1.Interaction',name:'workspaceInteractionBytes'},arguments:[call('request'+item.id)]},call('response'+item.id)]},['Classical.choice','Quot.sound','propext']);
  }
  const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
- return '\\begin{lexlean}{Foundation.View.Workspace.V1.Corpus}\n\\useglossary{lexlean.std.bool@1.1.0}\n\\useglossary{lexlean.std.nat@1.1.0}\n\\importmodule{Foundation.View.Workspace.V1.Interaction}\n\\importmodule{Foundation.Browser.V1.Workspace}\n\\title{Boolean}\n\\begin{semanticmodule}\n\\semanticdata{'+JSON.stringify(canonical({declarations:definitions,spec:'lexlean/semantic-module/1'}))+'}\n\\end{semanticmodule}\n\\end{lexlean}\n';
+ return toNotation('\\begin{lexlean}{Foundation.View.Workspace.V1.Corpus}\n\\useglossary{lexlean.std.bool@1.2.0}\n\\useglossary{lexlean.std.nat@1.2.0}\n\\importmodule{Foundation.View.Workspace.V1.Interaction}\n\\importmodule{Foundation.Browser.V1.Workspace}\n\\title{Boolean}\n\\begin{semanticmodule}\n\\semanticdata{'+JSON.stringify(canonical({declarations:definitions,spec:'lexlean/semantic-module/2'}))+'}\n\\end{semanticmodule}\n\\end{lexlean}\n');
 }

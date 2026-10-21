@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from './semantic-source.mjs';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
@@ -208,13 +209,12 @@ for (const route of ['platform-runner', 'explicit-QEMU-diagnostic']) test(`actua
     run('tar', ['--extract', '--file', join(work, 'source.tar'), '--directory', envelope]);
     prepare(root, envelope);
     const core = join(envelope, 'stdlib/src/Foundation/Core.lex.tex');
-    const lines = readFileSync(core, 'utf8').split('\n');
-    const index = lines.findIndex(line => line.startsWith('\\semanticdata{'));
-    const payload = JSON.parse(lines[index].slice('\\semanticdata{'.length, -1));
+    const coreText = readFileSync(core, 'utf8');
+    const payload = readSemantic(coreText);
     for (const [name, value] of base32Vectors) payload.declarations.push({
       body: { kind: 'string', value: sha256Base32(value) }, kind: 'definition', name: `base32Probe_${name}`, parameters: [], result: { kind: 'string' }
     });
-    const save = () => { lines[index] = `\\semanticdata{${canonical(payload)}}`; writeFileSync(core, lines.join('\n')); };
+    const save = () => { writeFileSync(core, writeSemantic(coreText, payload)); };
     const capture = () => {
       writeFileSync(join(work, 'check.json'), runPrior(['--project', envelope, 'check', '--json']));
       writeFileSync(join(work, 'build.json'), runPrior(['--project', envelope, 'build', '--json']));

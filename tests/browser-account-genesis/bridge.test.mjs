@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {chmodSync,copyFileSync,linkSync,lstatSync,mkdirSync,mkdtempSync,readFileSync,renameSync,rmSync,symlinkSync,unlinkSync,writeFileSync} from 'node:fs';
@@ -129,9 +130,8 @@ test('canonical source and every canonical mutant bind one changed module and a 
   const original = new Map(names.map(name => [name,
     readFileSync(new URL('../../stdlib/src/' + name.replaceAll('.', '/') + '.lex.tex', import.meta.url))]));
   const checkCanonical = source => {
-    const text = source.toString('utf8'), json = /\\semanticdata\{(.*)\}/.exec(text)[1];
-    const data = JSON.parse(json);
-    assert.equal(json, JSON.stringify(canonical(data)), 'actual canonical semantic JSON');
+    const text = source.toString('utf8'), data = readSemantic(text);
+    assert.equal(writeSemantic(text, data), text, 'actual canonical semantic source');
     const available = new Set([...text.matchAll(/\\importmodule\{([^}]+)\}/g)].map(row => row[1]));
     available.add(/\\begin\{lexlean\}\{([^}]+)\}/.exec(text)[1]);
     const visit = value => {

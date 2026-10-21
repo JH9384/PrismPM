@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
@@ -15,7 +16,7 @@ import {metadataTraversalCorpus} from './traversal-corpus.mjs';
 
 test('recovery owns new source roots without replacing Session late-completion admission', () => {
   const source = readFileSync(new URL('../../stdlib/src/Foundation/Browser/Application/V1/SessionJournalRecovery.lex.tex', import.meta.url), 'utf8');
-  const declarations = JSON.parse(/\\semanticdata\{(.*)\}/.exec(source)[1]).declarations;
+  const declarations = readSemantic(source).declarations;
   for (const name of ['sourceRecoveryContextBytes', 'sourceRecoveryWireBytes', 'recoverQuiescentSourceSession'])
     assert.ok(declarations.some(row => row.name === name), 'actual source root ' + name);
   assert.ok(!declarations.some(row => row.name === 'settleSourceCommand'), 'no replacement late completion reducer');

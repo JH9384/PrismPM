@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 
 export function canonical(value) {
@@ -25,7 +26,7 @@ export const mutations = Object.freeze([
 export function mutateAccountGenesisSource(sources, id) {
   const selected = mutations.find(row => row.id === id); assert.ok(selected, 'registered genesis mutation');
   const original = sources.get(selected.module), text = original.toString('utf8');
-  const data = JSON.parse(/\\semanticdata\{(.*)\}/.exec(text)[1]);
+  const data = readSemantic(text);
   const declaration = data.declarations.find(row => row.name === selected.definition); assert.ok(declaration);
   let count = 0;
   const yes = {kind: 'bool', value: true};
@@ -67,8 +68,7 @@ export function mutateAccountGenesisSource(sources, id) {
     visit(declaration.body);
   }
   assert.equal(count, 1, 'one exact source defect ' + id);
-  const changed = Buffer.from(text.replace(/\\semanticdata\{.*\}/,
-    '\\semanticdata{' + JSON.stringify(canonical(data)) + '}'));
+  const changed = Buffer.from(writeSemantic(text, canonical(data)));
   assert.notDeepEqual(changed, original);
   sources.set(selected.module, changed); return selected;
 }

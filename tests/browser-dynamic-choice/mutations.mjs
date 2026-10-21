@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 
 export const mutationNames = Object.freeze(['duplicate', 'name-limit', 'selection', 'aggregate', 'semantic-field', 'size']);
@@ -13,7 +14,7 @@ export function mutateSources(sources, kind) {
   assert.ok(mutationNames.includes(kind), 'closed source mutation');
   const name = kind === 'size' ? 'Foundation.Browser.Application.V1.Session'
     : 'Foundation.View.Browser.V1.' + (kind === 'semantic-field' ? 'Semantics' : 'Model');
-  const source = sources.get(name).toString('utf8'), match = /\\semanticdata\{(.*)\}/.exec(source);
+  const source = sources.get(name).toString('utf8'), match = [source, JSON.stringify(readSemantic(source))];
   const model = JSON.parse(match[1]);
   const selected = model.declarations.find(declaration => declaration.name === ({
     duplicate: 'textChoicesValid', 'name-limit': 'textChoicesValid', selection: 'fieldValueFits',
@@ -43,6 +44,6 @@ export function mutateSources(sources, kind) {
     }
   });
   assert.equal(changed, 1, 'one intended actual source guard mutation ' + kind);
-  const output = Buffer.from(source.replace(match[0], '\\semanticdata{' + JSON.stringify(canonical(model)) + '}'));
+  const output = Buffer.from(writeSemantic(source, canonical(model)));
   assert.notDeepEqual(output, sources.get(name)); sources.set(name, output);
 }

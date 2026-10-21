@@ -1,4 +1,5 @@
 // Construction/oracle checks, not generated-source acceptance.
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {spawnSync} from 'node:child_process';
@@ -101,7 +102,7 @@ test('source composition uses exact pinned call arities and a bounded recursive 
   function capture(name) {
     if (modules.has(name)) return;
     const text = readFileSync(new URL(name.replaceAll('.', '/') + '.lex.tex', base), 'utf8');
-    const declarations = JSON.parse(/\\semanticdata\{(.*)\}/.exec(text)[1]).declarations;
+    const declarations = readSemantic(text).declarations;
     modules.set(name, declarations);
     for (const match of text.matchAll(/\\importmodule\{([^}]+)\}/g)) capture(match[1]);
   }

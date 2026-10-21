@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -300,12 +301,12 @@ export function prepare(mutation=null,compilerOwner=null){
     const sources=new Map(modules.map(name=>[name,readFileSync(sourcePath(name))]));
     const originalSources=new Map(sources);
     if(mutation){
-      const name='Foundation.View.Workspace.V1.Interaction',text=sources.get(name).toString('utf8'),match=/\\semanticdata\{(.*)\}/.exec(text);assert.ok(match);
-      const ast=JSON.parse(match[1]);
+      const name='Foundation.View.Workspace.V1.Interaction',text=sources.get(name).toString('utf8');
+      const ast=readSemantic(text);
       if(mutation==='session'){const d=ast.declarations.find(d=>d.name==='interactionComplete'),node=d.body.branches[0].body.branches[0].body.scrutinee.value;assert.equal(node.left.function.name,'workspaceBytesEqual');node.left={kind:'bool',value:true};}
       else{const d=ast.declarations.find(d=>d.name==='interactionPresentation'),node=d.body.arguments[1].branches[0].body;assert.equal(node.arguments[1].function.name,'byteWindow');node.arguments[1]={kind:'bytes',hex:''};}
       const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
-      sources.set(name,Buffer.from(text.replace(match[0],'\\semanticdata{'+JSON.stringify(canonical(ast))+'}')));
+      sources.set(name,Buffer.from(writeSemantic(text, canonical(ast))));
     }
     const project=join(work,'project');
     for(const [name,bytes]of sources){const path=join(project,'src',...name.split('.'))+'.lex.tex';mkdirSync(dirname(path),{recursive:true});writeFileSync(path,bytes,{flag:'wx'});}

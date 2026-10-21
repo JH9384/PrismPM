@@ -1,8 +1,51 @@
 \begin{lexlean}{Foundation.Holo.V1.CoreWasm}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"exportedMemory","type":{"kind":"bool"}},{"name":"allocatorExport","type":{"kind":"string"}},{"name":"entryExport","type":{"kind":"string"}},{"name":"importsEmpty","type":{"kind":"bool"}},{"name":"memoryMaximumBytes","type":{"kind":"uint32"}},{"name":"maximumPages","type":{"kind":"uint32"}},{"name":"allocationAlignment","type":{"kind":"uint8"}},{"name":"inputMaximum","type":{"kind":"uint32"}},{"name":"outputMaximum","type":{"kind":"uint32"}},{"name":"panicAbort","type":{"kind":"bool"}}],"kind":"structure","name":"Contract","parameters":[],"type_parameters":[]},{"fields":[{"name":"pointer","type":{"kind":"uint32"}},{"name":"length","type":{"kind":"uint32"}}],"kind":"structure","name":"PackedResult","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"NegativePointer"},{"fields":[],"name":"NegativeLength"},{"fields":[],"name":"OverLimit"},{"fields":[],"name":"OutOfBounds"},{"fields":[],"name":"Overlap"},{"fields":[],"name":"GrowthFailure"},{"fields":[],"name":"WrongSignature"},{"fields":[],"name":"UnexpectedImport"}],"kind":"inductive","name":"AbiError","parameters":[],"type_parameters":[]},{"body":{"kind":"string","value":"hologram:guest/core-wasm@1"},"kind":"definition","name":"contractName","parameters":[],"result":{"kind":"string"}},{"body":{"kind":"string","value":"holo_alloc"},"kind":"definition","name":"allocatorName","parameters":[],"result":{"kind":"string"}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: Contract,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: exportedMemory, type: Bool},
+    {name: allocatorExport, type: String},
+    {name: entryExport, type: String},
+    {name: importsEmpty, type: Bool},
+    {name: memoryMaximumBytes, type: UInt32},
+    {name: maximumPages, type: UInt32},
+    {name: allocationAlignment, type: UInt8},
+    {name: inputMaximum, type: UInt32},
+    {name: outputMaximum, type: UInt32},
+    {name: panicAbort, type: Bool}
+  ]
+}
+
+structure{
+  name: PackedResult,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: pointer, type: UInt32}, {name: length, type: UInt32}]
+}
+
+inductive{
+  name: AbiError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: NegativePointer, fields: []},
+    {name: NegativeLength, fields: []},
+    {name: OverLimit, fields: []},
+    {name: OutOfBounds, fields: []},
+    {name: Overlap, fields: []},
+    {name: GrowthFailure, fields: []},
+    {name: WrongSignature, fields: []},
+    {name: UnexpectedImport, fields: []}
+  ]
+}
+
+definition{name: contractName, parameters: [], result: String, body: "hologram:guest/core-wasm@1"}
+
+definition{name: allocatorName, parameters: [], result: String, body: "holo_alloc"}
 \end{semanticmodule}
 \end{lexlean}

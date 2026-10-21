@@ -91,8 +91,8 @@ all generated-package, Wasm, View, archive, oracle, and modeled-vector checks.
 
 The product facet names `prism-arch`, `prism-sec`, and `prism-qual` correspond
 to the legal LexLean package IDs `prism.arch@1.0.0`, `prism.sec@1.0.0`, and
-`prism.qual@1.0.0`. They use language 1.1, exact local package locks, and only
-the language-1.1 builtin packages. Each public surface has one owner. Import,
+`prism.qual@1.0.0`. They use language 1.2, exact local package locks, and only
+the language-1.2 builtin packages. Each public surface has one owner. Import,
 denotation, and ownership graphs are acyclic and unambiguous; every renderer
 atom and signature is closed by its package.
 

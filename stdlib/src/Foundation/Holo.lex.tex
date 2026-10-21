@@ -1,6 +1,6 @@
 \begin{lexlean}{Foundation.Holo}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \useglossary{prism.arch@1.0.0}
 \useglossary{prism.qual@1.0.0}
 \useglossary{prism.sec@1.0.0}
@@ -31,6 +31,325 @@
 \importmodule{Foundation.View.V1.Projection}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"architectureEdition","type":{"kind":"nat"}},{"name":"applicationSecurityEdition","type":{"kind":"nat"}},{"name":"controlEdition","type":{"kind":"nat"}},{"name":"riskEdition","type":{"kind":"nat"}},{"name":"qualityEdition","type":{"kind":"nat"}}],"kind":"structure","name":"StandardsProfile","parameters":[],"type_parameters":[]},{"fields":[{"name":"componentIndexes","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"edgeEndpoints","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"riskLinks","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"controlLinks","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"viewpointLinks","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"qualityLinks","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"flattenedIndexes","type":{"element":{"kind":"nat"},"kind":"list"}}],"kind":"structure","name":"NormalizedHolo","parameters":[],"type_parameters":[]},{"fields":[{"name":"bound","type":{"kind":"nat"}},{"name":"indexes","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"references","type":{"element":{"kind":"nat"},"kind":"list"}}],"kind":"structure","name":"FlatValidationInput","parameters":[],"type_parameters":[]},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["value","rest"],"body":{"kind":"and","left":{"kind":"beq","left":{"kind":"var","name":"expected"},"right":{"kind":"var","name":"value"}},"right":{"arguments":[{"kind":"add","left":{"kind":"var","name":"expected"},"right":{"kind":"nat","value":"1"}},{"kind":"var","name":"rest"}],"function":{"name":"allConsecutive"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"values"}},"kind":"definition","name":"allConsecutive","parameters":[{"name":"expected","type":{"kind":"nat"}},{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"recursive_argument":"values","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"eq","left":{"kind":"var","name":"expected"},"right":{"kind":"var","name":"expected"}},"constructor":{"name":"List.nil"}},{"binders":["value","rest"],"body":{"kind":"prop_and","left":{"kind":"eq","left":{"kind":"var","name":"expected"},"right":{"kind":"var","name":"value"}},"right":{"arguments":[{"kind":"add","left":{"kind":"var","name":"expected"},"right":{"kind":"nat","value":"1"}},{"kind":"var","name":"rest"}],"function":{"name":"allConsecutiveProp"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"values"}},"kind":"definition","name":"allConsecutiveProp","parameters":[{"name":"expected","type":{"kind":"nat"}},{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"recursive_argument":"values","result":{"kind":"prop"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["value","rest"],"body":{"kind":"and","left":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"var","name":"bound"}},"right":{"arguments":[{"kind":"var","name":"bound"},{"kind":"var","name":"rest"}],"function":{"name":"allBelow"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"values"}},"kind":"definition","name":"allBelow","parameters":[{"name":"bound","type":{"kind":"nat"}},{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"recursive_argument":"values","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"eq","left":{"kind":"var","name":"bound"},"right":{"kind":"var","name":"bound"}},"constructor":{"name":"List.nil"}},{"binders":["value","rest"],"body":{"kind":"prop_and","left":{"kind":"lt","left":{"kind":"var","name":"value"},"right":{"kind":"var","name":"bound"}},"right":{"arguments":[{"kind":"var","name":"bound"},{"kind":"var","name":"rest"}],"function":{"name":"allBelowProp"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"values"}},"kind":"definition","name":"allBelowProp","parameters":[{"name":"bound","type":{"kind":"nat"}},{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"recursive_argument":"values","result":{"kind":"prop"}},{"body":{"arguments":[{"kind":"nat","value":"0"},{"kind":"var","name":"values"}],"function":{"name":"allConsecutive"},"kind":"call"},"kind":"definition","name":"validateComponentIndexes","parameters":[{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"arguments":[{"kind":"var","name":"componentCount"},{"kind":"var","name":"endpoints"}],"function":{"name":"allBelow"},"kind":"call"},"kind":"definition","name":"validateEdgeEndpoints","parameters":[{"name":"componentCount","type":{"kind":"nat"}},{"name":"endpoints","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"arguments":[{"kind":"var","name":"assetOrThreatCount"},{"kind":"var","name":"links"}],"function":{"name":"allBelow"},"kind":"call"},"kind":"definition","name":"validateRiskLinks","parameters":[{"name":"assetOrThreatCount","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"arguments":[{"kind":"var","name":"riskCount"},{"kind":"var","name":"links"}],"function":{"name":"allBelow"},"kind":"call"},"kind":"definition","name":"validateControlLinks","parameters":[{"name":"riskCount","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"arguments":[{"kind":"var","name":"targetCount"},{"kind":"var","name":"links"}],"function":{"name":"allBelow"},"kind":"call"},"kind":"definition","name":"validateViewpointLinks","parameters":[{"name":"targetCount","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"arguments":[{"kind":"var","name":"targetCount"},{"kind":"var","name":"links"}],"function":{"name":"allBelow"},"kind":"call"},"kind":"definition","name":"validateQualityLinks","parameters":[{"name":"targetCount","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"arguments":[{"kind":"var","name":"bound"},{"kind":"var","name":"indexes"}],"function":{"name":"allBelow"},"kind":"call"},"kind":"definition","name":"validateFlattenedBounds","parameters":[{"name":"bound","type":{"kind":"nat"}},{"name":"indexes","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"kind":"and","left":{"kind":"beq","left":{"field":"architectureEdition","kind":"project","value":{"kind":"var","name":"profile"}},"right":{"kind":"nat","value":"2022"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"applicationSecurityEdition","kind":"project","value":{"kind":"var","name":"profile"}},"right":{"kind":"nat","value":"2011"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"controlEdition","kind":"project","value":{"kind":"var","name":"profile"}},"right":{"kind":"nat","value":"2017"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"riskEdition","kind":"project","value":{"kind":"var","name":"profile"}},"right":{"kind":"nat","value":"2022"}},"right":{"kind":"beq","left":{"field":"qualityEdition","kind":"project","value":{"kind":"var","name":"profile"}},"right":{"kind":"nat","value":"2023"}}}}}},"kind":"definition","name":"validateExactStandardsProfile","parameters":[{"name":"profile","type":{"arguments":[],"kind":"named","member":{"name":"StandardsProfile"}}}],"result":{"kind":"bool"}},{"body":{"arguments":[{"kind":"nat","value":"0"},{"kind":"var","name":"values"}],"function":{"name":"allConsecutiveProp"},"kind":"call"},"kind":"definition","name":"componentIndexesValid","parameters":[{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"prop"}},{"body":{"arguments":[{"kind":"var","name":"componentCount"},{"kind":"var","name":"endpoints"}],"function":{"name":"allBelowProp"},"kind":"call"},"kind":"definition","name":"edgeEndpointsValid","parameters":[{"name":"componentCount","type":{"kind":"nat"}},{"name":"endpoints","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"prop"}},{"body":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"allBelowProp"},"kind":"call"},"kind":"definition","name":"riskLinksValid","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"prop"}},{"body":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"allBelowProp"},"kind":"call"},"kind":"definition","name":"controlLinksValid","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"prop"}},{"body":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"allBelowProp"},"kind":"call"},"kind":"definition","name":"viewpointLinksValid","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"prop"}},{"body":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"allBelowProp"},"kind":"call"},"kind":"definition","name":"qualityLinksValid","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"prop"}},{"body":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"allBelowProp"},"kind":"call"},"kind":"definition","name":"flattenedBoundsValid","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"prop"}},{"body":{"kind":"prop_and","left":{"kind":"eq","left":{"field":"architectureEdition","kind":"project","value":{"kind":"var","name":"profile"}},"right":{"kind":"nat","value":"2022"}},"right":{"kind":"prop_and","left":{"kind":"eq","left":{"field":"applicationSecurityEdition","kind":"project","value":{"kind":"var","name":"profile"}},"right":{"kind":"nat","value":"2011"}},"right":{"kind":"prop_and","left":{"kind":"eq","left":{"field":"controlEdition","kind":"project","value":{"kind":"var","name":"profile"}},"right":{"kind":"nat","value":"2017"}},"right":{"kind":"prop_and","left":{"kind":"eq","left":{"field":"riskEdition","kind":"project","value":{"kind":"var","name":"profile"}},"right":{"kind":"nat","value":"2022"}},"right":{"kind":"eq","left":{"field":"qualityEdition","kind":"project","value":{"kind":"var","name":"profile"}},"right":{"kind":"nat","value":"2023"}}}}}},"kind":"definition","name":"standardsProfileValid","parameters":[{"name":"profile","type":{"arguments":[],"kind":"named","member":{"name":"StandardsProfile"}}}],"result":{"kind":"prop"}},{"body":{"fields":[{"field":"architectureEdition","value":{"kind":"nat","value":"2022"}},{"field":"applicationSecurityEdition","value":{"kind":"nat","value":"2011"}},{"field":"controlEdition","value":{"kind":"nat","value":"2017"}},{"field":"riskEdition","value":{"kind":"nat","value":"2022"}},{"field":"qualityEdition","value":{"kind":"nat","value":"2023"}}],"kind":"record","type":{"name":"StandardsProfile"}},"kind":"definition","name":"canonicalStandardsProfile","parameters":[],"result":{"arguments":[],"kind":"named","member":{"name":"StandardsProfile"}}},{"kind":"theorem","name":"allConsecutive_sound_complete","parameters":[{"name":"expected","type":{"kind":"nat"}},{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"proof":{"kind":"boolean_reflection","reflection":{"boolean_definition":{"name":"allConsecutive"},"comparison":"nat_beq","kind":"list","parameter":"expected","proposition_definition":{"name":"allConsecutiveProp"},"values":"values"}},"statement":{"kind":"iff","left":{"kind":"eq","left":{"arguments":[{"kind":"var","name":"expected"},{"kind":"var","name":"values"}],"function":{"name":"allConsecutive"},"kind":"call"},"right":{"kind":"bool","value":true}},"right":{"arguments":[{"kind":"var","name":"expected"},{"kind":"var","name":"values"}],"function":{"name":"allConsecutiveProp"},"kind":"call"}}},{"kind":"theorem","name":"allBelow_sound_complete","parameters":[{"name":"bound","type":{"kind":"nat"}},{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"proof":{"kind":"boolean_reflection","reflection":{"boolean_definition":{"name":"allBelow"},"comparison":"nat_blt","kind":"list","parameter":"bound","proposition_definition":{"name":"allBelowProp"},"values":"values"}},"statement":{"kind":"iff","left":{"kind":"eq","left":{"arguments":[{"kind":"var","name":"bound"},{"kind":"var","name":"values"}],"function":{"name":"allBelow"},"kind":"call"},"right":{"kind":"bool","value":true}},"right":{"arguments":[{"kind":"var","name":"bound"},{"kind":"var","name":"values"}],"function":{"name":"allBelowProp"},"kind":"call"}}},{"kind":"theorem","name":"componentIndexes_sound_complete","parameters":[{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"proof":{"arguments":[{"kind":"nat","value":"0"},{"kind":"var","name":"values"}],"kind":"apply","theorem":{"name":"allConsecutive_sound_complete"}},"statement":{"kind":"iff","left":{"kind":"eq","left":{"arguments":[{"kind":"var","name":"values"}],"function":{"name":"validateComponentIndexes"},"kind":"call"},"right":{"kind":"bool","value":true}},"right":{"arguments":[{"kind":"var","name":"values"}],"function":{"name":"componentIndexesValid"},"kind":"call"}}},{"kind":"theorem","name":"edgeEndpoints_sound_complete","parameters":[{"name":"componentCount","type":{"kind":"nat"}},{"name":"endpoints","type":{"element":{"kind":"nat"},"kind":"list"}}],"proof":{"arguments":[{"kind":"var","name":"componentCount"},{"kind":"var","name":"endpoints"}],"kind":"apply","theorem":{"name":"allBelow_sound_complete"}},"statement":{"kind":"iff","left":{"kind":"eq","left":{"arguments":[{"kind":"var","name":"componentCount"},{"kind":"var","name":"endpoints"}],"function":{"name":"validateEdgeEndpoints"},"kind":"call"},"right":{"kind":"bool","value":true}},"right":{"arguments":[{"kind":"var","name":"componentCount"},{"kind":"var","name":"endpoints"}],"function":{"name":"edgeEndpointsValid"},"kind":"call"}}},{"kind":"theorem","name":"riskLinks_sound_complete","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"proof":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"kind":"apply","theorem":{"name":"allBelow_sound_complete"}},"statement":{"kind":"iff","left":{"kind":"eq","left":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"validateRiskLinks"},"kind":"call"},"right":{"kind":"bool","value":true}},"right":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"riskLinksValid"},"kind":"call"}}},{"kind":"theorem","name":"controlLinks_sound_complete","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"proof":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"kind":"apply","theorem":{"name":"allBelow_sound_complete"}},"statement":{"kind":"iff","left":{"kind":"eq","left":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"validateControlLinks"},"kind":"call"},"right":{"kind":"bool","value":true}},"right":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"controlLinksValid"},"kind":"call"}}},{"kind":"theorem","name":"viewpointLinks_sound_complete","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"proof":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"kind":"apply","theorem":{"name":"allBelow_sound_complete"}},"statement":{"kind":"iff","left":{"kind":"eq","left":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"validateViewpointLinks"},"kind":"call"},"right":{"kind":"bool","value":true}},"right":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"viewpointLinksValid"},"kind":"call"}}},{"kind":"theorem","name":"qualityLinks_sound_complete","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"proof":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"kind":"apply","theorem":{"name":"allBelow_sound_complete"}},"statement":{"kind":"iff","left":{"kind":"eq","left":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"validateQualityLinks"},"kind":"call"},"right":{"kind":"bool","value":true}},"right":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"qualityLinksValid"},"kind":"call"}}},{"kind":"theorem","name":"flattenedBounds_sound_complete","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"links","type":{"element":{"kind":"nat"},"kind":"list"}}],"proof":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"kind":"apply","theorem":{"name":"allBelow_sound_complete"}},"statement":{"kind":"iff","left":{"kind":"eq","left":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"validateFlattenedBounds"},"kind":"call"},"right":{"kind":"bool","value":true}},"right":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"links"}],"function":{"name":"flattenedBoundsValid"},"kind":"call"}}},{"kind":"theorem","name":"standardsProfile_sound_complete","parameters":[{"name":"profile","type":{"arguments":[],"kind":"named","member":{"name":"StandardsProfile"}}}],"proof":{"kind":"boolean_reflection","reflection":{"boolean_definition":{"name":"validateExactStandardsProfile"},"fields":[{"expected":"2022","field":"architectureEdition"},{"expected":"2011","field":"applicationSecurityEdition"},{"expected":"2017","field":"controlEdition"},{"expected":"2022","field":"riskEdition"},{"expected":"2023","field":"qualityEdition"}],"kind":"record","proposition_definition":{"name":"standardsProfileValid"},"record":"profile"}},"statement":{"kind":"iff","left":{"kind":"eq","left":{"arguments":[{"kind":"var","name":"profile"}],"function":{"name":"validateExactStandardsProfile"},"kind":"call"},"right":{"kind":"bool","value":true}},"right":{"arguments":[{"kind":"var","name":"profile"}],"function":{"name":"standardsProfileValid"},"kind":"call"}}},{"body":{"branches":[{"binders":[],"body":{"element":{"kind":"nat"},"kind":"nil"},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"head":{"kind":"var","name":"expected"},"kind":"cons","tail":{"arguments":[{"kind":"add","left":{"kind":"var","name":"expected"},"right":{"kind":"nat","value":"1"}},{"kind":"var","name":"rest"}],"function":{"name":"canonicalIndexes"},"kind":"call"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"count"}},"kind":"definition","name":"canonicalIndexes","parameters":[{"name":"expected","type":{"kind":"nat"}},{"name":"count","type":{"kind":"nat"}}],"recursive_argument":"count","result":{"element":{"kind":"nat"},"kind":"list"}},{"body":{"kind":"eq","left":{"kind":"var","name":"values"},"right":{"arguments":[{"kind":"nat","value":"0"},{"kind":"var","name":"count"}],"function":{"name":"canonicalIndexes"},"kind":"call"}},"kind":"definition","name":"canonicalIndexAssignment","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"result":{"kind":"prop"}},{"kind":"theorem","name":"canonicalIndexAssignmentUnique","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"values","type":{"element":{"kind":"nat"},"kind":"list"}}],"proof":{"kind":"reflexivity"},"statement":{"kind":"iff","left":{"arguments":[{"kind":"var","name":"count"},{"kind":"var","name":"values"}],"function":{"name":"canonicalIndexAssignment"},"kind":"call"},"right":{"kind":"eq","left":{"kind":"var","name":"values"},"right":{"arguments":[{"kind":"nat","value":"0"},{"kind":"var","name":"count"}],"function":{"name":"canonicalIndexes"},"kind":"call"}}}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: StandardsProfile,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: architectureEdition, type: Nat},
+    {name: applicationSecurityEdition, type: Nat},
+    {name: controlEdition, type: Nat},
+    {name: riskEdition, type: Nat},
+    {name: qualityEdition, type: Nat}
+  ]
+}
+
+structure{
+  name: NormalizedHolo,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: componentIndexes, type: (List Nat)},
+    {name: edgeEndpoints, type: (List Nat)},
+    {name: riskLinks, type: (List Nat)},
+    {name: controlLinks, type: (List Nat)},
+    {name: viewpointLinks, type: (List Nat)},
+    {name: qualityLinks, type: (List Nat)},
+    {name: flattenedIndexes, type: (List Nat)}
+  ]
+}
+
+structure{
+  name: FlatValidationInput,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: bound, type: Nat},
+    {name: indexes, type: (List Nat)},
+    {name: references, type: (List Nat)}
+  ]
+}
+
+definition{
+  name: allConsecutive,
+  parameters: [expected : Nat, values : (List Nat)],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons value rest => ((expected =? value) && (allConsecutive (expected + 1) rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: allConsecutiveProp,
+  parameters: [expected : Nat, values : (List Nat)],
+  result: Prop,
+  body: (match values
+    | List.nil => (expected = expected)
+    | List.cons value rest => ((expected = value) /\ (allConsecutiveProp (expected + 1) rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: allBelow,
+  parameters: [bound : Nat, values : (List Nat)],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons value rest => ((value <? bound) && (allBelow bound rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: allBelowProp,
+  parameters: [bound : Nat, values : (List Nat)],
+  result: Prop,
+  body: (match values
+    | List.nil => (bound = bound)
+    | List.cons value rest => ((value < bound) /\ (allBelowProp bound rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: validateComponentIndexes,
+  parameters: [values : (List Nat)],
+  result: Bool,
+  body: (allConsecutive 0 values)
+}
+
+definition{
+  name: validateEdgeEndpoints,
+  parameters: [componentCount : Nat, endpoints : (List Nat)],
+  result: Bool,
+  body: (allBelow componentCount endpoints)
+}
+
+definition{
+  name: validateRiskLinks,
+  parameters: [assetOrThreatCount : Nat, links : (List Nat)],
+  result: Bool,
+  body: (allBelow assetOrThreatCount links)
+}
+
+definition{
+  name: validateControlLinks,
+  parameters: [riskCount : Nat, links : (List Nat)],
+  result: Bool,
+  body: (allBelow riskCount links)
+}
+
+definition{
+  name: validateViewpointLinks,
+  parameters: [targetCount : Nat, links : (List Nat)],
+  result: Bool,
+  body: (allBelow targetCount links)
+}
+
+definition{
+  name: validateQualityLinks,
+  parameters: [targetCount : Nat, links : (List Nat)],
+  result: Bool,
+  body: (allBelow targetCount links)
+}
+
+definition{
+  name: validateFlattenedBounds,
+  parameters: [bound : Nat, indexes : (List Nat)],
+  result: Bool,
+  body: (allBelow bound indexes)
+}
+
+definition{
+  name: validateExactStandardsProfile,
+  parameters: [profile : StandardsProfile],
+  result: Bool,
+  body: (((project profile architectureEdition) =? 2022) && (((project profile applicationSecurityEdition) =? 2011) && (((project profile controlEdition) =? 2017) && (((project profile riskEdition) =? 2022) && ((project profile qualityEdition) =? 2023)))))
+}
+
+definition{
+  name: componentIndexesValid,
+  parameters: [values : (List Nat)],
+  result: Prop,
+  body: (allConsecutiveProp 0 values)
+}
+
+definition{
+  name: edgeEndpointsValid,
+  parameters: [componentCount : Nat, endpoints : (List Nat)],
+  result: Prop,
+  body: (allBelowProp componentCount endpoints)
+}
+
+definition{
+  name: riskLinksValid,
+  parameters: [count : Nat, links : (List Nat)],
+  result: Prop,
+  body: (allBelowProp count links)
+}
+
+definition{
+  name: controlLinksValid,
+  parameters: [count : Nat, links : (List Nat)],
+  result: Prop,
+  body: (allBelowProp count links)
+}
+
+definition{
+  name: viewpointLinksValid,
+  parameters: [count : Nat, links : (List Nat)],
+  result: Prop,
+  body: (allBelowProp count links)
+}
+
+definition{
+  name: qualityLinksValid,
+  parameters: [count : Nat, links : (List Nat)],
+  result: Prop,
+  body: (allBelowProp count links)
+}
+
+definition{
+  name: flattenedBoundsValid,
+  parameters: [count : Nat, links : (List Nat)],
+  result: Prop,
+  body: (allBelowProp count links)
+}
+
+definition{
+  name: standardsProfileValid,
+  parameters: [profile : StandardsProfile],
+  result: Prop,
+  body: (((project profile architectureEdition) = 2022) /\ (((project profile applicationSecurityEdition) = 2011) /\ (((project profile controlEdition) = 2017) /\ (((project profile riskEdition) = 2022) /\ ((project profile qualityEdition) = 2023)))))
+}
+
+definition{
+  name: canonicalStandardsProfile,
+  parameters: [],
+  result: StandardsProfile,
+  body: (record StandardsProfile {architectureEdition := 2022, applicationSecurityEdition := 2011, controlEdition := 2017, riskEdition := 2022, qualityEdition := 2023})
+}
+
+theorem{
+  name: allConsecutive_sound_complete,
+  parameters: [expected : Nat, values : (List Nat)],
+  statement: (((allConsecutive expected values) = true) <-> (allConsecutiveProp expected values)),
+  proof: boolean_reflection{
+    reflection: list{
+      boolean_definition: allConsecutive,
+      comparison: nat_beq,
+      parameter: expected,
+      proposition_definition: allConsecutiveProp,
+      values: values
+    }
+  }
+}
+
+theorem{
+  name: allBelow_sound_complete,
+  parameters: [bound : Nat, values : (List Nat)],
+  statement: (((allBelow bound values) = true) <-> (allBelowProp bound values)),
+  proof: boolean_reflection{
+    reflection: list{
+      boolean_definition: allBelow,
+      comparison: nat_blt,
+      parameter: bound,
+      proposition_definition: allBelowProp,
+      values: values
+    }
+  }
+}
+
+theorem{
+  name: componentIndexes_sound_complete,
+  parameters: [values : (List Nat)],
+  statement: (((validateComponentIndexes values) = true) <-> (componentIndexesValid values)),
+  proof: apply{arguments: [0, values], theorem: allConsecutive_sound_complete}
+}
+
+theorem{
+  name: edgeEndpoints_sound_complete,
+  parameters: [componentCount : Nat, endpoints : (List Nat)],
+  statement: (((validateEdgeEndpoints componentCount endpoints) = true) <-> (edgeEndpointsValid componentCount endpoints)),
+  proof: apply{arguments: [componentCount, endpoints], theorem: allBelow_sound_complete}
+}
+
+theorem{
+  name: riskLinks_sound_complete,
+  parameters: [count : Nat, links : (List Nat)],
+  statement: (((validateRiskLinks count links) = true) <-> (riskLinksValid count links)),
+  proof: apply{arguments: [count, links], theorem: allBelow_sound_complete}
+}
+
+theorem{
+  name: controlLinks_sound_complete,
+  parameters: [count : Nat, links : (List Nat)],
+  statement: (((validateControlLinks count links) = true) <-> (controlLinksValid count links)),
+  proof: apply{arguments: [count, links], theorem: allBelow_sound_complete}
+}
+
+theorem{
+  name: viewpointLinks_sound_complete,
+  parameters: [count : Nat, links : (List Nat)],
+  statement: (((validateViewpointLinks count links) = true) <-> (viewpointLinksValid count links)),
+  proof: apply{arguments: [count, links], theorem: allBelow_sound_complete}
+}
+
+theorem{
+  name: qualityLinks_sound_complete,
+  parameters: [count : Nat, links : (List Nat)],
+  statement: (((validateQualityLinks count links) = true) <-> (qualityLinksValid count links)),
+  proof: apply{arguments: [count, links], theorem: allBelow_sound_complete}
+}
+
+theorem{
+  name: flattenedBounds_sound_complete,
+  parameters: [count : Nat, links : (List Nat)],
+  statement: (((validateFlattenedBounds count links) = true) <-> (flattenedBoundsValid count links)),
+  proof: apply{arguments: [count, links], theorem: allBelow_sound_complete}
+}
+
+theorem{
+  name: standardsProfile_sound_complete,
+  parameters: [profile : StandardsProfile],
+  statement: (((validateExactStandardsProfile profile) = true) <-> (standardsProfileValid profile)),
+  proof: boolean_reflection{
+    reflection: record{
+      fields: [
+        {expected: "2022", field: architectureEdition},
+        {expected: "2011", field: applicationSecurityEdition},
+        {expected: "2017", field: controlEdition},
+        {expected: "2022", field: riskEdition},
+        {expected: "2023", field: qualityEdition}
+      ],
+      boolean_definition: validateExactStandardsProfile,
+      proposition_definition: standardsProfileValid,
+      record: profile
+    }
+  }
+}
+
+definition{
+  name: canonicalIndexes,
+  parameters: [expected : Nat, count : Nat],
+  result: (List Nat),
+  body: (match count
+    | Nat.zero => (nil Nat)
+    | Nat.succ rest => (cons expected (canonicalIndexes (expected + 1) rest))),
+  recursive_argument: count
+}
+
+definition{
+  name: canonicalIndexAssignment,
+  parameters: [count : Nat, values : (List Nat)],
+  result: Prop,
+  body: (values = (canonicalIndexes 0 count))
+}
+
+theorem{
+  name: canonicalIndexAssignmentUnique,
+  parameters: [count : Nat, values : (List Nat)],
+  statement: ((canonicalIndexAssignment count values) <-> (values = (canonicalIndexes 0 count))),
+  proof: reflexivity{}
+}
 \end{semanticmodule}
 \end{lexlean}

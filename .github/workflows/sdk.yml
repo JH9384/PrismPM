@@ -95,7 +95,7 @@ jobs:
     needs: validate-invocation-key
     if: needs.validate-invocation-key.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 120
     # Namespace separately from the caller: reusable workflows inherit its
     # workflow name. The caller explicitly identifies a supersedable job;
     # existing callers and sibling jobs are never grouped implicitly.
@@ -147,7 +147,7 @@ jobs:
     # must not be used to serialize authorized mutations.
     if: ${{ !(contains(fromJSON('["check", "build", "verify", "test"]'), inputs.command) && inputs.invocation-key != '') }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 120
     permissions:
       contents: read
     outputs:

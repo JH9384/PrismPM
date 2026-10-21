@@ -981,13 +981,22 @@ copy bytes and metadata allowance is required. Initialization failure or
 interruption prohibits generation. Both golden commands remain network-disabled,
 locked and offline; no caller cache, dependency refresh or host compiler is used.
 
+Hosted CI qualifies each head once, where it matters. Every pull request, whatever
+its base, runs one fast set of at most three jobs (format, lint and dependency
+policy; model and audits; fixtures and reviewed goldens), each with a timeout and
+superseded by the next push to the same pull request. The complete 15-gate `just vv`
+executes once per main push or release tag, and on request for any head; it is
+not repeated for an unchanged head, and no consecutive second pass is required.
+Dual-architecture native source review runs on main pushes and release tags, and
+the standalone two-root reproducibility comparison runs nightly on main. Release
+evidence requirements are unchanged and are stated with the release gates.
+
 CI resource diagnostics are separate from acceptance evidence. Host and
 devcontainer observers record only allowlisted numeric resource measurements,
 at most every 30 seconds for six hours, 721 samples and 8 MiB per observer.
 Gate logs redact inherited credential values and retain a 32 MiB prefix plus
 two rotating 1 MiB tails, explicitly recording truncation. Wrappers preserve
-command exit status and stop only their own observers; both consecutive V&V
-invocations remain mandatory. Diagnostics upload runs even after gate failure
+command exit status and stop only their own observers. Diagnostics upload runs even after gate failure
 when the runner is reachable; runner loss can prevent upload and never implies
 acceptance or a diagnosed resource cause.
 

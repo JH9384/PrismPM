@@ -9,72 +9,56 @@ import test from 'node:test';
 
 const {load} = createRequire('/opt/prismpm/oracles/package.json')('js-yaml');
 const workflow = name => load(readFileSync(new URL(`../.github/workflows/${name}.yml`, import.meta.url), 'utf8'));
-const commands = [
-  ['Lint & Dependency Policy', 45, 'cargo fmt --check\ncargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings\ncargo deny --frozen --all-features check'],
-  ['Model & Audits', 45, 'bash scripts/bootstrap-verify.sh --check-source\ncargo xtask validate'],
-  ['Workspace Unit Tests', 180, './scripts/vv.sh unit-tests'],
-  ['Conformance / contracts', 120, './scripts/vv.sh conformance contracts'],
-  ['Conformance / core', 120, './scripts/vv.sh conformance core'],
-  ['Conformance / holo-stdlib', 180, './scripts/vv.sh conformance holo-stdlib'],
-  ['Conformance / desktop-browser', 210, './scripts/vv.sh conformance desktop-browser'],
-  ['Conformance / system-oci', 180, './scripts/vv.sh conformance system-oci'],
-  ['Conformance / verification-schemas', 90, './scripts/vv.sh conformance verification-schemas'],
-  ['Fixtures & Reviewed Golden Outputs', 90, 'cargo xtask check-fixtures\ncargo run --locked --offline --manifest-path tests/holo-codec-oracle/Cargo.toml --target-dir target/holo-codec-oracle\ncargo xtask check-golden'],
-  ['Lean 4 Proofs & Formal Verification', 75, 'cargo xtask verify-examples\ncargo run --locked --offline --target-dir target/vendor-lexlean --manifest-path vendor/lexlean/Cargo.toml -- --project lexlean.toml fmt --check\ncargo run --locked --offline --target-dir target/vendor-lexlean --manifest-path vendor/lexlean/Cargo.toml -- --project lexlean.toml lock --check'],
-  ['Packaging, API & Upstream Conformance', 120, './scripts/vv.sh package-api'],
+const jobs = [
+  ['lint-and-policy', 'Lint & Dependency Policy', 40, 'cargo fmt --check\ncargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings\ncargo deny --frozen --all-features check'],
+  ['model-and-audits', 'Model & Audits', 50, 'bash scripts/bootstrap-verify.sh --check-source\ncargo xtask validate'],
+  ['fixtures-and-golden', 'Fixtures & Reviewed Golden Outputs', 50, 'cargo xtask check-fixtures\ncargo run --locked --offline --manifest-path tests/holo-codec-oracle/Cargo.toml --target-dir target/holo-codec-oracle\ncargo xtask check-golden'],
 ];
 
 function sourceEvents(name, value) {
-  const expected = ['ci-parallel', 'honesty', 'reproducibility'].includes(name)
-    ? {pull_request: null, push: {branches: ['main']}, workflow_dispatch: null}
-    : name === 'vv' ? {push: {branches: ['main']}, workflow_dispatch: null}
-      : {workflow_dispatch: null};
+  const expected = {
+    'ci-parallel': {pull_request: null, workflow_dispatch: null},
+    vv: {push: {branches: ['main'], tags: ['v*']}, workflow_dispatch: null},
+    bootstrap: {workflow_dispatch: null},
+    reproducibility: {schedule: [{cron: '17 3 * * *'}], workflow_dispatch: null},
+  }[name];
   assert.deepEqual(value.on, expected, name + ': complete source trigger contract');
 }
 
 function parallelContract(value) {
   sourceEvents('ci-parallel', value);
-  assert.deepEqual(Object.keys(value.jobs), ['gate']);
-  const job = value.jobs.gate;
-  assert.equal(job.name, '${{ matrix.name }}');
-  assert.equal(job['timeout-minutes'], '${{ matrix.timeout }}');
-  assert.equal(job.strategy['max-parallel'], 3);
-  assert.equal(job.strategy['fail-fast'], false);
-  assert.deepEqual(Object.keys(job.strategy.matrix), ['include']);
-  assert.deepEqual(job.strategy.matrix.include.map(row => {
-    assert.deepEqual(Object.keys(row), ['name', 'timeout', 'commands']);
-    return [row.name, row.timeout, row.commands.trim()];
-  }), commands);
-  assert.deepEqual(job.steps.map(step => step.uses), [
-    'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683',
-    'devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6',
-  ]);
-  assert.equal(job.steps[0].with['fetch-depth'], 0);
-  assert.equal(job.steps[1].with.push, 'never');
-  assert.equal(job.steps[1].with.runCmd, 'set -euo pipefail\n${{ matrix.commands }}\n');
-  assert(!('if' in job));
+  assert.deepEqual(Object.keys(value.jobs), jobs.map(row => row[0]));
+  for (const [id, name, timeout, command] of jobs) {
+    const job = value.jobs[id];
+    assert.equal(job.name, name);
+    assert.equal(job['timeout-minutes'], timeout);
+    assert(!('if' in job) && !('strategy' in job), id);
+    const run = job.steps.at(-1);
+    assert.equal(run.uses, 'devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6');
+    assert.equal(run.with.push, 'never');
+    assert(run.with.runCmd.startsWith('set -euo pipefail\n'), id);
+    assert(run.with.runCmd.endsWith(command + '\n'), id);
+    assert(!run.with.runCmd.includes('|| true'), id);
+    assert.equal(job.steps[0].uses, 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683');
+  }
 }
 
-test('one capped matrix preserves every original parallel job name and complete command', () => {
+test('three capped jobs preserve every pull request gate name and complete command', () => {
   parallelContract(workflow('ci-parallel'));
 });
 
 test('parallel policy refuses missing, duplicated, weakened or unbounded execution', () => {
   const original = workflow('ci-parallel');
   for (const mutate of [
-    v => v.jobs.gate.strategy.matrix.include.pop(),
-    v => v.jobs.gate.strategy.matrix.include.push(v.jobs.gate.strategy.matrix.include[0]),
-    v => v.jobs.gate.strategy.matrix.include[0].commands = 'cargo fmt --check',
-    v => v.jobs.gate.strategy.matrix.include[3].commands += ' || true',
-    v => v.jobs.gate.strategy['max-parallel'] = 12,
-    v => v.jobs.gate.strategy['fail-fast'] = true,
-    v => v.jobs.gate.steps[1].with.runCmd = '${{ matrix.commands }}',
-    v => v.jobs.gate.steps[1].with.push = 'always',
-    v => v.jobs.gate['timeout-minutes'] = 10,
-    v => v.jobs.gate.if = 'false',
-    v => v.jobs.extra = v.jobs.gate,
-    v => v.on.pull_request = {},
-    v => v.on.push = {branches: ['other']},
+    v => delete v.jobs['model-and-audits'],
+    v => v.jobs.extra = v.jobs['lint-and-policy'],
+    v => v.jobs['lint-and-policy'].steps.at(-1).with.runCmd = 'cargo fmt --check',
+    v => v.jobs['model-and-audits'].steps.at(-1).with.runCmd += ' || true',
+    v => v.jobs['lint-and-policy'].steps.at(-1).with.push = 'always',
+    v => v.jobs['lint-and-policy']['timeout-minutes'] = 10,
+    v => v.jobs['fixtures-and-golden'].if = 'false',
+    v => v.on.pull_request = {branches: ['main']},
+    v => v.on.push = {branches: ['main']},
   ]) {
     const value = structuredClone(original); mutate(value);
     assert.throws(() => parallelContract(value));
@@ -128,12 +112,12 @@ test('unit ownership refuses missing regressions, repeated integration, hidden e
   ]) assert.throws(() => workspaceUnitOwnership(mutate(source)));
 });
 
-test('read-only source workflows supersede by repository and ref, never unique run ID', () => {
-  for (const name of ['ci-parallel', 'vv', 'bootstrap', 'reproducibility', 'honesty']) {
+test('read-only source workflows supersede by workflow and ref, never unique run ID', () => {
+  for (const name of ['ci-parallel', 'vv', 'bootstrap', 'reproducibility']) {
     const value = workflow(name);
     sourceEvents(name, value);
     assert.equal(value.concurrency['cancel-in-progress'], true);
-    assert(value.concurrency.group.includes('github.repository'));
+    assert(value.concurrency.group.includes('github.workflow'));
     assert(value.concurrency.group.includes('github.ref'));
     assert(!value.concurrency.group.includes('github.run_id'));
     assert.deepEqual(value.permissions, {contents: 'read'});
@@ -141,24 +125,19 @@ test('read-only source workflows supersede by repository and ref, never unique r
 });
 
 test('source trigger policy refuses missing filtered broadened or redundant execution', () => {
-  for (const name of ['ci-parallel', 'honesty', 'reproducibility', 'vv', 'bootstrap']) {
+  for (const name of ['ci-parallel', 'reproducibility', 'vv', 'bootstrap']) {
     const original = workflow(name);
     const mutations = [
       value => delete value.on.workflow_dispatch,
-      value => value.on.schedule = [{cron: '* * * * *'}],
       value => value.on.pull_request_target = null,
+      value => value.on.pull_request = {paths: ['src/**']},
     ];
-    if (['ci-parallel', 'honesty', 'reproducibility'].includes(name)) {
-      mutations.push(value => delete value.on.pull_request,
-        value => value.on.pull_request = {branches: ['main']},
-        value => value.on.pull_request = {paths: ['src/**']});
-    } else mutations.push(value => value.on.pull_request = null);
-    if (name !== 'bootstrap') {
-      mutations.push(value => delete value.on.push,
-        value => value.on.push = null,
-        value => value.on.push = {branches: ['main', 'other']},
-        value => value.on.push = {branches: ['main'], paths: ['src/**']});
-    } else mutations.push(value => value.on.push = {branches: ['main']});
+    if (name !== 'ci-parallel') mutations.push(value => value.on.pull_request = null);
+    if (name !== 'reproducibility') mutations.push(value => value.on.schedule = [{cron: '* * * * *'}]);
+    if (name !== 'vv') mutations.push(value => value.on.push = {branches: ['main']});
+    else mutations.push(value => delete value.on.push, value => value.on.push = null,
+      value => value.on.push = {branches: ['main', 'other'], tags: ['v*']},
+      value => value.on.push = {branches: ['main'], tags: ['v*'], paths: ['src/**']});
     for (const mutate of mutations) {
       const value = structuredClone(original); mutate(value);
       assert.throws(() => sourceEvents(name, value), name);
@@ -166,11 +145,11 @@ test('source trigger policy refuses missing filtered broadened or redundant exec
   }
 });
 
-test('all affected jobs have explicit bounds; both unchanged normative passes retain six hours', () => {
-  for (const name of ['ci-parallel', 'vv', 'bootstrap', 'reproducibility', 'honesty', 'sdk', 'release', 'sdk-candidate', 'native-golden']) {
+test('all affected jobs have explicit bounds; the one normative pass retains six hours', () => {
+  for (const name of ['ci-parallel', 'vv', 'bootstrap', 'reproducibility', 'sdk', 'release', 'sdk-candidate', 'native-golden']) {
     for (const [id, job] of Object.entries(workflow(name).jobs)) {
       const bound = job['timeout-minutes'];
-      assert((Number.isInteger(bound) && bound > 0 && bound <= 360) || (name === 'ci-parallel' && bound === '${{ matrix.timeout }}'), `${name}/${id}`);
+      assert(Number.isInteger(bound) && bound > 0 && bound <= 360, `${name}/${id}`);
     }
   }
   assert.equal(workflow('vv').jobs.vv['timeout-minutes'], 360);
@@ -178,8 +157,7 @@ test('all affected jobs have explicit bounds; both unchanged normative passes re
   const run = workflow('vv').jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd;
   assert.equal(run, `set -euo pipefail
 bash scripts/vv.sh --with-sdk bash -euo pipefail -c "$(cat <<'PRISMPM_VV'
-node scripts/ci-observe.mjs run target/ci-diagnostics/vv-first -- just vv
-node scripts/ci-observe.mjs run target/ci-diagnostics/vv-second -- just vv
+node scripts/ci-observe.mjs run target/ci-diagnostics/vv -- just vv
 PRISMPM_VV
 )"
 `);
@@ -331,7 +309,7 @@ const expectedMatrices = {
 // only the explicitly reviewed timeout and matrix concurrency fields differ.
 const candidateJobs = {
   'input-policy': [30, '1a2606aed5c40be2c5fd6ade291d4d8cc8f48b265ec77346e886d7e429331b1c'],
-  policy: [30, 'd8c166a9586b9ecf4e6852352218bdeec51b918562604c920fea38db8e13d499'],
+  policy: [10, 'd8c166a9586b9ecf4e6852352218bdeec51b918562604c920fea38db8e13d499'],
   build: [180, '54a93dd0777745bc3e2d455e06019b4971bce7fc4c3b2baed1451fbc796f143d'],
   publish: [60, 'eed34aecea86d7fb123167999bb1a0048f62609f6fc91d6979eeb0dcb8340128'],
   'unpublished-construction': [180, '1d3f4bfbee8ab48dcb68a2a754be821358dcd5658ea7993ad4e32aee7c023254'],
@@ -349,10 +327,11 @@ function candidateContract(value) {
     assert.equal(createHash('sha256').update(JSON.stringify(canonical(job))).digest('hex'), digest, id);
   }
 }
+const matrixParallelism = {release: {images: 3, reproducibility: 4, 'installed-sdk': 2, native: 2}};
 function publicationContract(name, value) {
   if (name === 'sdk-candidate') candidateContract(value);
   const actual = Object.fromEntries(Object.entries(value.jobs).filter(([, job]) => job.strategy).map(([id, job]) => {
-    assert.equal(job.strategy['max-parallel'], 2);
+    assert.equal(job.strategy['max-parallel'], matrixParallelism[name]?.[id] ?? 2);
     assert.equal(job.strategy['fail-fast'], false);
     assert.deepEqual(Object.keys(job.strategy.matrix), ['include']);
     return [id, job.strategy.matrix.include];

@@ -19,16 +19,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  devcontainer-image:
+    name: Devcontainer image cache
+    runs-on: ubuntu-24.04
+    # Builds the pinned devcontainer once per run, filling the layer cache that
+    # the three checks below import. With unchanged inputs every layer is a
+    # cache hit and no package, toolchain or oracle download happens.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - id: cache
+        uses: ./.github/actions/devcontainer-cache
+      - name: Build or reuse the devcontainer layers
+        uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
+        with:
+          push: never
+          cacheFrom: ${{ steps.cache.outputs.cache-from }}
+          cacheTo: ${{ steps.cache.outputs.cache-to }}
+          runCmd: "true"
+
   lint-and-policy:
+    needs: devcontainer-image
     name: Lint & Dependency Policy
     runs-on: ubuntu-24.04
     # Measured 16-22 minutes.
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - id: cache
+        uses: ./.github/actions/devcontainer-cache
       - name: Format, Clippy & Cargo Deny
         uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
         with:
+          cacheFrom: ${{ steps.cache.outputs.cache-from }}
           push: never
           runCmd: |
             set -euo pipefail
@@ -37,6 +60,7 @@ jobs:
             cargo deny --frozen --all-features check
 
   model-and-audits:
+    needs: devcontainer-image
     name: Model & Audits
     runs-on: ubuntu-24.04
     # Measured 30-34 minutes. This job also replaces the former Honesty Gate
@@ -46,9 +70,12 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+      - id: cache
+        uses: ./.github/actions/devcontainer-cache
       - name: Check bootstrap source and validate
         uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
         with:
+          cacheFrom: ${{ steps.cache.outputs.cache-from }}
           push: never
           runCmd: |
             set -euo pipefail
@@ -56,15 +83,19 @@ jobs:
             cargo xtask validate
 
   fixtures-and-golden:
+    needs: devcontainer-image
     name: Fixtures & Reviewed Golden Outputs
     runs-on: ubuntu-24.04
     # Measured about 30 minutes.
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - id: cache
+        uses: ./.github/actions/devcontainer-cache
       - name: Check Fixtures, Oracle & Golden Bytes
         uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
         with:
+          cacheFrom: ${{ steps.cache.outputs.cache-from }}
           push: never
           runCmd: |
             set -euo pipefail

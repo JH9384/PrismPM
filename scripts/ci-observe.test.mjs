@@ -383,7 +383,7 @@ test('all observed workflows retain their full gates, always stop/upload, and ke
     assert.equal(steps[upload].with['retention-days'], 7);
     assert.equal((steps[gate].with.runCmd.match(/ -- just vv/g) ?? []).length, runs);
     assert.equal(steps[gate]['continue-on-error'], undefined);
-    for (const step of steps.filter(value => value.uses)) assert.match(step.uses, /@[0-9a-f]{40}$/);
+    for (const step of steps.filter(value => value.uses && !value.uses.startsWith('./'))) assert.match(step.uses, /@[0-9a-f]{40}$/);
   }
   const native = workflow('native-golden.yml').jobs['native-source-review'].steps;
   const start = native.findIndex(step => step.run === 'node scripts/ci-observe.mjs start "$RUNNER_TEMP/native-observer"');

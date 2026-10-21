@@ -108,14 +108,9 @@ struct Corpus {
 impl Corpus {
     fn load() -> Self {
         let source = include_str!("../stdlib/src/Foundation/Holo/V1/WireCorpus.lex.tex");
-        let semantic = source
-            .lines()
-            .find_map(|line| {
-                line.strip_prefix("\\semanticdata{")
-                    .and_then(|line| line.strip_suffix('}'))
-            })
-            .unwrap();
-        let module: Value = serde_json::from_str(semantic).unwrap();
+        // The corpus is language-1.2 notation; LexLean reads it back to its
+        // semantic-module JSON, exactly as the compiler does.
+        let module: Value = lexlean::sdk::read_module(source).unwrap();
         let declarations = module["declarations"].as_array().unwrap();
         let by_name: BTreeMap<_, _> = declarations
             .iter()

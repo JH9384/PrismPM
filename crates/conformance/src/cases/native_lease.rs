@@ -1,7 +1,7 @@
 //! Execute the conditional native-lane reducer, never claim OS-effect authority.
 
 use prismpm::controller::{CheckRequest, VerifyRequest};
-use prismpm::holo::canonical::{content_id, encode_value};
+use prismpm::holo::canonical::content_id;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -23,26 +23,11 @@ const METHODS: &[&str] = &[
 ];
 
 fn semantic(source: &str) -> Value {
-    let rows = source
-        .lines()
-        .filter_map(|line| line.strip_prefix("\\semanticdata{"))
-        .collect::<Vec<_>>();
-    assert_eq!(rows.len(), 1);
-    serde_json::from_str(rows[0].strip_suffix('}').unwrap()).unwrap()
+    crate::semantic_source::read(source)
 }
 
 fn rewrite(source: &str, value: &Value) -> String {
-    let canonical = String::from_utf8(encode_value(value).unwrap()).unwrap();
-    source
-        .lines()
-        .map(|line| {
-            if line.starts_with("\\semanticdata{") {
-                format!("\\semanticdata{{{canonical}}}\n")
-            } else {
-                format!("{line}\n")
-            }
-        })
-        .collect()
+    crate::semantic_source::write(source, value)
 }
 
 fn root_list(values: &[String], prefix: &str, declarations: &mut Vec<Value>) -> Value {

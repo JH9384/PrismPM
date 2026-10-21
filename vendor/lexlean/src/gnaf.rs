@@ -12,10 +12,13 @@
 //! posed (its universe identity among them), a step-for-step transcription
 //! of validation and evaluation, and the emission of a request as a LexLean
 //! term, so the kernel confirms every committed request's answer against the
-//! model.
+//! model. Certification over requests (SPEC.md §17.18) is the child module
+//! [`certification`].
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as Json};
+
+pub mod certification;
 
 use crate::artifact::content_id::{FramedHasher, Sha256Digest};
 use crate::calculus::{
@@ -1233,31 +1236,37 @@ fn evaluate_statuses(request: &Request) -> Result<Vec<(u64, Selector, Status)>, 
     expand(&request.carrier)
         .into_iter()
         .enumerate()
-        .map(|(index, selector)| {
-            let system = realize(&request.carrier, selector).expect("a grammar carrier");
-            let status = match status_on(
-                &system,
-                &request.reference,
-                request.machine.fuel,
-                &request.domain,
-            )? {
-                Status::Admitted { steps, .. } => {
-                    let charged = system_charge(request, &system)
-                        .and_then(|charge| charge.checked_mul(request.domain.len() as u64))
-                        .and_then(|charged| charged.checked_add(steps))
-                        .ok_or_else(|| {
-                            beyond_capacity("a system's cost exceeds the evaluator's integers")
-                        })?;
-                    Status::Admitted {
-                        steps: charged,
-                        size: program_size(&system),
-                    }
-                }
-                other => other,
-            };
-            Ok((index as u64, selector, status))
-        })
+        .map(|(index, selector)| Ok((index as u64, selector, status_of(request, selector)?)))
         .collect()
+}
+
+/// `Gnaf.status`: one system's status, an admitted system charged the
+/// preparation of the plans it can run on every invocation and given the
+/// size of the code it can run.
+fn status_of(request: &Request, selector: Selector) -> Result<Status, LexLeanError> {
+    let system = realize(&request.carrier, selector).expect("a grammar carrier");
+    Ok(
+        match status_on(
+            &system,
+            &request.reference,
+            request.machine.fuel,
+            &request.domain,
+        )? {
+            Status::Admitted { steps, .. } => {
+                let charged = system_charge(request, &system)
+                    .and_then(|charge| charge.checked_mul(request.domain.len() as u64))
+                    .and_then(|charged| charged.checked_add(steps))
+                    .ok_or_else(|| {
+                        beyond_capacity("a system's cost exceeds the evaluator's integers")
+                    })?;
+                Status::Admitted {
+                    steps: charged,
+                    size: program_size(&system),
+                }
+            }
+            other => other,
+        },
+    )
 }
 
 // --- the order -------------------------------------------------------------

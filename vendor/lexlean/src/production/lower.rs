@@ -241,6 +241,42 @@ struct Lowerer<'a> {
 /// Marks a failure that is a resource limit, not a defect.
 pub const LIMIT: &str = "limit: ";
 
+/// The deepest nesting of arrays and objects a lowered program may have when
+/// it is serialized (`Program::to_file_bytes`), which reads its own text back
+/// recursively. The reader has no limit of its own on this path, so the limit
+/// is stated here: a program whose JSON nests deeper is refused with
+/// `LLS8002`, not read on whatever stack it finds. 512 levels, about 250
+/// nested expressions, take about 450 KiB of a debug build's stack, a quarter
+/// of the 2 MiB a test thread has (a test checks this).
+pub const PROGRAM_JSON_DEPTH: usize = 512;
+
+/// The nesting depth of the arrays and objects of JSON text: the number of
+/// brackets open at the deepest point, with strings (and their escapes) skipped.
+#[must_use]
+pub fn json_depth(text: &str) -> usize {
+    let (mut depth, mut deepest) = (0_usize, 0_usize);
+    let (mut in_string, mut escaped) = (false, false);
+    for byte in text.bytes() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                in_string = false;
+            }
+        } else if byte == b'"' {
+            in_string = true;
+        } else if byte == b'[' || byte == b'{' {
+            depth += 1;
+            deepest = deepest.max(depth);
+        } else if byte == b']' || byte == b'}' {
+            depth = depth.saturating_sub(1);
+        }
+    }
+    deepest
+}
+
 /// Lower one eligible root. A failure is a compiler defect: eligibility
 /// already admitted every construct the closure reaches.
 ///
@@ -382,6 +418,23 @@ pub fn lower_root(
         },
     };
     audit_boundary(&lowered).map_err(internal)?;
+    // The program's canonical JSON is measured here: the reader on this path
+    // is unbounded (`parse_unbounded`), so this check is the one place that
+    // holds a program to `PROGRAM_JSON_DEPTH`. A program past it is a limit,
+    // not a defect: say so before anything is generated from it.
+    let depth = json_depth(
+        &serde_json::to_string(&lowered.program)
+            .map_err(|error| internal(format!("the lowered program is not JSON: {error}")))?,
+    );
+    if depth > PROGRAM_JSON_DEPTH {
+        return Err(Diagnostic::new(
+            code!("LLS8002"),
+            format!(
+                "root `{}`: program_json_depth exceeded in phase lowering: at most {PROGRAM_JSON_DEPTH}, the lowered program nests {depth} deep",
+                report.root
+            ),
+        ));
+    }
     // The certificates are generated as text from the program; refuse before
     // generating them when a lower bound on the largest already exceeds the
     // largest file the project allows. A program whose certificates fit is
@@ -515,25 +568,35 @@ pub struct Costs {
 }
 
 /// What certificate A costs at the least.
+///
+/// Certificate A is recorded as kernel data, whose hash-consing shares every
+/// type and every repeated subterm, so a type node costs nothing here and the
+/// costs are those of what is not shared. They are the largest costs, to the
+/// sixteenth of a byte, that no program of the stress families, the mixed and
+/// random shapes, the wide matches, and the four example corpora has a
+/// certificate A smaller than, with five percent to spare (`conformance_sp_02`
+/// checks every one of them).
 pub const COSTS_A: Costs = Costs {
-    base_bytes: 1080,
-    type_node: 284,
-    expr_node: 176,
+    base_bytes: 5400,
+    type_node: 0,
+    expr_node: 300,
     shape_node: 0,
-    arm_pair: 180,
-    string_byte: 7,
-    hex_digit: 19,
+    arm_pair: 1018,
+    string_byte: 15,
+    hex_digit: 433,
 };
 
-/// What certificate B costs at the least.
+/// What certificate B costs at the least, in the authoring notation it is
+/// recorded in and weighed by, which takes about a quarter of the bytes of its
+/// Lean text.
 pub const COSTS_B: Costs = Costs {
-    base_bytes: 800,
+    base_bytes: 200,
     type_node: 0,
-    expr_node: 1072,
-    shape_node: 89,
+    expr_node: 268,
+    shape_node: 22,
     arm_pair: 0,
-    string_byte: 23,
-    hex_digit: 59,
+    string_byte: 6,
+    hex_digit: 15,
 };
 
 /// What certificate E costs at the least.
@@ -804,34 +867,6 @@ pub fn measure_program(program: &Program) -> Measure {
     out
 }
 
-/// The arms of a match above which the certificates of a program lift the
-/// pinned Lean's heartbeat budgets: 100 constructors are checked within the
-/// defaults (`maxHeartbeats` 200 000, `synthInstance.maxHeartbeats` 20 000),
-/// 130 as well, 160 exhaust the second, 200 the first.
-pub const UNBUDGETED_ARMS: u64 = 100;
-
-/// The `set_option` lines a certificate about `program` starts with, besides
-/// those every certificate has: none when its widest match has at most
-/// [`UNBUDGETED_ARMS`] arms, and otherwise the removal of both heartbeat
-/// budgets.
-///
-/// Certificate B states every arm of a match after the arms before it, and
-/// the pinned Lean spends allocations on that faster than any bound this
-/// project could state (a match on 200 constructors needs between 300 000 and
-/// 400 000 heartbeats, one on 300 needs more than 3 800 000, where the
-/// defaults are 200 000), and exhausting a budget in the middle of a proof
-/// ends as a type mismatch that blames a valid certificate. The budget that
-/// remains is the wall clock, `child_timeout_ms`, whose exhaustion is a
-/// registered limit (`LLS8002`) and not a verdict on the certificate.
-#[must_use]
-pub fn budget_options(program: &Program) -> String {
-    if measure_program(program).widest_match > UNBUDGETED_ARMS {
-        "set_option maxHeartbeats 0\nset_option synthInstance.maxHeartbeats 0\n".to_owned()
-    } else {
-        String::new()
-    }
-}
-
 /// The size of a program: the nodes of every type and expression in it.
 #[must_use]
 pub fn program_nodes(program: &Program) -> u64 {
@@ -843,10 +878,11 @@ pub fn program_nodes(program: &Program) -> u64 {
 /// least: a read of a record of `n` fields prints a pattern of `n` entries
 /// into the crate's term, into the statement of the function, and into the
 /// derivation, and the smallest of the three families measured (a record of
-/// `n` fields copied field by field) has 22 bytes in each slot. The least
+/// `n` fields copied field by field) has 22 bytes of Lean text in each slot,
+/// and about half that in the notation it is weighed by. The least
 /// is used because a refusal on it is a refusal of a certificate that is
 /// certainly too large.
-pub const CERTIFICATE_BYTES_PER_SLOT: u64 = 16;
+pub const CERTIFICATE_BYTES_PER_SLOT: u64 = 8;
 
 /// The entries of the patterns the Rust rendering of `program` prints for
 /// its field reads: for each read of a field of a record, the arity of that
@@ -1653,7 +1689,9 @@ pub(crate) fn template_of(
         | SemanticPrimitive::Join
         | SemanticPrimitive::ParseDecimal
         | SemanticPrimitive::FormatDecimal
-        | SemanticPrimitive::LessThan => return Ok(None),
+        | SemanticPrimitive::LessThan
+        | SemanticPrimitive::ToInt
+        | SemanticPrimitive::ToNat => return Ok(None),
     }))
 }
 
@@ -2322,6 +2360,35 @@ impl Lowerer<'_> {
                             claims: _,
                             executable: _,
                             axioms: _,
+                        }
+                        | SemanticDeclaration::Tokenizer {
+                            name: _,
+                            type_parameters: _,
+                            scheme: _,
+                            vocabulary: _,
+                            axioms: _,
+                        }
+                        | SemanticDeclaration::ContextWindow {
+                            name: _,
+                            capacity: _,
+                            overflow: _,
+                            axioms: _,
+                        }
+                        | SemanticDeclaration::TextGenerator {
+                            name: _,
+                            tokenizer: _,
+                            window: _,
+                            scorer: _,
+                            max_tokens: _,
+                            stop: _,
+                            policy: _,
+                            axioms: _,
+                        }
+                        | SemanticDeclaration::TextClassifier {
+                            name: _,
+                            tokenizer: _,
+                            model: _,
+                            axioms: _,
                         },
                     )
                     | None => return Err(format!("`{module}.{name}` is not a definition")),
@@ -2497,6 +2564,35 @@ impl Lowerer<'_> {
                             verifier: _,
                             claims: _,
                             executable: _,
+                            axioms: _,
+                        }
+                        | SemanticDeclaration::Tokenizer {
+                            name: _,
+                            type_parameters: _,
+                            scheme: _,
+                            vocabulary: _,
+                            axioms: _,
+                        }
+                        | SemanticDeclaration::ContextWindow {
+                            name: _,
+                            capacity: _,
+                            overflow: _,
+                            axioms: _,
+                        }
+                        | SemanticDeclaration::TextGenerator {
+                            name: _,
+                            tokenizer: _,
+                            window: _,
+                            scorer: _,
+                            max_tokens: _,
+                            stop: _,
+                            policy: _,
+                            axioms: _,
+                        }
+                        | SemanticDeclaration::TextClassifier {
+                            name: _,
+                            tokenizer: _,
+                            model: _,
                             axioms: _,
                         },
                     )
@@ -3276,6 +3372,13 @@ impl Lowerer<'_> {
             }
         };
         let operation = match operation {
+            // Every backend reads elaborated declarations, in which a
+            // widening conversion is the ordinary term it means (§17.12).
+            SemanticPrimitive::ToInt | SemanticPrimitive::ToNat => {
+                return Err(format!(
+                    "{operation:?} is lowered only through its elaboration"
+                ));
+            }
             SemanticPrimitive::Subtract => integer(Prim::NatSub, Prim::IntSub)?,
             SemanticPrimitive::Multiply => integer(Prim::NatMul, Prim::IntMul)?,
             SemanticPrimitive::Quotient => integer(Prim::NatQuot, Prim::IntQuot)?,
@@ -3678,5 +3781,64 @@ impl Source<'_> {
             | SemanticTerm::Iff { left: _, right: _ }
             | SemanticTerm::Forall { binder: _, body: _ } => SemanticType::Prop,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{json_depth, PROGRAM_JSON_DEPTH};
+    use crate::calculus::{Expr, Function, Program, Ty};
+
+    fn chain(levels: usize) -> Program {
+        let mut body = Expr::Var { name: 0 };
+        for _ in 0..levels {
+            body = Expr::First {
+                value: Box::new(body),
+            };
+        }
+        Program {
+            spec: "lexlean/program/1".to_owned(),
+            adts: Vec::new(),
+            functions: vec![Function {
+                parameters: vec![0],
+                types: vec![Ty::Nat],
+                result: Ty::Nat,
+                body,
+            }],
+        }
+    }
+
+    fn depth_of(program: &Program) -> usize {
+        json_depth(&serde_json::to_string(program).expect("serializes"))
+    }
+
+    #[test]
+    fn depth_counts_open_brackets_and_skips_strings() {
+        assert_eq!(json_depth("0"), 0);
+        assert_eq!(json_depth("[[[0]]]"), 3);
+        assert_eq!(json_depth(r#"{"a":[1,{"b":[]}],"c":{}}"#), 4);
+        assert_eq!(json_depth(r#"{"[[[[":"]]]]\"[[[","k":"\\"}"#), 1);
+    }
+
+    #[test]
+    fn a_program_at_the_limit_round_trips_on_a_two_mebibyte_stack() {
+        // The deepest chain within the limit, found by growing it.
+        let mut levels = 1;
+        while depth_of(&chain(levels + 1)) <= PROGRAM_JSON_DEPTH {
+            levels += 1;
+        }
+        let program = chain(levels);
+        let depth = depth_of(&program);
+        assert!(
+            depth <= PROGRAM_JSON_DEPTH && depth + 4 > PROGRAM_JSON_DEPTH,
+            "the chain is at the limit: {depth}"
+        );
+        let bytes = std::thread::Builder::new()
+            .stack_size(2 << 20)
+            .spawn(move || program.to_file_bytes())
+            .expect("a thread")
+            .join()
+            .expect("the round trip does not overflow");
+        assert!(!bytes.is_empty());
     }
 }

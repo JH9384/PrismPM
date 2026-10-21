@@ -119,6 +119,19 @@ impl<'a> Source<'a> {
         })
     }
 
+    /// The position of the declaration `name` among `module`'s elaborated
+    /// declarations: the order Lean declares them in, which a mutual block's
+    /// recursors follow.
+    pub(crate) fn declaration_position(&self, module: &str, name: &str) -> Option<usize> {
+        self.modules.get(module).and_then(|linked| {
+            linked
+                .semantic
+                .lowered_declarations()
+                .into_iter()
+                .position(|declaration| declaration.name() == name)
+        })
+    }
+
     /// The generated Lean module of a source module.
     pub(crate) fn lean_module(&self, module: &str) -> Result<&'a str, String> {
         self.modules
@@ -341,6 +354,35 @@ impl<'a> Source<'a> {
                     verifier: _,
                     claims: _,
                     executable: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::Tokenizer {
+                    name: _,
+                    type_parameters: _,
+                    scheme: _,
+                    vocabulary: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::ContextWindow {
+                    name: _,
+                    capacity: _,
+                    overflow: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::TextGenerator {
+                    name: _,
+                    tokenizer: _,
+                    window: _,
+                    scorer: _,
+                    max_tokens: _,
+                    stop: _,
+                    policy: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::TextClassifier {
+                    name: _,
+                    tokenizer: _,
+                    model: _,
                     axioms: _,
                 },
             )
@@ -575,6 +617,35 @@ impl<'a> Source<'a> {
                     verifier: _,
                     claims: _,
                     executable: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::Tokenizer {
+                    name: _,
+                    type_parameters: _,
+                    scheme: _,
+                    vocabulary: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::ContextWindow {
+                    name: _,
+                    capacity: _,
+                    overflow: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::TextGenerator {
+                    name: _,
+                    tokenizer: _,
+                    window: _,
+                    scorer: _,
+                    max_tokens: _,
+                    stop: _,
+                    policy: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::TextClassifier {
+                    name: _,
+                    tokenizer: _,
+                    model: _,
                     axioms: _,
                 },
             )

@@ -22,7 +22,7 @@ autoexamples = false
 autotests = false
 autobenches = false
 description = "A closed-lexicon LaTeX-to-Lean 4 compiler whose canonical document and prose-free Lean program are generated from one semantic representation."
-homepage = "https://github.com/afflom/lexlean"
+homepage = "https://github.com/UOR-Foundation/LexLean"
 readme = "README.md"
 keywords = [
     "lean",
@@ -36,7 +36,7 @@ categories = [
     "development-tools",
 ]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/afflom/lexlean"
+repository = "https://github.com/UOR-Foundation/LexLean"
 
 [lib]
 name = "lexlean"
@@ -49,6 +49,10 @@ path = "src/main.rs"
 [[test]]
 name = "embedded"
 path = "tests/embedded.rs"
+
+[[test]]
+name = "end_children"
+path = "tests/end_children.rs"
 
 [[test]]
 name = "interrupt"

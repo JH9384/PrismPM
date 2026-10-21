@@ -81,6 +81,9 @@ struct Checker<'a> {
     scope: Vec<Ident>,
     /// The names moved on the current path.
     moved: BTreeSet<Ident>,
+    /// The pair components moved out of a name on the current path; the name
+    /// itself is then neither read nor moved whole.
+    parted: BTreeMap<Ident, BTreeSet<usize>>,
     /// Whether a `?` occurs in the current function.
     propagates: bool,
     /// Whether the current function is fallible, so its tail may return a
@@ -111,7 +114,16 @@ impl Checker<'_> {
                 self.ty(left)?;
                 self.ty(right)
             }
-            _ => Ok(()),
+            Type::Unit
+            | Type::Bool
+            | Type::Nat
+            | Type::Int
+            | Type::Fixed(..)
+            | Type::Ordering
+            | Type::Str
+            | Type::Bytes
+            | Type::Adt(..)
+            | Type::Fn(..) => Ok(()),
         }
     }
 
@@ -172,6 +184,12 @@ impl Checker<'_> {
                 ident_text(ident)
             ));
         }
+        if self.parted.contains_key(ident) {
+            return fail(format!(
+                "ownership: `{}` is read after a component was moved out of it",
+                ident_text(ident)
+            ));
+        }
         Ok(())
     }
 
@@ -179,8 +197,39 @@ impl Checker<'_> {
         if !self.scope.contains(ident) {
             return fail(format!("`{}` is not bound", ident_text(ident)));
         }
+        if self.parted.contains_key(ident) {
+            return fail(format!(
+                "ownership: `{}` is moved after a component was moved out of it",
+                ident_text(ident)
+            ));
+        }
         if !self.moved.insert(ident.clone()) {
             return fail(format!("ownership: `{}` is moved twice", ident_text(ident)));
+        }
+        Ok(())
+    }
+
+    /// Move the components of `ident` that `parts` binds out of it: a
+    /// projection `let (h, _) = v;`. Each component moves at most once, and
+    /// a name whose component was moved is not read or moved whole.
+    fn consume_parts(&mut self, ident: &Ident, parts: &[Pat]) -> Result<(), String> {
+        if !self.scope.contains(ident) {
+            return fail(format!("`{}` is not bound", ident_text(ident)));
+        }
+        if self.moved.contains(ident) {
+            return fail(format!(
+                "ownership: a component of `{}` is moved after it was moved",
+                ident_text(ident)
+            ));
+        }
+        let taken = self.parted.entry(ident.clone()).or_default();
+        for (index, part) in parts.iter().enumerate() {
+            if *part != Pat::Wild && !taken.insert(index) {
+                return fail(format!(
+                    "ownership: component {index} of `{}` is moved twice",
+                    ident_text(ident)
+                ));
+            }
         }
         Ok(())
     }
@@ -214,7 +263,14 @@ impl Checker<'_> {
             if let Some(ty) = &binding.ty {
                 self.ty(ty)?;
             }
-            self.expr(&binding.value, false)?;
+            match (&binding.pat, &binding.value) {
+                // A tuple pattern leaving a component in place moves the
+                // others out of the binding, not the binding.
+                (Pat::Tuple(parts), Expr::Move(ident, _)) if parts.contains(&Pat::Wild) => {
+                    self.consume_parts(ident, parts)?;
+                }
+                _ => self.expr(&binding.value, false)?,
+            }
             self.bind(&binding.pat)?;
         }
         let checked = self.expr(&block.tail, tail);
@@ -229,10 +285,10 @@ impl Checker<'_> {
         branches: impl IntoIterator<Item = (Option<&'b Pat>, &'b Block)>,
         tail: bool,
     ) -> Result<(), String> {
-        let before = self.moved.clone();
+        let before = (self.moved.clone(), self.parted.clone());
         let mut after = before.clone();
         for (pattern, body) in branches {
-            self.moved = before.clone();
+            (self.moved, self.parted) = before.clone();
             let depth = self.scope.len();
             if let Some(pattern) = pattern {
                 self.bind(pattern)?;
@@ -240,9 +296,16 @@ impl Checker<'_> {
             let checked = self.block(body, tail);
             self.scope.truncate(depth);
             checked?;
-            after.extend(self.moved.iter().cloned());
+            after.0.extend(self.moved.iter().cloned());
+            for (ident, parts) in &self.parted {
+                after
+                    .1
+                    .entry(ident.clone())
+                    .or_default()
+                    .extend(parts.iter().copied());
+            }
         }
-        self.moved = after;
+        (self.moved, self.parted) = after;
         Ok(())
     }
 
@@ -251,24 +314,10 @@ impl Checker<'_> {
     #[allow(clippy::too_many_lines)]
     fn expr(&mut self, expr: &Expr, tail: bool) -> Result<(), String> {
         // The value a fallible function returns is `R<T>`: an `Ok`, a
-        // fallible call or application returning its own result, or a
-        // branch or block whose tails are such values.
-        let returns_result = matches!(
-            expr,
-            Expr::Succeed(..)
-                | Expr::If { .. }
-                | Expr::Match { .. }
-                | Expr::Block(_)
-                | Expr::Apply {
-                    propagate: false,
-                    ..
-                }
-                | Expr::Call {
-                    propagate: false,
-                    ..
-                }
-        );
-        if tail && self.fallible && !returns_result {
+        // fallible call or application returning its own result, a branch or
+        // block whose tails are such values, or a loop whose ends are.
+        let value_returned = returns_result(expr);
+        if tail && self.fallible && !value_returned {
             return fail(format!(
                 "arithmetic: the value a fallible function returns, {}, is not a fallible value",
                 constructs_of(expr)
@@ -439,7 +488,94 @@ impl Checker<'_> {
             }
             Expr::Block(block) => self.block(block, tail),
             Expr::Widen(inner, _) | Expr::Succeed(inner, _) => self.expr(inner, false),
+            // `let mut s = s;` moves the state into the loop's own binding,
+            // which the body may move and the loop rebinds. The body runs
+            // again after each `Ok`, so it moves nothing else.
+            Expr::Loop { state, body } => {
+                // A loop that is the value of a fallible function ends with
+                // `R<T>` values.
+                if tail && self.fallible {
+                    let mut ends = Vec::new();
+                    loop_ends(body, &mut ends);
+                    if let Some(end) = ends.into_iter().find(|end| !returns_result(end)) {
+                        return fail(format!(
+                            "arithmetic: the value a fallible loop ends with, {}, is not a fallible value",
+                            constructs_of(end)
+                        ));
+                    }
+                }
+                self.consume(state)?;
+                let outer = (self.moved.clone(), self.parted.clone());
+                self.moved.remove(state);
+                let entry = (self.moved.clone(), self.parted.clone());
+                // Only a binding the loop does not itself bind again is read
+                // by the next run: a name bound in the body is bound anew.
+                let outside = self.scope.clone();
+                self.block(body, false)?;
+                for ident in &self.moved {
+                    if ident != state && !entry.0.contains(ident) && outside.contains(ident) {
+                        return fail(format!(
+                            "ownership: `{}` is moved in the body of a loop that runs again",
+                            ident_text(ident)
+                        ));
+                    }
+                }
+                for (ident, parts) in &self.parted {
+                    if outside.contains(ident) && entry.1.get(ident) != Some(parts) {
+                        return fail(format!(
+                            "ownership: a component of `{}` is moved in the body of a loop that runs again",
+                            ident_text(ident)
+                        ));
+                    }
+                }
+                (self.moved, self.parted) = outer;
+                Ok(())
+            }
         }
+    }
+}
+
+/// Whether `expr` is a value a fallible function may return: see
+/// [`Checker::expr`].
+fn returns_result(expr: &Expr) -> bool {
+    matches!(
+        expr,
+        Expr::Succeed(..)
+            | Expr::If { .. }
+            | Expr::Match { .. }
+            | Expr::Block(_)
+            | Expr::Loop { .. }
+            | Expr::Apply {
+                propagate: false,
+                ..
+            }
+            | Expr::Call {
+                propagate: false,
+                ..
+            }
+    )
+}
+
+/// The values a loop body ends the loop with: the operands of the `Err` at
+/// each of its tails.
+fn loop_ends<'a>(block: &'a Block, out: &mut Vec<&'a Expr>) {
+    match &block.tail {
+        Expr::Construct {
+            ctor: Ctor::Err(..),
+            args,
+            ..
+        } => out.extend(args),
+        Expr::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            loop_ends(then_branch, out);
+            loop_ends(else_branch, out);
+        }
+        Expr::Match { arms, .. } => arms.iter().for_each(|(_, body)| loop_ends(body, out)),
+        Expr::Block(inner) => loop_ends(inner, out),
+        _ => {}
     }
 }
 
@@ -552,6 +688,7 @@ fn apply_types_expr(
                 .try_for_each(|(_, body)| apply_types(body, declared, types, tail))
         }
         Expr::Block(block) => apply_types(block, declared, types, tail),
+        Expr::Loop { body, .. } => apply_types(body, declared, types, false),
         Expr::Lit(..)
         | Expr::Move(..)
         | Expr::Copy(..)
@@ -583,6 +720,7 @@ pub fn validate(krate: &Crate) -> Result<(), String> {
             bound: BTreeSet::new(),
             scope: Vec::new(),
             moved: BTreeSet::new(),
+            parted: BTreeMap::new(),
             propagates: false,
             fallible: false,
         };
@@ -775,7 +913,16 @@ impl Found {
                 self.ty(left);
                 self.ty(right);
             }
-            _ => {}
+            Type::Unit
+            | Type::Bool
+            | Type::Nat
+            | Type::Int
+            | Type::Fixed(..)
+            | Type::Ordering
+            | Type::Str
+            | Type::Bytes
+            | Type::Adt(..)
+            | Type::Fn(..) => {}
         }
     }
 
@@ -916,7 +1063,7 @@ impl Found {
                     self.block(body);
                 }
             }
-            Expr::Block(block) => self.block(block),
+            Expr::Block(block) | Expr::Loop { body: block, .. } => self.block(block),
             Expr::IsZero(_, origin) | Expr::NonZero(_, origin) => self.at("match:nat", origin),
             Expr::Uncons(_) | Expr::Predecessor(_) => {}
             Expr::Widen(inner, origin) => {
@@ -1016,7 +1163,7 @@ pub const CORRESPONDENCE: &[(&str, &[&str])] = &[
     ("box", &["indirection"]),
     (
         "destructure:pair",
-        &["expr:first", "expr:second", "shape:pair"],
+        &["expr:first", "expr:second", "shape:pair", "expr:call"],
     ),
     ("type:unit", &["type:unit"]),
     ("type:bool", &["type:bool"]),
@@ -1027,9 +1174,9 @@ pub const CORRESPONDENCE: &[(&str, &[&str])] = &[
     ("type:string", &["type:string"]),
     ("type:bytes", &["type:bytes"]),
     ("type:option", &["type:option"]),
-    ("type:result", &["type:result"]),
+    ("type:result", &["type:result", "expr:call"]),
     ("type:list", &["type:list"]),
-    ("type:pair", &["type:pair"]),
+    ("type:pair", &["type:pair", "expr:call"]),
     ("type:adt", &["type:adt"]),
     ("type:fn", &["type:fn", "expr:closure"]),
     ("type:rc", &["indirection"]),
@@ -1080,13 +1227,16 @@ pub const CORRESPONDENCE: &[(&str, &[&str])] = &[
     ),
     ("construct:none", &["value:none", "shape:none"]),
     ("construct:some", &["value:some", "shape:some"]),
-    ("construct:ok", &["value:ok", "shape:ok"]),
-    ("construct:err", &["value:error", "shape:error"]),
+    ("construct:ok", &["value:ok", "shape:ok", "expr:call"]),
+    (
+        "construct:err",
+        &["value:error", "shape:error", "expr:call"],
+    ),
     ("construct:adt", &["value:adt", "shape:adt"]),
     ("construct:closure", &["expr:closure"]),
     ("construct:cons", &["value:list", "shape:cons"]),
     ("construct:nil", &["value:list", "shape:nil"]),
-    ("construct:pair", &["value:pair", "shape:pair"]),
+    ("construct:pair", &["value:pair", "shape:pair", "expr:call"]),
     ("if", &["expr:cond", "shape:true", "shape:zero"]),
     ("match:nat", &["shape:zero"]),
     ("match:list", &["shape:nil"]),

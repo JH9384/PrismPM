@@ -28,6 +28,7 @@ use super::{
     registry, BoundaryRow, CallPath, ClosureMember, Disposition, EffectRow, ModuleReport,
     ReasoningRow, Registry, RootReport, TargetRow,
 };
+use crate::config::Limits;
 use crate::ir::semantic::{
     MemberRef, SemanticAssignment, SemanticBranch, SemanticConstructor, SemanticDeclaration,
     SemanticEdge, SemanticField, SemanticInteger, SemanticMapEntry, SemanticModule,
@@ -158,13 +159,15 @@ pub const fn primitive_key(operation: SemanticPrimitive) -> &'static str {
         SemanticPrimitive::GraphReachable => "primitive.graph_reachable",
         SemanticPrimitive::GraphTopological => "primitive.graph_topological",
         SemanticPrimitive::LessThan => "primitive.less_than",
+        SemanticPrimitive::ToInt => "primitive.to_int",
+        SemanticPrimitive::ToNat => "primitive.to_nat",
     }
 }
 
 /// Every primitive operation, in declaration order. [`primitive_index`] is
 /// exhaustive, so a new operation cannot be added without extending it, and
 /// the conformance suite checks the two agree.
-pub const PRIMITIVES: [SemanticPrimitive; 54] = [
+pub const PRIMITIVES: [SemanticPrimitive; 56] = [
     SemanticPrimitive::Subtract,
     SemanticPrimitive::Multiply,
     SemanticPrimitive::Quotient,
@@ -219,6 +222,8 @@ pub const PRIMITIVES: [SemanticPrimitive; 54] = [
     SemanticPrimitive::GraphReachable,
     SemanticPrimitive::GraphTopological,
     SemanticPrimitive::LessThan,
+    SemanticPrimitive::ToInt,
+    SemanticPrimitive::ToNat,
 ];
 
 /// The position of an operation in [`PRIMITIVES`].
@@ -279,6 +284,8 @@ pub const fn primitive_index(operation: SemanticPrimitive) -> usize {
         SemanticPrimitive::GraphReachable => 51,
         SemanticPrimitive::GraphTopological => 52,
         SemanticPrimitive::LessThan => 53,
+        SemanticPrimitive::ToInt => 54,
+        SemanticPrimitive::ToNat => 55,
     }
 }
 
@@ -286,7 +293,7 @@ pub const fn primitive_index(operation: SemanticPrimitive) -> usize {
 /// the primitive keys, which [`PRIMITIVES`] enumerates. The conformance suite
 /// checks this list, the primitive keys, and the declaration keys against
 /// the registry rows in both directions.
-pub const STRUCTURAL_KEYS: [&str; 88] = [
+pub const STRUCTURAL_KEYS: [&str; 92] = [
     "type.type",
     "type.parameter",
     "type.nat",
@@ -375,6 +382,10 @@ pub const STRUCTURAL_KEYS: [&str; 88] = [
     "declaration.inference_rule",
     "declaration.verifier",
     "declaration.reasoner",
+    "declaration.tokenizer",
+    "declaration.context_window",
+    "declaration.text_generator",
+    "declaration.text_classifier",
 ];
 
 /// The registry key of a type, before its arguments are visited.
@@ -888,6 +899,16 @@ impl<'a> Walk<'a> {
         }
     }
 
+    /// The widening conversions the elaborated declaration `name` of
+    /// `module` applied; each is realized through its elaboration, and the
+    /// member still reports that it uses one (§17.12, §17.13).
+    fn widenings(&self, module: &str, name: &str) -> Vec<&'static str> {
+        self.modules
+            .get(module)
+            .map(|linked| linked.semantic.widenings(name))
+            .unwrap_or_default()
+    }
+
     fn violation(&mut self, site: &Site<'_>, construct: &str, reason: String) {
         self.violations.push(Violation {
             depth: site.depth,
@@ -1157,6 +1178,35 @@ impl<'a> Walk<'a> {
                             claims: _,
                             executable: _,
                             axioms: _,
+                        }
+                        | SemanticDeclaration::Tokenizer {
+                            name: _,
+                            type_parameters: _,
+                            scheme: _,
+                            vocabulary: _,
+                            axioms: _,
+                        }
+                        | SemanticDeclaration::ContextWindow {
+                            name: _,
+                            capacity: _,
+                            overflow: _,
+                            axioms: _,
+                        }
+                        | SemanticDeclaration::TextGenerator {
+                            name: _,
+                            tokenizer: _,
+                            window: _,
+                            scorer: _,
+                            max_tokens: _,
+                            stop: _,
+                            policy: _,
+                            axioms: _,
+                        }
+                        | SemanticDeclaration::TextClassifier {
+                            name: _,
+                            tokenizer: _,
+                            model: _,
+                            axioms: _,
                         },
                     )
                     | None => {
@@ -1369,6 +1419,35 @@ impl<'a> Walk<'a> {
                     parameters: _,
                     statement: _,
                     proof: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::Tokenizer {
+                    name: _,
+                    type_parameters: _,
+                    scheme: _,
+                    vocabulary: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::ContextWindow {
+                    name: _,
+                    capacity: _,
+                    overflow: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::TextGenerator {
+                    name: _,
+                    tokenizer: _,
+                    window: _,
+                    scorer: _,
+                    max_tokens: _,
+                    stop: _,
+                    policy: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::TextClassifier {
+                    name: _,
+                    tokenizer: _,
+                    model: _,
                     axioms: _,
                 } => continue,
             };
@@ -1646,6 +1725,35 @@ impl<'a> Walk<'a> {
                 claims: _,
                 executable: _,
                 axioms: _,
+            }
+            | SemanticDeclaration::Tokenizer {
+                name: _,
+                type_parameters: _,
+                scheme: _,
+                vocabulary: _,
+                axioms: _,
+            }
+            | SemanticDeclaration::ContextWindow {
+                name: _,
+                capacity: _,
+                overflow: _,
+                axioms: _,
+            }
+            | SemanticDeclaration::TextGenerator {
+                name: _,
+                tokenizer: _,
+                window: _,
+                scorer: _,
+                max_tokens: _,
+                stop: _,
+                policy: _,
+                axioms: _,
+            }
+            | SemanticDeclaration::TextClassifier {
+                name: _,
+                tokenizer: _,
+                model: _,
+                axioms: _,
             } => {
                 self.violation(
                     site,
@@ -1724,6 +1832,16 @@ impl<'a> Walk<'a> {
                 self.construct(site, key, None);
                 let substituted = substitute(result, site.substitution);
                 self.construct(site, primitive_key(*operation), Some(&substituted));
+                // The analysis reads elaborated declarations, in which every
+                // widening conversion is the ordinary term it means
+                // (§17.12); one reaching here was not elaborated.
+                if operation.widening() {
+                    self.violation(
+                        site,
+                        primitive_key(*operation),
+                        "a widening conversion is realized only through its elaboration".to_owned(),
+                    );
+                }
                 self.ty(result, site);
                 self.terms(arguments, site);
             }
@@ -2218,6 +2336,35 @@ impl<'a> Walk<'a> {
                 constructors: _,
                 mutual: _,
             }) => "declaration.inductive",
+            Some(SemanticDeclaration::Tokenizer {
+                name: _,
+                type_parameters: _,
+                scheme: _,
+                vocabulary: _,
+                axioms: _,
+            }) => "declaration.tokenizer",
+            Some(SemanticDeclaration::ContextWindow {
+                name: _,
+                capacity: _,
+                overflow: _,
+                axioms: _,
+            }) => "declaration.context_window",
+            Some(SemanticDeclaration::TextGenerator {
+                name: _,
+                tokenizer: _,
+                window: _,
+                scorer: _,
+                max_tokens: _,
+                stop: _,
+                policy: _,
+                axioms: _,
+            }) => "declaration.text_generator",
+            Some(SemanticDeclaration::TextClassifier {
+                name: _,
+                tokenizer: _,
+                model: _,
+                axioms: _,
+            }) => "declaration.text_classifier",
             None => "declaration.definition",
         };
         // A declaration elaborated from a model declaration is that
@@ -2268,6 +2415,11 @@ impl<'a> Walk<'a> {
                 {
                     self.construct(&site, "term.checked_apply", None);
                 }
+                // So is a widening conversion (§17.12, *Widening
+                // conversions*).
+                for conversion in self.widenings(&module, &name) {
+                    self.construct(&site, conversion, None);
+                }
                 if !*executable {
                     self.violation(
                         &site,
@@ -2310,6 +2462,9 @@ impl<'a> Walk<'a> {
                 fields,
             }) => {
                 self.construct(&site, construct, None);
+                for conversion in self.widenings(&module, &name) {
+                    self.construct(&site, conversion, None);
+                }
                 let named = SemanticType::Named {
                     member: class.clone(),
                     arguments: arguments.clone(),
@@ -2440,6 +2595,35 @@ impl<'a> Walk<'a> {
                     parameters: _,
                     constructors: _,
                     mutual: _,
+                }
+                | SemanticDeclaration::Tokenizer {
+                    name: _,
+                    type_parameters: _,
+                    scheme: _,
+                    vocabulary: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::ContextWindow {
+                    name: _,
+                    capacity: _,
+                    overflow: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::TextGenerator {
+                    name: _,
+                    tokenizer: _,
+                    window: _,
+                    scorer: _,
+                    max_tokens: _,
+                    stop: _,
+                    policy: _,
+                    axioms: _,
+                }
+                | SemanticDeclaration::TextClassifier {
+                    name: _,
+                    tokenizer: _,
+                    model: _,
+                    axioms: _,
                 },
             ) => {
                 self.construct(&site, construct, None);
@@ -2630,6 +2814,35 @@ fn inductive_group(
                 claims: _,
                 executable: _,
                 axioms: _,
+            }
+            | SemanticDeclaration::Tokenizer {
+                name: _,
+                type_parameters: _,
+                scheme: _,
+                vocabulary: _,
+                axioms: _,
+            }
+            | SemanticDeclaration::ContextWindow {
+                name: _,
+                capacity: _,
+                overflow: _,
+                axioms: _,
+            }
+            | SemanticDeclaration::TextGenerator {
+                name: _,
+                tokenizer: _,
+                window: _,
+                scorer: _,
+                max_tokens: _,
+                stop: _,
+                policy: _,
+                axioms: _,
+            }
+            | SemanticDeclaration::TextClassifier {
+                name: _,
+                tokenizer: _,
+                model: _,
+                axioms: _,
             } => {}
         }
     }
@@ -2725,6 +2938,7 @@ fn analyse_root(
     production: &SemanticProduction,
     modules: &BTreeMap<String, LinkedModule<'_>>,
     budget: &ReportBudget,
+    limits: &Limits,
 ) -> Result<RootReport, AnalysisError> {
     let registry = registry().map_err(AnalysisError::Internal)?;
     let mut walk = Walk {
@@ -2823,6 +3037,39 @@ fn analyse_root(
                 }
             }
             None => break,
+        }
+    }
+
+    // The registry says `recursion` of a recursive definition, which is a
+    // property of its rendering: a function whose self calls are all tail
+    // calls is rendered as a loop and uses no stack (§17.13, §17.16). So
+    // when the walk found the effect, the closure is lowered and the effect
+    // is required only if the lowered program recurses. A root that does not
+    // lower here keeps the registry's answer, which never admits less.
+    if walk.effects.contains_key("recursion") && walk.violations.is_empty() {
+        let provisional = RootReport {
+            root: root.clone(),
+            declared_effects: production.effects.clone(),
+            runtime: walk
+                .member_order
+                .iter()
+                .filter_map(|instance| walk.members.get(instance).cloned())
+                .collect(),
+            types: walk.types.clone(),
+            erased: walk.erased.clone(),
+            constructs: walk.constructs.clone(),
+            targets: Vec::new(),
+            reasoning: Vec::new(),
+        };
+        match super::lower::lower_root(modules, module, name, &provisional, limits) {
+            Ok(lowered) => {
+                if !crate::calculus::realization::program_recurses(&lowered.program) {
+                    walk.effects.remove("recursion");
+                }
+            }
+            // The registry's answer stands for a root that does not lower
+            // here (the comment above), so this arm does nothing by decision.
+            Err(_) => {}
         }
     }
 
@@ -3078,6 +3325,7 @@ pub fn analyse_module(
     modules: &BTreeMap<String, LinkedModule<'_>>,
     max_report_bytes: u64,
     written_before: u64,
+    limits: &Limits,
 ) -> Result<Option<ModuleReport>, AnalysisError> {
     let linked = match modules.get(module) {
         Some(linked) => linked,
@@ -3112,6 +3360,7 @@ pub fn analyse_module(
                     production,
                     modules,
                     &budget,
+                    limits,
                 )?;
                 // The bytes the root takes in the report, as written: the
                 // walk's own count is a lower bound that stops a single root
@@ -3263,6 +3512,35 @@ pub fn analyse_module(
                 claims: _,
                 executable: _,
                 axioms: _,
+            }
+            | SemanticDeclaration::Tokenizer {
+                name: _,
+                type_parameters: _,
+                scheme: _,
+                vocabulary: _,
+                axioms: _,
+            }
+            | SemanticDeclaration::ContextWindow {
+                name: _,
+                capacity: _,
+                overflow: _,
+                axioms: _,
+            }
+            | SemanticDeclaration::TextGenerator {
+                name: _,
+                tokenizer: _,
+                window: _,
+                scorer: _,
+                max_tokens: _,
+                stop: _,
+                policy: _,
+                axioms: _,
+            }
+            | SemanticDeclaration::TextClassifier {
+                name: _,
+                tokenizer: _,
+                model: _,
+                axioms: _,
             } => {}
         }
     }
@@ -3309,7 +3587,20 @@ mod tests {
                 semantic: &semantic,
             },
         )]);
-        match analyse_module("Main", &modules, u64::MAX, 0) {
+        let limits = crate::config::Limits {
+            max_file_bytes: 4_194_304,
+            max_total_source_bytes: 67_108_864,
+            max_primitive_atoms: 2_000_000,
+            max_token_lattice_edges: 4_000_000,
+            max_parse_states: 4_000_000,
+            max_ir_nodes: 2_000_000,
+            max_scope_depth: 1024,
+            max_import_depth: 128,
+            max_diagnostics: 256,
+            max_child_output_bytes: 16_777_216,
+            child_timeout_ms: 300_000,
+        };
+        match analyse_module("Main", &modules, u64::MAX, 0, &limits) {
             Ok(report) => panic!("the root is reported eligible: {report:?}"),
             Err(AnalysisError::Ineligible(reason)) => reason,
             Err(AnalysisError::Internal(reason) | AnalysisError::Limit(reason)) => {

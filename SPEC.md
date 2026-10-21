@@ -875,17 +875,20 @@ no absolute checkout path, hostname, locale text, random identifier, timestamp,
 or traversal-order dependence.
 
 The only imported Lean-source exception is the registered LexLean 0.3.0 package
-at reviewed revision `0865df4e540ca643b090a29e9df6d319d6906da6`. Its exact
-18-file compiler-authority closure is `language/lcnf-1.2/extract.lean` plus the
-following 17 paths under `language/preservation-1.2/`, all inside `vendor/lexlean/`:
-`library/LexLeanPreservation/{Compose,Core,Fixed,Keys,Primitives,RustBase,RustCorr,RustLemmas,RustMatches,RustSound,Templates,Validate,Values}.lean`
-and `modules/LexLeanTarget/{RustSemantics,RustSyntax,TargetSemantics,TargetSyntax}.lean`.
+at pinned `release/v0.4` revision `cee0fbade479891479e0b748aaa8b60e0a1aaf07`
+(the v0.4.0 release binding replaces this commit pin when that release exists).
+Its exact 4-file compiler-authority closure is the following paths under
+`vendor/lexlean/language/preservation-1.2/`:
+`modules/LexLeanTarget/{RustSemantics,RustSyntax,TargetSemantics,TargetSyntax}.lean`.
 These braces enumerate the named files; they are not a wildcard admission rule.
-The extraction adapter and preservation library are untouched dependency-owned
-compiler authorities, not PrismPM-authored models or proofs. Admission verifies
+The extraction adapter (`language/lcnf-1.2/tooling/src`) and the preservation
+library (`language/preservation-1.2/library/src`) are `.lex.tex` notation that
+LexLean compiles, not Lean sources, and need no exception. The four target
+modules are untouched dependency-owned compiler authorities, not
+PrismPM-authored models or proofs. Admission verifies
 the complete dependency register, package and tree checksums, exact selected
 revision and crate path, and clean package VCS provenance. It then independently
-decodes the registered archive and requires the exact 18-member Lean set and
+decodes the registered archive and requires the exact 4-member Lean set and
 complete archive-member/tree-manifest membership and byte equality, including
 the package VCS file and every non-Lean file. Only the extracted tree's root
 `MANIFEST.sha256` and `lexlean-0.3.0.crate`, added by the normal package importer,

@@ -1888,7 +1888,7 @@ all-target/all-feature Clippy for conformance/xtask, model/spec/source audits,
 subtest failure plus guard-omission mutant distinguishes failed prerequisite
 handling from merely observing a nonzero test exit. Focused-check log SHA-256:
 `f69b1920969d31649522d09704c3b3e1811f46a9f771cabec31c009c9059f06d`.
-Full V&V, both consecutive hosted invocations and installed SDK acceptance
+Full V&V (one hosted invocation on main) and installed SDK acceptance
 remain required; these targeted results do not establish their completion.
 
 ## Bounded native-library root projection

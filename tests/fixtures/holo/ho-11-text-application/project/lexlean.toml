@@ -1,6 +1,6 @@
 spec = "lexlean/project/1"
 name = "prism-text-request"
-language = "1.1"
+language = "1.2"
 module_prefix = "PrismTextRequest"
 source_roots = ["src"]
 entrypoints = ["src/TextRequest.lex.tex"]

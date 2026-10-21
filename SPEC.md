@@ -190,6 +190,61 @@ and present modeled text safely. This profile grants no persistence, network,
 authentication, or organizational compliance capability. It does not change
 the Holo/1 physical archive or the legacy numeric View representation.
 
+The separate `Foundation.View.Text.V3.Model.TextApplication` declares
+`prismpm/text-application/3` in closed `prismpm/model-document/6`. It retains
+every V2 field and resource rule and adds one required closed `cli` record, so
+the command-line surface is source-owned data and not generator input. HO-17
+owns this profile. The record holds the subcommand `command` (a lowercase token
+other than `examples`), a purpose paragraph `description`, `usageCode` and
+`ioCode`, the ordered exit-code map `outcomes`, optional help `sections` and
+named `examples`. Each outcome has a unique lowercase `name`, a nonempty
+`prefix` and a unique `exitCode`; prefixes must not begin one another, every
+code is at most 125, usage and I/O codes differ from each other and from every
+outcome, and an outcome named `error` is required. Every acceptance response
+must begin with exactly one declared prefix. Missing, null, mistyped or
+undeclared fields, a `cli` under another profile or schema and a foreign type
+owner are rejected with PP2009 or PP2001.
+
+For a text/3 application the build generates one Cargo package whose only
+product code is the fixed program template composed with the generated
+surface constants and the bounded raw-file adapter of `crate::binary_cli`; no
+dispatch, parsing of requests or report formatting is handwritten. The program
+accepts `COMMAND [FILE]`, `examples [NAME]`, `--help` and `--version`. A missing
+FILE or `-` reads standard input. The request is read as raw bytes, at most the
+modeled request maximum plus one byte, so an oversized request is refused with
+the typed `InputLimit` failure before dispatch. The report is written to
+standard output unchanged and the process exits with the code of the outcome
+whose prefix begins it. `--help` is rendered from the model: purpose, usage,
+the request bound, modeled sections, examples and the complete exit-code table.
+`--version` prints `{cargo_name} {cargo_version}`. Failures are the closed
+`TextCliFailure` vocabulary registered in `model/text-cli-diagnostics.toml`;
+each exits with `usageCode`, `ioCode` or the code of the `error` outcome by its
+class and prints `{binary}: {Failure}[: detail]` on standard error. A closed or
+full standard output is `OutputWrite`; a standard stream closed before exec is
+reopened by the standard library on `/dev/null` and cannot be observed as a
+write failure.
+
+The build produces a static program for each of `x86_64-unknown-linux-musl`
+and `aarch64-unknown-linux-musl` at `cli/bin/{target}/{cargo_name}`, with the
+self-contained `rust-lld` linker, a locked offline registry and the path-remapped
+release profile. Each is structurally validated as a static ELF of the exact
+machine with no interpreter and no needed library. The build manifest lists the
+programs, `cli/Cargo.lock`, the generated package and `cli/sbom.spdx.json`, an
+SPDX 3.0.1 document that names the package, every locked dependency with its
+registry checksum and each program and the lock by SHA-256.
+
+Application acceptance runs every acceptance vector through the Core-Wasm
+entry and through the program for the host architecture over standard input, a
+file and `-`. A vector within the request maximum must produce the identical
+report bytes, the modeled exit code and an empty standard error. A vector over
+the modeled maximum cannot reach the guest through the program; it must exit
+with the fault code, empty standard output and `InputLimit`, and its guest
+response is compared only with the model. The retained
+`application-acceptance.json` carries the `command_line` record with program
+digests, and source-free verification replays it exactly. The program for a
+target other than the host architecture is built, validated and digested but
+not executed.
+
 The V1 model defines the header and section table; `AppManifest`, Metadata,
 Extension, and ContentBlob sections; canonical capability requests and child
 delegations; application directory; footer; physical archive; Core-Wasm
@@ -3406,6 +3461,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `HO-14` | `holo` | Pinned BLAKE3 vectors qualify every imported digest mode, streaming partition and content-identity result without claiming cryptographic proof or durable native storage. | §3 |
 | `HO-15` | `holo` | The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application. | §3 |
 | `HO-16` | `holo` | The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults. | §3 |
+| `HO-17` | `holo` | The explicit text/3 profile models its command-line surface in source and generates static musl programs whose bounded raw input, model-owned help and version, declared exit-code map and registered usage, I/O and fault diagnostics are accepted against the Core-Wasm entry for every vector, without handwritten product code or any claim about targets not executed. | §3 |
 | `CT-01` | `controller` | The Controller API exposes owned request and result types for load, check, and build. | §4 |
 | `CT-02` | `controller` | The Controller encapsulates LexLean Engine operations without exposing internal compiler types. | §4 |
 | `CT-03` | `controller` | prismpm check validates models in memory without modifying the filesystem. | §4 |

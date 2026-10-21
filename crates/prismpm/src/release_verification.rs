@@ -1263,16 +1263,37 @@ fn application_binding(
     let guest = file(build_files, &guest_name)?;
     let identities = application_archive(application, model, build_files, guest)?;
     let acceptance = canonical_json(file(files, "application-acceptance.json")?, false)?;
+    let mut modeled_acceptance = json!({
+        "application":application.name(), "artifact_closure":"verified", "browser_projection":"verified",
+        "build_id":build_id, "cargo_package":{"name":application.cargo_name(),"sha256":hex(file(build_files, &crate_name)?),"version":application.cargo_version()},
+        "core_wasm":{"sha256":hex(guest),"status":"verified"}, "holo":identities,
+        "hologram_oracle":"verified", "lexlean_attestation_id":lex["attestation_id"],
+        "modeled_vectors":application.acceptance_vectors().len(), "regeneration":"byte-identical", "schema":"prismpm/application-acceptance/1",
+        "source_id":lex["source_id"], "status":"verified"
+    });
+    let command_line = match application {
+        Application::Text(text) if text.cli.is_some() => Some(text.as_ref()),
+        _ => None,
+    };
+    if let Some(text) = command_line {
+        let digests = crate::text_cli::TARGETS
+            .iter()
+            .map(|target| {
+                let path = crate::text_cli::binary_path(target, text);
+                let sha256 = hex(file(build_files, &path)?);
+                Ok((path, sha256))
+            })
+            .collect::<Result<BTreeMap<_, _>, PrismError>>()?;
+        modeled_acceptance["command_line"] = crate::text_cli::acceptance::evidence(
+            text,
+            lex["host"]["arch"]
+                .as_str()
+                .ok_or_else(|| invalid("application command-line host architecture is absent"))?,
+            &digests,
+        )?;
+    }
     ensure(
-        acceptance
-            == json!({
-                    "application":application.name(), "artifact_closure":"verified", "browser_projection":"verified",
-                    "build_id":build_id, "cargo_package":{"name":application.cargo_name(),"sha256":hex(file(build_files, &crate_name)?),"version":application.cargo_version()},
-                    "core_wasm":{"sha256":hex(guest),"status":"verified"}, "holo":identities,
-                    "hologram_oracle":"verified", "lexlean_attestation_id":lex["attestation_id"],
-                    "modeled_vectors":application.acceptance_vectors().len(), "regeneration":"byte-identical", "schema":"prismpm/application-acceptance/1",
-            "source_id":lex["source_id"], "status":"verified"
-                }),
+        acceptance == modeled_acceptance,
         "application acceptance differs from actual model or artifacts",
     )?;
     let mut expected = PREFLIGHT.to_vec();
@@ -1286,6 +1307,16 @@ fn application_binding(
         "application-package-no-std",
         "application-consumer-lock",
         "application-generated-rust-corpus",
+    ]);
+    if let Some(text) = command_line {
+        expected.push("text-cli-acceptance");
+        let retained = processes
+            .iter()
+            .find(|row| row["tool"] == "text-cli-acceptance")
+            .ok_or_else(|| invalid("application command-line acceptance process is absent"))?;
+        crate::text_cli::acceptance::check_report(text, string(&retained["stdout"])?)?;
+    }
+    expected.extend([
         "application-lean",
         "application-exporter",
         "application-export",

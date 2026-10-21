@@ -1477,7 +1477,8 @@ pub fn audit_tools_ci(root: &Path) -> Result<(), Fail> {
     }
     for workflow in [
         ".github/workflows/ci-parallel.yml",
-        ".github/workflows/honesty.yml",
+        ".github/workflows/bootstrap.yml",
+        ".github/workflows/native-golden.yml",
         ".github/workflows/reproducibility.yml",
         ".github/workflows/vv.yml",
     ] {

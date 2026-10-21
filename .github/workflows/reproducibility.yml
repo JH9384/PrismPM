@@ -1,22 +1,25 @@
 name: Reproducibility Gate
 
+# Two-root output comparison is already gate 12 of the main-push `just vv`.
+# This standalone job is the nightly drift detector on main (and an on-demand
+# check for any ref); it no longer runs on pull requests.
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: '17 3 * * *'
   workflow_dispatch:
-  pull_request:
-
-concurrency:
-  group: reproducibility-${{ github.repository }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   reproducibility:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    # Measured 45-50 minutes.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Compare complete platform-independent outputs in two absolute roots

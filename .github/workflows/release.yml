@@ -17,6 +17,7 @@ on:
     tags:
       - v0.3.0
 
+# Never cancel a release in flight: partial publication is worse than queueing.
 concurrency:
   group: release-${{ github.sha }}
   cancel-in-progress: false
@@ -81,7 +82,7 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 3
       matrix:
         include:
           - name: sdk
@@ -305,7 +306,7 @@ jobs:
     timeout-minutes: 360
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 4
       matrix:
         include:
           - os: ubuntu-24.04
@@ -645,7 +646,7 @@ jobs:
     name: publish source-addressed OCI/native verification assets
     needs: [gate, images, native, reproducibility, installed-sdk]
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 120
     permissions:
       contents: write
       id-token: write
@@ -783,7 +784,7 @@ jobs:
     if: ${{ needs.gate.outputs.publish-crates == 'true' }}
     needs: [gate, images, native, reproducibility, installed-sdk, oci-native]
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 120
     environment: crates.io
     permissions:
       contents: read
@@ -898,7 +899,7 @@ jobs:
   release:
     needs: [gate, images, native, reproducibility, installed-sdk, oci-native, crates]
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 120
     permissions:
       contents: write
       id-token: write

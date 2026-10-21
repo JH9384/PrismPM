@@ -1,10 +1,10 @@
-use std::fs;
-use std::path::Path;
 use hologram::archive::{HoloLoader, HoloWriter, SectionKind};
 use hologram::space::{
     address_bytes, AppManifest, Capabilities, CapabilitySet, Layer, LayerKind, Realization,
 };
 use serde_json::json;
+use std::fs;
+use std::path::Path;
 
 fn empty_capabilities() -> Vec<u8> {
     CapabilitySet::new(Capabilities {
@@ -50,14 +50,12 @@ fn compute_and_assemble_ancient_mint_holo() {
     let app_manifest = AppManifest {
         primary: None,
         requires: cap_kappa,
-        layers: vec![
-            Layer {
-                kind: LayerKind::View,
-                content: model_kappa,
-                entry: "model.prism.json".to_owned(),
-                aux: "portable".to_owned(),
-            }
-        ],
+        layers: vec![Layer {
+            kind: LayerKind::View,
+            content: model_kappa,
+            entry: "model.prism.json".to_owned(),
+            aux: "portable".to_owned(),
+        }],
         children: Vec::new(),
     };
     app_manifest.validate().unwrap();
@@ -80,7 +78,8 @@ fn compute_and_assemble_ancient_mint_holo() {
             "kappa": model_kappa.to_string(),
             "byte_length": model_bytes.len()
         }]
-    })).unwrap();
+    }))
+    .unwrap();
 
     let provenance = serde_json::to_vec(&json!({
         "schema": "prismpm/model-provenance/1",
@@ -89,25 +88,29 @@ fn compute_and_assemble_ancient_mint_holo() {
         "source_id": "d8743aefc1c7d166b96d8d6b90911bea5478fc9e3d4c82be7f4809c52886810b",
         "model_content_kappa": model_kappa.to_string(),
         "application_kappa": app_manifest_kappa.to_string()
-    })).unwrap();
+    }))
+    .unwrap();
 
     let mut sections = vec![
         (SectionKind::AppManifest, canonical_manifest),
         (SectionKind::Metadata, manifest_bytes),
         (
             SectionKind::Extension,
-            upstream_extension("https://hologram.foundation/extension/application-directory/v1", &directory),
+            upstream_extension(
+                "https://hologram.foundation/extension/application-directory/v1",
+                &directory,
+            ),
         ),
         (
             SectionKind::Extension,
-            upstream_extension("https://uor.foundation/extension/prismpm-model/v1", &provenance),
+            upstream_extension(
+                "https://uor.foundation/extension/prismpm-model/v1",
+                &provenance,
+            ),
         ),
     ];
 
-    let mut blobs = vec![
-        (cap_kappa, capabilities),
-        (model_kappa, model_bytes),
-    ];
+    let mut blobs = vec![(cap_kappa, capabilities), (model_kappa, model_bytes)];
     blobs.sort_by(|left, right| left.0.as_bytes().cmp(right.0.as_bytes()));
     for (label, bytes) in blobs {
         let mut payload = label.as_bytes().to_vec();
@@ -127,7 +130,10 @@ fn compute_and_assemble_ancient_mint_holo() {
     let fingerprint_hex = computed_footer.to_hex().to_string();
 
     // Verify loader
-    let plan = HoloLoader::from_bytes(&archive).unwrap().into_plan().unwrap();
+    let plan = HoloLoader::from_bytes(&archive)
+        .unwrap()
+        .into_plan()
+        .unwrap();
     assert_eq!(plan.sections().len(), 6);
 
     // Write .holo archive to artifacts, docs, and project build directory
@@ -147,7 +153,8 @@ fn compute_and_assemble_ancient_mint_holo() {
         "application_kappa": app_manifest_kappa.to_string(),
         "model_id": "33e35edc7cf68cdf6082f46569978a193eaeb8ad9137c8b5f84b13d65471cf16",
         "status": "accepted"
-    })).unwrap();
+    }))
+    .unwrap();
     let attestation_id = format!("blake3:{}", blake3::hash(&attestation_bytes).to_hex());
 
     println!("=== ANCIENT MINT HOLOGRAPHIC FREEZE SUMMARY ===");

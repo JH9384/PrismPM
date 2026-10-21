@@ -506,23 +506,27 @@ export async function runReview({source, revision, destination}, transport = exe
   return result;
 }
 
+export const NATIVE_INPUT_PATHS = Object.freeze(["stdlib/**", "tests/golden/**", "vendor/lexlean/**", "crates/prismpm/src/**", "model/**", "schemas/**", "sdk/**", "lexlean.toml", "lexlean.lock", "lean-toolchain", "rust-toolchain.toml", "Cargo.toml", "Cargo.lock", "scripts/native-golden.mjs", "scripts/ci-observe.mjs", ".github/workflows/native-golden.yml"]);
+
 export function validateWorkflow(text) {
-  assert.match(text, /^  pull_request:$/m); assert(!/workflow_dispatch:|environment:|packages:|id-token:|attestations:|pull_request_target:/.test(text));
+  assert.match(text, /^  pull_request:\n(?:    #.*\n)+    paths:\n((?:      - '.*'\n)+)  push:\n    branches: \[main\]\n    tags: \['v\*'\]\n  workflow_dispatch:\n/m);
+  assert.deepEqual(text.match(/^    paths:\n((?:      - '.*'\n)+)/m)[1].split('\n').filter(Boolean).map(line => line.slice(9, -1)), NATIVE_INPUT_PATHS);
+  assert(!/environment:|packages:|id-token:|attestations:|pull_request_target:/.test(text));
   assert.match(text, /^    runs-on: \$\{\{ matrix\.os \}\}$/m);
   assert.equal(text.match(/^    strategy:\n((?:      .*\n|        .*\n|          .*\n|            .*\n)+)/m)?.[1],
     '      fail-fast: false\n      max-parallel: 2\n      matrix:\n        include:\n          - os: ubuntu-24.04\n            arch: amd64\n          - os: ubuntu-24.04-arm\n            arch: arm64\n');
   assert.match(text, /^      contents: read$/m); assert(!/: write\b/.test(text));
   assert.match(text, /^          node-version: 22\.23\.2$/m);
-  assert.match(text, /^          ref: \$\{\{ github\.event\.pull_request\.head\.sha \}\}$/m);
+  assert.match(text, /^          ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}$/m);
   assert.match(text, /^          persist-credentials: false$/m);
-  const run = text.match(/      - name: Generate review-only native records\n        env:\n          SOURCE_REVISION: \$\{\{ github\.event\.pull_request\.head\.sha \}\}\n        run: \|\n((?:          .*\n)+)/)?.[1];
+  const run = text.match(/      - name: Generate review-only native records\n        env:\n          SOURCE_REVISION: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}\n        run: \|\n((?:          .*\n)+)/)?.[1];
   assert.equal(run, '          node scripts/native-golden.mjs tests\n          node scripts/native-golden.mjs run "$SOURCE_REVISION" "$RUNNER_TEMP/native-golden"\n');
   assert.match(text, /      - name: Start bounded native review diagnostics\n        run: node scripts\/ci-observe\.mjs start "\$RUNNER_TEMP\/native-observer"\n/);
   assert.match(text, /      - name: Stop native review diagnostics\n        if: always\(\)\n        run: node scripts\/ci-observe\.mjs stop "\$RUNNER_TEMP\/native-observer"\n/);
   for (const [name, path] of [['native-golden-review', 'native-golden'], ['native-golden-diagnostics', 'native-observer']]) {
     assert(text.includes('      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02\n'
       + '        if: always()\n        with:\n'
-      + `          name: ${name}-\${{ matrix.arch }}-\${{ github.event.pull_request.head.sha }}\n`
+      + `          name: ${name}-\${{ matrix.arch }}-\${{ github.event.pull_request.head.sha || github.sha }}\n`
       + `          path: \${{ runner.temp }}/${path}/\n`), 'each native review artifact must upload on failure');
   }
   assert.match(text, /path: \$\{\{ runner\.temp \}\}\/native-golden\/\n          if-no-files-found: error\n          compression-level: 6\n/,

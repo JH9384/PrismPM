@@ -9,9 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) mod browser;
 
-// Generated from the unchanged, digest-pinned upstream YAML by the registered
-// js-yaml projection writer. This is not an arbitrary YAML parsing interface.
-const INGRESS_NGINX_KIND: &[u8] = include_bytes!("../adapters/ingress-nginx-kind-v1.15.1.json");
+const INGRESS_NGINX_KIND: &[u8] = include_bytes!("../adapters/ingress-nginx-kind-v1.15.1.yaml");
 
 // Production.SystemValidation.modelEntityCount counts the product plus these
 // collections; modelIdsGloballyUnique checks that same complete identity set.
@@ -2223,17 +2221,25 @@ fn kubernetes_target(system: &Value) -> Result<&Value, PrismError> {
     Ok(target)
 }
 
+/// Parse the pinned multi-document ingress manifest into JSON values.
+///
+/// Empty and null documents are skipped. Duplicate mapping keys are refused
+/// by the parser's default policy, so a corrupted manifest cannot silently
+/// shadow a field.
+fn ingress_nginx_documents() -> Result<Vec<Value>, PrismError> {
+    serde_saphyr::from_slice_multiple::<Value>(INGRESS_NGINX_KIND).map_err(|error| {
+        PrismError::new(
+            "PP7101",
+            format!("pinned ingress controller manifest: {error}"),
+        )
+    })
+}
+
 fn ingress_controller_resources(target: &Value) -> Result<Vec<Value>, PrismError> {
     if target["ingress_class_name"].is_null() {
         return Ok(Vec::new());
     }
-    let mut resources: Vec<Value> =
-        serde_json::from_slice(INGRESS_NGINX_KIND).map_err(|error| {
-            PrismError::new(
-                "PP7101",
-                format!("pinned ingress controller manifest: {error}"),
-            )
-        })?;
+    let mut resources = ingress_nginx_documents()?;
     // The pinned ingress manifest spells the empty ConfigMap as `data: null`.
     // Emit an empty map, as required by the authoritative core/v1 schema;
     // preserve the imported source and every configured value unchanged.
@@ -2948,6 +2954,22 @@ mod tests {
     use std::collections::BTreeSet;
 
     #[test]
+    fn ingress_manifest_yaml_refuses_duplicate_keys_and_skips_empty_documents() {
+        use serde_json::Value;
+
+        let duplicate = serde_saphyr::from_slice_multiple::<Value>(b"kind: A\nkind: B\n");
+        assert!(duplicate.is_err(), "duplicate keys must be refused");
+        let documents = serde_saphyr::from_slice_multiple::<Value>(
+            b"---\n---\nkind: A\n---\nnull\n---\nkind: B\n",
+        )
+        .unwrap();
+        assert_eq!(documents, vec![json!({"kind": "A"}), json!({"kind": "B"})]);
+        let pinned = super::ingress_nginx_documents().unwrap();
+        assert_eq!(pinned.len(), 19);
+        assert!(pinned.iter().all(|resource| resource["kind"].is_string()));
+    }
+
+    #[test]
     fn ingress_projection_normalizes_only_empty_configmap_data() {
         use serde_json::Value;
 
@@ -2955,10 +2977,7 @@ mod tests {
             "ingress_class_name": "nginx"
         }))
         .unwrap();
-        // The registered Node owner separately checks this entire unnormalized
-        // array against the pinned YAML, including order and every value.
-        let imported: Vec<Value> = serde_json::from_slice(super::INGRESS_NGINX_KIND).unwrap();
-        assert_eq!(imported.len(), 19);
+        let imported = super::ingress_nginx_documents().unwrap();
         assert_eq!(resources.len(), imported.len());
         let mut normalized = 0;
         for (actual, mut original) in resources.into_iter().zip(imported) {

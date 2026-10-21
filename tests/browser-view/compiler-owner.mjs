@@ -49,8 +49,13 @@ function requiredInputs(name) {
   }
   return [...paths].sort();
 }
+// Paths are not compiler authority: callers must capture their actual sources
+// and retain every authentic owner/digest/native join before execution.
+export function compilerInputPaths(name) {
+  return Object.freeze(requiredInputs(name));
+}
 export function captureCompilerInputs(name) {
-  return inputMap(Object.fromEntries(requiredInputs(name).map(path => [path, sha(file(join(repository, path)))])));
+  return inputMap(Object.fromEntries(compilerInputPaths(name).map(path => [path, sha(file(join(repository, path)))])));
 }
 function inputMap(value) {
   assert.ok(value && Object.getPrototypeOf(value) === Object.prototype, 'compiler input map required');

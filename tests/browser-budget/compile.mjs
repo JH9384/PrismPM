@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {run, sha} from '../browser-view/compile.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
-import {requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {compilerInputPaths, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -33,6 +33,7 @@ export function frozenInputs() {
       files.add(tree+'/'+row[2]);
     }
   }
+  for (const path of compilerInputPaths('budget')) files.add(path);
   return Object.freeze(Object.fromEntries([...files].sort().map(path=>[path,sha(readFileSync(join(repository,path)))])));
 }
 

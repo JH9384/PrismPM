@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {run, sha} from '../browser-view/compile.mjs';
-import {requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {compilerInputPaths, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
@@ -70,6 +70,7 @@ export function frozenInputs() {
       const input = tree + '/' + relative; assert.equal(sha(read(input)), digest); files.add(input);
     }
   }
+  for (const path of compilerInputPaths('signed-context')) files.add(path);
   const captures = new Map([...files].sort().map(path => [path, captureFile(join(repository, path))]));
   const inputs = Object.fromEntries([...captures].map(([path, row]) => [path, row.evidence.sha256]));
   for (const [path, bytes] of capturedModules) assert.equal(sha(bytes), inputs[path], 'actual parsed module snapshot ' + path);

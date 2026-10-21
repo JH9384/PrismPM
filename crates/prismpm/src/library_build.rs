@@ -233,7 +233,7 @@ pub(crate) fn generate_owned(
     owner: &mut crate::exporter::VerifyExporterOwner,
     phase: crate::exporter::Phase,
 ) -> Result<GeneratedLibrary, PrismError> {
-    owner.generate(
+    owner.generate_library(
         repository_root,
         phase,
         model_bytes,
@@ -378,15 +378,26 @@ fn generate_in(
                 )?;
             }
         }
-        processes.push(run_process(
-            tool,
-            &lake,
-            &args,
-            directory,
-            &no_env,
-            &replacements,
-            "PP5004",
-        )?);
+        processes.push(match owned {
+            Some((_, context)) => context.run_library(
+                tool,
+                &lake,
+                &args,
+                directory,
+                &no_env,
+                &replacements,
+                "PP5004",
+            ),
+            None => run_process(
+                tool,
+                &lake,
+                &args,
+                directory,
+                &no_env,
+                &replacements,
+                "PP5004",
+            ),
+        }?);
     }
     let export = workspace.join("export");
     let export_custody = match owned {
@@ -405,17 +416,28 @@ fn generate_in(
             .to_string_lossy()
             .into_owned(),
     )]);
-    processes.push(crate::exporter::run_export_with_custody(
-        "prod-export",
-        &lake,
-        &arguments,
-        &lean_package,
-        &export_env,
-        &replacements,
-        "PP5004",
-        &exporter_acquisition,
-        &export_custody,
-    )?);
+    processes.push(match owned {
+        Some((_, context)) => context.run_library(
+            "prod-export",
+            &lake,
+            &arguments,
+            &lean_package,
+            &export_env,
+            &replacements,
+            "PP5004",
+        ),
+        None => crate::exporter::run_export_with_custody(
+            "prod-export",
+            &lake,
+            &arguments,
+            &lean_package,
+            &export_env,
+            &replacements,
+            "PP5004",
+            &exporter_acquisition,
+            &export_custody,
+        ),
+    }?);
     let mut artifacts = Vec::new();
     for name in ["coverage.json", "kernel.ir", "roots.json"] {
         let bytes = std::fs::read(export.join(name))
@@ -479,15 +501,29 @@ fn generate_in(
         ),
         ("CARGO_NET_OFFLINE".to_owned(), "true".to_owned()),
     ]);
-    processes.push(run_process(
-        "native-library-package",
-        &executable("cargo")?,
-        &["package", "--locked", "--offline", "--allow-dirty"].map(str::to_owned),
-        &package_root,
-        &cargo_env,
-        &replacements,
-        "PP4102",
-    )?);
+    let cargo = executable("cargo")?;
+    let package_arguments =
+        ["package", "--locked", "--offline", "--allow-dirty"].map(str::to_owned);
+    processes.push(match owned {
+        Some((_, context)) => context.run_library(
+            "native-library-package",
+            &cargo,
+            &package_arguments,
+            &package_root,
+            &cargo_env,
+            &replacements,
+            "PP4102",
+        ),
+        None => run_process(
+            "native-library-package",
+            &cargo,
+            &package_arguments,
+            &package_root,
+            &cargo_env,
+            &replacements,
+            "PP4102",
+        ),
+    }?);
     let archive_name = format!("{}-{}.crate", library.cargo_name, library.cargo_version);
     let crate_bytes = std::fs::read(package_root.join("target/package").join(&archive_name))
         .map_err(|error| PrismError::new("PP4102", format!("native library archive: {error}")))?;

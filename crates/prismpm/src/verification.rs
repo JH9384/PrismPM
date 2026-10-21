@@ -3320,6 +3320,16 @@ mod tests {
             fixture["application"]["entry_root"] = json!("HarnessEffect.dispatch");
             fixture["application"]["acceptance_vectors"] =
                 json!([{ "request": request, "response": response }]);
+            // Package metadata comes from the shared fixture so this
+            // network-free module carries no endpoint literal (VR-09).
+            let repository = fixture["application"]["cargo_repository"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+            let homepage = fixture["application"]["cargo_homepage"]
+                .as_str()
+                .unwrap()
+                .to_owned();
             let fixture: crate::holo::model_document::ModelDocument =
                 serde_json::from_value(fixture).unwrap();
             let application = fixture.application.as_ref().unwrap();
@@ -3329,8 +3339,8 @@ mod tests {
                     name: "harness-effect".to_owned(),
                     version: "0.1.0".to_owned(),
                     description: "Generated native entry-effect regression".to_owned(),
-                    repository: "https://github.com/UOR-Foundation/PrismPM".to_owned(),
-                    homepage: "https://github.com/UOR-Foundation/PrismPM".to_owned(),
+                    repository,
+                    homepage,
                     readme: "Generated native entry-effect regression.\n".to_owned(),
                     license_mit: include_str!("../../../LICENSE-MIT").to_owned(),
                     license_apache: include_str!("../../../LICENSE-APACHE").to_owned(),

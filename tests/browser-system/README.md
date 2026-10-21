@@ -2,7 +2,7 @@
 
 `Release.lex.tex` models A/B releases for the Calculator selected through this
 fixture's LexLean configuration. Both models and manifests bind
-`sha256:2c1adf65faae1f1a417a25b756c7d520c6d4fc55b4973cdb7947bae8d0538e00`.
+`sha256:de510ca735a4394615c29194f3d7b3bcafe3b7b46da6e1b126423df4ce619e4b`.
 
 The original source-selection owner reported this digest in a genuine PP2101
 refusal (pr184-c07-browser-selected-source-diagnostic-v1-20261014). The four bindings were explicitly

@@ -5,7 +5,7 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {run, sha} from '../browser-view/compile.mjs';
-import {captureCompilerInputs, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {compilerInputPaths, captureCompilerInputs, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
@@ -59,6 +59,7 @@ export function frozenInputs() {
     ['tests/publication-context-linkage/owner.test.mjs', 'tests/publication-context-linkage/component.test.mjs', 'tests/publication-context-linkage/resources.test.mjs',
       'scripts/owning-node-reporter.mjs'], read);
   for (const path of capturedModules.keys()) files.add(path);
+  for (const path of compilerInputPaths('publication-linkage')) files.add(path);
   const inputs = Object.fromEntries([...files].sort().map(path => [path, sha(read(path))]));
   for (const [path, bytes] of capturedModules) assert.equal(sha(bytes), inputs[path], 'actual parsed module snapshot ' + path);
   Object.freeze(inputs); capturedInputs.add(inputs); return inputs;

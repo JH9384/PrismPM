@@ -759,3 +759,74 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
 }
+
+#[cfg(all(test, unix))]
+mod cold_library_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn bound(parent: &Path) -> (Directory, PathBuf) {
+        let mut directory =
+            Directory::temporary("cold-owner-retirement-", Some(parent), Scope::default()).unwrap();
+        let package = directory.path().join("lean4-prod");
+        std::fs::create_dir(&package).unwrap();
+        std::fs::set_permissions(&package, std::fs::Permissions::from_mode(0o700)).unwrap();
+        tar::Archive::new(std::io::Cursor::new(super::super::ARCHIVE))
+            .unpack(&package)
+            .unwrap();
+        let source = super::super::custody::capture_source(&package).unwrap();
+        directory.bind_package(&package, &source).unwrap();
+        (directory, package)
+    }
+
+    #[test]
+    fn complete_original_bound_source_nodes_retire_without_adopting_unknown_members() {
+        let parent = tempfile::tempdir().unwrap();
+        let (directory, _) = bound(parent.path());
+        let path = directory.path().to_owned();
+        directory.close().unwrap();
+        assert!(!path.exists());
+        let (directory, package) = bound(parent.path());
+        let marker = package.join("foreign-marker");
+        std::fs::write(&marker, b"retain unknown member").unwrap();
+        assert!(directory.close().is_err());
+        assert_eq!(std::fs::read(marker).unwrap(), b"retain unknown member");
+    }
+
+    #[test]
+    fn actual_owner_root_and_source_subtree_replacements_are_never_deleted() {
+        for target in ["", "lean4-prod", "lean4-prod/Prod"] {
+            let parent = tempfile::tempdir().unwrap();
+            let (directory, _) = bound(parent.path());
+            let path = directory.path().join(target);
+            let displaced = parent.path().join("original-displaced");
+            std::fs::rename(&path, &displaced).unwrap();
+            std::fs::create_dir(&path).unwrap();
+            let marker = path.join("foreign-marker");
+            std::fs::write(&marker, b"foreign namespace survives").unwrap();
+            assert!(directory.close().is_err(), "{target}");
+            assert_eq!(
+                std::fs::read(marker).unwrap(),
+                b"foreign namespace survives"
+            );
+            assert!(displaced.exists());
+        }
+    }
+
+    #[test]
+    fn directory_modes_and_failed_growth_cannot_authorize_retirement() {
+        let parent = tempfile::tempdir().unwrap();
+        let (directory, package) = bound(parent.path());
+        let path = directory.path().to_owned();
+        std::fs::set_permissions(&package, std::fs::Permissions::from_mode(0o750)).unwrap();
+        assert!(directory.close().is_err());
+        assert!(package.exists());
+        assert!(Directory::existing(&package, Scope::default()).is_err());
+        assert!(path.exists());
+        let (directory, package) = bound(parent.path());
+        std::fs::create_dir(package.join(".lake")).unwrap();
+        // A failed compiler's new descendants are not silently sealed by Drop.
+        drop(directory);
+        assert!(package.join(".lake").exists());
+    }
+}

@@ -1520,7 +1520,19 @@ cannot qualify a newly installed SDK. Readers bind replay to the original
 transcript, both phases to retained inputs/products and native Lake preflight,
 and both exporter measurements to the independent SDK authority where required.
 Whole-package custody is checked between phases and before retirement. During
-the second real build only existing `.trace` bodies and directory timestamps
+each actual native-library generation command, original exporter namespace,
+source/runtime, launcher and held cwd identities are checked before and after
+the child, including failures. Both phases retain distinct fresh generated
+Lean/proof/export/package work and all thirteen original verification commands.
+Manifest `/2` preserves each original process field and the authenticated
+exporter extension; it does not claim the historical six-key `/1` schema.
+The generator identity frames the actual library generation, exporter owner,
+custody, directory and embedded seed-admission helpers by path and byte length.
+Standalone unadvertised builds and
+separate verification requests start cold; only independently authenticated
+installed-SDK seed admission may initialize the new private exporter package.
+No caller cache, model output, acceptance record or cross-request owner is reused.
+During the second real build only existing `.trace` bodies and directory timestamps
 may refresh; compiled members, paths, source and executable identities stay
 exact. Failed/reordered/repeated phases poison the owner; retirement removes
 only proved-owned nodes and refuses changed or unknown descendants.

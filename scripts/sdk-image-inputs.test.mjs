@@ -122,6 +122,106 @@ test('read-only helper copies retain searchable SDK ancestors for unprivileged c
   }
 });
 
+const rustTools = [
+  ['wasm-bindgen-cli', '0.2.122'], ['wasm-tools', '1.258.0'],
+  ['wasmtime-cli', '48.0.1'], ['cargo-local-registry', '0.2.12'],
+];
+const rustToolTarget = '/opt/prismpm/rust-oracle-target';
+const rustToolInstalls = rustTools.map(([name, version]) =>
+  `cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir ${rustToolTarget} ${name} --version ${version}`);
+const rustToolInitialization = `test ! -e ${rustToolTarget} && mkdir -p -m 0700 ${rustToolTarget}`;
+const rustToolConstruction = `${rustToolInitialization} && ${rustToolInstalls.join(' && ')} && rm -rf ${rustToolTarget}`;
+
+function checkedRustToolConstruction(recipe) {
+  const instructions = recipe.replace(/[ \t]*\\\n[ \t]*/g, ' ').split('\n');
+  const installs = instructions.filter(line => line.includes('cargo install '));
+  assert.deepEqual(installs, [`RUN ${rustToolConstruction}`], 'all four real locked installations share one fresh same-layer target');
+  assert.equal(instructions.filter(line => line.includes(rustToolTarget)).length, 1, 'no retained or cross-layer target');
+  assert(!instructions.some(line => /^(ENV|ARG) .*CARGO_(?:BUILD_)?TARGET_DIR/.test(line)), 'no ambient target override');
+  return installs[0].slice(4);
+}
+
+test('both existing recipes keep four exact installations in one fresh layer-local target', () => {
+  for (const path of ['../.devcontainer/Dockerfile', '../sdk/Dockerfile']) {
+    const recipe = readFileSync(new URL(path, import.meta.url), 'utf8').replace(/[ \t]*\\\n[ \t]*/g, ' ');
+    checkedRustToolConstruction(recipe);
+    const mutants = [
+      recipe.replace(`${rustToolInitialization} && `, ''),
+      recipe.replace(`test ! -e ${rustToolTarget} && `, ''),
+      recipe.replace('mkdir -p -m 0700', 'mkdir -p -m 0777'),
+      recipe.replace('mkdir -p -m 0700', 'mkdir -m 0700'),
+      recipe.replace('--locked ', ''),
+      recipe.replace('wasm-bindgen-cli --version 0.2.122', 'wasm-bindgen-cli --version 0.2.121'),
+      recipe.replace('--root /opt/prismpm/rust-oracle-tools', '--root /tmp/foreign-install'),
+      recipe.replaceAll(`--target-dir ${rustToolTarget}`, '--target-dir /tmp/ambient-target'),
+      recipe.replace(`${rustToolInstalls[0]} && ${rustToolInstalls[1]}`, `${rustToolInstalls[1]} && ${rustToolInstalls[0]}`),
+      recipe.replace(rustToolInstalls[0], `${rustToolInstalls[0]} && ${rustToolInstalls[0]}`),
+      recipe + `\nRUN ${rustToolInstalls[0]}\n`,
+      recipe.replace(` && rm -rf ${rustToolTarget}`, ''),
+      recipe.replace(` && rm -rf ${rustToolTarget}`, `\nRUN rm -rf ${rustToolTarget}`),
+      recipe.replace(`RUN test ! -e ${rustToolTarget}`, `RUN --mount=type=cache,target=${rustToolTarget} test ! -e ${rustToolTarget}`),
+      recipe.replace('RUN test ! -e', 'RUN true || test ! -e'),
+      recipe.replace(rustToolInitialization, rustToolInitialization.replace(' && ', '; ')),
+      recipe + '\nENV CARGO_TARGET_DIR=/tmp/ambient-target\n',
+      recipe + '\nARG CARGO_BUILD_TARGET_DIR=/tmp/ambient-target\n',
+      recipe + `\nCOPY --from=input_tools ${rustToolTarget} ${rustToolTarget}\n`,
+      ...rustToolInstalls.map(command => recipe.replace(command, command.replace(`--target-dir ${rustToolTarget} `, ''))),
+    ];
+    for (const mutant of mutants) {
+      assert.notEqual(mutant, recipe, 'each planted mutation must alter the actual recipe');
+      assert.throws(() => checkedRustToolConstruction(mutant));
+    }
+  }
+});
+
+test('actual layer-local target initialization creates private parents and refuses every retained target', t => {
+  const root = mkdtempSync(join(tmpdir(), 'rust-tool-target-init-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  for (const [index, path] of ['../.devcontainer/Dockerfile', '../sdk/Dockerfile'].entries()) {
+    const recipe = readFileSync(new URL(path, import.meta.url), 'utf8');
+    const command = checkedRustToolConstruction(recipe);
+    const initialization = command.split(' && cargo install ')[0];
+    assert.equal(initialization, rustToolInitialization);
+    const run = (target, source = initialization) => {
+      const quoted = "'" + target.replaceAll("'", "'\\''") + "'";
+      return spawnSync('/bin/sh', ['-eu', '-c', source.replaceAll(rustToolTarget, quoted)], {
+        stdio: 'pipe', encoding: 'utf8', timeout: 5000, maxBuffer: 1024 * 1024,
+      });
+    };
+    const passed = result => {assert.equal(result.error, undefined); assert.equal(result.signal, null); assert.equal(result.status, 0, result.stderr);};
+    const refused = result => {assert.equal(result.error, undefined); assert.equal(result.signal, null); assert.notEqual(result.status, 0);};
+    for (const missingParents of [false, true]) {
+      const parent = join(root, String(index), String(missingParents), 'parent');
+      if (!missingParents) mkdirSync(parent, {recursive: true});
+      const target = join(parent, 'target');
+      if (missingParents) refused(run(target, initialization.replace('mkdir -p -m 0700', 'mkdir -m 0700')));
+      passed(run(target));
+      const before = lstatSync(target, {bigint: true});
+      assert(before.isDirectory() && !before.isSymbolicLink());
+      assert.equal(before.mode & 0o777n, 0o700n);
+      refused(run(target));
+      passed(run(target, initialization.replace(`test ! -e ${rustToolTarget} && `, '')));
+      const after = lstatSync(target, {bigint: true});
+      for (const key of ['dev', 'ino', 'mode', 'uid', 'gid', 'nlink', 'size', 'mtimeNs', 'ctimeNs']) assert.equal(after[key], before[key]);
+    }
+    const foreign = join(root, String(index), 'foreign');
+    mkdirSync(foreign);
+    writeFileSync(join(foreign, 'retained-bytes'), 'must remain unchanged\n');
+    const alias = join(root, String(index), 'alias'); symlinkSync(foreign, alias);
+    refused(run(alias));
+    assert.equal(readlinkSync(alias), foreign);
+    assert.equal(readFileSync(join(foreign, 'retained-bytes'), 'utf8'), 'must remain unchanged\n');
+    const absent = join(root, String(index), 'absent');
+    const dangling = join(root, String(index), 'dangling'); symlinkSync(absent, dangling);
+    refused(run(dangling));
+    assert.equal(readlinkSync(dangling), absent); assert(!existsSync(absent));
+    const regular = join(root, String(index), 'regular'); writeFileSync(regular, 'retained regular input\n');
+    refused(run(regular)); assert.equal(readFileSync(regular, 'utf8'), 'retained regular input\n');
+    const fifo = join(root, String(index), 'fifo'); execFileSync('mkfifo', [fifo]);
+    refused(run(fifo)); assert(lstatSync(fifo).isFIFO());
+  }
+});
+
 test('pinned runtime package acquisition is bounded and refuses incomplete indexes', () => {
   const recipe = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');
   const check = text => {

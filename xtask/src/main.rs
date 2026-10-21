@@ -189,7 +189,6 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "scripts/oracle-source-closure.test.mjs",
             "scripts/fetch-oracle-cargo.test.mjs",
             "scripts/browser-api-sdk-check.test.mjs",
-<<<<<<< HEAD
             "scripts/library-sdk-check.test.mjs",
             "scripts/library-sdk-check-shell.test.mjs",
             "scripts/sdk-vv-inputs.test.mjs",
@@ -206,12 +205,6 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "scripts/ci-observe.test.mjs",
             "scripts/vv-sdk-session.test.mjs",
             "sdk/bootstrap/runner.test.mjs",
-=======
-            "scripts/browser-prerequisites.test.mjs",
-            "scripts/release-phases.test.mjs",
-            "scripts/refresh-osv.test.mjs",
-            "scripts/ci-observe.test.mjs",
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
         ],
     )?;
     audit::audit_no_handwritten_lean(root)?;
@@ -938,14 +931,9 @@ fn check_golden(root: &Path, write: bool) -> Result<(), Fail> {
         );
         return Ok(());
     }
-<<<<<<< HEAD
     let observed = golden::read_platform(root, platform)?;
     golden::native_records(&observed, &expected, platform)?;
     golden::compare(&observed, &expected)?;
-=======
-    let observed = tree_files(&destination)?;
-    repo_conformance::golden::compare(&observed, &expected)?;
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
     println!(
         "check-golden: {} files match reviewed build {} ({platform:?})",
         observed.len(),

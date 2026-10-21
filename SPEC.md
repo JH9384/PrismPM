@@ -614,7 +614,6 @@ runs that exact command in the pinned devcontainer. Acceptance evidence is
 canonical `prismpm/vv-evidence/1`, lists all 15 gates, records `passed`, and
 binds the exact full Git commit.
 
-<<<<<<< HEAD
 Formatting checks a closed inventory of authored test manifests and Rust inputs.
 Generated stdlib packages are verified by regeneration, not rewritten by rustfmt.
 
@@ -638,8 +637,6 @@ cache tag; private compiler-driver builds use one job, no incremental state and
 no development debug symbols to bound temporary storage. Generated program
 builds, kernel checks, native/Wasm execution and oracle cases are unchanged.
 
-=======
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 Reviewed stdlib goldens retain the original verification records, including
 the exact caller executable digest. `prismpm/golden-manifest/2` selects the
 `prismpm/golden-comparison/1` regression-only comparison profile. Before
@@ -652,7 +649,6 @@ and artifact descriptor remains significant. These projections are not
 verification or release evidence. Actual verification and same-executable
 two-root reproducibility continue to bind and compare complete raw evidence.
 
-<<<<<<< HEAD
 Golden execution profiles distinguish Debian 12 AMD64 development from Ubuntu
 24.04 AMD64 and ARM64 SDK processes. The actual OS release and compiled process
 architecture select the profile; unknown or missing profiles fail closed.
@@ -685,8 +681,6 @@ copy bytes and metadata allowance is required. Initialization failure or
 interruption prohibits generation. Both golden commands remain network-disabled,
 locked and offline; no caller cache, dependency refresh or host compiler is used.
 
-=======
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 CI resource diagnostics are separate from acceptance evidence. Host and
 devcontainer observers record only allowlisted numeric resource measurements,
 at most every 30 seconds for six hours, 721 samples and 8 MiB per observer.
@@ -697,7 +691,6 @@ invocations remain mandatory. Diagnostics upload runs even after gate failure
 when the runner is reachable; runner loss can prevent upload and never implies
 acceptance or a diagnosed resource cause.
 
-<<<<<<< HEAD
 Consecutive source gates share one exact-source, digest-addressed test SDK
 session and its invocation-owned temporary registry. Both unchanged `just vv`
 commands execute sequentially in the same workspace with separate evidence;
@@ -716,8 +709,6 @@ allowed. The runtime is an SDK-inventoried build input. Its execution-mode
 diagnostic is separate from unchanged `prismpm/bootstrap-evidence/2` acceptance.
 All current SDK commands and V&V gates remain native on both architectures.
 
-=======
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 Compiler-heavy owning conformance suites and shared verification initialization
 execute one at a time within a conformance process. Nested requests reuse the
 owning slot; a failed owner releases it without suppressing subsequent tests.

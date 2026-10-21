@@ -663,7 +663,6 @@ statement = "The locked OSV schema owns vulnerability-exchange validation; datab
 realized_by = ["AU-05", "SC-04"]
 
 [[authority]]
-<<<<<<< HEAD
 id = "OSV-CRATES-DB-G1791016356716892"
 name = "OSV crates.io vulnerability database snapshot"
 issuer = "OpenSSF OSV project"
@@ -673,32 +672,16 @@ source_role = "informative"
 immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip?generation=1791016356716892"
 revision = "1791016356716892"
 acquired_sha256 = "f0ceccc2365efb94eaba8c8408b8fc71f4b3ab4a63989dc8d9bcb7a97cdcba7b"
-=======
-id = "OSV-CRATES-DB-G1789723713081168"
-name = "OSV crates.io vulnerability database snapshot"
-issuer = "OpenSSF OSV project"
-canonical_identifier = "gs://osv-vulnerabilities/crates.io/all.zip"
-edition = "gcs-generation-1789723713081168"
-source_role = "informative"
-immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip?generation=1789723713081168"
-revision = "1789723713081168"
-acquired_sha256 = "a260782a542ffa8e4387558d358aeedf5555dbf4b1df3b00bced2e1b14a8ac22"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 signature = "gcs-generation-and-acquired-sha256"
 media_type = "application/zip"
 license = "record-level upstream provenance; no aggregate relicensing claim"
 redistribution = "citation-only"
-<<<<<<< HEAD
 retrieval_date = "2026-10-03"
-=======
-retrieval_date = "2026-09-19"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 supersession_policy = "explicit-lock-update-only"
 statement = "This immutable crates.io snapshot bounds offline vulnerability facts; it does not establish current status after its acquisition time."
 realized_by = ["AU-05", "SC-04"]
 
 [[authority]]
-<<<<<<< HEAD
 id = "OSV-DEBIAN-DB-G1791021748693294"
 name = "OSV Debian vulnerability database snapshot"
 issuer = "OpenSSF OSV project"
@@ -708,32 +691,16 @@ source_role = "informative"
 immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Debian/all.zip?generation=1791021748693294"
 revision = "1791021748693294"
 acquired_sha256 = "b49ac72948636982c083903523475f9f42ccc6161c1a9abfd90eaa91ef8173f4"
-=======
-id = "OSV-DEBIAN-DB-G1789772800438247"
-name = "OSV Debian vulnerability database snapshot"
-issuer = "OpenSSF OSV project"
-canonical_identifier = "gs://osv-vulnerabilities/Debian/all.zip"
-edition = "gcs-generation-1789772800438247"
-source_role = "informative"
-immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Debian/all.zip?generation=1789772800438247"
-revision = "1789772800438247"
-acquired_sha256 = "8682d4e50bac6e25eaaae280288f64ee8e009b1bdd46bc9f06ac546e59da2395"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 signature = "gcs-generation-and-acquired-sha256"
 media_type = "application/zip"
 license = "record-level upstream provenance; no aggregate relicensing claim"
 redistribution = "citation-only"
-<<<<<<< HEAD
 retrieval_date = "2026-10-03"
-=======
-retrieval_date = "2026-09-19"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 supersession_policy = "explicit-lock-update-only"
 statement = "This immutable Debian snapshot bounds offline vulnerability facts for image packages; it does not establish current status after its acquisition time."
 realized_by = ["AU-05", "SC-04"]
 
 [[authority]]
-<<<<<<< HEAD
 id = "OSV-GO-DB-G1791024451949238"
 name = "OSV Go vulnerability database snapshot"
 issuer = "OpenSSF OSV project"
@@ -743,32 +710,16 @@ source_role = "informative"
 immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip?generation=1791024451949238"
 revision = "1791024451949238"
 acquired_sha256 = "3af974072be912a3b660553658e09077014026b91e0ae0668cfbb5da3fd9da4a"
-=======
-id = "OSV-GO-DB-G1789755542983649"
-name = "OSV Go vulnerability database snapshot"
-issuer = "OpenSSF OSV project"
-canonical_identifier = "gs://osv-vulnerabilities/Go/all.zip"
-edition = "gcs-generation-1789755542983649"
-source_role = "informative"
-immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip?generation=1789755542983649"
-revision = "1789755542983649"
-acquired_sha256 = "c258e9106752589b886a2c78984e7c0a9f3fdfbf438caed21a57c808481c2ae0"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 signature = "gcs-generation-and-acquired-sha256"
 media_type = "application/zip"
 license = "record-level upstream provenance; no aggregate relicensing claim"
 redistribution = "citation-only"
-<<<<<<< HEAD
 retrieval_date = "2026-10-03"
-=======
-retrieval_date = "2026-09-19"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 supersession_policy = "explicit-lock-update-only"
 statement = "This immutable Go snapshot bounds offline vulnerability facts for statically linked image packages; it does not establish current status after its acquisition time."
 realized_by = ["AU-05", "SC-04"]
 
 [[authority]]
-<<<<<<< HEAD
 id = "OSV-NPM-DB-G1791008266630460"
 name = "OSV npm vulnerability database snapshot"
 issuer = "OpenSSF OSV project"
@@ -778,32 +729,16 @@ source_role = "informative"
 immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1791008266630460"
 revision = "1791008266630460"
 acquired_sha256 = "a3e624ef9bac73b88eee9f745abb260d16ddbc531295d683f75ba59df85a83e8"
-=======
-id = "OSV-NPM-DB-G1789770960544023"
-name = "OSV npm vulnerability database snapshot"
-issuer = "OpenSSF OSV project"
-canonical_identifier = "gs://osv-vulnerabilities/npm/all.zip"
-edition = "gcs-generation-1789770960544023"
-source_role = "informative"
-immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1789770960544023"
-revision = "1789770960544023"
-acquired_sha256 = "6486bcd1195de4deedfc39d1658fad0d52702125804e521d630c9601b8840ca8"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 signature = "gcs-generation-and-acquired-sha256"
 media_type = "application/zip"
 license = "record-level upstream provenance; no aggregate relicensing claim"
 redistribution = "citation-only"
-<<<<<<< HEAD
 retrieval_date = "2026-10-03"
-=======
-retrieval_date = "2026-09-19"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 supersession_policy = "explicit-lock-update-only"
 statement = "This immutable npm snapshot bounds offline vulnerability facts for JavaScript image packages; it does not establish current status after its acquisition time."
 realized_by = ["AU-05", "SC-04"]
 
 [[authority]]
-<<<<<<< HEAD
 id = "OSV-UBUNTU-DB-G1790980378457307"
 name = "OSV Ubuntu vulnerability database snapshot"
 issuer = "OpenSSF OSV project"
@@ -813,26 +748,11 @@ source_role = "informative"
 immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Ubuntu/all.zip?generation=1790980378457307"
 revision = "1790980378457307"
 acquired_sha256 = "481a6953ebcc750220f78eef6b1c2c82af90ef7b74fbaaaf1467213c53c82514"
-=======
-id = "OSV-UBUNTU-DB-G1789776290924582"
-name = "OSV Ubuntu vulnerability database snapshot"
-issuer = "OpenSSF OSV project"
-canonical_identifier = "gs://osv-vulnerabilities/Ubuntu/all.zip"
-edition = "gcs-generation-1789776290924582"
-source_role = "informative"
-immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Ubuntu/all.zip?generation=1789776290924582"
-revision = "1789776290924582"
-acquired_sha256 = "7b8ce1077fffc3b0eff05183bc511717fbaafb034cdf7f99842f2a819ab4c9b9"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 signature = "gcs-generation-and-acquired-sha256"
 media_type = "application/zip"
 license = "record-level upstream provenance; no aggregate relicensing claim"
 redistribution = "citation-only"
-<<<<<<< HEAD
 retrieval_date = "2026-10-03"
-=======
-retrieval_date = "2026-09-19"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 supersession_policy = "explicit-lock-update-only"
 statement = "This immutable Ubuntu snapshot bounds offline vulnerability facts for image packages; it does not establish current status after its acquisition time."
 realized_by = ["AU-05", "SC-04"]

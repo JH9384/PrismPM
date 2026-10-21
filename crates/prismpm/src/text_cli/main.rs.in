@@ -1,0 +1,186 @@
+// Generated only from the closed text command-line surface of a text application model.
+// The grammar, strings and exit codes live in the generated surface module.
+#![forbid(unsafe_code)]
+use std::ffi::{OsStr, OsString};
+use std::io::Write;
+
+mod surface;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AdapterFailure {
+    UnknownFlag, ExtraArgument, MissingCommand, UnknownCommand, UnknownExample,
+    InputMissing, InputOpen, InputType, InputRead, OutputWrite,
+    InputLimit, AdapterAllocation, ComputeFailure, OutputLimit, ReportUnclassified,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FailureClass { Usage, Io, Fault }
+impl AdapterFailure {
+    fn class(self) -> FailureClass {
+        match self {
+            AdapterFailure::UnknownFlag | AdapterFailure::ExtraArgument | AdapterFailure::MissingCommand
+            | AdapterFailure::UnknownCommand | AdapterFailure::UnknownExample => FailureClass::Usage,
+            AdapterFailure::InputMissing | AdapterFailure::InputOpen | AdapterFailure::InputType
+            | AdapterFailure::InputRead | AdapterFailure::OutputWrite => FailureClass::Io,
+            AdapterFailure::InputLimit | AdapterFailure::AdapterAllocation | AdapterFailure::ComputeFailure
+            | AdapterFailure::OutputLimit | AdapterFailure::ReportUnclassified => FailureClass::Fault,
+        }
+    }
+    fn exit_code(self) -> u8 {
+        match self.class() {
+            FailureClass::Usage => surface::USAGE_CODE,
+            FailureClass::Io => surface::IO_CODE,
+            FailureClass::Fault => surface::FAULT_CODE,
+        }
+    }
+}
+/// A typed failure plus the argument or path it concerns, when there is one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Reported { failure: AdapterFailure, detail: Option<OsString> }
+fn reported(failure: AdapterFailure) -> Reported { Reported { failure, detail: None } }
+fn concerning(failure: AdapterFailure, detail: &OsStr) -> Reported {
+    Reported { failure, detail: Some(detail.to_owned()) }
+}
+
+trait Computed { fn computed(self) -> Result<Vec<u8>, AdapterFailure>; }
+impl Computed for Vec<u8> { fn computed(self) -> Result<Vec<u8>, AdapterFailure> { Ok(self) } }
+impl<E> Computed for Result<Vec<u8>, E> {
+    fn computed(self) -> Result<Vec<u8>, AdapterFailure> { self.map_err(|_| AdapterFailure::ComputeFailure) }
+}
+
+@INPUT_ADAPTER@
+
+#[derive(Debug, PartialEq, Eq)]
+enum Invocation { Help, Version, Examples(Option<OsString>), Check(Option<OsString>) }
+
+fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Invocation, Reported> {
+    let mut positional: Vec<OsString> = Vec::new();
+    let mut literal = false;
+    for argument in arguments {
+        if literal || argument.as_encoded_bytes() == b"-" || !argument.as_encoded_bytes().starts_with(b"-") {
+            positional.push(argument);
+        } else if argument == "--help" {
+            return Ok(Invocation::Help);
+        } else if argument == "--version" {
+            return Ok(Invocation::Version);
+        } else if argument == "--" {
+            literal = true;
+        } else {
+            return Err(concerning(AdapterFailure::UnknownFlag, &argument));
+        }
+    }
+    let mut positional = positional.into_iter();
+    let command = positional.next().ok_or_else(|| reported(AdapterFailure::MissingCommand))?;
+    let operand = positional.next();
+    if let Some(extra) = positional.next() { return Err(concerning(AdapterFailure::ExtraArgument, &extra)); }
+    if command == surface::COMMAND { return Ok(Invocation::Check(operand)); }
+    if command == "examples" && !surface::EXAMPLES.is_empty() { return Ok(Invocation::Examples(operand)); }
+    Err(concerning(AdapterFailure::UnknownCommand, &command))
+}
+
+fn classify(report: &[u8]) -> Option<u8> {
+    surface::OUTCOMES.iter().find(|(prefix, _)| report.starts_with(prefix.as_bytes())).map(|(_, code)| *code)
+}
+
+fn publish(bytes: &[u8]) -> Result<(), Reported> {
+    let mut output = std::io::stdout().lock();
+    output.write_all(bytes).and_then(|()| output.flush()).map_err(|_| reported(AdapterFailure::OutputWrite))
+}
+
+fn examples(name: Option<&OsStr>) -> Result<(), Reported> {
+    match name {
+        None => {
+            let mut listing = String::new();
+            for (example, _) in surface::EXAMPLES { listing.push_str(example); listing.push('\n'); }
+            publish(listing.as_bytes())
+        }
+        Some(name) => {
+            let (_, text) = surface::EXAMPLES.iter().find(|(example, _)| name == *example)
+                .ok_or_else(|| concerning(AdapterFailure::UnknownExample, name))?;
+            publish(text.as_bytes())
+        }
+    }
+}
+
+fn check(path: Option<&OsStr>) -> Result<u8, Reported> {
+    let path = path.unwrap_or_else(|| OsStr::new("-"));
+    let request = input(path).map_err(|failure| if path == "-" { reported(failure) } else { concerning(failure, path) })?;
+    // Generated Result failures are typed. Panics and aborts remain unsuccessful processes;
+    // no catch_unwind can make the core allocator universally recoverable.
+    let report = @CORE@::@ENTRY@(request).computed().map_err(reported)?;
+    if report.len() > surface::RESPONSE_MAXIMUM { return Err(reported(AdapterFailure::OutputLimit)); }
+    let code = classify(&report).ok_or_else(|| reported(AdapterFailure::ReportUnclassified))?;
+    publish(&report)?;
+    Ok(code)
+}
+
+fn run() -> Result<u8, Reported> {
+    match parse(std::env::args_os().skip(1))? {
+        Invocation::Help => publish(surface::HELP.as_bytes()).map(|()| 0),
+        Invocation::Version => publish(surface::VERSION.as_bytes()).map(|()| 0),
+        Invocation::Examples(name) => examples(name.as_deref()).map(|()| 0),
+        Invocation::Check(path) => check(path.as_deref()),
+    }
+}
+
+fn main() -> std::process::ExitCode {
+    match run() {
+        Ok(code) => std::process::ExitCode::from(code),
+        Err(error) => {
+            let mut line = format!("{}: {:?}", surface::BINARY, error.failure);
+            if let Some(detail) = &error.detail { line.push_str(": "); line.push_str(&detail.to_string_lossy()); }
+            line.push('\n');
+            if error.failure.class() == FailureClass::Usage {
+                line.push_str(&format!("Try '{} --help'.\n", surface::BINARY));
+            }
+            // The diagnostic is best effort: the exit status already carries the failure class.
+            let _ = std::io::stderr().lock().write_all(line.as_bytes());
+            std::process::ExitCode::from(error.failure.exit_code())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn arguments(values: &[&str]) -> Vec<OsString> { values.iter().map(OsString::from).collect() }
+
+    #[test]
+    fn adapter_allocation_maps_real_capacity_overflow() {
+        // The real standard-library capacity limit fails deterministically without
+        // exhausting host memory. Physical allocator exhaustion remains unmeasured.
+        assert_eq!(reserve_input(usize::MAX).unwrap_err(), AdapterFailure::AdapterAllocation);
+    }
+
+    #[test]
+    fn grammar_selects_exactly_the_modeled_commands() {
+        assert_eq!(parse(arguments(&["--help"])), Ok(Invocation::Help));
+        assert_eq!(parse(arguments(&["--version"])), Ok(Invocation::Version));
+        assert_eq!(parse(arguments(&[surface::COMMAND])), Ok(Invocation::Check(None)));
+        assert_eq!(parse(arguments(&[surface::COMMAND, "-"])), Ok(Invocation::Check(Some("-".into()))));
+        assert_eq!(parse(arguments(&[surface::COMMAND, "--", "-x"])), Ok(Invocation::Check(Some("-x".into()))));
+        assert_eq!(parse(arguments(&[])).unwrap_err().failure, AdapterFailure::MissingCommand);
+        assert_eq!(parse(arguments(&["--bogus"])).unwrap_err().failure, AdapterFailure::UnknownFlag);
+        assert_eq!(parse(arguments(&[surface::COMMAND, "a", "b"])).unwrap_err().failure, AdapterFailure::ExtraArgument);
+        assert_eq!(parse(arguments(&["bogus"])).unwrap_err().failure, AdapterFailure::UnknownCommand);
+    }
+
+    #[test]
+    fn every_failure_has_the_class_exit_code() {
+        for failure in [AdapterFailure::UnknownFlag, AdapterFailure::InputOpen, AdapterFailure::InputLimit] {
+            let expected = match failure.class() {
+                FailureClass::Usage => surface::USAGE_CODE,
+                FailureClass::Io => surface::IO_CODE,
+                FailureClass::Fault => surface::FAULT_CODE,
+            };
+            assert_eq!(failure.exit_code(), expected);
+        }
+    }
+
+    #[test]
+    fn outcome_prefixes_classify_reports() {
+        for (prefix, code) in surface::OUTCOMES {
+            assert_eq!(classify(prefix.as_bytes()), Some(*code));
+        }
+        assert_eq!(classify(b""), None);
+    }
+}

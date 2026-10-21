@@ -352,6 +352,10 @@ fn kind(path: &str) -> &'static str {
         "lexlean-manifest"
     } else if path.ends_with("snapshot.json") {
         "semantic-snapshot"
+    } else if path.starts_with("cli/bin/") {
+        "executable"
+    } else if path == "cli/sbom.spdx.json" {
+        "sbom"
     } else {
         "artifact"
     }
@@ -381,9 +385,14 @@ fn write_file(root: &Path, relative: &str, bytes: &[u8]) -> Result<(), PrismErro
         .ok_or_else(|| PrismError::new("PP4002", "artifact has no parent"))?;
     std::fs::create_dir_all(parent)
         .map_err(|error| PrismError::new("PP4002", format!("{}: {error}", parent.display())))?;
-    let mut file = OpenOptions::new()
-        .create_new(true)
-        .write(true)
+    let mut options = OpenOptions::new();
+    options.create_new(true).write(true);
+    if relative.starts_with("cli/bin/") {
+        // Built command-line programs are published runnable.
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o755);
+    }
+    let mut file = options
         .open(&path)
         .map_err(|error| PrismError::new("PP4002", format!("{}: {error}", path.display())))?;
     file.write_all(bytes)

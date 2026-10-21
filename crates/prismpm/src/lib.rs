@@ -10,6 +10,7 @@
 pub mod acceptance;
 mod application_build;
 pub mod authority;
+mod binary_cli;
 mod browser_build;
 mod browser_oracle;
 pub mod cli;
@@ -35,6 +36,7 @@ pub mod system;
 pub mod template;
 #[cfg(test)]
 mod test_compiler;
+mod text_cli;
 pub mod upstream_conformance;
 mod verification;
 

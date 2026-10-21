@@ -11,6 +11,7 @@ pub mod fixtures;
 pub mod golden;
 pub mod meta;
 pub mod runner;
+pub mod semantic_source;
 
 pub use meta::check_honesty;
 

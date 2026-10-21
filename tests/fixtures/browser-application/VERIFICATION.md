@@ -43,7 +43,7 @@ obligation, not a property inferred from names.
 Current source SHA-256:
 
 - Model: `57bafe697cca4f0b88dd0fcdb27d4a6420f21d02469a7db81e18c8a3027dab68`
-- Probe: `f83c6569ab3a1d59ba2a7f26d42901062eaf9ae9d1e90bd416aefc53695d7a4a`
+- Probe: `0095f5c26dca6cec9f8d16314cf217cc5fa436d18df53a10c88cda79dd60fb02`
 
 The companion complete registered `conformance_dk_22` owner passed in 232.63 s,
 including fresh independent kernel/native/Wasm builds and complete artifact
@@ -51,3 +51,7 @@ replay. Its policy artifact now binds all application effects and the private
 durability declaration. Changing each private field changes that policy digest.
 The exact 17-file emitter register is updated from those reviewed input bytes.
 These checks do not enable public runtime or accept SDK/Foundry publication.
+
+Language 1.2 migration (2026-10-21): the Probe is now language 1.2 notation, and
+the Current Probe digest above is the digest of that file. The Model digests and
+the declaration baseline digests are unchanged and historical.

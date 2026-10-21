@@ -209,6 +209,7 @@ fn compile_inner(project: &Path) -> Result<Compilation, PrismError> {
     let workspace = workspace_path.as_path();
     let mut modules = BTreeSet::new();
     let mut paths = BTreeSet::new();
+    let mut generated = Vec::new();
     for output in manifest["outputs"]
         .as_array()
         .ok_or_else(|| invalid("browser generated output list is absent"))?
@@ -240,6 +241,7 @@ fn compile_inner(project: &Path) -> Result<Compilation, PrismError> {
                 return Err(invalid("browser generated Lean extension differs"));
             }
             write(&workspace.join(relative), &bytes)?;
+            generated.push(bytes.clone());
             modules.insert(
                 relative
                     .with_extension("")
@@ -258,11 +260,13 @@ fn compile_inner(project: &Path) -> Result<Compilation, PrismError> {
             "browser generated Lean does not cover every checked module",
         ));
     }
+    let runtime =
+        crate::lean_project::stage_runtime(workspace, generated.iter().map(Vec::as_slice))?;
     write(
         &workspace.join("lakefile.toml"),
         crate::lean_project::configuration(
             "prismpm_browser_compiler",
-            &modules.iter().cloned().collect::<Vec<_>>(),
+            &crate::lean_project::roots(&runtime, &modules.iter().cloned().collect::<Vec<_>>()),
         )
         .as_bytes(),
     )?;

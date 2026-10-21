@@ -329,42 +329,44 @@ fn project_fixture_with_resource_model(
 }
 
 fn resource_source() -> String {
+    // The fixture is language-1.2 notation: derive the V2 resource application
+    // by exact textual edits and require each edit to apply exactly once.
     let original = std::fs::read_to_string(
         root().join("tests/fixtures/holo/ho-11-text-application/project/src/TextRequest.lex.tex"),
     )
     .unwrap();
-    let semantic = original
-        .lines()
-        .find(|line| line.starts_with("\\semanticdata{"))
-        .unwrap();
-    let mut value: Value = serde_json::from_str(
-        semantic
-            .strip_prefix("\\semanticdata{")
-            .unwrap()
-            .strip_suffix('}')
-            .unwrap(),
-    )
-    .unwrap();
-    let application = value["declarations"]
-        .as_array_mut()
-        .unwrap()
-        .iter_mut()
-        .find(|d| d["name"] == "application")
-        .unwrap();
-    application["result"]["member"]["module"] = json!("Foundation.View.Text.V2.Model");
-    application["body"]["type"]["module"] = json!("Foundation.View.Text.V2.Model");
-    let fields = application["body"]["fields"].as_array_mut().unwrap();
-    fields.iter_mut().find(|f| f["field"] == "profile").unwrap()["value"]["value"] =
-        json!("prismpm/text-application/2");
-    let resource_index = fields
-        .iter()
-        .position(|f| f["field"] == "guestAllocationMaximum")
-        .unwrap()
-        + 1;
-    fields.insert(resource_index, json!({"field":"coreMemoryPages","value":{"kind":"integer","representation":"uint32","value":"64"}}));
-    fields.insert(resource_index + 1, json!({"field":"coreStackBytes","value":{"kind":"integer","representation":"uint32","value":"131072"}}));
-    original.replace(semantic, &format!("\\semanticdata{{{}}}", serde_json::to_string(&value).unwrap()))
-        .replace("\\importmodule{Foundation.View.Text.V1.Model}", "\\importmodule{Foundation.View.Text.V1.Model}\n\\importmodule{Foundation.View.Text.V2.Model}")
+    let edits = [
+        (
+            "result: Foundation.View.Text.V1.Model::TextApplication,",
+            "result: Foundation.View.Text.V2.Model::TextApplication,",
+        ),
+        (
+            "(record Foundation.View.Text.V1.Model::TextApplication {",
+            "(record Foundation.View.Text.V2.Model::TextApplication {",
+        ),
+        (
+            "{profile := \"prismpm/text-application/1\",",
+            "{profile := \"prismpm/text-application/2\",",
+        ),
+        (
+            "guestAllocationMaximum := (128 : UInt32),",
+            "guestAllocationMaximum := (128 : UInt32), coreMemoryPages := (64 : UInt32), coreStackBytes := (131072 : UInt32),",
+        ),
+        (
+            "\\importmodule{Foundation.View.Text.V1.Model}",
+            "\\importmodule{Foundation.View.Text.V1.Model}\n\\importmodule{Foundation.View.Text.V2.Model}",
+        ),
+    ];
+    let mut source = original;
+    for (from, to) in edits {
+        assert_eq!(
+            source.matches(from).count(),
+            1,
+            "fixture edit anchor {from}"
+        );
+        source = source.replace(from, to);
+    }
+    source
 }
 
 #[test]

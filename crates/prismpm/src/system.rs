@@ -4,7 +4,6 @@ use crate::contracts::CanonicalDocument;
 use crate::error::PrismError;
 use crate::holo::canonical::encode_value;
 use lexlean::SemanticSnapshot;
-use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -2222,24 +2221,25 @@ fn kubernetes_target(system: &Value) -> Result<&Value, PrismError> {
     Ok(target)
 }
 
+/// Parse the pinned multi-document ingress manifest into JSON values.
+///
+/// Empty and null documents are skipped. Duplicate mapping keys are refused
+/// by the parser's default policy, so a corrupted manifest cannot silently
+/// shadow a field.
+fn ingress_nginx_documents() -> Result<Vec<Value>, PrismError> {
+    serde_saphyr::from_slice_multiple::<Value>(INGRESS_NGINX_KIND).map_err(|error| {
+        PrismError::new(
+            "PP7101",
+            format!("pinned ingress controller manifest: {error}"),
+        )
+    })
+}
+
 fn ingress_controller_resources(target: &Value) -> Result<Vec<Value>, PrismError> {
     if target["ingress_class_name"].is_null() {
         return Ok(Vec::new());
     }
-    let mut resources = serde_yaml::Deserializer::from_slice(INGRESS_NGINX_KIND)
-        .map(|document| {
-            Value::deserialize(document).map_err(|error| {
-                PrismError::new(
-                    "PP7101",
-                    format!("pinned ingress controller manifest: {error}"),
-                )
-            })
-        })
-        .filter_map(|result| match result {
-            Ok(Value::Null) => None,
-            other => Some(other),
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut resources = ingress_nginx_documents()?;
     // The pinned ingress manifest spells the empty ConfigMap as `data: null`.
     // Emit an empty map, as required by the authoritative core/v1 schema;
     // preserve the imported source and every configured value unchanged.
@@ -2954,18 +2954,30 @@ mod tests {
     use std::collections::BTreeSet;
 
     #[test]
+    fn ingress_manifest_yaml_refuses_duplicate_keys_and_skips_empty_documents() {
+        use serde_json::Value;
+
+        let duplicate = serde_saphyr::from_slice_multiple::<Value>(b"kind: A\nkind: B\n");
+        assert!(duplicate.is_err(), "duplicate keys must be refused");
+        let documents = serde_saphyr::from_slice_multiple::<Value>(
+            b"---\n---\nkind: A\n---\nnull\n---\nkind: B\n",
+        )
+        .unwrap();
+        assert_eq!(documents, vec![json!({"kind": "A"}), json!({"kind": "B"})]);
+        let pinned = super::ingress_nginx_documents().unwrap();
+        assert_eq!(pinned.len(), 19);
+        assert!(pinned.iter().all(|resource| resource["kind"].is_string()));
+    }
+
+    #[test]
     fn ingress_projection_normalizes_only_empty_configmap_data() {
-        use serde::Deserialize;
         use serde_json::Value;
 
         let resources = super::ingress_controller_resources(&json!({
             "ingress_class_name": "nginx"
         }))
         .unwrap();
-        let imported = serde_yaml::Deserializer::from_slice(super::INGRESS_NGINX_KIND)
-            .map(|document| Value::deserialize(document).unwrap())
-            .filter(|document| !document.is_null())
-            .collect::<Vec<_>>();
+        let imported = super::ingress_nginx_documents().unwrap();
         assert_eq!(resources.len(), imported.len());
         let mut normalized = 0;
         for (actual, mut original) in resources.into_iter().zip(imported) {

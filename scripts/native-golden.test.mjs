@@ -280,10 +280,11 @@ test('image cache seeding rejects aliases, writable inputs, empty caches and exc
   } finally { for (const path of directories) chmodSync(path, 0o700); }
 });
 
-test('PR workflow has no publication policy bypass and keeps exact native generation and failure uploads', () => {
+test('main/tag workflow has no publication policy bypass and keeps exact native generation and failure uploads', () => {
   const raw = readFileSync(new URL('../.github/workflows/native-golden.yml', import.meta.url), 'utf8');
   validateWorkflow(raw);
-  for (const changed of [raw.replace('ubuntu-24.04-arm', 'ubuntu-24.04'), raw.replace('pull_request:', 'workflow_dispatch:'),
+  for (const changed of [raw.replace('ubuntu-24.04-arm', 'ubuntu-24.04'), raw.replace('  push:\n', '  pull_request_target:\n'), raw.replace("      - 'stdlib/**'\n", ''), raw.replace('    paths:\n', '    paths-ignore:\n'),
+    raw.replace('      max-parallel: 2\n', ''),
     raw.replace('contents: read', 'contents: write'), raw.replace('22.23.2', 'latest'), raw.replace('if: always()', 'if: success()'),
     raw.replace('node scripts/native-golden.mjs run', 'true # node scripts/native-golden.mjs run'),
     raw.replace('          - os: ubuntu-24.04\n            arch: amd64\n', ''),

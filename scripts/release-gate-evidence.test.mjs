@@ -107,12 +107,20 @@ function killOwnedLeader(root) {
   assert(Number.isSafeInteger(pid) && pid > 1);
   try {process.kill(-pid, 'SIGKILL');} catch (error) {if (error.code !== 'ESRCH') throw error;}
 }
-function noExecutingProcess(path) {
+// SIGKILL delivery is asynchronous: a killed process stays runnable until the
+// kernel tears it down, so wait (bounded) for it to become a zombie or vanish.
+async function noExecutingProcess(path) {
   const pid = Number(readFileSync(path, 'utf8'));
-  try {
-    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
-    assert.equal(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[0], 'Z');
-  } catch (error) {if (error.code !== 'ENOENT') throw error;}
+  let state;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    try {
+      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+      state = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[0];
+    } catch (error) {if (error.code !== 'ENOENT') throw error; return;}
+    if (state === 'Z') return;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  assert.equal(state, 'Z');
 }
 test('ordinary exit drains short-lived descendants but rejects orphaned pipe holders', {timeout: 17000}, async t => {
   const normal = temporary(t);
@@ -131,11 +139,11 @@ test('ordinary exit drains short-lived descendants but rejects orphaned pipe hol
     assert.equal(record.orphaned, true); assert.equal(record.interrupted, null);
     const files = new Map(['json', 'stdout', 'stderr'].map(suffix => [`orphan.${suffix}`, readFileSync(join(root, `orphan.${suffix}`))]));
     assert.throws(() => validateCommand(files, 'orphan', process.execPath, ['-e', backgroundCommand(root, true)], 0));
-    noExecutingProcess(join(root, 'grandchild'));
+    await noExecutingProcess(join(root, 'grandchild'));
   } finally {clearTimeout(watchdog); killOwnedLeader(root);}
 });
 
-test('cancellation after the leader exits terminates its resistant pipe-holding grandchild', {timeout: 12000}, t => {
+test('cancellation after the leader exits terminates its resistant pipe-holding grandchild', {timeout: 12000}, async t => {
   const root = temporary(t), ready = join(root, 'grandchild');
   const wrapper = `
     import {existsSync} from 'node:fs';
@@ -149,7 +157,7 @@ test('cancellation after the leader exits terminates its resistant pipe-holding 
     const record = JSON.parse(readFileSync(join(root, 'cancel-orphan.json')));
     assert.equal(record.status, 0); assert.equal(record.interrupted, 'SIGHUP');
     assert.equal(record.orphaned, false, 'cancellation must not be relabeled as an ordinary exit failure');
-    noExecutingProcess(ready);
+    await noExecutingProcess(ready);
   } finally {killOwnedLeader(root);}
 });
 

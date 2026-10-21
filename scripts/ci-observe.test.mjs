@@ -346,35 +346,32 @@ test('cancellation kills a resistant descendant even when it has no inherited ou
   assert.equal(readJson(join(directory, 'monitor-result.json')).reason, 'stopped');
 });
 
-test('actual normative twice-VV workflow propagates first/second failures and rejects removal of fail-fast', t => {
+test('actual normative single-pass VV workflow propagates failure and rejects a swallowed failure', t => {
   const body = workflow('vv.yml').jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd;
   const check = candidate => {
-    for (const [first, second] of [[0, 0], [19, 0], [0, 23], [19, 23]]) {
+    for (const status of [0, 19]) {
       const {root, env: baseEnv} = fixture(t);
       const env = sessionFixture(root, baseEnv, {readDuringPreparation: true, image: `ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:${'b'.repeat(64)}`});
       copyFileSync(script, join(root, 'scripts/ci-observe.mjs'));
       const just = join(root, 'bin/just');
-      writeFileSync(just, `#!${process.execPath}\nconst fs=require('node:fs');const assert=require('node:assert/strict');assert.deepEqual(process.argv.slice(2),['vv']);const path='count';const count=fs.existsSync(path)?Number(fs.readFileSync(path))+1:1;fs.writeFileSync(path,String(count));process.stdout.write('call:'+count+'\\n');process.exit(count===1?${first}:${second});\n`);
+      writeFileSync(just, `#!${process.execPath}\nconst fs=require('node:fs');const assert=require('node:assert/strict');assert.deepEqual(process.argv.slice(2),['vv']);const path='count';const count=fs.existsSync(path)?Number(fs.readFileSync(path))+1:1;fs.writeFileSync(path,String(count));process.stdout.write('call:'+count+'\\n');process.exit(${status});\n`);
       chmodSync(just, 0o700);
-      const expected = first || second;
-      if (!expected) assert.equal(execFileSync('bash', ['-c', candidate], {cwd: root, env, encoding: 'utf8', timeout: 20_000}), 'call:1\ncall:2\n');
+      if (!status) assert.equal(execFileSync('bash', ['-c', candidate], {cwd: root, env, encoding: 'utf8', timeout: 20_000}), 'call:1\n');
       else assert.throws(() => execFileSync('bash', ['-c', candidate], {cwd: root, env, encoding: 'utf8', timeout: 20_000}), error => {
-        assert.equal(error.status, expected); return true;
+        assert.equal(error.status, status); return true;
       });
-      assert.equal(readFileSync(join(root, 'count'), 'utf8'), first ? '1' : '2');
-      for (const name of first ? ['vv-first'] : ['vv-first', 'vv-second']) {
-        const directory = join(root, 'target/ci-diagnostics', name);
-        assert.equal(readJson(join(directory, 'monitor-result.json')).reason, 'stopped');
-        assert.equal(readJson(join(directory, 'gate-result.json')).exitCode, name === 'vv-first' ? first : second);
-      }
+      assert.equal(readFileSync(join(root, 'count'), 'utf8'), '1');
+      const directory = join(root, 'target/ci-diagnostics/vv');
+      assert.equal(readJson(join(directory, 'monitor-result.json')).reason, 'stopped');
+      assert.equal(readJson(join(directory, 'gate-result.json')).exitCode, status);
     }
   };
   check(body);
-  assert.throws(() => check(body.replace('--with-sdk bash -euo pipefail', '--with-sdk bash')));
+  assert.throws(() => check(body.replace('-- just vv', '-- just vv || true')));
 });
 
 test('all observed workflows retain their full gates, always stop/upload, and keep pinned actions', () => {
-  for (const [name, job, runs] of [['bootstrap.yml', 'native-gate', 1], ['vv.yml', 'vv', 2]]) {
+  for (const [name, job, runs] of [['bootstrap.yml', 'native-gate', 1], ['vv.yml', 'vv', 1]]) {
     const steps = workflow(name).jobs[job].steps;
     const start = steps.findIndex(step => step.run?.includes('ci-observe.mjs start'));
     const gate = steps.findIndex(step => step.with?.runCmd);

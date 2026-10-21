@@ -1,19 +1,47 @@
 name: Review native golden source records
 
+# Dual-architecture native source review runs on main pushes and release tags,
+# on request, and on pull requests only when native-record inputs change.
 on:
   pull_request:
+    # Only inputs the native records depend on: stdlib and golden sources, the
+    # compiler/emitter closure, LexLean, toolchains and SDK image inputs. A PR
+    # that changes them gets its review artifacts to import.
+    paths:
+      - 'stdlib/**'
+      - 'tests/golden/**'
+      - 'vendor/lexlean/**'
+      - 'crates/prismpm/src/**'
+      - 'model/**'
+      - 'schemas/**'
+      - 'sdk/**'
+      - 'lexlean.toml'
+      - 'lexlean.lock'
+      - 'lean-toolchain'
+      - 'rust-toolchain.toml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'scripts/native-golden.mjs'
+      - 'scripts/ci-observe.mjs'
+      - '.github/workflows/native-golden.yml'
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
 
 permissions: {}
 concurrency:
-  group: native-golden-${{ github.event.pull_request.number }}
+  group: native-golden-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   native-source-review:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 360
+    # Measured about 37 minutes per architecture.
+    timeout-minutes: 75
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           - os: ubuntu-24.04
@@ -25,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
           fetch-depth: 0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
@@ -39,7 +67,7 @@ jobs:
         run: node scripts/ci-observe.mjs start "$RUNNER_TEMP/native-observer"
       - name: Generate review-only native records
         env:
-          SOURCE_REVISION: ${{ github.event.pull_request.head.sha }}
+          SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           node scripts/native-golden.mjs tests
           node scripts/native-golden.mjs run "$SOURCE_REVISION" "$RUNNER_TEMP/native-golden"
@@ -49,7 +77,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: native-golden-review-${{ matrix.arch }}-${{ github.event.pull_request.head.sha }}
+          name: native-golden-review-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/native-golden/
           if-no-files-found: error
           compression-level: 0
@@ -57,7 +85,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: native-golden-diagnostics-${{ matrix.arch }}-${{ github.event.pull_request.head.sha }}
+          name: native-golden-diagnostics-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/native-observer/
           if-no-files-found: error
           retention-days: 7

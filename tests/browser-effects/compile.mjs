@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -81,7 +82,7 @@ export function prepare(mutation = null, compilerOwner = null) {
   try {
     if (mutation) {
       const module = mutation === 'trailing' ? 'Foundation.Browser.Application.V1.EffectsWire' : 'Foundation.Browser.Application.V1.Effects';
-      const text = sources.get(module).toString('utf8'), matched = /\\semanticdata\{(.*)\}/.exec(text);
+      const text = sources.get(module).toString('utf8'), matched = [text, JSON.stringify(readSemantic(text))];
       const model = JSON.parse(matched[1]); let changed = 0;
       function walk(node) {
         if (!node || typeof node !== 'object') return;
@@ -105,7 +106,7 @@ export function prepare(mutation = null, compilerOwner = null) {
       assert.equal(changed, mutation === 'trailing' ? 4 : 1, 'exact production guard mutation');
       const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
         ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-      sources.set(module, Buffer.from(text.replace(matched[0], '\\semanticdata{' + JSON.stringify(canonical(model)) + '}')));
+      sources.set(module, Buffer.from(writeSemantic(text, canonical(model))));
     }
     const project = join(work, 'project');
     for (const [module, bytes] of sources) {
@@ -139,7 +140,7 @@ export function prepare(mutation = null, compilerOwner = null) {
     assert.equal(attestation.build_manifest.sha256, sha(manifestBytes));
     assert.equal(attestation.attestation_id, verified.attestation_id);
     const expected = new Map([...sources].flatMap(([module, bytes]) => {
-      const semantic = JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+      const semantic = readSemantic(bytes.toString('utf8'));
       return semantic.declarations.map(declaration => ['PrismPM.' + module + '.' + declaration.name,
         {kind: declaration.axioms?.length ? 'exact' : 'none', axioms: declaration.axioms ?? []}]);
     }));

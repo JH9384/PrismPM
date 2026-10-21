@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from './semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -91,9 +92,11 @@ test('negative CLI probes require the owning diagnostic and expected exit class'
 });
 
 test('source mutation preserves canonical LexLean module structure and changes the real identity body',t=>{
- const root=temporary(t),path='src/Probe.lex.tex',before='\\semanticdata{{"declarations":[{"body":{"kind":"var","name":"value"},"name":"identity"}]}}\n';put(root,path,before);
- mutateModule(root,module=>{module.declarations[0].body={right:{kind:'nat',value:'1'},left:{kind:'var',name:'value'},kind:'add'};});
- const after=readFileSync(join(root,path),'utf8');assert.match(after,/"body":\{"kind":"add","left"/);assert.notEqual(after,before);
+ const root=temporary(t),path='src/Probe.lex.tex',before='\\begin{lexlean}{Probe}\n\\useglossary{lexlean.std.nat@1.2.0}\n\\title{Natural number}\n\\begin{semanticmodule}\ndefinition{name: identity, parameters: [value : Nat], result: Nat, body: value}\n\\end{semanticmodule}\n\\end{lexlean}\n';put(root,path,before);
+ const body={right:{kind:'nat',value:'1'},left:{kind:'var',name:'value'},kind:'add'};
+ mutateModule(root,module=>{module.declarations[0].body=body;});
+ const after=readFileSync(join(root,path),'utf8');assert.notEqual(after,before);assert.deepEqual(readSemantic(after).declarations[0].body,body);
+ assert.equal(writeSemantic(after,readSemantic(after)),after,'the mutant stays canonical notation');
  put(root,path,before+before);assert.throws(()=>mutateModule(root,()=>{}));
 });
 

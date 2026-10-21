@@ -1,7 +1,8 @@
 name: Bootstrap honesty gate
 
-# Automatic acceptance is owned by vv.yml, including its real bootstrap gate.
-# Keep this unchanged complete invocation available for explicit diagnosis.
+# The pinned `just vv` run for every main push is vv.yml. This template-facing
+# workflow executes the same command, so it runs only on request instead of
+# repeating that verification for every push.
 on:
   workflow_dispatch:
 
@@ -9,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: bootstrap-${{ github.repository }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

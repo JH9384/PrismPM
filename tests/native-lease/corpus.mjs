@@ -1,4 +1,5 @@
 // Translate explicit expected cases, never evaluate the implementation under test.
+import { toNotation } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
@@ -82,16 +83,16 @@ export function corpusModule(index) {
         branch('Result.error', ['error'], match(variable('error'), errors.map(name =>
           branch(`NativeLeaseError.${name}`, [], boolean(name === row.expected.error), module))))])};
   });
-  return {declarations, spec: 'lexlean/semantic-module/1'};
+  return {declarations, spec: 'lexlean/semantic-module/2'};
 }
 export function canonical(value) {
   return Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
     ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 }
 export function corpusSource(index) {
-  return `\\begin{lexlean}{${module}Corpus}\n\\useglossary{lexlean.std.bool@1.1.0}\n\\useglossary{lexlean.std.nat@1.1.0}\n`
+  return toNotation(`\\begin{lexlean}{${module}Corpus}\n\\useglossary{lexlean.std.bool@1.2.0}\n\\useglossary{lexlean.std.nat@1.2.0}\n`
     + `\\importmodule{${module}}\n\\title{Natural number}\n\\begin{semanticmodule}\n`
-    + `\\semanticdata{${JSON.stringify(canonical(corpusModule(index)))}}\n\\end{semanticmodule}\n\\end{lexlean}\n`;
+    + `\\semanticdata{${JSON.stringify(canonical(corpusModule(index)))}}\n\\end{semanticmodule}\n\\end{lexlean}\n`);
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   assert(process.argv.length === 2 || (process.argv.length === 3 && process.argv[2] === '--write'));

@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {chmodSync,copyFileSync,linkSync,lstatSync,mkdirSync,readFileSync,renameSync,rmdirSync,unlinkSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -111,7 +112,7 @@ export function verifyArtifactSubstitutions(build) {
 }
 
 export function verifyInventory() {
- const model=JSON.parse(/\\semanticdata\{(.*)\}/.exec(readFileSync(join(repository,'stdlib/src/Foundation/Browser/Application/V1/Session.lex.tex'),'utf8'))[1]);
+ const model=readSemantic(readFileSync(join(repository,'stdlib/src/Foundation/Browser/Application/V1/Session.lex.tex'),'utf8'));
  const errors=model.declarations.find(row=>row.name==='SourceSessionError').constructors.map(row=>row.name);
  assert.deepEqual(errors,['BadLimits','BadBinding','BadManifest','BadState','BadAuthority','BadView','BadIntent','SecretInput','Busy',
   'OutcomeUnknown','Closed','SequenceExhausted','RevisionExhausted','CommandMismatch','PlanMismatch','CompletionMismatch','StepExhausted','WrongExecution','ContextMismatch','FrameExhausted']);

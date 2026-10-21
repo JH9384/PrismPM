@@ -1,7 +1,7 @@
 //! Execute the native-library contract without manufacturing an application.
 
 use prismpm::controller::{BuildRequest, CheckRequest, ProductBuildRequest, VerifyRequest};
-use prismpm::holo::canonical::{content_id, encode_value};
+use prismpm::holo::canonical::content_id;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -108,28 +108,9 @@ fn no_verification(project: &Path) {
 fn mutate(project: &Path, change: impl FnOnce(&mut Value)) -> String {
     let path = project.join("src/Probe.lex.tex");
     let source = std::fs::read_to_string(&path).unwrap();
-    let lines = source.lines().collect::<Vec<_>>();
-    let rows = lines
-        .iter()
-        .enumerate()
-        .filter(|(_, line)| line.starts_with("\\semanticdata{"))
-        .collect::<Vec<_>>();
-    assert_eq!(rows.len(), 1, "fixture has exactly one semantic module");
-    let (index, line) = rows[0];
-    let bytes = line
-        .strip_prefix("\\semanticdata{")
-        .unwrap()
-        .strip_suffix('}')
-        .unwrap();
-    let mut value: Value = serde_json::from_str(bytes).unwrap();
+    let mut value = crate::semantic_source::read(&source);
     change(&mut value);
-    let replacement = String::from_utf8(encode_value(&value).unwrap()).unwrap();
-    let mut output = lines
-        .iter()
-        .map(|line| (*line).to_owned())
-        .collect::<Vec<_>>();
-    output[index] = format!("\\semanticdata{{{replacement}}}");
-    std::fs::write(path, format!("{}\n", output.join("\n"))).unwrap();
+    std::fs::write(path, crate::semantic_source::write(&source, &value)).unwrap();
     source
 }
 
@@ -462,15 +443,7 @@ pub(super) fn verify(root: &Path) {
                 .join("src/Foundation/Library/V1/Model.lex.tex"),
         )
         .unwrap();
-        let descriptor: Value = serde_json::from_str(
-            descriptor
-                .lines()
-                .find_map(|line| line.strip_prefix("\\semanticdata{"))
-                .unwrap()
-                .strip_suffix('}')
-                .unwrap(),
-        )
-        .unwrap();
+        let descriptor: Value = crate::semantic_source::read(&descriptor);
         mutate(invalid.path(), |module| match mutation {
             0 => {
                 roots(module, "exportRoots")["tail"]["head"]["value"] =

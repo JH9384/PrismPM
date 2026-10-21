@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
@@ -11,7 +12,7 @@ import {payloadStream} from './stream.mjs';
 import {verifyPayloadObservationCounts} from './browser.mjs';
 
 test('payload fixture delegates every byte entry to its actual modeled source',()=>{
-  const sources=sourceClosure(),fixture=JSON.parse(/\\semanticdata\{(.*)\}/.exec(sources.get('Fixture').toString())[1]);
+  const sources=sourceClosure(),fixture=readSemantic(sources.get('Fixture').toString());
   assert.deepEqual(fixture.declarations.map(row=>[row.name,row.body.function.name]),[
     ['payloadJournalBytes','journalWireBytes'],['payloadPartitionBytes','journalPartitionBytes'],['payloadRetentionBytes','sessionRetentionWireBytes']]);
   assert.ok(sources.has('Foundation.Browser.Application.V1.OperationJournal'));

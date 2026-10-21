@@ -1,4 +1,5 @@
 // Private test orchestration; no host implementation of modeled transitions.
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -151,7 +152,7 @@ export function prepareComponent(compilerOwner, expectedInputs, mutationId = nul
     assert.equal(attestation.status, 'verified'); assert.equal(attestation.attestation_id, verified.attestation_id);
     assert.equal(attestation.build_manifest.sha256, sha(buildManifest));
     const expected = new Map([...sources].flatMap(([name, bytes]) => {
-      const data = JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+      const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
     assert.equal(attestation.declarations.length, expected.size);
@@ -174,7 +175,7 @@ export function prepareComponent(compilerOwner, expectedInputs, mutationId = nul
     run('lake', ['build', 'PrismGenerated'], lean);
     const exported = join(work, 'export'), roots = [
       'PrismPM.Foundation.Browser.Application.V1.SessionWire.sourceSessionWireBytes',
-      ...JSON.parse(/\\semanticdata\{(.*)\}/.exec(sources.get(primary).toString('utf8'))[1]).declarations
+      ...readSemantic(sources.get(primary).toString('utf8')).declarations
         .map(declaration => 'PrismPM.' + primary + '.' + declaration.name),
       'PrismPM.Foundation.Holo.V1.Wire.contentBlob',
       'PrismPM.Foundation.Holo.V1.Wire.emptyCapabilities',

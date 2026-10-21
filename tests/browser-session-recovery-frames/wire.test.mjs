@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {corpus, expectedLayout, expectedTail, joinBytes} from './corpus.mjs';
@@ -8,11 +9,12 @@ import {expandState} from '../browser-session/wire.mjs';
 
 test('frame source calls resolve exact existing codec arities', () => {
   const sources = sourceClosure(), modules = new Map([...sources].map(([name, bytes]) =>
-    [name, JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1])]));
+    [name, readSemantic(bytes.toString('utf8'))]));
   const root = 'Foundation.Browser.Application.V1.SessionRecoveryFrames'; let calls = 0;
   const sorted = value => Array.isArray(value) ? value.map(sorted) : value && typeof value === 'object'
     ? Object.fromEntries(Object.keys(value).sort().map(key => [key, sorted(value[key])])) : value;
-  assert.equal(/\\semanticdata\{(.*)\}/.exec(sources.get(root).toString('utf8'))[1], JSON.stringify(sorted(modules.get(root))));
+  const rootText = sources.get(root).toString('utf8');
+  assert.equal(writeSemantic(rootText, sorted(modules.get(root))), rootText);
   function walk(value) {
     if (!value || typeof value !== 'object') return;
     assert.notEqual(value.kind, 'sub', 'Nat subtraction uses the declared subtract primitive');

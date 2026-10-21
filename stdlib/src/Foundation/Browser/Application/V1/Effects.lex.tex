@@ -276,13 +276,9 @@ definition{
   name: effectNameValid,
   parameters: [value : String, grammar : Nat],
   result: Bool,
-  body: (((0 <? (prim length (prim utf8_encode value : Bytes) : Nat)) && (((prim length (prim utf8_encode value : Bytes) : Nat) <=? 128) && true)) && (match{
-    branches: [
-      {body: false, binders: [], constructor: Option.none},
-      {body: (effectOctetAllowed var{name: first} 3), binders: [first], constructor: Option.some}
-    ],
-    scrutinee: (prim index (prim utf8_encode value : Bytes) 0 : (Option UInt8))
-  } && ((effectAsciiTail (prim utf8_encode value : Bytes) 0 (prim length (prim utf8_encode value : Bytes) : Nat) grammar false) && true))),
+  body: (((0 <? (prim length (prim utf8_encode value : Bytes) : Nat)) && (((prim length (prim utf8_encode value : Bytes) : Nat) <=? 128) && true)) && ((match (prim index (prim utf8_encode value : Bytes) 0 : (Option UInt8))
+    | Option.none => false
+    | Option.some firstByte => (effectOctetAllowed firstByte 3)) && ((effectAsciiTail (prim utf8_encode value : Bytes) 0 (prim length (prim utf8_encode value : Bytes) : Nat) grammar false) && true))),
   axioms: []
 }
 
@@ -357,17 +353,9 @@ definition{
   name: effectSigningGrantValid,
   parameters: [grant : EffectSigningGrant],
   result: Bool,
-  body: (((prim length (project grant publicKey) : Nat) =? 65) && (match{
-    branches: [
-      {body: false, binders: [], constructor: Option.none},
-      {
-        body: (prim equal var{name: first} (4 : UInt8) : Bool),
-        binders: [first],
-        constructor: Option.some
-      }
-    ],
-    scrutinee: (prim index (project grant publicKey) 0 : (Option UInt8))
-  } && ((effectNameValid (project grant context) 1) && true))),
+  body: (((prim length (project grant publicKey) : Nat) =? 65) && ((match (prim index (project grant publicKey) 0 : (Option UInt8))
+    | Option.none => false
+    | Option.some firstByte => (prim equal firstByte (4 : UInt8) : Bool)) && ((effectNameValid (project grant context) 1) && true))),
   axioms: []
 }
 

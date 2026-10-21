@@ -1,4 +1,5 @@
 // Actual authored-source mutations; surviving compile/proof is mandatory.
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 const moduleName = 'Foundation.Browser.Application.V1.SessionRecoveryFrames';
 const call = (node, name) => node.kind === 'call' && node.function.name === name;
@@ -46,7 +47,7 @@ export const mutations = Object.freeze([
 ]);
 export function mutateFramesSource(sources, id) {
   const mutation = mutations.find(value => value.id === id); assert.ok(mutation);
-  const text = sources.get(moduleName).toString('utf8'), match = /\\semanticdata\{(.*)\}/.exec(text);
+  const text = sources.get(moduleName).toString('utf8'), match = [text, JSON.stringify(readSemantic(text))];
   const model = JSON.parse(match[1]), declaration = model.declarations.find(value => value.name === mutation.definition);
   assert.ok(declaration); let count = 0;
   function walk(node) {
@@ -58,6 +59,6 @@ export function mutateFramesSource(sources, id) {
     for (const value of Object.values(node)) Array.isArray(value) ? value.forEach(walk) : walk(value);
   }
   walk(declaration.body); assert.equal(count, 1, 'exact mutation location ' + id);
-  sources.set(moduleName, Buffer.from(text.replace(match[0], '\\semanticdata{' + JSON.stringify(model) + '}')));
+  sources.set(moduleName, Buffer.from(writeSemantic(text, model)));
   return {id, entry: mutation.entry, probe: mutation.probe};
 }

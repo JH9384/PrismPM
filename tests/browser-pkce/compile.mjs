@@ -1,4 +1,5 @@
 // Private test orchestration; no host implementation of modeled transitions.
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -39,7 +40,7 @@ export function frozenInputs() {
     files.add('tests/browser-pkce/' + path);
   for (const path of ['tests/browser-view/compile.mjs', 'tests/browser-view/driver-cache.mjs',
     'tests/browser-view/kernel-provenance.test.mjs', 'tests/browser-view/local-module-inputs.test.mjs',
-    'scripts/owning-node-reporter.mjs', 'crates/conformance/src/cases/node_suite.rs',
+    'scripts/owning-node-reporter.mjs', 'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs', 'crates/conformance/src/cases/node_suite.rs',
     'sdk/browser/pkce.mjs', 'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
     'sdk/browser/effects-wire.mjs', 'sdk/browser/effects-module.mjs',
     'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
@@ -137,7 +138,7 @@ export function preparePkce(compilerOwner, expectedInputs, mutationId = null) {
     assert.equal(attestation.status, 'verified'); assert.equal(attestation.attestation_id, verified.attestation_id);
     assert.equal(attestation.build_manifest.sha256, sha(buildManifest));
     const expected = new Map([...sources].flatMap(([name, bytes]) => {
-      const data = JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+      const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
     assert.equal(attestation.declarations.length, expected.size);

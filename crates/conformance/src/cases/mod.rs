@@ -2991,8 +2991,8 @@ fn verify_rp_04(root: &Path) {
     assert!(workflow.contains("runCmd: |"));
     assert_eq!(
         workflow.matches("just vv").count(),
-        2,
-        "the CI workflow must exercise repeatable verification"
+        1,
+        "the main-push workflow must run the complete verification exactly once"
     );
 }
 

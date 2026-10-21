@@ -1,9 +1,23 @@
 \begin{lexlean}{Probe}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Library.V1.Model}
 \title{Natural number}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"body":{"kind":"var","name":"value"},"kind":"definition","name":"identity","parameters":[{"name":"value","type":{"kind":"nat"}}],"result":{"kind":"nat"}},{"body":{"arguments":[{"arguments":[{"kind":"nat","value":"42"}],"function":{"name":"identity"},"kind":"call"},{"kind":"nat","value":"42"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"kind":"definition","name":"acceptance","parameters":[],"result":{"kind":"bool"}},{"body":{"fields":[{"field":"profile","value":{"kind":"string","value":"prismpm/native-library/1"}},{"field":"name","value":{"kind":"string","value":"Library probe"}},{"field":"cargoName","value":{"kind":"string","value":"prism-library-probe"}},{"field":"cargoVersion","value":{"kind":"string","value":"0.1.0"}},{"field":"cargoDescription","value":{"kind":"string","value":"Finite native-library acceptance fixture"}},{"field":"cargoRepository","value":{"kind":"string","value":"https://github.com/UOR-Foundation/PrismPM"}},{"field":"cargoHomepage","value":{"kind":"string","value":"https://github.com/UOR-Foundation/PrismPM"}},{"field":"exportRoots","value":{"head":{"kind":"string","value":"LibraryProbe.Probe.acceptance"},"kind":"cons","tail":{"head":{"kind":"string","value":"LibraryProbe.Probe.identity"},"kind":"cons","tail":{"element":{"kind":"string"},"kind":"nil"}}}},{"field":"acceptanceRoots","value":{"head":{"kind":"string","value":"LibraryProbe.Probe.acceptance"},"kind":"cons","tail":{"element":{"kind":"string"},"kind":"nil"}}}],"kind":"record","type":{"module":"Foundation.Library.V1.Model","name":"NativeLibrary"}},"kind":"definition","name":"probeLibrary","parameters":[],"result":{"arguments":[],"kind":"named","member":{"module":"Foundation.Library.V1.Model","name":"NativeLibrary"}}}],"spec":"lexlean/semantic-module/1"}}
+definition{name: identity, parameters: [value : Nat], result: Nat, body: value}
+
+definition{
+  name: acceptance,
+  parameters: [],
+  result: Bool,
+  body: (prim equal (identity 42) 42 : Bool)
+}
+
+definition{
+  name: probeLibrary,
+  parameters: [],
+  result: Foundation.Library.V1.Model::NativeLibrary,
+  body: (record Foundation.Library.V1.Model::NativeLibrary {profile := "prismpm/native-library/1", name := "Library probe", cargoName := "prism-library-probe", cargoVersion := "0.1.0", cargoDescription := "Finite native-library acceptance fixture", cargoRepository := "https://github.com/UOR-Foundation/PrismPM", cargoHomepage := "https://github.com/UOR-Foundation/PrismPM", exportRoots := (cons "LibraryProbe.Probe.acceptance" (cons "LibraryProbe.Probe.identity" (nil String))), acceptanceRoots := (cons "LibraryProbe.Probe.acceptance" (nil String))})
+}
 \end{semanticmodule}
 \end{lexlean}

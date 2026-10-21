@@ -1,6 +1,6 @@
 spec = "lexlean/project/1"
 name = "library-probe"
-language = "1.1"
+language = "1.2"
 module_prefix = "LibraryProbe"
 source_roots = ["src"]
 entrypoints = ["src/Probe.lex.tex"]

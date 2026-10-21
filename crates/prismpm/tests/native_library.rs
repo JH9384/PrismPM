@@ -30,17 +30,7 @@ fn native_library_projects_all_1024_roots_from_closed_source_chunks() {
     );
     let path = project.path().join("src/Probe.lex.tex");
     let original = std::fs::read_to_string(&path).unwrap();
-    let line = original
-        .lines()
-        .find(|line| line.starts_with("\\semanticdata{"))
-        .unwrap();
-    let mut module: Value = serde_json::from_str(
-        line.strip_prefix("\\semanticdata{")
-            .unwrap()
-            .strip_suffix('}')
-            .unwrap(),
-    )
-    .unwrap();
+    let mut module: Value = lexlean::sdk::read_module(&original).unwrap();
     let declarations = module["declarations"].as_array_mut().unwrap();
     let descriptor = declarations
         .iter()
@@ -94,11 +84,11 @@ fn native_library_projects_all_1024_roots_from_closed_source_chunks() {
     }
     let descriptor = declarations.remove(descriptor);
     declarations.push(descriptor);
-    let replacement = format!(
-        "\\semanticdata{{{}}}",
-        serde_json::to_string(&module).unwrap()
-    );
-    std::fs::write(&path, original.replace(line, &replacement)).unwrap();
+    std::fs::write(
+        &path,
+        lexlean::sdk::write_module(&original, &module).unwrap(),
+    )
+    .unwrap();
     let controller = prismpm::Controller::load(project.path()).unwrap();
     let checked = controller
         .check(CheckRequest { config_path: None })
@@ -136,11 +126,11 @@ fn native_library_projects_all_1024_roots_from_closed_source_chunks() {
     }
     let last = declarations.len() - 1;
     declarations.insert(last, json!({"kind":"definition","name":"vector1024","parameters":[],"result":{"kind":"bool"},"body":{"kind":"bool","value":true}}));
-    let replacement = format!(
-        "\\semanticdata{{{}}}",
-        serde_json::to_string(&module).unwrap()
-    );
-    std::fs::write(&path, original.replace(line, &replacement)).unwrap();
+    std::fs::write(
+        &path,
+        lexlean::sdk::write_module(&original, &module).unwrap(),
+    )
+    .unwrap();
     let rejected = controller
         .check(CheckRequest { config_path: None })
         .unwrap_err();
@@ -169,11 +159,11 @@ fn native_library_projects_all_1024_roots_from_closed_source_chunks() {
         }
     }
     declarations.push(descriptor);
-    let replacement = format!(
-        "\\semanticdata{{{}}}",
-        serde_json::to_string(&module).unwrap()
-    );
-    std::fs::write(&path, original.replace(line, &replacement)).unwrap();
+    std::fs::write(
+        &path,
+        lexlean::sdk::write_module(&original, &module).unwrap(),
+    )
+    .unwrap();
     let rejected = controller
         .check(CheckRequest { config_path: None })
         .unwrap_err();

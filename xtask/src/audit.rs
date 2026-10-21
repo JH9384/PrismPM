@@ -674,16 +674,9 @@ pub fn audit_formal_contract(root: &Path) -> Result<(), Fail> {
     {
         return Err("embedded allocation counter differs from the pinned upstream source".into());
     }
-    let path = root.join("stdlib/src/Foundation/Holo.lex.tex");
-    let source = std::fs::read_to_string(&path)?;
-    let payload = source
-        .lines()
-        .find_map(|line| {
-            line.strip_prefix("\\semanticdata{")
-                .and_then(|value| value.strip_suffix('}'))
-        })
-        .ok_or("Foundation.Holo has no semantic module payload")?;
-    let value: serde_json::Value = serde_json::from_str(payload)?;
+    let value = repo_conformance::semantic_source::module_payload(
+        &root.join("stdlib/src/Foundation/Holo.lex.tex"),
+    )?;
     let declarations = value
         .get("declarations")
         .and_then(serde_json::Value::as_array)
@@ -789,16 +782,9 @@ pub fn audit_formal_contract(root: &Path) -> Result<(), Fail> {
         return Err("canonical index uniqueness theorem is not the exact characterization".into());
     }
 
-    let corpus_source =
-        std::fs::read_to_string(root.join("stdlib/src/Production/SystemValidationCorpus.lex.tex"))?;
-    let corpus_payload = corpus_source
-        .lines()
-        .find_map(|line| {
-            line.strip_prefix("\\semanticdata{")
-                .and_then(|value| value.strip_suffix('}'))
-        })
-        .ok_or("Production.SystemValidationCorpus has no semantic module payload")?;
-    let corpus: serde_json::Value = serde_json::from_str(corpus_payload)?;
+    let corpus = repo_conformance::semantic_source::module_payload(
+        &root.join("stdlib/src/Production/SystemValidationCorpus.lex.tex"),
+    )?;
     let corpus_declarations = corpus["declarations"]
         .as_array()
         .ok_or("Production.SystemValidationCorpus has no semantic declarations")?;
@@ -1491,7 +1477,8 @@ pub fn audit_tools_ci(root: &Path) -> Result<(), Fail> {
     }
     for workflow in [
         ".github/workflows/ci-parallel.yml",
-        ".github/workflows/honesty.yml",
+        ".github/workflows/bootstrap.yml",
+        ".github/workflows/native-golden.yml",
         ".github/workflows/reproducibility.yml",
         ".github/workflows/vv.yml",
     ] {
@@ -1819,6 +1806,12 @@ mod lean_source_audit_tests {
     fn exact_preservation_package_sources_are_admitted_with_archive_custody() {
         let root = preservation_fixture();
         audit_no_handwritten_lean(root.path()).unwrap();
+    }
+
+    #[test]
+    fn current_stdlib_formal_contract_is_read_from_its_notation_sources() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        super::audit_formal_contract(root).unwrap();
     }
 
     #[test]

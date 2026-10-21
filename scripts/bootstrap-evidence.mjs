@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from './semantic-source.mjs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, readlinkSync, renameSync, writeFileSync } from 'node:fs';
@@ -102,16 +103,14 @@ export function prepare(root, envelope) {
   }
   writeFileSync(join(envelope, 'source-manifest.json'), canonical(manifest));
   const path = join(envelope, 'stdlib/src/Foundation/Core.lex.tex');
-  const lines = regular(path).toString('utf8').split('\n');
-  const index = lines.findIndex(line => line.startsWith('\\semanticdata{'));
-  requireThat(index >= 0 && lines[index].endsWith('}'), 'missing canonical bootstrap semantic data');
-  const payload = JSON.parse(lines[index].slice('\\semanticdata{'.length, -1));
+  const text = regular(path).toString('utf8');
+  const payload = readSemantic(text);
+  requireThat(Array.isArray(payload.declarations), 'missing canonical bootstrap semantic data');
   payload.declarations.push(
     manifestDefinition('sourceManifestSha256Base32', sha256Base32(sha(canonical(manifest)))),
     manifestDefinition('sourceManifestFileCount', String(manifest.files.length))
   );
-  lines[index] = `\\semanticdata{${canonical(payload)}}`;
-  writeFileSync(path, lines.join('\n'));
+  writeFileSync(path, writeSemantic(text, payload));
 }
 
 function compiler(lock) {

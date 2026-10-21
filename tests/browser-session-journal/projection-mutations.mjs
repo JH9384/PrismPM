@@ -1,4 +1,5 @@
 // Actual modeled-source defects for the private projection owner.
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 const base = 'Foundation.Browser.Application.V1.';
 export const projectionMutations = Object.freeze([
@@ -24,7 +25,7 @@ const canonical = value => Array.isArray(value) ? value.map(canonical) : value &
 export function mutateProjectionSource(sources, id) {
   const selected = projectionMutations.find(row => row.id === id); assert.ok(selected, 'closed projection mutation');
   const before = sources.get(selected.module); assert.ok(Buffer.isBuffer(before));
-  const text = before.toString('utf8'), match = /\\semanticdata\{(.*)\}/.exec(text); assert.ok(match);
+  const text = before.toString('utf8'), match = [text, JSON.stringify(readSemantic(text))]; assert.ok(match);
   const data = JSON.parse(match[1]), declaration = data.declarations.find(row => row.name === selected.definition);
   assert.ok(declaration?.body); let changed = 0;
   function visit(node) {
@@ -53,7 +54,7 @@ export function mutateProjectionSource(sources, id) {
       arguments: [{kind: 'var', name: 'input'}]}; changed = 1;
   } else visit(declaration.body);
   assert.equal(changed, id === 'predecessor-eof' ? 9 : 1, 'exact named source defect count');
-  const after = Buffer.from(text.replace(match[0], '\\semanticdata{' + JSON.stringify(canonical(data)) + '}'));
+  const after = Buffer.from(writeSemantic(text, canonical(data)));
   assert.notDeepEqual(after, before); sources.set(selected.module, after);
   return {...selected, changed};
 }

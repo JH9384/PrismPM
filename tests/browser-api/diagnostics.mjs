@@ -1,4 +1,5 @@
 // Defensive-only exports append to exact production bytes in an isolated page.
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -14,7 +15,7 @@ export async function verifyDiagnostics(kind,build,publicCodes){
  const actual=[...new Set([...source.matchAll(/(?:fail|(?:Command|Query)AdapterError)\('([a-z-]+)'/g)].map(m=>m[1]))].sort();
  assert.deepEqual(actual,registered,'complete class-specific production diagnostic sites');
  const modelSource=readFileSync(new URL('../../stdlib/src/Foundation/Browser/V1/Workspace'+kind+'.lex.tex',import.meta.url),'utf8');
- const model=JSON.parse(modelSource.split('\n').find(line=>line.startsWith('\\semanticdata{')).slice(14,-1));
+ const model=readSemantic(modelSource);
  const constructors=model.declarations.find(d=>d.name==='Workspace'+kind+'Error').constructors.map(c=>c.name);
  const rejections=[...section.matchAll(/^byte = ([0-9]+)\nname = "([A-Za-z]+)"$/gm)].map(m=>({byte:Number(m[1]),name:m[2]}));
  assert.deepEqual(rejections,constructors.map((name,index)=>({byte:index+1,name})),'exact generated rejection constructor table');

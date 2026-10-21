@@ -1,4 +1,5 @@
 // Source defects must compile and fail the named real native/Wasm oracle.
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 const module = 'Foundation.Browser.Application.V1.SessionJournalRetention';
 export const retentionMutations = Object.freeze([
@@ -17,7 +18,7 @@ const canonical = value => Array.isArray(value) ? value.map(canonical) : value &
 export function mutateRetentionSource(sources, id) {
   const selected = retentionMutations.find(row => row.id === id); assert.ok(selected);
   const original = sources.get(selected.module); assert.ok(Buffer.isBuffer(original));
-  const text = original.toString('utf8'), matched = /\\semanticdata\{(.*)\}/.exec(text), model = JSON.parse(matched[1]);
+  const text = original.toString('utf8'), matched = [text, JSON.stringify(readSemantic(text))], model = JSON.parse(matched[1]);
   const declaration = model.declarations.find(row => row.name === selected.definition); assert.ok(declaration?.body);
   let changes = 0;
   if (['retention-count', 'retention-trailing', 'retention-range-half', 'retention-reference-head'].includes(id)) {
@@ -41,7 +42,7 @@ export function mutateRetentionSource(sources, id) {
     }
     visit(declaration.body); assert.equal(changes, id === 'retention-trailing' ? 2 : 1);
   } else {declaration.body = {kind: 'or', left: declaration.body, right: {kind: 'bool', value: true}}; changes = 1;}
-  const next = Buffer.from(text.replace(matched[0], '\\semanticdata{' + JSON.stringify(canonical(model)) + '}'));
+  const next = Buffer.from(writeSemantic(text, canonical(model)));
   assert.notDeepEqual(next, original); sources.set(selected.module, next);
   return {id, changes, probe: selected.probe, module: selected.module};
 }

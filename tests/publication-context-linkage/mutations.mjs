@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 
 export const mutationProbes = Object.freeze({
@@ -22,7 +23,7 @@ export function mutateSources(sources, kind) {
   assert.ok(mutationNames.includes(kind));
   const module = 'Production.PublicationAdmission.' + (kind.startsWith('context-') ? 'V1Wire'
     : kind.startsWith('writer-') || ['trailing', 'preimage'].includes(kind) ? 'LinkageV1Wire' : 'LinkageV1');
-  const original = sources.get(module).toString('utf8'), match = /\\semanticdata\{(.*)\}/.exec(original);
+  const original = sources.get(module).toString('utf8'), match = [original, JSON.stringify(readSemantic(original))];
   assert.ok(match); const semantic = JSON.parse(match[1]);
   const selected = ({source: 'publicationLinkageValidate', services: 'publicationLinkageServicesPartition',
     controls: 'publicationLinkageControlsPartition', manifest: 'publicationLinkageManifestScan',
@@ -126,6 +127,6 @@ export function mutateSources(sources, kind) {
   assert.equal(changed, kind === 'context-substitution' ? 2 : kind === 'bucket-duplicate' ? 4 : 1, 'exact source mutation ' + kind);
   const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
     ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-  const mutated = Buffer.from(original.replace(match[0], '\\semanticdata{' + JSON.stringify(canonical(semantic)) + '}'));
+  const mutated = Buffer.from(writeSemantic(original, canonical(semantic)));
   assert.notDeepEqual(mutated, sources.get(module)); sources.set(module, mutated);
 }

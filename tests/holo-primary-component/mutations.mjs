@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 const moduleName = 'Foundation.Holo.V1.PrimaryWire';
 export const mutations = Object.freeze([
@@ -31,7 +32,7 @@ function canonical(value) {
 export function mutateSource(sources, id) {
   const mutation = mutations.find(item => item.id === id); assert.ok(mutation);
   const original = sources.get(moduleName).toString('utf8');
-  const data = JSON.parse(/\\semanticdata\{(.*)\}/.exec(original)[1]);
+  const data = readSemantic(original);
   let changes = 0;
   const declaration = name => {const value = data.declarations.find(item => item.name === name); assert.ok(value); return value;};
   const change = (name, fn) => {const d = declaration(name); d.body = visit(d.body, value => {
@@ -50,7 +51,6 @@ export function mutateSource(sources, id) {
   if (id === 'section-rows') change('primaryValidArchiveBody', value => value.kind === 'call' && value.function.name === 'wireRowsValid'
     ? {kind:'bool',value:true} : value);
   assert.equal(changes, 1, 'exactly one genuine authored source mutation');
-  sources.set(moduleName, Buffer.from(original.replace(/\\semanticdata\{.*\}/,
-    () => '\\semanticdata{' + JSON.stringify(canonical(data)) + '}')));
+  sources.set(moduleName, Buffer.from(writeSemantic(original, canonical(data))));
   return mutation;
 }

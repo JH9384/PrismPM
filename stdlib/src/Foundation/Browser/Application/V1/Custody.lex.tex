@@ -466,17 +466,9 @@ definition{
         | List.cons unusedHead unusedTail => true))
       | List.cons slot remainingSlots => (match bindings
         | List.nil => false
-        | List.cons head tail => ((prim equal (project head slot) slot : Bool) && ((prim equal (project head application) (project policy application) : Bool) && ((prim equal (project head policy) (project policy policy) : Bool) && ((((prim length (project head publicKey) : Nat) =? 65) && (match{
-          branches: [
-            {body: false, binders: [], constructor: Option.none},
-            {
-              body: (prim equal var{name: first} (4 : UInt8) : Bool),
-              binders: [first],
-              constructor: Option.some
-            }
-          ],
-          scrutinee: (prim index (project head publicKey) 0 : (Option UInt8))
-        } && true)) && ((Foundation.Browser.Application.V1.Effects::effectDigestValid (project head principal)) && ((not (custodyDuplicateBinding tail head 64)) && ((custodyBindingsValid policy remainingSlots tail rest) && true)))))))))),
+        | List.cons head tail => ((prim equal (project head slot) slot : Bool) && ((prim equal (project head application) (project policy application) : Bool) && ((prim equal (project head policy) (project policy policy) : Bool) && ((((prim length (project head publicKey) : Nat) =? 65) && ((match (prim index (project head publicKey) 0 : (Option UInt8))
+          | Option.none => false
+          | Option.some firstByte => (prim equal firstByte (4 : UInt8) : Bool)) && true)) && ((Foundation.Browser.Application.V1.Effects::effectDigestValid (project head principal)) && ((not (custodyDuplicateBinding tail head 64)) && ((custodyBindingsValid policy remainingSlots tail rest) && true)))))))))),
   axioms: [],
   recursive_argument: fuel
 }

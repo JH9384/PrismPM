@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 const model='Foundation.Crypto.P256.Model',wire='Foundation.Crypto.P256.Wire';
 export const mutations=Object.freeze([
@@ -29,7 +30,7 @@ export const canonical=value=>Array.isArray(value)?value.map(canonical):value&&t
 export function mutateP256Source(sources,id){
   const selected=mutations.find(row=>row.id===id);assert.ok(selected,'registered P256 mutation');
   const original=sources.get(selected.module),text=original.toString('utf8');
-  const data=JSON.parse(/\\semanticdata\{(.*)\}/.exec(text)[1]);
+  const data=readSemantic(text);
   const declaration=data.declarations.find(row=>row.name===selected.definition);assert.ok(declaration);
   let count=0;
   const literal=(node,value)=>node?.kind==='nat'&&node.value===String(value);
@@ -101,6 +102,6 @@ export function mutateP256Source(sources,id){
     first.value=String(Number(first.value)+(id==='modulus'?-1:1));count++;
   }else visit(declaration.body);
   assert.equal(count,['coordinate-endian','output-endian'].includes(id)?2:1,'exact source defect '+id);
-  const changed=Buffer.from(text.replace(/\\semanticdata\{.*\}/,'\\semanticdata{'+JSON.stringify(canonical(data))+'}'));
+  const changed=Buffer.from(writeSemantic(text, canonical(data)));
   assert.notDeepEqual(changed,original);sources.set(selected.module,changed);return selected;
 }

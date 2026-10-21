@@ -1,7 +1,7 @@
 //! Native-only finite oracle for the internal browser effect protocol.
 
 use prismpm::controller::{CheckRequest, VerifyRequest};
-use prismpm::holo::canonical::{content_id, encode_value};
+use prismpm::holo::canonical::content_id;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -35,25 +35,11 @@ struct Fixture {
 }
 
 fn semantic(source: &str) -> Value {
-    let line = source
-        .lines()
-        .find_map(|line| line.strip_prefix("\\semanticdata{"))
-        .unwrap();
-    serde_json::from_str(line.strip_suffix('}').unwrap()).unwrap()
+    crate::semantic_source::read(source)
 }
 
 fn rewrite(source: &str, value: &Value) -> String {
-    let payload = String::from_utf8(encode_value(value).unwrap()).unwrap();
-    source
-        .lines()
-        .map(|line| {
-            if line.starts_with("\\semanticdata{") {
-                format!("\\semanticdata{{{payload}}}\n")
-            } else {
-                format!("{line}\n")
-            }
-        })
-        .collect()
+    crate::semantic_source::write(source, value)
 }
 
 fn strings(values: &[String]) -> Value {

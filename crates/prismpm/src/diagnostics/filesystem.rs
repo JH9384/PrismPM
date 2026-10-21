@@ -91,7 +91,7 @@ fn source_project(root: &Path) -> Result<(), PrismError> {
         root,
         "src/Main.lex.tex",
         br"\begin{lexlean}{Main}
-\useglossary{lexlean.std.bool@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
 \useglossary{prism.arch@1.0.0}
 \useglossary{prism.qual@1.0.0}
 \useglossary{prism.sec@1.0.0}
@@ -121,7 +121,7 @@ Close the goal by reflexivity.
         "lexlean.toml",
         br#"spec = "lexlean/project/1"
 name = "diagnostic-artifact"
-language = "1.1"
+language = "1.2"
 module_prefix = "Diagnostic"
 source_roots = ["src", "stdlib"]
 entrypoints = ["src/Main.lex.tex"]

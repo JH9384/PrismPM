@@ -1,4 +1,5 @@
 // Construction checks only; the DK-30 owner must execute the actual artifacts.
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
@@ -32,7 +33,7 @@ test('each metadata source mutation changes a closed real declaration and has an
 });
 
 test('metadata schema has exact source fields and no self-referential prepared envelope', () => {
-  const data = JSON.parse(/\\semanticdata\{(.*)\}/.exec(source(model).toString('utf8'))[1]);
+  const data = readSemantic(source(model).toString('utf8'));
   const fields = name => data.declarations.find(row => row.name === name).fields.map(row => row.name);
   assert.deepEqual(fields('SessionJournalRecord'), ['binding', 'genesis', 'sequence', 'previous', 'kind', 'before', 'operation', 'after', 'receipt', 'frontier', 'recovery']);
   assert.deepEqual(fields('SessionJournalAnchor'), ['envelope', 'position', 'step', 'observedReceipt']);
@@ -55,7 +56,7 @@ test('metadata calls retain exact pinned source definition arities', () => {
   function capture(module) {
     if (declarations.has(module)) return;
     const bytes = source(module).toString('utf8');
-    declarations.set(module, JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes)[1]).declarations);
+    declarations.set(module, readSemantic(bytes).declarations);
     for (const match of bytes.matchAll(/\\importmodule\{([^}]+)\}/g)) capture(match[1]);
   }
   capture(model + 'Wire');

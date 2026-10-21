@@ -1,3 +1,4 @@
+import { toNotation } from '../../scripts/semantic-source.mjs';
 // LexLean model authoring only. Deliberately hostile literal tests text-only projection.
 const values = {
   spec: 'prismpm/workspace-view-labels/1',
@@ -21,9 +22,9 @@ export function source() {
       [bytes(value.subarray(0, Math.floor(value.length / 2))), bytes(value.subarray(Math.floor(value.length / 2)))]}; return define('labelPart' + declarations.length, body); };
   const body = bytes(Buffer.from(literalLabels));
   define('workspaceViewLabelsBytes', body);
-  const model = {spec: 'lexlean/semantic-module/1', declarations};
+  const model = {spec: 'lexlean/semantic-module/2', declarations};
   const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
     ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-  return '\\begin{lexlean}{Foundation.View.Workspace.V1.Labels}\n\\useglossary{lexlean.std.bool@1.1.0}\n\\importmodule{Foundation.View.Workspace.V1.Corpus}\n\\title{Boolean}\n\\begin{semanticmodule}\n\\semanticdata{'
-    + JSON.stringify(canonical(model)) + '}\n\\end{semanticmodule}\n\\end{lexlean}\n';
+  return toNotation('\\begin{lexlean}{Foundation.View.Workspace.V1.Labels}\n\\useglossary{lexlean.std.bool@1.2.0}\n\\importmodule{Foundation.View.Workspace.V1.Corpus}\n\\title{Boolean}\n\\begin{semanticmodule}\n\\semanticdata{'
+    + JSON.stringify(canonical(model)) + '}\n\\end{semanticmodule}\n\\end{lexlean}\n');
 }

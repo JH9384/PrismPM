@@ -51,7 +51,7 @@ function validate(text){
  for(const name of ['policy','build','publish'])assert(w.jobs[name].if.includes("github.ref == 'refs/heads/main'"));
  assert.deepEqual(w.jobs.publish.needs,'build');assert.equal(w.jobs.publish.environment,'sdk-candidate');
  const canonical=v=>JSON.stringify(v,(_,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.fromEntries(Object.keys(x).sort().map(k=>[k,x[k]])):x);
- assert.equal(w.jobs.policy['timeout-minutes'],30);
+ assert.equal(w.jobs.policy['timeout-minutes'],10);
  assert.equal(w.jobs.build.strategy['max-parallel'],2);
  // These are the only independently reviewed additive bounds layered onto
  // the historical protected owners.  Normalize those fields solely for the
@@ -98,8 +98,8 @@ test('normalized capacity fields stay mandatory and construction strategy remain
   assert.notEqual(changed,text);return changed;
  };
  for(const [name,from,to] of [
-  ['policy','    timeout-minutes: 30\n',''],
-  ['policy','timeout-minutes: 30','timeout-minutes: 29'],
+  ['policy','    timeout-minutes: 10\n',''],
+  ['policy','timeout-minutes: 10','timeout-minutes: 9'],
   ['build','      max-parallel: 2\n',''],
   ['build','max-parallel: 2','max-parallel: 3'],
   ['unpublished-construction','      max-parallel: 2','      unknown-policy: true\n      max-parallel: 2'],

@@ -1753,7 +1753,11 @@ mod lean_source_audit_tests {
 
     fn fixture() -> tempfile::TempDir {
         let root = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(root.path().join("vendor/lexlean/language/lcnf-1.2/tooling/src")).unwrap();
+        std::fs::create_dir_all(
+            root.path()
+                .join("vendor/lexlean/language/lcnf-1.2/tooling/src"),
+        )
+        .unwrap();
         std::fs::create_dir(root.path().join("model")).unwrap();
         std::fs::write(root.path().join(ADAPTER), "\\begin{lexlean}{Extract}\n").unwrap();
         std::fs::write(root.path().join("vendor/fixture.bin"), "fixture\n").unwrap();
@@ -1874,7 +1878,13 @@ mod lean_source_audit_tests {
     #[test]
     fn an_unlisted_preservation_member_is_rejected_even_in_the_sealed_archive() {
         let root = preservation_fixture();
-        std::fs::write(root.path().join("vendor/lexlean/language/preservation-1.2/modules/LexLeanTarget/Unlisted.lean"), "unlisted\n").unwrap();
+        std::fs::write(
+            root.path().join(
+                "vendor/lexlean/language/preservation-1.2/modules/LexLeanTarget/Unlisted.lean",
+            ),
+            "unlisted\n",
+        )
+        .unwrap();
         seal(root.path());
         assert!(audit_no_handwritten_lean(root.path()).is_err());
     }

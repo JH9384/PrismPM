@@ -1891,7 +1891,6 @@ handling from merely observing a nonzero test exit. Focused-check log SHA-256:
 Full V&V, both consecutive hosted invocations and installed SDK acceptance
 remain required; these targeted results do not establish their completion.
 
-<<<<<<< HEAD
 ## Bounded native-library root projection
 
 Actual LexLean source first rejected chunked root metadata with PP2001. The
@@ -2382,8 +2381,6 @@ Receipt `/tmp/prismpm-publication-RI5Ngo/publication-acceptance.json`, SHA-256
 `0514ce3653fb7b0993e36bf3f0c8215ecca9cd2dd45d362434c119e90a144f07`.
 This verifies conditional source admission only, not SDK or deployment acceptance.
 
-=======
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 ## Release criterion
 
 Only a clean, annotated `v0.3.0` tag whose exact commit has produced

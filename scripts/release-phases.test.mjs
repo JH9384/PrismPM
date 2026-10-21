@@ -308,16 +308,10 @@ test('image-index verifier CLI checks the pinned root and propagates signature-v
   } finally { rmSync(directory, {recursive: true, force: true}); }
 });
 
-<<<<<<< HEAD
 test('the release twice-VV shell must fail on either invocation, including first-run-only failure', t => {
   // This checks the actual shell sequence's failure propagation. The helper's
   // fixed just-vv command and real process capture have separate owning tests.
   const bodies = [workflow().jobs.gate.steps.find(step => step.with?.runCmd).with.runCmd];
-=======
-test('the release twice-VV shell must fail on either invocation, including first-run-only failure', () => {
-  // The diagnostic-wrapped normative workflow is executed by ci-observe.test.mjs.
-  const bodies = [workflow().jobs.gate.steps.at(-1).with.runCmd];
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
   const verify = body => {
     for (const [first, second] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
       const root = mkdtempSync(join(tmpdir(), 'prismpm-release-session-'));

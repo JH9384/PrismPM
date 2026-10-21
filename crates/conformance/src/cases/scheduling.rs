@@ -35,7 +35,6 @@ fn compiler_slot() -> CompilerSlot {
 pub(super) fn for_owner(id: &str) -> Option<CompilerSlot> {
     matches!(
         id,
-<<<<<<< HEAD
         "DK-10"
             | "DK-11"
             | "DK-12"
@@ -62,9 +61,6 @@ pub(super) fn for_owner(id: &str) -> Option<CompilerSlot> {
             | "ST-15"
             | "ST-16"
             | "SY-08"
-=======
-        "DK-10" | "DK-11" | "DK-12" | "DK-13" | "DK-14" | "DK-15" | "DK-16" | "DK-17" | "OC-07"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
     )
     .then(compiler_slot)
 }
@@ -88,7 +84,6 @@ mod tests {
 
     #[test]
     fn every_waiting_compiler_owner_runs_once_without_overlap_or_skip() {
-<<<<<<< HEAD
         let owners = (10..=18)
             .map(|id| format!("DK-{id}"))
             .chain([
@@ -110,11 +105,6 @@ mod tests {
                 "ST-16".to_owned(),
                 "SY-08".to_owned(),
             ])
-=======
-        let owners = (10..=17)
-            .map(|id| format!("DK-{id}"))
-            .chain(["OC-07".to_owned()])
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
             .collect::<Vec<_>>();
         let barrier = Arc::new(Barrier::new(owners.len() + 1));
         let active = AtomicUsize::new(0);
@@ -137,13 +127,9 @@ mod tests {
         actual.sort();
         assert_eq!(actual, owners);
         assert_eq!(active.load(Ordering::SeqCst), 0);
-<<<<<<< HEAD
         for id in [
             "DK-07", "DK-08", "DK-09", "DK-19", "RP-01", "ST-10", "VR-01",
         ] {
-=======
-        for id in ["DK-07", "DK-08", "DK-09", "DK-18", "RP-01", "VR-01"] {
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
             assert!(
                 for_owner(id).is_none(),
                 "lightweight dispatch is unchanged: {id}"

@@ -4,7 +4,6 @@
   "databases": [
     {
       "ecosystem": "crates.io",
-<<<<<<< HEAD
       "generation": "1791016356716892",
       "size": 3541411,
       "md5": "It+ZrvrPb6lhO+mpNOasLQ==",
@@ -72,75 +71,6 @@
       "url": "https://osv-vulnerabilities.storage.googleapis.com/Ubuntu/all.zip?generation=1790980378457307",
       "metadata_url": "https://storage.googleapis.com/storage/v1/b/osv-vulnerabilities/o/Ubuntu%2Fall.zip?generation=1790980378457307",
       "acquired_at": "2026-10-03T11:57:55.630Z"
-=======
-      "generation": "1789723713081168",
-      "size": 3463220,
-      "md5": "V2g2HpI87SRvEijD5bd4Sw==",
-      "source_created": "2026-09-18T09:28:33.213Z",
-      "source_updated": "2026-09-18T09:28:33.213Z",
-      "source_created_unix": 1789723713,
-      "id": "OSV-CRATES-DB-G1789723713081168",
-      "sha256": "a260782a542ffa8e4387558d358aeedf5555dbf4b1df3b00bced2e1b14a8ac22",
-      "url": "https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip?generation=1789723713081168",
-      "metadata_url": "https://storage.googleapis.com/storage/v1/b/osv-vulnerabilities/o/crates.io%2Fall.zip?generation=1789723713081168",
-      "acquired_at": "2026-09-19T00:04:18.982Z"
-    },
-    {
-      "ecosystem": "Debian",
-      "generation": "1789772800438247",
-      "size": 71045314,
-      "md5": "MYnFid0VltbNJ4veggUmWA==",
-      "source_created": "2026-09-18T23:06:40.578Z",
-      "source_updated": "2026-09-18T23:06:40.578Z",
-      "source_created_unix": 1789772800,
-      "id": "OSV-DEBIAN-DB-G1789772800438247",
-      "sha256": "8682d4e50bac6e25eaaae280288f64ee8e009b1bdd46bc9f06ac546e59da2395",
-      "url": "https://osv-vulnerabilities.storage.googleapis.com/Debian/all.zip?generation=1789772800438247",
-      "metadata_url": "https://storage.googleapis.com/storage/v1/b/osv-vulnerabilities/o/Debian%2Fall.zip?generation=1789772800438247",
-      "acquired_at": "2026-09-19T00:04:56.016Z"
-    },
-    {
-      "ecosystem": "Go",
-      "generation": "1789755542983649",
-      "size": 11722527,
-      "md5": "VPdB5PyHP//rZSiHhjoBag==",
-      "source_created": "2026-09-18T18:19:03.114Z",
-      "source_updated": "2026-09-18T18:19:03.114Z",
-      "source_created_unix": 1789755543,
-      "id": "OSV-GO-DB-G1789755542983649",
-      "sha256": "c258e9106752589b886a2c78984e7c0a9f3fdfbf438caed21a57c808481c2ae0",
-      "url": "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip?generation=1789755542983649",
-      "metadata_url": "https://storage.googleapis.com/storage/v1/b/osv-vulnerabilities/o/Go%2Fall.zip?generation=1789755542983649",
-      "acquired_at": "2026-09-19T00:05:04.363Z"
-    },
-    {
-      "ecosystem": "npm",
-      "generation": "1789770960544023",
-      "size": 215257971,
-      "md5": "WRdZL3/2YcUc8xxzSpCcHA==",
-      "source_created": "2026-09-18T22:36:00.679Z",
-      "source_updated": "2026-09-18T22:36:00.679Z",
-      "source_created_unix": 1789770960,
-      "id": "OSV-NPM-DB-G1789770960544023",
-      "sha256": "6486bcd1195de4deedfc39d1658fad0d52702125804e521d630c9601b8840ca8",
-      "url": "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1789770960544023",
-      "metadata_url": "https://storage.googleapis.com/storage/v1/b/osv-vulnerabilities/o/npm%2Fall.zip?generation=1789770960544023",
-      "acquired_at": "2026-09-19T00:07:06.163Z"
-    },
-    {
-      "ecosystem": "Ubuntu",
-      "generation": "1789776290924582",
-      "size": 755323397,
-      "md5": "MTy0iz2gIx9/R2kUvnODow==",
-      "source_created": "2026-09-19T00:04:51.078Z",
-      "source_updated": "2026-09-19T00:04:51.078Z",
-      "source_created_unix": 1789776291,
-      "id": "OSV-UBUNTU-DB-G1789776290924582",
-      "sha256": "7b8ce1077fffc3b0eff05183bc511717fbaafb034cdf7f99842f2a819ab4c9b9",
-      "url": "https://osv-vulnerabilities.storage.googleapis.com/Ubuntu/all.zip?generation=1789776290924582",
-      "metadata_url": "https://storage.googleapis.com/storage/v1/b/osv-vulnerabilities/o/Ubuntu%2Fall.zip?generation=1789776290924582",
-      "acquired_at": "2026-09-19T00:12:29.832Z"
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
     }
   ]
 }

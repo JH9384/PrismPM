@@ -6,11 +6,8 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::Path;
 
-<<<<<<< HEAD
 pub mod platform;
 
-=======
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 /// The explicit comparison recipe; it never authorizes a release.
 pub const PROFILE: &str = "prismpm/golden-comparison/1";
 /// The complete, sorted set of original reviewed files.
@@ -456,7 +453,6 @@ pub fn current_caller(files: &[(String, Vec<u8>)], executable: &[u8]) -> Result<
     )
 }
 
-<<<<<<< HEAD
 const NATIVE_RECORDS: [&str; 3] = [
     "golden-manifest.json",
     "verified/lexlean-attestation.json",
@@ -609,8 +605,6 @@ pub fn read_platform(root: &Path, platform: platform::Platform) -> Result<Golden
     compose_native_records(&base, &records, platform)
 }
 
-=======
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -698,7 +692,6 @@ mod tests {
     }
 
     #[test]
-<<<<<<< HEAD
     fn native_records_preserve_exact_bytes_and_reject_semantic_or_closure_changes() {
         let original = fixture();
         let selected = platform::Platform::SdkAmd64;
@@ -806,8 +799,6 @@ mod tests {
     }
 
     #[test]
-=======
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
     fn golden_comparison_accepts_only_coherent_caller_identity_variation() {
         let original = fixture();
         let mut changed = original.clone();

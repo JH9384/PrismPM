@@ -1,10 +1,6 @@
 // CI diagnostics only: never acceptance evidence or a replacement for a gate.
 import { execFile, spawn } from 'node:child_process';
-<<<<<<< HEAD
 import { chmodSync, existsSync, fchmodSync, mkdirSync, openSync, closeSync, readFileSync, readdirSync, writeSync, statfsSync } from 'node:fs';
-=======
-import { chmodSync, existsSync, fchmodSync, mkdirSync, openSync, closeSync, readFileSync, writeSync, statfsSync } from 'node:fs';
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 import { constants } from 'node:os';
 import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -79,7 +75,6 @@ export function dockerUsage(text) {
   return records.sort((a, b) => a.id.localeCompare(b.id)).slice(0, limits.containers);
 }
 
-<<<<<<< HEAD
 // Closed names and numeric kernel fields only: never command lines, paths or
 // environment. Process activity is diagnostic, not evidence of a passing gate.
 export function compilerProcess(text) {
@@ -110,8 +105,6 @@ function compilerActivity() {
   } catch { return {available: false, truncated: false, processes: []}; }
 }
 
-=======
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 function filesystem(path) {
   try {
     const value = statfsSync(path);
@@ -137,11 +130,7 @@ export async function sample() {
       pids: number(read('/sys/fs/cgroup/pids.current').trim()),
       memoryEvents: keyNumbers(read('/sys/fs/cgroup/memory.events'), ['low', 'high', 'max', 'oom', 'oom_kill', 'oom_group_kill']),
       cpu: keyNumbers(read('/sys/fs/cgroup/cpu.stat'), ['usage_usec', 'user_usec', 'system_usec', 'nr_periods', 'nr_throttled', 'throttled_usec'])},
-<<<<<<< HEAD
     compilerActivity: compilerActivity(), docker};
-=======
-    docker};
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 }
 
 export async function monitor(directory, {intervalMs = limits.intervalMs, durationMs = limits.durationMs, samples = limits.samples,

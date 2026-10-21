@@ -7,12 +7,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
-<<<<<<< HEAD
 import { boundedLog, compilerProcess, dockerUsage, keyNumbers, limits, monitor, pressure, redactor } from './ci-observe.mjs';
 import {sessionFixture} from './vv-sdk-session-fixture.mjs';
-=======
-import { boundedLog, dockerUsage, keyNumbers, limits, monitor, pressure, redactor } from './ci-observe.mjs';
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 
 const script = fileURLToPath(new URL('./ci-observe.mjs', import.meta.url));
 const repository = dirname(dirname(script));
@@ -56,7 +52,6 @@ test('numeric allowlists reject names, command lines, environment and malformed 
   assert.equal(rows[1].cpuPercent, null);
   assert.ok(!JSON.stringify(rows).includes(secret));
   assert.equal(dockerUsage(Array(300).fill(valid).join('\n')).length, limits.containers);
-<<<<<<< HEAD
   const fields = Array(22).fill('0');
   fields[0] = 'S'; fields[1] = '11'; fields[11] = '23'; fields[12] = '5'; fields[21] = '400';
   const stat = (name = 'lean', data = fields) => `12 (${name}) ${data.join(' ')}\n`;
@@ -69,8 +64,6 @@ test('numeric allowlists reject names, command lines, environment and malformed 
   assert.equal(compilerProcess(stat().replace('12 (', '0 (')), null);
   assert.equal(compilerProcess(stat('lean', fields.slice(0, 21))), null);
   assert.equal(compilerProcess('x'.repeat(4097)), null);
-=======
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
 });
 
 test('credential redaction spans every chunk boundary and never echoes environment names', () => {
@@ -357,13 +350,8 @@ test('actual normative twice-VV workflow propagates first/second failures and re
   const body = workflow('vv.yml').jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd;
   const check = candidate => {
     for (const [first, second] of [[0, 0], [19, 0], [0, 23], [19, 23]]) {
-<<<<<<< HEAD
       const {root, env: baseEnv} = fixture(t);
       const env = sessionFixture(root, baseEnv, {readDuringPreparation: true, image: `ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:${'b'.repeat(64)}`});
-=======
-      const {root, env} = fixture(t);
-      mkdirSync(join(root, 'scripts'));
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
       copyFileSync(script, join(root, 'scripts/ci-observe.mjs'));
       const just = join(root, 'bin/just');
       writeFileSync(just, `#!${process.execPath}\nconst fs=require('node:fs');const assert=require('node:assert/strict');assert.deepEqual(process.argv.slice(2),['vv']);const path='count';const count=fs.existsSync(path)?Number(fs.readFileSync(path))+1:1;fs.writeFileSync(path,String(count));process.stdout.write('call:'+count+'\\n');process.exit(count===1?${first}:${second});\n`);
@@ -382,17 +370,10 @@ test('actual normative twice-VV workflow propagates first/second failures and re
     }
   };
   check(body);
-<<<<<<< HEAD
   assert.throws(() => check(body.replace('--with-sdk bash -euo pipefail', '--with-sdk bash')));
 });
 
 test('all observed workflows retain their full gates, always stop/upload, and keep pinned actions', () => {
-=======
-  assert.throws(() => check(body.replace('set -euo pipefail\n', '')));
-});
-
-test('both actual workflows retain their full gates, always stop/upload, and keep pinned actions', () => {
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
   for (const [name, job, runs] of [['bootstrap.yml', 'native-gate', 1], ['vv.yml', 'vv', 2]]) {
     const steps = workflow(name).jobs[job].steps;
     const start = steps.findIndex(step => step.run?.includes('ci-observe.mjs start'));
@@ -407,7 +388,6 @@ test('both actual workflows retain their full gates, always stop/upload, and kee
     assert.equal(steps[gate]['continue-on-error'], undefined);
     for (const step of steps.filter(value => value.uses)) assert.match(step.uses, /@[0-9a-f]{40}$/);
   }
-<<<<<<< HEAD
   const native = workflow('native-golden.yml').jobs['native-source-review'].steps;
   const start = native.findIndex(step => step.run === 'node scripts/ci-observe.mjs start "$RUNNER_TEMP/native-observer"');
   const gate = native.findIndex(step => step.name === 'Generate review-only native records');
@@ -418,7 +398,5 @@ test('both actual workflows retain their full gates, always stop/upload, and kee
   assert.equal(native[upload].with['retention-days'], 7);
   assert.equal(native[gate]['continue-on-error'], undefined);
   for (const step of native.filter(value => value.uses)) assert.match(step.uses, /@[0-9a-f]{40}$/);
-=======
->>>>>>> 79f36f1c (feat: add ci-observe tests and refresh OSV scripts)
   assert.match(readFileSync(join(repository, 'xtask/src/main.rs'), 'utf8'), /"scripts\/ci-observe\.test\.mjs"/);
 });

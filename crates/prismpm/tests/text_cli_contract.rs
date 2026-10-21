@@ -266,144 +266,99 @@ fn text_cli_failures_agree_across_lean_registry_and_generated_program() {
     assert_eq!(program_classes, modeled);
 }
 
-fn string(value: &str) -> Value {
-    json!({"kind": "string", "value": value})
-}
-
-fn uint(representation: &str, value: u64) -> Value {
-    json!({"kind": "integer", "representation": representation, "value": value.to_string()})
-}
-
-fn record(name: &str, fields: Vec<(&str, Value)>) -> Value {
-    json!({
-        "kind": "record",
-        "type": {"module": V3, "name": name},
-        "fields": fields
-            .into_iter()
-            .map(|(field, value)| json!({"field": field, "value": value}))
-            .collect::<Vec<_>>()
-    })
-}
-
-fn list(name: &str, items: Vec<Value>) -> Value {
-    items.into_iter().rev().fold(
-        json!({"kind": "nil", "element": {
-            "kind": "named", "arguments": [], "member": {"module": V3, "name": name}
-        }}),
-        |tail, head| json!({"kind": "cons", "head": head, "tail": tail}),
-    )
-}
-
-fn surface_value() -> Value {
+fn surface_notation() -> String {
+    let record = |name: &str, fields: &str| {
+        format!("(record Foundation.View.Text.V3.Model::{name} {{{fields}}})")
+    };
+    let list = |name: &str, rows: Vec<String>| {
+        rows.into_iter().rev().fold(
+            format!("(nil Foundation.View.Text.V3.Model::{name})"),
+            |tail, head| format!("(cons {head} {tail})"),
+        )
+    };
+    let outcomes = list(
+        "TextCliOutcome",
+        [
+            ("accepted", "Accepted: ", 0),
+            ("rejected", "invalid", 1),
+            ("error", "Failure:", 2),
+        ]
+        .into_iter()
+        .map(|(name, prefix, code)| {
+            record(
+                "TextCliOutcome",
+                &format!(
+                    "name := \"{name}\", prefix := \"{prefix}\", exitCode := ({code} : UInt8)"
+                ),
+            )
+        })
+        .collect(),
+    );
+    let sections = list(
+        "TextCliSection",
+        vec![record(
+            "TextCliSection",
+            "title := \"REFERENCE\", body := \"See the specification.\\n\"",
+        )],
+    );
+    let examples = list(
+        "TextCliExample",
+        vec![record(
+            "TextCliExample",
+            "name := \"good\", text := \"hello\\n\"",
+        )],
+    );
     record(
         "TextCli",
-        vec![
-            ("command", string("check")),
-            ("description", string("Checks one text request.\n")),
-            ("usageCode", uint("uint8", 64)),
-            ("ioCode", uint("uint8", 74)),
-            (
-                "outcomes",
-                list(
-                    "TextCliOutcome",
-                    [
-                        ("accepted", "Accepted: ", 0),
-                        ("rejected", "invalid", 1),
-                        ("error", "Failure:", 2),
-                    ]
-                    .into_iter()
-                    .map(|(name, prefix, code)| {
-                        record(
-                            "TextCliOutcome",
-                            vec![
-                                ("name", string(name)),
-                                ("prefix", string(prefix)),
-                                ("exitCode", uint("uint8", code)),
-                            ],
-                        )
-                    })
-                    .collect(),
-                ),
-            ),
-            (
-                "sections",
-                list(
-                    "TextCliSection",
-                    vec![record(
-                        "TextCliSection",
-                        vec![
-                            ("title", string("REFERENCE")),
-                            ("body", string("See the specification.\n")),
-                        ],
-                    )],
-                ),
-            ),
-            (
-                "examples",
-                list(
-                    "TextCliExample",
-                    vec![record(
-                        "TextCliExample",
-                        vec![("name", string("good")), ("text", string("hello\n"))],
-                    )],
-                ),
-            ),
-        ],
+        &format!(
+            "command := \"check\", description := \"Checks one text request.\\n\", usageCode := (64 : UInt8), ioCode := (74 : UInt8), outcomes := {outcomes}, sections := {sections}, examples := {examples}"
+        ),
     )
 }
 
 fn source() -> String {
+    // The fixture is language-1.2 notation: derive the V3 application by exact
+    // textual edits and require each edit to apply exactly once.
     let original = std::fs::read_to_string(
         root().join("tests/fixtures/holo/ho-11-text-application/project/src/TextRequest.lex.tex"),
     )
     .unwrap();
-    let semantic = original
-        .lines()
-        .find(|line| line.starts_with("\\semanticdata{"))
-        .unwrap();
-    let mut value: Value = serde_json::from_str(
-        semantic
-            .strip_prefix("\\semanticdata{")
-            .unwrap()
-            .strip_suffix('}')
-            .unwrap(),
-    )
-    .unwrap();
-    value["spec"] = json!("lexlean/semantic-module/2");
-    let application = value["declarations"]
-        .as_array_mut()
-        .unwrap()
-        .iter_mut()
-        .find(|d| d["name"] == "application")
-        .unwrap();
-    application["result"]["member"]["module"] = json!(V3);
-    application["body"]["type"]["module"] = json!(V3);
-    let fields = application["body"]["fields"].as_array_mut().unwrap();
-    fields.iter_mut().find(|f| f["field"] == "profile").unwrap()["value"]["value"] =
-        json!("prismpm/text-application/3");
-    let index = fields
-        .iter()
-        .position(|f| f["field"] == "guestAllocationMaximum")
-        .unwrap()
-        + 1;
-    fields.insert(
-        index,
-        json!({"field": "coreMemoryPages", "value": uint("uint32", 64)}),
-    );
-    fields.insert(
-        index + 1,
-        json!({"field": "coreStackBytes", "value": uint("uint32", 131072)}),
-    );
-    fields.push(json!({"field": "cli", "value": surface_value()}));
-    original
-        .replace(
-            semantic,
-            &format!("\\semanticdata{{{}}}", serde_json::to_string(&value).unwrap()),
-        )
-        .replace(
-            "\\importmodule{Foundation.View.Text.V1.Model}",
-            "\\importmodule{Foundation.View.Text.V1.Model}\n\\importmodule{Foundation.View.Text.V3.Model}",
-        )
+    let edits = [
+        (
+            "result: Foundation.View.Text.V1.Model::TextApplication,".to_owned(),
+            format!("result: {V3}::TextApplication,"),
+        ),
+        (
+            "(record Foundation.View.Text.V1.Model::TextApplication {".to_owned(),
+            format!("(record {V3}::TextApplication {{"),
+        ),
+        (
+            "{profile := \"prismpm/text-application/1\",".to_owned(),
+            "{profile := \"prismpm/text-application/3\",".to_owned(),
+        ),
+        (
+            "guestAllocationMaximum := (128 : UInt32),".to_owned(),
+            "guestAllocationMaximum := (128 : UInt32), coreMemoryPages := (64 : UInt32), coreStackBytes := (131072 : UInt32),".to_owned(),
+        ),
+        (
+            "responseError := \"Invalid response\"})})".to_owned(),
+            format!("responseError := \"Invalid response\"}}), cli := {}}})", surface_notation()),
+        ),
+        (
+            "\\importmodule{Foundation.View.Text.V1.Model}".to_owned(),
+            format!("\\importmodule{{Foundation.View.Text.V1.Model}}\n\\importmodule{{{V3}}}"),
+        ),
+    ];
+    let mut source = original;
+    for (from, to) in edits {
+        assert_eq!(
+            source.matches(&from).count(),
+            1,
+            "fixture edit anchor {from}"
+        );
+        source = source.replace(&from, &to);
+    }
+    source
 }
 
 #[allow(clippy::result_large_err)]
@@ -413,22 +368,13 @@ fn project(source: &str, owner: &str) -> Result<ModelDocument, prismpm::PrismErr
     let project = repo.join("tests/fixtures/holo/ho-11-text-application/project");
     for name in [
         "lexlean.toml",
+        "lexlean.lock",
         "lean-toolchain",
         "lakefile.toml",
         "lake-manifest.json",
     ] {
         std::fs::copy(project.join(name), temp.path().join(name)).unwrap();
     }
-    // The checked-in fixture project predates the language 1.2 lexicon that the
-    // standard library and `language/prism.arch` now use.
-    let configuration = temp.path().join("lexlean.toml");
-    std::fs::write(
-        &configuration,
-        std::fs::read_to_string(&configuration)
-            .unwrap()
-            .replace("language = \"1.1\"", "language = \"1.2\""),
-    )
-    .unwrap();
     for module in [
         "Foundation/Bytes.lex.tex",
         "Foundation/Utf8.lex.tex",
@@ -448,11 +394,7 @@ fn project(source: &str, owner: &str) -> Result<ModelDocument, prismpm::PrismErr
         .join(owner.replace('.', "/") + ".lex.tex");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(path, model).unwrap();
-    std::fs::write(
-        temp.path().join("src/TextRequest.lex.tex"),
-        lexlean::sdk::to_notation(&source.replace("@1.1.0}", "@1.2.0}")).unwrap(),
-    )
-    .unwrap();
+    std::fs::write(temp.path().join("src/TextRequest.lex.tex"), source).unwrap();
     let language = repo.join("language/prism.arch");
     for entry in walkdir::WalkDir::new(&language) {
         let entry = entry.unwrap();

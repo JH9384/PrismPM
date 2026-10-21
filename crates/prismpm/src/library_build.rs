@@ -291,6 +291,7 @@ fn generate_in(
         .ok_or_else(|| PrismError::new("PP4004", "LexLean output manifest is absent"))?;
     let mut modules = BTreeSet::new();
     let mut paths = BTreeSet::new();
+    let mut generated = Vec::new();
     for output in outputs {
         if output["kind"] != "lean" {
             continue;
@@ -324,6 +325,7 @@ fn generate_in(
             ));
         }
         write(&workspace.join(local), &bytes)?;
+        generated.push(bytes);
         modules.insert(local.with_extension("").to_string_lossy().replace('/', "."));
     }
     if modules.is_empty() {
@@ -332,11 +334,13 @@ fn generate_in(
             "library has no generated Lean modules",
         ));
     }
+    let runtime =
+        crate::lean_project::stage_runtime(workspace, generated.iter().map(Vec::as_slice))?;
     write(
         &workspace.join("lakefile.toml"),
         crate::lean_project::configuration(
             "prismpm_native_library",
-            &modules.iter().cloned().collect::<Vec<_>>(),
+            &crate::lean_project::roots(&runtime, &modules.iter().cloned().collect::<Vec<_>>()),
         )
         .as_bytes(),
     )?;

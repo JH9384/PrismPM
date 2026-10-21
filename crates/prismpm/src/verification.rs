@@ -2921,6 +2921,7 @@ pub(crate) fn run(
         (lean_package.as_path(), "$LEAN4_PROD"),
     ];
     let mut modules = Vec::new();
+    let mut generated = Vec::new();
     for (path, (expected_size, expected_hash)) in &attested_lean {
         let source = build_root.join("lexlean/build").join(path);
         let metadata = std::fs::symlink_metadata(&source)
@@ -2943,6 +2944,7 @@ pub(crate) fn run(
             .strip_prefix("modules")
             .map_err(|_| PrismError::new("PP9001", "generated module path escaped"))?;
         write(&workspace.join(relative), &bytes)?;
+        generated.push(bytes);
         modules.push(
             relative
                 .with_extension("")
@@ -2957,7 +2959,12 @@ pub(crate) fn run(
             "no generated Lean modules were staged",
         ));
     }
-    let lakefile = crate::lean_project::configuration("prismpm_verify", &modules);
+    let runtime =
+        crate::lean_project::stage_runtime(workspace, generated.iter().map(Vec::as_slice))?;
+    let lakefile = crate::lean_project::configuration(
+        "prismpm_verify",
+        &crate::lean_project::roots(&runtime, &modules),
+    );
     write(&workspace.join("lakefile.toml"), lakefile.as_bytes())?;
     write(
         &workspace.join("lean-toolchain"),

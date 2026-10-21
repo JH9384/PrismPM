@@ -276,7 +276,11 @@ fn allocation_boundary(
 ) -> Result<(Vec<u8>, Vec<u8>), String> {
     if matches!(
         profile,
-        Some("prismpm/text-application/1" | "prismpm/text-application/2")
+        Some(
+            "prismpm/text-application/1"
+                | "prismpm/text-application/2"
+                | "prismpm/text-application/3"
+        )
     ) {
         vectors
             .iter()

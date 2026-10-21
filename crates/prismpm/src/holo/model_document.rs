@@ -230,19 +230,25 @@ impl Application {
     /// Core-Wasm guest memory bound; legacy profiles retain 32 pages.
     pub fn core_memory_pages(&self) -> u32 {
         match self {
-            Self::Text(value) if value.profile == "prismpm/text-application/2" => {
+            Self::Text(value) if value.has_resource_bounds() => {
                 value.core_memory_pages.unwrap_or(32)
             }
             _ => 32,
         }
     }
 
-    /// Explicit Core-Wasm linear-memory stack bound, present only for text/2.
+    /// Explicit Core-Wasm linear-memory stack bound, present for text/2 and text/3.
     pub fn core_stack_bytes(&self) -> Option<u32> {
         match self {
-            Self::Text(value) if value.profile == "prismpm/text-application/2" => {
-                value.core_stack_bytes
-            }
+            Self::Text(value) if value.has_resource_bounds() => value.core_stack_bytes,
+            _ => None,
+        }
+    }
+
+    /// Modeled command-line surface, present only for text/3.
+    pub fn cli(&self) -> Option<&super::text_cli::TextCli> {
+        match self {
+            Self::Text(value) => value.cli.as_ref(),
             _ => None,
         }
     }
@@ -286,14 +292,14 @@ pub struct TextApplicationModel {
     pub response_maximum: u32,
     /// Guest input allocation cap.
     pub guest_allocation_maximum: u32,
-    /// Explicit Core-Wasm guest memory pages, required only by text/2.
+    /// Explicit Core-Wasm guest memory pages, required by text/2 and text/3.
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
         deserialize_with = "present_resource_bound"
     )]
     pub core_memory_pages: Option<u32>,
-    /// Explicit Core-Wasm linear-memory stack bytes, required only by text/2.
+    /// Explicit Core-Wasm linear-memory stack bytes, required by text/2 and text/3.
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -310,6 +316,29 @@ pub struct TextApplicationModel {
     pub view_layer: u8,
     /// Text presentation metadata; byte bounds are owned by the application.
     pub view: TextView,
+    /// Modeled command-line surface, required only by text/3.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_cli"
+    )]
+    pub cli: Option<super::text_cli::TextCli>,
+}
+
+impl TextApplicationModel {
+    /// Whether the profile carries explicit Core-Wasm resource bounds.
+    pub fn has_resource_bounds(&self) -> bool {
+        matches!(
+            self.profile.as_str(),
+            "prismpm/text-application/2" | "prismpm/text-application/3"
+        )
+    }
+}
+
+fn present_cli<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<super::text_cli::TextCli>, D::Error> {
+    super::text_cli::TextCli::deserialize(deserializer).map(Some)
 }
 
 /// Closed presentation metadata for the UTF-8 text-request View.

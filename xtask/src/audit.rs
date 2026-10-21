@@ -1549,7 +1549,7 @@ pub fn audit_errors(root: &Path, model: &Model) -> Result<(), Fail> {
 
 /// Audit the exact Holo emitter input closure and its stored semantics digest.
 pub fn audit_emitter_inputs(root: &Path, model: &Model) -> Result<(), Fail> {
-    const EXPECTED: [&str; 18] = [
+    const EXPECTED: [&str; 20] = [
         "crates/prismpm/src/holo/application.rs",
         "crates/prismpm/src/holo/browser_application.rs",
         "crates/prismpm/src/holo/browser_application/model.rs",
@@ -1560,6 +1560,7 @@ pub fn audit_emitter_inputs(root: &Path, model: &Model) -> Result<(), Fail> {
         "crates/prismpm/src/holo/model_document.rs",
         "crates/prismpm/src/holo/mod.rs",
         "crates/prismpm/src/holo/projector.rs",
+        "crates/prismpm/src/holo/text_cli.rs",
         "crates/prismpm/src/holo/validate.rs",
         "model/projection.toml",
         "model/standards.toml",
@@ -1567,6 +1568,7 @@ pub fn audit_emitter_inputs(root: &Path, model: &Model) -> Result<(), Fail> {
         "schemas/model-document-v3.schema.json",
         "schemas/model-document-v4.schema.json",
         "schemas/model-document-v5.schema.json",
+        "schemas/model-document-v6.schema.json",
         "schemas/model-document.schema.json",
     ];
     if model.emitter_inputs.spec != "prismpm/emitter-inputs/1"
@@ -1753,7 +1755,11 @@ mod lean_source_audit_tests {
 
     fn fixture() -> tempfile::TempDir {
         let root = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(root.path().join("vendor/lexlean/language/lcnf-1.2/tooling/src")).unwrap();
+        std::fs::create_dir_all(
+            root.path()
+                .join("vendor/lexlean/language/lcnf-1.2/tooling/src"),
+        )
+        .unwrap();
         std::fs::create_dir(root.path().join("model")).unwrap();
         std::fs::write(root.path().join(ADAPTER), "\\begin{lexlean}{Extract}\n").unwrap();
         std::fs::write(root.path().join("vendor/fixture.bin"), "fixture\n").unwrap();
@@ -1874,7 +1880,13 @@ mod lean_source_audit_tests {
     #[test]
     fn an_unlisted_preservation_member_is_rejected_even_in_the_sealed_archive() {
         let root = preservation_fixture();
-        std::fs::write(root.path().join("vendor/lexlean/language/preservation-1.2/modules/LexLeanTarget/Unlisted.lean"), "unlisted\n").unwrap();
+        std::fs::write(
+            root.path().join(
+                "vendor/lexlean/language/preservation-1.2/modules/LexLeanTarget/Unlisted.lean",
+            ),
+            "unlisted\n",
+        )
+        .unwrap();
         seal(root.path());
         assert!(audit_no_handwritten_lean(root.path()).is_err());
     }

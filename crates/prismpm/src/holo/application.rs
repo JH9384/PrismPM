@@ -159,7 +159,7 @@ pub(super) fn record_with_unevaluated_fields<'a>(
     Ok(result)
 }
 
-fn field<'a>(
+pub(super) fn field<'a>(
     fields: &'a BTreeMap<&str, (&str, &Value)>,
     name: &str,
 ) -> Result<(&'a str, &'a Value), PrismError> {
@@ -201,7 +201,7 @@ fn boolean(fields: &BTreeMap<&str, (&str, &Value)>, name: &str) -> Result<bool, 
         .ok_or_else(|| PrismError::new("PP2001", format!("application field {name} is malformed")))
 }
 
-fn unsigned(
+pub(super) fn unsigned(
     fields: &BTreeMap<&str, (&str, &Value)>,
     name: &str,
     representation: &str,
@@ -587,16 +587,30 @@ pub fn project_application(
         .map_err(|_| PrismError::new("PP2001", "viewLayer exceeds UInt8"))?;
     let application = if fields.contains_key("profile") {
         let profile = string(&fields, "profile")?;
-        let resource_profile = profile == "prismpm/text-application/2";
-        let resource_type = member_name(declaration) == Some("TextApplication")
-            && declaration
-                .pointer("/result/member/module")
-                .and_then(Value::as_str)
-                == Some("Foundation.View.Text.V2.Model");
-        if resource_profile != resource_type {
+        let resource_profile = matches!(
+            profile.as_str(),
+            "prismpm/text-application/2" | "prismpm/text-application/3"
+        );
+        let command_profile = profile == "prismpm/text-application/3";
+        let expected_owner = match profile.as_str() {
+            "prismpm/text-application/2" => Some("Foundation.View.Text.V2.Model"),
+            "prismpm/text-application/3" => Some("Foundation.View.Text.V3.Model"),
+            _ => None,
+        };
+        let actual_owner = declaration
+            .pointer("/result/member/module")
+            .and_then(Value::as_str)
+            .filter(|owner| {
+                member_name(declaration) == Some("TextApplication")
+                    && matches!(
+                        *owner,
+                        "Foundation.View.Text.V2.Model" | "Foundation.View.Text.V3.Model"
+                    )
+            });
+        if expected_owner != actual_owner {
             return Err(PrismError::new(
                 "PP2009",
-                "text/2 resources require the exact source-owned Text.V2 application type and profile",
+                "text/2 and text/3 require the exact source-owned Text.V2 or Text.V3 application type and profile",
             ));
         }
         let mut expected_fields = vec![
@@ -622,6 +636,9 @@ pub fn project_application(
         ];
         if resource_profile {
             expected_fields.extend(["coreMemoryPages", "coreStackBytes"]);
+        }
+        if command_profile {
+            expected_fields.push("cli");
         }
         exact_fields(&fields, &expected_fields)?;
         Application::Text(Box::new(TextApplicationModel {
@@ -660,6 +677,11 @@ pub fn project_application(
             primary_layer,
             view_layer,
             view: text_view(&definitions, module, &fields)?,
+            cli: if command_profile {
+                Some(super::text_cli::project(&definitions, &fields)?)
+            } else {
+                None
+            },
         }))
     } else {
         Application::Legacy(Box::new(ApplicationModel {
@@ -703,6 +725,9 @@ fn projected_document(
     let document = ModelDocument {
         schema: match &application {
             Application::Legacy(_) => "prismpm/model-document/1",
+            Application::Text(value) if value.profile == "prismpm/text-application/3" => {
+                "prismpm/model-document/6"
+            }
             Application::Text(value) if value.profile == "prismpm/text-application/2" => {
                 "prismpm/model-document/5"
             }

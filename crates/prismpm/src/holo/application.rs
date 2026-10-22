@@ -2,8 +2,7 @@
 
 use super::model_document::{
     Application, ApplicationAcceptanceVector, ApplicationModel, ApplicationView,
-    ApplicationViewOperation, ArchitectureModel, ModelDocument, ProjectionProvenance, QualityModel,
-    SecurityModel, TextApplicationModel, TextView,
+    ApplicationViewOperation, ModelDocument, ProjectionProvenance, TextApplicationModel, TextView,
 };
 use crate::error::PrismError;
 use lexlean::SemanticSnapshot;
@@ -722,6 +721,20 @@ fn projected_document(
     snapshot: &SemanticSnapshot,
     application: Application,
 ) -> Result<Option<ModelDocument>, PrismError> {
+    let (facet_packages, standards_profile, architecture, security, quality) =
+        match super::facets::application_records(snapshot)? {
+            Some((packages, records)) => (
+                packages,
+                super::facets::PROFILE
+                    .iter()
+                    .map(|value| (*value).to_owned())
+                    .collect(),
+                records.architecture,
+                records.security,
+                records.quality,
+            ),
+            None => Default::default(),
+        };
     let document = ModelDocument {
         schema: match &application {
             Application::Legacy(_) => "prismpm/model-document/1",
@@ -741,12 +754,12 @@ fn projected_document(
             compiler_semantics_id: snapshot.compiler_semantics_id().to_string(),
             snapshot_id: snapshot.snapshot_id().to_string(),
             emitter_semantics_id: super::projector::compute_emitter_semantics_id(),
-            facet_packages: Vec::new(),
+            facet_packages,
         },
-        standards_profile: Vec::new(),
-        architecture: ArchitectureModel::default(),
-        security: SecurityModel::default(),
-        quality: QualityModel::default(),
+        standards_profile,
+        architecture,
+        security,
+        quality,
         application: Some(application),
         library: None,
     };

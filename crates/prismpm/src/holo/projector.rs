@@ -200,6 +200,14 @@ fn catalog_id(table: &Table, module: &str, constructor: &str) -> Result<String, 
 
 fn index(rows: &mut [Raw<'_>]) -> Result<(), PrismError> {
     rows.sort_by(|a, b| a.id.as_bytes().cmp(b.id.as_bytes()));
+    for pair in rows.windows(2) {
+        if pair[0].id == pair[1].id {
+            return Err(PrismError::new(
+                "PP4004",
+                format!("duplicate entity ID {}", pair[0].id),
+            ));
+        }
+    }
     for (expected, row) in rows.iter().enumerate() {
         let expected = u64::try_from(expected)
             .map_err(|_| PrismError::new("PP4004", "entity count exceeds u64"))?;
@@ -240,6 +248,64 @@ pub fn validate_snapshot_envelope(bytes: &[u8]) -> Result<(), PrismError> {
     Ok(())
 }
 
+/// Resolve the mapped entity row named by a definition's declared result type.
+///
+/// An unqualified result type matches only inside the mapped Foundation module
+/// itself (the stdlib sample rows). A qualified result type matches when the
+/// qualifier is exactly the mapped Foundation module, which is how an
+/// application's own modules state `Foundation.Sec::Asset` and the like. The
+/// returned flag is true when the declaring module is the Foundation module.
+fn entity_mapping<'t>(
+    table: &'t Table,
+    module: &str,
+    linked: &Value,
+) -> Option<(&'t EntityMap, bool)> {
+    let (type_name, qualifier) = result_type(linked)?;
+    let owner = qualifier.unwrap_or(module);
+    table
+        .entity
+        .iter()
+        .find(|row| row.module == owner && row.type_name == type_name)
+        .map(|row| (row, module == row.module))
+}
+
+/// Group mapped entity definitions by projection target.
+///
+/// Rows declared inside the Foundation modules are the stdlib sample rows.
+/// When any application module supplies a mapped record, the sample rows are
+/// withheld from every target: their cross-reference indexes belong to the
+/// sample set and cannot be mixed with application-authored indexes. A build
+/// that supplies no application records keeps the sample rows unchanged.
+fn collect_entities<'a>(
+    table: &Table,
+    definitions: impl IntoIterator<Item = (&'a str, &'a str, &'a Value)>,
+) -> Result<BTreeMap<String, Vec<Raw<'a>>>, PrismError> {
+    let mut sample: BTreeMap<String, Vec<Raw<'a>>> = BTreeMap::new();
+    let mut application: BTreeMap<String, Vec<Raw<'a>>> = BTreeMap::new();
+    for (module, logical_id, linked) in definitions {
+        let Some((mapping, in_foundation)) = entity_mapping(table, module, linked) else {
+            continue;
+        };
+        let raw = Raw {
+            id: format!("{module}::{logical_id}"),
+            fields: fields(linked).ok_or_else(|| {
+                PrismError::new("PP2001", "mapped entity is not a record definition")
+            })?,
+        };
+        let bucket = if in_foundation {
+            &mut sample
+        } else {
+            &mut application
+        };
+        bucket.entry(mapping.target.clone()).or_default().push(raw);
+    }
+    Ok(if application.is_empty() {
+        sample
+    } else {
+        application
+    })
+}
+
 fn take_raw<'a>(map: &mut BTreeMap<String, Vec<Raw<'a>>>, name: &str) -> Vec<Raw<'a>> {
     map.remove(name).unwrap_or_default()
 }
@@ -252,7 +318,7 @@ pub fn project_snapshot(snapshot: &SemanticSnapshot) -> Result<ModelDocument, Pr
     }
     let table = table()?;
     let mut catalogs: BTreeMap<String, Vec<CatalogRecord>> = BTreeMap::new();
-    let mut entities: BTreeMap<String, Vec<Raw<'_>>> = BTreeMap::new();
+    let mut definitions: Vec<(&str, &str, &Value)> = Vec::new();
     for module in snapshot.modules() {
         for declaration in module.declarations() {
             let linked = declaration.linked_ir();
@@ -283,27 +349,10 @@ pub fn project_snapshot(snapshot: &SemanticSnapshot) -> Result<ModelDocument, Pr
             if declaration.kind() != "definition" {
                 continue;
             }
-            let Some((type_name, None)) = result_type(linked) else {
-                continue;
-            };
-            let Some(mapping) = table
-                .entity
-                .iter()
-                .find(|row| row.module == module.name() && row.type_name == type_name)
-            else {
-                continue;
-            };
-            entities
-                .entry(mapping.target.clone())
-                .or_default()
-                .push(Raw {
-                    id: format!("{}::{}", module.name(), declaration.logical_id()),
-                    fields: fields(linked).ok_or_else(|| {
-                        PrismError::new("PP2001", "mapped entity is not a record definition")
-                    })?,
-                });
+            definitions.push((module.name(), declaration.logical_id(), linked));
         }
     }
+    let mut entities = collect_entities(&table, definitions)?;
     for rows in catalogs.values_mut() {
         rows.sort_by(|a, b| a.id.as_bytes().cmp(b.id.as_bytes()));
         for (index, row) in rows.iter_mut().enumerate() {
@@ -615,3 +664,6 @@ pub fn compute_emitter_semantics_id() -> String {
     }
     format!("{:x}", hasher.finalize())
 }
+
+#[cfg(test)]
+mod tests;

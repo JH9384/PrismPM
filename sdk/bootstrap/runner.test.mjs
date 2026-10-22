@@ -29,7 +29,12 @@ import {
   validateLock,
   verifyRuntime,
 } from './runner.mjs';
-import { installRuntime, publishRuntime } from './install.mjs';
+import {
+  installRuntime,
+  publishRuntime,
+  TRANSIENT_CURL_STATUS,
+  withTransientRetry,
+} from './install.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const lock = JSON.parse(
@@ -419,4 +424,41 @@ test('both historical callers use the authenticated shared runner; current SDK s
       'sdk/bootstrap/runner.test.mjs',
     ),
   );
+});
+
+test('downloads retry only transient curl statuses, with bounded doubling backoff', () => {
+  const failing = (statuses) => {
+    let calls = 0;
+    return {
+      download: () => {
+        const status = statuses[calls++];
+        if (status === undefined) return 'downloaded';
+        throw Object.assign(new Error(`curl ${status}`), { status });
+      },
+      calls: () => calls,
+    };
+  };
+  const waits = [];
+  const sleep = (milliseconds) => waits.push(milliseconds);
+  const recovered = failing([56, 7]);
+  assert.equal(withTransientRetry(recovered.download, { delay: 10, sleep }), 'downloaded');
+  assert.equal(recovered.calls(), 3);
+  assert.deepEqual(waits, [10, 20]);
+  const exhausted = failing([56, 56, 56, 56, 56]);
+  assert.throws(
+    () => withTransientRetry(exhausted.download, { attempts: 3, delay: 1, sleep }),
+    /curl 56/,
+  );
+  assert.equal(exhausted.calls(), 3);
+  for (const status of [22, 23, 60, null]) {
+    assert(!TRANSIENT_CURL_STATUS.has(status));
+    let calls = 0;
+    const permanent = () => {
+      calls++;
+      throw Object.assign(new Error('final'), status === null ? {} : { status });
+    };
+    assert.throws(() => withTransientRetry(permanent, { sleep }), /final/);
+    assert.equal(calls, 1, `status ${status} must not be retried`);
+  }
+  assert.throws(() => withTransientRetry(() => 'x', { attempts: 0 }), /positive integer/);
 });

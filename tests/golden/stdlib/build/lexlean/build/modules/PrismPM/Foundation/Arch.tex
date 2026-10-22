@@ -5,28 +5,66 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{StandardReference}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{standardIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{editionIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{standardId}: \texttt{String}.\par
+\noindent Field \texttt{edition}: \texttt{String}.\par
 \subsection*{\texttt{ComponentKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{service}: \texttt{()}.\par
+\noindent Constructor \texttt{database}: \texttt{()}.\par
+\noindent Constructor \texttt{externalSystem}: \texttt{()}.\par
+\noindent Constructor \texttt{cliAdapter}: \texttt{()}.\par
+\noindent Constructor \texttt{staticSite}: \texttt{()}.\par
+\noindent Constructor \texttt{releaseBinary}: \texttt{()}.\par
 \subsection*{\texttt{EdgeKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{dataFlow}: \texttt{()}.\par
+\noindent Constructor \texttt{controlFlow}: \texttt{()}.\par
 \subsection*{\texttt{ModelKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{componentModel}: \texttt{()}.\par
+\noindent Constructor \texttt{securityModel}: \texttt{()}.\par
+\noindent Constructor \texttt{qualityModel}: \texttt{()}.\par
 \subsection*{\texttt{Component}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{kind}: \texttt{ComponentKind}.\par
+\noindent Field \texttt{name}: \texttt{String}.\par
+\noindent Field \texttt{text}: \texttt{String}.\par
 \subsection*{\texttt{Edge}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{fromIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{toIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{kind}: \texttt{EdgeKind}.\par
 \subsection*{\texttt{Stakeholder}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{name}: \texttt{String}.\par
+\noindent Field \texttt{text}: \texttt{String}.\par
 \subsection*{\texttt{Concern}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{name}: \texttt{String}.\par
+\noindent Field \texttt{text}: \texttt{String}.\par
 \subsection*{\texttt{Viewpoint}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{stakeholderIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{concernIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{modelKindIndex}: \texttt{Nat}.\par
 \subsection*{\texttt{View}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{viewpointIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{modelKindIndex}: \texttt{Nat}.\par
 \subsection*{\texttt{ViewpointClass}}
 \noindent Kind: \texttt{class}.\par
+\noindent Field \texttt{selectedModelKind}: \texttt{Nat}.\par
 \subsection*{\texttt{ViewClass}}
 \noindent Kind: \texttt{class}.\par
+\noindent Field \texttt{selectedViewpoint}: \texttt{Nat}.\par
 \subsection*{\texttt{canonicalViewpoint}}
 \noindent Kind: \texttt{instance}.\par
 \subsection*{\texttt{canonicalView}}
@@ -34,12 +72,12 @@
 \subsection*{\texttt{componentGateway}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{Component}.\par
-\noindent Definition: \texttt{(\{ index := 1, kind := ComponentKind.service \} : Component)}.\par
+\noindent Definition: \texttt{(\{ index := 1, kind := ComponentKind.service, name := "gateway", text := "Accepts external requests and forwards them to the authentication store." \} : Component)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{componentAuth}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{Component}.\par
-\noindent Definition: \texttt{(\{ index := 0, kind := ComponentKind.database \} : Component)}.\par
+\noindent Definition: \texttt{(\{ index := 0, kind := ComponentKind.database, name := "auth", text := "Holds credentials and answers lookups from the gateway." \} : Component)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{edgeIngress}}
 \noindent Kind: \texttt{definition}.\par
@@ -54,12 +92,17 @@
 \subsection*{\texttt{stakeholderOperator}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{Stakeholder}.\par
-\noindent Definition: \texttt{(\{ index := 0 \} : Stakeholder)}.\par
+\noindent Definition: \texttt{(\{ index := 0, name := "operator", text := "Runs the system in production and answers for its availability." \} : Stakeholder)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{concernSecurity}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{Concern}.\par
-\noindent Definition: \texttt{(\{ index := 0 \} : Concern)}.\par
+\noindent Definition: \texttt{(\{ index := 0, name := "security", text := "Credentials and requests must not be disclosed or altered in transit or at rest." \} : Concern)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{standardArchitectureDescription}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{StandardReference}.\par
+\noindent Definition: \texttt{(\{ standardIndex := 4, editionIndex := 0, standardId := "ISO-42010-2022", edition := "2022" \} : StandardReference)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{modelKindComponents}}
 \noindent Kind: \texttt{definition}.\par
@@ -76,8 +119,102 @@
 \noindent Type: \texttt{View}.\par
 \noindent Definition: \texttt{(\{ index := 0, viewpointIndex := 0, modelKindIndex := 0 \} : View)}.\par
 \noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{DesignDiagram}}
+\noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{opmObjectProcess}: \texttt{()}.\par
+\noindent Constructor \texttt{umlComponent}: \texttt{()}.\par
+\noindent Constructor \texttt{umlSequence}: \texttt{()}.\par
+\noindent Constructor \texttt{umlStateMachine}: \texttt{()}.\par
+\subsection*{\texttt{OpmThingKind}}
+\noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{object}: \texttt{()}.\par
+\noindent Constructor \texttt{process}: \texttt{()}.\par
+\subsection*{\texttt{OpmLinkKind}}
+\noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{agent}: \texttt{()}.\par
+\noindent Constructor \texttt{instrument}: \texttt{()}.\par
+\noindent Constructor \texttt{consumption}: \texttt{()}.\par
+\noindent Constructor \texttt{result}: \texttt{()}.\par
+\noindent Constructor \texttt{effect}: \texttt{()}.\par
+\noindent Constructor \texttt{invocation}: \texttt{()}.\par
+\noindent Constructor \texttt{aggregation}: \texttt{()}.\par
+\noindent Constructor \texttt{exhibition}: \texttt{()}.\par
+\noindent Constructor \texttt{generalization}: \texttt{()}.\par
+\noindent Constructor \texttt{classification}: \texttt{()}.\par
+\subsection*{\texttt{UmlMessageKind}}
+\noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{synchronous}: \texttt{()}.\par
+\noindent Constructor \texttt{asynchronous}: \texttt{()}.\par
+\noindent Constructor \texttt{reply}: \texttt{()}.\par
+\subsection*{\texttt{SystemProcess}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{owner}: \texttt{String}.\par
+\subsection*{\texttt{SystemState}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{owner}: \texttt{String}.\par
+\subsection*{\texttt{DesignView}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{title}: \texttt{String}.\par
+\noindent Field \texttt{viewpoint}: \texttt{String}.\par
+\noindent Field \texttt{diagram}: \texttt{DesignDiagram}.\par
+\subsection*{\texttt{OpmThing}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{OpmThingKind}.\par
+\noindent Field \texttt{subject}: \texttt{String}.\par
+\subsection*{\texttt{OpmState}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{thing}: \texttt{String}.\par
+\noindent Field \texttt{state}: \texttt{String}.\par
+\subsection*{\texttt{OpmLink}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{OpmLinkKind}.\par
+\noindent Field \texttt{source}: \texttt{String}.\par
+\noindent Field \texttt{target}: \texttt{String}.\par
+\subsection*{\texttt{OpmZoom}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{process}: \texttt{String}.\par
+\noindent Field \texttt{subprocess}: \texttt{String}.\par
+\noindent Field \texttt{order}: \texttt{Nat}.\par
+\subsection*{\texttt{UmlComponent}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{component}: \texttt{String}.\par
+\subsection*{\texttt{UmlConnector}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{edge}: \texttt{String}.\par
+\subsection*{\texttt{UmlLifeline}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{component}: \texttt{String}.\par
+\noindent Field \texttt{order}: \texttt{Nat}.\par
+\subsection*{\texttt{UmlMessage}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{UmlMessageKind}.\par
+\noindent Field \texttt{order}: \texttt{Nat}.\par
+\noindent Field \texttt{source}: \texttt{String}.\par
+\noindent Field \texttt{target}: \texttt{String}.\par
+\noindent Field \texttt{process}: \texttt{String}.\par
+\subsection*{\texttt{UmlState}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{state}: \texttt{String}.\par
+\noindent Field \texttt{initial}: \texttt{Bool}.\par
+\subsection*{\texttt{UmlTransition}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{order}: \texttt{Nat}.\par
+\noindent Field \texttt{source}: \texttt{String}.\par
+\noindent Field \texttt{target}: \texttt{String}.\par
+\noindent Field \texttt{trigger}: \texttt{String}.\par
 \subsection*{\texttt{componentIdentityUnique}}
 \noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(value : Component)}.\par
 \noindent Statement: \texttt{(value = value)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cyclesPermitted}}

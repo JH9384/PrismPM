@@ -1,10 +1,128 @@
 \begin{lexlean}{Foundation.Browser.Application.V1.Budget}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Browser.Application.V1.Effects}
 \importmodule{Foundation.Browser.Application.V1.Custody}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"resource","type":{"kind":"string"}},{"name":"maximum","type":{"kind":"nat"}}],"kind":"structure","name":"ResourceBudget","parameters":[],"type_parameters":[]},{"fields":[{"name":"application","type":{"kind":"bytes"}},{"name":"manifest","type":{"kind":"bytes"}},{"name":"requestedPolicy","type":{"kind":"bytes"}},{"name":"effectivePolicy","type":{"kind":"bytes"}},{"name":"resources","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ResourceBudget"}},"kind":"list"}}],"kind":"structure","name":"EffectBudget","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"branches":[{"binders":["guest"],"body":{"arguments":[{"kind":"var","name":"maximum"},{"field":"inputMaximum","kind":"project","value":{"kind":"var","name":"guest"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectAdapter.Guest"}},{"binders":[],"body":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"kind":"var","name":"maximum"}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"var","name":"maximum"},"right":{"kind":"nat","value":"65536"}},"right":{"kind":"bool","value":true}}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectAdapter.Random"}},{"binders":[],"body":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"kind":"var","name":"maximum"}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"var","name":"maximum"},"right":{"kind":"nat","value":"1048576"}},"right":{"kind":"bool","value":true}}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectAdapter.Digest"}},{"binders":["signing"],"body":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"kind":"var","name":"maximum"}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"var","name":"maximum"},"right":{"kind":"nat","value":"1048576"}},"right":{"kind":"bool","value":true}}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectAdapter.Signer"}},{"binders":["verification"],"body":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"kind":"var","name":"maximum"}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"var","name":"maximum"},"right":{"kind":"nat","value":"1048576"}},"right":{"kind":"bool","value":true}}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectAdapter.Verifier"}},{"binders":["storage"],"body":{"arguments":[{"kind":"var","name":"maximum"},{"field":"maxObjectBytes","kind":"project","value":{"kind":"var","name":"storage"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectAdapter.Store"}}],"kind":"match","scrutinee":{"kind":"var","name":"adapter"}},"kind":"definition","name":"budgetAdapterFits","parameters":[{"name":"adapter","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectAdapter"}}},{"name":"maximum","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["grant","other"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"items"}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["grant","other"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["grant","other"],"body":{"kind":"and","left":{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}},{"field":"resource","kind":"project","value":{"kind":"var","name":"grant"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"previous"},{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}}],"function":{"module":"Foundation.Browser.Application.V1.Custody","name":"custodyTextLess"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"adapter","kind":"project","value":{"kind":"var","name":"grant"}},{"field":"maximum","kind":"project","value":{"kind":"var","name":"head"}}],"function":{"name":"budgetAdapterFits"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"other"},{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"rest"}],"function":{"name":"budgetRowsFit"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"items"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"budgetRowsFit","parameters":[{"name":"items","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ResourceBudget"}},"kind":"list"}},{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectGrant"}},"kind":"list"}},{"name":"previous","type":{"kind":"string"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"budget"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"nat","value":"32"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"field":"manifest","kind":"project","value":{"kind":"var","name":"budget"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"nat","value":"32"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"field":"requestedPolicy","kind":"project","value":{"kind":"var","name":"budget"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"nat","value":"32"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"field":"effectivePolicy","kind":"project","value":{"kind":"var","name":"budget"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"nat","value":"32"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"manifest"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectManifestValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"budget"}},{"field":"application","kind":"project","value":{"kind":"var","name":"manifest"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"manifest","kind":"project","value":{"kind":"var","name":"budget"}},{"field":"manifest","kind":"project","value":{"kind":"var","name":"manifest"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"resources","kind":"project","value":{"kind":"var","name":"budget"}},{"field":"grants","kind":"project","value":{"kind":"var","name":"manifest"}},{"kind":"string","value":""},{"kind":"nat","value":"64"}],"function":{"name":"budgetRowsFit"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}}}},"kind":"definition","name":"effectBudgetFitsManifest","parameters":[{"name":"budget","type":{"arguments":[],"kind":"named","member":{"name":"EffectBudget"}}},{"name":"manifest","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectManifest"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"ble","left":{"arguments":[{"field":"input","kind":"project","value":{"kind":"var","name":"invocation"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"maximum"}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.InvokeGuest"}},{"binders":["amount"],"body":{"kind":"ble","left":{"kind":"var","name":"amount"},"right":{"kind":"var","name":"maximum"}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.RandomBytes"}},{"binders":["payload"],"body":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"payload"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"maximum"}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.DigestBytes"}},{"binders":["payload"],"body":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"payload"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"maximum"}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"ble","left":{"arguments":[{"field":"value","kind":"project","value":{"kind":"var","name":"verification"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"maximum"}},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.VerifyBytes"}},{"binders":["digest"],"body":{"kind":"bool","value":true},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.ReadObject"}},{"binders":["name"],"body":{"kind":"bool","value":true},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"arguments":[{"field":"objects","kind":"project","value":{"kind":"var","name":"commit"}},{"kind":"var","name":"maximum"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectObjectsValid"},"kind":"call"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"operation"}},"kind":"definition","name":"budgetOperationFits","parameters":[{"name":"operation","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation"}}},{"name":"maximum","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"request"},{"kind":"var","name":"rest"}],"function":{"name":"budgetRequestResourceFits"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}},{"field":"maximum","kind":"project","value":{"kind":"var","name":"head"}}],"function":{"name":"budgetOperationFits"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}},{"field":"resource","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"items"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"budgetRequestResourceFits","parameters":[{"name":"items","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ResourceBudget"}},"kind":"list"}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectRequest"}}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"budget"},{"kind":"var","name":"manifest"}],"function":{"name":"effectBudgetFitsManifest"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"requestedPolicy","kind":"project","value":{"kind":"var","name":"budget"}},{"kind":"var","name":"requestedPolicy"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"effectivePolicy","kind":"project","value":{"kind":"var","name":"budget"}},{"kind":"var","name":"effectivePolicy"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"kind":"var","name":"session"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"nat","value":"32"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"request"},{"kind":"var","name":"manifest"},{"kind":"var","name":"session"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectRequestValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"resources","kind":"project","value":{"kind":"var","name":"budget"}},{"kind":"var","name":"request"},{"kind":"nat","value":"64"}],"function":{"name":"budgetRequestResourceFits"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}},"kind":"definition","name":"effectiveRequestFits","parameters":[{"name":"budget","type":{"arguments":[],"kind":"named","member":{"name":"EffectBudget"}}},{"name":"manifest","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectManifest"}}},{"name":"requestedPolicy","type":{"kind":"bytes"}},{"name":"effectivePolicy","type":{"kind":"bytes"}},{"name":"session","type":{"kind":"bytes"}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectRequest"}}}],"result":{"kind":"bool"}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: ResourceBudget,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: resource, type: String}, {name: maximum, type: Nat}]
+}
+
+structure{
+  name: EffectBudget,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: application, type: Bytes},
+    {name: manifest, type: Bytes},
+    {name: requestedPolicy, type: Bytes},
+    {name: effectivePolicy, type: Bytes},
+    {name: resources, type: (List ResourceBudget)}
+  ]
+}
+
+definition{
+  name: budgetAdapterFits,
+  parameters: [adapter : Foundation.Browser.Application.V1.Effects::EffectAdapter, maximum : Nat],
+  result: Bool,
+  body: (match adapter
+    | Foundation.Browser.Application.V1.Effects::EffectAdapter.Guest guest => (prim equal maximum (project guest inputMaximum) : Bool)
+    | Foundation.Browser.Application.V1.Effects::EffectAdapter.Random => ((0 <? maximum) && ((maximum <=? 65536) && true))
+    | Foundation.Browser.Application.V1.Effects::EffectAdapter.Digest => ((0 <? maximum) && ((maximum <=? 1048576) && true))
+    | Foundation.Browser.Application.V1.Effects::EffectAdapter.Signer signing => ((0 <? maximum) && ((maximum <=? 1048576) && true))
+    | Foundation.Browser.Application.V1.Effects::EffectAdapter.Verifier verification => ((0 <? maximum) && ((maximum <=? 1048576) && true))
+    | Foundation.Browser.Application.V1.Effects::EffectAdapter.Store storage => (prim equal maximum (project storage maxObjectBytes) : Bool)),
+  axioms: []
+}
+
+definition{
+  name: budgetRowsFit,
+  parameters: [
+    items : (List ResourceBudget),
+    grants : (List Foundation.Browser.Application.V1.Effects::EffectGrant),
+    previous : String,
+    fuel : Nat
+  ],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => (match items
+      | List.nil => (match grants | List.nil => true | List.cons grant other => false)
+      | List.cons head tail => false)
+    | Nat.succ rest => (match items
+      | List.nil => (match grants | List.nil => true | List.cons grant other => false)
+      | List.cons head tail => (match grants
+        | List.nil => false
+        | List.cons grant other => ((prim equal (project head resource) (project grant resource) : Bool) && ((Foundation.Browser.Application.V1.Custody::custodyTextLess previous (project head resource)) && ((budgetAdapterFits (project grant adapter) (project head maximum)) && ((budgetRowsFit tail other (project head resource) rest) && true))))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: effectBudgetFitsManifest,
+  parameters: [
+    budget : EffectBudget,
+    manifest : Foundation.Browser.Application.V1.Effects::EffectManifest
+  ],
+  result: Bool,
+  body: ((prim equal (prim length (project budget application) : Nat) 32 : Bool) && ((prim equal (prim length (project budget manifest) : Nat) 32 : Bool) && ((prim equal (prim length (project budget requestedPolicy) : Nat) 32 : Bool) && ((prim equal (prim length (project budget effectivePolicy) : Nat) 32 : Bool) && ((Foundation.Browser.Application.V1.Effects::effectManifestValid manifest) && ((prim equal (project budget application) (project manifest application) : Bool) && ((prim equal (project budget manifest) (project manifest manifest) : Bool) && ((budgetRowsFit (project budget resources) (project manifest grants) "" 64) && true)))))))),
+  axioms: []
+}
+
+definition{
+  name: budgetOperationFits,
+  parameters: [
+    operation : Foundation.Browser.Application.V1.Effects::EffectOperation,
+    maximum : Nat
+  ],
+  result: Bool,
+  body: (match operation
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.InvokeGuest invocation => ((prim length (project invocation input) : Nat) <=? maximum)
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.RandomBytes amount => (amount <=? maximum)
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.DigestBytes payload => ((prim length payload : Nat) <=? maximum)
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.SignBytes payload => ((prim length payload : Nat) <=? maximum)
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.VerifyBytes verification => ((prim length (project verification value) : Nat) <=? maximum)
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.ReadObject digest => true
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.ReadHead name => true
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.Commit commit => (Foundation.Browser.Application.V1.Effects::effectObjectsValid (project commit objects) maximum)),
+  axioms: []
+}
+
+definition{
+  name: budgetRequestResourceFits,
+  parameters: [
+    items : (List ResourceBudget),
+    request : Foundation.Browser.Application.V1.Effects::EffectRequest,
+    fuel : Nat
+  ],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => false
+    | Nat.succ rest => (match items
+      | List.nil => false
+      | List.cons head tail => (match (prim equal (project head resource) (project request resource) : Bool)
+        | Bool.false => (budgetRequestResourceFits tail request rest)
+        | Bool.true => (budgetOperationFits (project request effect) (project head maximum))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: effectiveRequestFits,
+  parameters: [
+    budget : EffectBudget,
+    manifest : Foundation.Browser.Application.V1.Effects::EffectManifest,
+    requestedPolicy : Bytes,
+    effectivePolicy : Bytes,
+    session : Bytes,
+    request : Foundation.Browser.Application.V1.Effects::EffectRequest
+  ],
+  result: Bool,
+  body: ((effectBudgetFitsManifest budget manifest) && ((prim equal (project budget requestedPolicy) requestedPolicy : Bool) && ((prim equal (project budget effectivePolicy) effectivePolicy : Bool) && ((prim equal (prim length session : Nat) 32 : Bool) && ((Foundation.Browser.Application.V1.Effects::effectRequestValid request manifest session) && ((budgetRequestResourceFits (project budget resources) request 64) && true)))))),
+  axioms: []
+}
 \end{semanticmodule}
 \end{lexlean}

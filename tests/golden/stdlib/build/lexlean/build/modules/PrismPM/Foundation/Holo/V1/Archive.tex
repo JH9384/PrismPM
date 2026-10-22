@@ -5,10 +5,28 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{Packaging}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Fat}: \texttt{()}.\par
+\noindent Constructor \texttt{Thin}: \texttt{()}.\par
 \subsection*{\texttt{Section}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{kind}: \texttt{UInt8}.\par
+\noindent Field \texttt{offset}: \texttt{UInt64}.\par
+\noindent Field \texttt{length}: \texttt{UInt64}.\par
+\noindent Field \texttt{payload}: \texttt{ByteArray}.\par
 \subsection*{\texttt{PhysicalArchive}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{magic}: \texttt{ByteArray}.\par
+\noindent Field \texttt{version}: \texttt{UInt16}.\par
+\noindent Field \texttt{flags}: \texttt{UInt16}.\par
+\noindent Field \texttt{sections}: \texttt{List (Section)}.\par
+\noindent Field \texttt{footer}: \texttt{ByteArray}.\par
 \subsection*{\texttt{ArchiveError}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{BadHeader}: \texttt{()}.\par
+\noindent Constructor \texttt{BadVersion}: \texttt{()}.\par
+\noindent Constructor \texttt{BadTable}: \texttt{()}.\par
+\noindent Constructor \texttt{DuplicateSection}: \texttt{()}.\par
+\noindent Constructor \texttt{MissingContent}: \texttt{()}.\par
+\noindent Constructor \texttt{BadFooter}: \texttt{()}.\par
+\noindent Constructor \texttt{NonCanonical}: \texttt{()}.\par
 \end{document}

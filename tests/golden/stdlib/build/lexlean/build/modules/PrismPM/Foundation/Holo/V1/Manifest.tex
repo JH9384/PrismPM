@@ -5,10 +5,25 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{LayerKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{WasmCodemodule}: \texttt{()}.\par
+\noindent Constructor \texttt{TensorPlan}: \texttt{()}.\par
+\noindent Constructor \texttt{RootfsImage}: \texttt{()}.\par
+\noindent Constructor \texttt{View}: \texttt{()}.\par
+\noindent Constructor \texttt{InferenceModel}: \texttt{()}.\par
 \subsection*{\texttt{Layer}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{kind}: \texttt{LayerKind}.\par
+\noindent Field \texttt{contentKappa}: \texttt{ByteArray}.\par
+\noindent Field \texttt{entry}: \texttt{String}.\par
+\noindent Field \texttt{auxiliary}: \texttt{String}.\par
 \subsection*{\texttt{Child}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{applicationKappa}: \texttt{ByteArray}.\par
+\noindent Field \texttt{capabilitiesKappa}: \texttt{ByteArray}.\par
 \subsection*{\texttt{AppManifest}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{primary}: \texttt{Option (UInt32)}.\par
+\noindent Field \texttt{requires}: \texttt{ByteArray}.\par
+\noindent Field \texttt{layers}: \texttt{List (Layer)}.\par
+\noindent Field \texttt{children}: \texttt{List (Child)}.\par
 \end{document}

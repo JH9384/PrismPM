@@ -5,148 +5,201 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{ControlRequirementMode}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{LocalRequired}: \texttt{()}.\par
+\noindent Constructor \texttt{InheritedRequired}: \texttt{()}.\par
 \subsection*{\texttt{ControlObligation}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{Nat}.\par
+\noindent Field \texttt{control}: \texttt{Nat}.\par
+\noindent Field \texttt{mode}: \texttt{ControlRequirementMode}.\par
+\noindent Field \texttt{scope}: \texttt{String}.\par
+\noindent Field \texttt{version}: \texttt{String}.\par
+\noindent Field \texttt{subject}: \texttt{List (UInt8)}.\par
+\noindent Field \texttt{evidenceKind}: \texttt{String}.\par
+\noindent Field \texttt{evidence}: \texttt{List (UInt8)}.\par
+\noindent Field \texttt{allowedProviders}: \texttt{List (Nat)}.\par
+\noindent Field \texttt{residualControls}: \texttt{List (Nat)}.\par
 \subsection*{\texttt{ControlOrigin}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Local}: \texttt{()}.\par
+\noindent Constructor \texttt{Inherited}: \texttt{(Nat, List (UInt8), List (UInt8))}.\par
 \subsection*{\texttt{ControlContribution}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{obligation}: \texttt{Nat}.\par
+\noindent Field \texttt{control}: \texttt{Nat}.\par
+\noindent Field \texttt{policy}: \texttt{List (UInt8)}.\par
+\noindent Field \texttt{scope}: \texttt{String}.\par
+\noindent Field \texttt{version}: \texttt{String}.\par
+\noindent Field \texttt{subject}: \texttt{List (UInt8)}.\par
+\noindent Field \texttt{evidenceKind}: \texttt{String}.\par
+\noindent Field \texttt{evidence}: \texttt{List (UInt8)}.\par
+\noindent Field \texttt{origin}: \texttt{ControlOrigin}.\par
 \subsection*{\texttt{ControlPolicy}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{digest}: \texttt{List (UInt8)}.\par
+\noindent Field \texttt{obligations}: \texttt{List (ControlObligation)}.\par
 \subsection*{\texttt{ControlSubmission}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{contributions}: \texttt{List (ControlContribution)}.\par
 \subsection*{\texttt{coverageNatMember}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat) (rows : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => false | List.cons row rest => ((Nat.beq (value) (row)) || coverageNatMember (value) (rest)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageUniqueNats}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(rows : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => true | List.cons row rest => ((!coverageNatMember (row) (rest)) \&\& (coverageUniqueNats (rest) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageAllNatsMember}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(rows : List (Nat)) (allowed : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => true | List.cons row rest => (coverageNatMember (row) (allowed) \&\& (coverageAllNatsMember (rest) (allowed) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageObligationExists}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat) (rows : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => false | List.cons row rest => ((Nat.beq (value) ((row).id)) || coverageObligationExists (value) (rest)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageControlExists}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat) (rows : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => false | List.cons row rest => ((Nat.beq (value) ((row).control)) || coverageControlExists (value) (rest)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageEarlier}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(provider : Nat) (consumer : Nat) (rows : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => false | List.cons row rest => ((!(Nat.beq (consumer) ((row).id))) \&\& (((Nat.beq (provider) ((row).id)) || coverageEarlier (provider) (consumer) (rest)) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageProvidersDeclared}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(rows : List (Nat)) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => true | List.cons row rest => (coverageObligationExists (row) (all) \&\& (coverageProvidersDeclared (rest) (all) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageResidualControlsDeclared}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(rows : List (Nat)) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => true | List.cons row rest => (coverageControlExists (row) (all) \&\& (coverageResidualControlsDeclared (rest) (all) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageDigestEqual}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(left : List (UInt8)) (right : List (UInt8))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match left with | List.nil => (match right with | List.nil => true | List.cons \_ \_ => false) | List.cons leftOctet leftRest => (match right with | List.nil => false | List.cons rightOctet rightRest => ((LexLeanRuntime.equal (leftOctet) (rightOctet) : Bool) \&\& coverageDigestEqual (leftRest) (rightRest))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageDigest}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : List (UInt8))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(Nat.beq ((LexLeanRuntime.length (value) : Nat)) (32))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageNonEmptyString}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : String)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(!(LexLeanRuntime.equal (value) ("") : Bool))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageObligationWellFormed}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(item : ControlObligation) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.blt (0) ((item).id)) \&\& ((Nat.blt (0) ((item).control)) \&\& (coverageNonEmptyString ((item).scope) \&\& (coverageNonEmptyString ((item).version) \&\& (coverageNonEmptyString ((item).evidenceKind) \&\& (coverageDigest ((item).subject) \&\& (coverageDigest ((item).evidence) \&\& (coverageUniqueNats ((item).allowedProviders) \&\& (coverageUniqueNats ((item).residualControls) \&\& (coverageProvidersDeclared ((item).allowedProviders) (all) \&\& (coverageResidualControlsDeclared ((item).residualControls) (all) \&\& true)))))))))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageSameBinding}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(left : ControlObligation) (right : ControlObligation)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.beq ((left).control) ((right).control)) \&\& ((LexLeanRuntime.equal ((left).scope) ((right).scope) : Bool) \&\& ((LexLeanRuntime.equal ((left).version) ((right).version) : Bool) \&\& (coverageDigestEqual ((left).subject) ((right).subject) \&\& true))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageBindingAbsent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(item : ControlObligation) (rows : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => true | List.cons row rest => ((!coverageSameBinding (item) (row)) \&\& (coverageBindingAbsent (item) (rest) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageUniqueObligations}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(rows : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => true | List.cons row rest => ((!coverageObligationExists ((row).id) (rest)) \&\& (coverageBindingAbsent (row) (rest) \&\& (coverageUniqueObligations (rest) \&\& true))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageContributionExists}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat) (rows : List (ControlContribution))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => false | List.cons row rest => ((Nat.beq (value) ((row).obligation)) || coverageContributionExists (value) (rest)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageSubmissionClosed}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(rows : List (ControlContribution)) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => true | List.cons row rest => (coverageObligationExists ((row).obligation) (all) \&\& ((!coverageContributionExists ((row).obligation) (rest)) \&\& (coverageSubmissionClosed (rest) (all) \&\& true))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageResidualPresent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(control : Nat) (consumer : ControlObligation) (rows : List (ControlObligation)) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => false | List.cons row rest => (((Nat.beq (control) ((row).control)) \&\& ((LexLeanRuntime.equal ((consumer).scope) ((row).scope) : Bool) \&\& ((LexLeanRuntime.equal ((consumer).version) ((row).version) : Bool) \&\& (coverageDigestEqual ((consumer).subject) ((row).subject) \&\& (coverageEarlier ((row).id) ((consumer).id) (all) \&\& true))))) || coverageResidualPresent (control) (consumer) (rest) (all)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageResidualsPresent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(rows : List (Nat)) (consumer : ControlObligation) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => true | List.cons row rest => (coverageResidualPresent (row) (consumer) (all) (all) \&\& (coverageResidualsPresent (rest) (consumer) (all) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageProviderPresent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(provider : Nat) (providerSubject : List (UInt8)) (providerEvidence : List (UInt8)) (consumer : ControlObligation) (rows : List (ControlObligation)) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => false | List.cons row rest => (((Nat.beq (provider) ((row).id)) \&\& ((Nat.beq ((consumer).control) ((row).control)) \&\& ((LexLeanRuntime.equal ((consumer).scope) ((row).scope) : Bool) \&\& ((LexLeanRuntime.equal ((consumer).version) ((row).version) : Bool) \&\& ((LexLeanRuntime.equal ((consumer).evidenceKind) ((row).evidenceKind) : Bool) \&\& (coverageDigestEqual (providerSubject) ((row).subject) \&\& (coverageDigestEqual (providerEvidence) ((row).evidence) \&\& (coverageEarlier (provider) ((consumer).id) (all) \&\& (coverageAllNatsMember ((row).residualControls) ((consumer).residualControls) \&\& (coverageResidualsPresent ((row).residualControls) (consumer) (all) \&\& true)))))))))) || coverageProviderPresent (provider) (providerSubject) (providerEvidence) (consumer) (rest) (all)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageLocalRequired}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(mode : ControlRequirementMode)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match mode with | ControlRequirementMode.LocalRequired => true | ControlRequirementMode.InheritedRequired => false)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageOriginValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(origin : ControlOrigin) (consumer : ControlObligation) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match origin with | ControlOrigin.Local => coverageLocalRequired ((consumer).mode) | ControlOrigin.Inherited provider providerSubject providerEvidence => ((!coverageLocalRequired ((consumer).mode)) \&\& (coverageNatMember (provider) ((consumer).allowedProviders) \&\& (coverageProviderPresent (provider) (providerSubject) (providerEvidence) (consumer) (all) (all) \&\& true))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageContributionMatches}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(item : ControlObligation) (contribution : ControlContribution) (policy : List (UInt8)) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.beq ((item).id) ((contribution).obligation)) \&\& ((Nat.beq ((item).control) ((contribution).control)) \&\& (coverageDigestEqual (policy) ((contribution).policy) \&\& ((LexLeanRuntime.equal ((item).scope) ((contribution).scope) : Bool) \&\& ((LexLeanRuntime.equal ((item).version) ((contribution).version) : Bool) \&\& (coverageDigestEqual ((item).subject) ((contribution).subject) \&\& ((LexLeanRuntime.equal ((item).evidenceKind) ((contribution).evidenceKind) : Bool) \&\& (coverageDigestEqual ((item).evidence) ((contribution).evidence) \&\& (coverageOriginValid ((contribution).origin) (item) (all) \&\& true)))))))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageContributionPresent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(item : ControlObligation) (rows : List (ControlContribution)) (policy : List (UInt8)) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => false | List.cons row rest => (coverageContributionMatches (item) (row) (policy) (all) || coverageContributionPresent (item) (rest) (policy) (all)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageAllObligations}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(rows : List (ControlObligation)) (contributions : List (ControlContribution)) (policy : List (UInt8)) (all : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => true | List.cons row rest => (coverageObligationWellFormed (row) (all) \&\& (coverageContributionPresent (row) (contributions) (policy) (all) \&\& (coverageAllObligations (rest) (contributions) (policy) (all) \&\& true))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{coverageNonEmpty}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(rows : List (ControlObligation))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match rows with | List.nil => false | List.cons \_ \_ => true)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateControlCoverage}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(policy : ControlPolicy) (submission : ControlSubmission)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(coverageDigest ((policy).digest) \&\& (coverageNonEmpty ((policy).obligations) \&\& (coverageUniqueObligations ((policy).obligations) \&\& (coverageSubmissionClosed ((submission).contributions) ((policy).obligations) \&\& (coverageAllObligations ((policy).obligations) ((submission).contributions) ((policy).digest) ((policy).obligations) \&\& true)))))}.\par
 \noindent Axiom policy: \texttt{none}.\par

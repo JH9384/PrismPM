@@ -1,0 +1,6 @@
+name = "PrismTextCheck"
+version = "0.1.0"
+defaultTargets = ["PrismTextCheck"]
+
+[[lean_lib]]
+name = "PrismTextCheck"

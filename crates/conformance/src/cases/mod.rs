@@ -3152,7 +3152,7 @@ fn verify_facets(root: &Path, id: &str) {
                 assert_contains(
                     root,
                     &format!("language/{package}/lexicon.toml"),
-                    &["spec = \"lexlean/lexicon/1\"", "language = \"1.1\""],
+                    &["spec = \"lexlean/lexicon/1\"", "language = \"1.2\""],
                 );
                 for entry in
                     walkdir::WalkDir::new(root.join("language").join(package).join("entries"))
@@ -3222,7 +3222,7 @@ fn verify_facets(root: &Path, id: &str) {
                 root,
                 "lexlean.lock",
                 &[
-                    "language = \"1.1\"",
+                    "language = \"1.2\"",
                     "prism.arch",
                     "prism.sec",
                     "prism.qual",

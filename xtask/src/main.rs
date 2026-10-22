@@ -316,6 +316,9 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "scripts/sdk-construction-acquire.test.mjs",
             "scripts/sdk-construction-observe.test.mjs",
             "scripts/sdk-construction-acquisition-workflow.test.mjs",
+            "scripts/unpublished-sdk-registry.test.mjs",
+            "scripts/unpublished-sdk-qualification.test.mjs",
+            "scripts/sdk-qualification-trust.test.mjs",
             "scripts/sdk-vv-check.test.mjs",
             "scripts/sdk-command-owner.test.mjs",
             "scripts/sdk-registry-reader.test.mjs",
@@ -567,6 +570,14 @@ fn check_sdk_runtime_boundary() -> Result<(), Fail> {
 fn check_sdk_runtime_boundary_for_image(image: &str) -> Result<(), Fail> {
     validate_sdk_runtime_reference(image)?;
 
+    let process_resource_tests = Command::new("node")
+        .args(["--test", "scripts/sdk-runtime-exec.test.mjs"])
+        .env("PRISMPM_TEST_SDK_IMAGE", image)
+        .status()?;
+    if !process_resource_tests.success() {
+        return Err("SDK docker-exec process resource tests failed".into());
+    }
+
     let infrastructure_tests = Command::new("docker")
         .args([
             "run",
@@ -586,6 +597,7 @@ fn check_sdk_runtime_boundary_for_image(image: &str) -> Result<(), Fail> {
             image,
             "--test",
             "scripts/sdk-candidate.test.mjs",
+            "scripts/sdk-runtime-stack.test.mjs",
             "sdk/platform-lock.test.mjs",
         ])
         .status()?;

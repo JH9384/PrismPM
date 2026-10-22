@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {Readable} from 'node:stream';
 import {crc32} from 'node:zlib';
-import {beginConstructionStage} from './sdk-construction-stage.mjs';
+import {beginConstructionStage,consumeConstructionStage} from './sdk-construction-stage.mjs';
 
 const sha=b=>'sha256:'+createHash('sha256').update(b).digest('hex');
 const verifiedArchives=new WeakMap();
@@ -44,7 +44,7 @@ export function validateStoredDataDescriptor(bytes,checksum,size){
 
 // No layer is expanded and no archive path is materialized. Every stored blob
 // must belong to the exact image DAG and match its original descriptor bytes.
-function tarVerifier(manifestBytes,configBytes){
+function tarVerifier(manifestBytes,configBytes,observe){
  const manifest=json(manifestBytes),config=json(configBytes),expected=new Map(),seen=new Set(),records=[];
  assert.equal(manifest.schemaVersion,2);assert.equal(manifest.mediaType,'application/vnd.oci.image.manifest.v1+json');
  assert(Array.isArray(manifest.layers)&&manifest.layers.length<=256);
@@ -60,7 +60,9 @@ function tarVerifier(manifestBytes,configBytes){
   const hash='sha256:'+active.hash.digest('hex');
   if(active.blob)assert.equal(hash,expected.get(active.name).digest,'original OCI blob digest differs');
   else documents.set(active.name,active.buffer);
-  records.push({path:active.name,byte_length:active.size,digest:hash});padding=(512-active.size%512)%512;active=undefined;
+  records.push({path:active.name,byte_length:active.size,digest:hash});
+  if(active.blob)observe?.({kind:'end',path:active.name,byte_length:active.size,digest:hash});
+  padding=(512-active.size%512)%512;active=undefined;
  }
  function parse(){
   if(header.every(x=>x===0)){zeros++;return;}
@@ -76,12 +78,14 @@ function tarVerifier(manifestBytes,configBytes){
   const blob=expected.has(name);assert(blob||['index.json','oci-layout'].includes(name),'member outside exact OCI image DAG');
   integer(size,blob?64*1024**3:4*1024**2);if(blob)assert.equal(size,expected.get(name).size,'original OCI blob length differs');
   active={name,size,remaining:size,blob,hash:createHash('sha256'),buffer:blob?undefined:Buffer.alloc(size),offset:0};
+  if(blob)observe?.({kind:'start',path:name,byte_length:size,digest:expected.get(name).digest});
  }
  return {
   feed(chunk){
    bytes+=chunk.length;assert(bytes<=64*1024**3);
    while(chunk.length){
     if(active){const n=Math.min(chunk.length,active.remaining),part=chunk.subarray(0,n);active.hash.update(part);
+     if(active.blob&&observe)observe({kind:'data',path:active.name,bytes:Buffer.from(part)});
      if(!active.blob){part.copy(active.buffer,active.offset);active.offset+=n;}active.remaining-=n;chunk=chunk.subarray(n);if(active.remaining===0)finish();
     }else if(padding){const n=Math.min(chunk.length,padding);assert(chunk.subarray(0,n).every(x=>x===0),'nonzero tar padding');padding-=n;chunk=chunk.subarray(n);
     }else{const n=Math.min(chunk.length,512-at);chunk.copy(header,at,0,n);at+=n;chunk=chunk.subarray(n);if(at===512){parse();at=0;}}
@@ -233,4 +237,35 @@ export async function stageConstructionArchiveStream(stream,plan,parent,timeout=
   if(stream instanceof Readable&&!stream.closed){try{await verifyAndClose(stream,{invalid:true},1);}catch(e){if(!stream.closed)cleanup=cleanup?new AggregateError([cleanup,e]):e;}}
   if(cleanup)throw new AggregateError([error,cleanup],'archive staging and retirement failed');throw error;
  }
+}
+
+// A genuine sealed stage is the authority. The consumer sees copied bounded
+// chunks only, never a stage pathname or descriptor. No OCI filesystem layer is
+// expanded. Registry publication and installed qualification remain separate.
+export async function consumeConstructionOciStage(handle,manifestBytes,configBytes,consumer,timeout=1800000){
+ assert(Buffer.isBuffer(manifestBytes)&&manifestBytes.length>0&&manifestBytes.length<=4*1024**2);
+ assert(Buffer.isBuffer(configBytes)&&configBytes.length>0&&configBytes.length<=4*1024**2);
+ assert(consumer&&typeof consumer==='object');keys(consumer,['start','write','end']);
+ const selected={};
+ for(const key of ['start','write','end']){
+  const row=Object.getOwnPropertyDescriptor(consumer,key);
+  assert(row&&Object.hasOwn(row,'value')&&typeof row.value==='function','closed data-only consumer functions required');
+  selected[key]=row.value;
+ }
+ const events=[],tar=tarVerifier(Buffer.from(manifestBytes),Buffer.from(configBytes),event=>events.push(event));
+ const readback=await consumeConstructionStage(handle,async bytes=>{
+  assert(Buffer.isBuffer(bytes)&&bytes.length>0&&bytes.length<=65536);
+  assert.equal(events.length,0);tar.feed(bytes);
+  // At most264 tiny entries can reside in one readback chunk; copied data is
+  // bounded by that single64KiB chunk. Await every callback before next read.
+  assert(events.length<=3*264);
+  for(const event of events){
+   if(event.kind==='start')await selected.start(Object.freeze({...event}));
+   else if(event.kind==='data')await selected.write(event.path,event.bytes);
+   else {assert.equal(event.kind,'end');await selected.end(Object.freeze({...event}));}
+  }
+  events.length=0;
+ },timeout);
+ const layout=tar.finish();assert.equal(events.length,0);
+ return {scope:'verified staged OCI blob transfer only; not registry or SDK acceptance',readback,layout};
 }

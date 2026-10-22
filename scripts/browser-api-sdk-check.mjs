@@ -31,6 +31,7 @@ export const sourceRoots=Object.freeze([
  'vendor/lexlean','vendor/lean4-prod/lean.tar','vendor/lean4-prod/rust',
  'scripts/browser-api-sdk-check.mjs','scripts/browser-api-sdk-check.test.mjs','scripts/browser-api-sdk-check.sh','scripts/owning-node-reporter.mjs',
  'scripts/sdk-command-owner.mjs','scripts/sdk-command-owner.py',
+ 'scripts/sdk-qualification-trust.mjs',
  'scripts/fetch-oracle-cargo.sh','sdk/generate-inventory.mjs',
  'sdk/account-genesis-artifact.mjs','sdk/generate-account-genesis.mjs',
 ]);

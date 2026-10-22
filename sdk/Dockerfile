@@ -204,6 +204,7 @@ RUN npm ci --ignore-scripts --omit=dev --prefix /opt/prismpm/devcontainer-cli \
     && chmod 0755 /opt/prismpm/devcontainer-cli/node_modules/@devcontainers/cli/devcontainer.js
 
 COPY --from=source_inputs /prepared/source/sdk/runtime/package.json /prepared/source/sdk/runtime/package-lock.json /prepared/source/sdk/runtime/profile.mjs /prepared/source/sdk/runtime/runtime.mjs /opt/prismpm/runtime/
+RUN install -d -m 0755 /opt/prismpm /opt/prismpm/browser
 COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/browser/identity.mjs /prepared/source/sdk/browser/store.mjs /prepared/source/sdk/browser/peer.mjs /prepared/source/sdk/browser/journal.mjs /prepared/source/sdk/browser/commands.mjs /prepared/source/sdk/browser/queries.mjs /prepared/source/sdk/browser/view-host.mjs /prepared/source/sdk/browser/view-dom.mjs /prepared/source/sdk/browser/view-error.mjs /prepared/source/sdk/browser/rs256.mjs /prepared/source/sdk/browser/effects.mjs /prepared/source/sdk/browser/effects-wire.mjs /prepared/source/sdk/browser/effects-module.mjs /prepared/source/sdk/browser/presentation-wire.mjs /prepared/source/sdk/browser/presentation-dom.mjs /prepared/source/sdk/browser/semantic-presentation-wire.mjs /prepared/source/sdk/browser/semantic-presentation-style.mjs /prepared/source/sdk/browser/credential-custody.mjs /prepared/source/sdk/browser/operation-journal.mjs /prepared/source/sdk/browser/account-genesis.mjs /prepared/source/sdk/browser/account-genesis-binding.mjs /prepared/source/sdk/browser/signed-context.mjs /prepared/source/sdk/browser/session-retention-wire.mjs /prepared/source/sdk/browser/session-storage.mjs /prepared/source/sdk/browser/session-payloads.mjs /prepared/source/sdk/browser/session-operation-capture.mjs /prepared/source/sdk/browser/pkce.mjs /opt/prismpm/browser/
 RUN npm ci --ignore-scripts --omit=dev --prefix /opt/prismpm/runtime \
     && chmod 0444 /opt/prismpm/runtime/profile.mjs \
@@ -331,6 +332,7 @@ RUN /usr/bin/python3 -I -B -c 'import sys; assert sys.version_info[:3] == (3, 12
 RUN chmod -R a-w /ms-playwright
 
 ARG TARGETARCH
+RUN install -d -m 0755 /opt/prismpm /opt/prismpm/browser-engine /opt/prismpm/runtime-sources /opt/prismpm/runtime-sources/fixtures
 COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/browser-engine/ /opt/prismpm/browser-engine/
 RUN python3 -B /opt/prismpm/browser-engine/install_test.py \
     && python3 -B /opt/prismpm/browser-engine/install.py --architecture "$TARGETARCH"
@@ -393,7 +395,9 @@ ENV CARGO_HOME=/home/vscode/.cargo \
     PATH=/usr/local/elan/bin:/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin
 
 RUN --network=none --mount=type=tmpfs,target=/tmp,size=805306368 \
-    node /opt/prismpm/exporter-seed.mjs /opt/prismpm/share/conformance-root /opt/prismpm/share/exporter-seed \
+    setpriv --reuid=1000 --regid=1000 --clear-groups \
+      node --test /opt/prismpm/share/conformance-root/scripts/sdk-runtime-stack.test.mjs \
+    && node /opt/prismpm/exporter-seed.mjs /opt/prismpm/share/conformance-root /opt/prismpm/share/exporter-seed \
     && PRISMPM_ARTIFACT_INVENTORY=/opt/prismpm/artifact-inventory.json \
       node /opt/prismpm/generate-inventory.mjs /opt/prismpm/share/inventory.json \
     && sha256sum /opt/prismpm/share/inventory.json > /opt/prismpm/share/inventory.sha256 \

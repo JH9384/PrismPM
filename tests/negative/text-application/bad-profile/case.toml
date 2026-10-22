@@ -7,7 +7,7 @@ expected_artifacts = []
 
 [[expected_diagnostics]]
 code = "PP2009"
-message = "text application declaration violates its closed byte-request profile"
+message = "text/2 resources require the exact source-owned Text.V2 application type and profile"
 primary = "none"
 labels = []
 notes = []

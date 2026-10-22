@@ -20,6 +20,7 @@ use std::process::{Command, Stdio};
 
 const CHILD_OUTPUT_LIMIT: usize = 16_777_216;
 const CHILD_TIMEOUT_SECONDS: &str = "300";
+const GENERATED_NATIVE_BUILD_TIMEOUT_SECONDS: &str = "600";
 const ROOTS_SOURCE: &str = include_str!("../model/runtime-roots.toml");
 const STDLIB_EXPORTS_SOURCE: &str = include_str!("../model/stdlib-exports.toml");
 const EXECUTION_CORPUS_SOURCE: &str = include_str!("../model/execution-corpus.toml");
@@ -1060,6 +1061,37 @@ fn failure_excerpt(output: &str) -> String {
         &output[..prefix],
         suffix - prefix,
         &output[suffix..]
+    )
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum NativeCompilation {
+    Library,
+    Application,
+}
+
+pub(crate) fn run_native_compilation(
+    phase: NativeCompilation,
+    program: &Path,
+    args: &[String],
+    cwd: &Path,
+    replacements: &[(&Path, &str)],
+    failure_code: &'static str,
+) -> Result<ProcessRecord, PrismError> {
+    let tool = match phase {
+        NativeCompilation::Library => "lake-build-generated",
+        NativeCompilation::Application => "application-lean",
+    };
+    run_process_limited(
+        tool,
+        program,
+        args,
+        cwd,
+        &BTreeMap::new(),
+        replacements,
+        failure_code,
+        GENERATED_NATIVE_BUILD_TIMEOUT_SECONDS,
+        CHILD_OUTPUT_LIMIT,
     )
 }
 
@@ -2276,6 +2308,7 @@ fn copy_application_package(build_root: &Path, destination: &Path) -> Result<(),
 
 fn application_harness(
     application: &crate::holo::model_document::Application,
+    module: &prod_ir::Module,
 ) -> Result<String, PrismError> {
     let crate_name = application.cargo_name().replace('-', "_");
     let entry = application
@@ -2283,14 +2316,21 @@ fn application_harness(
         .rsplit('.')
         .next()
         .ok_or_else(|| PrismError::new("PP2001", "application entry root is malformed"))?;
+    let fallible = prod_codegen::byte_entry_is_fallible(module, entry)
+        .map_err(|error| PrismError::new("PP4102", format!("application entry effect: {error}")))?;
     let vectors = application
         .acceptance_vectors()
         .iter()
         .enumerate()
         .map(|(index, vector)| {
+            let expected = if fallible {
+                format!("Ok(vec!{:?})", vector.response)
+            } else {
+                format!("vec!{:?}", vector.response)
+            };
             format!(
-                "    assert_eq!({crate_name}::{entry}(vec!{:?}), vec!{:?}, \"acceptance vector {index}\");\n",
-                vector.request, vector.response
+                "    assert_eq!({crate_name}::{entry}(vec!{:?}), {expected}, \"acceptance vector {index}\");\n",
+                vector.request
             )
         })
         .collect::<String>();
@@ -2318,6 +2358,13 @@ fn run_application(
         )
     })?;
     verify_application_build_closure(build_root, &build_manifest)?;
+    let harness = {
+        // Derive the entry effect from the captured, manifest-bound IR, using
+        // the same analysis as the actual generated Rust signature.
+        let kernel = std::fs::read_to_string(build_root.join("cargo/kernel.ir"))
+            .map_err(|error| PrismError::new("PP5004", format!("application kernel: {error}")))?;
+        application_harness(application, &parse_kernel(&kernel)?)?
+    };
     let holo_path = build_root.join(format!("{}.holo", application.name()));
     let holo = std::fs::read(&holo_path)
         .map_err(|error| PrismError::new("PP4002", format!("{}: {error}", holo_path.display())))?;
@@ -2326,6 +2373,14 @@ fn run_application(
         "core-wasm/{}_core_wasm.wasm",
         application.cargo_name().replace('-', "_")
     ));
+    crate::application_build::validate_application_core_resources(
+        application,
+        &std::fs::read(&wasm_path).map_err(|error| PrismError::new("PP5103", error.to_string()))?,
+        &std::fs::read(build_root.join("application/target-profile.json"))
+            .map_err(|error| PrismError::new("PP5103", error.to_string()))?,
+        &std::fs::read(build_root.join("core-wasm/package/generation-manifest.json"))
+            .map_err(|error| PrismError::new("PP5103", error.to_string()))?,
+    )?;
     processes.extend(run_hologram_oracle(
         controller,
         build_root,
@@ -2433,10 +2488,7 @@ fn run_application(
         )
         .as_bytes(),
     )?;
-    write(
-        &consumer.join("src/main.rs"),
-        application_harness(application)?.as_bytes(),
-    )?;
+    write(&consumer.join("src/main.rs"), harness.as_bytes())?;
     processes.push(run_process(
         "application-consumer-lock",
         &cargo,
@@ -2917,12 +2969,11 @@ pub(crate) fn run(
     let rustc = toolchain.rustc;
     let no_env = BTreeMap::new();
     let mut processes = toolchain.records;
-    processes.push(run_process(
-        "lake-build-generated",
+    processes.push(run_native_compilation(
+        NativeCompilation::Library,
         &lake,
         &["build".to_owned(), "PrismGenerated".to_owned()],
         workspace,
-        &no_env,
         &replacements,
         "PP5001",
     )?);
@@ -3227,6 +3278,147 @@ mod tests {
     use super::*;
 
     #[test]
+    fn text_v2_resource_bounds_native_harness_tracks_entry_effect() {
+        let checked_ir = r#"(module HarnessEffect
+          (def checked ((count Nat)) Nat (add count 18446744073709551615))
+          (def dispatch ((input Bytes)) Bytes
+            (if (eq (call checked (length input)) 18446744073709551615)
+              (bytes 65) input)))"#;
+        let infallible_ir = r#"(module HarnessEffect
+          (def unusedChecked ((count Nat)) Nat (add count 18446744073709551615))
+          (def dispatch ((input Bytes)) Bytes input))"#;
+        for (name, ir, request, response, expected_failure) in [
+            ("checked-success", checked_ir, vec![], vec![65], None),
+            (
+                "checked-overflow",
+                checked_ir,
+                vec![1],
+                vec![1],
+                Some("Err(AddOverflow)"),
+            ),
+            (
+                "checked-wrong-response",
+                checked_ir,
+                vec![],
+                vec![66],
+                Some("acceptance vector 0"),
+            ),
+            (
+                "unrelated-checked-definition",
+                infallible_ir,
+                vec![7],
+                vec![7],
+                None,
+            ),
+        ] {
+            let module = parse_kernel(ir).unwrap();
+            let mut fixture: Value = serde_json::from_slice(include_bytes!(
+                "../../../tests/data/text-model-document.json"
+            ))
+            .unwrap();
+            fixture["application"]["cargo_name"] = json!("harness-effect");
+            fixture["application"]["entry_root"] = json!("HarnessEffect.dispatch");
+            fixture["application"]["acceptance_vectors"] =
+                json!([{ "request": request, "response": response }]);
+            // Package metadata comes from the shared fixture so this
+            // network-free module carries no endpoint literal (VR-09).
+            let repository = fixture["application"]["cargo_repository"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+            let homepage = fixture["application"]["cargo_homepage"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+            let fixture: crate::holo::model_document::ModelDocument =
+                serde_json::from_value(fixture).unwrap();
+            let application = fixture.application.as_ref().unwrap();
+            let package = prod_codegen::generate_cargo_package(
+                &module,
+                &prod_codegen::CargoPackageSpec {
+                    name: "harness-effect".to_owned(),
+                    version: "0.1.0".to_owned(),
+                    description: "Generated native entry-effect regression".to_owned(),
+                    repository,
+                    homepage,
+                    readme: "Generated native entry-effect regression.\n".to_owned(),
+                    license_mit: include_str!("../../../LICENSE-MIT").to_owned(),
+                    license_apache: include_str!("../../../LICENSE-APACHE").to_owned(),
+                    input_sha256: format!("{:x}", Sha256::digest(ir.as_bytes())),
+                    dependencies: vec![],
+                },
+            )
+            .unwrap();
+            let library = &package
+                .files
+                .iter()
+                .find(|file| file.path == "src/lib.rs")
+                .unwrap()
+                .bytes;
+            let directory = tempfile::tempdir().unwrap();
+            let root = directory.path();
+            write(&root.join("lib.rs"), library).unwrap();
+            let harness = application_harness(application, &module).unwrap();
+            if name == "unrelated-checked-definition" {
+                assert_eq!(harness, "fn main() {\n    assert_eq!(harness_effect::dispatch(vec![7]), vec![7], \"acceptance vector 0\");\n}\n");
+            }
+            write(&root.join("consumer.rs"), harness.as_bytes()).unwrap();
+            let rustc = executable("rustc").unwrap();
+            let no_env = BTreeMap::new();
+            let replacements = [(root, "$HARNESS_TEST")];
+            run_process(
+                "native-harness-core",
+                &rustc,
+                &[
+                    "--edition=2021".to_owned(),
+                    "--crate-type=rlib".to_owned(),
+                    "--crate-name=harness_effect".to_owned(),
+                    "lib.rs".to_owned(),
+                    "-o".to_owned(),
+                    "libharness_effect.rlib".to_owned(),
+                ],
+                root,
+                &no_env,
+                &replacements,
+                "PP6003",
+            )
+            .unwrap();
+            run_process(
+                "native-harness-consumer",
+                &rustc,
+                &[
+                    "--edition=2021".to_owned(),
+                    "consumer.rs".to_owned(),
+                    "--extern=harness_effect=libharness_effect.rlib".to_owned(),
+                    "-o".to_owned(),
+                    "consumer".to_owned(),
+                ],
+                root,
+                &no_env,
+                &replacements,
+                "PP6003",
+            )
+            .unwrap();
+            let execution = run_process(
+                "native-harness-corpus",
+                &root.join("consumer"),
+                &[],
+                root,
+                &no_env,
+                &replacements,
+                "PP6003",
+            );
+            if let Some(expected) = expected_failure {
+                let error = execution.unwrap_err();
+                assert_eq!(error.code, "PP6003");
+                assert!(error.message.contains(expected), "{name}: {error:?}");
+            } else {
+                execution.unwrap();
+            }
+        }
+    }
+
+    #[test]
     fn application_regeneration_requires_every_identical_artifact() {
         let root = tempfile::tempdir().unwrap();
         let artifacts = vec![
@@ -3385,6 +3577,57 @@ mod tests {
 
     fn limited(program: &str, args: &[&str], timeout: &str, output: usize) -> PrismError {
         limited_with_code(program, args, timeout, output, "PP5001")
+    }
+
+    #[test]
+    fn native_compile_deadline_is_owned_and_other_phase_budgets_stay_closed() {
+        let node = executable("node").unwrap();
+        let observe = r#"process.stdout.write(JSON.stringify(require('node:fs').readFileSync('/proc/'+process.ppid+'/cmdline','utf8').split('\0').slice(1,4)))"#;
+        for phase in [NativeCompilation::Library, NativeCompilation::Application] {
+            let record = run_native_compilation(
+                phase,
+                &node,
+                &["-e".to_owned(), observe.to_owned()],
+                Path::new("/tmp"),
+                &[],
+                "PP5001",
+            )
+            .unwrap();
+            let actual: Value = serde_json::from_str(&record.stdout).unwrap();
+            assert_eq!(actual, json!(["--signal=TERM", "--kill-after=5", "600"]));
+        }
+        for (tool, budget, expected) in [
+            ("leanchecker", CHILD_TIMEOUT_SECONDS, "300"),
+            (
+                "hologram-oracle-build",
+                HOLOGRAM_ORACLE_BUILD_TIMEOUT_SECONDS,
+                "900",
+            ),
+            (
+                "hologram-oracle",
+                HOLOGRAM_ORACLE_RUN_TIMEOUT_SECONDS,
+                "600",
+            ),
+        ] {
+            let record = run_process_limited(
+                "native-deadline-policy-observer",
+                &node,
+                &["-e".to_owned(), observe.to_owned()],
+                Path::new("/tmp"),
+                &BTreeMap::new(),
+                &[],
+                "PP5001",
+                budget,
+                CHILD_OUTPUT_LIMIT,
+            )
+            .unwrap();
+            let actual: Value = serde_json::from_str(&record.stdout).unwrap();
+            assert_eq!(
+                actual,
+                json!(["--signal=TERM", "--kill-after=5", expected]),
+                "{tool}"
+            );
+        }
     }
 
     #[test]

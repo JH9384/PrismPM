@@ -545,3 +545,205 @@ fn execute_owned_fixture(ir: &str, native_test: &str) {
                 .join("wasm-target/wasm32-unknown-unknown/release/borrowed_utf8_guest.wasm"),
         ));
 }
+
+// HO-16: the declared V2 bounds control actual generated binaries; the
+// original generation API retains its canonical V1 package.
+#[test]
+fn text_v2_resource_bounds_generation_and_execution() {
+    use prod_codegen::{generate_core_wasm_package_v2, validate_core_wasm_resources};
+    let ir = "(module ResourceFixture (def entry ((input Bytes)) Bytes input))";
+    let (_, module) = parse_module(ir).unwrap();
+    let mut spec = CoreWasmSpec {
+        crate_name: "resource-guest".into(),
+        entry: "entry".into(),
+        export_name: "holo_run".into(),
+        input_allocation_cap: 100_000,
+        output_allocation_cap: 100_000,
+        maximum_pages: 4,
+        input_ir_sha256: format!("{:x}", Sha256::digest(ir.as_bytes())),
+    };
+    let legacy = generate_core_wasm_package(&module, &spec).unwrap();
+    let config = legacy
+        .files
+        .iter()
+        .find(|f| f.path == ".cargo/config.toml")
+        .unwrap();
+    assert_eq!(String::from_utf8(config.bytes.clone()).unwrap(), "[build]\ntarget = \"wasm32-unknown-unknown\"\n\n[target.wasm32-unknown-unknown]\nrustflags = [\"-C\", \"link-arg=--export-memory\", \"-C\", \"link-arg=--max-memory=262144\", \"-C\", \"link-arg=-zstack-size=65536\"]\n");
+    let legacy_manifest: serde_json::Value = serde_json::from_slice(
+        &legacy
+            .files
+            .iter()
+            .find(|f| f.path == "generation-manifest.json")
+            .unwrap()
+            .bytes,
+    )
+    .unwrap();
+    assert_eq!(legacy_manifest["schema"], "lean4-prod/core-wasm-target/1");
+    assert!(legacy_manifest.get("stack_bytes").is_none());
+    for invalid in [0, 1, 65_535, 262_144] {
+        assert!(generate_core_wasm_package_v2(&module, &spec, invalid).is_err());
+    }
+    for pages in [4, 16] {
+        spec.maximum_pages = pages;
+        let package = generate_core_wasm_package_v2(&module, &spec, 65_536).unwrap();
+        assert_eq!(
+            package,
+            generate_core_wasm_package_v2(&module, &spec, 65_536).unwrap()
+        );
+        let fixture = compile_resource_fixture(package);
+        let wasm = fixture
+            .0
+            .join("target/wasm32-unknown-unknown/release/resource_guest.wasm");
+        let bytes = fs::read(&wasm).unwrap();
+        validate_core_wasm_resources(&bytes, pages, Some(65_536)).unwrap();
+        assert!(validate_core_wasm_resources(&bytes, pages + 1, Some(65_536)).is_err());
+        assert!(validate_core_wasm_resources(&bytes, pages, Some(131_072)).is_err());
+        run(Command::new("node").arg("--input-type=module").arg("-e").arg(r#"
+            import assert from 'node:assert/strict'; import fs from 'node:fs';
+            const {instance} = await WebAssembly.instantiate(fs.readFileSync(process.argv[1]), {});
+            const e = instance.exports, input = Uint8Array.from({length:100000}, (_,i)=>i%251);
+            function invoke() { const p=e.holo_alloc(input.length)>>>0; new Uint8Array(e.memory.buffer,p,input.length).set(input);
+              const r=BigInt.asUintN(64,e.holo_run(p,input.length)); return new Uint8Array(e.memory.buffer,Number(r>>32n),Number(r&0xffffffffn)); }
+            if (process.argv[2] === '4') assert.throws(invoke, WebAssembly.RuntimeError);
+            else assert.deepEqual(invoke(),input);
+        "#).arg(&wasm).arg(pages.to_string()));
+    }
+}
+
+fn compile_resource_fixture(package: prod_codegen::GeneratedPackage) -> FixtureDir {
+    let fixture = FixtureDir::new();
+    for file in package.files {
+        let path = fixture.0.join(file.path);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, file.bytes).unwrap();
+    }
+    run(Command::new("cargo")
+        .current_dir(&fixture.0)
+        .args(["build", "--release", "--locked", "--offline"])
+        .env_remove("RUSTC_WRAPPER")
+        .env("CARGO_TARGET_DIR", fixture.0.join("target")));
+    fixture
+}
+
+#[test]
+fn text_v2_resource_bounds_reject_binary_forgery() {
+    use prod_codegen::validate_core_wasm_resources;
+    let valid = r#"(module
+      (memory (export "memory") 2 4)
+      (global (export "__stack_low") i32 (i32.const 0))
+      (global (export "__stack_high") i32 (i32.const 65536))
+      (global $stack_pointer (mut i32) (i32.const 65536))
+      (func (export "holo_alloc") (param i32) (result i32) i32.const 0)
+      (func (export "holo_run") (param i32 i32) (result i64) i64.const 0))"#;
+    let fixture = FixtureDir::new();
+    let parse = |wat: &str| {
+        let source = fixture.0.join("input.wat");
+        let output = fixture.0.join("output.wasm");
+        fs::write(&source, wat).unwrap();
+        run(Command::new("wasm-tools")
+            .args(["parse", "--output"])
+            .arg(&output)
+            .arg(&source));
+        fs::read(output).unwrap()
+    };
+    validate_core_wasm_resources(&parse(valid), 4, Some(65536)).unwrap();
+    for forged in [
+        valid.replace("(global $stack_pointer (mut i32) (i32.const 65536))", ""),
+        valid.replace("(global $stack_pointer (mut i32) (i32.const 65536))", "(global $stack_pointer (mut i32) (i32.const 4096))"),
+        valid.replace("(global $stack_pointer (mut i32) (i32.const 65536))", "(global $stack_pointer (mut i64) (i64.const 65536))"),
+        valid.replace("(global $stack_pointer (mut i32) (i32.const 65536))", "(global $stack_pointer (mut i32) (i32.const 65536)) (global (mut i32) (i32.const 65536))"),
+        valid.replace("(global $stack_pointer (mut i32) (i32.const 65536))", "(global $stack_pointer (export \"__stack_pointer\") (mut i32) (i32.const 65536))"),
+        valid.replace("(i32.const 0))", "(i32.const 1))").replace("(i32.const 65536))", "(i32.const 65537))"),
+    ] {
+        assert!(validate_core_wasm_resources(&parse(&forged), 4, Some(65536)).is_err());
+    }
+    let component = valid.replacen("(module", "(component (core module", 1) + ")";
+    assert!(validate_core_wasm_resources(&parse(&component), 4, Some(65536)).is_err());
+    for (old, new) in [
+        ("2 4)", "2 3)"),
+        ("2 4)", "2 5)"),
+        ("2 4)", "2)"),
+        ("2 4)", "i64 2 4)"),
+        ("2 4)", "2 4 shared)"),
+        (
+            "(global (export \"__stack_low\") i32",
+            "(global (export \"__stack_low\") (mut i32)",
+        ),
+        ("(i32.const 0))", "(i32.const 1))"),
+        ("(i32.const 65536))", "(i32.const 65552))"),
+        ("(i32.const 65536))", "(i32.const 196608))"),
+        ("(export \"__stack_high\")", "(export \"missing_high\")"),
+        ("(param i32) (result i32)", "(param i64) (result i32)"),
+        (
+            "(param i32 i32) (result i64) i64.const 0",
+            "(param i32 i32) (result i32) i32.const 0",
+        ),
+        (
+            "(memory (export \"memory\") 2 4)",
+            "(import \"x\" \"memory\" (memory 2 4)) (export \"memory\" (memory 0))",
+        ),
+        (
+            "(memory (export \"memory\") 2 4)",
+            "(memory (export \"memory\") 2 4) (memory 1 4)",
+        ),
+        ("(module", "(module (func $start) (start $start)"),
+    ] {
+        assert!(valid.contains(old));
+        let mutated = parse(&valid.replacen(old, new, 1));
+        assert!(
+            validate_core_wasm_resources(&mutated, 4, Some(65536)).is_err(),
+            "admitted {old} -> {new}"
+        );
+    }
+    // Wrong exported global index and non-i32 initializers are independently
+    // valid Wasm. A memory/target JSON hash cannot prove the stack interval.
+    for wat in [
+        valid
+            .replace("(i32.const 0))", "(i32.const 196608))")
+            .replace("(i32.const 65536))", "(i32.const 262144))"),
+        valid.replace(
+            "(global (export \"__stack_high\") i32 (i32.const 65536))",
+            "(global i32 (i32.const 65536)) (export \"__stack_high\" (global 0))",
+        ),
+        valid.replace(
+            "(global (export \"__stack_high\") i32 (i32.const 65536))",
+            "(global (export \"__stack_high\") i64 (i64.const 65536))",
+        ),
+    ] {
+        assert!(validate_core_wasm_resources(&parse(&wat), 4, Some(65536)).is_err());
+    }
+}
+
+#[test]
+fn text_v2_resource_bounds_control_generated_linear_stack() {
+    use prod_codegen::{generate_core_wasm_package_v2, validate_core_wasm_resources};
+    let ir = "(module RecursiveResource
+      (def grow ((n Nat)) Bytes (if (eq n 0) (bytes) (append (call grow (sub n 1)) (bytes 1))))
+      (def entry ((input Bytes)) Bytes (call grow (length input))))";
+    let (_, module) = parse_module(ir).unwrap();
+    let spec = CoreWasmSpec {
+        crate_name: "resource-guest".into(),
+        entry: "entry".into(),
+        export_name: "holo_run".into(),
+        input_allocation_cap: 1500,
+        output_allocation_cap: 1500,
+        maximum_pages: 1024,
+        input_ir_sha256: format!("{:x}", Sha256::digest(ir.as_bytes())),
+    };
+    for stack in [4096, 1048576] {
+        let fixture =
+            compile_resource_fixture(generate_core_wasm_package_v2(&module, &spec, stack).unwrap());
+        let wasm = fixture
+            .0
+            .join("target/wasm32-unknown-unknown/release/resource_guest.wasm");
+        validate_core_wasm_resources(&fs::read(&wasm).unwrap(), 1024, Some(stack)).unwrap();
+        run(Command::new("node").arg("--input-type=module").arg("-e").arg(r#"
+            import assert from 'node:assert/strict'; import fs from 'node:fs';
+            const {instance} = await WebAssembly.instantiate(fs.readFileSync(process.argv[1]), {}), e=instance.exports;
+            function invoke() { const p=e.holo_alloc(1500)>>>0; new Uint8Array(e.memory.buffer,p,1500).fill(0);
+              const r=BigInt.asUintN(64,e.holo_run(p,1500)); return new Uint8Array(e.memory.buffer,Number(r>>32n),Number(r&0xffffffffn)); }
+            if (process.argv[2] === '4096') assert.throws(invoke, WebAssembly.RuntimeError);
+            else assert.deepEqual(invoke(),new Uint8Array(1500).fill(1));
+        "#).arg(&wasm).arg(stack.to_string()));
+    }
+}

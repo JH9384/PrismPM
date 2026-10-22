@@ -119,3 +119,111 @@ fn metadata_alias_budget_has_an_exact_iterative_boundary() {
         "PP2001"
     );
 }
+
+fn acceptance(request: &str, response: &str) -> Value {
+    json!({"kind":"record","fields":[
+        {"field":"request","value":{"kind":"bytes","hex":request}},
+        {"field":"response","value":{"kind":"bytes","hex":response}}
+    ]})
+}
+
+#[test]
+fn acceptance_tail_aliases_preserve_owner_and_repeated_heads() {
+    let wrong = closed(acceptance("00", "00"));
+    let right = closed(acceptance("01", "02"));
+    let unqualified_head = json!({"kind":"call","function":{"name":"vector"},"arguments":[]});
+    let last = closed(json!({"kind":"cons","head":unqualified_head,"tail":{"kind":"nil"}}));
+    let middle = closed(json!({"kind":"cons","head":unqualified_head,"tail":
+        {"kind":"call","function":{"name":"last"},"arguments":[]}
+    }));
+    let definitions = BTreeMap::from([
+        (("Here".to_owned(), "vector".to_owned()), &wrong),
+        (("Other".to_owned(), "vector".to_owned()), &right),
+        (("Other".to_owned(), "middle".to_owned()), &middle),
+        (("Other".to_owned(), "last".to_owned()), &last),
+    ]);
+    let list = json!({"kind":"cons","head":acceptance("03","04"),"tail":alias("Other","middle")});
+    let fields = BTreeMap::from([("acceptanceVectors", ("Here", &list))]);
+    let vectors = acceptance_vectors(&definitions, &fields).unwrap();
+    assert_eq!(vectors.len(), 3);
+    assert_eq!(vectors[0].request, [3]);
+    assert_eq!(vectors[0].response, [4]);
+    for vector in &vectors[1..] {
+        assert_eq!(vector.request, [1]);
+        assert_eq!(vector.response, [2]);
+    }
+    // An already evaluated outer field carries its own owner too.
+    let fields = BTreeMap::from([("acceptanceVectors", ("Other", &last["body"]))]);
+    assert_eq!(
+        acceptance_vectors(&definitions, &fields).unwrap()[0].request,
+        [1]
+    );
+}
+
+#[test]
+fn acceptance_tail_alias_cycles_and_open_values_are_typed_failures() {
+    let self_cycle =
+        closed(json!({"kind":"cons","head":acceptance("01","02"),"tail":alias("First","self")}));
+    let first =
+        closed(json!({"kind":"cons","head":acceptance("01","02"),"tail":alias("Second","next")}));
+    let second =
+        closed(json!({"kind":"cons","head":acceptance("01","02"),"tail":alias("First","next")}));
+    let open =
+        json!({"kind":"definition","parameters":[{"name":"argument"}],"body":{"kind":"nil"}});
+    let definitions = BTreeMap::from([
+        (("First".to_owned(), "self".to_owned()), &self_cycle),
+        (("First".to_owned(), "next".to_owned()), &first),
+        (("Second".to_owned(), "next".to_owned()), &second),
+        (("First".to_owned(), "open".to_owned()), &open),
+    ]);
+    for tail in [alias("First", "self"), alias("First", "next")] {
+        let fields = BTreeMap::from([("acceptanceVectors", ("First", &tail))]);
+        let error = acceptance_vectors(&definitions, &fields).unwrap_err();
+        assert_eq!(error.code, "PP2001");
+        assert!(error.message.contains("cyclic alias"));
+    }
+    for tail in [
+        alias("First", "self"),
+        alias("First", "next"),
+        alias("First", "open"),
+        alias("Missing", "next"),
+        json!({"kind":"call","function":{"module":null,"name":"self"},"arguments":[]}),
+        json!({"kind":"call","function":{"module":"First","name":"self"},"arguments":[{"kind":"nil"}]}),
+        json!({"kind":"string","value":"improper list"}),
+    ] {
+        let list = json!({"kind":"cons","head":acceptance("03","04"),"tail":tail});
+        let fields = BTreeMap::from([("acceptanceVectors", ("First", &list))]);
+        assert_eq!(
+            acceptance_vectors(&definitions, &fields).unwrap_err().code,
+            "PP2001"
+        );
+    }
+}
+
+#[test]
+fn acceptance_tail_alias_budget_is_shared_across_list_chunks() {
+    let declarations = (0..=MAX_METADATA_ALIASES)
+        .map(|index| {
+            closed(json!({"kind":"cons","head":acceptance("01","02"),"tail":
+                if index == MAX_METADATA_ALIASES { json!({"kind":"nil"}) }
+                else { alias("Chunks", &format!("item{}", index + 1)) }
+            }))
+        })
+        .collect::<Vec<_>>();
+    let definitions = declarations
+        .iter()
+        .enumerate()
+        .map(|(index, value)| (("Chunks".to_owned(), format!("item{index}")), value))
+        .collect::<Definitions<'_>>();
+    let at_limit = alias("Chunks", "item1");
+    let fields = BTreeMap::from([("acceptanceVectors", ("Chunks", &at_limit))]);
+    assert_eq!(
+        acceptance_vectors(&definitions, &fields).unwrap().len(),
+        MAX_METADATA_ALIASES
+    );
+    let over_limit = alias("Chunks", "item0");
+    let fields = BTreeMap::from([("acceptanceVectors", ("Chunks", &over_limit))]);
+    let error = acceptance_vectors(&definitions, &fields).unwrap_err();
+    assert_eq!(error.code, "PP2001");
+    assert!(error.message.contains("alias budget"));
+}

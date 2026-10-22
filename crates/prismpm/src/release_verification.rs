@@ -1430,6 +1430,18 @@ fn application_archive(
     files: &BTreeMap<String, Vec<u8>>,
     guest: &[u8],
 ) -> Result<Value, PrismError> {
+    crate::application_build::validate_application_core_resources(
+        application,
+        guest,
+        file(files, "application/target-profile.json")?,
+        file(files, "core-wasm/package/generation-manifest.json")?,
+    )
+    .map_err(|error| {
+        invalid(format!(
+            "application Core-Wasm resources: {}",
+            error.message
+        ))
+    })?;
     let bytes = file(files, &format!("{}.holo", application.name()))?;
     let archive = crate::holo::archive::parse_application(bytes)
         .map_err(|error| invalid(format!("application archive: {}", error.message)))?;

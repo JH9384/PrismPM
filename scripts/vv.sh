@@ -12,7 +12,7 @@ if test "${1:-}" = --with-sdk; then
   exec </dev/null
 fi
 bash scripts/browser-environment-preflight.sh
-node --test scripts/devcontainer-init.test.mjs scripts/reconcile-lexlean.test.mjs
+node --test scripts/devcontainer-init.test.mjs scripts/reconcile-lexlean.test.mjs scripts/sdk-runtime-stack.test.mjs
 bash scripts/bootstrap-verify.sh --check-source
 
 # The external-oracle corpus must execute in the SDK image, including on the

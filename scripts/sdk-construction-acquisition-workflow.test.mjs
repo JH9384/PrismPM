@@ -36,7 +36,7 @@ test('real admission shell rejects mixed publication construction and integrity 
  const script=load(text()).jobs['input-policy'].steps[0].run;
  for(const [revision,development,selection,accepted]of[['','false','{}',true],['a'.repeat(40),'false','{}',false],['','true','{}',false],['','false','',true],['','true','',true]]){
   const r=spawnSync('/bin/bash',['--noprofile','--norc','-euo','pipefail','-c',script],{env:{PATH:process.env.PATH,SOURCE_REVISION:revision,
-   DEVELOPMENT_ONLY:development,WORKFLOW_REVISION:'a'.repeat(40),INTEGRITY_SELECTION:selection},encoding:'utf8',timeout:5000});
+   DEVELOPMENT_ONLY:development,WORKFLOW_REVISION:'a'.repeat(40),GITHUB_SHA:'a'.repeat(40),INTEGRITY_SELECTION:selection,QUALIFICATION_SELECTION:''},encoding:'utf8',timeout:5000});
   assert.ifError(r.error);assert.equal(r.signal,null);assert.equal(r.status===0,accepted);
  }
 });

@@ -31,6 +31,39 @@ fn schema() -> jsonschema::Validator {
     jsonschema::validator_for(&schema).unwrap()
 }
 
+fn resource_fixture() -> Value {
+    let mut value = fixture();
+    value["schema"] = json!("prismpm/model-document/5");
+    value["application"]["profile"] = json!("prismpm/text-application/2");
+    value["application"]["core_memory_pages"] = json!(64);
+    value["application"]["core_stack_bytes"] = json!(131072);
+    value
+}
+
+#[test]
+fn text_v2_resource_bounds_are_explicit_and_preserve_legacy_bytes() {
+    let value = resource_fixture();
+    let doc = typed(value.clone());
+    prismpm::holo::validate::validate(&doc).unwrap();
+    let bytes = encode_canonical(&doc).unwrap();
+    assert_eq!(decode_canonical(&bytes).unwrap(), doc);
+    assert_eq!(serde_json::to_value(&doc).unwrap(), value);
+    assert_eq!(doc.application.as_ref().unwrap().core_memory_pages(), 64);
+    assert_eq!(
+        doc.application.as_ref().unwrap().core_stack_bytes(),
+        Some(131072)
+    );
+    let original = std::fs::read(root().join("tests/data/text-model-document.json")).unwrap();
+    let legacy = typed(fixture());
+    assert_eq!(legacy.application.as_ref().unwrap().core_memory_pages(), 32);
+    assert_eq!(
+        legacy.application.as_ref().unwrap().core_stack_bytes(),
+        None
+    );
+    let bytes = encode_canonical(&legacy).unwrap();
+    assert_eq!(bytes, original.strip_suffix(b"\n").unwrap_or(&original));
+}
+
 #[test]
 fn text_application_canonical_schema_roundtrip_preserves_unicode() {
     let value = fixture();
@@ -96,7 +129,7 @@ fn text_application_rejects_unknown_missing_and_legacy_fields() {
 #[test]
 fn text_application_rejects_semantically_invalid_profiles() {
     for (pointer, replacement) in [
-        ("/application/profile", json!("prismpm/text-application/2")),
+        ("/application/profile", json!("prismpm/text-application/3")),
         ("/application/name", json!("../outside")),
         ("/application/name", json!("/absolute")),
         ("/application/name", json!("nested\\outside")),
@@ -224,6 +257,14 @@ fn text_application_requires_explicit_guest_allocation_boundary_evidence() {
 // Exercise the complete public diagnostic value, including its exact registered code.
 #[allow(clippy::result_large_err)]
 fn project_fixture(source: &str) -> Result<ModelDocument, prismpm::PrismError> {
+    project_fixture_with_resource_model(source, "Foundation.View.Text.V2.Model")
+}
+
+#[allow(clippy::result_large_err)]
+fn project_fixture_with_resource_model(
+    source: &str,
+    resource_owner: &str,
+) -> Result<ModelDocument, prismpm::PrismError> {
     let temp = tempfile::tempdir().unwrap();
     let repo = root();
     let fixture_project = repo.join("tests/fixtures/holo/ho-11-text-application/project");
@@ -245,6 +286,16 @@ fn project_fixture(source: &str) -> Result<ModelDocument, prismpm::PrismError> {
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
         std::fs::copy(repo.join("stdlib/src").join(module), destination).unwrap();
     }
+    let resource_model =
+        std::fs::read_to_string(repo.join("stdlib/src/Foundation/View/Text/V2/Model.lex.tex"))
+            .unwrap()
+            .replace("Foundation.View.Text.V2.Model", resource_owner);
+    let resource_path = temp
+        .path()
+        .join("src")
+        .join(resource_owner.replace('.', "/") + ".lex.tex");
+    std::fs::create_dir_all(resource_path.parent().unwrap()).unwrap();
+    std::fs::write(resource_path, resource_model).unwrap();
     std::fs::write(temp.path().join("src/TextRequest.lex.tex"), source).unwrap();
     let language = repo.join("language/prism.arch");
     for entry in walkdir::WalkDir::new(&language) {
@@ -275,6 +326,67 @@ fn project_fixture(source: &str) -> Result<ModelDocument, prismpm::PrismError> {
         })
         .unwrap();
     prismpm::holo::application::project_application(&snapshot).map(Option::unwrap)
+}
+
+fn resource_source() -> String {
+    let original = std::fs::read_to_string(
+        root().join("tests/fixtures/holo/ho-11-text-application/project/src/TextRequest.lex.tex"),
+    )
+    .unwrap();
+    let semantic = original
+        .lines()
+        .find(|line| line.starts_with("\\semanticdata{"))
+        .unwrap();
+    let mut value: Value = serde_json::from_str(
+        semantic
+            .strip_prefix("\\semanticdata{")
+            .unwrap()
+            .strip_suffix('}')
+            .unwrap(),
+    )
+    .unwrap();
+    let application = value["declarations"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|d| d["name"] == "application")
+        .unwrap();
+    application["result"]["member"]["module"] = json!("Foundation.View.Text.V2.Model");
+    application["body"]["type"]["module"] = json!("Foundation.View.Text.V2.Model");
+    let fields = application["body"]["fields"].as_array_mut().unwrap();
+    fields.iter_mut().find(|f| f["field"] == "profile").unwrap()["value"]["value"] =
+        json!("prismpm/text-application/2");
+    let resource_index = fields
+        .iter()
+        .position(|f| f["field"] == "guestAllocationMaximum")
+        .unwrap()
+        + 1;
+    fields.insert(resource_index, json!({"field":"coreMemoryPages","value":{"kind":"integer","representation":"uint32","value":"64"}}));
+    fields.insert(resource_index + 1, json!({"field":"coreStackBytes","value":{"kind":"integer","representation":"uint32","value":"131072"}}));
+    original.replace(semantic, &format!("\\semanticdata{{{}}}", serde_json::to_string(&value).unwrap()))
+        .replace("\\importmodule{Foundation.View.Text.V1.Model}", "\\importmodule{Foundation.View.Text.V1.Model}\n\\importmodule{Foundation.View.Text.V2.Model}")
+}
+
+#[test]
+fn text_v2_resource_bounds_project_only_from_the_exact_source_owned_type() {
+    let source = resource_source();
+    let doc = project_fixture(&source).unwrap();
+    assert_eq!(doc.schema, "prismpm/model-document/5");
+    assert_eq!(doc.application.as_ref().unwrap().core_memory_pages(), 64);
+    assert_eq!(
+        doc.application.as_ref().unwrap().core_stack_bytes(),
+        Some(131072)
+    );
+    assert_eq!(project_fixture(&source).unwrap(), doc);
+    let wrong_profile = source.replace("prismpm/text-application/2", "prismpm/text-application/1");
+    assert_eq!(project_fixture(&wrong_profile).unwrap_err().code, "PP2009");
+    let foreign = source.replace("Foundation.View.Text.V2.Model", "Foreign.Resource.Model");
+    assert_eq!(
+        project_fixture_with_resource_model(&foreign, "Foreign.Resource.Model")
+            .unwrap_err()
+            .code,
+        "PP2009"
+    );
 }
 
 #[test]

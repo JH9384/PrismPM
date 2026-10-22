@@ -50,13 +50,23 @@ fn definition<'a>(
 
 fn evaluated<'a>(
     definitions: &'a Definitions<'a>,
-    mut module: &'a str,
-    mut value: &'a Value,
+    module: &'a str,
+    value: &'a Value,
 ) -> Result<(&'a str, &'a Value), PrismError> {
     let mut remaining = MAX_METADATA_ALIASES;
     let mut visited = BTreeSet::new();
+    evaluated_with_state(definitions, module, value, &mut remaining, &mut visited)
+}
+
+fn evaluated_with_state<'a>(
+    definitions: &'a Definitions<'a>,
+    mut module: &'a str,
+    mut value: &'a Value,
+    remaining: &mut usize,
+    visited: &mut BTreeSet<(&'a str, &'a str)>,
+) -> Result<(&'a str, &'a Value), PrismError> {
     while value.get("kind").and_then(Value::as_str) == Some("call") {
-        remaining = remaining.checked_sub(1).ok_or_else(|| {
+        *remaining = remaining.checked_sub(1).ok_or_else(|| {
             PrismError::new("PP2001", "application metadata exceeds the alias budget")
         })?;
         let arguments = value
@@ -393,12 +403,15 @@ fn bytes(value: &Value, field: &str) -> Result<Vec<u8>, PrismError> {
 
 fn acceptance_vectors(
     definitions: &Definitions<'_>,
-    module: &str,
     fields: &BTreeMap<&str, (&str, &Value)>,
 ) -> Result<Vec<ApplicationAcceptanceVector>, PrismError> {
-    let (_, mut value) = field(fields, "acceptanceVectors")?;
+    let (mut module, mut value) = field(fields, "acceptanceVectors")?;
     let mut result = Vec::new();
+    let mut remaining = MAX_METADATA_ALIASES;
+    let mut visited = BTreeSet::new();
     loop {
+        (module, value) =
+            evaluated_with_state(definitions, module, value, &mut remaining, &mut visited)?;
         match value.get("kind").and_then(Value::as_str) {
             Some("nil") => return Ok(result),
             Some("cons") => {
@@ -544,12 +557,13 @@ pub fn project_application(
         super::browser_application::validate_roots(&browser, snapshot)?;
         return projected_document(snapshot, Application::Browser(Box::new(browser)));
     }
-    let fields = record(
+    let fields = record_with_unevaluated_fields(
         &definitions,
         module,
         declaration
             .get("body")
             .ok_or_else(|| PrismError::new("PP2001", "application has no body"))?,
+        &["acceptanceVectors"],
     )?;
     if fields
         .get("profile")
@@ -572,32 +586,46 @@ pub fn project_application(
     let view_layer = u8::try_from(unsigned(&fields, "viewLayer", "uint8")?)
         .map_err(|_| PrismError::new("PP2001", "viewLayer exceeds UInt8"))?;
     let application = if fields.contains_key("profile") {
-        exact_fields(
-            &fields,
-            &[
-                "profile",
-                "name",
-                "cargoName",
-                "cargoVersion",
-                "cargoDescription",
-                "cargoRepository",
-                "cargoHomepage",
-                "libraryRoots",
-                "acceptanceVectors",
-                "entryRoot",
-                "coreContract",
-                "requestMaximum",
-                "responseMaximum",
-                "guestAllocationMaximum",
-                "capabilitiesEmpty",
-                "fatArchive",
-                "primaryLayer",
-                "viewLayer",
-                "view",
-            ],
-        )?;
+        let profile = string(&fields, "profile")?;
+        let resource_profile = profile == "prismpm/text-application/2";
+        let resource_type = member_name(declaration) == Some("TextApplication")
+            && declaration
+                .pointer("/result/member/module")
+                .and_then(Value::as_str)
+                == Some("Foundation.View.Text.V2.Model");
+        if resource_profile != resource_type {
+            return Err(PrismError::new(
+                "PP2009",
+                "text/2 resources require the exact source-owned Text.V2 application type and profile",
+            ));
+        }
+        let mut expected_fields = vec![
+            "profile",
+            "name",
+            "cargoName",
+            "cargoVersion",
+            "cargoDescription",
+            "cargoRepository",
+            "cargoHomepage",
+            "libraryRoots",
+            "acceptanceVectors",
+            "entryRoot",
+            "coreContract",
+            "requestMaximum",
+            "responseMaximum",
+            "guestAllocationMaximum",
+            "capabilitiesEmpty",
+            "fatArchive",
+            "primaryLayer",
+            "viewLayer",
+            "view",
+        ];
+        if resource_profile {
+            expected_fields.extend(["coreMemoryPages", "coreStackBytes"]);
+        }
+        exact_fields(&fields, &expected_fields)?;
         Application::Text(Box::new(TextApplicationModel {
-            profile: string(&fields, "profile")?,
+            profile,
             name: string(&fields, "name")?,
             cargo_name: string(&fields, "cargoName")?,
             cargo_version: string(&fields, "cargoVersion")?,
@@ -605,12 +633,28 @@ pub fn project_application(
             cargo_repository: string(&fields, "cargoRepository")?,
             cargo_homepage: string(&fields, "cargoHomepage")?,
             library_roots: string_list(&fields, "libraryRoots")?,
-            acceptance_vectors: acceptance_vectors(&definitions, module, &fields)?,
+            acceptance_vectors: acceptance_vectors(&definitions, &fields)?,
             entry_root: string(&fields, "entryRoot")?,
             core_contract: string(&fields, "coreContract")?,
             request_maximum,
             response_maximum,
             guest_allocation_maximum,
+            core_memory_pages: if resource_profile {
+                Some(
+                    u32::try_from(unsigned(&fields, "coreMemoryPages", "uint32")?)
+                        .map_err(|_| PrismError::new("PP2001", "coreMemoryPages exceeds UInt32"))?,
+                )
+            } else {
+                None
+            },
+            core_stack_bytes: if resource_profile {
+                Some(
+                    u32::try_from(unsigned(&fields, "coreStackBytes", "uint32")?)
+                        .map_err(|_| PrismError::new("PP2001", "coreStackBytes exceeds UInt32"))?,
+                )
+            } else {
+                None
+            },
             capabilities_empty: boolean(&fields, "capabilitiesEmpty")?,
             fat_archive: boolean(&fields, "fatArchive")?,
             primary_layer,
@@ -629,7 +673,7 @@ pub fn project_application(
             operation_type: string(&fields, "operationType")?,
             error_type: string(&fields, "errorType")?,
             function_name: string(&fields, "functionName")?,
-            acceptance_vectors: acceptance_vectors(&definitions, module, &fields)?,
+            acceptance_vectors: acceptance_vectors(&definitions, &fields)?,
             entry_root: string(&fields, "entryRoot")?,
             core_contract: string(&fields, "coreContract")?,
             request_maximum,
@@ -659,6 +703,9 @@ fn projected_document(
     let document = ModelDocument {
         schema: match &application {
             Application::Legacy(_) => "prismpm/model-document/1",
+            Application::Text(value) if value.profile == "prismpm/text-application/2" => {
+                "prismpm/model-document/5"
+            }
             Application::Text(_) => "prismpm/model-document/2",
             Application::Browser(_) => "prismpm/model-document/4",
         }

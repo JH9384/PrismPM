@@ -118,6 +118,7 @@ The three honesty levels:
 | `HO-13` | `build` | The modeled browser-surface wire codec preserves legacy bytes, reproduces pinned upstream framing in generated std and no_std code, and rejects malformed or mixed profiles without granting browser authority. |
 | `HO-14` | `build` | Pinned BLAKE3 vectors qualify every imported digest mode, streaming partition and content-identity result without claiming cryptographic proof or durable native storage. |
 | `HO-15` | `build` | The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application. |
+| `HO-16` | `build` | The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults. |
 
 ## lifecycle
 
@@ -328,11 +329,11 @@ The three honesty levels:
 | `SPDX-SCHEMA-3-0-1` | `3.0.1` | https://spdx.org/schema/3.0.1/spdx-json-schema.json | `582c64e809d5b3ef9bd0c4de13a32391b47b0284a3e8d199569fb96f649234b1` | `AU-06`, `SC-01` |
 | `SIGSTORE-COSIGN-3-1-3` | `3.1.3` | https://codeload.github.com/sigstore/cosign/tar.gz/11926fa5bbbbde47e88fc006b625a17769b743b2 | `3a718446bac51466efff6853639e1ca108b456ecbf07cd92938f548715d22d6b` | `AU-05`, `SC-03` |
 | `OSV-SCHEMA-B388` | `b388a18021a3` | https://codeload.github.com/ossf/osv-schema/tar.gz/b388a18021a32b55da40c31eaef9fd4ce780447d | `02fe51837bbb67fcd250151332ad1abc078f789e6d396585a4ae933e0c61c0e7` | `AU-05`, `SC-04` |
-| `OSV-CRATES-DB-G1791549169090036` | `gcs-generation-1791549169090036` | https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip?generation=1791549169090036 | `b24f179d0985a66f5f7f425afda26f31dd89ed5f2768323b3ae6e71257c63308` | `AU-05`, `SC-04` |
-| `OSV-DEBIAN-DB-G1791731006592942` | `gcs-generation-1791731006592942` | https://osv-vulnerabilities.storage.googleapis.com/Debian/all.zip?generation=1791731006592942 | `5a6e92e44da92e0ae1a682e435dcb5205a818690b3feec0b1a3c79092b542862` | `AU-05`, `SC-04` |
-| `OSV-GO-DB-G1791633771842263` | `gcs-generation-1791633771842263` | https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip?generation=1791633771842263 | `dfe6c3aecd51e8d513c8c4bec54f9fbd4e2aee14b399e02c3af8c0038fe5edc8` | `AU-05`, `SC-04` |
-| `OSV-NPM-DB-G1791729183675786` | `gcs-generation-1791729183675786` | https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1791729183675786 | `6c73181a426017ba218cad317bbfa571d71b25d33a57e5d84326b8e74cc7d8bb` | `AU-05`, `SC-04` |
-| `OSV-UBUNTU-DB-G1791674281007622` | `gcs-generation-1791674281007622` | https://osv-vulnerabilities.storage.googleapis.com/Ubuntu/all.zip?generation=1791674281007622 | `c45c2791452b55990d08ae1ba4962a712081d6e0134bc5c5c6707d09adf50aba` | `AU-05`, `SC-04` |
+| `OSV-CRATES-DB-G1792096384043606` | `gcs-generation-1792096384043606` | https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip?generation=1792096384043606 | `5ebac98116c0148f8a2b72615cbd3e60c3c5e937786e2427714546f8fc686f5b` | `AU-05`, `SC-04` |
+| `OSV-DEBIAN-DB-G1792130564825991` | `gcs-generation-1792130564825991` | https://osv-vulnerabilities.storage.googleapis.com/Debian/all.zip?generation=1792130564825991 | `019d7daaca77666111070f333fb1e5d047ad40d50ba852391018979d08005bb9` | `AU-05`, `SC-04` |
+| `OSV-GO-DB-G1792097294361139` | `gcs-generation-1792097294361139` | https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip?generation=1792097294361139 | `3f3c63ba77efa8a7f0c47f572c69692eb538c26a5ff70b6e84926078e10ad914` | `AU-05`, `SC-04` |
+| `OSV-NPM-DB-G1792124305700257` | `gcs-generation-1792124305700257` | https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1792124305700257 | `c242de6ea6f70b5491ca1e536ac7533e719349cea740db2f8d59d25ee729c0cd` | `AU-05`, `SC-04` |
+| `OSV-UBUNTU-DB-G1791997399062112` | `gcs-generation-1791997399062112` | https://osv-vulnerabilities.storage.googleapis.com/Ubuntu/all.zip?generation=1791997399062112 | `9c4f5e08e3a7490c90c78ac85f72004d5715c8b1641e9d5ed9e65a6438dd986d` | `AU-05`, `SC-04` |
 | `OTEL-SPEC-1-60-0` | `1.60.0` | https://codeload.github.com/open-telemetry/opentelemetry-specification/tar.gz/29ae8c7710d2ea52e21a5ff81fb1cd657bcd3306 | `92eb9f83837e0c28909b0bc1fc128001e263be0b8f0317e31323073d957aebe7` | `AU-01`, `OP-01` |
 | `OTEL-SEMCONV-1-37-0` | `1.37.0` | https://codeload.github.com/open-telemetry/semantic-conventions/tar.gz/aec6e9d3e86754683dab7c707655d69d953b2768 | `ff1e16f3cbf9f23a40b917bc15593cb542434412552d27a0fc1bbbd833cfe60e` | `AU-01`, `OP-01` |
 | `OTEL-COLLECTOR-0-136-0` | `0.136.0` | https://codeload.github.com/open-telemetry/opentelemetry-collector-releases/tar.gz/ff8d64f8bbdb45270cde7289bf39218514bbfd2d | `b844833e8c72e2661275c911d79885a49a3171be9563a7c8b4827b202582b207` | `AU-05`, `OP-01` |

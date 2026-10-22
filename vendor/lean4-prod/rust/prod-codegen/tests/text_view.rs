@@ -1,6 +1,51 @@
 //! Public, transport-only UTF-8 View contract; application semantics stay in IR.
 
-use prod_codegen::{generate_text_view_v1, TextBrowserAdapterBinding, TextViewV1};
+use prod_codegen::{
+    byte_entry_is_fallible, generate_text_view_v1, generate_text_view_v1_for_module,
+    TextBrowserAdapterBinding, TextViewV1,
+};
+
+#[test]
+fn text_v2_resource_bounds_browser_effect_matches_the_exact_selected_entry() {
+    let ir = r#"(module TextEffects
+      (def checked ((count Nat)) Nat (add count 1))
+      (def direct ((input Bytes)) Bytes (if (eq (add (length input) 1) 0) (bytes) input))
+      (def transitive ((input Bytes)) Bytes (if (eq (call checked (length input)) 0) (bytes) input))
+      (def invoke ((input Bytes)) Bytes input)
+      (def wrong ((input Nat)) Nat input))"#;
+    let (_, module) = prod_ir::parser::parse_module(ir).unwrap();
+    let (view, binding) = fixture();
+    assert!(!byte_entry_is_fallible(&module, "invoke").unwrap());
+    assert_eq!(
+        generate_text_view_v1_for_module(&module, &view, &binding).unwrap(),
+        generate_text_view_v1(&view, &binding).unwrap()
+    );
+    for entry in ["direct", "transitive"] {
+        assert!(byte_entry_is_fallible(&module, entry).unwrap());
+        let mut checked_binding = binding.clone();
+        checked_binding.core_function = entry.into();
+        let generated = generate_text_view_v1_for_module(&module, &view, &checked_binding).unwrap();
+        let source = &generated
+            .browser_adapter
+            .files
+            .iter()
+            .find(|file| file.path == "src/lib.rs")
+            .unwrap()
+            .bytes;
+        assert!(String::from_utf8_lossy(source).contains("failure.set_name(\"ComputeError\")"));
+    }
+    for entry in ["missing", "wrong"] {
+        assert!(byte_entry_is_fallible(&module, entry).is_err());
+        let mut invalid = binding.clone();
+        invalid.core_function = entry.into();
+        assert!(generate_text_view_v1_for_module(&module, &view, &invalid).is_err());
+    }
+    let (_, unsupported) = prod_ir::parser::parse_module(
+        "(module Unsupported (def impossible ((input Int)) Int input) (def invoke ((input Bytes)) Bytes input))",
+    )
+    .unwrap();
+    assert!(generate_text_view_v1_for_module(&unsupported, &view, &binding).is_err());
+}
 
 fn fixture() -> (TextViewV1, TextBrowserAdapterBinding) {
     (

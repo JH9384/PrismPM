@@ -24,7 +24,8 @@ const workflowProfiles=new Map([
  ['sha256:bbfbd47a2ec3131cb00912c496f8c627e48f6e067937b9042f241764beb38a15',7],
  // Current source-reviewed candidate workflow.  Keep historical profiles
  // above immutable; a new workflow is admitted only by this exact digest.
- ['sha256:ed952dbab6305ff49d8d1a3c19376049567455b73b6e673a01d72c43904d1f96',7]
+ ['sha256:ed952dbab6305ff49d8d1a3c19376049567455b73b6e673a01d72c43904d1f96',7],
+ ['sha256:06decda291ca6182d2d2107dafa4b93c0e13301a673bc28039992e2317a598b6',9]
 ]);
 const authorities=new WeakMap(),metadata=new WeakMap();
 const sha=bytes=>'sha256:'+createHash('sha256').update(bytes).digest('hex');
@@ -86,7 +87,8 @@ export function validateConstructionAuthority(bytes,expected,now,workflowBytes){
  // Older source workflows have six jobs. The additive read-only integrity
  // owner must be skipped during genuine construction; no arbitrary job or
  // successful integrity-only run can substitute for either native builder.
- if(jobCount===7)expectedJobs.set('construction-integrity','skipped');
+ if(jobCount===7||jobCount===9)expectedJobs.set('construction-integrity','skipped');
+ if(jobCount===9)for(const name of['unpublished-prerequisites','unpublished-installed'])expectedJobs.set(name,'skipped');
  for(const job of jobs){
   positive(job.id);assert.equal(job.run_id,run.id);assert.equal(job.run_attempt,run.run_attempt);
   assert.equal(job.head_sha,source);assert(expectedJobs.has(job.name),'unexpected or duplicate construction job');

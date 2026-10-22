@@ -414,6 +414,7 @@ export async function runOuter({image, revision, arch, destination, source, regi
     const boundPaths = ['scripts/sdk-vv-run.mjs', 'scripts/sdk-vv-probe.mjs', 'scripts/sdk-vv-check.mjs',
       'scripts/sdk-command-owner.mjs', 'scripts/sdk-command-owner.py',
       'scripts/sdk-vv-outer.sh',
+      'scripts/sdk-qualification-trust.mjs',
       'scripts/sdk-bootstrap-retention.mjs', 'scripts/bootstrap-evidence.mjs', 'scripts/sdk-registry-reader.mjs', 'sdk/vv-runtime.lock.json'];
     for (const path of boundPaths) assert.deepEqual(await sdk(['cat', `${SHARED}/conformance-root/${path}`]), regular(join(source, path)), 'installed outer/inner source differs');
     const elf = JSON.parse(await sdk(['node', probePath, 'native']));

@@ -26,6 +26,7 @@ export const sourceRoots=Object.freeze([
  'tests/fixtures/library/native-library/project','tests/hologram-oracle','vendor',
  'scripts/browser-api-sdk-check.mjs','scripts/library-sdk-check.mjs','scripts/library-sdk-check.sh',
  'scripts/sdk-command-owner.mjs','scripts/sdk-command-owner.py',
+ 'scripts/sdk-qualification-trust.mjs',
  'scripts/library-sdk-check.test.mjs','scripts/library-sdk-check-shell.test.mjs','scripts/library-sdk-fixture.mjs','scripts/library-owner-reader-replay.mjs','.github/workflows/release.yml',
  'scripts/installed-exporter-concurrency.mjs','scripts/installed-exporter-concurrency.test.mjs','scripts/portable-oracle-process-owner.py',
  'scripts/hologram-source-pins.mjs','scripts/hologram-source-pins.test.mjs','crates/prismpm/tests/hologram_interop.rs',

@@ -254,7 +254,7 @@ const url = new URL(origin);
 assert.equal(url.hostname, '127.0.0.1');
 assert.equal(url.protocol, 'http:');
 assert.equal(url.origin, origin);
-const text = app.profile === 'prismpm/text-application/1';
+const text = app.profile === 'prismpm/text-application/1' || app.profile === 'prismpm/text-application/2';
 const profile = text ? 'utf8-text' : 'legacy-numeric';
 const decode = new TextDecoder('utf-8', {fatal: true, ignoreBOM: true});
 const view = app.view;

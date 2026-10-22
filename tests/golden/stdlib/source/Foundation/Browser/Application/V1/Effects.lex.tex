@@ -1,8 +1,986 @@
 \begin{lexlean}{Foundation.Browser.Application.V1.Effects}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"inputMaximum","type":{"kind":"nat"}},{"name":"outputMaximum","type":{"kind":"nat"}},{"name":"memoryPages","type":{"kind":"nat"}}],"kind":"structure","name":"EffectHostLimits","parameters":[],"type_parameters":[]},{"fields":[{"name":"artifact","type":{"kind":"bytes"}},{"name":"entry","type":{"kind":"string"}},{"name":"protocol","type":{"kind":"string"}},{"name":"inputMaximum","type":{"kind":"nat"}},{"name":"outputMaximum","type":{"kind":"nat"}},{"name":"memoryPages","type":{"kind":"nat"}}],"kind":"structure","name":"EffectGuest","parameters":[],"type_parameters":[]},{"fields":[{"name":"publicKey","type":{"kind":"bytes"}},{"name":"context","type":{"kind":"string"}}],"kind":"structure","name":"EffectSigningGrant","parameters":[],"type_parameters":[]},{"fields":[{"name":"storeNamespace","type":{"kind":"string"}},{"name":"maxObjectBytes","type":{"kind":"nat"}},{"name":"maxObjects","type":{"kind":"nat"}},{"name":"maxHeads","type":{"kind":"nat"}}],"kind":"structure","name":"EffectStorageGrant","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[{"arguments":[],"kind":"named","member":{"name":"EffectGuest"}}],"name":"Guest"},{"fields":[],"name":"Random"},{"fields":[],"name":"Digest"},{"fields":[{"arguments":[],"kind":"named","member":{"name":"EffectSigningGrant"}}],"name":"Signer"},{"fields":[{"arguments":[],"kind":"named","member":{"name":"EffectSigningGrant"}}],"name":"Verifier"},{"fields":[{"arguments":[],"kind":"named","member":{"name":"EffectStorageGrant"}}],"name":"Store"}],"kind":"inductive","name":"EffectAdapter","parameters":[],"type_parameters":[]},{"fields":[{"name":"resource","type":{"kind":"string"}},{"name":"adapter","type":{"arguments":[],"kind":"named","member":{"name":"EffectAdapter"}}}],"kind":"structure","name":"EffectGrant","parameters":[],"type_parameters":[]},{"fields":[{"name":"application","type":{"kind":"bytes"}},{"name":"manifest","type":{"kind":"bytes"}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"EffectHostLimits"}}},{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"name":"EffectGrant"}},"kind":"list"}}],"kind":"structure","name":"EffectManifest","parameters":[],"type_parameters":[]},{"fields":[{"name":"artifact","type":{"kind":"bytes"}},{"name":"entry","type":{"kind":"string"}},{"name":"protocol","type":{"kind":"string"}},{"name":"input","type":{"kind":"bytes"}}],"kind":"structure","name":"EffectGuestInvocation","parameters":[],"type_parameters":[]},{"fields":[{"name":"value","type":{"kind":"bytes"}},{"name":"signature","type":{"kind":"bytes"}}],"kind":"structure","name":"EffectVerification","parameters":[],"type_parameters":[]},{"fields":[{"name":"head","type":{"kind":"string"}},{"name":"expected","type":{"kind":"option","value":{"kind":"string"}}},{"name":"next","type":{"kind":"string"}},{"name":"objects","type":{"element":{"kind":"bytes"},"kind":"list"}}],"kind":"structure","name":"EffectCommit","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"string"}},{"name":"bytes","type":{"kind":"bytes"}}],"kind":"structure","name":"EffectHead","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[{"arguments":[],"kind":"named","member":{"name":"EffectGuestInvocation"}}],"name":"InvokeGuest"},{"fields":[{"kind":"nat"}],"name":"RandomBytes"},{"fields":[{"kind":"bytes"}],"name":"DigestBytes"},{"fields":[{"kind":"bytes"}],"name":"SignBytes"},{"fields":[{"arguments":[],"kind":"named","member":{"name":"EffectVerification"}}],"name":"VerifyBytes"},{"fields":[{"kind":"string"}],"name":"ReadObject"},{"fields":[{"kind":"string"}],"name":"ReadHead"},{"fields":[{"arguments":[],"kind":"named","member":{"name":"EffectCommit"}}],"name":"Commit"}],"kind":"inductive","name":"EffectOperation","parameters":[],"type_parameters":[]},{"fields":[{"name":"application","type":{"kind":"bytes"}},{"name":"manifest","type":{"kind":"bytes"}},{"name":"session","type":{"kind":"bytes"}},{"name":"operation","type":{"kind":"nat"}},{"name":"resource","type":{"kind":"string"}},{"name":"effect","type":{"arguments":[],"kind":"named","member":{"name":"EffectOperation"}}}],"kind":"structure","name":"EffectRequest","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"InvalidInput"},{"fields":[],"name":"IdentityCorrupt"},{"fields":[],"name":"CryptoUnavailable"},{"fields":[],"name":"HeadConflict"},{"fields":[],"name":"MissingObject"},{"fields":[],"name":"ObjectCorrupt"},{"fields":[],"name":"StoreLimit"},{"fields":[],"name":"StoreClosed"},{"fields":[],"name":"StorageQuota"},{"fields":[],"name":"StorageUnavailable"},{"fields":[],"name":"InvalidGeneratedModule"},{"fields":[],"name":"GeneratedExecutionFailed"},{"fields":[],"name":"InvalidGeneratedOutput"}],"kind":"inductive","name":"EffectFailure","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[{"kind":"bytes"}],"name":"GuestBytes"},{"fields":[{"kind":"bytes"}],"name":"RandomBytes"},{"fields":[{"kind":"string"}],"name":"Digest"},{"fields":[{"kind":"bytes"}],"name":"Signature"},{"fields":[{"kind":"bool"}],"name":"Verification"},{"fields":[{"kind":"option","value":{"kind":"bytes"}}],"name":"Object"},{"fields":[{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"EffectHead"}}}],"name":"Head"},{"fields":[{"kind":"string"}],"name":"Committed"},{"fields":[{"arguments":[],"kind":"named","member":{"name":"EffectFailure"}}],"name":"Rejected"},{"fields":[],"name":"Unknown"}],"kind":"inductive","name":"EffectResult","parameters":[],"type_parameters":[]},{"fields":[{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}},{"name":"result","type":{"arguments":[],"kind":"named","member":{"name":"EffectResult"}}}],"kind":"structure","name":"EffectCompletion","parameters":[],"type_parameters":[]},{"fields":[{"name":"manifest","type":{"arguments":[],"kind":"named","member":{"name":"EffectManifest"}}},{"name":"session","type":{"kind":"bytes"}},{"name":"nextOperation","type":{"kind":"nat"}},{"name":"closed","type":{"kind":"bool"}},{"name":"uncertain","type":{"kind":"bool"}},{"name":"active","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}}},{"name":"waiter","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}}}],"kind":"structure","name":"EffectSession","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"BadManifest"},{"fields":[],"name":"BadSession"},{"fields":[],"name":"Closed"},{"fields":[],"name":"OutcomeUnknown"},{"fields":[],"name":"Busy"},{"fields":[],"name":"OperationExhausted"},{"fields":[],"name":"WrongApplication"},{"fields":[],"name":"WrongManifest"},{"fields":[],"name":"WrongSession"},{"fields":[],"name":"WrongOperation"},{"fields":[],"name":"UnknownResource"},{"fields":[],"name":"InvalidEffect"},{"fields":[],"name":"NoActiveOperation"},{"fields":[],"name":"CompletionMismatch"},{"fields":[],"name":"InvalidResult"}],"kind":"inductive","name":"EffectProtocolError","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["octet"],"body":{"kind":"or","left":{"arguments":[{"kind":"var","name":"octet"},{"kind":"var","name":"value"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"alphabet"},{"kind":"var","name":"value"},{"kind":"add","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"1"}},{"kind":"var","name":"rest"}],"function":{"name":"effectContainsOctet"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"alphabet"},{"kind":"var","name":"offset"}],"kind":"primitive","operation":"index","result":{"kind":"option","value":{"kind":"uint8"}}}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"remaining"}},"kind":"definition","name":"effectContainsOctet","parameters":[{"name":"alphabet","type":{"kind":"bytes"}},{"name":"value","type":{"kind":"uint8"}},{"name":"offset","type":{"kind":"nat"}},{"name":"remaining","type":{"kind":"nat"}}],"recursive_argument":"remaining","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"hex":"4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a303132333435363738392e5f2d","kind":"bytes"},{"kind":"var","name":"value"},{"kind":"nat","value":"0"},{"kind":"nat","value":"65"}],"function":{"name":"effectContainsOctet"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"hex":"4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a303132333435363738392e5f2d2f","kind":"bytes"},{"kind":"var","name":"value"},{"kind":"nat","value":"0"},{"kind":"nat","value":"66"}],"function":{"name":"effectContainsOctet"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"grammar"},"right":{"kind":"nat","value":"1"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"hex":"4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a30313233343536373839","kind":"bytes"},{"kind":"var","name":"value"},{"kind":"nat","value":"0"},{"kind":"nat","value":"62"}],"function":{"name":"effectContainsOctet"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"grammar"},"right":{"kind":"nat","value":"3"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"hex":"30313233343536373839616263646566","kind":"bytes"},{"kind":"var","name":"value"},{"kind":"nat","value":"0"},{"kind":"nat","value":"16"}],"function":{"name":"effectContainsOctet"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"grammar"},"right":{"kind":"nat","value":"2"}}},"kind":"definition","name":"effectOctetAllowed","parameters":[{"name":"value","type":{"kind":"uint8"}},{"name":"grammar","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["octet"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"octet"},{"kind":"var","name":"grammar"}],"function":{"name":"effectOctetAllowed"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"kind":"and","left":{"kind":"beq","left":{"kind":"var","name":"grammar"},"right":{"kind":"nat","value":"1"}},"right":{"kind":"and","left":{"kind":"var","name":"previousDot"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"octet"},{"kind":"integer","representation":"uint8","value":"46"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}}}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"value"},{"kind":"add","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"1"}},{"kind":"var","name":"rest"},{"kind":"var","name":"grammar"},{"arguments":[{"kind":"var","name":"octet"},{"kind":"integer","representation":"uint8","value":"46"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}],"function":{"name":"effectAsciiTail"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"offset"}],"kind":"primitive","operation":"index","result":{"kind":"option","value":{"kind":"uint8"}}}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"remaining"}},"kind":"definition","name":"effectAsciiTail","parameters":[{"name":"value","type":{"kind":"bytes"}},{"name":"offset","type":{"kind":"nat"}},{"name":"remaining","type":{"kind":"nat"}},{"name":"grammar","type":{"kind":"nat"}},{"name":"previousDot","type":{"kind":"bool"}}],"recursive_argument":"remaining","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"128"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["first"],"body":{"arguments":[{"kind":"var","name":"first"},{"kind":"nat","value":"3"}],"function":{"name":"effectOctetAllowed"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"index","result":{"kind":"option","value":{"kind":"uint8"}}}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}},{"kind":"nat","value":"0"},{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"var","name":"grammar"},{"kind":"bool","value":false}],"function":{"name":"effectAsciiTail"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"kind":"definition","name":"effectNameValid","parameters":[{"name":"value","type":{"kind":"string"}},{"name":"grammar","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"71"}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["hashPrefix"],"body":{"arguments":[{"kind":"var","name":"hashPrefix"},{"hex":"7368613235363a","kind":"bytes"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}},{"kind":"nat","value":"0"},{"kind":"nat","value":"7"}],"kind":"primitive","operation":"slice","result":{"kind":"option","value":{"kind":"bytes"}}}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}},{"kind":"nat","value":"7"},{"kind":"nat","value":"64"},{"kind":"nat","value":"2"},{"kind":"bool","value":false}],"function":{"name":"effectAsciiTail"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"kind":"definition","name":"effectDigestValid","parameters":[{"name":"value","type":{"kind":"string"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["digest"],"body":{"arguments":[{"kind":"var","name":"digest"}],"function":{"name":"effectDigestValid"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"value"}},"kind":"definition","name":"effectOptionalDigestValid","parameters":[{"name":"value","type":{"kind":"option","value":{"kind":"string"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"hex":"4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a5f","kind":"bytes"},{"kind":"var","name":"value"},{"kind":"nat","value":"0"},{"kind":"nat","value":"53"}],"function":{"name":"effectContainsOctet"},"kind":"call"},"kind":"definition","name":"effectEntryHeadValid","parameters":[{"name":"value","type":{"kind":"uint8"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"and","left":{"kind":"not","value":{"kind":"var","name":"start"}},"right":{"kind":"and","left":{"kind":"var","name":"qualified"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["octet"],"body":{"branches":[{"binders":[],"body":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"or","left":{"arguments":[{"kind":"var","name":"octet"}],"function":{"name":"effectEntryHeadValid"},"kind":"call"},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"octet"},{"kind":"nat","value":"3"}],"function":{"name":"effectOctetAllowed"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"octet"}],"function":{"name":"effectEntryHeadValid"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"var","name":"start"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"value"},{"kind":"add","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"1"}},{"kind":"var","name":"rest"},{"kind":"bool","value":false},{"kind":"var","name":"qualified"}],"function":{"name":"effectEntryTail"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"and","left":{"kind":"not","value":{"kind":"var","name":"start"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"value"},{"kind":"add","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"1"}},{"kind":"var","name":"rest"},{"kind":"bool","value":true},{"kind":"bool","value":true}],"function":{"name":"effectEntryTail"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"octet"},{"kind":"integer","representation":"uint8","value":"46"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"offset"}],"kind":"primitive","operation":"index","result":{"kind":"option","value":{"kind":"uint8"}}}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"remaining"}},"kind":"definition","name":"effectEntryTail","parameters":[{"name":"value","type":{"kind":"bytes"}},{"name":"offset","type":{"kind":"nat"}},{"name":"remaining","type":{"kind":"nat"}},{"name":"start","type":{"kind":"bool"}},{"name":"qualified","type":{"kind":"bool"}}],"recursive_argument":"remaining","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"512"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}},{"kind":"nat","value":"0"},{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"bool","value":true},{"kind":"bool","value":false}],"function":{"name":"effectEntryTail"},"kind":"call"},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"effectEntryValid","parameters":[{"name":"value","type":{"kind":"string"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"inputMaximum","kind":"project","value":{"kind":"var","name":"limits"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"inputMaximum","kind":"project","value":{"kind":"var","name":"limits"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"outputMaximum","kind":"project","value":{"kind":"var","name":"limits"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"outputMaximum","kind":"project","value":{"kind":"var","name":"limits"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"memoryPages","kind":"project","value":{"kind":"var","name":"limits"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"memoryPages","kind":"project","value":{"kind":"var","name":"limits"}},"right":{"kind":"nat","value":"65536"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"add","left":{"field":"inputMaximum","kind":"project","value":{"kind":"var","name":"limits"}},"right":{"field":"outputMaximum","kind":"project","value":{"kind":"var","name":"limits"}}},"right":{"arguments":[{"field":"memoryPages","kind":"project","value":{"kind":"var","name":"limits"}},{"kind":"nat","value":"65536"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}}},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"effectHostLimitsValid","parameters":[{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"EffectHostLimits"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"artifact","kind":"project","value":{"kind":"var","name":"guest"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}},"right":{"kind":"and","left":{"arguments":[{"field":"entry","kind":"project","value":{"kind":"var","name":"guest"}}],"function":{"name":"effectEntryValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"arguments":[{"field":"protocol","kind":"project","value":{"kind":"var","name":"guest"}}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"arguments":[{"field":"protocol","kind":"project","value":{"kind":"var","name":"guest"}}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"128"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"inputMaximum","kind":"project","value":{"kind":"var","name":"guest"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"inputMaximum","kind":"project","value":{"kind":"var","name":"guest"}},"right":{"field":"inputMaximum","kind":"project","value":{"kind":"var","name":"limits"}}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"outputMaximum","kind":"project","value":{"kind":"var","name":"guest"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"outputMaximum","kind":"project","value":{"kind":"var","name":"guest"}},"right":{"field":"outputMaximum","kind":"project","value":{"kind":"var","name":"limits"}}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"memoryPages","kind":"project","value":{"kind":"var","name":"guest"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"memoryPages","kind":"project","value":{"kind":"var","name":"guest"}},"right":{"field":"memoryPages","kind":"project","value":{"kind":"var","name":"limits"}}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"add","left":{"field":"inputMaximum","kind":"project","value":{"kind":"var","name":"guest"}},"right":{"field":"outputMaximum","kind":"project","value":{"kind":"var","name":"guest"}}},"right":{"arguments":[{"field":"memoryPages","kind":"project","value":{"kind":"var","name":"guest"}},{"kind":"nat","value":"65536"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}}},"right":{"kind":"bool","value":true}}}}}}}},"kind":"definition","name":"effectGuestValid","parameters":[{"name":"guest","type":{"arguments":[],"kind":"named","member":{"name":"EffectGuest"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"EffectHostLimits"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"publicKey","kind":"project","value":{"kind":"var","name":"grant"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"65"}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["first"],"body":{"arguments":[{"kind":"var","name":"first"},{"kind":"integer","representation":"uint8","value":"4"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"publicKey","kind":"project","value":{"kind":"var","name":"grant"}},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"index","result":{"kind":"option","value":{"kind":"uint8"}}}},"right":{"kind":"and","left":{"arguments":[{"field":"context","kind":"project","value":{"kind":"var","name":"grant"}},{"kind":"nat","value":"1"}],"function":{"name":"effectNameValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"kind":"definition","name":"effectSigningGrantValid","parameters":[{"name":"grant","type":{"arguments":[],"kind":"named","member":{"name":"EffectSigningGrant"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"storeNamespace","kind":"project","value":{"kind":"var","name":"grant"}},{"kind":"nat","value":"0"}],"function":{"name":"effectNameValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"maxObjectBytes","kind":"project","value":{"kind":"var","name":"grant"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"maxObjectBytes","kind":"project","value":{"kind":"var","name":"grant"}},"right":{"kind":"nat","value":"1048576"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"maxObjects","kind":"project","value":{"kind":"var","name":"grant"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"maxObjects","kind":"project","value":{"kind":"var","name":"grant"}},"right":{"kind":"nat","value":"4096"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"maxHeads","kind":"project","value":{"kind":"var","name":"grant"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"maxHeads","kind":"project","value":{"kind":"var","name":"grant"}},"right":{"kind":"nat","value":"64"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"effectStorageGrantValid","parameters":[{"name":"grant","type":{"arguments":[],"kind":"named","member":{"name":"EffectStorageGrant"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":["guest"],"body":{"arguments":[{"kind":"var","name":"guest"},{"kind":"var","name":"limits"}],"function":{"name":"effectGuestValid"},"kind":"call"},"constructor":{"name":"EffectAdapter.Guest"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectAdapter.Random"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectAdapter.Digest"}},{"binders":["grant"],"body":{"arguments":[{"kind":"var","name":"grant"}],"function":{"name":"effectSigningGrantValid"},"kind":"call"},"constructor":{"name":"EffectAdapter.Signer"}},{"binders":["grant"],"body":{"arguments":[{"kind":"var","name":"grant"}],"function":{"name":"effectSigningGrantValid"},"kind":"call"},"constructor":{"name":"EffectAdapter.Verifier"}},{"binders":["grant"],"body":{"arguments":[{"kind":"var","name":"grant"}],"function":{"name":"effectStorageGrantValid"},"kind":"call"},"constructor":{"name":"EffectAdapter.Store"}}],"kind":"match","scrutinee":{"kind":"var","name":"adapter"}},"kind":"definition","name":"effectAdapterValid","parameters":[{"name":"adapter","type":{"arguments":[],"kind":"named","member":{"name":"EffectAdapter"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"EffectHostLimits"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"or","left":{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"resource"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"resource"}],"function":{"name":"effectHasResource"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"kind":"definition","name":"effectHasResource","parameters":[{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"name":"EffectGrant"}},"kind":"list"}},{"name":"resource","type":{"kind":"string"}}],"recursive_argument":"grants","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"add","left":{"kind":"nat","value":"1"},"right":{"arguments":[{"kind":"var","name":"tail"}],"function":{"name":"effectGrantCount"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"kind":"definition","name":"effectGrantCount","parameters":[{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"name":"EffectGrant"}},"kind":"list"}}],"recursive_argument":"grants","result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"128"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"tail"},{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}}],"function":{"name":"effectHasResource"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"field":"adapter","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"limits"}],"function":{"name":"effectAdapterValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"limits"}],"function":{"name":"effectGrantsValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"kind":"definition","name":"effectGrantsValid","parameters":[{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"name":"EffectGrant"}},"kind":"list"}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"EffectHostLimits"}}}],"recursive_argument":"grants","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"manifest"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}},"right":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"manifest","kind":"project","value":{"kind":"var","name":"manifest"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}},"right":{"kind":"and","left":{"arguments":[{"field":"limits","kind":"project","value":{"kind":"var","name":"manifest"}}],"function":{"name":"effectHostLimitsValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"field":"grants","kind":"project","value":{"kind":"var","name":"manifest"}}],"function":{"name":"effectGrantCount"},"kind":"call"}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"grants","kind":"project","value":{"kind":"var","name":"manifest"}}],"function":{"name":"effectGrantCount"},"kind":"call"},"right":{"kind":"nat","value":"64"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"arguments":[{"field":"grants","kind":"project","value":{"kind":"var","name":"manifest"}},{"field":"limits","kind":"project","value":{"kind":"var","name":"manifest"}}],"function":{"name":"effectGrantsValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}},"kind":"definition","name":"effectManifestValid","parameters":[{"name":"manifest","type":{"arguments":[],"kind":"named","member":{"name":"EffectManifest"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectAdapter"}}]},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"resource"}],"function":{"name":"effectFindAdapter"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"field":"adapter","kind":"project","value":{"kind":"var","name":"head"}}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectAdapter"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"resource"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"kind":"definition","name":"effectFindAdapter","parameters":[{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"name":"EffectGrant"}},"kind":"list"}},{"name":"resource","type":{"kind":"string"}}],"recursive_argument":"grants","result":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"EffectAdapter"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"add","left":{"kind":"nat","value":"1"},"right":{"arguments":[{"kind":"var","name":"tail"}],"function":{"name":"effectObjectsCount"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"objects"}},"kind":"definition","name":"effectObjectsCount","parameters":[{"name":"objects","type":{"element":{"kind":"bytes"},"kind":"list"}}],"recursive_argument":"objects","result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"or","left":{"arguments":[{"kind":"var","name":"head"},{"kind":"var","name":"value"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"value"}],"function":{"name":"effectHasBytes"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"objects"}},"kind":"definition","name":"effectHasBytes","parameters":[{"name":"objects","type":{"element":{"kind":"bytes"},"kind":"list"}},{"name":"value","type":{"kind":"bytes"}}],"recursive_argument":"objects","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"head"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"maximum"}},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"head"}],"function":{"name":"effectHasBytes"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"maximum"}],"function":{"name":"effectObjectsValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"objects"}},"kind":"definition","name":"effectObjectsValid","parameters":[{"name":"objects","type":{"element":{"kind":"bytes"},"kind":"list"}},{"name":"maximum","type":{"kind":"nat"}}],"recursive_argument":"objects","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["rightHead","rightTail"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"head"},{"kind":"var","name":"rightHead"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"rightTail"}],"function":{"name":"effectObjectsEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"kind":"definition","name":"effectObjectsEqual","parameters":[{"name":"left","type":{"element":{"kind":"bytes"},"kind":"list"}},{"name":"right","type":{"element":{"kind":"bytes"},"kind":"list"}}],"recursive_argument":"left","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["unused"],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"Option.none"}},{"binders":["leftValue"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["rightValue"],"body":{"arguments":[{"kind":"var","name":"leftValue"},{"kind":"var","name":"rightValue"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"kind":"definition","name":"effectOptionalDigestEqual","parameters":[{"name":"left","type":{"kind":"option","value":{"kind":"string"}}},{"name":"right","type":{"kind":"option","value":{"kind":"string"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"head","kind":"project","value":{"kind":"var","name":"commit"}},{"kind":"nat","value":"0"}],"function":{"name":"effectNameValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"expected","kind":"project","value":{"kind":"var","name":"commit"}}],"function":{"name":"effectOptionalDigestValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"next","kind":"project","value":{"kind":"var","name":"commit"}}],"function":{"name":"effectDigestValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"field":"objects","kind":"project","value":{"kind":"var","name":"commit"}}],"function":{"name":"effectObjectsCount"},"kind":"call"}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"objects","kind":"project","value":{"kind":"var","name":"commit"}}],"function":{"name":"effectObjectsCount"},"kind":"call"},"right":{"kind":"nat","value":"16"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"arguments":[{"field":"objects","kind":"project","value":{"kind":"var","name":"commit"}},{"field":"maxObjectBytes","kind":"project","value":{"kind":"var","name":"grant"}}],"function":{"name":"effectObjectsValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}},"kind":"definition","name":"effectCommitValid","parameters":[{"name":"commit","type":{"arguments":[],"kind":"named","member":{"name":"EffectCommit"}}},{"name":"grant","type":{"arguments":[],"kind":"named","member":{"name":"EffectStorageGrant"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":["guest"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"and","left":{"arguments":[{"field":"artifact","kind":"project","value":{"kind":"var","name":"invocation"}},{"field":"artifact","kind":"project","value":{"kind":"var","name":"guest"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"entry","kind":"project","value":{"kind":"var","name":"invocation"}},{"field":"entry","kind":"project","value":{"kind":"var","name":"guest"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"protocol","kind":"project","value":{"kind":"var","name":"invocation"}},{"field":"protocol","kind":"project","value":{"kind":"var","name":"guest"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"input","kind":"project","value":{"kind":"var","name":"invocation"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"field":"inputMaximum","kind":"project","value":{"kind":"var","name":"guest"}}},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"effect"}},"constructor":{"name":"EffectAdapter.Guest"}},{"binders":[],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"kind":"var","name":"length"}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"var","name":"length"},"right":{"kind":"nat","value":"65536"}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"effect"}},"constructor":{"name":"EffectAdapter.Random"}},{"binders":[],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"1048576"}},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"effect"}},"constructor":{"name":"EffectAdapter.Digest"}},{"binders":["grant"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"1048576"}},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"effect"}},"constructor":{"name":"EffectAdapter.Signer"}},{"binders":["grant"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"value","kind":"project","value":{"kind":"var","name":"verification"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"1048576"}},"right":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"signature","kind":"project","value":{"kind":"var","name":"verification"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"64"}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"effect"}},"constructor":{"name":"EffectAdapter.Verifier"}},{"binders":["grant"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"arguments":[{"kind":"var","name":"id"}],"function":{"name":"effectDigestValid"},"kind":"call"},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"arguments":[{"kind":"var","name":"headName"},{"kind":"nat","value":"0"}],"function":{"name":"effectNameValid"},"kind":"call"},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"arguments":[{"kind":"var","name":"commit"},{"kind":"var","name":"grant"}],"function":{"name":"effectCommitValid"},"kind":"call"},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"effect"}},"constructor":{"name":"EffectAdapter.Store"}}],"kind":"match","scrutinee":{"kind":"var","name":"adapter"}},"kind":"definition","name":"effectOperationValid","parameters":[{"name":"effect","type":{"arguments":[],"kind":"named","member":{"name":"EffectOperation"}}},{"name":"adapter","type":{"arguments":[],"kind":"named","member":{"name":"EffectAdapter"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":["invocation"],"body":{"branches":[{"binders":["other"],"body":{"kind":"and","left":{"arguments":[{"field":"artifact","kind":"project","value":{"kind":"var","name":"invocation"}},{"field":"artifact","kind":"project","value":{"kind":"var","name":"other"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"entry","kind":"project","value":{"kind":"var","name":"invocation"}},{"field":"entry","kind":"project","value":{"kind":"var","name":"other"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"protocol","kind":"project","value":{"kind":"var","name":"invocation"}},{"field":"protocol","kind":"project","value":{"kind":"var","name":"other"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"input","kind":"project","value":{"kind":"var","name":"invocation"}},{"field":"input","kind":"project","value":{"kind":"var","name":"other"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"branches":[{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["other"],"body":{"kind":"beq","left":{"kind":"var","name":"length"},"right":{"kind":"var","name":"other"}},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"branches":[{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["other"],"body":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"other"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"branches":[{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["other"],"body":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"other"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"branches":[{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["other"],"body":{"kind":"and","left":{"arguments":[{"field":"value","kind":"project","value":{"kind":"var","name":"verification"}},{"field":"value","kind":"project","value":{"kind":"var","name":"other"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"signature","kind":"project","value":{"kind":"var","name":"verification"}},{"field":"signature","kind":"project","value":{"kind":"var","name":"other"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"branches":[{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["other"],"body":{"arguments":[{"kind":"var","name":"id"},{"kind":"var","name":"other"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"branches":[{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["other"],"body":{"arguments":[{"kind":"var","name":"headName"},{"kind":"var","name":"other"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"branches":[{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["other"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["other"],"body":{"kind":"and","left":{"arguments":[{"field":"head","kind":"project","value":{"kind":"var","name":"commit"}},{"field":"head","kind":"project","value":{"kind":"var","name":"other"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"expected","kind":"project","value":{"kind":"var","name":"commit"}},{"field":"expected","kind":"project","value":{"kind":"var","name":"other"}}],"function":{"name":"effectOptionalDigestEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"next","kind":"project","value":{"kind":"var","name":"commit"}},{"field":"next","kind":"project","value":{"kind":"var","name":"other"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"objects","kind":"project","value":{"kind":"var","name":"commit"}},{"field":"objects","kind":"project","value":{"kind":"var","name":"other"}}],"function":{"name":"effectObjectsEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"kind":"definition","name":"effectOperationEqual","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"EffectOperation"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"EffectOperation"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"left"}},{"field":"application","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"manifest","kind":"project","value":{"kind":"var","name":"left"}},{"field":"manifest","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"session","kind":"project","value":{"kind":"var","name":"left"}},{"field":"session","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"operation","kind":"project","value":{"kind":"var","name":"left"}},"right":{"field":"operation","kind":"project","value":{"kind":"var","name":"right"}}},"right":{"kind":"and","left":{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"left"}},{"field":"resource","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"effect","kind":"project","value":{"kind":"var","name":"left"}},{"field":"effect","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"effectOperationEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}},"kind":"definition","name":"effectRequestEqual","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"request"}},{"field":"application","kind":"project","value":{"kind":"var","name":"manifest"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"manifest","kind":"project","value":{"kind":"var","name":"request"}},{"field":"manifest","kind":"project","value":{"kind":"var","name":"manifest"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"session","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"var","name":"session"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"blt","left":{"field":"operation","kind":"project","value":{"kind":"var","name":"request"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["adapter"],"body":{"arguments":[{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"var","name":"adapter"}],"function":{"name":"effectOperationValid"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"grants","kind":"project","value":{"kind":"var","name":"manifest"}},{"field":"resource","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"effectFindAdapter"},"kind":"call"}},"right":{"kind":"bool","value":true}}}}}},"kind":"definition","name":"effectRequestValid","parameters":[{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}},{"name":"manifest","type":{"arguments":[],"kind":"named","member":{"name":"EffectManifest"}}},{"name":"session","type":{"kind":"bytes"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"effectManifestValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"and","left":{"kind":"not","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["waiter"],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Option.none"}},{"binders":["active"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"active"},{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}},{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"effectRequestValid"},"kind":"call"},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"beq","left":{"kind":"add","left":{"field":"operation","kind":"project","value":{"kind":"var","name":"active"}},"right":{"kind":"nat","value":"1"}},"right":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},"constructor":{"name":"Option.none"}},{"binders":["waiter"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"waiter"},{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}},{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"effectRequestValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"beq","left":{"kind":"add","left":{"field":"operation","kind":"project","value":{"kind":"var","name":"active"}},"right":{"kind":"nat","value":"1"}},"right":{"field":"operation","kind":"project","value":{"kind":"var","name":"waiter"}}},"right":{"kind":"and","left":{"kind":"beq","left":{"kind":"add","left":{"field":"operation","kind":"project","value":{"kind":"var","name":"waiter"}},"right":{"kind":"nat","value":"1"}},"right":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"active","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"effectSessionValid","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"EffectSession"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":["invocation"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidInput"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.IdentityCorrupt"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.CryptoUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.HeadConflict"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.MissingObject"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.ObjectCorrupt"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreLimit"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreClosed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageQuota"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageUnavailable"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.InvalidGeneratedModule"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.GeneratedExecutionFailed"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.InvalidGeneratedOutput"}}],"kind":"match","scrutinee":{"kind":"var","name":"failure"}},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.InvalidInput"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.IdentityCorrupt"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.CryptoUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.HeadConflict"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.MissingObject"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.ObjectCorrupt"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreLimit"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreClosed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageQuota"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedModule"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.GeneratedExecutionFailed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedOutput"}}],"kind":"match","scrutinee":{"kind":"var","name":"failure"}},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.InvalidInput"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.IdentityCorrupt"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.CryptoUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.HeadConflict"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.MissingObject"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.ObjectCorrupt"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreLimit"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreClosed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageQuota"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedModule"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.GeneratedExecutionFailed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedOutput"}}],"kind":"match","scrutinee":{"kind":"var","name":"failure"}},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.InvalidInput"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.IdentityCorrupt"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.CryptoUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.HeadConflict"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.MissingObject"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.ObjectCorrupt"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreLimit"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreClosed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageQuota"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedModule"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.GeneratedExecutionFailed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedOutput"}}],"kind":"match","scrutinee":{"kind":"var","name":"failure"}},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.InvalidInput"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.IdentityCorrupt"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.CryptoUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.HeadConflict"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.MissingObject"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.ObjectCorrupt"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreLimit"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreClosed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageQuota"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedModule"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.GeneratedExecutionFailed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedOutput"}}],"kind":"match","scrutinee":{"kind":"var","name":"failure"}},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.InvalidInput"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.IdentityCorrupt"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.CryptoUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.HeadConflict"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.MissingObject"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.ObjectCorrupt"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreLimit"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.StoreClosed"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.StorageQuota"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.StorageUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedModule"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.GeneratedExecutionFailed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedOutput"}}],"kind":"match","scrutinee":{"kind":"var","name":"failure"}},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.InvalidInput"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.IdentityCorrupt"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.CryptoUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.HeadConflict"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.MissingObject"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.ObjectCorrupt"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StoreLimit"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.StoreClosed"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.StorageQuota"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.StorageUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedModule"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.GeneratedExecutionFailed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedOutput"}}],"kind":"match","scrutinee":{"kind":"var","name":"failure"}},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.InvalidInput"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.IdentityCorrupt"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.CryptoUnavailable"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.HeadConflict"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.MissingObject"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.ObjectCorrupt"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.StoreLimit"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.StoreClosed"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectFailure.StorageQuota"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.StorageUnavailable"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedModule"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.GeneratedExecutionFailed"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectFailure.InvalidGeneratedOutput"}}],"kind":"match","scrutinee":{"kind":"var","name":"failure"}},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"effect"}},"kind":"definition","name":"effectFailureValid","parameters":[{"name":"failure","type":{"arguments":[],"kind":"named","member":{"name":"EffectFailure"}}},{"name":"effect","type":{"arguments":[],"kind":"named","member":{"name":"EffectOperation"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":["bytes"],"body":{"branches":[{"binders":["guest"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"bytes"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"field":"outputMaximum","kind":"project","value":{"kind":"var","name":"guest"}}},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}}},"constructor":{"name":"EffectAdapter.Guest"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Random"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Digest"}},{"binders":["unused"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Signer"}},{"binders":["unused"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Verifier"}},{"binders":["unused"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Store"}}],"kind":"match","scrutinee":{"kind":"var","name":"adapter"}},"constructor":{"name":"EffectResult.GuestBytes"}},{"binders":["bytes"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"bytes"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"length"}},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}}},"constructor":{"name":"EffectResult.RandomBytes"}},{"binders":["digest"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"arguments":[{"kind":"var","name":"digest"}],"function":{"name":"effectDigestValid"},"kind":"call"},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}}},"constructor":{"name":"EffectResult.Digest"}},{"binders":["signature"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"signature"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"64"}},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}}},"constructor":{"name":"EffectResult.Signature"}},{"binders":["valid"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}}},"constructor":{"name":"EffectResult.Verification"}},{"binders":["object"],"body":{"branches":[{"binders":["unused"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Guest"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Random"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Digest"}},{"binders":["unused"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Signer"}},{"binders":["unused"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Verifier"}},{"binders":["grant"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["bytes"],"body":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"bytes"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"field":"maxObjectBytes","kind":"project","value":{"kind":"var","name":"grant"}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"object"}},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}}},"constructor":{"name":"EffectAdapter.Store"}}],"kind":"match","scrutinee":{"kind":"var","name":"adapter"}},"constructor":{"name":"EffectResult.Object"}},{"binders":["head"],"body":{"branches":[{"binders":["unused"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Guest"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Random"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Digest"}},{"binders":["unused"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Signer"}},{"binders":["unused"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectAdapter.Verifier"}},{"binders":["grant"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["actualHead"],"body":{"kind":"and","left":{"arguments":[{"field":"id","kind":"project","value":{"kind":"var","name":"actualHead"}}],"function":{"name":"effectDigestValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"actualHead"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"field":"maxObjectBytes","kind":"project","value":{"kind":"var","name":"grant"}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"head"}},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}}},"constructor":{"name":"EffectAdapter.Store"}}],"kind":"match","scrutinee":{"kind":"var","name":"adapter"}},"constructor":{"name":"EffectResult.Head"}},{"binders":["digest"],"body":{"branches":[{"binders":["invocation"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.InvokeGuest"}},{"binders":["length"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.RandomBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.DigestBytes"}},{"binders":["value"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.SignBytes"}},{"binders":["verification"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.VerifyBytes"}},{"binders":["id"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadObject"}},{"binders":["headName"],"body":{"kind":"bool","value":false},"constructor":{"name":"EffectOperation.ReadHead"}},{"binders":["commit"],"body":{"arguments":[{"kind":"var","name":"digest"},{"field":"next","kind":"project","value":{"kind":"var","name":"commit"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}}},"constructor":{"name":"EffectResult.Committed"}},{"binders":["failure"],"body":{"arguments":[{"kind":"var","name":"failure"},{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"effectFailureValid"},"kind":"call"},"constructor":{"name":"EffectResult.Rejected"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"EffectResult.Unknown"}}],"kind":"match","scrutinee":{"kind":"var","name":"result"}},"kind":"definition","name":"effectResultValid","parameters":[{"name":"result","type":{"arguments":[],"kind":"named","member":{"name":"EffectResult"}}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}},{"name":"adapter","type":{"arguments":[],"kind":"named","member":{"name":"EffectAdapter"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.BadManifest"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.BadSession"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"kind":"var","name":"manifest"}},{"field":"session","value":{"kind":"var","name":"session"}},{"field":"nextOperation","value":{"kind":"nat","value":"0"}},{"field":"closed","value":{"kind":"bool","value":false}},{"field":"uncertain","value":{"kind":"bool","value":false}},{"field":"active","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}},{"field":"waiter","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"session"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"manifest"}],"function":{"name":"effectManifestValid"},"kind":"call"}},"kind":"definition","name":"beginEffectSession","parameters":[{"name":"manifest","type":{"arguments":[],"kind":"named","member":{"name":"EffectManifest"}}},{"name":"session","type":{"kind":"bytes"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"EffectSession"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.BadSession"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.Closed"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.OutcomeUnknown"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.Busy"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.OperationExhausted"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.WrongApplication"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.WrongManifest"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.WrongSession"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.WrongOperation"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.UnknownResource"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Option.none"}},{"binders":["adapter"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.InvalidEffect"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"kind":"add","left":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"1"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"arguments":[{"kind":"var","name":"request"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}},{"field":"waiter","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Option.none"}},{"binders":["active"],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"kind":"add","left":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"1"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"active","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"arguments":[{"kind":"var","name":"request"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"active","kind":"project","value":{"kind":"var","name":"state"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"var","name":"adapter"}],"function":{"name":"effectOperationValid"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"grants","kind":"project","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"resource","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"effectFindAdapter"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"operation","kind":"project","value":{"kind":"var","name":"request"}},"right":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"session","kind":"project","value":{"kind":"var","name":"request"}},{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"manifest","kind":"project","value":{"kind":"var","name":"request"}},{"field":"manifest","kind":"project","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"request"}},{"field":"application","kind":"project","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["waiter"],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"not","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"not","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"effectSessionValid"},"kind":"call"}},"kind":"definition","name":"admitEffect","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"EffectSession"}}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"EffectSession"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.BadSession"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.Closed"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.OutcomeUnknown"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.NoActiveOperation"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Option.none"}},{"binders":["active"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.CompletionMismatch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.UnknownResource"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Option.none"}},{"binders":["adapter"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.InvalidResult"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":["bytes"],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"EffectResult.GuestBytes"}},{"binders":["bytes"],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"EffectResult.RandomBytes"}},{"binders":["digest"],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"EffectResult.Digest"}},{"binders":["signature"],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"EffectResult.Signature"}},{"binders":["valid"],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"EffectResult.Verification"}},{"binders":["object"],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"EffectResult.Object"}},{"binders":["head"],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"EffectResult.Head"}},{"binders":["digest"],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"EffectResult.Committed"}},{"binders":["failure"],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectRequest"}}]}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"EffectResult.Rejected"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"uncertain","value":{"kind":"bool","value":true}},{"field":"active","value":{"field":"active","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"EffectResult.Unknown"}}],"kind":"match","scrutinee":{"field":"result","kind":"project","value":{"kind":"var","name":"completion"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"result","kind":"project","value":{"kind":"var","name":"completion"}},{"kind":"var","name":"active"},{"kind":"var","name":"adapter"}],"function":{"name":"effectResultValid"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"grants","kind":"project","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"resource","kind":"project","value":{"kind":"var","name":"active"}}],"function":{"name":"effectFindAdapter"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"active"},{"field":"request","kind":"project","value":{"kind":"var","name":"completion"}}],"function":{"name":"effectRequestEqual"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"active","kind":"project","value":{"kind":"var","name":"state"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"not","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"not","value":{"field":"closed","kind":"project","value":{"kind":"var","name":"state"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"effectSessionValid"},"kind":"call"}},"kind":"definition","name":"completeEffect","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"EffectSession"}}},{"name":"completion","type":{"arguments":[],"kind":"named","member":{"name":"EffectCompletion"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"EffectSession"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"EffectProtocolError.BadSession"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"manifest","value":{"field":"manifest","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"session","value":{"field":"session","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"closed","value":{"kind":"bool","value":true}},{"field":"uncertain","value":{"field":"uncertain","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"active","value":{"field":"active","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"waiter","value":{"field":"waiter","kind":"project","value":{"kind":"var","name":"state"}}}],"kind":"record","type":{"name":"EffectSession"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"EffectSession"}},{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"effectSessionValid"},"kind":"call"}},"kind":"definition","name":"closeEffectSession","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"EffectSession"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"EffectProtocolError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"EffectSession"}}}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: EffectHostLimits,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: inputMaximum, type: Nat},
+    {name: outputMaximum, type: Nat},
+    {name: memoryPages, type: Nat}
+  ]
+}
+
+structure{
+  name: EffectGuest,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: artifact, type: Bytes},
+    {name: entry, type: String},
+    {name: protocol, type: String},
+    {name: inputMaximum, type: Nat},
+    {name: outputMaximum, type: Nat},
+    {name: memoryPages, type: Nat}
+  ]
+}
+
+structure{
+  name: EffectSigningGrant,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: publicKey, type: Bytes}, {name: context, type: String}]
+}
+
+structure{
+  name: EffectStorageGrant,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: storeNamespace, type: String},
+    {name: maxObjectBytes, type: Nat},
+    {name: maxObjects, type: Nat},
+    {name: maxHeads, type: Nat}
+  ]
+}
+
+inductive{
+  name: EffectAdapter,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Guest, fields: [EffectGuest]},
+    {name: Random, fields: []},
+    {name: Digest, fields: []},
+    {name: Signer, fields: [EffectSigningGrant]},
+    {name: Verifier, fields: [EffectSigningGrant]},
+    {name: Store, fields: [EffectStorageGrant]}
+  ]
+}
+
+structure{
+  name: EffectGrant,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: resource, type: String}, {name: adapter, type: EffectAdapter}]
+}
+
+structure{
+  name: EffectManifest,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: application, type: Bytes},
+    {name: manifest, type: Bytes},
+    {name: limits, type: EffectHostLimits},
+    {name: grants, type: (List EffectGrant)}
+  ]
+}
+
+structure{
+  name: EffectGuestInvocation,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: artifact, type: Bytes},
+    {name: entry, type: String},
+    {name: protocol, type: String},
+    {name: input, type: Bytes}
+  ]
+}
+
+structure{
+  name: EffectVerification,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: value, type: Bytes}, {name: signature, type: Bytes}]
+}
+
+structure{
+  name: EffectCommit,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: head, type: String},
+    {name: expected, type: (Option String)},
+    {name: next, type: String},
+    {name: objects, type: (List Bytes)}
+  ]
+}
+
+structure{
+  name: EffectHead,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: bytes, type: Bytes}]
+}
+
+inductive{
+  name: EffectOperation,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: InvokeGuest, fields: [EffectGuestInvocation]},
+    {name: RandomBytes, fields: [Nat]},
+    {name: DigestBytes, fields: [Bytes]},
+    {name: SignBytes, fields: [Bytes]},
+    {name: VerifyBytes, fields: [EffectVerification]},
+    {name: ReadObject, fields: [String]},
+    {name: ReadHead, fields: [String]},
+    {name: Commit, fields: [EffectCommit]}
+  ]
+}
+
+structure{
+  name: EffectRequest,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: application, type: Bytes},
+    {name: manifest, type: Bytes},
+    {name: session, type: Bytes},
+    {name: operation, type: Nat},
+    {name: resource, type: String},
+    {name: effect, type: EffectOperation}
+  ]
+}
+
+inductive{
+  name: EffectFailure,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: InvalidInput, fields: []},
+    {name: IdentityCorrupt, fields: []},
+    {name: CryptoUnavailable, fields: []},
+    {name: HeadConflict, fields: []},
+    {name: MissingObject, fields: []},
+    {name: ObjectCorrupt, fields: []},
+    {name: StoreLimit, fields: []},
+    {name: StoreClosed, fields: []},
+    {name: StorageQuota, fields: []},
+    {name: StorageUnavailable, fields: []},
+    {name: InvalidGeneratedModule, fields: []},
+    {name: GeneratedExecutionFailed, fields: []},
+    {name: InvalidGeneratedOutput, fields: []}
+  ]
+}
+
+inductive{
+  name: EffectResult,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: GuestBytes, fields: [Bytes]},
+    {name: RandomBytes, fields: [Bytes]},
+    {name: Digest, fields: [String]},
+    {name: Signature, fields: [Bytes]},
+    {name: Verification, fields: [Bool]},
+    {name: Object, fields: [(Option Bytes)]},
+    {name: Head, fields: [(Option EffectHead)]},
+    {name: Committed, fields: [String]},
+    {name: Rejected, fields: [EffectFailure]},
+    {name: Unknown, fields: []}
+  ]
+}
+
+structure{
+  name: EffectCompletion,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: request, type: EffectRequest}, {name: result, type: EffectResult}]
+}
+
+structure{
+  name: EffectSession,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: manifest, type: EffectManifest},
+    {name: session, type: Bytes},
+    {name: nextOperation, type: Nat},
+    {name: closed, type: Bool},
+    {name: uncertain, type: Bool},
+    {name: active, type: (Option EffectRequest)},
+    {name: waiter, type: (Option EffectRequest)}
+  ]
+}
+
+inductive{
+  name: EffectProtocolError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BadManifest, fields: []},
+    {name: BadSession, fields: []},
+    {name: Closed, fields: []},
+    {name: OutcomeUnknown, fields: []},
+    {name: Busy, fields: []},
+    {name: OperationExhausted, fields: []},
+    {name: WrongApplication, fields: []},
+    {name: WrongManifest, fields: []},
+    {name: WrongSession, fields: []},
+    {name: WrongOperation, fields: []},
+    {name: UnknownResource, fields: []},
+    {name: InvalidEffect, fields: []},
+    {name: NoActiveOperation, fields: []},
+    {name: CompletionMismatch, fields: []},
+    {name: InvalidResult, fields: []}
+  ]
+}
+
+definition{
+  name: effectContainsOctet,
+  parameters: [alphabet : Bytes, value : UInt8, offset : Nat, remaining : Nat],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => false
+    | Nat.succ rest => (match (prim index alphabet offset : (Option UInt8))
+      | Option.none => false
+      | Option.some octet => ((prim equal octet value : Bool) || ((effectContainsOctet alphabet value (offset + 1) rest) || false)))),
+  axioms: [],
+  recursive_argument: remaining
+}
+
+definition{
+  name: effectOctetAllowed,
+  parameters: [value : UInt8, grammar : Nat],
+  result: Bool,
+  body: (match (grammar =? 2)
+    | Bool.false => (match (grammar =? 3)
+      | Bool.false => (match (grammar =? 1)
+        | Bool.false => (effectContainsOctet 0x4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a303132333435363738392e5f2d value 0 65)
+        | Bool.true => (effectContainsOctet 0x4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a303132333435363738392e5f2d2f value 0 66))
+      | Bool.true => (effectContainsOctet 0x4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a30313233343536373839 value 0 62))
+    | Bool.true => (effectContainsOctet 0x30313233343536373839616263646566 value 0 16)),
+  axioms: []
+}
+
+definition{
+  name: effectAsciiTail,
+  parameters: [value : Bytes, offset : Nat, remaining : Nat, grammar : Nat, previousDot : Bool],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => true
+    | Nat.succ rest => (match (prim index value offset : (Option UInt8))
+      | Option.none => false
+      | Option.some octet => ((effectOctetAllowed octet grammar) && ((not ((grammar =? 1) && (previousDot && ((prim equal octet (46 : UInt8) : Bool) && true)))) && ((effectAsciiTail value (offset + 1) rest grammar (prim equal octet (46 : UInt8) : Bool)) && true))))),
+  axioms: [],
+  recursive_argument: remaining
+}
+
+definition{
+  name: effectNameValid,
+  parameters: [value : String, grammar : Nat],
+  result: Bool,
+  body: (((0 <? (prim length (prim utf8_encode value : Bytes) : Nat)) && (((prim length (prim utf8_encode value : Bytes) : Nat) <=? 128) && true)) && ((match (prim index (prim utf8_encode value : Bytes) 0 : (Option UInt8))
+    | Option.none => false
+    | Option.some firstByte => (effectOctetAllowed firstByte 3)) && ((effectAsciiTail (prim utf8_encode value : Bytes) 0 (prim length (prim utf8_encode value : Bytes) : Nat) grammar false) && true))),
+  axioms: []
+}
+
+definition{
+  name: effectDigestValid,
+  parameters: [value : String],
+  result: Bool,
+  body: (((prim length (prim utf8_encode value : Bytes) : Nat) =? 71) && ((match (prim slice (prim utf8_encode value : Bytes) 0 7 : (Option Bytes))
+    | Option.none => false
+    | Option.some hashPrefix => (prim equal hashPrefix 0x7368613235363a : Bool)) && ((effectAsciiTail (prim utf8_encode value : Bytes) 7 64 2 false) && true))),
+  axioms: []
+}
+
+definition{
+  name: effectOptionalDigestValid,
+  parameters: [value : (Option String)],
+  result: Bool,
+  body: (match value | Option.none => true | Option.some digest => (effectDigestValid digest)),
+  axioms: []
+}
+
+definition{
+  name: effectEntryHeadValid,
+  parameters: [value : UInt8],
+  result: Bool,
+  body: (effectContainsOctet 0x4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a5f value 0 53),
+  axioms: []
+}
+
+definition{
+  name: effectEntryTail,
+  parameters: [value : Bytes, offset : Nat, remaining : Nat, start : Bool, qualified : Bool],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => ((not start) && (qualified && true))
+    | Nat.succ rest => (match (prim index value offset : (Option UInt8))
+      | Option.none => false
+      | Option.some octet => (match (prim equal octet (46 : UInt8) : Bool)
+        | Bool.false => ((match start
+          | Bool.false => ((effectEntryHeadValid octet) || ((effectOctetAllowed octet 3) || false))
+          | Bool.true => (effectEntryHeadValid octet)) && ((effectEntryTail value (offset + 1) rest false qualified) && true))
+        | Bool.true => ((not start) && ((effectEntryTail value (offset + 1) rest true true) && true))))),
+  axioms: [],
+  recursive_argument: remaining
+}
+
+definition{
+  name: effectEntryValid,
+  parameters: [value : String],
+  result: Bool,
+  body: (((0 <? (prim length (prim utf8_encode value : Bytes) : Nat)) && (((prim length (prim utf8_encode value : Bytes) : Nat) <=? 512) && true)) && ((effectEntryTail (prim utf8_encode value : Bytes) 0 (prim length (prim utf8_encode value : Bytes) : Nat) true false) && true)),
+  axioms: []
+}
+
+definition{
+  name: effectHostLimitsValid,
+  parameters: [limits : EffectHostLimits],
+  result: Bool,
+  body: (((0 <? (project limits inputMaximum)) && (((project limits inputMaximum) <=? 4294967295) && true)) && (((0 <? (project limits outputMaximum)) && (((project limits outputMaximum) <=? 4294967295) && true)) && (((0 <? (project limits memoryPages)) && (((project limits memoryPages) <=? 65536) && true)) && ((((project limits inputMaximum) + (project limits outputMaximum)) <=? (prim multiply (project limits memoryPages) 65536 : Nat)) && true)))),
+  axioms: []
+}
+
+definition{
+  name: effectGuestValid,
+  parameters: [guest : EffectGuest, limits : EffectHostLimits],
+  result: Bool,
+  body: (((prim length (project guest artifact) : Nat) =? 32) && ((effectEntryValid (project guest entry)) && (((0 <? (prim length (prim utf8_encode (project guest protocol) : Bytes) : Nat)) && (((prim length (prim utf8_encode (project guest protocol) : Bytes) : Nat) <=? 128) && true)) && (((0 <? (project guest inputMaximum)) && (((project guest inputMaximum) <=? (project limits inputMaximum)) && true)) && (((0 <? (project guest outputMaximum)) && (((project guest outputMaximum) <=? (project limits outputMaximum)) && true)) && (((0 <? (project guest memoryPages)) && (((project guest memoryPages) <=? (project limits memoryPages)) && true)) && ((((project guest inputMaximum) + (project guest outputMaximum)) <=? (prim multiply (project guest memoryPages) 65536 : Nat)) && true))))))),
+  axioms: []
+}
+
+definition{
+  name: effectSigningGrantValid,
+  parameters: [grant : EffectSigningGrant],
+  result: Bool,
+  body: (((prim length (project grant publicKey) : Nat) =? 65) && ((match (prim index (project grant publicKey) 0 : (Option UInt8))
+    | Option.none => false
+    | Option.some firstByte => (prim equal firstByte (4 : UInt8) : Bool)) && ((effectNameValid (project grant context) 1) && true))),
+  axioms: []
+}
+
+definition{
+  name: effectStorageGrantValid,
+  parameters: [grant : EffectStorageGrant],
+  result: Bool,
+  body: ((effectNameValid (project grant storeNamespace) 0) && (((0 <? (project grant maxObjectBytes)) && (((project grant maxObjectBytes) <=? 1048576) && true)) && (((0 <? (project grant maxObjects)) && (((project grant maxObjects) <=? 4096) && true)) && (((0 <? (project grant maxHeads)) && (((project grant maxHeads) <=? 64) && true)) && true)))),
+  axioms: []
+}
+
+definition{
+  name: effectAdapterValid,
+  parameters: [adapter : EffectAdapter, limits : EffectHostLimits],
+  result: Bool,
+  body: (match adapter
+    | EffectAdapter.Guest guest => (effectGuestValid guest limits)
+    | EffectAdapter.Random => true
+    | EffectAdapter.Digest => true
+    | EffectAdapter.Signer grant => (effectSigningGrantValid grant)
+    | EffectAdapter.Verifier grant => (effectSigningGrantValid grant)
+    | EffectAdapter.Store grant => (effectStorageGrantValid grant)),
+  axioms: []
+}
+
+definition{
+  name: effectHasResource,
+  parameters: [grants : (List EffectGrant), resource : String],
+  result: Bool,
+  body: (match grants
+    | List.nil => false
+    | List.cons head tail => ((prim equal (project head resource) resource : Bool) || ((effectHasResource tail resource) || false))),
+  axioms: [],
+  recursive_argument: grants
+}
+
+definition{
+  name: effectGrantCount,
+  parameters: [grants : (List EffectGrant)],
+  result: Nat,
+  body: (match grants | List.nil => 0 | List.cons head tail => (1 + (effectGrantCount tail))),
+  axioms: [],
+  recursive_argument: grants
+}
+
+definition{
+  name: effectGrantsValid,
+  parameters: [grants : (List EffectGrant), limits : EffectHostLimits],
+  result: Bool,
+  body: (match grants
+    | List.nil => true
+    | List.cons head tail => (((0 <? (prim length (prim utf8_encode (project head resource) : Bytes) : Nat)) && (((prim length (prim utf8_encode (project head resource) : Bytes) : Nat) <=? 128) && true)) && ((not (effectHasResource tail (project head resource))) && ((effectAdapterValid (project head adapter) limits) && ((effectGrantsValid tail limits) && true))))),
+  axioms: [],
+  recursive_argument: grants
+}
+
+definition{
+  name: effectManifestValid,
+  parameters: [manifest : EffectManifest],
+  result: Bool,
+  body: (((prim length (project manifest application) : Nat) =? 32) && (((prim length (project manifest manifest) : Nat) =? 32) && ((effectHostLimitsValid (project manifest limits)) && (((0 <? (effectGrantCount (project manifest grants))) && (((effectGrantCount (project manifest grants)) <=? 64) && true)) && ((effectGrantsValid (project manifest grants) (project manifest limits)) && true))))),
+  axioms: []
+}
+
+definition{
+  name: effectFindAdapter,
+  parameters: [grants : (List EffectGrant), resource : String],
+  result: (Option EffectAdapter),
+  body: (match grants
+    | List.nil => (ctor Option.none [EffectAdapter])
+    | List.cons head tail => (match (prim equal (project head resource) resource : Bool)
+      | Bool.false => (effectFindAdapter tail resource)
+      | Bool.true => (ctor Option.some [EffectAdapter] (project head adapter)))),
+  axioms: [],
+  recursive_argument: grants
+}
+
+definition{
+  name: effectObjectsCount,
+  parameters: [objects : (List Bytes)],
+  result: Nat,
+  body: (match objects | List.nil => 0 | List.cons head tail => (1 + (effectObjectsCount tail))),
+  axioms: [],
+  recursive_argument: objects
+}
+
+definition{
+  name: effectHasBytes,
+  parameters: [objects : (List Bytes), value : Bytes],
+  result: Bool,
+  body: (match objects
+    | List.nil => false
+    | List.cons head tail => ((prim equal head value : Bool) || ((effectHasBytes tail value) || false))),
+  axioms: [],
+  recursive_argument: objects
+}
+
+definition{
+  name: effectObjectsValid,
+  parameters: [objects : (List Bytes), maximum : Nat],
+  result: Bool,
+  body: (match objects
+    | List.nil => true
+    | List.cons head tail => (((prim length head : Nat) <=? maximum) && ((not (effectHasBytes tail head)) && ((effectObjectsValid tail maximum) && true)))),
+  axioms: [],
+  recursive_argument: objects
+}
+
+definition{
+  name: effectObjectsEqual,
+  parameters: [left : (List Bytes), right : (List Bytes)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons head tail => false)
+    | List.cons head tail => (match right
+      | List.nil => false
+      | List.cons rightHead rightTail => ((prim equal head rightHead : Bool) && ((effectObjectsEqual tail rightTail) && true)))),
+  axioms: [],
+  recursive_argument: left
+}
+
+definition{
+  name: effectOptionalDigestEqual,
+  parameters: [left : (Option String), right : (Option String)],
+  result: Bool,
+  body: (match left
+    | Option.none => (match right | Option.none => true | Option.some unused => false)
+    | Option.some leftValue => (match right
+      | Option.none => false
+      | Option.some rightValue => (prim equal leftValue rightValue : Bool))),
+  axioms: []
+}
+
+definition{
+  name: effectCommitValid,
+  parameters: [commit : EffectCommit, grant : EffectStorageGrant],
+  result: Bool,
+  body: ((effectNameValid (project commit head) 0) && ((effectOptionalDigestValid (project commit expected)) && ((effectDigestValid (project commit next)) && (((0 <? (effectObjectsCount (project commit objects))) && (((effectObjectsCount (project commit objects)) <=? 16) && true)) && ((effectObjectsValid (project commit objects) (project grant maxObjectBytes)) && true))))),
+  axioms: []
+}
+
+definition{
+  name: effectOperationValid,
+  parameters: [effect : EffectOperation, adapter : EffectAdapter],
+  result: Bool,
+  body: (match adapter
+    | EffectAdapter.Guest guest => (match effect
+      | EffectOperation.InvokeGuest invocation => ((prim equal (project invocation artifact) (project guest artifact) : Bool) && ((prim equal (project invocation entry) (project guest entry) : Bool) && ((prim equal (project invocation protocol) (project guest protocol) : Bool) && (((prim length (project invocation input) : Nat) <=? (project guest inputMaximum)) && true))))
+      | EffectOperation.RandomBytes length => false
+      | EffectOperation.DigestBytes value => false
+      | EffectOperation.SignBytes value => false
+      | EffectOperation.VerifyBytes verification => false
+      | EffectOperation.ReadObject objectId => false
+      | EffectOperation.ReadHead headName => false
+      | EffectOperation.Commit commit => false)
+    | EffectAdapter.Random => (match effect
+      | EffectOperation.InvokeGuest invocation => false
+      | EffectOperation.RandomBytes length => ((0 <? length) && ((length <=? 65536) && true))
+      | EffectOperation.DigestBytes value => false
+      | EffectOperation.SignBytes value => false
+      | EffectOperation.VerifyBytes verification => false
+      | EffectOperation.ReadObject objectId => false
+      | EffectOperation.ReadHead headName => false
+      | EffectOperation.Commit commit => false)
+    | EffectAdapter.Digest => (match effect
+      | EffectOperation.InvokeGuest invocation => false
+      | EffectOperation.RandomBytes length => false
+      | EffectOperation.DigestBytes value => ((prim length value : Nat) <=? 1048576)
+      | EffectOperation.SignBytes value => false
+      | EffectOperation.VerifyBytes verification => false
+      | EffectOperation.ReadObject objectId => false
+      | EffectOperation.ReadHead headName => false
+      | EffectOperation.Commit commit => false)
+    | EffectAdapter.Signer grant => (match effect
+      | EffectOperation.InvokeGuest invocation => false
+      | EffectOperation.RandomBytes length => false
+      | EffectOperation.DigestBytes value => false
+      | EffectOperation.SignBytes value => ((prim length value : Nat) <=? 1048576)
+      | EffectOperation.VerifyBytes verification => false
+      | EffectOperation.ReadObject objectId => false
+      | EffectOperation.ReadHead headName => false
+      | EffectOperation.Commit commit => false)
+    | EffectAdapter.Verifier grant => (match effect
+      | EffectOperation.InvokeGuest invocation => false
+      | EffectOperation.RandomBytes length => false
+      | EffectOperation.DigestBytes value => false
+      | EffectOperation.SignBytes value => false
+      | EffectOperation.VerifyBytes verification => (((prim length (project verification value) : Nat) <=? 1048576) && (((prim length (project verification signature) : Nat) =? 64) && true))
+      | EffectOperation.ReadObject objectId => false
+      | EffectOperation.ReadHead headName => false
+      | EffectOperation.Commit commit => false)
+    | EffectAdapter.Store grant => (match effect
+      | EffectOperation.InvokeGuest invocation => false
+      | EffectOperation.RandomBytes length => false
+      | EffectOperation.DigestBytes value => false
+      | EffectOperation.SignBytes value => false
+      | EffectOperation.VerifyBytes verification => false
+      | EffectOperation.ReadObject objectId => (effectDigestValid objectId)
+      | EffectOperation.ReadHead headName => (effectNameValid headName 0)
+      | EffectOperation.Commit commit => (effectCommitValid commit grant))),
+  axioms: []
+}
+
+definition{
+  name: effectOperationEqual,
+  parameters: [left : EffectOperation, right : EffectOperation],
+  result: Bool,
+  body: (match left
+    | EffectOperation.InvokeGuest invocation => (match right
+      | EffectOperation.InvokeGuest other => ((prim equal (project invocation artifact) (project other artifact) : Bool) && ((prim equal (project invocation entry) (project other entry) : Bool) && ((prim equal (project invocation protocol) (project other protocol) : Bool) && ((prim equal (project invocation input) (project other input) : Bool) && true))))
+      | EffectOperation.RandomBytes other => false
+      | EffectOperation.DigestBytes other => false
+      | EffectOperation.SignBytes other => false
+      | EffectOperation.VerifyBytes other => false
+      | EffectOperation.ReadObject other => false
+      | EffectOperation.ReadHead other => false
+      | EffectOperation.Commit other => false)
+    | EffectOperation.RandomBytes length => (match right
+      | EffectOperation.InvokeGuest other => false
+      | EffectOperation.RandomBytes other => (length =? other)
+      | EffectOperation.DigestBytes other => false
+      | EffectOperation.SignBytes other => false
+      | EffectOperation.VerifyBytes other => false
+      | EffectOperation.ReadObject other => false
+      | EffectOperation.ReadHead other => false
+      | EffectOperation.Commit other => false)
+    | EffectOperation.DigestBytes value => (match right
+      | EffectOperation.InvokeGuest other => false
+      | EffectOperation.RandomBytes other => false
+      | EffectOperation.DigestBytes other => (prim equal value other : Bool)
+      | EffectOperation.SignBytes other => false
+      | EffectOperation.VerifyBytes other => false
+      | EffectOperation.ReadObject other => false
+      | EffectOperation.ReadHead other => false
+      | EffectOperation.Commit other => false)
+    | EffectOperation.SignBytes value => (match right
+      | EffectOperation.InvokeGuest other => false
+      | EffectOperation.RandomBytes other => false
+      | EffectOperation.DigestBytes other => false
+      | EffectOperation.SignBytes other => (prim equal value other : Bool)
+      | EffectOperation.VerifyBytes other => false
+      | EffectOperation.ReadObject other => false
+      | EffectOperation.ReadHead other => false
+      | EffectOperation.Commit other => false)
+    | EffectOperation.VerifyBytes verification => (match right
+      | EffectOperation.InvokeGuest other => false
+      | EffectOperation.RandomBytes other => false
+      | EffectOperation.DigestBytes other => false
+      | EffectOperation.SignBytes other => false
+      | EffectOperation.VerifyBytes other => ((prim equal (project verification value) (project other value) : Bool) && ((prim equal (project verification signature) (project other signature) : Bool) && true))
+      | EffectOperation.ReadObject other => false
+      | EffectOperation.ReadHead other => false
+      | EffectOperation.Commit other => false)
+    | EffectOperation.ReadObject objectId => (match right
+      | EffectOperation.InvokeGuest other => false
+      | EffectOperation.RandomBytes other => false
+      | EffectOperation.DigestBytes other => false
+      | EffectOperation.SignBytes other => false
+      | EffectOperation.VerifyBytes other => false
+      | EffectOperation.ReadObject other => (prim equal objectId other : Bool)
+      | EffectOperation.ReadHead other => false
+      | EffectOperation.Commit other => false)
+    | EffectOperation.ReadHead headName => (match right
+      | EffectOperation.InvokeGuest other => false
+      | EffectOperation.RandomBytes other => false
+      | EffectOperation.DigestBytes other => false
+      | EffectOperation.SignBytes other => false
+      | EffectOperation.VerifyBytes other => false
+      | EffectOperation.ReadObject other => false
+      | EffectOperation.ReadHead other => (prim equal headName other : Bool)
+      | EffectOperation.Commit other => false)
+    | EffectOperation.Commit commit => (match right
+      | EffectOperation.InvokeGuest other => false
+      | EffectOperation.RandomBytes other => false
+      | EffectOperation.DigestBytes other => false
+      | EffectOperation.SignBytes other => false
+      | EffectOperation.VerifyBytes other => false
+      | EffectOperation.ReadObject other => false
+      | EffectOperation.ReadHead other => false
+      | EffectOperation.Commit other => ((prim equal (project commit head) (project other head) : Bool) && ((effectOptionalDigestEqual (project commit expected) (project other expected)) && ((prim equal (project commit next) (project other next) : Bool) && ((effectObjectsEqual (project commit objects) (project other objects)) && true)))))),
+  axioms: []
+}
+
+definition{
+  name: effectRequestEqual,
+  parameters: [left : EffectRequest, right : EffectRequest],
+  result: Bool,
+  body: ((prim equal (project left application) (project right application) : Bool) && ((prim equal (project left manifest) (project right manifest) : Bool) && ((prim equal (project left session) (project right session) : Bool) && (((project left operation) =? (project right operation)) && ((prim equal (project left resource) (project right resource) : Bool) && ((effectOperationEqual (project left effect) (project right effect)) && true)))))),
+  axioms: []
+}
+
+definition{
+  name: effectRequestValid,
+  parameters: [request : EffectRequest, manifest : EffectManifest, session : Bytes],
+  result: Bool,
+  body: ((prim equal (project request application) (project manifest application) : Bool) && ((prim equal (project request manifest) (project manifest manifest) : Bool) && ((prim equal (project request session) session : Bool) && (((project request operation) <? 4294967295) && ((match (effectFindAdapter (project manifest grants) (project request resource))
+    | Option.none => false
+    | Option.some adapter => (effectOperationValid (project request effect) adapter)) && true))))),
+  axioms: []
+}
+
+definition{
+  name: effectSessionValid,
+  parameters: [state : EffectSession],
+  result: Bool,
+  body: ((effectManifestValid (project state manifest)) && (((prim length (project state session) : Nat) =? 32) && (((project state nextOperation) <=? 4294967295) && ((match (project state active)
+    | Option.none => ((not (project state uncertain)) && ((match (project state waiter)
+      | Option.none => true
+      | Option.some waiter => false) && true))
+    | Option.some active => ((effectRequestValid active (project state manifest) (project state session)) && ((match (project state waiter)
+      | Option.none => (((project active operation) + 1) =? (project state nextOperation))
+      | Option.some waiter => ((effectRequestValid waiter (project state manifest) (project state session)) && ((((project active operation) + 1) =? (project waiter operation)) && ((((project waiter operation) + 1) =? (project state nextOperation)) && true)))) && true))) && true)))),
+  axioms: []
+}
+
+definition{
+  name: effectFailureValid,
+  parameters: [failure : EffectFailure, effect : EffectOperation],
+  result: Bool,
+  body: (match effect
+    | EffectOperation.InvokeGuest invocation => (match failure
+      | EffectFailure.InvalidInput => false
+      | EffectFailure.IdentityCorrupt => false
+      | EffectFailure.CryptoUnavailable => false
+      | EffectFailure.HeadConflict => false
+      | EffectFailure.MissingObject => false
+      | EffectFailure.ObjectCorrupt => false
+      | EffectFailure.StoreLimit => false
+      | EffectFailure.StoreClosed => false
+      | EffectFailure.StorageQuota => false
+      | EffectFailure.StorageUnavailable => false
+      | EffectFailure.InvalidGeneratedModule => true
+      | EffectFailure.GeneratedExecutionFailed => true
+      | EffectFailure.InvalidGeneratedOutput => true)
+    | EffectOperation.RandomBytes length => (match failure
+      | EffectFailure.InvalidInput => true
+      | EffectFailure.IdentityCorrupt => false
+      | EffectFailure.CryptoUnavailable => true
+      | EffectFailure.HeadConflict => false
+      | EffectFailure.MissingObject => false
+      | EffectFailure.ObjectCorrupt => false
+      | EffectFailure.StoreLimit => false
+      | EffectFailure.StoreClosed => false
+      | EffectFailure.StorageQuota => false
+      | EffectFailure.StorageUnavailable => false
+      | EffectFailure.InvalidGeneratedModule => false
+      | EffectFailure.GeneratedExecutionFailed => false
+      | EffectFailure.InvalidGeneratedOutput => false)
+    | EffectOperation.DigestBytes value => (match failure
+      | EffectFailure.InvalidInput => true
+      | EffectFailure.IdentityCorrupt => false
+      | EffectFailure.CryptoUnavailable => true
+      | EffectFailure.HeadConflict => false
+      | EffectFailure.MissingObject => false
+      | EffectFailure.ObjectCorrupt => false
+      | EffectFailure.StoreLimit => false
+      | EffectFailure.StoreClosed => false
+      | EffectFailure.StorageQuota => false
+      | EffectFailure.StorageUnavailable => false
+      | EffectFailure.InvalidGeneratedModule => false
+      | EffectFailure.GeneratedExecutionFailed => false
+      | EffectFailure.InvalidGeneratedOutput => false)
+    | EffectOperation.SignBytes value => (match failure
+      | EffectFailure.InvalidInput => true
+      | EffectFailure.IdentityCorrupt => true
+      | EffectFailure.CryptoUnavailable => true
+      | EffectFailure.HeadConflict => false
+      | EffectFailure.MissingObject => false
+      | EffectFailure.ObjectCorrupt => false
+      | EffectFailure.StoreLimit => false
+      | EffectFailure.StoreClosed => false
+      | EffectFailure.StorageQuota => false
+      | EffectFailure.StorageUnavailable => false
+      | EffectFailure.InvalidGeneratedModule => false
+      | EffectFailure.GeneratedExecutionFailed => false
+      | EffectFailure.InvalidGeneratedOutput => false)
+    | EffectOperation.VerifyBytes verification => (match failure
+      | EffectFailure.InvalidInput => true
+      | EffectFailure.IdentityCorrupt => false
+      | EffectFailure.CryptoUnavailable => true
+      | EffectFailure.HeadConflict => false
+      | EffectFailure.MissingObject => false
+      | EffectFailure.ObjectCorrupt => false
+      | EffectFailure.StoreLimit => false
+      | EffectFailure.StoreClosed => false
+      | EffectFailure.StorageQuota => false
+      | EffectFailure.StorageUnavailable => false
+      | EffectFailure.InvalidGeneratedModule => false
+      | EffectFailure.GeneratedExecutionFailed => false
+      | EffectFailure.InvalidGeneratedOutput => false)
+    | EffectOperation.ReadObject objectId => (match failure
+      | EffectFailure.InvalidInput => true
+      | EffectFailure.IdentityCorrupt => false
+      | EffectFailure.CryptoUnavailable => true
+      | EffectFailure.HeadConflict => false
+      | EffectFailure.MissingObject => false
+      | EffectFailure.ObjectCorrupt => true
+      | EffectFailure.StoreLimit => false
+      | EffectFailure.StoreClosed => true
+      | EffectFailure.StorageQuota => true
+      | EffectFailure.StorageUnavailable => true
+      | EffectFailure.InvalidGeneratedModule => false
+      | EffectFailure.GeneratedExecutionFailed => false
+      | EffectFailure.InvalidGeneratedOutput => false)
+    | EffectOperation.ReadHead headName => (match failure
+      | EffectFailure.InvalidInput => true
+      | EffectFailure.IdentityCorrupt => false
+      | EffectFailure.CryptoUnavailable => true
+      | EffectFailure.HeadConflict => false
+      | EffectFailure.MissingObject => false
+      | EffectFailure.ObjectCorrupt => true
+      | EffectFailure.StoreLimit => false
+      | EffectFailure.StoreClosed => true
+      | EffectFailure.StorageQuota => true
+      | EffectFailure.StorageUnavailable => true
+      | EffectFailure.InvalidGeneratedModule => false
+      | EffectFailure.GeneratedExecutionFailed => false
+      | EffectFailure.InvalidGeneratedOutput => false)
+    | EffectOperation.Commit commit => (match failure
+      | EffectFailure.InvalidInput => true
+      | EffectFailure.IdentityCorrupt => false
+      | EffectFailure.CryptoUnavailable => true
+      | EffectFailure.HeadConflict => true
+      | EffectFailure.MissingObject => true
+      | EffectFailure.ObjectCorrupt => true
+      | EffectFailure.StoreLimit => true
+      | EffectFailure.StoreClosed => true
+      | EffectFailure.StorageQuota => true
+      | EffectFailure.StorageUnavailable => false
+      | EffectFailure.InvalidGeneratedModule => false
+      | EffectFailure.GeneratedExecutionFailed => false
+      | EffectFailure.InvalidGeneratedOutput => false)),
+  axioms: []
+}
+
+definition{
+  name: effectResultValid,
+  parameters: [result : EffectResult, request : EffectRequest, adapter : EffectAdapter],
+  result: Bool,
+  body: (match result
+    | EffectResult.GuestBytes bytes => (match adapter
+      | EffectAdapter.Guest guest => (match (project request effect)
+        | EffectOperation.InvokeGuest invocation => ((prim length bytes : Nat) <=? (project guest outputMaximum))
+        | EffectOperation.RandomBytes length => false
+        | EffectOperation.DigestBytes value => false
+        | EffectOperation.SignBytes value => false
+        | EffectOperation.VerifyBytes verification => false
+        | EffectOperation.ReadObject objectId => false
+        | EffectOperation.ReadHead headName => false
+        | EffectOperation.Commit commit => false)
+      | EffectAdapter.Random => false
+      | EffectAdapter.Digest => false
+      | EffectAdapter.Signer unused => false
+      | EffectAdapter.Verifier unused => false
+      | EffectAdapter.Store unused => false)
+    | EffectResult.RandomBytes bytes => (match (project request effect)
+      | EffectOperation.InvokeGuest invocation => false
+      | EffectOperation.RandomBytes length => ((prim length bytes : Nat) =? length)
+      | EffectOperation.DigestBytes value => false
+      | EffectOperation.SignBytes value => false
+      | EffectOperation.VerifyBytes verification => false
+      | EffectOperation.ReadObject objectId => false
+      | EffectOperation.ReadHead headName => false
+      | EffectOperation.Commit commit => false)
+    | EffectResult.Digest digest => (match (project request effect)
+      | EffectOperation.InvokeGuest invocation => false
+      | EffectOperation.RandomBytes length => false
+      | EffectOperation.DigestBytes value => (effectDigestValid digest)
+      | EffectOperation.SignBytes value => false
+      | EffectOperation.VerifyBytes verification => false
+      | EffectOperation.ReadObject objectId => false
+      | EffectOperation.ReadHead headName => false
+      | EffectOperation.Commit commit => false)
+    | EffectResult.Signature signature => (match (project request effect)
+      | EffectOperation.InvokeGuest invocation => false
+      | EffectOperation.RandomBytes length => false
+      | EffectOperation.DigestBytes value => false
+      | EffectOperation.SignBytes value => ((prim length signature : Nat) =? 64)
+      | EffectOperation.VerifyBytes verification => false
+      | EffectOperation.ReadObject objectId => false
+      | EffectOperation.ReadHead headName => false
+      | EffectOperation.Commit commit => false)
+    | EffectResult.Verification valid => (match (project request effect)
+      | EffectOperation.InvokeGuest invocation => false
+      | EffectOperation.RandomBytes length => false
+      | EffectOperation.DigestBytes value => false
+      | EffectOperation.SignBytes value => false
+      | EffectOperation.VerifyBytes verification => true
+      | EffectOperation.ReadObject objectId => false
+      | EffectOperation.ReadHead headName => false
+      | EffectOperation.Commit commit => false)
+    | EffectResult.Object object => (match adapter
+      | EffectAdapter.Guest unused => false
+      | EffectAdapter.Random => false
+      | EffectAdapter.Digest => false
+      | EffectAdapter.Signer unused => false
+      | EffectAdapter.Verifier unused => false
+      | EffectAdapter.Store grant => (match (project request effect)
+        | EffectOperation.InvokeGuest invocation => false
+        | EffectOperation.RandomBytes length => false
+        | EffectOperation.DigestBytes value => false
+        | EffectOperation.SignBytes value => false
+        | EffectOperation.VerifyBytes verification => false
+        | EffectOperation.ReadObject objectId => (match object
+          | Option.none => true
+          | Option.some bytes => ((prim length bytes : Nat) <=? (project grant maxObjectBytes)))
+        | EffectOperation.ReadHead headName => false
+        | EffectOperation.Commit commit => false))
+    | EffectResult.Head head => (match adapter
+      | EffectAdapter.Guest unused => false
+      | EffectAdapter.Random => false
+      | EffectAdapter.Digest => false
+      | EffectAdapter.Signer unused => false
+      | EffectAdapter.Verifier unused => false
+      | EffectAdapter.Store grant => (match (project request effect)
+        | EffectOperation.InvokeGuest invocation => false
+        | EffectOperation.RandomBytes length => false
+        | EffectOperation.DigestBytes value => false
+        | EffectOperation.SignBytes value => false
+        | EffectOperation.VerifyBytes verification => false
+        | EffectOperation.ReadObject objectId => false
+        | EffectOperation.ReadHead headName => (match head
+          | Option.none => true
+          | Option.some actualHead => ((effectDigestValid (project actualHead id)) && (((prim length (project actualHead bytes) : Nat) <=? (project grant maxObjectBytes)) && true)))
+        | EffectOperation.Commit commit => false))
+    | EffectResult.Committed digest => (match (project request effect)
+      | EffectOperation.InvokeGuest invocation => false
+      | EffectOperation.RandomBytes length => false
+      | EffectOperation.DigestBytes value => false
+      | EffectOperation.SignBytes value => false
+      | EffectOperation.VerifyBytes verification => false
+      | EffectOperation.ReadObject objectId => false
+      | EffectOperation.ReadHead headName => false
+      | EffectOperation.Commit commit => (prim equal digest (project commit next) : Bool))
+    | EffectResult.Rejected failure => (effectFailureValid failure (project request effect))
+    | EffectResult.Unknown => true),
+  axioms: []
+}
+
+definition{
+  name: beginEffectSession,
+  parameters: [manifest : EffectManifest, session : Bytes],
+  result: (Result EffectSession EffectProtocolError),
+  body: (match (effectManifestValid manifest)
+    | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.BadManifest))
+    | Bool.true => (match ((prim length session : Nat) =? 32)
+      | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.BadSession))
+      | Bool.true => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := manifest, session := session, nextOperation := 0, closed := false, uncertain := false, active := (ctor Option.none [EffectRequest]), waiter := (ctor Option.none [EffectRequest])})))),
+  axioms: []
+}
+
+definition{
+  name: admitEffect,
+  parameters: [state : EffectSession, request : EffectRequest],
+  result: (Result EffectSession EffectProtocolError),
+  body: (match (effectSessionValid state)
+    | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.BadSession))
+    | Bool.true => (match (not (project state closed))
+      | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.Closed))
+      | Bool.true => (match (not (project state uncertain))
+        | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.OutcomeUnknown))
+        | Bool.true => (match (match (project state waiter)
+            | Option.none => true
+            | Option.some waiter => false)
+          | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.Busy))
+          | Bool.true => (match ((project state nextOperation) <? 4294967295)
+            | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.OperationExhausted))
+            | Bool.true => (match (prim equal (project request application) (project (project state manifest) application) : Bool)
+              | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.WrongApplication))
+              | Bool.true => (match (prim equal (project request manifest) (project (project state manifest) manifest) : Bool)
+                | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.WrongManifest))
+                | Bool.true => (match (prim equal (project request session) (project state session) : Bool)
+                  | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.WrongSession))
+                  | Bool.true => (match ((project request operation) =? (project state nextOperation))
+                    | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.WrongOperation))
+                    | Bool.true => (match (effectFindAdapter (project (project state manifest) grants) (project request resource))
+                      | Option.none => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.UnknownResource))
+                      | Option.some adapter => (match (effectOperationValid (project request effect) adapter)
+                        | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.InvalidEffect))
+                        | Bool.true => (match (project state active)
+                          | Option.none => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := ((project state nextOperation) + 1), closed := (project state closed), uncertain := (project state uncertain), active := (ctor Option.some [EffectRequest] request), waiter := (project state waiter)}))
+                          | Option.some active => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := ((project state nextOperation) + 1), closed := (project state closed), uncertain := (project state uncertain), active := (project state active), waiter := (ctor Option.some [EffectRequest] request)})))))))))))))),
+  axioms: []
+}
+
+definition{
+  name: completeEffect,
+  parameters: [state : EffectSession, completion : EffectCompletion],
+  result: (Result EffectSession EffectProtocolError),
+  body: (match (effectSessionValid state)
+    | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.BadSession))
+    | Bool.true => (match (not (project state closed))
+      | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.Closed))
+      | Bool.true => (match (not (project state uncertain))
+        | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.OutcomeUnknown))
+        | Bool.true => (match (project state active)
+          | Option.none => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.NoActiveOperation))
+          | Option.some active => (match (effectRequestEqual active (project completion request))
+            | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.CompletionMismatch))
+            | Bool.true => (match (effectFindAdapter (project (project state manifest) grants) (project active resource))
+              | Option.none => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.UnknownResource))
+              | Option.some adapter => (match (effectResultValid (project completion result) active adapter)
+                | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.InvalidResult))
+                | Bool.true => (match (project completion result)
+                  | EffectResult.GuestBytes bytes => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := (project state closed), uncertain := (project state uncertain), active := (project state waiter), waiter := (ctor Option.none [EffectRequest])}))
+                  | EffectResult.RandomBytes bytes => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := (project state closed), uncertain := (project state uncertain), active := (project state waiter), waiter := (ctor Option.none [EffectRequest])}))
+                  | EffectResult.Digest digest => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := (project state closed), uncertain := (project state uncertain), active := (project state waiter), waiter := (ctor Option.none [EffectRequest])}))
+                  | EffectResult.Signature signature => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := (project state closed), uncertain := (project state uncertain), active := (project state waiter), waiter := (ctor Option.none [EffectRequest])}))
+                  | EffectResult.Verification valid => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := (project state closed), uncertain := (project state uncertain), active := (project state waiter), waiter := (ctor Option.none [EffectRequest])}))
+                  | EffectResult.Object object => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := (project state closed), uncertain := (project state uncertain), active := (project state waiter), waiter := (ctor Option.none [EffectRequest])}))
+                  | EffectResult.Head head => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := (project state closed), uncertain := (project state uncertain), active := (project state waiter), waiter := (ctor Option.none [EffectRequest])}))
+                  | EffectResult.Committed digest => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := (project state closed), uncertain := (project state uncertain), active := (project state waiter), waiter := (ctor Option.none [EffectRequest])}))
+                  | EffectResult.Rejected failure => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := (project state closed), uncertain := (project state uncertain), active := (project state waiter), waiter := (ctor Option.none [EffectRequest])}))
+                  | EffectResult.Unknown => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := (project state closed), uncertain := true, active := (project state active), waiter := (project state waiter)})))))))))),
+  axioms: []
+}
+
+definition{
+  name: closeEffectSession,
+  parameters: [state : EffectSession],
+  result: (Result EffectSession EffectProtocolError),
+  body: (match (effectSessionValid state)
+    | Bool.false => (ctor Result.error [EffectSession, EffectProtocolError] (ctor EffectProtocolError.BadSession))
+    | Bool.true => (ctor Result.ok [EffectSession, EffectProtocolError] (record EffectSession {manifest := (project state manifest), session := (project state session), nextOperation := (project state nextOperation), closed := true, uncertain := (project state uncertain), active := (project state active), waiter := (project state waiter)}))),
+  axioms: []
+}
 \end{semanticmodule}
 \end{lexlean}

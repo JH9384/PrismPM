@@ -1,0 +1,134 @@
+\begin{lexlean}{Foundation.View.Text.V3.Model}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Foundation.View.Text.V1.Model}
+\title{Text application model}
+\begin{semanticmodule}
+structure{
+  name: TextCliOutcome,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: name, type: String}, {name: prefix, type: String}, {name: exitCode, type: UInt8}]
+}
+
+structure{
+  name: TextCliSection,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: title, type: String}, {name: body, type: String}]
+}
+
+structure{
+  name: TextCliExample,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: name, type: String}, {name: text, type: String}]
+}
+
+structure{
+  name: TextCli,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: command, type: String},
+    {name: description, type: String},
+    {name: usageCode, type: UInt8},
+    {name: ioCode, type: UInt8},
+    {name: outcomes, type: (List TextCliOutcome)},
+    {name: sections, type: (List TextCliSection)},
+    {name: examples, type: (List TextCliExample)}
+  ]
+}
+
+inductive{
+  name: TextCliFailure,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: UnknownFlag, fields: []},
+    {name: ExtraArgument, fields: []},
+    {name: MissingCommand, fields: []},
+    {name: UnknownCommand, fields: []},
+    {name: UnknownExample, fields: []},
+    {name: InputMissing, fields: []},
+    {name: InputOpen, fields: []},
+    {name: InputType, fields: []},
+    {name: InputRead, fields: []},
+    {name: OutputWrite, fields: []},
+    {name: InputLimit, fields: []},
+    {name: AdapterAllocation, fields: []},
+    {name: ComputeFailure, fields: []},
+    {name: OutputLimit, fields: []},
+    {name: ReportUnclassified, fields: []}
+  ]
+}
+
+inductive{
+  name: TextCliFailureClass,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Usage, fields: []}, {name: Io, fields: []}, {name: Fault, fields: []}]
+}
+
+definition{
+  name: failureClass,
+  parameters: [failure : TextCliFailure],
+  result: TextCliFailureClass,
+  body: (match failure
+    | TextCliFailure.UnknownFlag => (ctor TextCliFailureClass.Usage)
+    | TextCliFailure.ExtraArgument => (ctor TextCliFailureClass.Usage)
+    | TextCliFailure.MissingCommand => (ctor TextCliFailureClass.Usage)
+    | TextCliFailure.UnknownCommand => (ctor TextCliFailureClass.Usage)
+    | TextCliFailure.UnknownExample => (ctor TextCliFailureClass.Usage)
+    | TextCliFailure.InputMissing => (ctor TextCliFailureClass.Io)
+    | TextCliFailure.InputOpen => (ctor TextCliFailureClass.Io)
+    | TextCliFailure.InputType => (ctor TextCliFailureClass.Io)
+    | TextCliFailure.InputRead => (ctor TextCliFailureClass.Io)
+    | TextCliFailure.OutputWrite => (ctor TextCliFailureClass.Io)
+    | TextCliFailure.InputLimit => (ctor TextCliFailureClass.Fault)
+    | TextCliFailure.AdapterAllocation => (ctor TextCliFailureClass.Fault)
+    | TextCliFailure.ComputeFailure => (ctor TextCliFailureClass.Fault)
+    | TextCliFailure.OutputLimit => (ctor TextCliFailureClass.Fault)
+    | TextCliFailure.ReportUnclassified => (ctor TextCliFailureClass.Fault)),
+  axioms: []
+}
+
+structure{
+  name: TextApplication,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: profile, type: String},
+    {name: name, type: String},
+    {name: cargoName, type: String},
+    {name: cargoVersion, type: String},
+    {name: cargoDescription, type: String},
+    {name: cargoRepository, type: String},
+    {name: cargoHomepage, type: String},
+    {name: libraryRoots, type: (List String)},
+    {name: acceptanceVectors, type: (List Foundation.View.Text.V1.Model::AcceptanceVector)},
+    {name: entryRoot, type: String},
+    {name: coreContract, type: String},
+    {name: requestMaximum, type: UInt32},
+    {name: responseMaximum, type: UInt32},
+    {name: guestAllocationMaximum, type: UInt32},
+    {name: coreMemoryPages, type: UInt32},
+    {name: coreStackBytes, type: UInt32},
+    {name: capabilitiesEmpty, type: Bool},
+    {name: fatArchive, type: Bool},
+    {name: primaryLayer, type: UInt8},
+    {name: viewLayer, type: UInt8},
+    {name: view, type: Foundation.View.Text.V1.Model::TextView},
+    {name: cli, type: TextCli}
+  ]
+}
+
+definition{
+  name: textApplicationProfile,
+  parameters: [],
+  result: String,
+  body: "prismpm/text-application/3"
+}
+\end{semanticmodule}
+\end{lexlean}

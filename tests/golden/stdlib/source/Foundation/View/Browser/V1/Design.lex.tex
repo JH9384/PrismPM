@@ -1,8 +1,93 @@
 \begin{lexlean}{Foundation.View.Browser.V1.Design}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"System"},{"fields":[],"name":"Serif"},{"fields":[],"name":"Monospace"}],"kind":"inductive","name":"FontFamily","parameters":[],"type_parameters":[]},{"fields":[{"name":"surface","type":{"kind":"nat"}},{"name":"text","type":{"kind":"nat"}},{"name":"border","type":{"kind":"nat"}},{"name":"accent","type":{"kind":"nat"}},{"name":"accentText","type":{"kind":"nat"}},{"name":"danger","type":{"kind":"nat"}},{"name":"focus","type":{"kind":"nat"}},{"name":"fontFamily","type":{"arguments":[],"kind":"named","member":{"name":"FontFamily"}}},{"name":"textPermille","type":{"kind":"nat"}},{"name":"lineHeightPermille","type":{"kind":"nat"}},{"name":"spacePermille","type":{"kind":"nat"}},{"name":"radiusPermille","type":{"kind":"nat"}},{"name":"contentWidthRem","type":{"kind":"nat"}},{"name":"sidebarWidthRem","type":{"kind":"nat"}},{"name":"collapseWidthRem","type":{"kind":"nat"}},{"name":"targetPixels","type":{"kind":"nat"}}],"kind":"structure","name":"DesignTokens","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"0"},"right":{"field":"surface","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"surface","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"16777215"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"0"},"right":{"field":"text","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"text","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"16777215"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"0"},"right":{"field":"border","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"border","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"16777215"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"0"},"right":{"field":"accent","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"accent","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"16777215"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"0"},"right":{"field":"accentText","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"accentText","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"16777215"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"0"},"right":{"field":"danger","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"danger","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"16777215"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"0"},"right":{"field":"focus","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"focus","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"16777215"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"1000"},"right":{"field":"textPermille","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"textPermille","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"4000"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"1000"},"right":{"field":"lineHeightPermille","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"lineHeightPermille","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"3000"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"0"},"right":{"field":"spacePermille","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"spacePermille","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"4000"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"0"},"right":{"field":"radiusPermille","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"radiusPermille","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"4000"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"16"},"right":{"field":"contentWidthRem","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"contentWidthRem","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"120"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"8"},"right":{"field":"sidebarWidthRem","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"sidebarWidthRem","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"40"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"20"},"right":{"field":"collapseWidthRem","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"collapseWidthRem","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"100"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"24"},"right":{"field":"targetPixels","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"targetPixels","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"96"}},"right":{"kind":"and","left":{"kind":"bool","value":true},"right":{"kind":"bool","value":true}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"kind":"definition","name":"designTokensValid","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"DesignTokens"}}}],"result":{"kind":"bool"}},{"fields":[{"name":"light","type":{"arguments":[],"kind":"named","member":{"name":"DesignTokens"}}},{"name":"dark","type":{"arguments":[],"kind":"named","member":{"name":"DesignTokens"}}}],"kind":"structure","name":"DesignPair","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"light","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"designTokensValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"dark","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"designTokensValid"},"kind":"call"},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"designPairValid","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"DesignPair"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"kind":"var","name":"remaining"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"head"}],"function":{"name":"designPairValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"tail"},{"arguments":[{"kind":"var","name":"remaining"},{"kind":"nat","value":"1"}],"kind":"primitive","operation":"subtract","result":{"kind":"nat"}}],"function":{"name":"designCatalogueItemsValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"values"}},"kind":"definition","name":"designCatalogueItemsValid","parameters":[{"name":"values","type":{"element":{"arguments":[],"kind":"named","member":{"name":"DesignPair"}},"kind":"list"}},{"name":"remaining","type":{"kind":"nat"}}],"recursive_argument":"values","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"FontFamily.System"}},{"binders":[],"body":{"kind":"nat","value":"1"},"constructor":{"name":"FontFamily.Serif"}},{"binders":[],"body":{"kind":"nat","value":"2"},"constructor":{"name":"FontFamily.Monospace"}}],"kind":"match","scrutinee":{"kind":"var","name":"value"}},"kind":"definition","name":"fontFamilyCode","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"FontFamily"}}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"arguments":[{"kind":"var","name":"values"},{"kind":"nat","value":"16"}],"function":{"name":"designCatalogueItemsValid"},"kind":"call"},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"values"}},"kind":"definition","name":"designCatalogueValid","parameters":[{"name":"values","type":{"element":{"arguments":[],"kind":"named","member":{"name":"DesignPair"}},"kind":"list"}}],"result":{"kind":"bool"}}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: FontFamily,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: System, fields: []},
+    {name: Serif, fields: []},
+    {name: Monospace, fields: []}
+  ]
+}
+
+structure{
+  name: DesignTokens,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: surface, type: Nat},
+    {name: text, type: Nat},
+    {name: border, type: Nat},
+    {name: accent, type: Nat},
+    {name: accentText, type: Nat},
+    {name: danger, type: Nat},
+    {name: focus, type: Nat},
+    {name: fontFamily, type: FontFamily},
+    {name: textPermille, type: Nat},
+    {name: lineHeightPermille, type: Nat},
+    {name: spacePermille, type: Nat},
+    {name: radiusPermille, type: Nat},
+    {name: contentWidthRem, type: Nat},
+    {name: sidebarWidthRem, type: Nat},
+    {name: collapseWidthRem, type: Nat},
+    {name: targetPixels, type: Nat}
+  ]
+}
+
+definition{
+  name: designTokensValid,
+  parameters: [value : DesignTokens],
+  result: Bool,
+  body: ((0 <=? (project value surface)) && (((project value surface) <=? 16777215) && (true && ((0 <=? (project value text)) && (((project value text) <=? 16777215) && (true && ((0 <=? (project value border)) && (((project value border) <=? 16777215) && (true && ((0 <=? (project value accent)) && (((project value accent) <=? 16777215) && (true && ((0 <=? (project value accentText)) && (((project value accentText) <=? 16777215) && (true && ((0 <=? (project value danger)) && (((project value danger) <=? 16777215) && (true && ((0 <=? (project value focus)) && (((project value focus) <=? 16777215) && (true && ((1000 <=? (project value textPermille)) && (((project value textPermille) <=? 4000) && (true && ((1000 <=? (project value lineHeightPermille)) && (((project value lineHeightPermille) <=? 3000) && (true && ((0 <=? (project value spacePermille)) && (((project value spacePermille) <=? 4000) && (true && ((0 <=? (project value radiusPermille)) && (((project value radiusPermille) <=? 4000) && (true && ((16 <=? (project value contentWidthRem)) && (((project value contentWidthRem) <=? 120) && (true && ((8 <=? (project value sidebarWidthRem)) && (((project value sidebarWidthRem) <=? 40) && (true && ((20 <=? (project value collapseWidthRem)) && (((project value collapseWidthRem) <=? 100) && (true && ((24 <=? (project value targetPixels)) && (((project value targetPixels) <=? 96) && (true && true))))))))))))))))))))))))))))))))))))))))))))),
+  axioms: []
+}
+
+structure{
+  name: DesignPair,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: light, type: DesignTokens}, {name: dark, type: DesignTokens}]
+}
+
+definition{
+  name: designPairValid,
+  parameters: [value : DesignPair],
+  result: Bool,
+  body: ((designTokensValid (project value light)) && ((designTokensValid (project value dark)) && true)),
+  axioms: []
+}
+
+definition{
+  name: designCatalogueItemsValid,
+  parameters: [values : (List DesignPair), remaining : Nat],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons head tail => ((0 <? remaining) && ((designPairValid head) && ((designCatalogueItemsValid tail (prim subtract remaining 1 : Nat)) && true)))),
+  axioms: [],
+  recursive_argument: values
+}
+
+definition{
+  name: fontFamilyCode,
+  parameters: [value : FontFamily],
+  result: Nat,
+  body: (match value | FontFamily.System => 0 | FontFamily.Serif => 1 | FontFamily.Monospace => 2),
+  axioms: []
+}
+
+definition{
+  name: designCatalogueValid,
+  parameters: [values : (List DesignPair)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head tail => (designCatalogueItemsValid values 16)),
+  axioms: []
+}
 \end{semanticmodule}
 \end{lexlean}

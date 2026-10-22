@@ -1,8 +1,58 @@
 \begin{lexlean}{Foundation.Holo.V1.View}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"path","type":{"kind":"string"}},{"name":"content","type":{"kind":"bytes"}}],"kind":"structure","name":"PortableAsset","parameters":[],"type_parameters":[]},{"fields":[{"name":"version","type":{"kind":"uint16"}},{"name":"entry","type":{"kind":"string"}},{"name":"files","type":{"element":{"arguments":[],"kind":"named","member":{"name":"PortableAsset"}},"kind":"list"}}],"kind":"structure","name":"PortableBundle","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"BadMagic"},{"fields":[],"name":"BadVersion"},{"fields":[],"name":"InvalidPath"},{"fields":[],"name":"DuplicatePath"},{"fields":[],"name":"CaseFoldCollision"},{"fields":[],"name":"WrongOrder"},{"fields":[],"name":"MissingEntry"},{"fields":[],"name":"Truncated"},{"fields":[],"name":"TrailingBytes"},{"fields":[],"name":"ResourceLimit"},{"fields":[],"name":"UnsupportedSurface"},{"fields":[],"name":"IntentMismatch"}],"kind":"inductive","name":"ViewError","parameters":[],"type_parameters":[]},{"body":{"hex":"484f4c4f56494557","kind":"bytes"},"kind":"definition","name":"magic","parameters":[],"result":{"kind":"bytes"}},{"body":{"kind":"integer","representation":"uint16","value":"1"},"kind":"definition","name":"bundleVersion","parameters":[],"result":{"kind":"uint16"}},{"body":{"kind":"string","value":"index.html"},"kind":"definition","name":"entry","parameters":[],"result":{"kind":"string"}},{"body":{"kind":"integer","representation":"uint32","value":"4096"},"kind":"definition","name":"maximumFiles","parameters":[],"result":{"kind":"uint32"}},{"body":{"kind":"integer","representation":"uint32","value":"1024"},"kind":"definition","name":"maximumPathBytes","parameters":[],"result":{"kind":"uint32"}},{"body":{"kind":"integer","representation":"uint64","value":"67108864"},"kind":"definition","name":"maximumFileBytes","parameters":[],"result":{"kind":"uint64"}},{"body":{"kind":"integer","representation":"uint64","value":"268435456"},"kind":"definition","name":"maximumAggregateBytes","parameters":[],"result":{"kind":"uint64"}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: PortableAsset,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: path, type: String}, {name: content, type: Bytes}]
+}
+
+structure{
+  name: PortableBundle,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: version, type: UInt16},
+    {name: entry, type: String},
+    {name: files, type: (List PortableAsset)}
+  ]
+}
+
+inductive{
+  name: ViewError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BadMagic, fields: []},
+    {name: BadVersion, fields: []},
+    {name: InvalidPath, fields: []},
+    {name: DuplicatePath, fields: []},
+    {name: CaseFoldCollision, fields: []},
+    {name: WrongOrder, fields: []},
+    {name: MissingEntry, fields: []},
+    {name: Truncated, fields: []},
+    {name: TrailingBytes, fields: []},
+    {name: ResourceLimit, fields: []},
+    {name: UnsupportedSurface, fields: []},
+    {name: IntentMismatch, fields: []}
+  ]
+}
+
+definition{name: magic, parameters: [], result: Bytes, body: 0x484f4c4f56494557}
+
+definition{name: bundleVersion, parameters: [], result: UInt16, body: (1 : UInt16)}
+
+definition{name: entry, parameters: [], result: String, body: "index.html"}
+
+definition{name: maximumFiles, parameters: [], result: UInt32, body: (4096 : UInt32)}
+
+definition{name: maximumPathBytes, parameters: [], result: UInt32, body: (1024 : UInt32)}
+
+definition{name: maximumFileBytes, parameters: [], result: UInt64, body: (67108864 : UInt64)}
+
+definition{name: maximumAggregateBytes, parameters: [], result: UInt64, body: (268435456 : UInt64)}
 \end{semanticmodule}
 \end{lexlean}

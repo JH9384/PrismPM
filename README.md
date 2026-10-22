@@ -132,6 +132,18 @@ The destination must be new, in a caller-owned project directory without group
 or other write permission. This does not authorize publication or establish
 product acceptance; a publisher must verify those separately before deployment.
 
+A template instance whose system model names the `github-pages-browser` target
+publishes to GitHub Pages from one workflow file: copy
+[`action/starter/publish-pages.yml`](action/starter/publish-pages.yml) to
+`.github/workflows/publish-pages.yml` and pin the PrismPM Action revision. Its
+one job runs the shared Action's `publish-pages` command, which builds the
+locked release once, runs `export-browser` on it, checks the exported files
+against the release's system manifest and build manifest digests, and refuses a
+system manifest that does not name the Pages target before anything is
+uploaded; the commit-pinned `actions/upload-pages-artifact` and
+`actions/deploy-pages` then publish the checked closure. The check is byte
+integrity against the release's own evidence, not deployment acceptance.
+
 ## Key Documents
 
 - [RELEASE-STATUS.md](RELEASE-STATUS.md) — Current release status and required acceptance

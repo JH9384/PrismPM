@@ -74,6 +74,18 @@ fn attestation_spec(language: &str) -> &'static str {
     }
 }
 
+/// The build-manifest spec LexLean emits for a language. LexLean 0.4 keeps
+/// `lexlean/build-manifest/1` for languages 1.1 and 1.2 (BuildManifest::to_json
+/// in vendor/lexlean/src/artifact/manifest.rs; the 1.1/1.2 shape is
+/// build-manifest-v2.schema.json, whose `spec` const is the same id). Any other
+/// language has no manifest spec and is refused.
+fn build_manifest_spec(language: &str) -> Result<&'static str, PrismError> {
+    match language {
+        "1.1" | "1.2" => Ok("lexlean/build-manifest/1"),
+        _ => Err(invalid("LexLean evidence language is unsupported")),
+    }
+}
+
 fn keys(value: &Value, fields: &[&str]) -> Result<(), PrismError> {
     let expected: BTreeSet<_> = fields.iter().copied().collect();
     ensure(
@@ -405,7 +417,8 @@ fn attestation_shape(
     ensure(
         lex["spec"] == attestation_spec(language)
             && lex["status"] == "verified"
-            && manifest["spec"] == "lexlean/build-manifest/1"
+            && manifest["spec"] == build_manifest_spec(language)?
+            && manifest["language"] == language
             && snapshot["spec"] == snapshot_spec(language),
         "LexLean evidence schema or status differs",
     )?;
@@ -690,7 +703,7 @@ fn selected_application_snapshot(
         ],
     )?;
     ensure(
-        manifest["spec"] == "lexlean/build-manifest/1"
+        manifest["spec"] == build_manifest_spec(string(&manifest["language"])?)?
             && manifest["source_id"] == p.source_id
             && manifest["semantic_id"] == p.semantic_id
             && manifest["compiler"] == full_manifest["compiler"]

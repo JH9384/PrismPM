@@ -5,16 +5,16 @@ inputs:
     description: Registry-qualified PrismPM SDK manifest-list digest
     required: true
   command:
-    description: PrismPM command
+    description: PrismPM command, or publish-pages (build once, export-browser the built release and check its closure against the system manifest for GitHub Pages)
     required: true
   context:
     description: Repository-relative project context
     default: .
   reference:
-    description: Immutable product reference, or tagged destination for build
+    description: Immutable product reference, or tagged destination for build and publish-pages
     default: ""
   output:
-    description: New project-root directory name for export-browser; validated by the SDK
+    description: New project-root directory name for export-browser and publish-pages; validated by the SDK
     default: ""
   url:
     description: Canonical HTTPS base URL for verify-browser-publication; byte integrity only, not deployment acceptance
@@ -83,6 +83,12 @@ outputs:
   signature-referrer:
     description: OCI referrer digest of a verified signature result when returned
     value: ${{ steps.run.outputs.signature-referrer }}
+  pages-path:
+    description: Repository-relative exported browser closure for actions/upload-pages-artifact when publish-pages succeeds
+    value: ${{ steps.run.outputs.pages-path }}
+  pages-closure:
+    description: Pages publication closure summary (release, system, target and exact file digests) when publish-pages succeeds; integrity only, not deployment acceptance
+    value: ${{ steps.run.outputs.pages-closure }}
 runs:
   using: composite
   steps:

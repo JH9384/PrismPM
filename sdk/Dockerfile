@@ -68,14 +68,17 @@ COPY --from=source_inputs /prepared/source/standards/oracles/cloudevents-sdk-go-
 COPY --from=source_inputs /prepared/source/sdk/oracles/go/cloudevents-validator /src/cloudevents-wrapper
 COPY --from=source_inputs /prepared/source/standards/oracles/in-toto-attestation-ee16c68a /src/intoto
 COPY --from=source_inputs /prepared/source/sdk/oracles/go/intoto-statement-validator /src/intoto-wrapper
-RUN cd /src/cloudevents/v2 \
-    && CGO_ENABLED=0 go test -c -o /cloudevents-sdk-conformance ./event \
+# Module downloads are verified against go.sum; only transient proxy failures
+# are retried (4 attempts, 10 s then 20 s then 30 s apart).
+RUN retry() { n=1; until "$@"; do test "$n" -lt 4 || return 1; sleep $((n * 10)); n=$((n + 1)); done; } \
+    && cd /src/cloudevents/v2 \
+    && retry env CGO_ENABLED=0 go test -c -o /cloudevents-sdk-conformance ./event \
     && cd /src/cloudevents-wrapper \
     && go mod edit -replace github.com/cloudevents/sdk-go/v2=/src/cloudevents/v2 \
-    && CGO_ENABLED=0 go build -trimpath -o /cloudevents-validator . \
+    && retry env CGO_ENABLED=0 go build -trimpath -o /cloudevents-validator . \
     && cd /src/intoto-wrapper \
     && go mod edit -replace github.com/in-toto/attestation=/src/intoto \
-    && CGO_ENABLED=0 go build -trimpath -o /intoto-statement-validator .
+    && retry env CGO_ENABLED=0 go build -trimpath -o /intoto-statement-validator .
 FROM docker.io/library/maven:3.9.11-eclipse-temurin-21@sha256:6fdc855a6ed81d288ca7ca37ac6ff5e9308b612485c0801d70b25a858c83d237 AS openid_oracle
 COPY --from=source_inputs /prepared/source/standards/oracles/openid-conformance-suite-3e09b13b /src/openid
 RUN cd /src/openid \

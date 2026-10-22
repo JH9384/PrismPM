@@ -280,7 +280,10 @@ dispatch, parsing of requests or report formatting is handwritten. The program
 accepts `COMMAND [FILE]`, `examples [NAME]`, `--help` and `--version`. A missing
 FILE or `-` reads standard input. The request is read as raw bytes, at most the
 modeled request maximum plus one byte, so an oversized request is refused with
-the typed `InputLimit` failure before dispatch. The report is written to
+the typed `InputLimit` failure before dispatch: it exits with the `error`
+outcome's code, writes nothing to standard output and never produces the
+model's own oversized-request report, so web and CLI parity compares such
+vectors by refusal rather than by response bytes. The report is written to
 standard output unchanged and the process exits with the code of the outcome
 whose prefix begins it. `--help` is rendered from the model: purpose, usage,
 the request bound, modeled sections, examples and the complete exit-code table.
@@ -1425,7 +1428,10 @@ Compose service, SQL migration or server-resource default is introduced.
 
 The target is an artifact-publication binding, not publication authority,
 service readiness or organizational completeness. Pages publication remains
-the protected publisher workflow. SY-08's source fixture uses genuine
+the protected publisher workflow; for a template instance that workflow is the
+shared Action's `publish-pages` command and its starter workflow (section 17),
+which refuse a release whose system manifest does not name this target before
+any upload. SY-08's source fixture uses genuine
 application, proof and oracle evidence; its explicitly synthetic OCI
 transport metadata is not production SDK or supply-chain acceptance.
 Installed-SDK acceptance requires the same capability in the full installed
@@ -3449,8 +3455,8 @@ execution. Deployment, promotion, recovery and other operations never enter
 this cancellation group. All existing SDK inputs and outputs are preserved.
 The key is validated in a separate, non-concurrent job before the execution
 job can enter its group; invalid keys cannot cancel a valid invocation.
-The existing `TM-03` owner runs all 19 Action controls and all 13 CI-capacity
-controls together. The full source audit additionally owns all 26 diagnostic
+The existing `TM-03` owner runs all 19 Action transport controls, all 14 Pages
+publication controls and all 13 CI-capacity controls together. The full source audit additionally owns all 26 diagnostic
 transport controls; its previous file inventory and compiler-phase controls
 remain selected. CI-capacity controls preserve all six current SDK-candidate
 lanes, including input policy, unpublished construction and archive integrity,
@@ -3474,6 +3480,32 @@ HTTPS target validation. Observation enables network access, but mounts no
 Docker socket or signing/registry credentials. `result` contains only the
 integrity-observation receipt, not deployment authority or readiness evidence.
 It never builds from source or falls back to archive extraction.
+
+The shared Action's `publish-pages` command publishes a browser-resident
+system (`prismpm/system-model/2`) to GitHub Pages from one job. With a tagged
+`reference` and an `output` name it runs the SDK's `build --locked` once, runs
+`export-browser` on the returned release digest, then checks the exported
+closure against that release in the SDK image with the workspace read-only, no
+network and no credentials: the release's `system.prism.json` must be the
+browser-resident profile naming exactly one `github-pages-browser` target with
+`github-pages-artifact@v4`; `projections/browser-system-release.json` must
+bind that system digest, application digest and target; and every exported
+file must equal, byte for byte, its `view/browser/` row in the binding, the
+build manifest, the release layer and the stored blob, with the recomputed tree
+digest equal to the export receipt's. A release whose system manifest does not
+name the Pages target is refused with the registered `PP2101` before any upload
+step can run; inconsistent release evidence or differing served bytes are
+`PP6101`; unsafe paths are `PP8001`. `result` is the browser-export receipt,
+`pages-path` is the repository-relative closure for
+`actions/upload-pages-artifact`, and `pages-closure` is the closure summary.
+The starter workflow `action/starter/publish-pages.yml`, copied unchanged by a
+template instance, runs on `main` pushes and tags only, never on pull requests,
+as one job on one runner with `timeout-minutes` and cancelling `concurrency`,
+and hands the checked closure to the commit-pinned `actions/configure-pages`,
+`actions/upload-pages-artifact` and `actions/deploy-pages`; it requires no OCI
+sign, promote or push job. The check is byte integrity against the release's
+own evidence, not producer authorization, deployed-site observation or product
+acceptance; `verify-browser-publication` and the release gates remain separate.
 
 Untrusted pull requests check and build without write credentials. Protected
 jobs sign and push with short-lived identity. Protected environments authorize

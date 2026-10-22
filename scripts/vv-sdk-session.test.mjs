@@ -42,7 +42,7 @@ function completeSourceInvocation(result, args, status, image = null) {
   assert.equal(result.status, status, result.stderr);
   assert.deepEqual(result.rows.map(row => row.kind), preflightKinds, 'all three ordered preflights');
   assert.deepEqual(result.rows[0].args, ['scripts/browser-environment-preflight.mjs']);
-  assert.deepEqual(result.rows[1].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs']);
+  assert.deepEqual(result.rows[1].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs', 'scripts/sdk-runtime-stack.test.mjs']);
   assert.deepEqual(result.rows[2].args, ['--check-source']);
   assert.deepEqual(result.rows[3].args, ['xtask', ...args]);
   assert.equal(result.rows[3].image, image);
@@ -274,7 +274,7 @@ for (const [name, from, to, args] of [
 }
 for (const [name, line, expectedKinds] of [
   ['browser readiness', 'bash scripts/browser-environment-preflight.sh\n', ['init', 'bootstrap', 'cargo']],
-  ['source lifecycle', 'node --test scripts/devcontainer-init.test.mjs scripts/reconcile-lexlean.test.mjs\n', ['browser-ready', 'bootstrap', 'cargo']],
+  ['source lifecycle', 'node --test scripts/devcontainer-init.test.mjs scripts/reconcile-lexlean.test.mjs scripts/sdk-runtime-stack.test.mjs\n', ['browser-ready', 'bootstrap', 'cargo']],
   ['bootstrap source', 'bash scripts/bootstrap-verify.sh --check-source\n', ['browser-ready', 'init', 'cargo']],
 ]) {
   test(`actual shell mutant omitting ${name} is refused by ordered preflight witness`, t => {
@@ -297,7 +297,7 @@ for (const first of [0, 29]) {
     const result = run(t, {first, expectedCargoArgs: ['xtask', 'package-api']}, ['package-api']);
     assert.equal(result.status, first, result.stderr);
     assert.deepEqual(result.rows.map(row => row.kind), ['browser-ready', 'init', 'bootstrap', 'cargo']);
-    assert.deepEqual(result.rows[1].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs']);
+    assert.deepEqual(result.rows[1].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs', 'scripts/sdk-runtime-stack.test.mjs']);
     assert.deepEqual(result.rows[2].args, ['--check-source']);
     assert.deepEqual(result.rows[3].args, ['xtask', 'package-api']);
     assert.equal(result.rows[3].image, null);
@@ -352,7 +352,7 @@ for (const category of ['holo-stdlib', 'desktop-browser']) {
       const result = run(t, {first, expectedCargoArgs}, args);
       assert.equal(result.status, first, result.stderr);
       assert.deepEqual(result.rows.map(row => row.kind), ['browser-ready', 'init', 'bootstrap', 'cargo']);
-      assert.deepEqual(result.rows[1].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs']);
+      assert.deepEqual(result.rows[1].args, ['--test', 'scripts/devcontainer-init.test.mjs', 'scripts/reconcile-lexlean.test.mjs', 'scripts/sdk-runtime-stack.test.mjs']);
       assert.deepEqual(result.rows[2].args, ['--check-source']);
       assert.deepEqual(result.rows[3].args, expectedCargoArgs);
       assert.equal(result.rows[3].image, null);

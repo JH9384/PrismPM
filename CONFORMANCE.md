@@ -254,10 +254,10 @@ The three honesty levels:
 
 | ID | Level | Statement |
 | --- | --- | --- |
-| `SC-01` | `build` | SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure. |
+| `SC-01` | `build` | SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure; local Cargo package checksums resolve normalized project manifests without weakening path confinement. |
 | `SC-02` | `build` | in-toto Statement v1 and SLSA 1.2 provenance bind subjects, builders, sources, parameters, dependencies, and objectively supported build level. |
 | `SC-03` | `build` | Sigstore verification enforces exact trusted issuer, subject, repository, workflow, ref, environment, certificate, and transparency policy. |
-| `SC-04` | `build` | Vulnerability and license results identify their immutable inputs and freshness and stale evidence cannot satisfy current policy. |
+| `SC-04` | `build` | Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage, Docker image children preserve separate credential and builder configuration, and stale evidence cannot satisfy current policy. |
 | `SC-05` | `build` | Source, locks, artifacts, plans, OCI content, BOMs, attestations, logs, and evidence are verified free of secret values. |
 | `SC-06` | `build` | Supply-chain policy rejects wrong subjects or builders, incomplete graphs, tampering, unsigned promotion, and unsupported claims. |
 
@@ -280,7 +280,7 @@ The three honesty levels:
 | --- | --- | --- |
 | `TM-01` | `build` | The versioned UOR template contract preserves repository honesty, anti-vacuity, generated registers, and planted-defect policy. |
 | `TM-02` | `build` | Template-derived devcontainers consume the exact signed SDK manifest digest with no floating feature, installer, action, or host-tool fallback. |
-| `TM-03` | `build` | Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI and return declared release, plan, and evidence digests. |
+| `TM-03` | `build` | Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI, isolate private builder state from read-only registry credentials, and return declared release, plan, and evidence digests. |
 | `TM-04` | `build` | Least-privilege jobs build once and pass the exact digest through protected signing, publication, deployment, and verification boundaries. |
 | `TM-05` | `build` | Template checks are read-only and explicit updates produce reviewable downstream patches or pull requests without hidden branch mutation. |
 | `TM-06` | `build` | All in-scope UOR and Prism repositories use the common SDK bootstrap while preserving their repository-specific acceptance gates. |

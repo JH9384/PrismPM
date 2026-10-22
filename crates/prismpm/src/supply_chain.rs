@@ -201,6 +201,63 @@ struct InventoryComponent {
 
 type CargoInventory = (Vec<InventoryComponent>, Vec<(String, String)>, Vec<String>);
 
+fn cargo_manifest_source_root(root: &Path, manifest_path: &str) -> Result<PathBuf, PrismError> {
+    let invalid = || {
+        PrismError::new(
+            "PP7801",
+            "Cargo package manifest is not a regular confined source path",
+        )
+    };
+    let project_relative = manifest_path.strip_prefix("$PROJECT/");
+    let project_root = root.canonicalize().map_err(|_| invalid())?;
+    let manifest = if let Some(relative) = project_relative {
+        if relative
+            .split('/')
+            .any(|part| matches!(part, "" | "." | ".."))
+            || Path::new(relative)
+                .components()
+                .any(|part| !matches!(part, std::path::Component::Normal(_)))
+        {
+            return Err(invalid());
+        }
+        project_root.join(relative)
+    } else {
+        // Cargo can select a genuine local dependency outside this project.
+        // Only its absolute, unmodified metadata path has that authority;
+        // malformed normalization tokens cannot introduce such a path.
+        PathBuf::from(manifest_path)
+    };
+    if !manifest.is_absolute()
+        || manifest.file_name().and_then(|name| name.to_str()) != Some("Cargo.toml")
+        || manifest.components().any(|part| {
+            !matches!(
+                part,
+                std::path::Component::Prefix(_)
+                    | std::path::Component::RootDir
+                    | std::path::Component::Normal(_)
+            )
+        })
+    {
+        return Err(invalid());
+    }
+    let mut current = PathBuf::new();
+    for part in manifest.components() {
+        current.push(part.as_os_str());
+        let metadata = std::fs::symlink_metadata(&current).map_err(|_| invalid())?;
+        if metadata.file_type().is_symlink()
+            || (current != manifest && !metadata.is_dir())
+            || (current == manifest && !metadata.is_file())
+        {
+            return Err(invalid());
+        }
+    }
+    let manifest = manifest.canonicalize().map_err(|_| invalid())?;
+    if project_relative.is_some() && !manifest.starts_with(&project_root) {
+        return Err(invalid());
+    }
+    manifest.parent().map(Path::to_owned).ok_or_else(invalid)
+}
+
 fn source_tree_digest(root: &Path) -> Result<String, PrismError> {
     let mut rows = Vec::new();
     for entry in walkdir::WalkDir::new(root).follow_links(false) {
@@ -414,10 +471,8 @@ fn cargo_inventory(root: &Path) -> Result<CargoInventory, PrismError> {
             .map(|checksum| format!("sha256:{checksum}"))
             .map(Ok)
             .unwrap_or_else(|| {
-                let parent = Path::new(manifest_path).parent().ok_or_else(|| {
-                    PrismError::new("PP7801", format!("source absent for {name}@{version}"))
-                })?;
-                source_tree_digest(parent)
+                let parent = cargo_manifest_source_root(root, manifest_path)?;
+                source_tree_digest(&parent)
             })?;
         inventory.push(InventoryComponent {
             id,
@@ -743,6 +798,99 @@ fn osv_databases(root: &Path, lock: &Value) -> Result<(Vec<(String, PathBuf)>, V
     Ok((files, Value::Array(facts)))
 }
 
+struct OsvScanWorkspace {
+    home: tempfile::TempDir,
+    scratch: PathBuf,
+    environment: BTreeMap<String, String>,
+}
+
+impl OsvScanWorkspace {
+    fn new(root: &Path) -> Result<Self, PrismError> {
+        let root = root
+            .canonicalize()
+            .map_err(|error| PrismError::new("PP7801", format!("OSV scan project: {error}")))?;
+        let parent = root.join(".prism/cache/scanner-workspaces");
+        for path in [
+            root.join(".prism"),
+            root.join(".prism/cache"),
+            parent.clone(),
+        ] {
+            match std::fs::symlink_metadata(path) {
+                Ok(metadata) if metadata.file_type().is_symlink() => {
+                    return Err(PrismError::new(
+                        "PP7801",
+                        "OSV scan workspace cache contains a symlink",
+                    ));
+                }
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(PrismError::new(
+                        "PP7801",
+                        format!("OSV scan workspace: {error}"),
+                    ))
+                }
+            }
+        }
+        std::fs::create_dir_all(&parent)
+            .map_err(|error| PrismError::new("PP7801", format!("OSV scan workspace: {error}")))?;
+        if parent
+            .canonicalize()
+            .map_err(|error| PrismError::new("PP7801", format!("OSV scan workspace: {error}")))?
+            != parent
+        {
+            return Err(PrismError::new(
+                "PP7801",
+                "OSV scan workspace escapes its project cache through a symlink",
+            ));
+        }
+        let mut builder = tempfile::Builder::new();
+        builder.prefix("scan-");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            builder.permissions(std::fs::Permissions::from_mode(0o700));
+        }
+        let home = builder
+            .tempdir_in(parent)
+            .map_err(|error| PrismError::new("PP7801", format!("OSV scan home: {error}")))?;
+        let scratch = home.path().join("tmp");
+        std::fs::create_dir(&scratch)
+            .map_err(|error| PrismError::new("PP7801", format!("OSV scan scratch: {error}")))?;
+        let environment = BTreeMap::from([
+            (
+                "HOME".to_owned(),
+                home.path().to_string_lossy().into_owned(),
+            ),
+            (
+                "XDG_CACHE_HOME".to_owned(),
+                home.path().join(".cache").to_string_lossy().into_owned(),
+            ),
+            ("TMPDIR".to_owned(), scratch.to_string_lossy().into_owned()),
+        ]);
+        Ok(Self {
+            home,
+            scratch,
+            environment,
+        })
+    }
+
+    fn replacements<'a>(
+        &'a self,
+        root: &'a Path,
+        archive: Option<&'a Path>,
+    ) -> Vec<(&'a Path, &'static str)> {
+        let mut paths = Vec::new();
+        if let Some(archive) = archive {
+            paths.push((archive, "$IMAGE_ARCHIVE"));
+        }
+        paths.push((self.scratch.as_path(), "$SCAN_TEMP"));
+        paths.push((self.home.path(), "$SCAN_HOME"));
+        paths.push((root, "$PROJECT"));
+        paths
+    }
+}
+
 fn stage_osv_databases(home: &Path, databases: &[(String, PathBuf)]) -> Result<(), PrismError> {
     for (ecosystem, source) in databases {
         let directory = home.join(".cache/osv-scanner").join(ecosystem);
@@ -1051,6 +1199,38 @@ fn verify_image_scan(
     Ok(value)
 }
 
+fn advisory_docker_environment() -> BTreeMap<String, String> {
+    ["DOCKER_CONFIG", "BUILDX_CONFIG"]
+        .into_iter()
+        .filter_map(|name| {
+            std::env::var_os(name)
+                .map(|value| (name.to_owned(), value.to_string_lossy().into_owned()))
+        })
+        .collect()
+}
+
+fn run_advisory_docker(
+    root: &Path,
+    tool: &str,
+    arguments: &[String],
+    replacements: &[(&Path, &str)],
+    timeout_seconds: &str,
+    output_limit: usize,
+) -> Result<crate::verification::ProcessRecord, PrismError> {
+    let docker = crate::sdk::executable("docker")?;
+    crate::verification::run_process_limited(
+        tool,
+        &docker,
+        arguments,
+        root,
+        &advisory_docker_environment(),
+        replacements,
+        "PP7801",
+        timeout_seconds,
+        output_limit,
+    )
+}
+
 /// Acquire and scan every modeled component and SDK image during the explicit online phase.
 pub(crate) fn fetch_image_advisories(
     root: &Path,
@@ -1072,25 +1252,10 @@ pub(crate) fn fetch_image_advisories(
     }
     let database_set_digest = sha(&encode_value(&database_facts)?);
     let images = required_image_inputs(root, systems)?;
-    let docker = crate::sdk::executable("docker")?;
     let scanner = crate::sdk::executable("osv-scanner")?;
-    let scan_home = tempfile::tempdir()
-        .map_err(|error| PrismError::new("PP7801", format!("image scan home: {error}")))?;
-    stage_osv_databases(scan_home.path(), &databases)?;
-    let mut scan_env = BTreeMap::from([
-        (
-            "HOME".to_owned(),
-            scan_home.path().to_string_lossy().into_owned(),
-        ),
-        (
-            "XDG_CACHE_HOME".to_owned(),
-            scan_home
-                .path()
-                .join(".cache")
-                .to_string_lossy()
-                .into_owned(),
-        ),
-    ]);
+    let scan_workspace = OsvScanWorkspace::new(root)?;
+    stage_osv_databases(scan_workspace.home.path(), &databases)?;
+    let mut scan_env = scan_workspace.environment.clone();
     if let Some(value) = std::env::var_os("DOCKER_CONFIG") {
         scan_env.insert(
             "DOCKER_CONFIG".to_owned(),
@@ -1099,9 +1264,9 @@ pub(crate) fn fetch_image_advisories(
     }
     let mut records = Vec::new();
     for image in images {
-        let index_record = crate::verification::run_process_limited(
+        let index_record = run_advisory_docker(
+            root,
             "docker-image-index",
-            &docker,
             &[
                 "buildx".to_owned(),
                 "imagetools".to_owned(),
@@ -1109,10 +1274,7 @@ pub(crate) fn fetch_image_advisories(
                 "--raw".to_owned(),
                 image.reference.clone(),
             ],
-            root,
-            &BTreeMap::new(),
             &[(root, "$PROJECT")],
-            "PP7801",
             "120s",
             16 * 1024 * 1024,
         )?;
@@ -1165,9 +1327,9 @@ pub(crate) fn fetch_image_advisories(
             }
             std::fs::create_dir_all(destination.parent().expect("scan cache parent"))
                 .map_err(|error| PrismError::new("PP7801", format!("image scan cache: {error}")))?;
-            crate::verification::run_process_limited(
+            run_advisory_docker(
+                root,
                 "docker-pull-advisory-subject",
-                &docker,
                 &[
                     "image".to_owned(),
                     "pull".to_owned(),
@@ -1175,25 +1337,19 @@ pub(crate) fn fetch_image_advisories(
                     platform.to_owned(),
                     platform_reference.clone(),
                 ],
-                root,
-                &BTreeMap::new(),
                 &[(root, "$PROJECT")],
-                "PP7801",
                 "900s",
                 4 * 1024 * 1024,
             )?;
-            let inspected = crate::verification::run_process_limited(
+            let inspected = run_advisory_docker(
+                root,
                 "docker-inspect-advisory-subject",
-                &docker,
                 &[
                     "image".to_owned(),
                     "inspect".to_owned(),
                     platform_reference.clone(),
                 ],
-                root,
-                &BTreeMap::new(),
                 &[(root, "$PROJECT")],
-                "PP7801",
                 "60s",
                 4 * 1024 * 1024,
             )?;
@@ -1220,9 +1376,9 @@ pub(crate) fn fetch_image_advisories(
                 .tempfile_in(destination.parent().expect("scan cache parent"))
                 .map_err(|error| PrismError::new("PP7801", format!("image archive: {error}")))?;
             let archive_path = archive.path().to_path_buf();
-            crate::verification::run_process_limited(
+            run_advisory_docker(
+                root,
                 "docker-save-advisory-subject",
-                &docker,
                 &[
                     "image".to_owned(),
                     "save".to_owned(),
@@ -1230,10 +1386,7 @@ pub(crate) fn fetch_image_advisories(
                     archive_path.to_string_lossy().into_owned(),
                     platform_reference,
                 ],
-                root,
-                &BTreeMap::new(),
-                &[(root, "$PROJECT"), (&archive_path, "$IMAGE_ARCHIVE")],
-                "PP7801",
+                &[(&archive_path, "$IMAGE_ARCHIVE"), (root, "$PROJECT")],
                 "900s",
                 4 * 1024 * 1024,
             )?;
@@ -1255,11 +1408,7 @@ pub(crate) fn fetch_image_advisories(
                 ],
                 root,
                 &scan_env,
-                &[
-                    (root, "$PROJECT"),
-                    (&archive_path, "$IMAGE_ARCHIVE"),
-                    (scan_home.path(), "$SCAN_HOME"),
-                ],
+                &scan_workspace.replacements(root, Some(&archive_path)),
                 "PP7801",
                 "900s",
                 64 * 1024 * 1024,
@@ -1348,20 +1497,9 @@ pub(crate) fn scan_vulnerabilities(
         .filter(|item| item.kind == "cargo-package")
         .count() as u64;
     let lockfile = root.join("Cargo.lock");
-    let home = tempfile::tempdir()
-        .map_err(|error| PrismError::new("PP7801", format!("OSV scan home: {error}")))?;
-    stage_osv_databases(home.path(), &databases)?;
+    let workspace = OsvScanWorkspace::new(root)?;
+    stage_osv_databases(workspace.home.path(), &databases)?;
     let scanner = crate::sdk::executable("osv-scanner")?;
-    let environment = BTreeMap::from([
-        (
-            "HOME".to_owned(),
-            home.path().to_string_lossy().into_owned(),
-        ),
-        (
-            "XDG_CACHE_HOME".to_owned(),
-            home.path().join(".cache").to_string_lossy().into_owned(),
-        ),
-    ]);
     let record = crate::verification::run_process_limited(
         "osv-scanner",
         &scanner,
@@ -1379,8 +1517,8 @@ pub(crate) fn scan_vulnerabilities(
             "error".to_owned(),
         ],
         root,
-        &environment,
-        &[(root, "$PROJECT"), (home.path(), "$SCAN_HOME")],
+        &workspace.environment,
+        &workspace.replacements(root, None),
         "PP7801",
         "120s",
         16 * 1024 * 1024,
@@ -4170,6 +4308,297 @@ pub(crate) fn attach_build_evidence(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    #[test]
+    fn image_scan_workspace_docker_children_preserve_private_configuration() {
+        use std::os::unix::fs::PermissionsExt;
+        use std::path::PathBuf;
+        const CHILD: &str = "PRISMPM_DOCKER_CONFIG_TEST_CHILD";
+        const FIXTURE: &str = "PRISMPM_DOCKER_CONFIG_TEST_FIXTURE";
+        if std::env::var_os(CHILD).is_some() {
+            let root = PathBuf::from(std::env::var_os(FIXTURE).expect("private fixture root"));
+            let credentials = root.join("home/.docker");
+            assert!(
+                std::fs::write(credentials.join("must-not-write"), b"refuse").is_err(),
+                "the genuine Docker child must receive read-only credentials"
+            );
+            let before = std::fs::read(credentials.join("config.json")).unwrap();
+            let record = super::run_advisory_docker(
+                &root,
+                "docker-buildx-private-config",
+                &[
+                    "buildx".to_owned(),
+                    "ls".to_owned(),
+                    "--format".to_owned(),
+                    "json".to_owned(),
+                ],
+                &[(&root, "$DOCKER_FIXTURE")],
+                "30s",
+                4 * 1024 * 1024,
+            )
+            .expect("pinned Buildx uses writable private state beside read-only credentials");
+            let rows = record
+                .stdout
+                .lines()
+                .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+                .collect::<Vec<_>>();
+            assert!(
+                !rows.is_empty(),
+                "real Buildx must list its daemon-backed builder"
+            );
+            assert!(rows.iter().any(|row| row["Driver"] == "docker"));
+            let environment = super::advisory_docker_environment();
+            assert_eq!(
+                environment.keys().map(String::as_str).collect::<Vec<_>>(),
+                ["BUILDX_CONFIG", "DOCKER_CONFIG"]
+            );
+            assert_eq!(environment["DOCKER_CONFIG"], credentials.to_str().unwrap());
+            assert_eq!(
+                environment["BUILDX_CONFIG"],
+                root.join("buildx").to_str().unwrap()
+            );
+            assert_eq!(
+                std::fs::read(credentials.join("config.json")).unwrap(),
+                before
+            );
+            assert!(!credentials.join("buildx").exists());
+            assert!(
+                std::fs::read_dir(root.join("buildx"))
+                    .unwrap()
+                    .next()
+                    .is_some(),
+                "real Buildx must write its private configuration"
+            );
+            return;
+        }
+        let owned = tempfile::tempdir().unwrap();
+        let external = std::env::var_os(FIXTURE);
+        let root = external
+            .as_ref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| owned.path().to_owned());
+        let credentials = root.join("home/.docker");
+        if external.is_none() {
+            std::fs::create_dir_all(&credentials).unwrap();
+            std::fs::create_dir(root.join("buildx")).unwrap();
+            std::fs::write(credentials.join("config.json"), b"{}\n").unwrap();
+            std::fs::set_permissions(&credentials, std::fs::Permissions::from_mode(0o555)).unwrap();
+        }
+        // A fresh process gives this fixture private HOME/credential/builder
+        // variables without mutating the parallel Rust test environment. Its
+        // HOME is never rewritten by a devcontainer initialization wrapper.
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "supply_chain::tests::image_scan_workspace_docker_children_preserve_private_configuration", "--nocapture"])
+            .env(CHILD, "1").env(FIXTURE, &root)
+            .env("HOME", root.join("home"))
+            .env("DOCKER_CONFIG", &credentials)
+            .env("BUILDX_CONFIG", root.join("buildx"))
+            .output().unwrap();
+        if external.is_none() {
+            std::fs::set_permissions(&credentials, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        assert!(
+            output.status.success(),
+            "actual private Docker child: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    fn cargo_inventory_fixture() -> (tempfile::TempDir, std::path::PathBuf) {
+        let fixture = tempfile::tempdir().unwrap();
+        let root = fixture.path().join("project with spaces");
+        for directory in ["crates/app/src", "crates/model/src"] {
+            std::fs::create_dir_all(root.join(directory)).unwrap();
+        }
+        std::fs::create_dir_all(fixture.path().join("external/src")).unwrap();
+        for (file, text) in [
+            ("Cargo.toml", "[workspace]\nresolver = \"2\"\nmembers = [\"crates/app\", \"crates/model\"]\n"),
+            ("crates/app/Cargo.toml", "[package]\nname = \"inventory-app\"\nversion = \"1.0.0\"\nedition = \"2021\"\nlicense = \"MIT\"\n[dependencies]\ninventory-model = { version = \"1.0.0\", path = \"../model\" }\ninventory-external = { version = \"1.0.0\", path = \"../../../external\" }\n"),
+            ("crates/app/src/lib.rs", "pub fn value() -> u32 { inventory_model::value() + inventory_external::value() }\n"),
+            ("crates/model/Cargo.toml", "[package]\nname = \"inventory-model\"\nversion = \"1.0.0\"\nedition = \"2021\"\nlicense = \"Apache-2.0\"\n"),
+            ("crates/model/src/lib.rs", "pub fn value() -> u32 { 1 }\n"),
+        ] {
+            std::fs::write(root.join(file), text).unwrap();
+        }
+        std::fs::write(fixture.path().join("external/Cargo.toml"), "[package]\nname = \"inventory-external\"\nversion = \"1.0.0\"\nedition = \"2021\"\nlicense = \"MIT\"\n[workspace]\n").unwrap();
+        std::fs::write(
+            fixture.path().join("external/src/lib.rs"),
+            "pub fn value() -> u32 { 2 }\n",
+        )
+        .unwrap();
+        let cargo = crate::sdk::executable("cargo").unwrap();
+        crate::verification::run_process_limited(
+            "cargo-inventory-fixture-lock",
+            &cargo,
+            &["generate-lockfile".to_owned(), "--offline".to_owned()],
+            &root,
+            &std::collections::BTreeMap::new(),
+            &[],
+            "PP7801",
+            "60s",
+            1_048_576,
+        )
+        .unwrap();
+        (fixture, root)
+    }
+
+    #[test]
+    fn cargo_inventory_local_workspace_paths_bind_source_and_are_root_independent() {
+        let (_first, first) = cargo_inventory_fixture();
+        let (_second, second) = cargo_inventory_fixture();
+        let summarize = |root: &std::path::Path| {
+            let (inventory, relationships, unresolved) = super::cargo_inventory(root).unwrap();
+            assert!(unresolved.is_empty());
+            let rows = inventory
+                .into_iter()
+                .map(|item| {
+                    assert_eq!(item.kind, "cargo-package");
+                    assert_eq!(item.source, "workspace");
+                    assert!(super::digest_hex(&item.digest).is_some());
+                    (item.name, (item.id, item.digest, item.license))
+                })
+                .collect::<std::collections::BTreeMap<_, _>>();
+            assert_eq!(
+                rows.keys().map(String::as_str).collect::<Vec<_>>(),
+                ["inventory-app", "inventory-external", "inventory-model"]
+            );
+            assert_eq!(relationships.len(), 2);
+            for dependency in ["inventory-model", "inventory-external"] {
+                assert!(relationships
+                    .contains(&(rows["inventory-app"].0.clone(), rows[dependency].0.clone())));
+            }
+            (rows, relationships)
+        };
+        let original = summarize(&first);
+        assert_eq!(
+            original,
+            summarize(&second),
+            "local source checksums must not contain build-root paths"
+        );
+        std::fs::write(
+            first.join("crates/app/src/lib.rs"),
+            "pub fn value() -> u32 { 7 }\n",
+        )
+        .unwrap();
+        let changed = summarize(&first);
+        assert_ne!(original.0["inventory-app"].1, changed.0["inventory-app"].1);
+        assert_eq!(original.0["inventory-model"], changed.0["inventory-model"]);
+        assert_eq!(
+            original.0["inventory-external"],
+            changed.0["inventory-external"]
+        );
+        assert_eq!(original.1, changed.1);
+    }
+
+    #[test]
+    fn cargo_inventory_manifest_refuses_escapes_nonregular_and_symlink_inputs() {
+        let (fixture, root) = cargo_inventory_fixture();
+        let resolve = |manifest: &str| super::cargo_manifest_source_root(&root, manifest);
+        assert_eq!(
+            resolve("$PROJECT/crates/app/Cargo.toml").unwrap(),
+            root.join("crates/app")
+        );
+        let external = fixture.path().join("external/Cargo.toml");
+        assert_eq!(
+            resolve(external.to_str().unwrap()).unwrap(),
+            fixture.path().join("external")
+        );
+        for invalid in [
+            "",
+            "$PROJECT",
+            "$PROJECTevil/crates/app/Cargo.toml",
+            "$PROJECT//Cargo.toml",
+            "$PROJECT/../external/Cargo.toml",
+            "$PROJECT/crates/app/../../../external/Cargo.toml",
+            "$PROJECT/./Cargo.toml",
+            "$PROJECT/crates/./app/Cargo.toml",
+            "crates/app/Cargo.toml",
+            "$PROJECT/crates/app/not-Cargo.toml",
+            "$PROJECT/missing/Cargo.toml",
+        ] {
+            assert_eq!(resolve(invalid).unwrap_err().code, "PP7801", "{invalid}");
+        }
+        std::fs::create_dir(root.join("directory")).unwrap();
+        std::fs::create_dir(root.join("directory/Cargo.toml")).unwrap();
+        assert_eq!(
+            resolve("$PROJECT/directory/Cargo.toml").unwrap_err().code,
+            "PP7801"
+        );
+        std::fs::write(root.join("plain-file"), b"not a directory").unwrap();
+        assert_eq!(
+            resolve("$PROJECT/plain-file/Cargo.toml").unwrap_err().code,
+            "PP7801"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            for (alias, target) in [
+                ("outside-link", fixture.path().join("external")),
+                ("inside-link", root.join("crates/app")),
+            ] {
+                symlink(target, root.join(alias)).unwrap();
+                let manifest = format!("$PROJECT/{alias}/Cargo.toml");
+                assert_eq!(resolve(&manifest).unwrap_err().code, "PP7801");
+            }
+            std::fs::create_dir(root.join("manifest-link")).unwrap();
+            symlink(
+                root.join("crates/app/Cargo.toml"),
+                root.join("manifest-link/Cargo.toml"),
+            )
+            .unwrap();
+            assert_eq!(
+                resolve("$PROJECT/manifest-link/Cargo.toml")
+                    .unwrap_err()
+                    .code,
+                "PP7801"
+            );
+            symlink(
+                fixture.path().join("external"),
+                fixture.path().join("external-link"),
+            )
+            .unwrap();
+            let external_link = fixture.path().join("external-link/Cargo.toml");
+            assert_eq!(
+                resolve(external_link.to_str().unwrap()).unwrap_err().code,
+                "PP7801"
+            );
+            symlink(
+                root.join("crates/app/src/lib.rs"),
+                root.join("crates/app/src/alias.rs"),
+            )
+            .unwrap();
+            assert_eq!(
+                super::source_tree_digest(&root.join("crates/app"))
+                    .unwrap_err()
+                    .code,
+                "PP7801"
+            );
+        }
+        // The existing process normalizer replaces matching root strings.
+        // A real sibling-prefix dependency is therefore ambiguous, and cannot
+        // authorize treating a malformed project token as an external path.
+        let (alias_fixture, alias_root) = cargo_inventory_fixture();
+        std::fs::rename(
+            alias_fixture.path().join("external"),
+            alias_fixture.path().join("project with spaces-external"),
+        )
+        .unwrap();
+        let manifest = alias_root.join("crates/app/Cargo.toml");
+        let text = std::fs::read_to_string(&manifest).unwrap();
+        std::fs::write(
+            &manifest,
+            text.replace("../../../external", "../../../project with spaces-external"),
+        )
+        .unwrap();
+        let error = super::cargo_inventory(&alias_root).unwrap_err();
+        assert_eq!(error.code, "PP7801");
+        assert_eq!(
+            error.message,
+            "Cargo package manifest is not a regular confined source path"
+        );
+    }
+
     #[test]
     fn current_cosign_capture_is_pinned_or_explicitly_unavailable() {
         let installed = crate::sdk::inventory_path().is_some();
@@ -4258,6 +4687,158 @@ mod tests {
         }
         for invalid in [0, 128 * 1024 * 1024, u64::MAX] {
             assert_eq!(super::cosign_pin(invalid).unwrap_err().code, "PP7401");
+        }
+    }
+
+    #[test]
+    fn image_scan_workspace_uses_private_project_cache_and_explicit_tempdir() {
+        let fixture = tempfile::tempdir().unwrap();
+        let root = fixture.path().join("project with spaces");
+        std::fs::create_dir(&root).unwrap();
+        let workspace = super::OsvScanWorkspace::new(&root).unwrap();
+        let expected = root
+            .join(".prism/cache/scanner-workspaces")
+            .canonicalize()
+            .unwrap();
+        assert!(workspace.home.path().starts_with(expected));
+        assert!(workspace.scratch.is_dir());
+        assert_eq!(
+            workspace.environment["TMPDIR"],
+            workspace.scratch.to_str().unwrap()
+        );
+        assert_eq!(
+            workspace.environment["HOME"],
+            workspace.home.path().to_str().unwrap()
+        );
+        assert_eq!(
+            workspace.environment["XDG_CACHE_HOME"],
+            workspace.home.path().join(".cache").to_str().unwrap()
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(workspace.home.path())
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o700
+            );
+        }
+        let home = workspace.home.path().to_path_buf();
+        drop(workspace);
+        assert!(!home.exists());
+    }
+
+    #[test]
+    fn image_scan_workspace_real_child_owns_tempfiles_outside_repository_cwd() {
+        let fixture = tempfile::tempdir().unwrap();
+        let unrelated = tempfile::tempdir().unwrap();
+        let python = crate::sdk::executable("python3").unwrap();
+        let mut observed = Vec::new();
+        for name in ["first project", "second project"] {
+            let root = fixture.path().join(name);
+            std::fs::create_dir(&root).unwrap();
+            let workspace = super::OsvScanWorkspace::new(&root).unwrap();
+            let archive = workspace.home.path().join("subject.tar");
+            let script = "import os,pathlib,tempfile\np=tempfile.NamedTemporaryFile(delete=False)\np.write(b'owned scanner bytes')\np.close()\nassert pathlib.Path(p.name).parent==pathlib.Path(os.environ['TMPDIR'])\nprint(os.environ['HOME'])\nprint(os.environ['XDG_CACHE_HOME'])\nprint(tempfile.gettempdir())\nprint(os.environ['SUBJECT'])\nos.unlink(p.name)";
+            let mut environment = workspace.environment.clone();
+            environment.insert("SUBJECT".to_owned(), archive.to_str().unwrap().to_owned());
+            let record = crate::verification::run_process_limited(
+                "image-scan-workspace-tempfile-probe",
+                &python,
+                &["-c".to_owned(), script.to_owned()],
+                unrelated.path(),
+                &environment,
+                &workspace.replacements(&root, Some(&archive)),
+                "PP7801",
+                "30s",
+                16384,
+            )
+            .unwrap();
+            assert_eq!(
+                record.stdout,
+                "$SCAN_HOME\n$SCAN_HOME/.cache\n$SCAN_TEMP\n$IMAGE_ARCHIVE\n"
+            );
+            observed.push(record.stdout);
+        }
+        assert_eq!(observed[0], observed[1]);
+    }
+
+    #[test]
+    fn image_scan_workspace_cleans_failures_and_preserves_database_sources() {
+        let root = tempfile::tempdir().unwrap();
+        let database = root.path().join("locked-database.zip");
+        let bytes = b"immutable locked authority bytes";
+        std::fs::write(&database, bytes).unwrap();
+        let home;
+        {
+            let workspace = super::OsvScanWorkspace::new(root.path()).unwrap();
+            home = workspace.home.path().to_path_buf();
+            super::stage_osv_databases(&home, &[("Debian".to_owned(), database.clone())]).unwrap();
+            assert_eq!(
+                std::fs::read(home.join(".cache/osv-scanner/Debian/all.zip")).unwrap(),
+                bytes
+            );
+            let python = crate::sdk::executable("python3").unwrap();
+            let script = "import pathlib,tempfile,sys\np=tempfile.NamedTemporaryFile(delete=False)\np.write(b'failed scanner scratch')\np.close()\nassert pathlib.Path(p.name).parent==pathlib.Path(tempfile.gettempdir())\nsys.exit(7)";
+            let error = crate::verification::run_process_limited(
+                "image-scan-workspace-failure-probe",
+                &python,
+                &["-c".to_owned(), script.to_owned()],
+                root.path(),
+                &workspace.environment,
+                &workspace.replacements(root.path(), None),
+                "PP7801",
+                "30s",
+                16384,
+            )
+            .unwrap_err();
+            assert_eq!(error.code, "PP7801");
+            assert!(home.exists());
+        }
+        assert!(!home.exists());
+        assert_eq!(std::fs::read(database).unwrap(), bytes);
+        assert_eq!(
+            std::fs::read_dir(root.path().join(".prism/cache/scanner-workspaces"))
+                .unwrap()
+                .count(),
+            0
+        );
+    }
+
+    #[test]
+    fn image_scan_workspace_rejects_unwritable_cache_without_system_temp_fallback() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(root.path().join(".prism/cache")).unwrap();
+        std::fs::write(
+            root.path().join(".prism/cache/scanner-workspaces"),
+            b"not a directory",
+        )
+        .unwrap();
+        let error = match super::OsvScanWorkspace::new(root.path()) {
+            Ok(_) => panic!("an unusable project cache must not fall back to system temp"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code, "PP7801");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn image_scan_workspace_rejects_cache_symlink_escape() {
+        for relative in [".prism", ".prism/cache", ".prism/cache/scanner-workspaces"] {
+            let root = tempfile::tempdir().unwrap();
+            let outside = tempfile::tempdir().unwrap();
+            let link = root.path().join(relative);
+            std::fs::create_dir_all(link.parent().unwrap()).unwrap();
+            std::os::unix::fs::symlink(outside.path(), link).unwrap();
+            let error = match super::OsvScanWorkspace::new(root.path()) {
+                Ok(_) => panic!("scan scratch must remain in the project's ignored cache"),
+                Err(error) => error,
+            };
+            assert_eq!(error.code, "PP7801");
+            assert_eq!(std::fs::read_dir(outside.path()).unwrap().count(), 0);
         }
     }
 

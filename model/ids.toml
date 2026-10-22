@@ -1114,7 +1114,7 @@ statement = "Sensitive fields, credentials, tokens, operands, history, labels, a
 id = "SC-01"
 suite = "supply-chain"
 level = "build"
-statement = "SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure."
+statement = "SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure; local Cargo package checksums resolve normalized project manifests without weakening path confinement."
 
 [[id]]
 id = "SC-02"
@@ -1132,7 +1132,7 @@ statement = "Sigstore verification enforces exact trusted issuer, subject, repos
 id = "SC-04"
 suite = "supply-chain"
 level = "build"
-statement = "Vulnerability and license results identify their immutable inputs and freshness and stale evidence cannot satisfy current policy."
+statement = "Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage, Docker image children preserve separate credential and builder configuration, and stale evidence cannot satisfy current policy."
 
 [[id]]
 id = "SC-05"
@@ -1162,7 +1162,7 @@ statement = "Template-derived devcontainers consume the exact signed SDK manifes
 id = "TM-03"
 suite = "template-ci"
 level = "build"
-statement = "Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI and return declared release, plan, and evidence digests."
+statement = "Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI, isolate private builder state from read-only registry credentials, and return declared release, plan, and evidence digests."
 
 [[id]]
 id = "TM-04"

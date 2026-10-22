@@ -119,11 +119,11 @@
       "properties": {
         "component_kinds": { "items": { "$ref": "#/$defs/catalog" }, "type": "array" },
         "components": { "items": { "$ref": "#/$defs/component" }, "type": "array" },
-        "concerns": { "items": { "$ref": "#/$defs/indexed" }, "type": "array" },
+        "concerns": { "items": { "$ref": "#/$defs/described" }, "type": "array" },
         "edge_kinds": { "items": { "$ref": "#/$defs/catalog" }, "type": "array" },
         "edges": { "items": { "$ref": "#/$defs/edge" }, "type": "array" },
         "model_kinds": { "items": { "$ref": "#/$defs/catalog" }, "type": "array" },
-        "stakeholders": { "items": { "$ref": "#/$defs/indexed" }, "type": "array" },
+        "stakeholders": { "items": { "$ref": "#/$defs/described" }, "type": "array" },
         "viewpoints": { "items": { "$ref": "#/$defs/viewpoint" }, "type": "array" },
         "views": { "items": { "$ref": "#/$defs/view" }, "type": "array" }
       },
@@ -154,7 +154,9 @@
       "properties": {
         "id": { "$ref": "#/$defs/qualified_entity" },
         "index": { "$ref": "#/$defs/index" },
-        "kind_id": { "$ref": "#/$defs/qualified_catalog" }
+        "kind_id": { "$ref": "#/$defs/qualified_catalog" },
+        "name": { "type": "string", "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$" },
+        "text": { "type": "string", "maxLength": 4096, "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]*$" }
       },
       "required": ["id", "index", "kind_id"],
       "type": "object"
@@ -167,6 +169,17 @@
         "risk_index": { "$ref": "#/$defs/index" }
       },
       "required": ["id", "index", "risk_index"],
+      "type": "object"
+    },
+    "described": {
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/qualified_entity" },
+        "index": { "$ref": "#/$defs/index" },
+        "name": { "type": "string", "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$" },
+        "text": { "type": "string", "maxLength": 4096, "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]*$" }
+      },
+      "required": ["id", "index"],
       "type": "object"
     },
     "edge": {

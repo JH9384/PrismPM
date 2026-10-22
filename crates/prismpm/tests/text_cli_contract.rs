@@ -99,6 +99,66 @@ fn text_cli_contract_roundtrips_and_requires_the_closed_surface() {
 }
 
 #[test]
+fn text_v3_absent_resource_bounds_take_the_v1_implicit_budget() {
+    for absent in [
+        vec!["core_memory_pages", "core_stack_bytes"],
+        vec!["core_memory_pages"],
+        vec!["core_stack_bytes"],
+    ] {
+        let mut value = fixture();
+        for name in &absent {
+            value["application"].as_object_mut().unwrap().remove(*name);
+        }
+        assert!(
+            schema().is_valid(&value),
+            "schema rejects absent {absent:?}"
+        );
+        let doc = typed(value);
+        prismpm::holo::validate::validate(&doc).unwrap();
+        let application = doc.application.as_ref().unwrap();
+        let (pages, stack) = (
+            application.core_memory_pages(),
+            application.core_stack_bytes(),
+        );
+        assert_eq!(
+            pages,
+            if absent.contains(&"core_memory_pages") {
+                32
+            } else {
+                64
+            },
+            "pages with {absent:?} absent"
+        );
+        assert_eq!(
+            stack,
+            Some(if absent.contains(&"core_stack_bytes") {
+                65536
+            } else {
+                131072
+            }),
+            "stack with {absent:?} absent"
+        );
+    }
+    for (pointer, replacement) in [
+        ("/application/core_memory_pages", json!(0)),
+        ("/application/core_stack_bytes", json!(17)),
+    ] {
+        let mut value = fixture();
+        *value.pointer_mut(pointer).unwrap() = replacement;
+        assert!(!schema().is_valid(&value), "{pointer}");
+    }
+    let mut oversized = fixture();
+    oversized["application"]
+        .as_object_mut()
+        .unwrap()
+        .remove("core_memory_pages");
+    oversized["application"]["request_maximum"] = json!(32 * 65536 + 1);
+    oversized["application"]["response_maximum"] = json!(32 * 65536 + 1);
+    oversized["application"]["guest_allocation_maximum"] = json!(32 * 65536 + 1);
+    assert!(prismpm::holo::validate::validate(&typed(oversized)).is_err());
+}
+
+#[test]
 fn text_cli_contract_rejects_every_invalid_surface() {
     let mutations: Vec<(&str, Value)> = vec![
         ("/application/cli/command", json!("examples")),
@@ -338,7 +398,7 @@ fn source() -> String {
         ),
         (
             "guestAllocationMaximum := (128 : UInt32),".to_owned(),
-            "guestAllocationMaximum := (128 : UInt32), coreMemoryPages := (64 : UInt32), coreStackBytes := (131072 : UInt32),".to_owned(),
+            "guestAllocationMaximum := (128 : UInt32), coreMemoryPages := (ctor Option.some [UInt32] (64 : UInt32)), coreStackBytes := (ctor Option.some [UInt32] (131072 : UInt32)),".to_owned(),
         ),
         (
             "responseError := \"Invalid response\"})})".to_owned(),
@@ -448,4 +508,35 @@ fn text_cli_projects_only_from_the_exact_source_owned_type() {
     );
     let no_error = source.replace("\"error\"", "\"fault\"");
     assert_eq!(project(&no_error, V3).unwrap_err().code, "PP2009");
+}
+
+#[test]
+fn text_v3_none_resource_bounds_project_as_the_explicit_v1_budget() {
+    let explicit = source()
+        .replace(
+            "(ctor Option.some [UInt32] (64 : UInt32))",
+            "(ctor Option.some [UInt32] (32 : UInt32))",
+        )
+        .replace(
+            "(ctor Option.some [UInt32] (131072 : UInt32))",
+            "(ctor Option.some [UInt32] (65536 : UInt32))",
+        );
+    let absent = source()
+        .replace(
+            "(ctor Option.some [UInt32] (64 : UInt32))",
+            "(ctor Option.none [UInt32])",
+        )
+        .replace(
+            "(ctor Option.some [UInt32] (131072 : UInt32))",
+            "(ctor Option.none [UInt32])",
+        );
+    assert_ne!(explicit, absent);
+    let doc = project(&absent, V3).unwrap();
+    let Some(Application::Text(text)) = &doc.application else {
+        panic!("text/3 projects a text application");
+    };
+    assert_eq!(text.core_memory_pages, Some(32));
+    assert_eq!(text.core_stack_bytes, Some(65536));
+    assert!(schema().is_valid(&serde_json::to_value(&doc).unwrap()));
+    assert_eq!(doc.application, project(&explicit, V3).unwrap().application);
 }

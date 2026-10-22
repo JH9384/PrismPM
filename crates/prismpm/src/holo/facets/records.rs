@@ -1,8 +1,8 @@
 //! Assembly of the typed facet sections from collected catalog and entity rows.
 
 use super::{
-    bool_field, catalog_id, constructor, index, indexed, nat, take_raw, Buckets, FacetRecords,
-    Table,
+    bool_field, catalog_id, constructor, index, indexed, named, nat, take_raw, text_field, Buckets,
+    FacetRecords, Table,
 };
 use crate::error::PrismError;
 use crate::holo::model_document::{
@@ -38,6 +38,8 @@ pub(super) fn assemble(
                 id: row.id,
                 index: index as u64,
                 kind_id: catalog_id(table, "Foundation.Arch", constructor(&row.fields, "kind")?)?,
+                name: text_field(&row.fields, "name")?,
+                text: text_field(&row.fields, "text")?,
             })
         })
         .collect::<Result<Vec<_>, PrismError>>()?;
@@ -55,8 +57,8 @@ pub(super) fn assemble(
             })
         })
         .collect::<Result<Vec<_>, PrismError>>()?;
-    let stakeholders = indexed(take_raw(&mut entities, "stakeholders"));
-    let concerns = indexed(take_raw(&mut entities, "concerns"));
+    let stakeholders = named(take_raw(&mut entities, "stakeholders"))?;
+    let concerns = named(take_raw(&mut entities, "concerns"))?;
     let viewpoints = take_raw(&mut entities, "viewpoints")
         .into_iter()
         .enumerate()

@@ -6,7 +6,8 @@
 //! facet packages.
 
 use super::model_document::{
-    ArchitectureModel, CatalogRecord, FacetPackage, IndexedRecord, QualityModel, SecurityModel,
+    ArchitectureModel, CatalogRecord, FacetPackage, IndexedRecord, NamedRecord, QualityModel,
+    SecurityModel,
 };
 use crate::error::PrismError;
 use lexlean::SemanticSnapshot;
@@ -137,6 +138,25 @@ fn nat(fields: &BTreeMap<&str, &Value>, name: &str) -> Result<u64, PrismError> {
         .map_err(|_| PrismError::new("PP4004", format!("field {name} exceeds u64")))
 }
 
+/// A String field that older Foundation.Arch sources do not declare: absent
+/// reads as the empty string, present must be a String literal.
+fn text_field(fields: &BTreeMap<&str, &Value>, name: &str) -> Result<String, PrismError> {
+    let Some(value) = fields.get(name) else {
+        return Ok(String::new());
+    };
+    if value.get("kind").and_then(Value::as_str) != Some("string") {
+        return Err(PrismError::new(
+            "PP2001",
+            format!("field {name} is not String"),
+        ));
+    }
+    value
+        .get("value")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| PrismError::new("PP2001", format!("field {name} is malformed")))
+}
+
 fn bool_field(fields: &BTreeMap<&str, &Value>, name: &str) -> Result<bool, PrismError> {
     let value = fields
         .get(name)
@@ -197,6 +217,20 @@ fn index(rows: &mut [Raw<'_>]) -> Result<(), PrismError> {
         }
     }
     Ok(())
+}
+
+fn named(rows: Vec<Raw<'_>>) -> Result<Vec<NamedRecord>, PrismError> {
+    rows.into_iter()
+        .enumerate()
+        .map(|(index, row)| {
+            Ok(NamedRecord {
+                name: text_field(&row.fields, "name")?,
+                text: text_field(&row.fields, "text")?,
+                id: row.id,
+                index: index as u64,
+            })
+        })
+        .collect()
 }
 
 fn indexed(rows: Vec<Raw<'_>>) -> Vec<IndexedRecord> {
@@ -442,5 +476,7 @@ fn application_from(
 mod records;
 use records::assemble;
 
+#[cfg(test)]
+mod named_tests;
 #[cfg(test)]
 mod tests;

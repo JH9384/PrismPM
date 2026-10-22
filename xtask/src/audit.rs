@@ -1496,6 +1496,7 @@ pub fn audit_tools_ci(root: &Path) -> Result<(), Fail> {
         return Err("devcontainer base image is not digest-pinned".into());
     }
     for workflow in [
+        ".github/actions/devcontainer-cache/action.yml",
         ".github/workflows/ci-parallel.yml",
         ".github/workflows/bootstrap.yml",
         ".github/workflows/native-golden.yml",
@@ -1510,6 +1511,9 @@ pub fn audit_tools_ci(root: &Path) -> Result<(), Fail> {
             else {
                 continue;
             };
+            if value.starts_with("./") {
+                continue;
+            }
             let reference = value
                 .split('#')
                 .next()

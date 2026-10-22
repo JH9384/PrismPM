@@ -3138,6 +3138,21 @@ provenance bind exact subjects, source revision, builder, external parameters
 and resolved dependencies. The claimed SLSA level is limited to evidence
 provided by the accepted build platform.
 
+Docker children used to acquire advisory image subjects explicitly preserve the
+selected `DOCKER_CONFIG` and `BUILDX_CONFIG`. Read-only registry credentials and
+writable private Buildx state remain separate; generic process environment
+clearing and scanner configuration are unchanged.
+
+Local Cargo package checksums use the actual source trees selected by locked,
+offline Cargo metadata. Normalized `$PROJECT/` manifest paths are resolved
+within the project before filesystem reads; malformed tokens, traversal,
+symlink ancestors and non-file manifests fail closed. Unmodified absolute Cargo
+paths for local dependencies outside the project remain supported. Ambiguous
+replacement tokens, including project-prefix aliases, are refused rather than
+interpreted as permission to leave the project. Registry package checksums still
+come from Cargo.lock. Temporary project locations do not enter the resulting
+package identities or source-tree checksums.
+
 Production promotion requires a short-lived identity signature whose trusted
 issuer, subject, repository, workflow, ref, environment, certificate and
 transparency policy are explicit. Unsigned local development remains visibly
@@ -3152,6 +3167,18 @@ uses `node scripts/refresh-osv.mjs acquire` and, after review, `apply`, followed
 by `prismpm authority resolve`. Validation remains offline. Acquisition does
 not authorize redistribution, preserve deleted historical generations, or
 establish a successful vulnerability scan.
+
+Image and source vulnerability scans stage the same verified locked databases
+in a private, invocation-owned directory under the project cache. Their child
+processes receive explicit `HOME`, `XDG_CACHE_HOME` and `TMPDIR` paths inside
+that directory; ambient temporary-directory settings cannot redirect scan
+storage. Image extraction and other scanner scratch data use the workspace
+filesystem rather than the SDK's bounded system temporary filesystem. Scan
+directories are distinct across invocations and are retired on success or
+failure without deleting immutable authority inputs or accepted scan receipts.
+Random workspace paths are normalized before scan evidence is retained. This
+storage allocation does not change database bytes, freshness, scanner identity,
+offline arguments, platform coverage, findings policy or execution bounds.
 
 OpenTelemetry logs, metrics and traces use modeled resource attributes,
 correlation and redaction and are accepted by an unmodified pinned Collector.
@@ -3193,6 +3220,12 @@ transport controls; its previous file inventory and compiler-phase controls
 remain selected. CI-capacity controls preserve all six current SDK-candidate
 lanes, including input policy, unpublished construction and archive integrity,
 without treating any diagnostic or construction lane as SDK acceptance.
+The Action CLI container uses a bounded 2 GiB `/tmp` tmpfs so the immutable
+SDK's private Cargo home can initialize for a non-root caller. Its isolated
+JSON-output projections retain their separate 64 MiB tmpfs and no project mount.
+The CLI child receives `BUILDX_CONFIG=/tmp/prismpm-buildx` within that private
+tmpfs. Buildx state remains writable independently of read-only registry
+credential mounts; output projections receive no builder configuration.
 
 The shared Action exposes `export-browser` with `reference` and `output` inputs
 passed unchanged to the SDK's existing command. The SDK owns immutable-reference,
@@ -3457,15 +3490,15 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `OP-04` | `operations` | Bounded load, dependency, process, network, resource, rollout, credential, telemetry, and registry fault scenarios follow modeled policy. | §16 |
 | `OP-05` | `operations` | Observed deployment, health, drift, recovery, and failure evidence remains distinct from proof and binds the deployed release digest. | §16 |
 | `OP-06` | `operations` | Sensitive fields, credentials, tokens, operands, history, labels, and secret values are redacted from source-derived and observed evidence. | §16 |
-| `SC-01` | `supply-chain` | SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure. | §16 |
+| `SC-01` | `supply-chain` | SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure; local Cargo package checksums resolve normalized project manifests without weakening path confinement. | §16 |
 | `SC-02` | `supply-chain` | in-toto Statement v1 and SLSA 1.2 provenance bind subjects, builders, sources, parameters, dependencies, and objectively supported build level. | §16 |
 | `SC-03` | `supply-chain` | Sigstore verification enforces exact trusted issuer, subject, repository, workflow, ref, environment, certificate, and transparency policy. | §16 |
-| `SC-04` | `supply-chain` | Vulnerability and license results identify their immutable inputs and freshness and stale evidence cannot satisfy current policy. | §16 |
+| `SC-04` | `supply-chain` | Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage, Docker image children preserve separate credential and builder configuration, and stale evidence cannot satisfy current policy. | §16 |
 | `SC-05` | `supply-chain` | Source, locks, artifacts, plans, OCI content, BOMs, attestations, logs, and evidence are verified free of secret values. | §16 |
 | `SC-06` | `supply-chain` | Supply-chain policy rejects wrong subjects or builders, incomplete graphs, tampering, unsigned promotion, and unsupported claims. | §16 |
 | `TM-01` | `template-ci` | The versioned UOR template contract preserves repository honesty, anti-vacuity, generated registers, and planted-defect policy. | §17 |
 | `TM-02` | `template-ci` | Template-derived devcontainers consume the exact signed SDK manifest digest with no floating feature, installer, action, or host-tool fallback. | §17 |
-| `TM-03` | `template-ci` | Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI and return declared release, plan, and evidence digests. | §17 |
+| `TM-03` | `template-ci` | Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI, isolate private builder state from read-only registry credentials, and return declared release, plan, and evidence digests. | §17 |
 | `TM-04` | `template-ci` | Least-privilege jobs build once and pass the exact digest through protected signing, publication, deployment, and verification boundaries. | §17 |
 | `TM-05` | `template-ci` | Template checks are read-only and explicit updates produce reviewable downstream patches or pull requests without hidden branch mutation. | §17 |
 | `TM-06` | `template-ci` | All in-scope UOR and Prism repositories use the common SDK bootstrap while preserving their repository-specific acceptance gates. | §17 |

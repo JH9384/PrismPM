@@ -129,7 +129,7 @@ fn text_application_rejects_unknown_missing_and_legacy_fields() {
 #[test]
 fn text_application_rejects_semantically_invalid_profiles() {
     for (pointer, replacement) in [
-        ("/application/profile", json!("prismpm/text-application/3")),
+        ("/application/profile", json!("prismpm/text-application/9")),
         ("/application/name", json!("../outside")),
         ("/application/name", json!("/absolute")),
         ("/application/name", json!("nested\\outside")),
@@ -187,6 +187,21 @@ fn text_application_rejects_semantically_invalid_profiles() {
         let error = prismpm::holo::validate::validate(&typed(bad)).unwrap_err();
         assert_eq!(error.code, "PP2009", "{pointer}");
     }
+}
+
+/// The profile selects the document schema, so a text/3 profile inside a
+/// model-document/2 envelope is a schema substitution (PP4004), not a
+/// semantically invalid text/1 profile (PP2009).
+#[test]
+fn text_application_profile_must_match_its_document_schema() {
+    let mut bad = fixture();
+    bad["application"]["profile"] = json!("prismpm/text-application/3");
+    assert_eq!(
+        prismpm::holo::validate::validate(&typed(bad))
+            .unwrap_err()
+            .code,
+        "PP4004"
+    );
 }
 
 #[test]

@@ -1,9 +1,174 @@
 \begin{lexlean}{Foundation.Browser.V1.WorkspaceEnvelope}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Browser.V1.Workspace}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"publicKey","type":{"kind":"bytes"}},{"name":"signature","type":{"kind":"bytes"}},{"name":"eventBytes","type":{"kind":"bytes"}}],"kind":"structure","name":"WorkspaceEnvelope","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["candidate"],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"event"}},"kind":"definition","name":"workspaceEventEncodingPresent","parameters":[{"name":"event","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.V1.Workspace","name":"AuthenticatedEvent"}}}}],"result":{"kind":"bool"}},{"axioms":["propext"],"body":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"publicKey","kind":"project","value":{"kind":"var","name":"candidate"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"65"}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"field":"publicKey","kind":"project","value":{"kind":"var","name":"candidate"}},{"kind":"nat","value":"0"},{"kind":"nat","value":"1"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"byteWindow"},"kind":"call"},{"hex":"04","kind":"bytes"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceBytesEqual"},"kind":"call"},"right":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"signature","kind":"project","value":{"kind":"var","name":"candidate"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"64"}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"field":"eventBytes","kind":"project","value":{"kind":"var","name":"candidate"}}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"decodeAuthenticatedEvent"},"kind":"call"}],"function":{"name":"workspaceEventEncodingPresent"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"workspaceEnvelopeFieldsValid","parameters":[{"name":"candidate","type":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}],"result":{"kind":"bool"}},{"axioms":["propext"],"body":{"condition":{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"workspaceEnvelopeFieldsValid"},"kind":"call"},"else_value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"kind":"if","then_value":{"arguments":[{"arguments":[{"arguments":[{"arguments":[{"arguments":[{"hex":"","kind":"bytes"},{"hex":"50574501","kind":"bytes"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},{"field":"publicKey","kind":"project","value":{"kind":"var","name":"candidate"}}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},{"field":"signature","kind":"project","value":{"kind":"var","name":"candidate"}}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},{"field":"eventBytes","kind":"project","value":{"kind":"var","name":"candidate"}}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]}},"kind":"definition","name":"encodeWorkspaceEnvelope","parameters":[{"name":"candidate","type":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}],"result":{"kind":"option","value":{"kind":"bytes"}}},{"axioms":[],"body":{"fields":[{"field":"publicKey","value":{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"4"},{"kind":"nat","value":"65"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"byteWindow"},"kind":"call"}},{"field":"signature","value":{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"69"},{"kind":"nat","value":"64"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"byteWindow"},"kind":"call"}},{"field":"eventBytes","value":{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"133"},{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"nat","value":"133"}],"kind":"primitive","operation":"subtract","result":{"kind":"nat"}}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"byteWindow"},"kind":"call"}}],"kind":"record","type":{"name":"WorkspaceEnvelope"}},"kind":"definition","name":"workspaceEnvelopeCandidate","parameters":[{"name":"value","type":{"kind":"bytes"}}],"result":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}},{"axioms":["propext"],"body":{"condition":{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"workspaceEnvelopeFieldsValid"},"kind":"call"},"else_value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}]},"kind":"if","then_value":{"arguments":[{"kind":"var","name":"candidate"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}]}},"kind":"definition","name":"workspaceEnvelopeCheckedCandidate","parameters":[{"name":"candidate","type":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}],"result":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}},{"axioms":["propext"],"body":{"condition":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"267"},"right":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"4363"}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"0"},{"kind":"nat","value":"4"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"byteWindow"},"kind":"call"},{"hex":"50574501","kind":"bytes"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceBytesEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"else_value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}]},"kind":"if","then_value":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"workspaceEnvelopeCandidate"},"kind":"call"}],"function":{"name":"workspaceEnvelopeCheckedCandidate"},"kind":"call"}},"kind":"definition","name":"decodeWorkspaceEnvelope","parameters":[{"name":"value","type":{"kind":"bytes"}}],"result":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"constructor":{"name":"Option.none"}},{"binders":["candidate"],"body":{"arguments":[{"arguments":[{"kind":"var","name":"candidate"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"encodeUnsignedEvent"},"kind":"call"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"event"}},"kind":"definition","name":"workspaceEnvelopeUnsignedEventFromEvent","parameters":[{"name":"event","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.V1.Workspace","name":"AuthenticatedEvent"}}}}],"result":{"kind":"option","value":{"kind":"bytes"}}},{"axioms":["propext"],"body":{"condition":{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"workspaceEnvelopeFieldsValid"},"kind":"call"},"else_value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"kind":"if","then_value":{"arguments":[{"arguments":[{"field":"eventBytes","kind":"project","value":{"kind":"var","name":"candidate"}}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"decodeAuthenticatedEvent"},"kind":"call"}],"function":{"name":"workspaceEnvelopeUnsignedEventFromEvent"},"kind":"call"}},"kind":"definition","name":"workspaceEnvelopeUnsignedEvent","parameters":[{"name":"candidate","type":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}],"result":{"kind":"option","value":{"kind":"bytes"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"constructor":{"name":"Option.none"}},{"binders":["candidate"],"body":{"arguments":[{"arguments":[{"kind":"var","name":"candidate"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceSigningPreimage"},"kind":"call"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"event"}},"kind":"definition","name":"workspaceEnvelopeSigningPreimageFromEvent","parameters":[{"name":"event","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.V1.Workspace","name":"AuthenticatedEvent"}}}}],"result":{"kind":"option","value":{"kind":"bytes"}}},{"axioms":["propext"],"body":{"condition":{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"workspaceEnvelopeFieldsValid"},"kind":"call"},"else_value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"kind":"if","then_value":{"arguments":[{"arguments":[{"field":"eventBytes","kind":"project","value":{"kind":"var","name":"candidate"}}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"decodeAuthenticatedEvent"},"kind":"call"}],"function":{"name":"workspaceEnvelopeSigningPreimageFromEvent"},"kind":"call"}},"kind":"definition","name":"workspaceEnvelopeSigningPreimage","parameters":[{"name":"candidate","type":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}],"result":{"kind":"option","value":{"kind":"bytes"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"constructor":{"name":"Option.none"}},{"binders":["candidate"],"body":{"arguments":[{"field":"author","kind":"project","value":{"kind":"var","name":"candidate"}}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"event"}},"kind":"definition","name":"workspaceEnvelopeAuthorFromEvent","parameters":[{"name":"event","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.V1.Workspace","name":"AuthenticatedEvent"}}}}],"result":{"kind":"option","value":{"kind":"bytes"}}},{"axioms":["propext"],"body":{"condition":{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"workspaceEnvelopeFieldsValid"},"kind":"call"},"else_value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"kind":"if","then_value":{"arguments":[{"arguments":[{"field":"eventBytes","kind":"project","value":{"kind":"var","name":"candidate"}}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"decodeAuthenticatedEvent"},"kind":"call"}],"function":{"name":"workspaceEnvelopeAuthorFromEvent"},"kind":"call"}},"kind":"definition","name":"workspaceEnvelopeAuthor","parameters":[{"name":"candidate","type":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}],"result":{"kind":"option","value":{"kind":"bytes"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"constructor":{"name":"Option.none"}},{"binders":["candidate"],"body":{"arguments":[{"field":"eventId","kind":"project","value":{"kind":"var","name":"candidate"}}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"event"}},"kind":"definition","name":"workspaceEnvelopeEventIdFromEvent","parameters":[{"name":"event","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.V1.Workspace","name":"AuthenticatedEvent"}}}}],"result":{"kind":"option","value":{"kind":"bytes"}}},{"axioms":["propext"],"body":{"condition":{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"workspaceEnvelopeFieldsValid"},"kind":"call"},"else_value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]},"kind":"if","then_value":{"arguments":[{"arguments":[{"field":"eventBytes","kind":"project","value":{"kind":"var","name":"candidate"}}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"decodeAuthenticatedEvent"},"kind":"call"}],"function":{"name":"workspaceEnvelopeEventIdFromEvent"},"kind":"call"}},"kind":"definition","name":"workspaceEnvelopeEventId","parameters":[{"name":"candidate","type":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}],"result":{"kind":"option","value":{"kind":"bytes"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"hex":"01","kind":"bytes"},"constructor":{"name":"Option.none"}},{"binders":["part"],"body":{"arguments":[{"arguments":[{"hex":"","kind":"bytes"},{"hex":"00","kind":"bytes"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},{"kind":"var","name":"part"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"value"}},"kind":"definition","name":"workspaceEnvelopeResponse","parameters":[{"name":"value","type":{"kind":"option","value":{"kind":"bytes"}}}],"result":{"kind":"bytes"}},{"axioms":["propext"],"body":{"condition":{"arguments":[{"kind":"var","name":"operation"},{"hex":"00","kind":"bytes"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceBytesEqual"},"kind":"call"},"else_value":{"condition":{"arguments":[{"kind":"var","name":"operation"},{"hex":"01","kind":"bytes"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceBytesEqual"},"kind":"call"},"else_value":{"condition":{"arguments":[{"kind":"var","name":"operation"},{"hex":"02","kind":"bytes"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceBytesEqual"},"kind":"call"},"else_value":{"condition":{"arguments":[{"kind":"var","name":"operation"},{"hex":"03","kind":"bytes"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceBytesEqual"},"kind":"call"},"else_value":{"condition":{"arguments":[{"kind":"var","name":"operation"},{"hex":"04","kind":"bytes"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceBytesEqual"},"kind":"call"},"else_value":{"condition":{"arguments":[{"kind":"var","name":"operation"},{"hex":"05","kind":"bytes"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceBytesEqual"},"kind":"call"},"else_value":{"condition":{"arguments":[{"kind":"var","name":"operation"},{"hex":"06","kind":"bytes"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceBytesEqual"},"kind":"call"},"else_value":{"condition":{"arguments":[{"kind":"var","name":"operation"},{"hex":"07","kind":"bytes"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"workspaceBytesEqual"},"kind":"call"},"else_value":{"hex":"02","kind":"bytes"},"kind":"if","then_value":{"arguments":[{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"workspaceEnvelopeEventId"},"kind":"call"}],"function":{"name":"workspaceEnvelopeResponse"},"kind":"call"}},"kind":"if","then_value":{"arguments":[{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"workspaceEnvelopeAuthor"},"kind":"call"}],"function":{"name":"workspaceEnvelopeResponse"},"kind":"call"}},"kind":"if","then_value":{"arguments":[{"arguments":[{"field":"eventBytes","kind":"project","value":{"kind":"var","name":"candidate"}}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]}],"function":{"name":"workspaceEnvelopeResponse"},"kind":"call"}},"kind":"if","then_value":{"arguments":[{"arguments":[{"field":"signature","kind":"project","value":{"kind":"var","name":"candidate"}}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]}],"function":{"name":"workspaceEnvelopeResponse"},"kind":"call"}},"kind":"if","then_value":{"arguments":[{"arguments":[{"field":"publicKey","kind":"project","value":{"kind":"var","name":"candidate"}}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"kind":"bytes"}]}],"function":{"name":"workspaceEnvelopeResponse"},"kind":"call"}},"kind":"if","then_value":{"arguments":[{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"workspaceEnvelopeSigningPreimage"},"kind":"call"}],"function":{"name":"workspaceEnvelopeResponse"},"kind":"call"}},"kind":"if","then_value":{"arguments":[{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"workspaceEnvelopeUnsignedEvent"},"kind":"call"}],"function":{"name":"workspaceEnvelopeResponse"},"kind":"call"}},"kind":"if","then_value":{"arguments":[{"arguments":[{"kind":"var","name":"candidate"}],"function":{"name":"encodeWorkspaceEnvelope"},"kind":"call"}],"function":{"name":"workspaceEnvelopeResponse"},"kind":"call"}},"kind":"definition","name":"workspaceEnvelopeOperation","parameters":[{"name":"operation","type":{"kind":"bytes"}},{"name":"candidate","type":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}],"result":{"kind":"bytes"}},{"axioms":["propext"],"body":{"branches":[{"binders":[],"body":{"hex":"01","kind":"bytes"},"constructor":{"name":"Option.none"}},{"binders":["value"],"body":{"arguments":[{"kind":"var","name":"operation"},{"kind":"var","name":"value"}],"function":{"name":"workspaceEnvelopeOperation"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"candidate"}},"kind":"definition","name":"workspaceEnvelopeDecodedOperation","parameters":[{"name":"operation","type":{"kind":"bytes"}},{"name":"candidate","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"WorkspaceEnvelope"}}}}],"result":{"kind":"bytes"}},{"axioms":["propext"],"body":{"condition":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"1"},"right":{"arguments":[{"kind":"var","name":"request"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"request"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"4364"}},"right":{"kind":"bool","value":true}}},"else_value":{"hex":"01","kind":"bytes"},"kind":"if","then_value":{"arguments":[{"arguments":[{"kind":"var","name":"request"},{"kind":"nat","value":"0"},{"kind":"nat","value":"1"}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"byteWindow"},"kind":"call"},{"arguments":[{"arguments":[{"kind":"var","name":"request"},{"kind":"nat","value":"1"},{"arguments":[{"arguments":[{"kind":"var","name":"request"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"nat","value":"1"}],"kind":"primitive","operation":"subtract","result":{"kind":"nat"}}],"function":{"module":"Foundation.Browser.V1.Workspace","name":"byteWindow"},"kind":"call"}],"function":{"name":"decodeWorkspaceEnvelope"},"kind":"call"}],"function":{"name":"workspaceEnvelopeDecodedOperation"},"kind":"call"}},"kind":"definition","name":"workspaceEnvelopeBytes","parameters":[{"name":"request","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: WorkspaceEnvelope,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: publicKey, type: Bytes},
+    {name: signature, type: Bytes},
+    {name: eventBytes, type: Bytes}
+  ]
+}
+
+definition{
+  name: workspaceEventEncodingPresent,
+  parameters: [event : (Option Foundation.Browser.V1.Workspace::AuthenticatedEvent)],
+  result: Bool,
+  body: (match event | Option.none => false | Option.some candidate => true),
+  axioms: []
+}
+
+definition{
+  name: workspaceEnvelopeFieldsValid,
+  parameters: [candidate : WorkspaceEnvelope],
+  result: Bool,
+  body: (((prim length (project candidate publicKey) : Nat) =? 65) && ((Foundation.Browser.V1.Workspace::workspaceBytesEqual (Foundation.Browser.V1.Workspace::byteWindow (project candidate publicKey) 0 1) 0x04) && (((prim length (project candidate signature) : Nat) =? 64) && ((workspaceEventEncodingPresent (Foundation.Browser.V1.Workspace::decodeAuthenticatedEvent (project candidate eventBytes))) && true)))),
+  axioms: [propext]
+}
+
+definition{
+  name: encodeWorkspaceEnvelope,
+  parameters: [candidate : WorkspaceEnvelope],
+  result: (Option Bytes),
+  body: (if (workspaceEnvelopeFieldsValid candidate) then (ctor Option.some [Bytes] (prim append (prim append (prim append (prim append 0x 0x50574501 : Bytes) (project candidate publicKey) : Bytes) (project candidate signature) : Bytes) (project candidate eventBytes) : Bytes)) else (ctor Option.none [Bytes])),
+  axioms: [propext]
+}
+
+definition{
+  name: workspaceEnvelopeCandidate,
+  parameters: [value : Bytes],
+  result: WorkspaceEnvelope,
+  body: (record WorkspaceEnvelope {publicKey := (Foundation.Browser.V1.Workspace::byteWindow value 4 65), signature := (Foundation.Browser.V1.Workspace::byteWindow value 69 64), eventBytes := (Foundation.Browser.V1.Workspace::byteWindow value 133 (prim subtract (prim length value : Nat) 133 : Nat))}),
+  axioms: []
+}
+
+definition{
+  name: workspaceEnvelopeCheckedCandidate,
+  parameters: [candidate : WorkspaceEnvelope],
+  result: (Option WorkspaceEnvelope),
+  body: (if (workspaceEnvelopeFieldsValid candidate) then (ctor Option.some [WorkspaceEnvelope] candidate) else (ctor Option.none [WorkspaceEnvelope])),
+  axioms: [propext]
+}
+
+definition{
+  name: decodeWorkspaceEnvelope,
+  parameters: [value : Bytes],
+  result: (Option WorkspaceEnvelope),
+  body: (if ((267 <=? (prim length value : Nat)) && (((prim length value : Nat) <=? 4363) && ((Foundation.Browser.V1.Workspace::workspaceBytesEqual (Foundation.Browser.V1.Workspace::byteWindow value 0 4) 0x50574501) && true))) then (workspaceEnvelopeCheckedCandidate (workspaceEnvelopeCandidate value)) else (ctor Option.none [WorkspaceEnvelope])),
+  axioms: [propext]
+}
+
+definition{
+  name: workspaceEnvelopeUnsignedEventFromEvent,
+  parameters: [event : (Option Foundation.Browser.V1.Workspace::AuthenticatedEvent)],
+  result: (Option Bytes),
+  body: (match event
+    | Option.none => (ctor Option.none [Bytes])
+    | Option.some candidate => (ctor Option.some [Bytes] (Foundation.Browser.V1.Workspace::encodeUnsignedEvent candidate))),
+  axioms: []
+}
+
+definition{
+  name: workspaceEnvelopeUnsignedEvent,
+  parameters: [candidate : WorkspaceEnvelope],
+  result: (Option Bytes),
+  body: (if (workspaceEnvelopeFieldsValid candidate) then (workspaceEnvelopeUnsignedEventFromEvent (Foundation.Browser.V1.Workspace::decodeAuthenticatedEvent (project candidate eventBytes))) else (ctor Option.none [Bytes])),
+  axioms: [propext]
+}
+
+definition{
+  name: workspaceEnvelopeSigningPreimageFromEvent,
+  parameters: [event : (Option Foundation.Browser.V1.Workspace::AuthenticatedEvent)],
+  result: (Option Bytes),
+  body: (match event
+    | Option.none => (ctor Option.none [Bytes])
+    | Option.some candidate => (ctor Option.some [Bytes] (Foundation.Browser.V1.Workspace::workspaceSigningPreimage candidate))),
+  axioms: []
+}
+
+definition{
+  name: workspaceEnvelopeSigningPreimage,
+  parameters: [candidate : WorkspaceEnvelope],
+  result: (Option Bytes),
+  body: (if (workspaceEnvelopeFieldsValid candidate) then (workspaceEnvelopeSigningPreimageFromEvent (Foundation.Browser.V1.Workspace::decodeAuthenticatedEvent (project candidate eventBytes))) else (ctor Option.none [Bytes])),
+  axioms: [propext]
+}
+
+definition{
+  name: workspaceEnvelopeAuthorFromEvent,
+  parameters: [event : (Option Foundation.Browser.V1.Workspace::AuthenticatedEvent)],
+  result: (Option Bytes),
+  body: (match event
+    | Option.none => (ctor Option.none [Bytes])
+    | Option.some candidate => (ctor Option.some [Bytes] (project candidate author))),
+  axioms: []
+}
+
+definition{
+  name: workspaceEnvelopeAuthor,
+  parameters: [candidate : WorkspaceEnvelope],
+  result: (Option Bytes),
+  body: (if (workspaceEnvelopeFieldsValid candidate) then (workspaceEnvelopeAuthorFromEvent (Foundation.Browser.V1.Workspace::decodeAuthenticatedEvent (project candidate eventBytes))) else (ctor Option.none [Bytes])),
+  axioms: [propext]
+}
+
+definition{
+  name: workspaceEnvelopeEventIdFromEvent,
+  parameters: [event : (Option Foundation.Browser.V1.Workspace::AuthenticatedEvent)],
+  result: (Option Bytes),
+  body: (match event
+    | Option.none => (ctor Option.none [Bytes])
+    | Option.some candidate => (ctor Option.some [Bytes] (project candidate eventId))),
+  axioms: []
+}
+
+definition{
+  name: workspaceEnvelopeEventId,
+  parameters: [candidate : WorkspaceEnvelope],
+  result: (Option Bytes),
+  body: (if (workspaceEnvelopeFieldsValid candidate) then (workspaceEnvelopeEventIdFromEvent (Foundation.Browser.V1.Workspace::decodeAuthenticatedEvent (project candidate eventBytes))) else (ctor Option.none [Bytes])),
+  axioms: [propext]
+}
+
+definition{
+  name: workspaceEnvelopeResponse,
+  parameters: [value : (Option Bytes)],
+  result: Bytes,
+  body: (match value
+    | Option.none => 0x01
+    | Option.some part => (prim append (prim append 0x 0x00 : Bytes) part : Bytes)),
+  axioms: []
+}
+
+definition{
+  name: workspaceEnvelopeOperation,
+  parameters: [operation : Bytes, candidate : WorkspaceEnvelope],
+  result: Bytes,
+  body: (if (Foundation.Browser.V1.Workspace::workspaceBytesEqual operation 0x00) then (workspaceEnvelopeResponse (encodeWorkspaceEnvelope candidate)) else (if (Foundation.Browser.V1.Workspace::workspaceBytesEqual operation 0x01) then (workspaceEnvelopeResponse (workspaceEnvelopeUnsignedEvent candidate)) else (if (Foundation.Browser.V1.Workspace::workspaceBytesEqual operation 0x02) then (workspaceEnvelopeResponse (workspaceEnvelopeSigningPreimage candidate)) else (if (Foundation.Browser.V1.Workspace::workspaceBytesEqual operation 0x03) then (workspaceEnvelopeResponse (ctor Option.some [Bytes] (project candidate publicKey))) else (if (Foundation.Browser.V1.Workspace::workspaceBytesEqual operation 0x04) then (workspaceEnvelopeResponse (ctor Option.some [Bytes] (project candidate signature))) else (if (Foundation.Browser.V1.Workspace::workspaceBytesEqual operation 0x05) then (workspaceEnvelopeResponse (ctor Option.some [Bytes] (project candidate eventBytes))) else (if (Foundation.Browser.V1.Workspace::workspaceBytesEqual operation 0x06) then (workspaceEnvelopeResponse (workspaceEnvelopeAuthor candidate)) else (if (Foundation.Browser.V1.Workspace::workspaceBytesEqual operation 0x07) then (workspaceEnvelopeResponse (workspaceEnvelopeEventId candidate)) else 0x02)))))))),
+  axioms: [propext]
+}
+
+definition{
+  name: workspaceEnvelopeDecodedOperation,
+  parameters: [operation : Bytes, candidate : (Option WorkspaceEnvelope)],
+  result: Bytes,
+  body: (match candidate
+    | Option.none => 0x01
+    | Option.some value => (workspaceEnvelopeOperation operation value)),
+  axioms: [propext]
+}
+
+definition{
+  name: workspaceEnvelopeBytes,
+  parameters: [request : Bytes],
+  result: Bytes,
+  body: (if ((1 <=? (prim length request : Nat)) && (((prim length request : Nat) <=? 4364) && true)) then (workspaceEnvelopeDecodedOperation (Foundation.Browser.V1.Workspace::byteWindow request 0 1) (decodeWorkspaceEnvelope (Foundation.Browser.V1.Workspace::byteWindow request 1 (prim subtract (prim length request : Nat) 1 : Nat)))) else 0x01),
+  axioms: [propext]
+}
 \end{semanticmodule}
 \end{lexlean}

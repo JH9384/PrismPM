@@ -5,26 +5,97 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{AcceptanceKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Positive}: \texttt{()}.\par
+\noindent Constructor \texttt{Negative}: \texttt{()}.\par
+\noindent Constructor \texttt{Fault}: \texttt{()}.\par
+\noindent Constructor \texttt{Load}: \texttt{()}.\par
+\noindent Constructor \texttt{Upgrade}: \texttt{()}.\par
+\noindent Constructor \texttt{Downgrade}: \texttt{()}.\par
+\noindent Constructor \texttt{Recovery}: \texttt{()}.\par
+\noindent Constructor \texttt{Rollback}: \texttt{()}.\par
 \subsection*{\texttt{Observability}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{logs}: \texttt{List (String)}.\par
+\noindent Field \texttt{metrics}: \texttt{List (String)}.\par
+\noindent Field \texttt{traces}: \texttt{List (String)}.\par
+\noindent Field \texttt{alerts}: \texttt{List (String)}.\par
+\noindent Field \texttt{slos}: \texttt{List (String)}.\par
+\noindent Field \texttt{redactedFields}: \texttt{List (String)}.\par
 \subsection*{\texttt{Sli}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
+\noindent Field \texttt{signal}: \texttt{String}.\par
+\noindent Field \texttt{unit}: \texttt{String}.\par
+\noindent Field \texttt{windowSeconds}: \texttt{UInt64}.\par
 \subsection*{\texttt{Slo}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
+\noindent Field \texttt{comparison}: \texttt{String}.\par
+\noindent Field \texttt{threshold}: \texttt{UInt64}.\par
+\noindent Field \texttt{unit}: \texttt{String}.\par
+\noindent Field \texttt{percentileMillionths}: \texttt{Option (UInt64)}.\par
+\noindent Field \texttt{windowSeconds}: \texttt{UInt64}.\par
 \subsection*{\texttt{ArchitectureBinding}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
+\noindent Field \texttt{owner}: \texttt{String}.\par
+\noindent Field \texttt{viewpoint}: \texttt{String}.\par
+\noindent Field \texttt{verifies}: \texttt{List (String)}.\par
+\noindent Field \texttt{measurement}: \texttt{Option (String)}.\par
 \subsection*{\texttt{Alert}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
 \subsection*{\texttt{Control}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
+\noindent Field \texttt{owner}: \texttt{String}.\par
+\noindent Field \texttt{verification}: \texttt{List (String)}.\par
 \subsection*{\texttt{Rollout}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
 \subsection*{\texttt{Rollback}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
 \subsection*{\texttt{Drift}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
 \subsection*{\texttt{Retirement}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
 \subsection*{\texttt{Acceptance}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{target}: \texttt{String}.\par
+\noindent Field \texttt{component}: \texttt{String}.\par
+\noindent Field \texttt{command}: \texttt{List (String)}.\par
+\noindent Field \texttt{evidence}: \texttt{String}.\par
+\noindent Field \texttt{bounded}: \texttt{Bool}.\par
 \end{document}

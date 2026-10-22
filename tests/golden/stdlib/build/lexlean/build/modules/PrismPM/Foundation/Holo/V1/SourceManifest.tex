@@ -5,8 +5,17 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{SourceFile}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{path}: \texttt{String}.\par
+\noindent Field \texttt{sha256}: \texttt{ByteArray}.\par
+\noindent Field \texttt{byteLength}: \texttt{UInt64}.\par
 \subsection*{\texttt{SourceManifest}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{version}: \texttt{UInt16}.\par
+\noindent Field \texttt{applicationName}: \texttt{String}.\par
+\noindent Field \texttt{coreContract}: \texttt{String}.\par
+\noindent Field \texttt{wasmPath}: \texttt{String}.\par
+\noindent Field \texttt{viewPath}: \texttt{String}.\par
+\noindent Field \texttt{files}: \texttt{List (SourceFile)}.\par
 \subsection*{\texttt{sourceManifestVersion}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{UInt16}.\par

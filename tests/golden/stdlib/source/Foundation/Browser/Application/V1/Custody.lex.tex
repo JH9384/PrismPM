@@ -1,9 +1,584 @@
 \begin{lexlean}{Foundation.Browser.Application.V1.Custody}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Browser.Application.V1.Effects}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"resource","type":{"kind":"string"}},{"name":"slot","type":{"kind":"string"}},{"name":"context","type":{"kind":"string"}},{"name":"maximum","type":{"kind":"nat"}}],"kind":"structure","name":"CustodyResource","parameters":[],"type_parameters":[]},{"fields":[{"name":"application","type":{"kind":"bytes"}},{"name":"policy","type":{"kind":"bytes"}},{"name":"slots","type":{"element":{"kind":"string"},"kind":"list"}},{"name":"resources","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}},"kind":"list"}}],"kind":"structure","name":"CustodyPolicy","parameters":[],"type_parameters":[]},{"fields":[{"name":"application","type":{"kind":"bytes"}},{"name":"policy","type":{"kind":"bytes"}},{"name":"slot","type":{"kind":"string"}},{"name":"publicKey","type":{"kind":"bytes"}},{"name":"principal","type":{"kind":"string"}}],"kind":"structure","name":"CredentialBinding","parameters":[],"type_parameters":[]},{"fields":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"CustodyPolicy"}}},{"name":"bindings","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}},"kind":"list"}}],"kind":"structure","name":"CustodySnapshot","parameters":[],"type_parameters":[]},{"fields":[{"name":"resource","type":{"kind":"string"}},{"name":"slot","type":{"kind":"string"}},{"name":"context","type":{"kind":"string"}},{"name":"maximum","type":{"kind":"nat"}},{"name":"publicKey","type":{"kind":"bytes"}},{"name":"principal","type":{"kind":"string"}}],"kind":"structure","name":"CustodyAuthorization","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[{"arguments":[],"kind":"named","member":{"name":"CustodyPolicy"}}],"name":"Policy"},{"fields":[{"arguments":[],"kind":"named","member":{"name":"CustodySnapshot"}}],"name":"Snapshot"},{"fields":[{"arguments":[],"kind":"named","member":{"name":"CustodyAuthorization"}}],"name":"Authorization"}],"kind":"inductive","name":"CustodyReply","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"BadPolicy"},{"fields":[],"name":"BadSnapshot"},{"fields":[],"name":"AlreadyInitialized"},{"fields":[],"name":"MissingCustody"},{"fields":[],"name":"PolicyMismatch"},{"fields":[],"name":"BadBindings"},{"fields":[],"name":"UnknownResource"},{"fields":[],"name":"PayloadLimit"}],"kind":"inductive","name":"CustodyError","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"256"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"45"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"45"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"46"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"46"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"48"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"48"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"49"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"49"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"50"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"50"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"51"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"51"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"52"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"52"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"53"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"53"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"54"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"54"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"55"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"55"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"56"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"56"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"57"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"57"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"65"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"65"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"66"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"66"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"67"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"67"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"68"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"68"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"kind":"definition","name":"custodySlugOctetNat0","parameters":[{"name":"value","type":{"kind":"uint8"}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"custodySlugOctetNat0"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"69"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"69"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"70"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"70"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"71"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"71"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"72"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"72"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"73"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"73"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"74"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"74"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"75"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"75"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"76"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"76"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"77"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"77"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"78"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"78"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"79"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"79"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"80"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"80"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"81"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"81"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"82"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"82"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"83"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"83"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"84"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"84"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"kind":"definition","name":"custodySlugOctetNat1","parameters":[{"name":"value","type":{"kind":"uint8"}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"custodySlugOctetNat1"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"85"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"85"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"86"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"86"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"87"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"87"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"88"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"88"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"89"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"89"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"90"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"90"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"95"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"95"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"97"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"97"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"98"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"98"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"99"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"99"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"100"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"100"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"101"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"101"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"102"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"102"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"103"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"103"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"104"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"104"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"105"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"105"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"kind":"definition","name":"custodySlugOctetNat2","parameters":[{"name":"value","type":{"kind":"uint8"}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"custodySlugOctetNat2"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"106"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"106"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"107"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"107"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"108"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"108"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"109"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"109"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"110"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"110"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"111"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"111"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"112"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"112"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"113"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"113"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"114"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"114"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"115"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"115"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"116"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"116"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"117"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"117"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"118"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"118"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"119"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"119"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"120"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"120"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"121"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"121"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"kind":"definition","name":"custodySlugOctetNat3","parameters":[{"name":"value","type":{"kind":"uint8"}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"custodySlugOctetNat3"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"122"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"122"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"kind":"definition","name":"custodySlugOctetNat4","parameters":[{"name":"value","type":{"kind":"uint8"}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"custodySlugOctetNat4"},"kind":"call"},"kind":"definition","name":"custodySlugOctetNat","parameters":[{"name":"value","type":{"kind":"uint8"}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"left"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"offset"}},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"var","name":"offset"},"right":{"arguments":[{"kind":"var","name":"right"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["leftByte"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["rightByte"],"body":{"branches":[{"binders":[],"body":{"kind":"blt","left":{"arguments":[{"kind":"var","name":"leftByte"}],"function":{"name":"custodySlugOctetNat"},"kind":"call"},"right":{"arguments":[{"kind":"var","name":"rightByte"}],"function":{"name":"custodySlugOctetNat"},"kind":"call"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"left"},{"kind":"var","name":"right"},{"kind":"add","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"1"}},{"kind":"var","name":"rest"}],"function":{"name":"custodyBytesLess"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"leftByte"},{"kind":"var","name":"rightByte"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"right"},{"kind":"var","name":"offset"}],"kind":"primitive","operation":"index","result":{"kind":"option","value":{"kind":"uint8"}}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"left"},{"kind":"var","name":"offset"}],"kind":"primitive","operation":"index","result":{"kind":"option","value":{"kind":"uint8"}}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"right"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"offset"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"blt","left":{"kind":"var","name":"offset"},"right":{"arguments":[{"kind":"var","name":"right"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"left"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"offset"}}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodyBytesLess","parameters":[{"name":"left","type":{"kind":"bytes"}},{"name":"right","type":{"kind":"bytes"}},{"name":"offset","type":{"kind":"nat"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"arguments":[{"kind":"var","name":"left"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"128"}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"arguments":[{"kind":"var","name":"right"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"128"}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"kind":"var","name":"left"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}},{"arguments":[{"kind":"var","name":"right"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}},{"kind":"nat","value":"0"},{"kind":"nat","value":"128"}],"function":{"name":"custodyBytesLess"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"kind":"definition","name":"custodyTextLess","parameters":[{"name":"left","type":{"kind":"string"}},{"name":"right","type":{"kind":"string"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"or","left":{"arguments":[{"kind":"var","name":"head"},{"kind":"var","name":"slot"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"slot"},{"kind":"var","name":"rest"}],"function":{"name":"custodyHasSlot"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodyHasSlot","parameters":[{"name":"slots","type":{"element":{"kind":"string"},"kind":"list"}},{"name":"slot","type":{"kind":"string"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"resources"}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"or","left":{"arguments":[{"field":"slot","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"slot"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"slot"},{"kind":"var","name":"rest"}],"function":{"name":"custodySlotUsed"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"resources"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodySlotUsed","parameters":[{"name":"resources","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}},"kind":"list"}},{"name":"slot","type":{"kind":"string"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"head"},{"kind":"nat","value":"0"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectNameValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"previous"},{"kind":"var","name":"head"}],"function":{"name":"custodyTextLess"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"resources"},{"kind":"var","name":"head"},{"kind":"nat","value":"64"}],"function":{"name":"custodySlotUsed"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"resources"},{"kind":"var","name":"head"},{"kind":"var","name":"rest"}],"function":{"name":"custodySlotsValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodySlotsValid","parameters":[{"name":"slots","type":{"element":{"kind":"string"},"kind":"list"}},{"name":"resources","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}},"kind":"list"}},{"name":"previous","type":{"kind":"string"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"resources"}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"and","left":{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"nat","value":"0"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectNameValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"slot","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"nat","value":"0"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectNameValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"previous"},{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}}],"function":{"name":"custodyTextLess"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"slots"},{"field":"slot","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"nat","value":"64"}],"function":{"name":"custodyHasSlot"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"context","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"nat","value":"1"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectNameValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"maximum","kind":"project","value":{"kind":"var","name":"head"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"maximum","kind":"project","value":{"kind":"var","name":"head"}},"right":{"kind":"nat","value":"1048576"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"slots"},{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"rest"}],"function":{"name":"custodyResourcesValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"resources"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodyResourcesValid","parameters":[{"name":"resources","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}},"kind":"list"}},{"name":"slots","type":{"element":{"kind":"string"},"kind":"list"}},{"name":"previous","type":{"kind":"string"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"items"}},"kind":"definition","name":"custodySlotsPresent","parameters":[{"name":"items","type":{"element":{"kind":"string"},"kind":"list"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"items"}},"kind":"definition","name":"custodyResourcesPresent","parameters":[{"name":"items","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}},"kind":"list"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"policy"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}},"right":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"policy","kind":"project","value":{"kind":"var","name":"policy"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}},"right":{"kind":"and","left":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"custodySlotsPresent"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"resources","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"custodyResourcesPresent"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"policy"}},{"field":"resources","kind":"project","value":{"kind":"var","name":"policy"}},{"kind":"string","value":""},{"kind":"nat","value":"64"}],"function":{"name":"custodySlotsValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"resources","kind":"project","value":{"kind":"var","name":"policy"}},{"field":"slots","kind":"project","value":{"kind":"var","name":"policy"}},{"kind":"string","value":""},{"kind":"nat","value":"64"}],"function":{"name":"custodyResourcesValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}},"kind":"definition","name":"custodyPolicyValid","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"CustodyPolicy"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"and","left":{"kind":"not","value":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}}},"right":{"kind":"and","left":{"kind":"not","value":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"not","value":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}}},"constructor":{"name":"List.nil"}},{"binders":["leftHead","leftTail"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["rightHead","rightTail"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"leftHead"},{"kind":"var","name":"rightHead"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"leftTail"},{"kind":"var","name":"rightTail"},{"kind":"var","name":"rest"}],"function":{"name":"custodySlotsEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodySlotsEqual","parameters":[{"name":"left","type":{"element":{"kind":"string"},"kind":"list"}},{"name":"right","type":{"element":{"kind":"string"},"kind":"list"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"and","left":{"kind":"not","value":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}}},"right":{"kind":"and","left":{"kind":"not","value":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"not","value":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}}},"constructor":{"name":"List.nil"}},{"binders":["leftHead","leftTail"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["rightHead","rightTail"],"body":{"kind":"and","left":{"kind":"and","left":{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"leftHead"}},{"field":"resource","kind":"project","value":{"kind":"var","name":"rightHead"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"slot","kind":"project","value":{"kind":"var","name":"leftHead"}},{"field":"slot","kind":"project","value":{"kind":"var","name":"rightHead"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"context","kind":"project","value":{"kind":"var","name":"leftHead"}},{"field":"context","kind":"project","value":{"kind":"var","name":"rightHead"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"maximum","kind":"project","value":{"kind":"var","name":"leftHead"}},"right":{"field":"maximum","kind":"project","value":{"kind":"var","name":"rightHead"}}},"right":{"kind":"bool","value":true}}}}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"leftTail"},{"kind":"var","name":"rightTail"},{"kind":"var","name":"rest"}],"function":{"name":"custodyResourcesEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodyResourcesEqual","parameters":[{"name":"left","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}},"kind":"list"}},{"name":"right","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}},"kind":"list"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"left"}},{"field":"application","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"policy","kind":"project","value":{"kind":"var","name":"left"}},{"field":"policy","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"left"}},{"field":"slots","kind":"project","value":{"kind":"var","name":"right"}},{"kind":"nat","value":"64"}],"function":{"name":"custodySlotsEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"resources","kind":"project","value":{"kind":"var","name":"left"}},{"field":"resources","kind":"project","value":{"kind":"var","name":"right"}},{"kind":"nat","value":"64"}],"function":{"name":"custodyResourcesEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"custodyPolicyEqual","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"CustodyPolicy"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"CustodyPolicy"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"bindings"}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"or","left":{"arguments":[{"field":"publicKey","kind":"project","value":{"kind":"var","name":"head"}},{"field":"publicKey","kind":"project","value":{"kind":"var","name":"binding"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"field":"principal","kind":"project","value":{"kind":"var","name":"head"}},{"field":"principal","kind":"project","value":{"kind":"var","name":"binding"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"binding"},{"kind":"var","name":"rest"}],"function":{"name":"custodyDuplicateBinding"},"kind":"call"},"right":{"kind":"bool","value":false}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"bindings"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodyDuplicateBinding","parameters":[{"name":"bindings","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}},"kind":"list"}},{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"and","left":{"kind":"not","value":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}}},"right":{"kind":"and","left":{"kind":"not","value":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"bindings"}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"kind":"not","value":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","unusedTail"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"bindings"}}},"constructor":{"name":"List.nil"}},{"binders":["slot","remainingSlots"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"and","left":{"arguments":[{"field":"slot","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"slot"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"head"}},{"field":"application","kind":"project","value":{"kind":"var","name":"policy"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"policy","kind":"project","value":{"kind":"var","name":"head"}},{"field":"policy","kind":"project","value":{"kind":"var","name":"policy"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"publicKey","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"65"}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["first"],"body":{"arguments":[{"kind":"var","name":"first"},{"kind":"integer","representation":"uint8","value":"4"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"publicKey","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"index","result":{"kind":"option","value":{"kind":"uint8"}}}},"right":{"kind":"bool","value":true}}},"right":{"kind":"and","left":{"arguments":[{"field":"principal","kind":"project","value":{"kind":"var","name":"head"}}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectDigestValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"head"},{"kind":"nat","value":"64"}],"function":{"name":"custodyDuplicateBinding"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"policy"},{"kind":"var","name":"remainingSlots"},{"kind":"var","name":"tail"},{"kind":"var","name":"rest"}],"function":{"name":"custodyBindingsValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"bindings"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodyBindingsValid","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"CustodyPolicy"}}},{"name":"slots","type":{"element":{"kind":"string"},"kind":"list"}},{"name":"bindings","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}},"kind":"list"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"policy","kind":"project","value":{"kind":"var","name":"snapshot"}}],"function":{"name":"custodyPolicyValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"policy","kind":"project","value":{"kind":"var","name":"snapshot"}},{"field":"slots","kind":"project","value":{"field":"policy","kind":"project","value":{"kind":"var","name":"snapshot"}}},{"field":"bindings","kind":"project","value":{"kind":"var","name":"snapshot"}},{"kind":"nat","value":"64"}],"function":{"name":"custodyBindingsValid"},"kind":"call"},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"custodySnapshotValid","parameters":[{"name":"snapshot","type":{"arguments":[],"kind":"named","member":{"name":"CustodySnapshot"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.BadPolicy"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[{"kind":"var","name":"policy"}],"constructor":{"name":"CustodyReply.Policy"},"kind":"constructor"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"policy"}],"function":{"name":"custodyPolicyValid"},"kind":"call"}},"kind":"definition","name":"inspectCustodyPolicy","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"CustodyPolicy"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CustodyError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.BadPolicy"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":["current"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.BadSnapshot"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.AlreadyInitialized"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"current"}],"function":{"name":"custodySnapshotValid"},"kind":"call"}},"constructor":{"name":"Option.some"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.BadBindings"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[{"fields":[{"field":"policy","value":{"kind":"var","name":"policy"}},{"field":"bindings","value":{"kind":"var","name":"candidates"}}],"kind":"record","type":{"name":"CustodySnapshot"}}],"constructor":{"name":"CustodyReply.Snapshot"},"kind":"constructor"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"policy"},{"field":"slots","kind":"project","value":{"kind":"var","name":"policy"}},{"kind":"var","name":"candidates"},{"kind":"nat","value":"64"}],"function":{"name":"custodyBindingsValid"},"kind":"call"}},"constructor":{"name":"Option.none"}}],"kind":"match","scrutinee":{"kind":"var","name":"existing"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"policy"}],"function":{"name":"custodyPolicyValid"},"kind":"call"}},"kind":"definition","name":"initializeCustody","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"CustodyPolicy"}}},{"name":"existing","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"CustodySnapshot"}}}},{"name":"candidates","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}},"kind":"list"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CustodyError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.BadPolicy"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.MissingCustody"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Option.none"}},{"binders":["current"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.BadSnapshot"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.PolicyMismatch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[{"kind":"var","name":"current"}],"constructor":{"name":"CustodyReply.Snapshot"},"kind":"constructor"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"policy"},{"field":"policy","kind":"project","value":{"kind":"var","name":"current"}}],"function":{"name":"custodyPolicyEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"current"}],"function":{"name":"custodySnapshotValid"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"existing"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"policy"}],"function":{"name":"custodyPolicyValid"},"kind":"call"}},"kind":"definition","name":"openCustody","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"CustodyPolicy"}}},{"name":"existing","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"CustodySnapshot"}}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CustodyError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}}]},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}}]},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"reference"},{"kind":"var","name":"rest"}],"function":{"name":"custodyFindResource"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"head"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"reference"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"items"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodyFindResource","parameters":[{"name":"items","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}},"kind":"list"}},{"name":"reference","type":{"kind":"string"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"CustodyResource"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}]},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}]},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"reference"},{"kind":"var","name":"rest"}],"function":{"name":"custodyFindBinding"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"head"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"slot","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"reference"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"items"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"custodyFindBinding","parameters":[{"name":"items","type":{"element":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}},"kind":"list"}},{"name":"reference","type":{"kind":"string"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.BadSnapshot"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.PolicyMismatch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.UnknownResource"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Option.none"}},{"binders":["selected"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.PayloadLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CustodyError.BadBindings"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Option.none"}},{"binders":["binding"],"body":{"arguments":[{"arguments":[{"fields":[{"field":"resource","value":{"field":"resource","kind":"project","value":{"kind":"var","name":"selected"}}},{"field":"slot","value":{"field":"slot","kind":"project","value":{"kind":"var","name":"selected"}}},{"field":"context","value":{"field":"context","kind":"project","value":{"kind":"var","name":"selected"}}},{"field":"maximum","value":{"field":"maximum","kind":"project","value":{"kind":"var","name":"selected"}}},{"field":"publicKey","value":{"field":"publicKey","kind":"project","value":{"kind":"var","name":"binding"}}},{"field":"principal","value":{"field":"principal","kind":"project","value":{"kind":"var","name":"binding"}}}],"kind":"record","type":{"name":"CustodyAuthorization"}}],"constructor":{"name":"CustodyReply.Authorization"},"kind":"constructor"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}},{"arguments":[],"kind":"named","member":{"name":"CustodyError"}}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bindings","kind":"project","value":{"kind":"var","name":"snapshot"}},{"field":"slot","kind":"project","value":{"kind":"var","name":"selected"}},{"kind":"nat","value":"64"}],"function":{"name":"custodyFindBinding"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"payload"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"field":"maximum","kind":"project","value":{"kind":"var","name":"selected"}}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"resources","kind":"project","value":{"field":"policy","kind":"project","value":{"kind":"var","name":"snapshot"}}},{"kind":"var","name":"resource"},{"kind":"nat","value":"64"}],"function":{"name":"custodyFindResource"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"field":"application","kind":"project","value":{"field":"policy","kind":"project","value":{"kind":"var","name":"snapshot"}}},{"kind":"var","name":"application"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"policy","kind":"project","value":{"field":"policy","kind":"project","value":{"kind":"var","name":"snapshot"}}},{"kind":"var","name":"policy"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"snapshot"}],"function":{"name":"custodySnapshotValid"},"kind":"call"}},"kind":"definition","name":"admitCustodySign","parameters":[{"name":"snapshot","type":{"arguments":[],"kind":"named","member":{"name":"CustodySnapshot"}}},{"name":"application","type":{"kind":"bytes"}},{"name":"policy","type":{"kind":"bytes"}},{"name":"resource","type":{"kind":"string"}},{"name":"payload","type":{"kind":"bytes"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CustodyError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CustodyReply"}}}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: CustodyResource,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: resource, type: String},
+    {name: slot, type: String},
+    {name: context, type: String},
+    {name: maximum, type: Nat}
+  ]
+}
+
+structure{
+  name: CustodyPolicy,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: application, type: Bytes},
+    {name: policy, type: Bytes},
+    {name: slots, type: (List String)},
+    {name: resources, type: (List CustodyResource)}
+  ]
+}
+
+structure{
+  name: CredentialBinding,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: application, type: Bytes},
+    {name: policy, type: Bytes},
+    {name: slot, type: String},
+    {name: publicKey, type: Bytes},
+    {name: principal, type: String}
+  ]
+}
+
+structure{
+  name: CustodySnapshot,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: policy, type: CustodyPolicy}, {name: bindings, type: (List CredentialBinding)}]
+}
+
+structure{
+  name: CustodyAuthorization,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: resource, type: String},
+    {name: slot, type: String},
+    {name: context, type: String},
+    {name: maximum, type: Nat},
+    {name: publicKey, type: Bytes},
+    {name: principal, type: String}
+  ]
+}
+
+inductive{
+  name: CustodyReply,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Policy, fields: [CustodyPolicy]},
+    {name: Snapshot, fields: [CustodySnapshot]},
+    {name: Authorization, fields: [CustodyAuthorization]}
+  ]
+}
+
+inductive{
+  name: CustodyError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BadPolicy, fields: []},
+    {name: BadSnapshot, fields: []},
+    {name: AlreadyInitialized, fields: []},
+    {name: MissingCustody, fields: []},
+    {name: PolicyMismatch, fields: []},
+    {name: BadBindings, fields: []},
+    {name: UnknownResource, fields: []},
+    {name: PayloadLimit, fields: []}
+  ]
+}
+
+definition{
+  name: custodySlugOctetNat0,
+  parameters: [value : UInt8],
+  result: Nat,
+  body: (match (prim equal value (68 : UInt8) : Bool)
+    | Bool.false => (match (prim equal value (67 : UInt8) : Bool)
+      | Bool.false => (match (prim equal value (66 : UInt8) : Bool)
+        | Bool.false => (match (prim equal value (65 : UInt8) : Bool)
+          | Bool.false => (match (prim equal value (57 : UInt8) : Bool)
+            | Bool.false => (match (prim equal value (56 : UInt8) : Bool)
+              | Bool.false => (match (prim equal value (55 : UInt8) : Bool)
+                | Bool.false => (match (prim equal value (54 : UInt8) : Bool)
+                  | Bool.false => (match (prim equal value (53 : UInt8) : Bool)
+                    | Bool.false => (match (prim equal value (52 : UInt8) : Bool)
+                      | Bool.false => (match (prim equal value (51 : UInt8) : Bool)
+                        | Bool.false => (match (prim equal value (50 : UInt8) : Bool)
+                          | Bool.false => (match (prim equal value (49 : UInt8) : Bool)
+                            | Bool.false => (match (prim equal value (48 : UInt8) : Bool)
+                              | Bool.false => (match (prim equal value (46 : UInt8) : Bool)
+                                | Bool.false => (match (prim equal value (45 : UInt8) : Bool)
+                                  | Bool.false => 256
+                                  | Bool.true => 45)
+                                | Bool.true => 46)
+                              | Bool.true => 48)
+                            | Bool.true => 49)
+                          | Bool.true => 50)
+                        | Bool.true => 51)
+                      | Bool.true => 52)
+                    | Bool.true => 53)
+                  | Bool.true => 54)
+                | Bool.true => 55)
+              | Bool.true => 56)
+            | Bool.true => 57)
+          | Bool.true => 65)
+        | Bool.true => 66)
+      | Bool.true => 67)
+    | Bool.true => 68),
+  axioms: []
+}
+
+definition{
+  name: custodySlugOctetNat1,
+  parameters: [value : UInt8],
+  result: Nat,
+  body: (match (prim equal value (84 : UInt8) : Bool)
+    | Bool.false => (match (prim equal value (83 : UInt8) : Bool)
+      | Bool.false => (match (prim equal value (82 : UInt8) : Bool)
+        | Bool.false => (match (prim equal value (81 : UInt8) : Bool)
+          | Bool.false => (match (prim equal value (80 : UInt8) : Bool)
+            | Bool.false => (match (prim equal value (79 : UInt8) : Bool)
+              | Bool.false => (match (prim equal value (78 : UInt8) : Bool)
+                | Bool.false => (match (prim equal value (77 : UInt8) : Bool)
+                  | Bool.false => (match (prim equal value (76 : UInt8) : Bool)
+                    | Bool.false => (match (prim equal value (75 : UInt8) : Bool)
+                      | Bool.false => (match (prim equal value (74 : UInt8) : Bool)
+                        | Bool.false => (match (prim equal value (73 : UInt8) : Bool)
+                          | Bool.false => (match (prim equal value (72 : UInt8) : Bool)
+                            | Bool.false => (match (prim equal value (71 : UInt8) : Bool)
+                              | Bool.false => (match (prim equal value (70 : UInt8) : Bool)
+                                | Bool.false => (match (prim equal value (69 : UInt8) : Bool)
+                                  | Bool.false => (custodySlugOctetNat0 value)
+                                  | Bool.true => 69)
+                                | Bool.true => 70)
+                              | Bool.true => 71)
+                            | Bool.true => 72)
+                          | Bool.true => 73)
+                        | Bool.true => 74)
+                      | Bool.true => 75)
+                    | Bool.true => 76)
+                  | Bool.true => 77)
+                | Bool.true => 78)
+              | Bool.true => 79)
+            | Bool.true => 80)
+          | Bool.true => 81)
+        | Bool.true => 82)
+      | Bool.true => 83)
+    | Bool.true => 84),
+  axioms: []
+}
+
+definition{
+  name: custodySlugOctetNat2,
+  parameters: [value : UInt8],
+  result: Nat,
+  body: (match (prim equal value (105 : UInt8) : Bool)
+    | Bool.false => (match (prim equal value (104 : UInt8) : Bool)
+      | Bool.false => (match (prim equal value (103 : UInt8) : Bool)
+        | Bool.false => (match (prim equal value (102 : UInt8) : Bool)
+          | Bool.false => (match (prim equal value (101 : UInt8) : Bool)
+            | Bool.false => (match (prim equal value (100 : UInt8) : Bool)
+              | Bool.false => (match (prim equal value (99 : UInt8) : Bool)
+                | Bool.false => (match (prim equal value (98 : UInt8) : Bool)
+                  | Bool.false => (match (prim equal value (97 : UInt8) : Bool)
+                    | Bool.false => (match (prim equal value (95 : UInt8) : Bool)
+                      | Bool.false => (match (prim equal value (90 : UInt8) : Bool)
+                        | Bool.false => (match (prim equal value (89 : UInt8) : Bool)
+                          | Bool.false => (match (prim equal value (88 : UInt8) : Bool)
+                            | Bool.false => (match (prim equal value (87 : UInt8) : Bool)
+                              | Bool.false => (match (prim equal value (86 : UInt8) : Bool)
+                                | Bool.false => (match (prim equal value (85 : UInt8) : Bool)
+                                  | Bool.false => (custodySlugOctetNat1 value)
+                                  | Bool.true => 85)
+                                | Bool.true => 86)
+                              | Bool.true => 87)
+                            | Bool.true => 88)
+                          | Bool.true => 89)
+                        | Bool.true => 90)
+                      | Bool.true => 95)
+                    | Bool.true => 97)
+                  | Bool.true => 98)
+                | Bool.true => 99)
+              | Bool.true => 100)
+            | Bool.true => 101)
+          | Bool.true => 102)
+        | Bool.true => 103)
+      | Bool.true => 104)
+    | Bool.true => 105),
+  axioms: []
+}
+
+definition{
+  name: custodySlugOctetNat3,
+  parameters: [value : UInt8],
+  result: Nat,
+  body: (match (prim equal value (121 : UInt8) : Bool)
+    | Bool.false => (match (prim equal value (120 : UInt8) : Bool)
+      | Bool.false => (match (prim equal value (119 : UInt8) : Bool)
+        | Bool.false => (match (prim equal value (118 : UInt8) : Bool)
+          | Bool.false => (match (prim equal value (117 : UInt8) : Bool)
+            | Bool.false => (match (prim equal value (116 : UInt8) : Bool)
+              | Bool.false => (match (prim equal value (115 : UInt8) : Bool)
+                | Bool.false => (match (prim equal value (114 : UInt8) : Bool)
+                  | Bool.false => (match (prim equal value (113 : UInt8) : Bool)
+                    | Bool.false => (match (prim equal value (112 : UInt8) : Bool)
+                      | Bool.false => (match (prim equal value (111 : UInt8) : Bool)
+                        | Bool.false => (match (prim equal value (110 : UInt8) : Bool)
+                          | Bool.false => (match (prim equal value (109 : UInt8) : Bool)
+                            | Bool.false => (match (prim equal value (108 : UInt8) : Bool)
+                              | Bool.false => (match (prim equal value (107 : UInt8) : Bool)
+                                | Bool.false => (match (prim equal value (106 : UInt8) : Bool)
+                                  | Bool.false => (custodySlugOctetNat2 value)
+                                  | Bool.true => 106)
+                                | Bool.true => 107)
+                              | Bool.true => 108)
+                            | Bool.true => 109)
+                          | Bool.true => 110)
+                        | Bool.true => 111)
+                      | Bool.true => 112)
+                    | Bool.true => 113)
+                  | Bool.true => 114)
+                | Bool.true => 115)
+              | Bool.true => 116)
+            | Bool.true => 117)
+          | Bool.true => 118)
+        | Bool.true => 119)
+      | Bool.true => 120)
+    | Bool.true => 121),
+  axioms: []
+}
+
+definition{
+  name: custodySlugOctetNat4,
+  parameters: [value : UInt8],
+  result: Nat,
+  body: (match (prim equal value (122 : UInt8) : Bool)
+    | Bool.false => (custodySlugOctetNat3 value)
+    | Bool.true => 122),
+  axioms: []
+}
+
+definition{
+  name: custodySlugOctetNat,
+  parameters: [value : UInt8],
+  result: Nat,
+  body: (custodySlugOctetNat4 value),
+  axioms: []
+}
+
+definition{
+  name: custodyBytesLess,
+  parameters: [left : Bytes, right : Bytes, offset : Nat, fuel : Nat],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => (((prim length left : Nat) <=? offset) && ((offset <? (prim length right : Nat)) && true))
+    | Nat.succ rest => (match ((prim length left : Nat) <=? offset)
+      | Bool.false => (match ((prim length right : Nat) <=? offset)
+        | Bool.false => (match (prim index left offset : (Option UInt8))
+          | Option.none => false
+          | Option.some leftByte => (match (prim index right offset : (Option UInt8))
+            | Option.none => false
+            | Option.some rightByte => (match (prim equal leftByte rightByte : Bool)
+              | Bool.false => ((custodySlugOctetNat leftByte) <? (custodySlugOctetNat rightByte))
+              | Bool.true => (custodyBytesLess left right (offset + 1) rest))))
+        | Bool.true => false)
+      | Bool.true => (offset <? (prim length right : Nat)))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: custodyTextLess,
+  parameters: [left : String, right : String],
+  result: Bool,
+  body: (((prim length (prim utf8_encode left : Bytes) : Nat) <=? 128) && (((prim length (prim utf8_encode right : Bytes) : Nat) <=? 128) && ((custodyBytesLess (prim utf8_encode left : Bytes) (prim utf8_encode right : Bytes) 0 128) && true))),
+  axioms: []
+}
+
+definition{
+  name: custodyHasSlot,
+  parameters: [slots : (List String), slot : String, fuel : Nat],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => (match slots | List.nil => false | List.cons unusedHead unusedTail => false)
+    | Nat.succ rest => (match slots
+      | List.nil => false
+      | List.cons head tail => ((prim equal head slot : Bool) || ((custodyHasSlot tail slot rest) || false)))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: custodySlotUsed,
+  parameters: [resources : (List CustodyResource), slot : String, fuel : Nat],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => (match resources | List.nil => false | List.cons unusedHead unusedTail => false)
+    | Nat.succ rest => (match resources
+      | List.nil => false
+      | List.cons head tail => ((prim equal (project head slot) slot : Bool) || ((custodySlotUsed tail slot rest) || false)))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: custodySlotsValid,
+  parameters: [
+    slots : (List String),
+    resources : (List CustodyResource),
+    previous : String,
+    fuel : Nat
+  ],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => (match slots | List.nil => true | List.cons unusedHead unusedTail => false)
+    | Nat.succ rest => (match slots
+      | List.nil => true
+      | List.cons head tail => ((Foundation.Browser.Application.V1.Effects::effectNameValid head 0) && ((custodyTextLess previous head) && ((custodySlotUsed resources head 64) && ((custodySlotsValid tail resources head rest) && true)))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: custodyResourcesValid,
+  parameters: [
+    resources : (List CustodyResource),
+    slots : (List String),
+    previous : String,
+    fuel : Nat
+  ],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => (match resources | List.nil => true | List.cons unusedHead unusedTail => false)
+    | Nat.succ rest => (match resources
+      | List.nil => true
+      | List.cons head tail => ((Foundation.Browser.Application.V1.Effects::effectNameValid (project head resource) 0) && ((Foundation.Browser.Application.V1.Effects::effectNameValid (project head slot) 0) && ((custodyTextLess previous (project head resource)) && ((custodyHasSlot slots (project head slot) 64) && ((Foundation.Browser.Application.V1.Effects::effectNameValid (project head context) 1) && ((0 <? (project head maximum)) && (((project head maximum) <=? 1048576) && ((custodyResourcesValid tail slots (project head resource) rest) && true)))))))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: custodySlotsPresent,
+  parameters: [items : (List String)],
+  result: Bool,
+  body: (match items | List.nil => false | List.cons unusedHead unusedTail => true),
+  axioms: []
+}
+
+definition{
+  name: custodyResourcesPresent,
+  parameters: [items : (List CustodyResource)],
+  result: Bool,
+  body: (match items | List.nil => false | List.cons unusedHead unusedTail => true),
+  axioms: []
+}
+
+definition{
+  name: custodyPolicyValid,
+  parameters: [policy : CustodyPolicy],
+  result: Bool,
+  body: (((prim length (project policy application) : Nat) =? 32) && (((prim length (project policy policy) : Nat) =? 32) && ((custodySlotsPresent (project policy slots)) && ((custodyResourcesPresent (project policy resources)) && ((custodySlotsValid (project policy slots) (project policy resources) "" 64) && ((custodyResourcesValid (project policy resources) (project policy slots) "" 64) && true)))))),
+  axioms: []
+}
+
+definition{
+  name: custodySlotsEqual,
+  parameters: [left : (List String), right : (List String), fuel : Nat],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => ((not (match left
+      | List.nil => false
+      | List.cons unusedHead unusedTail => true)) && ((not (match right
+      | List.nil => false
+      | List.cons unusedHead unusedTail => true)) && true))
+    | Nat.succ rest => (match left
+      | List.nil => (not (match right
+        | List.nil => false
+        | List.cons unusedHead unusedTail => true))
+      | List.cons leftHead leftTail => (match right
+        | List.nil => false
+        | List.cons rightHead rightTail => ((prim equal leftHead rightHead : Bool) && ((custodySlotsEqual leftTail rightTail rest) && true))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: custodyResourcesEqual,
+  parameters: [left : (List CustodyResource), right : (List CustodyResource), fuel : Nat],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => ((not (match left
+      | List.nil => false
+      | List.cons unusedHead unusedTail => true)) && ((not (match right
+      | List.nil => false
+      | List.cons unusedHead unusedTail => true)) && true))
+    | Nat.succ rest => (match left
+      | List.nil => (not (match right
+        | List.nil => false
+        | List.cons unusedHead unusedTail => true))
+      | List.cons leftHead leftTail => (match right
+        | List.nil => false
+        | List.cons rightHead rightTail => (((prim equal (project leftHead resource) (project rightHead resource) : Bool) && ((prim equal (project leftHead slot) (project rightHead slot) : Bool) && ((prim equal (project leftHead context) (project rightHead context) : Bool) && (((project leftHead maximum) =? (project rightHead maximum)) && true)))) && ((custodyResourcesEqual leftTail rightTail rest) && true))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: custodyPolicyEqual,
+  parameters: [left : CustodyPolicy, right : CustodyPolicy],
+  result: Bool,
+  body: ((prim equal (project left application) (project right application) : Bool) && ((prim equal (project left policy) (project right policy) : Bool) && ((custodySlotsEqual (project left slots) (project right slots) 64) && ((custodyResourcesEqual (project left resources) (project right resources) 64) && true)))),
+  axioms: []
+}
+
+definition{
+  name: custodyDuplicateBinding,
+  parameters: [bindings : (List CredentialBinding), binding : CredentialBinding, fuel : Nat],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => (match bindings | List.nil => false | List.cons unusedHead unusedTail => false)
+    | Nat.succ rest => (match bindings
+      | List.nil => false
+      | List.cons head tail => ((prim equal (project head publicKey) (project binding publicKey) : Bool) || ((prim equal (project head principal) (project binding principal) : Bool) || ((custodyDuplicateBinding tail binding rest) || false))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: custodyBindingsValid,
+  parameters: [
+    policy : CustodyPolicy,
+    slots : (List String),
+    bindings : (List CredentialBinding),
+    fuel : Nat
+  ],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => ((not (match slots
+      | List.nil => false
+      | List.cons unusedHead unusedTail => true)) && ((not (match bindings
+      | List.nil => false
+      | List.cons unusedHead unusedTail => true)) && true))
+    | Nat.succ rest => (match slots
+      | List.nil => (not (match bindings
+        | List.nil => false
+        | List.cons unusedHead unusedTail => true))
+      | List.cons slot remainingSlots => (match bindings
+        | List.nil => false
+        | List.cons head tail => ((prim equal (project head slot) slot : Bool) && ((prim equal (project head application) (project policy application) : Bool) && ((prim equal (project head policy) (project policy policy) : Bool) && ((((prim length (project head publicKey) : Nat) =? 65) && ((match (prim index (project head publicKey) 0 : (Option UInt8))
+          | Option.none => false
+          | Option.some firstByte => (prim equal firstByte (4 : UInt8) : Bool)) && true)) && ((Foundation.Browser.Application.V1.Effects::effectDigestValid (project head principal)) && ((not (custodyDuplicateBinding tail head 64)) && ((custodyBindingsValid policy remainingSlots tail rest) && true)))))))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: custodySnapshotValid,
+  parameters: [snapshot : CustodySnapshot],
+  result: Bool,
+  body: ((custodyPolicyValid (project snapshot policy)) && ((custodyBindingsValid (project snapshot policy) (project (project snapshot policy) slots) (project snapshot bindings) 64) && true)),
+  axioms: []
+}
+
+definition{
+  name: inspectCustodyPolicy,
+  parameters: [policy : CustodyPolicy],
+  result: (Result CustodyReply CustodyError),
+  body: (match (custodyPolicyValid policy)
+    | Bool.false => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.BadPolicy))
+    | Bool.true => (ctor Result.ok [CustodyReply, CustodyError] (ctor CustodyReply.Policy policy))),
+  axioms: []
+}
+
+definition{
+  name: initializeCustody,
+  parameters: [
+    policy : CustodyPolicy,
+    existing : (Option CustodySnapshot),
+    candidates : (List CredentialBinding)
+  ],
+  result: (Result CustodyReply CustodyError),
+  body: (match (custodyPolicyValid policy)
+    | Bool.false => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.BadPolicy))
+    | Bool.true => (match existing
+      | Option.some current => (match (custodySnapshotValid current)
+        | Bool.false => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.BadSnapshot))
+        | Bool.true => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.AlreadyInitialized)))
+      | Option.none => (match (custodyBindingsValid policy (project policy slots) candidates 64)
+        | Bool.false => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.BadBindings))
+        | Bool.true => (ctor Result.ok [CustodyReply, CustodyError] (ctor CustodyReply.Snapshot (record CustodySnapshot {policy := policy, bindings := candidates})))))),
+  axioms: []
+}
+
+definition{
+  name: openCustody,
+  parameters: [policy : CustodyPolicy, existing : (Option CustodySnapshot)],
+  result: (Result CustodyReply CustodyError),
+  body: (match (custodyPolicyValid policy)
+    | Bool.false => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.BadPolicy))
+    | Bool.true => (match existing
+      | Option.none => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.MissingCustody))
+      | Option.some current => (match (custodySnapshotValid current)
+        | Bool.false => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.BadSnapshot))
+        | Bool.true => (match (custodyPolicyEqual policy (project current policy))
+          | Bool.false => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.PolicyMismatch))
+          | Bool.true => (ctor Result.ok [CustodyReply, CustodyError] (ctor CustodyReply.Snapshot current)))))),
+  axioms: []
+}
+
+definition{
+  name: custodyFindResource,
+  parameters: [items : (List CustodyResource), reference : String, fuel : Nat],
+  result: (Option CustodyResource),
+  body: (match fuel
+    | Nat.zero => (ctor Option.none [CustodyResource])
+    | Nat.succ rest => (match items
+      | List.nil => (ctor Option.none [CustodyResource])
+      | List.cons head tail => (match (prim equal (project head resource) reference : Bool)
+        | Bool.false => (custodyFindResource tail reference rest)
+        | Bool.true => (ctor Option.some [CustodyResource] head)))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: custodyFindBinding,
+  parameters: [items : (List CredentialBinding), reference : String, fuel : Nat],
+  result: (Option CredentialBinding),
+  body: (match fuel
+    | Nat.zero => (ctor Option.none [CredentialBinding])
+    | Nat.succ rest => (match items
+      | List.nil => (ctor Option.none [CredentialBinding])
+      | List.cons head tail => (match (prim equal (project head slot) reference : Bool)
+        | Bool.false => (custodyFindBinding tail reference rest)
+        | Bool.true => (ctor Option.some [CredentialBinding] head)))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: admitCustodySign,
+  parameters: [
+    snapshot : CustodySnapshot,
+    application : Bytes,
+    policy : Bytes,
+    resource : String,
+    payload : Bytes
+  ],
+  result: (Result CustodyReply CustodyError),
+  body: (match (custodySnapshotValid snapshot)
+    | Bool.false => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.BadSnapshot))
+    | Bool.true => (match ((prim equal (project (project snapshot policy) application) application : Bool) && ((prim equal (project (project snapshot policy) policy) policy : Bool) && true))
+      | Bool.false => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.PolicyMismatch))
+      | Bool.true => (match (custodyFindResource (project (project snapshot policy) resources) resource 64)
+        | Option.none => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.UnknownResource))
+        | Option.some selected => (match ((prim length payload : Nat) <=? (project selected maximum))
+          | Bool.false => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.PayloadLimit))
+          | Bool.true => (match (custodyFindBinding (project snapshot bindings) (project selected slot) 64)
+            | Option.none => (ctor Result.error [CustodyReply, CustodyError] (ctor CustodyError.BadBindings))
+            | Option.some binding => (ctor Result.ok [CustodyReply, CustodyError] (ctor CustodyReply.Authorization (record CustodyAuthorization {resource := (project selected resource), slot := (project selected slot), context := (project selected context), maximum := (project selected maximum), publicKey := (project binding publicKey), principal := (project binding principal)})))))))),
+  axioms: []
+}
 \end{semanticmodule}
 \end{lexlean}

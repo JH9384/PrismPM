@@ -7,6 +7,7 @@ public import PrismPM.Foundation.Sec
 set_option autoImplicit false
 set_option maxRecDepth 100000
 set_option maxHeartbeats 1000000000
+set_option linter.constructorNameAsVariable false
 namespace PrismPM.System
 
 @[expose] public def stdlibModel : PrismPM.Foundation.Holo.NormalizedHolo := ({ componentIndexes := (0 :: (1 :: ([] : List (Nat)))), edgeEndpoints := (0 :: (1 :: (1 :: (0 :: ([] : List (Nat)))))), riskLinks := (0 :: (0 :: ([] : List (Nat)))), controlLinks := (0 :: ([] : List (Nat))), viewpointLinks := (0 :: (0 :: (0 :: ([] : List (Nat))))), qualityLinks := (0 :: (0 :: ([] : List (Nat)))), flattenedIndexes := (0 :: (1 :: ([] : List (Nat)))) } : PrismPM.Foundation.Holo.NormalizedHolo)

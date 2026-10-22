@@ -5,93 +5,114 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{WorkspaceEnvelope}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{publicKey}: \texttt{ByteArray}.\par
+\noindent Field \texttt{signature}: \texttt{ByteArray}.\par
+\noindent Field \texttt{eventBytes}: \texttt{ByteArray}.\par
 \subsection*{\texttt{workspaceEventEncodingPresent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(event : Option (PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match event with | Option.none => false | Option.some \_ => true)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{workspaceEnvelopeFieldsValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(candidate : WorkspaceEnvelope)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.beq ((LexLeanRuntime.length ((candidate).publicKey) : Nat)) (65)) \&\& (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindow ((candidate).publicKey) (0) (1)) (ByteArray.mk \#[4]) \&\& ((Nat.beq ((LexLeanRuntime.length ((candidate).signature) : Nat)) (64)) \&\& (workspaceEventEncodingPresent (PrismPM.Foundation.Browser.V1.Workspace.decodeAuthenticatedEvent ((candidate).eventBytes)) \&\& true))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{encodeWorkspaceEnvelope}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(candidate : WorkspaceEnvelope)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if workspaceEnvelopeFieldsValid (candidate) then Option.some ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[80, 87, 69, 1]) : ByteArray)) ((candidate).publicKey) : ByteArray)) ((candidate).signature) : ByteArray)) ((candidate).eventBytes) : ByteArray)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{workspaceEnvelopeCandidate}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{WorkspaceEnvelope}.\par
 \noindent Definition: \texttt{(\{ publicKey := PrismPM.Foundation.Browser.V1.Workspace.byteWindow (value) (4) (65), signature := PrismPM.Foundation.Browser.V1.Workspace.byteWindow (value) (69) (64), eventBytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindow (value) (133) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (value) : Nat)) (133) : Nat)) \} : WorkspaceEnvelope)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{workspaceEnvelopeCheckedCandidate}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(candidate : WorkspaceEnvelope)}.\par
 \noindent Type: \texttt{Option (WorkspaceEnvelope)}.\par
 \noindent Definition: \texttt{(if workspaceEnvelopeFieldsValid (candidate) then Option.some (candidate) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{decodeWorkspaceEnvelope}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Option (WorkspaceEnvelope)}.\par
 \noindent Definition: \texttt{(if ((Nat.ble (267) ((LexLeanRuntime.length (value) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length (value) : Nat)) (4363)) \&\& (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindow (value) (0) (4)) (ByteArray.mk \#[80, 87, 69, 1]) \&\& true))) then workspaceEnvelopeCheckedCandidate (workspaceEnvelopeCandidate (value)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{workspaceEnvelopeUnsignedEventFromEvent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(event : Option (PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent))}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(match event with | Option.none => Option.none | Option.some candidate => Option.some (PrismPM.Foundation.Browser.V1.Workspace.encodeUnsignedEvent (candidate)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{workspaceEnvelopeUnsignedEvent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(candidate : WorkspaceEnvelope)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if workspaceEnvelopeFieldsValid (candidate) then workspaceEnvelopeUnsignedEventFromEvent (PrismPM.Foundation.Browser.V1.Workspace.decodeAuthenticatedEvent ((candidate).eventBytes)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{workspaceEnvelopeSigningPreimageFromEvent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(event : Option (PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent))}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(match event with | Option.none => Option.none | Option.some candidate => Option.some (PrismPM.Foundation.Browser.V1.Workspace.workspaceSigningPreimage (candidate)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{workspaceEnvelopeSigningPreimage}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(candidate : WorkspaceEnvelope)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if workspaceEnvelopeFieldsValid (candidate) then workspaceEnvelopeSigningPreimageFromEvent (PrismPM.Foundation.Browser.V1.Workspace.decodeAuthenticatedEvent ((candidate).eventBytes)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{workspaceEnvelopeAuthorFromEvent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(event : Option (PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent))}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(match event with | Option.none => Option.none | Option.some candidate => Option.some ((candidate).author))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{workspaceEnvelopeAuthor}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(candidate : WorkspaceEnvelope)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if workspaceEnvelopeFieldsValid (candidate) then workspaceEnvelopeAuthorFromEvent (PrismPM.Foundation.Browser.V1.Workspace.decodeAuthenticatedEvent ((candidate).eventBytes)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{workspaceEnvelopeEventIdFromEvent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(event : Option (PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent))}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(match event with | Option.none => Option.none | Option.some candidate => Option.some ((candidate).eventId))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{workspaceEnvelopeEventId}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(candidate : WorkspaceEnvelope)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if workspaceEnvelopeFieldsValid (candidate) then workspaceEnvelopeEventIdFromEvent (PrismPM.Foundation.Browser.V1.Workspace.decodeAuthenticatedEvent ((candidate).eventBytes)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{workspaceEnvelopeResponse}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Option (ByteArray))}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match value with | Option.none => ByteArray.mk \#[1] | Option.some part => (LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[0]) : ByteArray)) (part) : ByteArray))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{workspaceEnvelopeOperation}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(operation : ByteArray) (candidate : WorkspaceEnvelope)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(if PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (operation) (ByteArray.mk \#[0]) then workspaceEnvelopeResponse (encodeWorkspaceEnvelope (candidate)) else (if PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (operation) (ByteArray.mk \#[1]) then workspaceEnvelopeResponse (workspaceEnvelopeUnsignedEvent (candidate)) else (if PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (operation) (ByteArray.mk \#[2]) then workspaceEnvelopeResponse (workspaceEnvelopeSigningPreimage (candidate)) else (if PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (operation) (ByteArray.mk \#[3]) then workspaceEnvelopeResponse (Option.some ((candidate).publicKey)) else (if PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (operation) (ByteArray.mk \#[4]) then workspaceEnvelopeResponse (Option.some ((candidate).signature)) else (if PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (operation) (ByteArray.mk \#[5]) then workspaceEnvelopeResponse (Option.some ((candidate).eventBytes)) else (if PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (operation) (ByteArray.mk \#[6]) then workspaceEnvelopeResponse (workspaceEnvelopeAuthor (candidate)) else (if PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (operation) (ByteArray.mk \#[7]) then workspaceEnvelopeResponse (workspaceEnvelopeEventId (candidate)) else ByteArray.mk \#[2]))))))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{workspaceEnvelopeDecodedOperation}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(operation : ByteArray) (candidate : Option (WorkspaceEnvelope))}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match candidate with | Option.none => ByteArray.mk \#[1] | Option.some value => workspaceEnvelopeOperation (operation) (value))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{workspaceEnvelopeBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(request : ByteArray)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(if ((Nat.ble (1) ((LexLeanRuntime.length (request) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length (request) : Nat)) (4364)) \&\& true)) then workspaceEnvelopeDecodedOperation (PrismPM.Foundation.Browser.V1.Workspace.byteWindow (request) (0) (1)) (decodeWorkspaceEnvelope (PrismPM.Foundation.Browser.V1.Workspace.byteWindow (request) (1) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (request) : Nat)) (1) : Nat)))) else ByteArray.mk \#[1])}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par

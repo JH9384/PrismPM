@@ -5,20 +5,92 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{ComponentKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Browser}: \texttt{()}.\par
+\noindent Constructor \texttt{Api}: \texttt{()}.\par
+\noindent Constructor \texttt{Worker}: \texttt{()}.\par
+\noindent Constructor \texttt{Database}: \texttt{()}.\par
+\noindent Constructor \texttt{Broker}: \texttt{()}.\par
+\noindent Constructor \texttt{IdentityProvider}: \texttt{()}.\par
+\noindent Constructor \texttt{TelemetryCollector}: \texttt{()}.\par
+\noindent Constructor \texttt{Migration}: \texttt{()}.\par
+\noindent Constructor \texttt{Job}: \texttt{()}.\par
 \subsection*{\texttt{Product}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{owner}: \texttt{String}.\par
+\noindent Field \texttt{version}: \texttt{String}.\par
+\noindent Field \texttt{lifecycle}: \texttt{String}.\par
+\noindent Field \texttt{sourcePolicy}: \texttt{String}.\par
+\noindent Field \texttt{supportedPlatforms}: \texttt{List (String)}.\par
 \subsection*{\texttt{Artifact}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{mediaType}: \texttt{String}.\par
+\noindent Field \texttt{digest}: \texttt{String}.\par
+\noindent Field \texttt{licenseExpression}: \texttt{String}.\par
+\noindent Field \texttt{path}: \texttt{String}.\par
+\noindent Field \texttt{role}: \texttt{String}.\par
+\noindent Field \texttt{platformRequirements}: \texttt{List (String)}.\par
 \subsection*{\texttt{ResourceRequirements}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{cpuMillis}: \texttt{UInt32}.\par
+\noindent Field \texttt{memoryBytes}: \texttt{UInt64}.\par
+\noindent Field \texttt{replicasMin}: \texttt{UInt32}.\par
+\noindent Field \texttt{replicasMax}: \texttt{UInt32}.\par
 \subsection*{\texttt{Component}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{version}: \texttt{String}.\par
+\noindent Field \texttt{artifact}: \texttt{String}.\par
+\noindent Field \texttt{capabilities}: \texttt{List (String)}.\par
+\noindent Field \texttt{command}: \texttt{List (String)}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
+\noindent Field \texttt{interfaces}: \texttt{List (String)}.\par
+\noindent Field \texttt{health}: \texttt{String}.\par
+\noindent Field \texttt{liveness}: \texttt{List (String)}.\par
+\noindent Field \texttt{parameters}: \texttt{List (String)}.\par
+\noindent Field \texttt{ports}: \texttt{List (String)}.\par
+\noindent Field \texttt{readiness}: \texttt{List (String)}.\par
+\noindent Field \texttt{resources}: \texttt{ResourceRequirements}.\par
+\noindent Field \texttt{secrets}: \texttt{List (String)}.\par
+\noindent Field \texttt{startup}: \texttt{List (String)}.\par
+\noindent Field \texttt{volumes}: \texttt{List (String)}.\par
+\noindent Field \texttt{isolation}: \texttt{String}.\par
+\noindent Field \texttt{placement}: \texttt{List (String)}.\par
+\noindent Field \texttt{platformRequirements}: \texttt{List (String)}.\par
+\noindent Field \texttt{scalingPolicy}: \texttt{Option (String)}.\par
+\noindent Field \texttt{failurePolicy}: \texttt{String}.\par
+\noindent Field \texttt{retryPolicy}: \texttt{String}.\par
+\noindent Field \texttt{degradationPolicy}: \texttt{String}.\par
+\noindent Field \texttt{idempotency}: \texttt{String}.\par
 \subsection*{\texttt{Capability}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
 \subsection*{\texttt{Configuration}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{valueType}: \texttt{String}.\par
+\noindent Field \texttt{allowed}: \texttt{List (String)}.\par
+\noindent Field \texttt{defaultValue}: \texttt{Option (String)}.\par
+\noindent Field \texttt{required}: \texttt{Bool}.\par
+\noindent Field \texttt{mutable}: \texttt{Bool}.\par
+\noindent Field \texttt{lateBound}: \texttt{Bool}.\par
+\noindent Field \texttt{exposure}: \texttt{String}.\par
 \subsection*{\texttt{SecretReference}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{providerKey}: \texttt{String}.\par
+\noindent Field \texttt{consumers}: \texttt{List (String)}.\par
+\noindent Field \texttt{rotation}: \texttt{String}.\par
 \subsection*{\texttt{IdentityRequirement}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{issuerParameter}: \texttt{String}.\par
+\noindent Field \texttt{audiences}: \texttt{List (String)}.\par
+\noindent Field \texttt{subjects}: \texttt{List (String)}.\par
+\noindent Field \texttt{roles}: \texttt{List (String)}.\par
 \end{document}

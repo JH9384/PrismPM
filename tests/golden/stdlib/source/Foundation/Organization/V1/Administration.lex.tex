@@ -1,8 +1,778 @@
 \begin{lexlean}{Foundation.Organization.V1.Administration}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"Provisional"},{"fields":[],"name":"Active"}],"kind":"inductive","name":"AdministrationStage","parameters":[],"type_parameters":[]},{"fields":[{"name":"user","type":{"kind":"string"}},{"name":"enabled","type":{"kind":"bool"}}],"kind":"structure","name":"AdministratorUser","parameters":[],"type_parameters":[]},{"fields":[{"name":"scope","type":{"kind":"string"}},{"name":"parent","type":{"kind":"string"}},{"name":"inherits","type":{"kind":"bool"}},{"name":"minimum","type":{"kind":"nat"}},{"name":"quorum","type":{"kind":"nat"}}],"kind":"structure","name":"AdministrationScope","parameters":[],"type_parameters":[]},{"fields":[{"name":"scope","type":{"kind":"string"}},{"name":"user","type":{"kind":"string"}}],"kind":"structure","name":"AdministratorGrant","parameters":[],"type_parameters":[]},{"fields":[{"name":"root","type":{"kind":"string"}},{"name":"label","type":{"kind":"string"}},{"name":"stage","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationStage"}}},{"name":"users","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}},{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}},"kind":"list"}}],"kind":"structure","name":"AdministrationPlan","parameters":[],"type_parameters":[]},{"fields":[{"name":"organization","type":{"kind":"string"}},{"name":"revision","type":{"kind":"nat"}},{"name":"plan","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"kind":"structure","name":"AdministrationSnapshot","parameters":[],"type_parameters":[]},{"fields":[{"name":"organization","type":{"kind":"string"}},{"name":"revision","type":{"kind":"nat"}},{"name":"request","type":{"kind":"string"}},{"name":"proposalRef","type":{"kind":"string"}},{"name":"plan","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"user","type":{"kind":"string"}}],"kind":"structure","name":"AdministrationApproval","parameters":[],"type_parameters":[]},{"fields":[{"name":"organization","type":{"kind":"string"}},{"name":"revision","type":{"kind":"nat"}},{"name":"request","type":{"kind":"string"}},{"name":"proposalRef","type":{"kind":"string"}},{"name":"plan","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"approvals","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationApproval"}},"kind":"list"}}],"kind":"structure","name":"AdministrationRequest","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"BadState"},{"fields":[],"name":"ResourceLimit"},{"fields":[],"name":"WrongOrganization"},{"fields":[],"name":"StaleRevision"},{"fields":[],"name":"RevisionExhausted"},{"fields":[],"name":"BadRequest"},{"fields":[],"name":"RootChanged"},{"fields":[],"name":"StageRollback"},{"fields":[],"name":"ScopeRemoval"},{"fields":[],"name":"BadProposal"},{"fields":[],"name":"NoChange"},{"fields":[],"name":"BadApproval"},{"fields":[],"name":"DuplicateApproval"},{"fields":[],"name":"OutOfScopeApproval"},{"fields":[],"name":"InsufficientApproval"},{"fields":[],"name":"CoverageLoss"}],"kind":"inductive","name":"AdministrationError","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"AdministrationStage.Provisional"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"AdministrationStage.Active"}}],"kind":"match","scrutinee":{"kind":"var","name":"stage"}},"kind":"definition","name":"administrationActive","parameters":[{"name":"stage","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationStage"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"maximum"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"administrationBoundedText","parameters":[{"name":"value","type":{"kind":"string"}},{"name":"maximum","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"or","left":{"arguments":[{"kind":"var","name":"user"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"user"},{"kind":"var","name":"rest"}],"function":{"name":"administrationMember"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"users"}},"kind":"definition","name":"administrationMember","parameters":[{"name":"user","type":{"kind":"string"}},{"name":"users","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}}],"recursive_argument":"users","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"or","left":{"kind":"and","left":{"arguments":[{"kind":"var","name":"user"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"field":"enabled","kind":"project","value":{"kind":"var","name":"head"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"user"},{"kind":"var","name":"rest"}],"function":{"name":"administrationEnabled"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"users"}},"kind":"definition","name":"administrationEnabled","parameters":[{"name":"user","type":{"kind":"string"}},{"name":"users","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}}],"recursive_argument":"users","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}}]},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"rest"}],"function":{"name":"administrationFindScope"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"head"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"scopes"}},"kind":"definition","name":"administrationFindScope","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}}],"recursive_argument":"scopes","result":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["found"],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"scopes"}],"function":{"name":"administrationFindScope"},"kind":"call"}},"kind":"definition","name":"administrationScopeExists","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"or","left":{"kind":"and","left":{"arguments":[{"kind":"var","name":"scope"},{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"user"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"user"},{"kind":"var","name":"rest"}],"function":{"name":"administrationGranted"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"kind":"definition","name":"administrationGranted","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"user","type":{"kind":"string"}},{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}},"kind":"list"}}],"recursive_argument":"grants","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"or","left":{"arguments":[{"kind":"var","name":"user"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"user"},{"kind":"var","name":"rest"}],"function":{"name":"administrationUserGranted"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"kind":"definition","name":"administrationUserGranted","parameters":[{"name":"user","type":{"kind":"string"}},{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}},"kind":"list"}}],"recursive_argument":"grants","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"nat","value":"128"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"rest"}],"function":{"name":"administrationMember"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"}],"function":{"name":"administrationUsersValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"users"}},"kind":"definition","name":"administrationUsersValid","parameters":[{"name":"users","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}}],"recursive_argument":"users","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"nat","value":"128"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"rest"}],"function":{"name":"administrationScopeExists"},"kind":"call"}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"2"},"right":{"field":"minimum","kind":"project","value":{"kind":"var","name":"head"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"minimum","kind":"project","value":{"kind":"var","name":"head"}},"right":{"kind":"nat","value":"64"}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"1"},"right":{"field":"quorum","kind":"project","value":{"kind":"var","name":"head"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"quorum","kind":"project","value":{"kind":"var","name":"head"}},"right":{"kind":"nat","value":"64"}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"and","left":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"nat","value":"128"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"head"}},{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"right":{"kind":"and","left":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"all"}],"function":{"name":"administrationScopeExists"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"and","left":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"string","value":""}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"not","value":{"field":"inherits","kind":"project","value":{"kind":"var","name":"head"}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"root"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"root"},{"kind":"var","name":"rest"},{"kind":"var","name":"all"}],"function":{"name":"administrationScopesValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"scopes"}},"kind":"definition","name":"administrationScopesValid","parameters":[{"name":"root","type":{"kind":"string"}},{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}}],"recursive_argument":"scopes","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"users"}],"function":{"name":"administrationMember"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"scopes"}],"function":{"name":"administrationScopeExists"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"rest"}],"function":{"name":"administrationGranted"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"users"},{"kind":"var","name":"scopes"}],"function":{"name":"administrationGrantsValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"kind":"definition","name":"administrationGrantsValid","parameters":[{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}},"kind":"list"}},{"name":"users","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}},{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}}],"recursive_argument":"grants","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Nat.zero"}},{"binders":["fuelRest"],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["found"],"body":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"found"}},{"kind":"var","name":"root"},{"kind":"var","name":"scopes"},{"kind":"var","name":"fuelRest"}],"function":{"name":"administrationRootReachable"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"scopes"}],"function":{"name":"administrationFindScope"},"kind":"call"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"root"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"administrationRootReachable","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"root","type":{"kind":"string"}},{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"root"},{"kind":"var","name":"all"},{"kind":"nat","value":"64"}],"function":{"name":"administrationRootReachable"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"root"},{"kind":"var","name":"rest"},{"kind":"var","name":"all"}],"function":{"name":"administrationAllReachRoot"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"scopes"}},"kind":"definition","name":"administrationAllReachRoot","parameters":[{"name":"root","type":{"kind":"string"}},{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}}],"recursive_argument":"scopes","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"root","kind":"project","value":{"kind":"var","name":"plan"}},{"kind":"nat","value":"128"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"label","kind":"project","value":{"kind":"var","name":"plan"}},{"kind":"nat","value":"256"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"users","kind":"project","value":{"kind":"var","name":"plan"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"64"}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"scopes","kind":"project","value":{"kind":"var","name":"plan"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"64"}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"grants","kind":"project","value":{"kind":"var","name":"plan"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"256"}},"right":{"kind":"bool","value":true}}}}}},"kind":"definition","name":"administrationPlanBounded","parameters":[{"name":"plan","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"plan"}],"function":{"name":"administrationPlanBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"users","kind":"project","value":{"kind":"var","name":"plan"}}],"function":{"name":"administrationUsersValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"root","kind":"project","value":{"kind":"var","name":"plan"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"plan"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"plan"}}],"function":{"name":"administrationScopesValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"root","kind":"project","value":{"kind":"var","name":"plan"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"plan"}}],"function":{"name":"administrationScopeExists"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"root","kind":"project","value":{"kind":"var","name":"plan"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"plan"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"plan"}}],"function":{"name":"administrationAllReachRoot"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"grants","kind":"project","value":{"kind":"var","name":"plan"}},{"field":"users","kind":"project","value":{"kind":"var","name":"plan"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"plan"}}],"function":{"name":"administrationGrantsValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}},"kind":"definition","name":"administrationPlanValid","parameters":[{"name":"plan","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Nat.zero"}},{"binders":["fuelRest"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"user"},{"field":"users","kind":"project","value":{"kind":"var","name":"plan"}}],"function":{"name":"administrationEnabled"},"kind":"call"},"right":{"kind":"and","left":{"kind":"or","left":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"user"},{"field":"grants","kind":"project","value":{"kind":"var","name":"plan"}}],"function":{"name":"administrationGranted"},"kind":"call"},"right":{"kind":"or","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["found"],"body":{"kind":"and","left":{"field":"inherits","kind":"project","value":{"kind":"var","name":"found"}},"right":{"kind":"and","left":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"found"}},{"kind":"var","name":"user"},{"kind":"var","name":"plan"},{"kind":"var","name":"fuelRest"}],"function":{"name":"administrationAuthorizedAt"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"field":"scopes","kind":"project","value":{"kind":"var","name":"plan"}}],"function":{"name":"administrationFindScope"},"kind":"call"}},"right":{"kind":"bool","value":false}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"administrationAuthorizedAt","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"user","type":{"kind":"string"}},{"name":"plan","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"add","left":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"1"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"plan"},{"kind":"nat","value":"64"}],"function":{"name":"administrationAuthorizedAt"},"kind":"call"}},"right":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"plan"},{"kind":"var","name":"rest"}],"function":{"name":"administrationAdministratorCount"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"users"}},"kind":"definition","name":"administrationAdministratorCount","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"plan","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"users","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}}],"recursive_argument":"users","result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"1"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"field":"minimum","kind":"project","value":{"kind":"var","name":"scope"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"2"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"field":"minimum","kind":"project","value":{"kind":"var","name":"scope"}},"right":{"kind":"nat","value":"2"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"var","name":"full"}},"kind":"definition","name":"administrationRetainedMinimum","parameters":[{"name":"scope","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}}},{"name":"full","type":{"kind":"bool"}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"head"},{"kind":"var","name":"full"}],"function":{"name":"administrationRetainedMinimum"},"kind":"call"},"right":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"plan"},{"field":"users","kind":"project","value":{"kind":"var","name":"plan"}}],"function":{"name":"administrationAdministratorCount"},"kind":"call"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"quorum","kind":"project","value":{"kind":"var","name":"head"}},"right":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"plan"},{"field":"users","kind":"project","value":{"kind":"var","name":"plan"}}],"function":{"name":"administrationAdministratorCount"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"plan"},{"kind":"var","name":"rest"},{"kind":"var","name":"full"}],"function":{"name":"administrationCoverage"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"scopes"}},"kind":"definition","name":"administrationCoverage","parameters":[{"name":"plan","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"full","type":{"kind":"bool"}}],"recursive_argument":"scopes","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"left"}},{"field":"user","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"enabled","kind":"project","value":{"kind":"var","name":"left"}},{"field":"enabled","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"administrationSameAdministratorUser","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"left"}},{"field":"scope","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"left"}},{"field":"parent","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"inherits","kind":"project","value":{"kind":"var","name":"left"}},{"field":"inherits","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"minimum","kind":"project","value":{"kind":"var","name":"left"}},{"field":"minimum","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"quorum","kind":"project","value":{"kind":"var","name":"left"}},{"field":"quorum","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}}}}},"kind":"definition","name":"administrationSameAdministrationScope","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"left"}},{"field":"scope","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"left"}},{"field":"user","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"administrationSameAdministratorGrant","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["other","others"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["other","others"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"head"},{"kind":"var","name":"other"}],"function":{"name":"administrationSameAdministratorUser"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"others"}],"function":{"name":"administrationSameUsers"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"kind":"definition","name":"administrationSameUsers","parameters":[{"name":"left","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}},{"name":"right","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}}],"recursive_argument":"left","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["other","others"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["other","others"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"head"},{"kind":"var","name":"other"}],"function":{"name":"administrationSameAdministrationScope"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"others"}],"function":{"name":"administrationSameScopes"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"kind":"definition","name":"administrationSameScopes","parameters":[{"name":"left","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"right","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}}],"recursive_argument":"left","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["other","others"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["other","others"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"head"},{"kind":"var","name":"other"}],"function":{"name":"administrationSameAdministratorGrant"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"others"}],"function":{"name":"administrationSameGrants"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"kind":"definition","name":"administrationSameGrants","parameters":[{"name":"left","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}},"kind":"list"}},{"name":"right","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}},"kind":"list"}}],"recursive_argument":"left","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"root","kind":"project","value":{"kind":"var","name":"left"}},{"field":"root","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"label","kind":"project","value":{"kind":"var","name":"left"}},{"field":"label","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"field":"stage","kind":"project","value":{"kind":"var","name":"left"}}],"function":{"name":"administrationActive"},"kind":"call"},{"arguments":[{"field":"stage","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"administrationActive"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"users","kind":"project","value":{"kind":"var","name":"left"}},{"field":"users","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"administrationSameUsers"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"scopes","kind":"project","value":{"kind":"var","name":"left"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"administrationSameScopes"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"grants","kind":"project","value":{"kind":"var","name":"left"}},{"field":"grants","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"administrationSameGrants"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}},"kind":"definition","name":"administrationSamePlan","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"after"}],"function":{"name":"administrationScopeExists"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"after"}],"function":{"name":"administrationScopesRetained"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"scopes"}},"kind":"definition","name":"administrationScopesRetained","parameters":[{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"after","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}}],"recursive_argument":"scopes","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"after"}],"function":{"name":"administrationMember"},"kind":"call"},"right":{"kind":"and","left":{"kind":"or","left":{"kind":"not","value":{"field":"enabled","kind":"project","value":{"kind":"var","name":"head"}}},"right":{"kind":"or","left":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"after"}],"function":{"name":"administrationEnabled"},"kind":"call"},"right":{"kind":"bool","value":false}}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"after"}],"function":{"name":"administrationUsersPreserved"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"users"}},"kind":"definition","name":"administrationUsersPreserved","parameters":[{"name":"users","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}},{"name":"after","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}}],"recursive_argument":"users","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"after"}],"function":{"name":"administrationGranted"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"after"}],"function":{"name":"administrationGrantsPreserved"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"grants"}},"kind":"definition","name":"administrationGrantsPreserved","parameters":[{"name":"grants","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}},"kind":"list"}},{"name":"after","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}},"kind":"list"}}],"recursive_argument":"grants","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["found"],"body":{"arguments":[{"kind":"var","name":"head"},{"kind":"var","name":"found"}],"function":{"name":"administrationSameAdministrationScope"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"after"}],"function":{"name":"administrationFindScope"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"after"}],"function":{"name":"administrationScopesUnchanged"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"scopes"}},"kind":"definition","name":"administrationScopesUnchanged","parameters":[{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"after","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}}],"recursive_argument":"scopes","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"not","value":{"kind":"and","left":{"arguments":[{"field":"users","kind":"project","value":{"kind":"var","name":"before"}},{"field":"users","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationUsersPreserved"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"grants","kind":"project","value":{"kind":"var","name":"before"}},{"field":"grants","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationGrantsPreserved"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"scopes","kind":"project","value":{"kind":"var","name":"before"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationScopesUnchanged"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"administrationDestructive","parameters":[{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"or","left":{"kind":"not","value":{"arguments":[{"arguments":[{"kind":"var","name":"scope"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"grants","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationGranted"},"kind":"call"},{"arguments":[{"kind":"var","name":"scope"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"grants","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationGranted"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"right":{"kind":"or","left":{"kind":"and","left":{"kind":"or","left":{"arguments":[{"kind":"var","name":"scope"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"grants","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationGranted"},"kind":"call"},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"scope"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"grants","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationGranted"},"kind":"call"},"right":{"kind":"bool","value":false}}},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"users","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationEnabled"},"kind":"call"},{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"users","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationEnabled"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"right":{"kind":"bool","value":true}}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"before"},{"kind":"var","name":"after"},{"kind":"var","name":"rest"}],"function":{"name":"administrationDirectUsersChanged"},"kind":"call"},"right":{"kind":"bool","value":false}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"users"}},"kind":"definition","name":"administrationDirectUsersChanged","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"users","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}}],"recursive_argument":"users","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"or","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["oldScope"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["newScope"],"body":{"kind":"not","value":{"arguments":[{"kind":"var","name":"oldScope"},{"kind":"var","name":"newScope"}],"function":{"name":"administrationSameAdministrationScope"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"field":"scopes","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationFindScope"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"field":"scopes","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationFindScope"},"kind":"call"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"before"},{"kind":"var","name":"after"},{"field":"users","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationDirectUsersChanged"},"kind":"call"},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"before"},{"kind":"var","name":"after"},{"field":"users","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationDirectUsersChanged"},"kind":"call"},"right":{"kind":"bool","value":false}}}},"kind":"definition","name":"administrationDirectChanged","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Nat.zero"}},{"binders":["fuelRest"],"body":{"kind":"or","left":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationDirectChanged"},"kind":"call"},"right":{"kind":"or","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["found"],"body":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"found"}},{"kind":"string","value":""}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"right":{"kind":"and","left":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"found"}},{"kind":"var","name":"before"},{"kind":"var","name":"after"},{"kind":"var","name":"graph"},{"kind":"var","name":"fuelRest"}],"function":{"name":"administrationChangedAncestor"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"graph"}],"function":{"name":"administrationFindScope"},"kind":"call"}},"right":{"kind":"bool","value":false}}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"administrationChangedAncestor","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"graph","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"or","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationDirectChanged"},"kind":"call"},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationAnyDirectChanged"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"scopes"}},"kind":"definition","name":"administrationAnyDirectChanged","parameters":[{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"recursive_argument":"scopes","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"or","left":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"grants","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationUserGranted"},"kind":"call"}},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"grants","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationUserGranted"},"kind":"call"}},"right":{"kind":"and","left":{"kind":"or","left":{"kind":"not","value":{"arguments":[{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"users","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationMember"},"kind":"call"},{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"users","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationMember"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"right":{"kind":"or","left":{"kind":"not","value":{"arguments":[{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"users","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationEnabled"},"kind":"call"},{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"users","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationEnabled"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"right":{"kind":"bool","value":false}}},"right":{"kind":"bool","value":true}}}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationUnscopedUserDelta"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"users"}},"kind":"definition","name":"administrationUnscopedUserDelta","parameters":[{"name":"users","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"list"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"recursive_argument":"users","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"or","left":{"kind":"not","value":{"arguments":[{"arguments":[{"field":"stage","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationActive"},"kind":"call"},{"arguments":[{"field":"stage","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationActive"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"right":{"kind":"or","left":{"kind":"and","left":{"arguments":[{"kind":"var","name":"scope"},{"field":"root","kind":"project","value":{"kind":"var","name":"before"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"or","left":{"kind":"not","value":{"arguments":[{"field":"label","kind":"project","value":{"kind":"var","name":"before"}},{"field":"label","kind":"project","value":{"kind":"var","name":"after"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"right":{"kind":"or","left":{"arguments":[{"field":"users","kind":"project","value":{"kind":"var","name":"before"}},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationUnscopedUserDelta"},"kind":"call"},"right":{"kind":"or","left":{"arguments":[{"field":"users","kind":"project","value":{"kind":"var","name":"after"}},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationUnscopedUserDelta"},"kind":"call"},"right":{"kind":"or","left":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"scopes","kind":"project","value":{"kind":"var","name":"after"}},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationAnyDirectChanged"},"kind":"call"}},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationSamePlan"},"kind":"call"}},"right":{"kind":"bool","value":true}}},"right":{"kind":"bool","value":false}}}}},"right":{"kind":"bool","value":true}}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"before"},{"kind":"var","name":"after"},{"field":"scopes","kind":"project","value":{"kind":"var","name":"before"}},{"kind":"nat","value":"64"}],"function":{"name":"administrationChangedAncestor"},"kind":"call"},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"before"},{"kind":"var","name":"after"},{"field":"scopes","kind":"project","value":{"kind":"var","name":"after"}},{"kind":"nat","value":"64"}],"function":{"name":"administrationChangedAncestor"},"kind":"call"},"right":{"kind":"bool","value":false}}}}},"kind":"definition","name":"administrationAffected","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"string","value":""},"constructor":{"name":"Nat.zero"}},{"binders":["fuelRest"],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"string","value":""},"constructor":{"name":"Option.none"}},{"binders":["found"],"body":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"found"}},{"kind":"var","name":"before"},{"kind":"var","name":"after"},{"kind":"var","name":"fuelRest"}],"function":{"name":"administrationOldAnchor"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"after"}],"function":{"name":"administrationFindScope"},"kind":"call"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"var","name":"scope"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"before"}],"function":{"name":"administrationScopeExists"},"kind":"call"}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"administrationOldAnchor","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"before","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"after","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"string"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"head"},{"kind":"or","left":{"arguments":[{"field":"stage","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationActive"},"kind":"call"},"right":{"kind":"or","left":{"kind":"and","left":{"kind":"var","name":"destructive"},"right":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationAffected"},"kind":"call"},"right":{"kind":"bool","value":true}}},"right":{"kind":"bool","value":false}}}],"function":{"name":"administrationRetainedMinimum"},"kind":"call"},"right":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"after"},{"field":"users","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationAdministratorCount"},"kind":"call"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"quorum","kind":"project","value":{"kind":"var","name":"head"}},"right":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"after"},{"field":"users","kind":"project","value":{"kind":"var","name":"after"}}],"function":{"name":"administrationAdministratorCount"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"before"},{"kind":"var","name":"after"},{"kind":"var","name":"rest"},{"kind":"var","name":"destructive"}],"function":{"name":"administrationPostCoverage"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"scopes"}},"kind":"definition","name":"administrationPostCoverage","parameters":[{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"destructive","type":{"kind":"bool"}}],"recursive_argument":"scopes","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["found"],"body":{"kind":"not","value":{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"found"}},{"field":"parent","kind":"project","value":{"kind":"var","name":"scope"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"scope"}},{"kind":"var","name":"before"}],"function":{"name":"administrationFindScope"},"kind":"call"}},"kind":"definition","name":"administrationParentChanged","parameters":[{"name":"scope","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}}},{"name":"before","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"or","left":{"arguments":[{"kind":"var","name":"user"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"user"},{"kind":"var","name":"rest"}],"function":{"name":"administrationApprovalUserMember"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"approvals"}},"kind":"definition","name":"administrationApprovalUserMember","parameters":[{"name":"user","type":{"kind":"string"}},{"name":"approvals","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationApproval"}},"kind":"list"}}],"recursive_argument":"approvals","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"rest"}],"function":{"name":"administrationApprovalUserMember"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"}],"function":{"name":"administrationApprovalsUnique"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"approvals"}},"kind":"definition","name":"administrationApprovalsUnique","parameters":[{"name":"approvals","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationApproval"}},"kind":"list"}}],"recursive_argument":"approvals","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"organization","kind":"project","value":{"kind":"var","name":"head"}},{"field":"organization","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"revision","kind":"project","value":{"kind":"var","name":"head"}},{"field":"revision","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"request","kind":"project","value":{"kind":"var","name":"head"}},{"field":"request","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"proposalRef","kind":"project","value":{"kind":"var","name":"head"}},{"field":"proposalRef","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"plan","kind":"project","value":{"kind":"var","name":"head"}},{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"administrationSamePlan"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"request"},{"kind":"var","name":"rest"}],"function":{"name":"administrationApprovalsBound"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"approvals"}},"kind":"definition","name":"administrationApprovalsBound","parameters":[{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationRequest"}}},{"name":"approvals","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationApproval"}},"kind":"list"}}],"recursive_argument":"approvals","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"add","left":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"1"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"before"},{"kind":"nat","value":"64"}],"function":{"name":"administrationAuthorizedAt"},"kind":"call"}},"right":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"before"},{"kind":"var","name":"rest"}],"function":{"name":"administrationApprovalCount"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"approvals"}},"kind":"definition","name":"administrationApprovalCount","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"approvals","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationApproval"}},"kind":"list"}}],"recursive_argument":"approvals","result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["found"],"body":{"kind":"ble","left":{"field":"quorum","kind":"project","value":{"kind":"var","name":"found"}},"right":{"arguments":[{"kind":"var","name":"scope"},{"kind":"var","name":"before"},{"kind":"var","name":"approvals"}],"function":{"name":"administrationApprovalCount"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"scope"},{"field":"scopes","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationFindScope"},"kind":"call"}},"kind":"definition","name":"administrationQuorumMet","parameters":[{"name":"scope","type":{"kind":"string"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"approvals","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationApproval"}},"kind":"list"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"or","left":{"kind":"not","value":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"scope"}},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationAffected"},"kind":"call"}},"right":{"kind":"or","left":{"arguments":[{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"scope"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"before"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"after"}},{"kind":"nat","value":"64"}],"function":{"name":"administrationOldAnchor"},"kind":"call"},{"kind":"var","name":"before"},{"kind":"var","name":"approvals"}],"function":{"name":"administrationQuorumMet"},"kind":"call"},"right":{"kind":"bool","value":false}}},"right":{"kind":"and","left":{"kind":"or","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"scope"},{"field":"scopes","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationParentChanged"},"kind":"call"}},"right":{"kind":"or","left":{"arguments":[{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"scope"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"before"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"after"}},{"kind":"nat","value":"64"}],"function":{"name":"administrationOldAnchor"},"kind":"call"},{"kind":"var","name":"before"},{"kind":"var","name":"approvals"}],"function":{"name":"administrationQuorumMet"},"kind":"call"},"right":{"kind":"bool","value":false}}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"administrationScopeApproved","parameters":[{"name":"scope","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"approvals","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationApproval"}},"kind":"list"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"head"},{"kind":"var","name":"before"},{"kind":"var","name":"after"},{"kind":"var","name":"approvals"}],"function":{"name":"administrationScopeApproved"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"before"},{"kind":"var","name":"after"},{"kind":"var","name":"approvals"}],"function":{"name":"administrationAllApproved"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"scopes"}},"kind":"definition","name":"administrationAllApproved","parameters":[{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"approvals","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationApproval"}},"kind":"list"}}],"recursive_argument":"scopes","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"or","left":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationAffected"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"head"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"before"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"after"}},{"kind":"nat","value":"64"}],"function":{"name":"administrationOldAnchor"},"kind":"call"},{"kind":"var","name":"user"},{"kind":"var","name":"before"},{"kind":"nat","value":"64"}],"function":{"name":"administrationAuthorizedAt"},"kind":"call"},"right":{"kind":"bool","value":true}}},"right":{"kind":"or","left":{"kind":"and","left":{"arguments":[{"kind":"var","name":"head"},{"field":"scopes","kind":"project","value":{"kind":"var","name":"before"}}],"function":{"name":"administrationParentChanged"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"arguments":[{"field":"parent","kind":"project","value":{"kind":"var","name":"head"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"before"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"after"}},{"kind":"nat","value":"64"}],"function":{"name":"administrationOldAnchor"},"kind":"call"},{"kind":"var","name":"user"},{"kind":"var","name":"before"},{"kind":"nat","value":"64"}],"function":{"name":"administrationAuthorizedAt"},"kind":"call"},"right":{"kind":"bool","value":true}}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"user"},{"kind":"var","name":"rest"},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationApprovalRelevant"},"kind":"call"},"right":{"kind":"bool","value":false}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"scopes"}},"kind":"definition","name":"administrationApprovalRelevant","parameters":[{"name":"user","type":{"kind":"string"}},{"name":"scopes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"list"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"recursive_argument":"scopes","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"user","kind":"project","value":{"kind":"var","name":"head"}},{"field":"scopes","kind":"project","value":{"kind":"var","name":"after"}},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationApprovalRelevant"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"before"},{"kind":"var","name":"after"}],"function":{"name":"administrationAllRelevant"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"approvals"}},"kind":"definition","name":"administrationAllRelevant","parameters":[{"name":"approvals","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationApproval"}},"kind":"list"}},{"name":"before","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}},{"name":"after","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationPlan"}}}],"recursive_argument":"approvals","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"organization","kind":"project","value":{"kind":"var","name":"state"}},{"kind":"nat","value":"128"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"arguments":[{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"administrationPlanValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}},{"field":"scopes","kind":"project","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}}},{"arguments":[{"field":"stage","kind":"project","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}}}],"function":{"name":"administrationActive"},"kind":"call"}],"function":{"name":"administrationCoverage"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"administrationStateValid","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.BadState"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.ResourceLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.WrongOrganization"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.StaleRevision"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.RevisionExhausted"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.BadRequest"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.RootChanged"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.StageRollback"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.ScopeRemoval"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.BadProposal"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.NoChange"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.BadApproval"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.DuplicateApproval"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.OutOfScopeApproval"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.InsufficientApproval"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.CoverageLoss"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"organization","value":{"field":"organization","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"revision","value":{"kind":"add","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"1"}}},{"field":"plan","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}}],"kind":"record","type":{"name":"AdministrationSnapshot"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}},{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}},{"field":"scopes","kind":"project","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}},{"arguments":[{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}},{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"administrationDestructive"},"kind":"call"}],"function":{"name":"administrationPostCoverage"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"scopes","kind":"project","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}},{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}},{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}},{"field":"approvals","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"administrationAllApproved"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"approvals","kind":"project","value":{"kind":"var","name":"request"}},{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}},{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"administrationAllRelevant"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"approvals","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"administrationApprovalsUnique"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"request"},{"field":"approvals","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"administrationApprovalsBound"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"not","value":{"arguments":[{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}},{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"administrationSamePlan"},"kind":"call"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"administrationPlanValid"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"scopes","kind":"project","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"scopes","kind":"project","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}}],"function":{"name":"administrationScopesRetained"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"or","left":{"kind":"not","value":{"arguments":[{"field":"stage","kind":"project","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}}}],"function":{"name":"administrationActive"},"kind":"call"}},"right":{"kind":"or","left":{"arguments":[{"field":"stage","kind":"project","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}}],"function":{"name":"administrationActive"},"kind":"call"},"right":{"kind":"bool","value":false}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"root","kind":"project","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"root","kind":"project","value":{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"field":"request","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"128"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"proposalRef","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"128"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},{"field":"revision","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"organization","kind":"project","value":{"kind":"var","name":"state"}},{"field":"organization","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"field":"plan","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"administrationPlanBounded"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"approvals","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"64"}},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"administrationStateValid"},"kind":"call"}},"kind":"definition","name":"transitionAdministration","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"AdministrationRequest"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AdministrationError.BadRequest"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"organization","value":{"kind":"var","name":"organization"}},{"field":"revision","value":{"kind":"nat","value":"0"}},{"field":"plan","value":{"fields":[{"field":"root","value":{"kind":"var","name":"root"}},{"field":"label","value":{"kind":"var","name":"label"}},{"field":"stage","value":{"arguments":[],"constructor":{"name":"AdministrationStage.Provisional"},"kind":"constructor"}},{"field":"users","value":{"head":{"fields":[{"field":"user","value":{"kind":"var","name":"creator"}},{"field":"enabled","value":{"kind":"bool","value":true}}],"kind":"record","type":{"name":"AdministratorUser"}},"kind":"cons","tail":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorUser"}},"kind":"nil"}}},{"field":"scopes","value":{"head":{"fields":[{"field":"scope","value":{"kind":"var","name":"root"}},{"field":"parent","value":{"kind":"string","value":""}},{"field":"inherits","value":{"kind":"bool","value":false}},{"field":"minimum","value":{"kind":"nat","value":"2"}},{"field":"quorum","value":{"kind":"nat","value":"1"}}],"kind":"record","type":{"name":"AdministrationScope"}},"kind":"cons","tail":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministrationScope"}},"kind":"nil"}}},{"field":"grants","value":{"head":{"fields":[{"field":"scope","value":{"kind":"var","name":"root"}},{"field":"user","value":{"kind":"var","name":"creator"}}],"kind":"record","type":{"name":"AdministratorGrant"}},"kind":"cons","tail":{"element":{"arguments":[],"kind":"named","member":{"name":"AdministratorGrant"}},"kind":"nil"}}}],"kind":"record","type":{"name":"AdministrationPlan"}}}],"kind":"record","type":{"name":"AdministrationSnapshot"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}},{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"kind":"var","name":"organization"},{"kind":"nat","value":"128"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"label"},{"kind":"nat","value":"256"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"creator"},{"kind":"nat","value":"128"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"root"},{"kind":"nat","value":"128"}],"function":{"name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}},"kind":"definition","name":"createAdministration","parameters":[{"name":"organization","type":{"kind":"string"}},{"name":"label","type":{"kind":"string"}},{"name":"creator","type":{"kind":"string"}},{"name":"root","type":{"kind":"string"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"AdministrationError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"AdministrationSnapshot"}}}}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: AdministrationStage,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Provisional, fields: []}, {name: Active, fields: []}]
+}
+
+structure{
+  name: AdministratorUser,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: user, type: String}, {name: enabled, type: Bool}]
+}
+
+structure{
+  name: AdministrationScope,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: scope, type: String},
+    {name: parent, type: String},
+    {name: inherits, type: Bool},
+    {name: minimum, type: Nat},
+    {name: quorum, type: Nat}
+  ]
+}
+
+structure{
+  name: AdministratorGrant,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: scope, type: String}, {name: user, type: String}]
+}
+
+structure{
+  name: AdministrationPlan,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: root, type: String},
+    {name: label, type: String},
+    {name: stage, type: AdministrationStage},
+    {name: users, type: (List AdministratorUser)},
+    {name: scopes, type: (List AdministrationScope)},
+    {name: grants, type: (List AdministratorGrant)}
+  ]
+}
+
+structure{
+  name: AdministrationSnapshot,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: organization, type: String},
+    {name: revision, type: Nat},
+    {name: plan, type: AdministrationPlan}
+  ]
+}
+
+structure{
+  name: AdministrationApproval,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: organization, type: String},
+    {name: revision, type: Nat},
+    {name: request, type: String},
+    {name: proposalRef, type: String},
+    {name: plan, type: AdministrationPlan},
+    {name: user, type: String}
+  ]
+}
+
+structure{
+  name: AdministrationRequest,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: organization, type: String},
+    {name: revision, type: Nat},
+    {name: request, type: String},
+    {name: proposalRef, type: String},
+    {name: plan, type: AdministrationPlan},
+    {name: approvals, type: (List AdministrationApproval)}
+  ]
+}
+
+inductive{
+  name: AdministrationError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BadState, fields: []},
+    {name: ResourceLimit, fields: []},
+    {name: WrongOrganization, fields: []},
+    {name: StaleRevision, fields: []},
+    {name: RevisionExhausted, fields: []},
+    {name: BadRequest, fields: []},
+    {name: RootChanged, fields: []},
+    {name: StageRollback, fields: []},
+    {name: ScopeRemoval, fields: []},
+    {name: BadProposal, fields: []},
+    {name: NoChange, fields: []},
+    {name: BadApproval, fields: []},
+    {name: DuplicateApproval, fields: []},
+    {name: OutOfScopeApproval, fields: []},
+    {name: InsufficientApproval, fields: []},
+    {name: CoverageLoss, fields: []}
+  ]
+}
+
+definition{
+  name: administrationActive,
+  parameters: [stage : AdministrationStage],
+  result: Bool,
+  body: (match stage
+    | AdministrationStage.Provisional => false
+    | AdministrationStage.Active => true),
+  axioms: []
+}
+
+definition{
+  name: administrationBoundedText,
+  parameters: [value : String, maximum : Nat],
+  result: Bool,
+  body: ((0 <? (prim length (prim utf8_encode value : Bytes) : Nat)) && (((prim length (prim utf8_encode value : Bytes) : Nat) <=? maximum) && true)),
+  axioms: []
+}
+
+definition{
+  name: administrationMember,
+  parameters: [user : String, users : (List AdministratorUser)],
+  result: Bool,
+  body: (match users
+    | List.nil => false
+    | List.cons head rest => ((prim equal user (project head user) : Bool) || ((administrationMember user rest) || false))),
+  axioms: [],
+  recursive_argument: users
+}
+
+definition{
+  name: administrationEnabled,
+  parameters: [user : String, users : (List AdministratorUser)],
+  result: Bool,
+  body: (match users
+    | List.nil => false
+    | List.cons head rest => (((prim equal user (project head user) : Bool) && ((project head enabled) && true)) || ((administrationEnabled user rest) || false))),
+  axioms: [],
+  recursive_argument: users
+}
+
+definition{
+  name: administrationFindScope,
+  parameters: [scope : String, scopes : (List AdministrationScope)],
+  result: (Option AdministrationScope),
+  body: (match scopes
+    | List.nil => (ctor Option.none [AdministrationScope])
+    | List.cons head rest => (match (prim equal scope (project head scope) : Bool)
+      | Bool.false => (administrationFindScope scope rest)
+      | Bool.true => (ctor Option.some [AdministrationScope] head))),
+  axioms: [],
+  recursive_argument: scopes
+}
+
+definition{
+  name: administrationScopeExists,
+  parameters: [scope : String, scopes : (List AdministrationScope)],
+  result: Bool,
+  body: (match (administrationFindScope scope scopes)
+    | Option.none => false
+    | Option.some found => true),
+  axioms: []
+}
+
+definition{
+  name: administrationGranted,
+  parameters: [scope : String, user : String, grants : (List AdministratorGrant)],
+  result: Bool,
+  body: (match grants
+    | List.nil => false
+    | List.cons head rest => (((prim equal scope (project head scope) : Bool) && ((prim equal user (project head user) : Bool) && true)) || ((administrationGranted scope user rest) || false))),
+  axioms: [],
+  recursive_argument: grants
+}
+
+definition{
+  name: administrationUserGranted,
+  parameters: [user : String, grants : (List AdministratorGrant)],
+  result: Bool,
+  body: (match grants
+    | List.nil => false
+    | List.cons head rest => ((prim equal user (project head user) : Bool) || ((administrationUserGranted user rest) || false))),
+  axioms: [],
+  recursive_argument: grants
+}
+
+definition{
+  name: administrationUsersValid,
+  parameters: [users : (List AdministratorUser)],
+  result: Bool,
+  body: (match users
+    | List.nil => true
+    | List.cons head rest => ((administrationBoundedText (project head user) 128) && ((not (administrationMember (project head user) rest)) && ((administrationUsersValid rest) && true)))),
+  axioms: [],
+  recursive_argument: users
+}
+
+definition{
+  name: administrationScopesValid,
+  parameters: [
+    root : String,
+    scopes : (List AdministrationScope),
+    all : (List AdministrationScope)
+  ],
+  result: Bool,
+  body: (match scopes
+    | List.nil => true
+    | List.cons head rest => ((administrationBoundedText (project head scope) 128) && ((not (administrationScopeExists (project head scope) rest)) && ((2 <=? (project head minimum)) && (((project head minimum) <=? 64) && ((1 <=? (project head quorum)) && (((project head quorum) <=? 64) && ((match (prim equal (project head scope) root : Bool)
+      | Bool.false => ((administrationBoundedText (project head parent) 128) && ((not (prim equal (project head parent) (project head scope) : Bool)) && ((administrationScopeExists (project head parent) all) && true)))
+      | Bool.true => ((prim equal (project head parent) "" : Bool) && ((not (project head inherits)) && true))) && ((administrationScopesValid root rest all) && true))))))))),
+  axioms: [],
+  recursive_argument: scopes
+}
+
+definition{
+  name: administrationGrantsValid,
+  parameters: [
+    grants : (List AdministratorGrant),
+    users : (List AdministratorUser),
+    scopes : (List AdministrationScope)
+  ],
+  result: Bool,
+  body: (match grants
+    | List.nil => true
+    | List.cons head rest => ((administrationMember (project head user) users) && ((administrationScopeExists (project head scope) scopes) && ((not (administrationGranted (project head scope) (project head user) rest)) && ((administrationGrantsValid rest users scopes) && true))))),
+  axioms: [],
+  recursive_argument: grants
+}
+
+definition{
+  name: administrationRootReachable,
+  parameters: [scope : String, root : String, scopes : (List AdministrationScope), fuel : Nat],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => false
+    | Nat.succ fuelRest => (match (prim equal scope root : Bool)
+      | Bool.false => (match (administrationFindScope scope scopes)
+        | Option.none => false
+        | Option.some found => (administrationRootReachable (project found parent) root scopes fuelRest))
+      | Bool.true => true)),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: administrationAllReachRoot,
+  parameters: [
+    root : String,
+    scopes : (List AdministrationScope),
+    all : (List AdministrationScope)
+  ],
+  result: Bool,
+  body: (match scopes
+    | List.nil => true
+    | List.cons head rest => ((administrationRootReachable (project head scope) root all 64) && ((administrationAllReachRoot root rest all) && true))),
+  axioms: [],
+  recursive_argument: scopes
+}
+
+definition{
+  name: administrationPlanBounded,
+  parameters: [plan : AdministrationPlan],
+  result: Bool,
+  body: ((administrationBoundedText (project plan root) 128) && ((administrationBoundedText (project plan label) 256) && (((prim length (project plan users) : Nat) <=? 64) && (((prim length (project plan scopes) : Nat) <=? 64) && (((prim length (project plan grants) : Nat) <=? 256) && true))))),
+  axioms: []
+}
+
+definition{
+  name: administrationPlanValid,
+  parameters: [plan : AdministrationPlan],
+  result: Bool,
+  body: ((administrationPlanBounded plan) && ((administrationUsersValid (project plan users)) && ((administrationScopesValid (project plan root) (project plan scopes) (project plan scopes)) && ((administrationScopeExists (project plan root) (project plan scopes)) && ((administrationAllReachRoot (project plan root) (project plan scopes) (project plan scopes)) && ((administrationGrantsValid (project plan grants) (project plan users) (project plan scopes)) && true)))))),
+  axioms: []
+}
+
+definition{
+  name: administrationAuthorizedAt,
+  parameters: [scope : String, user : String, plan : AdministrationPlan, fuel : Nat],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => false
+    | Nat.succ fuelRest => ((administrationEnabled user (project plan users)) && (((administrationGranted scope user (project plan grants)) || ((match (administrationFindScope scope (project plan scopes))
+      | Option.none => false
+      | Option.some found => ((project found inherits) && ((administrationAuthorizedAt (project found parent) user plan fuelRest) && true))) || false)) && true))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: administrationAdministratorCount,
+  parameters: [scope : String, plan : AdministrationPlan, users : (List AdministratorUser)],
+  result: Nat,
+  body: (match users
+    | List.nil => 0
+    | List.cons head rest => ((match (administrationAuthorizedAt scope (project head user) plan 64)
+      | Bool.false => 0
+      | Bool.true => 1) + (administrationAdministratorCount scope plan rest))),
+  axioms: [],
+  recursive_argument: users
+}
+
+definition{
+  name: administrationRetainedMinimum,
+  parameters: [scope : AdministrationScope, full : Bool],
+  result: Nat,
+  body: (match full
+    | Bool.false => 1
+    | Bool.true => (match ((project scope minimum) <? 2)
+      | Bool.false => (project scope minimum)
+      | Bool.true => 2)),
+  axioms: []
+}
+
+definition{
+  name: administrationCoverage,
+  parameters: [plan : AdministrationPlan, scopes : (List AdministrationScope), full : Bool],
+  result: Bool,
+  body: (match scopes
+    | List.nil => true
+    | List.cons head rest => (((administrationRetainedMinimum head full) <=? (administrationAdministratorCount (project head scope) plan (project plan users))) && (((project head quorum) <=? (administrationAdministratorCount (project head scope) plan (project plan users))) && ((administrationCoverage plan rest full) && true)))),
+  axioms: [],
+  recursive_argument: scopes
+}
+
+definition{
+  name: administrationSameAdministratorUser,
+  parameters: [left : AdministratorUser, right : AdministratorUser],
+  result: Bool,
+  body: ((prim equal (project left user) (project right user) : Bool) && ((prim equal (project left enabled) (project right enabled) : Bool) && true)),
+  axioms: []
+}
+
+definition{
+  name: administrationSameAdministrationScope,
+  parameters: [left : AdministrationScope, right : AdministrationScope],
+  result: Bool,
+  body: ((prim equal (project left scope) (project right scope) : Bool) && ((prim equal (project left parent) (project right parent) : Bool) && ((prim equal (project left inherits) (project right inherits) : Bool) && ((prim equal (project left minimum) (project right minimum) : Bool) && ((prim equal (project left quorum) (project right quorum) : Bool) && true))))),
+  axioms: []
+}
+
+definition{
+  name: administrationSameAdministratorGrant,
+  parameters: [left : AdministratorGrant, right : AdministratorGrant],
+  result: Bool,
+  body: ((prim equal (project left scope) (project right scope) : Bool) && ((prim equal (project left user) (project right user) : Bool) && true)),
+  axioms: []
+}
+
+definition{
+  name: administrationSameUsers,
+  parameters: [left : (List AdministratorUser), right : (List AdministratorUser)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons other others => false)
+    | List.cons head rest => (match right
+      | List.nil => false
+      | List.cons other others => ((administrationSameAdministratorUser head other) && ((administrationSameUsers rest others) && true)))),
+  axioms: [],
+  recursive_argument: left
+}
+
+definition{
+  name: administrationSameScopes,
+  parameters: [left : (List AdministrationScope), right : (List AdministrationScope)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons other others => false)
+    | List.cons head rest => (match right
+      | List.nil => false
+      | List.cons other others => ((administrationSameAdministrationScope head other) && ((administrationSameScopes rest others) && true)))),
+  axioms: [],
+  recursive_argument: left
+}
+
+definition{
+  name: administrationSameGrants,
+  parameters: [left : (List AdministratorGrant), right : (List AdministratorGrant)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons other others => false)
+    | List.cons head rest => (match right
+      | List.nil => false
+      | List.cons other others => ((administrationSameAdministratorGrant head other) && ((administrationSameGrants rest others) && true)))),
+  axioms: [],
+  recursive_argument: left
+}
+
+definition{
+  name: administrationSamePlan,
+  parameters: [left : AdministrationPlan, right : AdministrationPlan],
+  result: Bool,
+  body: ((prim equal (project left root) (project right root) : Bool) && ((prim equal (project left label) (project right label) : Bool) && ((prim equal (administrationActive (project left stage)) (administrationActive (project right stage)) : Bool) && ((administrationSameUsers (project left users) (project right users)) && ((administrationSameScopes (project left scopes) (project right scopes)) && ((administrationSameGrants (project left grants) (project right grants)) && true)))))),
+  axioms: []
+}
+
+definition{
+  name: administrationScopesRetained,
+  parameters: [scopes : (List AdministrationScope), after : (List AdministrationScope)],
+  result: Bool,
+  body: (match scopes
+    | List.nil => true
+    | List.cons head rest => ((administrationScopeExists (project head scope) after) && ((administrationScopesRetained rest after) && true))),
+  axioms: [],
+  recursive_argument: scopes
+}
+
+definition{
+  name: administrationUsersPreserved,
+  parameters: [users : (List AdministratorUser), after : (List AdministratorUser)],
+  result: Bool,
+  body: (match users
+    | List.nil => true
+    | List.cons head rest => ((administrationMember (project head user) after) && (((not (project head enabled)) || ((administrationEnabled (project head user) after) || false)) && ((administrationUsersPreserved rest after) && true)))),
+  axioms: [],
+  recursive_argument: users
+}
+
+definition{
+  name: administrationGrantsPreserved,
+  parameters: [grants : (List AdministratorGrant), after : (List AdministratorGrant)],
+  result: Bool,
+  body: (match grants
+    | List.nil => true
+    | List.cons head rest => ((administrationGranted (project head scope) (project head user) after) && ((administrationGrantsPreserved rest after) && true))),
+  axioms: [],
+  recursive_argument: grants
+}
+
+definition{
+  name: administrationScopesUnchanged,
+  parameters: [scopes : (List AdministrationScope), after : (List AdministrationScope)],
+  result: Bool,
+  body: (match scopes
+    | List.nil => true
+    | List.cons head rest => ((match (administrationFindScope (project head scope) after)
+      | Option.none => false
+      | Option.some found => (administrationSameAdministrationScope head found)) && ((administrationScopesUnchanged rest after) && true))),
+  axioms: [],
+  recursive_argument: scopes
+}
+
+definition{
+  name: administrationDestructive,
+  parameters: [before : AdministrationPlan, after : AdministrationPlan],
+  result: Bool,
+  body: (not ((administrationUsersPreserved (project before users) (project after users)) && ((administrationGrantsPreserved (project before grants) (project after grants)) && ((administrationScopesUnchanged (project before scopes) (project after scopes)) && true)))),
+  axioms: []
+}
+
+definition{
+  name: administrationDirectUsersChanged,
+  parameters: [
+    scope : String,
+    before : AdministrationPlan,
+    after : AdministrationPlan,
+    users : (List AdministratorUser)
+  ],
+  result: Bool,
+  body: (match users
+    | List.nil => false
+    | List.cons head rest => ((not (prim equal (administrationGranted scope (project head user) (project before grants)) (administrationGranted scope (project head user) (project after grants)) : Bool)) || ((((administrationGranted scope (project head user) (project before grants)) || ((administrationGranted scope (project head user) (project after grants)) || false)) && ((not (prim equal (administrationEnabled (project head user) (project before users)) (administrationEnabled (project head user) (project after users)) : Bool)) && true)) || ((administrationDirectUsersChanged scope before after rest) || false)))),
+  axioms: [],
+  recursive_argument: users
+}
+
+definition{
+  name: administrationDirectChanged,
+  parameters: [scope : String, before : AdministrationPlan, after : AdministrationPlan],
+  result: Bool,
+  body: ((match (administrationFindScope scope (project before scopes))
+    | Option.none => true
+    | Option.some oldScope => (match (administrationFindScope scope (project after scopes))
+      | Option.none => true
+      | Option.some newScope => (not (administrationSameAdministrationScope oldScope newScope)))) || ((administrationDirectUsersChanged scope before after (project before users)) || ((administrationDirectUsersChanged scope before after (project after users)) || false))),
+  axioms: []
+}
+
+definition{
+  name: administrationChangedAncestor,
+  parameters: [
+    scope : String,
+    before : AdministrationPlan,
+    after : AdministrationPlan,
+    graph : (List AdministrationScope),
+    fuel : Nat
+  ],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => false
+    | Nat.succ fuelRest => ((administrationDirectChanged scope before after) || ((match (administrationFindScope scope graph)
+      | Option.none => false
+      | Option.some found => ((not (prim equal (project found parent) "" : Bool)) && ((administrationChangedAncestor (project found parent) before after graph fuelRest) && true))) || false))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: administrationAnyDirectChanged,
+  parameters: [
+    scopes : (List AdministrationScope),
+    before : AdministrationPlan,
+    after : AdministrationPlan
+  ],
+  result: Bool,
+  body: (match scopes
+    | List.nil => false
+    | List.cons head rest => ((administrationDirectChanged (project head scope) before after) || ((administrationAnyDirectChanged rest before after) || false))),
+  axioms: [],
+  recursive_argument: scopes
+}
+
+definition{
+  name: administrationUnscopedUserDelta,
+  parameters: [
+    users : (List AdministratorUser),
+    before : AdministrationPlan,
+    after : AdministrationPlan
+  ],
+  result: Bool,
+  body: (match users
+    | List.nil => false
+    | List.cons head rest => (((not (administrationUserGranted (project head user) (project before grants))) && ((not (administrationUserGranted (project head user) (project after grants))) && (((not (prim equal (administrationMember (project head user) (project before users)) (administrationMember (project head user) (project after users)) : Bool)) || ((not (prim equal (administrationEnabled (project head user) (project before users)) (administrationEnabled (project head user) (project after users)) : Bool)) || false)) && true))) || ((administrationUnscopedUserDelta rest before after) || false))),
+  axioms: [],
+  recursive_argument: users
+}
+
+definition{
+  name: administrationAffected,
+  parameters: [scope : String, before : AdministrationPlan, after : AdministrationPlan],
+  result: Bool,
+  body: ((not (prim equal (administrationActive (project before stage)) (administrationActive (project after stage)) : Bool)) || (((prim equal scope (project before root) : Bool) && (((not (prim equal (project before label) (project after label) : Bool)) || ((administrationUnscopedUserDelta (project before users) before after) || ((administrationUnscopedUserDelta (project after users) before after) || (((not (administrationAnyDirectChanged (project after scopes) before after)) && ((not (administrationSamePlan before after)) && true)) || false)))) && true)) || ((administrationChangedAncestor scope before after (project before scopes) 64) || ((administrationChangedAncestor scope before after (project after scopes) 64) || false)))),
+  axioms: []
+}
+
+definition{
+  name: administrationOldAnchor,
+  parameters: [
+    scope : String,
+    before : (List AdministrationScope),
+    after : (List AdministrationScope),
+    fuel : Nat
+  ],
+  result: String,
+  body: (match fuel
+    | Nat.zero => ""
+    | Nat.succ fuelRest => (match (administrationScopeExists scope before)
+      | Bool.false => (match (administrationFindScope scope after)
+        | Option.none => ""
+        | Option.some found => (administrationOldAnchor (project found parent) before after fuelRest))
+      | Bool.true => scope)),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: administrationPostCoverage,
+  parameters: [
+    before : AdministrationPlan,
+    after : AdministrationPlan,
+    scopes : (List AdministrationScope),
+    destructive : Bool
+  ],
+  result: Bool,
+  body: (match scopes
+    | List.nil => true
+    | List.cons head rest => (((administrationRetainedMinimum head ((administrationActive (project after stage)) || ((destructive && ((administrationAffected (project head scope) before after) && true)) || false))) <=? (administrationAdministratorCount (project head scope) after (project after users))) && (((project head quorum) <=? (administrationAdministratorCount (project head scope) after (project after users))) && ((administrationPostCoverage before after rest destructive) && true)))),
+  axioms: [],
+  recursive_argument: scopes
+}
+
+definition{
+  name: administrationParentChanged,
+  parameters: [scope : AdministrationScope, before : (List AdministrationScope)],
+  result: Bool,
+  body: (match (administrationFindScope (project scope scope) before)
+    | Option.none => true
+    | Option.some found => (not (prim equal (project found parent) (project scope parent) : Bool))),
+  axioms: []
+}
+
+definition{
+  name: administrationApprovalUserMember,
+  parameters: [user : String, approvals : (List AdministrationApproval)],
+  result: Bool,
+  body: (match approvals
+    | List.nil => false
+    | List.cons head rest => ((prim equal user (project head user) : Bool) || ((administrationApprovalUserMember user rest) || false))),
+  axioms: [],
+  recursive_argument: approvals
+}
+
+definition{
+  name: administrationApprovalsUnique,
+  parameters: [approvals : (List AdministrationApproval)],
+  result: Bool,
+  body: (match approvals
+    | List.nil => true
+    | List.cons head rest => ((not (administrationApprovalUserMember (project head user) rest)) && ((administrationApprovalsUnique rest) && true))),
+  axioms: [],
+  recursive_argument: approvals
+}
+
+definition{
+  name: administrationApprovalsBound,
+  parameters: [request : AdministrationRequest, approvals : (List AdministrationApproval)],
+  result: Bool,
+  body: (match approvals
+    | List.nil => true
+    | List.cons head rest => ((prim equal (project head organization) (project request organization) : Bool) && ((prim equal (project head revision) (project request revision) : Bool) && ((prim equal (project head request) (project request request) : Bool) && ((prim equal (project head proposalRef) (project request proposalRef) : Bool) && ((administrationSamePlan (project head plan) (project request plan)) && ((administrationApprovalsBound request rest) && true))))))),
+  axioms: [],
+  recursive_argument: approvals
+}
+
+definition{
+  name: administrationApprovalCount,
+  parameters: [
+    scope : String,
+    before : AdministrationPlan,
+    approvals : (List AdministrationApproval)
+  ],
+  result: Nat,
+  body: (match approvals
+    | List.nil => 0
+    | List.cons head rest => ((match (administrationAuthorizedAt scope (project head user) before 64)
+      | Bool.false => 0
+      | Bool.true => 1) + (administrationApprovalCount scope before rest))),
+  axioms: [],
+  recursive_argument: approvals
+}
+
+definition{
+  name: administrationQuorumMet,
+  parameters: [
+    scope : String,
+    before : AdministrationPlan,
+    approvals : (List AdministrationApproval)
+  ],
+  result: Bool,
+  body: (match (administrationFindScope scope (project before scopes))
+    | Option.none => false
+    | Option.some found => ((project found quorum) <=? (administrationApprovalCount scope before approvals))),
+  axioms: []
+}
+
+definition{
+  name: administrationScopeApproved,
+  parameters: [
+    scope : AdministrationScope,
+    before : AdministrationPlan,
+    after : AdministrationPlan,
+    approvals : (List AdministrationApproval)
+  ],
+  result: Bool,
+  body: (((not (administrationAffected (project scope scope) before after)) || ((administrationQuorumMet (administrationOldAnchor (project scope scope) (project before scopes) (project after scopes) 64) before approvals) || false)) && (((not (administrationParentChanged scope (project before scopes))) || ((administrationQuorumMet (administrationOldAnchor (project scope parent) (project before scopes) (project after scopes) 64) before approvals) || false)) && true)),
+  axioms: []
+}
+
+definition{
+  name: administrationAllApproved,
+  parameters: [
+    scopes : (List AdministrationScope),
+    before : AdministrationPlan,
+    after : AdministrationPlan,
+    approvals : (List AdministrationApproval)
+  ],
+  result: Bool,
+  body: (match scopes
+    | List.nil => true
+    | List.cons head rest => ((administrationScopeApproved head before after approvals) && ((administrationAllApproved rest before after approvals) && true))),
+  axioms: [],
+  recursive_argument: scopes
+}
+
+definition{
+  name: administrationApprovalRelevant,
+  parameters: [
+    user : String,
+    scopes : (List AdministrationScope),
+    before : AdministrationPlan,
+    after : AdministrationPlan
+  ],
+  result: Bool,
+  body: (match scopes
+    | List.nil => false
+    | List.cons head rest => (((administrationAffected (project head scope) before after) && ((administrationAuthorizedAt (administrationOldAnchor (project head scope) (project before scopes) (project after scopes) 64) user before 64) && true)) || (((administrationParentChanged head (project before scopes)) && ((administrationAuthorizedAt (administrationOldAnchor (project head parent) (project before scopes) (project after scopes) 64) user before 64) && true)) || ((administrationApprovalRelevant user rest before after) || false)))),
+  axioms: [],
+  recursive_argument: scopes
+}
+
+definition{
+  name: administrationAllRelevant,
+  parameters: [
+    approvals : (List AdministrationApproval),
+    before : AdministrationPlan,
+    after : AdministrationPlan
+  ],
+  result: Bool,
+  body: (match approvals
+    | List.nil => true
+    | List.cons head rest => ((administrationApprovalRelevant (project head user) (project after scopes) before after) && ((administrationAllRelevant rest before after) && true))),
+  axioms: [],
+  recursive_argument: approvals
+}
+
+definition{
+  name: administrationStateValid,
+  parameters: [state : AdministrationSnapshot],
+  result: Bool,
+  body: ((administrationBoundedText (project state organization) 128) && (((project state revision) <=? 4294967295) && ((administrationPlanValid (project state plan)) && ((administrationCoverage (project state plan) (project (project state plan) scopes) (administrationActive (project (project state plan) stage))) && true)))),
+  axioms: []
+}
+
+definition{
+  name: transitionAdministration,
+  parameters: [state : AdministrationSnapshot, request : AdministrationRequest],
+  result: (Result AdministrationSnapshot AdministrationError),
+  body: (match (administrationStateValid state)
+    | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.BadState))
+    | Bool.true => (match ((administrationPlanBounded (project request plan)) && (((prim length (project request approvals) : Nat) <=? 64) && true))
+      | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.ResourceLimit))
+      | Bool.true => (match (prim equal (project state organization) (project request organization) : Bool)
+        | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.WrongOrganization))
+        | Bool.true => (match (prim equal (project state revision) (project request revision) : Bool)
+          | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.StaleRevision))
+          | Bool.true => (match ((project state revision) <? 4294967295)
+            | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.RevisionExhausted))
+            | Bool.true => (match ((administrationBoundedText (project request request) 128) && ((administrationBoundedText (project request proposalRef) 128) && true))
+              | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.BadRequest))
+              | Bool.true => (match (prim equal (project (project state plan) root) (project (project request plan) root) : Bool)
+                | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.RootChanged))
+                | Bool.true => (match ((not (administrationActive (project (project state plan) stage))) || ((administrationActive (project (project request plan) stage)) || false))
+                  | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.StageRollback))
+                  | Bool.true => (match (administrationScopesRetained (project (project state plan) scopes) (project (project request plan) scopes))
+                    | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.ScopeRemoval))
+                    | Bool.true => (match (administrationPlanValid (project request plan))
+                      | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.BadProposal))
+                      | Bool.true => (match (not (administrationSamePlan (project state plan) (project request plan)))
+                        | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.NoChange))
+                        | Bool.true => (match (administrationApprovalsBound request (project request approvals))
+                          | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.BadApproval))
+                          | Bool.true => (match (administrationApprovalsUnique (project request approvals))
+                            | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.DuplicateApproval))
+                            | Bool.true => (match (administrationAllRelevant (project request approvals) (project state plan) (project request plan))
+                              | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.OutOfScopeApproval))
+                              | Bool.true => (match (administrationAllApproved (project (project request plan) scopes) (project state plan) (project request plan) (project request approvals))
+                                | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.InsufficientApproval))
+                                | Bool.true => (match (administrationPostCoverage (project state plan) (project request plan) (project (project request plan) scopes) (administrationDestructive (project state plan) (project request plan)))
+                                  | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.CoverageLoss))
+                                  | Bool.true => (ctor Result.ok [AdministrationSnapshot, AdministrationError] (record AdministrationSnapshot {organization := (project state organization), revision := ((project state revision) + 1), plan := (project request plan)})))))))))))))))))),
+  axioms: []
+}
+
+definition{
+  name: createAdministration,
+  parameters: [organization : String, label : String, creator : String, root : String],
+  result: (Result AdministrationSnapshot AdministrationError),
+  body: (match ((administrationBoundedText organization 128) && ((administrationBoundedText label 256) && ((administrationBoundedText creator 128) && ((administrationBoundedText root 128) && true))))
+    | Bool.false => (ctor Result.error [AdministrationSnapshot, AdministrationError] (ctor AdministrationError.BadRequest))
+    | Bool.true => (ctor Result.ok [AdministrationSnapshot, AdministrationError] (record AdministrationSnapshot {organization := organization, revision := 0, plan := (record AdministrationPlan {root := root, label := label, stage := (ctor AdministrationStage.Provisional), users := (cons (record AdministratorUser {user := creator, enabled := true}) (nil AdministratorUser)), scopes := (cons (record AdministrationScope {scope := root, parent := "", inherits := false, minimum := 2, quorum := 1}) (nil AdministrationScope)), grants := (cons (record AdministratorGrant {scope := root, user := creator}) (nil AdministratorGrant))})}))),
+  axioms: []
+}
 \end{semanticmodule}
 \end{lexlean}

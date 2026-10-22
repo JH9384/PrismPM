@@ -5,14 +5,43 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{ApplicationLayerKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Wasm}: \texttt{()}.\par
+\noindent Constructor \texttt{View}: \texttt{()}.\par
 \subsection*{\texttt{PackagingIntent}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Fat}: \texttt{()}.\par
+\noindent Constructor \texttt{Thin}: \texttt{()}.\par
 \subsection*{\texttt{PresentationTarget}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{HologramPortable}: \texttt{()}.\par
+\noindent Constructor \texttt{GithubPages}: \texttt{()}.\par
 \subsection*{\texttt{Layer}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{kind}: \texttt{ApplicationLayerKind}.\par
+\noindent Field \texttt{entry}: \texttt{String}.\par
+\noindent Field \texttt{contract}: \texttt{String}.\par
+\noindent Field \texttt{primary}: \texttt{Bool}.\par
 \subsection*{\texttt{CargoPackage}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{name}: \texttt{String}.\par
+\noindent Field \texttt{version}: \texttt{String}.\par
+\noindent Field \texttt{description}: \texttt{String}.\par
+\noindent Field \texttt{repository}: \texttt{String}.\par
+\noindent Field \texttt{homepage}: \texttt{String}.\par
+\noindent Field \texttt{stdlibVersion}: \texttt{String}.\par
+\noindent Field \texttt{stdFeature}: \texttt{Bool}.\par
 \subsection*{\texttt{Application}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{name}: \texttt{String}.\par
+\noindent Field \texttt{entryRoot}: \texttt{String}.\par
+\noindent Field \texttt{requestCodec}: \texttt{String}.\par
+\noindent Field \texttt{responseCodec}: \texttt{String}.\par
+\noindent Field \texttt{requestMaximum}: \texttt{UInt32}.\par
+\noindent Field \texttt{responseMaximum}: \texttt{UInt32}.\par
+\noindent Field \texttt{guestAllocationMaximum}: \texttt{UInt32}.\par
+\noindent Field \texttt{capabilitiesEmpty}: \texttt{Bool}.\par
+\noindent Field \texttt{packaging}: \texttt{PackagingIntent}.\par
+\noindent Field \texttt{layers}: \texttt{List (Layer)}.\par
+\noindent Field \texttt{targets}: \texttt{List (PresentationTarget)}.\par
+\noindent Field \texttt{cargoPackage}: \texttt{CargoPackage}.\par
 \end{document}

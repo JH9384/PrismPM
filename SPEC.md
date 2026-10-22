@@ -212,7 +212,10 @@ dispatch, parsing of requests or report formatting is handwritten. The program
 accepts `COMMAND [FILE]`, `examples [NAME]`, `--help` and `--version`. A missing
 FILE or `-` reads standard input. The request is read as raw bytes, at most the
 modeled request maximum plus one byte, so an oversized request is refused with
-the typed `InputLimit` failure before dispatch. The report is written to
+the typed `InputLimit` failure before dispatch: it exits with the `error`
+outcome's code, writes nothing to standard output and never produces the
+model's own oversized-request report, so web and CLI parity compares such
+vectors by refusal rather than by response bytes. The report is written to
 standard output unchanged and the process exits with the code of the outcome
 whose prefix begins it. `--help` is rendered from the model: purpose, usage,
 the request bound, modeled sections, examples and the complete exit-code table.

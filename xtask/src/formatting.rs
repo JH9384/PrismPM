@@ -84,6 +84,7 @@ const SOURCES: &[&str] = &[
     "tests/browser-budget/runner.rs",
     "tests/hologram-oracle/src/main.rs",
     "tests/hologram-oracle/tests/browser_surface.rs",
+    "tests/holo-codec-oracle/tests/ancient_mint_freeze.rs",
 ];
 // The workspace integration target includes this authored module. Its name
 // describes the code it tests, not code generated into this file.

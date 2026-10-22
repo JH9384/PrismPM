@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-effect-host-corpus"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.EffectsCorpus"
+component = "corpusEqualEffectManifest"
+
+[[form]]
+id = "prism-browser-effect-host-corpus"
+channel = "text"
+surface = "Browser effect host corpus"
+canonical_source = true
+features = ["sentence-case", "singular"]

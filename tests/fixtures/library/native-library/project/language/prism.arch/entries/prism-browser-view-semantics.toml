@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-view-semantics"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.View.Browser.V1.Semantics"
+component = "SemanticPresentation"
+
+[[form]]
+id = "prism-browser-view-semantics"
+channel = "text"
+surface = "Browser view semantics"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-wire-corpus"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.WireCorpus"
+component = "oracleManifest"
+
+[[form]]
+id = "prism-hologram-wire-corpus"
+channel = "text"
+surface = "Hologram wire corpus"
+canonical_source = true
+features = ["sentence-case", "singular"]

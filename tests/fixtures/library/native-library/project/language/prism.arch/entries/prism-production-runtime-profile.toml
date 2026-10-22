@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-production-runtime-profile"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Runtime"
+component = "productionRuntimeProfile"
+
+[[form]]
+id = "prism-production-runtime-profile"
+channel = "text"
+surface = "Production runtime profile"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-portable-view-bundle"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.View"
+component = "PortableBundle"
+
+[[form]]
+id = "prism-hologram-portable-view-bundle"
+channel = "text"
+surface = "Hologram portable view bundle"
+canonical_source = true
+features = ["sentence-case", "singular"]

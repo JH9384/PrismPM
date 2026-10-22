@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-effect-host-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.Effects"
+component = "EffectManifest"
+
+[[form]]
+id = "prism-browser-effect-host-model"
+channel = "text"
+surface = "Browser effect host model"
+canonical_source = true
+features = ["sentence-case", "singular"]

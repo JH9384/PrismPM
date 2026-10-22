@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-model-validation"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo"
+component = "validateComponentIndexes"
+
+[[form]]
+id = "prism-hologram-model-validation"
+channel = "text"
+surface = "Hologram model validation"
+canonical_source = true
+features = ["sentence-case", "singular"]

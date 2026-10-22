@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-elliptic-curve-arithmetic-wire-format"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Crypto.P256.Wire"
+component = "P256LimbRead"
+
+[[form]]
+id = "prism-elliptic-curve-arithmetic-wire-format"
+channel = "text"
+surface = "Elliptic curve arithmetic wire format"
+canonical_source = true
+features = ["sentence-case", "singular"]

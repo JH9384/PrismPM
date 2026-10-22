@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-organization-administration-corpus"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Organization.V1.Corpus"
+component = "probeCreation"
+
+[[form]]
+id = "prism-organization-administration-corpus"
+channel = "text"
+surface = "Organization administration corpus"
+canonical_source = true
+features = ["sentence-case", "singular"]

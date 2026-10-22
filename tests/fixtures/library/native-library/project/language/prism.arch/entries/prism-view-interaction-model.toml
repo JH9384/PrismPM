@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-view-interaction-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.View.V1.Interaction"
+component = "ActionBinding"
+
+[[form]]
+id = "prism-view-interaction-model"
+channel = "text"
+surface = "View interaction model"
+canonical_source = true
+features = ["sentence-case", "singular"]

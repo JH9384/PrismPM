@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-saved-recovery-code"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Sec.V1.SavedRecovery"
+component = "SavedRecoveryState"
+
+[[form]]
+id = "prism-saved-recovery-code"
+channel = "text"
+surface = "Saved recovery code"
+canonical_source = true
+features = ["sentence-case", "singular"]

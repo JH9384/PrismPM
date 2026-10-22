@@ -5,10 +5,38 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{TextView}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{title}: \texttt{String}.\par
+\noindent Field \texttt{heading}: \texttt{String}.\par
+\noindent Field \texttt{inputLabel}: \texttt{String}.\par
+\noindent Field \texttt{submitLabel}: \texttt{String}.\par
+\noindent Field \texttt{outputLabel}: \texttt{String}.\par
+\noindent Field \texttt{inputError}: \texttt{String}.\par
+\noindent Field \texttt{responseError}: \texttt{String}.\par
 \subsection*{\texttt{AcceptanceVector}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{request}: \texttt{ByteArray}.\par
+\noindent Field \texttt{response}: \texttt{ByteArray}.\par
 \subsection*{\texttt{TextApplication}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{profile}: \texttt{String}.\par
+\noindent Field \texttt{name}: \texttt{String}.\par
+\noindent Field \texttt{cargoName}: \texttt{String}.\par
+\noindent Field \texttt{cargoVersion}: \texttt{String}.\par
+\noindent Field \texttt{cargoDescription}: \texttt{String}.\par
+\noindent Field \texttt{cargoRepository}: \texttt{String}.\par
+\noindent Field \texttt{cargoHomepage}: \texttt{String}.\par
+\noindent Field \texttt{libraryRoots}: \texttt{List (String)}.\par
+\noindent Field \texttt{acceptanceVectors}: \texttt{List (AcceptanceVector)}.\par
+\noindent Field \texttt{entryRoot}: \texttt{String}.\par
+\noindent Field \texttt{coreContract}: \texttt{String}.\par
+\noindent Field \texttt{requestMaximum}: \texttt{UInt32}.\par
+\noindent Field \texttt{responseMaximum}: \texttt{UInt32}.\par
+\noindent Field \texttt{guestAllocationMaximum}: \texttt{UInt32}.\par
+\noindent Field \texttt{capabilitiesEmpty}: \texttt{Bool}.\par
+\noindent Field \texttt{fatArchive}: \texttt{Bool}.\par
+\noindent Field \texttt{primaryLayer}: \texttt{UInt8}.\par
+\noindent Field \texttt{viewLayer}: \texttt{UInt8}.\par
+\noindent Field \texttt{view}: \texttt{TextView}.\par
 \subsection*{\texttt{textApplicationProfile}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{String}.\par

@@ -1,10 +1,68 @@
 \begin{lexlean}{Foundation.Browser.Application.V1.AccountGenesis}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Browser.Application.V1.Effects}
 \importmodule{Foundation.Crypto.P256.Model}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"namespace","type":{"kind":"bytes"}},{"name":"nonce","type":{"kind":"bytes"}},{"name":"initialKey","type":{"kind":"bytes"}}],"kind":"structure","name":"AccountGenesis","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"BadNamespace"},{"fields":[],"name":"BadNonce"},{"fields":[],"name":"BadKey"},{"fields":[],"name":"NamespaceMismatch"},{"fields":[],"name":"UnexpectedOperation"}],"kind":"inductive","name":"AccountGenesisError","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"hex":"707269736d706d2f6163636f756e742d67656e657369732f3100","kind":"bytes"},"kind":"definition","name":"accountGenesisDomain","parameters":[],"result":{"kind":"bytes"}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AccountGenesisError.BadNamespace"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"AccountGenesisError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AccountGenesisError.BadNonce"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"AccountGenesisError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AccountGenesisError.BadKey"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"AccountGenesisError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"bool","value":true}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"AccountGenesisError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"initialKey","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"module":"Foundation.Crypto.P256.Model","name":"p256PublicKeyValid"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"arguments":[{"field":"nonce","kind":"project","value":{"kind":"var","name":"value"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"arguments":[{"field":"namespace","kind":"project","value":{"kind":"var","name":"value"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}}},"kind":"definition","name":"validateAccountGenesis","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"AccountGenesis"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"AccountGenesisError"}},"kind":"result","ok":{"kind":"bool"}}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AccountGenesisError.BadNamespace"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"AccountGenesisError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":["cause"],"body":{"arguments":[{"kind":"var","name":"cause"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"AccountGenesisError"}}]},"constructor":{"name":"Result.error"}},{"binders":["valid"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"AccountGenesisError.NamespaceMismatch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"AccountGenesisError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"bool","value":true}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"AccountGenesisError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"expected"},{"field":"namespace","kind":"project","value":{"kind":"var","name":"value"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"validateAccountGenesis"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"expected"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}}},"kind":"definition","name":"matchAccountGenesisNamespace","parameters":[{"name":"expected","type":{"kind":"bytes"}},{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"AccountGenesis"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"AccountGenesisError"}},"kind":"result","ok":{"kind":"bool"}}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: AccountGenesis,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: namespace, type: Bytes},
+    {name: nonce, type: Bytes},
+    {name: initialKey, type: Bytes}
+  ]
+}
+
+inductive{
+  name: AccountGenesisError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BadNamespace, fields: []},
+    {name: BadNonce, fields: []},
+    {name: BadKey, fields: []},
+    {name: NamespaceMismatch, fields: []},
+    {name: UnexpectedOperation, fields: []}
+  ]
+}
+
+definition{
+  name: accountGenesisDomain,
+  parameters: [],
+  result: Bytes,
+  body: 0x707269736d706d2f6163636f756e742d67656e657369732f3100,
+  axioms: []
+}
+
+definition{
+  name: validateAccountGenesis,
+  parameters: [value : AccountGenesis],
+  result: (Result Bool AccountGenesisError),
+  body: (match ((prim length (project value namespace) : Nat) =? 32)
+    | Bool.false => (ctor Result.error [Bool, AccountGenesisError] (ctor AccountGenesisError.BadNamespace))
+    | Bool.true => (match ((prim length (project value nonce) : Nat) =? 32)
+      | Bool.false => (ctor Result.error [Bool, AccountGenesisError] (ctor AccountGenesisError.BadNonce))
+      | Bool.true => (match (Foundation.Crypto.P256.Model::p256PublicKeyValid (project value initialKey))
+        | Bool.false => (ctor Result.error [Bool, AccountGenesisError] (ctor AccountGenesisError.BadKey))
+        | Bool.true => (ctor Result.ok [Bool, AccountGenesisError] true)))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: matchAccountGenesisNamespace,
+  parameters: [expected : Bytes, value : AccountGenesis],
+  result: (Result Bool AccountGenesisError),
+  body: (match ((prim length expected : Nat) =? 32)
+    | Bool.false => (ctor Result.error [Bool, AccountGenesisError] (ctor AccountGenesisError.BadNamespace))
+    | Bool.true => (match (validateAccountGenesis value)
+      | Result.error cause => (ctor Result.error [Bool, AccountGenesisError] cause)
+      | Result.ok valid => (match (prim equal expected (project value namespace) : Bool)
+        | Bool.false => (ctor Result.error [Bool, AccountGenesisError] (ctor AccountGenesisError.NamespaceMismatch))
+        | Bool.true => (ctor Result.ok [Bool, AccountGenesisError] true)))),
+  axioms: [Quot.sound, propext]
+}
 \end{semanticmodule}
 \end{lexlean}

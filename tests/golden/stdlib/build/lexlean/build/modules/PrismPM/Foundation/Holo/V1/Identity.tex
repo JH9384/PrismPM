@@ -5,14 +5,35 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{HashAlgorithm}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Blake3}: \texttt{()}.\par
+\noindent Constructor \texttt{Sha256}: \texttt{()}.\par
 \subsection*{\texttt{HashPhase}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Leaf}: \texttt{()}.\par
+\noindent Constructor \texttt{Application}: \texttt{()}.\par
+\noindent Constructor \texttt{Physical}: \texttt{()}.\par
 \subsection*{\texttt{IdentityRole}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{ContentKappa}: \texttt{()}.\par
+\noindent Constructor \texttt{CapabilityKappa}: \texttt{()}.\par
+\noindent Constructor \texttt{ModelKappa}: \texttt{()}.\par
+\noindent Constructor \texttt{ApplicationKappa}: \texttt{()}.\par
+\noindent Constructor \texttt{ArchiveFingerprint}: \texttt{()}.\par
+\noindent Constructor \texttt{ArchiveKappa}: \texttt{()}.\par
+\noindent Constructor \texttt{PackageSha256}: \texttt{()}.\par
+\noindent Constructor \texttt{BrowserSha256}: \texttt{()}.\par
 \subsection*{\texttt{Digest}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{algorithm}: \texttt{HashAlgorithm}.\par
+\noindent Field \texttt{bytes}: \texttt{ByteArray}.\par
 \subsection*{\texttt{HashRequest}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{phase}: \texttt{HashPhase}.\par
+\noindent Field \texttt{role}: \texttt{IdentityRole}.\par
+\noindent Field \texttt{preimage}: \texttt{ByteArray}.\par
 \subsection*{\texttt{HashResult}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{phase}: \texttt{HashPhase}.\par
+\noindent Field \texttt{role}: \texttt{IdentityRole}.\par
+\noindent Field \texttt{digest}: \texttt{Digest}.\par
 \end{document}

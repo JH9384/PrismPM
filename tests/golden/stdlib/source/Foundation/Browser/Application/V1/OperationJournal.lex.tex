@@ -1,10 +1,338 @@
 \begin{lexlean}{Foundation.Browser.Application.V1.OperationJournal}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Bytes}
 \importmodule{Foundation.Browser.Application.V1.Effects}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"application","type":{"kind":"bytes"}},{"name":"manifest","type":{"kind":"bytes"}},{"name":"artifacts","type":{"kind":"bytes"}},{"name":"requestedPolicy","type":{"kind":"bytes"}},{"name":"effectivePolicy","type":{"kind":"bytes"}},{"name":"signingKey","type":{"kind":"bytes"}},{"name":"namespace","type":{"kind":"string"}},{"name":"head","type":{"kind":"string"}},{"name":"stagingHead","type":{"kind":"string"}},{"name":"maximumRecords","type":{"kind":"nat"}}],"kind":"structure","name":"JournalBinding","parameters":[],"type_parameters":[]},{"fields":[{"name":"digest","type":{"kind":"bytes"}},{"name":"length","type":{"kind":"nat"}},{"name":"chunks","type":{"element":{"kind":"bytes"},"kind":"list"}}],"kind":"structure","name":"JournalPayload","parameters":[],"type_parameters":[]},{"fields":[{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"JournalBinding"}}},{"name":"revision","type":{"kind":"nat"}},{"name":"previous","type":{"kind":"bytes"}},{"name":"journalSession","type":{"kind":"bytes"}},{"name":"operation","type":{"kind":"nat"}},{"name":"runtimeSession","type":{"kind":"bytes"}},{"name":"runtimeOperation","type":{"kind":"nat"}},{"name":"resource","type":{"kind":"string"}},{"name":"requestKind","type":{"kind":"nat"}},{"name":"phase","type":{"kind":"nat"}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"JournalPayload"}}},{"name":"resultKind","type":{"kind":"nat"}},{"name":"response","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"JournalPayload"}}}}],"kind":"structure","name":"JournalRecord","parameters":[],"type_parameters":[]},{"fields":[{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"JournalBinding"}}},{"name":"records","type":{"kind":"nat"}},{"name":"nextOperation","type":{"kind":"nat"}},{"name":"head","type":{"kind":"bytes"}},{"name":"pending","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"JournalRecord"}}}}],"kind":"structure","name":"JournalState","parameters":[],"type_parameters":[]},{"fields":[{"name":"offset","type":{"kind":"nat"}},{"name":"length","type":{"kind":"nat"}}],"kind":"structure","name":"JournalChunk","parameters":[],"type_parameters":[]},{"fields":[{"name":"chunks","type":{"element":{"arguments":[],"kind":"named","member":{"name":"JournalChunk"}},"kind":"list"}}],"kind":"structure","name":"JournalPlan","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"BadBinding"},{"fields":[],"name":"BadRecord"},{"fields":[],"name":"BadState"},{"fields":[],"name":"BindingChanged"},{"fields":[],"name":"RecordLimit"},{"fields":[],"name":"RevisionMismatch"},{"fields":[],"name":"PredecessorMismatch"},{"fields":[],"name":"OperationOverflow"},{"fields":[],"name":"OperationMismatch"},{"fields":[],"name":"PendingOperation"},{"fields":[],"name":"MissingPending"},{"fields":[],"name":"TerminalMismatch"}],"kind":"inductive","name":"JournalError","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}},"kind":"definition","name":"journalRefValid","parameters":[{"name":"value","type":{"kind":"bytes"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"manifest","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"artifacts","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"requestedPolicy","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"effectivePolicy","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"signingKey","kind":"project","value":{"kind":"var","name":"value"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"65"}},"right":{"kind":"and","left":{"arguments":[{"field":"namespace","kind":"project","value":{"kind":"var","name":"value"}},{"kind":"nat","value":"0"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectNameValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"head","kind":"project","value":{"kind":"var","name":"value"}},{"kind":"nat","value":"0"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectNameValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"stagingHead","kind":"project","value":{"kind":"var","name":"value"}},{"kind":"nat","value":"0"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectNameValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"head","kind":"project","value":{"kind":"var","name":"value"}},{"field":"stagingHead","kind":"project","value":{"kind":"var","name":"value"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"2"},"right":{"field":"maximumRecords","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"maximumRecords","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"1024"}},"right":{"kind":"bool","value":true}}}}}}}}}}}}},"kind":"definition","name":"journalBindingValid","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"JournalBinding"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"application","kind":"project","value":{"kind":"var","name":"left"}},{"field":"application","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"manifest","kind":"project","value":{"kind":"var","name":"left"}},{"field":"manifest","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"artifacts","kind":"project","value":{"kind":"var","name":"left"}},{"field":"artifacts","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"requestedPolicy","kind":"project","value":{"kind":"var","name":"left"}},{"field":"requestedPolicy","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"effectivePolicy","kind":"project","value":{"kind":"var","name":"left"}},{"field":"effectivePolicy","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"signingKey","kind":"project","value":{"kind":"var","name":"left"}},{"field":"signingKey","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"namespace","kind":"project","value":{"kind":"var","name":"left"}},{"field":"namespace","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"head","kind":"project","value":{"kind":"var","name":"left"}},{"field":"head","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"stagingHead","kind":"project","value":{"kind":"var","name":"left"}},{"field":"stagingHead","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"maximumRecords","kind":"project","value":{"kind":"var","name":"left"}},"right":{"field":"maximumRecords","kind":"project","value":{"kind":"var","name":"right"}}},"right":{"kind":"bool","value":true}}}}}}}}}}},"kind":"definition","name":"journalBindingEqual","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"JournalBinding"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"JournalBinding"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"beq","left":{"kind":"var","name":"remaining"},"right":{"kind":"nat","value":"0"}},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"head"}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"kind":"var","name":"remaining"}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"tail"},{"arguments":[{"kind":"var","name":"remaining"},{"kind":"nat","value":"1048576"}],"kind":"primitive","operation":"subtract","result":{"kind":"nat"}}],"function":{"name":"journalChunksValid"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"tail"},{"kind":"nat","value":"0"}],"function":{"name":"journalChunksValid"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"var","name":"remaining"},"right":{"kind":"nat","value":"1048576"}}},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"chunks"}},"kind":"definition","name":"journalChunksValid","parameters":[{"name":"chunks","type":{"element":{"kind":"bytes"},"kind":"list"}},{"name":"remaining","type":{"kind":"nat"}}],"recursive_argument":"chunks","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"digest","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"length","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"length","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"67108864"}},"right":{"kind":"and","left":{"arguments":[{"field":"chunks","kind":"project","value":{"kind":"var","name":"value"}},{"field":"length","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalChunksValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"journalPayloadValid","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"JournalPayload"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"digest","kind":"project","value":{"kind":"var","name":"left"}},{"field":"digest","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"length","kind":"project","value":{"kind":"var","name":"left"}},"right":{"field":"length","kind":"project","value":{"kind":"var","name":"right"}}},"right":{"kind":"and","left":{"arguments":[{"field":"chunks","kind":"project","value":{"kind":"var","name":"left"}},{"field":"chunks","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectObjectsEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"kind":"definition","name":"journalPayloadEqual","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"JournalPayload"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"JournalPayload"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"binding","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalBindingValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"revision","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"1024"}},"right":{"kind":"and","left":{"arguments":[{"field":"previous","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"journalSession","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"runtimeSession","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"blt","left":{"field":"operation","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"blt","left":{"field":"runtimeOperation","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"value"}}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"value"}}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"128"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"requestKind","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"7"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"phase","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"2"}},"right":{"kind":"and","left":{"arguments":[{"field":"request","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalPayloadValid"},"kind":"call"},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"beq","left":{"field":"resultKind","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"8"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"beq","left":{"field":"resultKind","kind":"project","value":{"kind":"var","name":"value"}},"right":{"field":"requestKind","kind":"project","value":{"kind":"var","name":"value"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"phase","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"1"}}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["payload"],"body":{"arguments":[{"kind":"var","name":"payload"}],"function":{"name":"journalPayloadValid"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"response","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"and","left":{"kind":"beq","left":{"field":"resultKind","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"9"}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["payload"],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"response","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"phase","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"0"}}},"right":{"kind":"bool","value":true}}}}}}}}}}}}}}},"kind":"definition","name":"journalRecordValid","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"JournalRecord"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"binding","kind":"project","value":{"kind":"var","name":"left"}},{"field":"binding","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"journalBindingEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"journalSession","kind":"project","value":{"kind":"var","name":"left"}},{"field":"journalSession","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"runtimeSession","kind":"project","value":{"kind":"var","name":"left"}},{"field":"runtimeSession","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"operation","kind":"project","value":{"kind":"var","name":"left"}},"right":{"field":"operation","kind":"project","value":{"kind":"var","name":"right"}}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"runtimeOperation","kind":"project","value":{"kind":"var","name":"left"}},"right":{"field":"runtimeOperation","kind":"project","value":{"kind":"var","name":"right"}}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"requestKind","kind":"project","value":{"kind":"var","name":"left"}},"right":{"field":"requestKind","kind":"project","value":{"kind":"var","name":"right"}}},"right":{"kind":"and","left":{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"left"}},{"field":"resource","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"request","kind":"project","value":{"kind":"var","name":"left"}},{"field":"request","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"journalPayloadEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}}}},"kind":"definition","name":"journalRecordRequestEqual","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"JournalRecord"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"JournalRecord"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"binding","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalBindingValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"records","kind":"project","value":{"kind":"var","name":"value"}},"right":{"field":"maximumRecords","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"value"}}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"arguments":[{"field":"head","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"beq","left":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"0"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"records","kind":"project","value":{"kind":"var","name":"value"}},"right":{"kind":"nat","value":"0"}}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["pending"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"pending"}],"function":{"name":"journalRecordValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"binding","kind":"project","value":{"kind":"var","name":"pending"}},{"field":"binding","kind":"project","value":{"kind":"var","name":"value"}}],"function":{"name":"journalBindingEqual"},"kind":"call"},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"phase","kind":"project","value":{"kind":"var","name":"pending"}},"right":{"kind":"nat","value":"0"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"pending"}},"right":{"field":"records","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"and","left":{"kind":"beq","left":{"kind":"add","left":{"field":"operation","kind":"project","value":{"kind":"var","name":"pending"}},"right":{"kind":"nat","value":"1"}},"right":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"bool","value":true}}}}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"pending","kind":"project","value":{"kind":"var","name":"value"}}},"right":{"kind":"bool","value":true}}}}}}},"kind":"definition","name":"journalStateValid","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"JournalState"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.BadBinding"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"binding","value":{"kind":"var","name":"binding"}},{"field":"records","value":{"kind":"nat","value":"0"}},{"field":"nextOperation","value":{"kind":"nat","value":"0"}},{"field":"head","value":{"kind":"var","name":"genesis"}},{"field":"pending","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalRecord"}}]}}],"kind":"record","type":{"name":"JournalState"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"kind":"var","name":"binding"}],"function":{"name":"journalBindingValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"genesis"}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"kind":"definition","name":"beginOperationJournal","parameters":[{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"JournalBinding"}}},{"name":"genesis","type":{"kind":"bytes"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"JournalError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"JournalState"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.BadState"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.BadRecord"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.BindingChanged"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.RecordLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.RevisionMismatch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.PredecessorMismatch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.MissingPending"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Option.none"}},{"binders":["old"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.TerminalMismatch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"binding","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"records","value":{"field":"revision","kind":"project","value":{"kind":"var","name":"incoming"}}},{"field":"nextOperation","value":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"head","value":{"kind":"var","name":"digest"}},{"field":"pending","value":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalRecord"}}]}}],"kind":"record","type":{"name":"JournalState"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"old"},{"kind":"var","name":"incoming"}],"function":{"name":"journalRecordRequestEqual"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"pending","kind":"project","value":{"kind":"var","name":"state"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.RecordLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.OperationOverflow"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.OperationMismatch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":["old"],"body":{"arguments":[{"arguments":[],"constructor":{"name":"JournalError.PendingOperation"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Option.some"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"binding","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"records","value":{"field":"revision","kind":"project","value":{"kind":"var","name":"incoming"}}},{"field":"nextOperation","value":{"kind":"add","left":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"1"}}},{"field":"head","value":{"kind":"var","name":"digest"}},{"field":"pending","value":{"arguments":[{"kind":"var","name":"incoming"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalRecord"}}]}}],"kind":"record","type":{"name":"JournalState"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalState"}},{"arguments":[],"kind":"named","member":{"name":"JournalError"}}]},"constructor":{"name":"Option.none"}}],"kind":"match","scrutinee":{"field":"pending","kind":"project","value":{"kind":"var","name":"state"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"operation","kind":"project","value":{"kind":"var","name":"incoming"}},"right":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"field":"nextOperation","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"add","left":{"field":"records","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"2"}},"right":{"field":"maximumRecords","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"phase","kind":"project","value":{"kind":"var","name":"incoming"}},"right":{"kind":"nat","value":"0"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"previous","kind":"project","value":{"kind":"var","name":"incoming"}},{"field":"head","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"incoming"}},"right":{"kind":"add","left":{"field":"records","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"1"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"field":"records","kind":"project","value":{"kind":"var","name":"state"}},"right":{"field":"maximumRecords","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}},{"field":"binding","kind":"project","value":{"kind":"var","name":"incoming"}}],"function":{"name":"journalBindingEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"kind":"var","name":"incoming"}],"function":{"name":"journalRecordValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"digest"}],"function":{"name":"journalRefValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"journalStateValid"},"kind":"call"}},"kind":"definition","name":"appendOperationRecord","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"JournalState"}}},{"name":"incoming","type":{"arguments":[],"kind":"named","member":{"name":"JournalRecord"}}},{"name":"digest","type":{"kind":"bytes"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"JournalError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"JournalState"}}}},{"axioms":[],"body":{"branches":[{"binders":["x0"],"body":{"kind":"nat","value":"0"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.InvokeGuest"}},{"binders":["x0"],"body":{"kind":"nat","value":"1"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.RandomBytes"}},{"binders":["x0"],"body":{"kind":"nat","value":"2"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.DigestBytes"}},{"binders":["x0"],"body":{"kind":"nat","value":"3"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.SignBytes"}},{"binders":["x0"],"body":{"kind":"nat","value":"4"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.VerifyBytes"}},{"binders":["x0"],"body":{"kind":"nat","value":"5"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.ReadObject"}},{"binders":["x0"],"body":{"kind":"nat","value":"6"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.ReadHead"}},{"binders":["x0"],"body":{"kind":"nat","value":"7"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation.Commit"}}],"kind":"match","scrutinee":{"kind":"var","name":"value"}},"kind":"definition","name":"journalOperationKind","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectOperation"}}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":["x0"],"body":{"kind":"nat","value":"0"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult.GuestBytes"}},{"binders":["x0"],"body":{"kind":"nat","value":"1"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult.RandomBytes"}},{"binders":["x0"],"body":{"kind":"nat","value":"2"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult.Digest"}},{"binders":["x0"],"body":{"kind":"nat","value":"3"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult.Signature"}},{"binders":["x0"],"body":{"kind":"nat","value":"4"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult.Verification"}},{"binders":["x0"],"body":{"kind":"nat","value":"5"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult.Object"}},{"binders":["x0"],"body":{"kind":"nat","value":"6"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult.Head"}},{"binders":["x0"],"body":{"kind":"nat","value":"7"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult.Committed"}},{"binders":["x0"],"body":{"kind":"nat","value":"8"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult.Rejected"}},{"binders":[],"body":{"kind":"nat","value":"9"},"constructor":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult.Unknown"}}],"kind":"match","scrutinee":{"kind":"var","name":"value"}},"kind":"definition","name":"journalResultKind","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult"}}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"manifest"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectManifestValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"request"},{"kind":"var","name":"manifest"},{"field":"runtimeSession","kind":"project","value":{"kind":"var","name":"record"}}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectRequestValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"record"}],"function":{"name":"journalRecordValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"application","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"record"}}},{"field":"application","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"manifest","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"record"}}},{"field":"manifest","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"runtimeSession","kind":"project","value":{"kind":"var","name":"record"}},{"field":"session","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"runtimeOperation","kind":"project","value":{"kind":"var","name":"record"}},"right":{"field":"operation","kind":"project","value":{"kind":"var","name":"request"}}},"right":{"kind":"and","left":{"arguments":[{"field":"resource","kind":"project","value":{"kind":"var","name":"record"}},{"field":"resource","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"requestKind","kind":"project","value":{"kind":"var","name":"record"}},"right":{"arguments":[{"field":"effect","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"journalOperationKind"},"kind":"call"}},"right":{"kind":"bool","value":true}}}}}}}}}},"kind":"definition","name":"journalRequestMatches","parameters":[{"name":"record","type":{"arguments":[],"kind":"named","member":{"name":"JournalRecord"}}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectRequest"}}},{"name":"manifest","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectManifest"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"record"},{"kind":"var","name":"request"},{"kind":"var","name":"manifest"}],"function":{"name":"journalRequestMatches"},"kind":"call"},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"phase","kind":"project","value":{"kind":"var","name":"record"}}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"resultKind","kind":"project","value":{"kind":"var","name":"record"}},"right":{"arguments":[{"kind":"var","name":"response"}],"function":{"name":"journalResultKind"},"kind":"call"}},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"Option.none"}},{"binders":["adapter"],"body":{"arguments":[{"kind":"var","name":"response"},{"kind":"var","name":"request"},{"kind":"var","name":"adapter"}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectResultValid"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"grants","kind":"project","value":{"kind":"var","name":"manifest"}},{"field":"resource","kind":"project","value":{"kind":"var","name":"record"}}],"function":{"module":"Foundation.Browser.Application.V1.Effects","name":"effectFindAdapter"},"kind":"call"}},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"journalResultMatches","parameters":[{"name":"record","type":{"arguments":[],"kind":"named","member":{"name":"JournalRecord"}}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectRequest"}}},{"name":"response","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectResult"}}},{"name":"manifest","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Browser.Application.V1.Effects","name":"EffectManifest"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"fields":[{"field":"chunks","value":{"arguments":[],"constructor":{"name":"List.nil"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalChunk"}}]}}],"kind":"record","type":{"name":"JournalPlan"}},"constructor":{"name":"Nat.zero"}},{"binders":["rest"],"body":{"branches":[{"binders":[],"body":{"fields":[{"field":"chunks","value":{"arguments":[{"fields":[{"field":"offset","value":{"kind":"var","name":"offset"}},{"field":"length","value":{"branches":[{"binders":[],"body":{"kind":"nat","value":"1048576"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"var","name":"remaining"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"var","name":"remaining"},"right":{"kind":"nat","value":"1048576"}}}}],"kind":"record","type":{"name":"JournalChunk"}},{"field":"chunks","kind":"project","value":{"arguments":[{"arguments":[{"kind":"var","name":"remaining"},{"kind":"nat","value":"1048576"}],"kind":"primitive","operation":"subtract","result":{"kind":"nat"}},{"kind":"add","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"1048576"}},{"kind":"var","name":"rest"}],"function":{"name":"operationChunkPlan"},"kind":"call"}}],"constructor":{"name":"List.cons"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalChunk"}}]}}],"kind":"record","type":{"name":"JournalPlan"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"fields":[{"field":"chunks","value":{"arguments":[],"constructor":{"name":"List.nil"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"JournalChunk"}}]}}],"kind":"record","type":{"name":"JournalPlan"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"remaining"},"right":{"kind":"nat","value":"0"}}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"operationChunkPlan","parameters":[{"name":"remaining","type":{"kind":"nat"}},{"name":"offset","type":{"kind":"nat"}},{"name":"fuel","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"arguments":[],"kind":"named","member":{"name":"JournalPlan"}}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: JournalBinding,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: application, type: Bytes},
+    {name: manifest, type: Bytes},
+    {name: artifacts, type: Bytes},
+    {name: requestedPolicy, type: Bytes},
+    {name: effectivePolicy, type: Bytes},
+    {name: signingKey, type: Bytes},
+    {name: namespace, type: String},
+    {name: head, type: String},
+    {name: stagingHead, type: String},
+    {name: maximumRecords, type: Nat}
+  ]
+}
+
+structure{
+  name: JournalPayload,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: digest, type: Bytes},
+    {name: length, type: Nat},
+    {name: chunks, type: (List Bytes)}
+  ]
+}
+
+structure{
+  name: JournalRecord,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: binding, type: JournalBinding},
+    {name: revision, type: Nat},
+    {name: previous, type: Bytes},
+    {name: journalSession, type: Bytes},
+    {name: operation, type: Nat},
+    {name: runtimeSession, type: Bytes},
+    {name: runtimeOperation, type: Nat},
+    {name: resource, type: String},
+    {name: requestKind, type: Nat},
+    {name: phase, type: Nat},
+    {name: request, type: JournalPayload},
+    {name: resultKind, type: Nat},
+    {name: response, type: (Option JournalPayload)}
+  ]
+}
+
+structure{
+  name: JournalState,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: binding, type: JournalBinding},
+    {name: records, type: Nat},
+    {name: nextOperation, type: Nat},
+    {name: head, type: Bytes},
+    {name: pending, type: (Option JournalRecord)}
+  ]
+}
+
+structure{
+  name: JournalChunk,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: offset, type: Nat}, {name: length, type: Nat}]
+}
+
+structure{
+  name: JournalPlan,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: chunks, type: (List JournalChunk)}]
+}
+
+inductive{
+  name: JournalError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BadBinding, fields: []},
+    {name: BadRecord, fields: []},
+    {name: BadState, fields: []},
+    {name: BindingChanged, fields: []},
+    {name: RecordLimit, fields: []},
+    {name: RevisionMismatch, fields: []},
+    {name: PredecessorMismatch, fields: []},
+    {name: OperationOverflow, fields: []},
+    {name: OperationMismatch, fields: []},
+    {name: PendingOperation, fields: []},
+    {name: MissingPending, fields: []},
+    {name: TerminalMismatch, fields: []}
+  ]
+}
+
+definition{
+  name: journalRefValid,
+  parameters: [value : Bytes],
+  result: Bool,
+  body: ((prim length value : Nat) =? 32),
+  axioms: []
+}
+
+definition{
+  name: journalBindingValid,
+  parameters: [value : JournalBinding],
+  result: Bool,
+  body: ((journalRefValid (project value application)) && ((journalRefValid (project value manifest)) && ((journalRefValid (project value artifacts)) && ((journalRefValid (project value requestedPolicy)) && ((journalRefValid (project value effectivePolicy)) && (((prim length (project value signingKey) : Nat) =? 65) && ((Foundation.Browser.Application.V1.Effects::effectNameValid (project value namespace) 0) && ((Foundation.Browser.Application.V1.Effects::effectNameValid (project value head) 0) && ((Foundation.Browser.Application.V1.Effects::effectNameValid (project value stagingHead) 0) && ((not (prim equal (project value head) (project value stagingHead) : Bool)) && ((2 <=? (project value maximumRecords)) && (((project value maximumRecords) <=? 1024) && true)))))))))))),
+  axioms: []
+}
+
+definition{
+  name: journalBindingEqual,
+  parameters: [left : JournalBinding, right : JournalBinding],
+  result: Bool,
+  body: ((prim equal (project left application) (project right application) : Bool) && ((prim equal (project left manifest) (project right manifest) : Bool) && ((prim equal (project left artifacts) (project right artifacts) : Bool) && ((prim equal (project left requestedPolicy) (project right requestedPolicy) : Bool) && ((prim equal (project left effectivePolicy) (project right effectivePolicy) : Bool) && ((prim equal (project left signingKey) (project right signingKey) : Bool) && ((prim equal (project left namespace) (project right namespace) : Bool) && ((prim equal (project left head) (project right head) : Bool) && ((prim equal (project left stagingHead) (project right stagingHead) : Bool) && (((project left maximumRecords) =? (project right maximumRecords)) && true)))))))))),
+  axioms: []
+}
+
+definition{
+  name: journalChunksValid,
+  parameters: [chunks : (List Bytes), remaining : Nat],
+  result: Bool,
+  body: (match chunks
+    | List.nil => (remaining =? 0)
+    | List.cons head tail => ((journalRefValid head) && ((0 <? remaining) && ((match (remaining <=? 1048576)
+      | Bool.false => (journalChunksValid tail (prim subtract remaining 1048576 : Nat))
+      | Bool.true => (journalChunksValid tail 0)) && true)))),
+  axioms: [],
+  recursive_argument: chunks
+}
+
+definition{
+  name: journalPayloadValid,
+  parameters: [value : JournalPayload],
+  result: Bool,
+  body: ((journalRefValid (project value digest)) && ((0 <? (project value length)) && (((project value length) <=? 67108864) && ((journalChunksValid (project value chunks) (project value length)) && true)))),
+  axioms: []
+}
+
+definition{
+  name: journalPayloadEqual,
+  parameters: [left : JournalPayload, right : JournalPayload],
+  result: Bool,
+  body: ((prim equal (project left digest) (project right digest) : Bool) && (((project left length) =? (project right length)) && ((Foundation.Browser.Application.V1.Effects::effectObjectsEqual (project left chunks) (project right chunks)) && true))),
+  axioms: []
+}
+
+definition{
+  name: journalRecordValid,
+  parameters: [value : JournalRecord],
+  result: Bool,
+  body: ((journalBindingValid (project value binding)) && ((0 <? (project value revision)) && (((project value revision) <=? 1024) && ((journalRefValid (project value previous)) && ((journalRefValid (project value journalSession)) && ((journalRefValid (project value runtimeSession)) && (((project value operation) <? 4294967295) && (((project value runtimeOperation) <? 4294967295) && ((0 <? (prim length (prim utf8_encode (project value resource) : Bytes) : Nat)) && (((prim length (prim utf8_encode (project value resource) : Bytes) : Nat) <=? 128) && (((project value requestKind) <=? 7) && (((project value phase) <=? 2) && ((journalPayloadValid (project value request)) && ((match ((project value phase) =? 0)
+    | Bool.false => ((match ((project value phase) =? 1)
+      | Bool.false => ((project value resultKind) =? 8)
+      | Bool.true => ((project value resultKind) =? (project value requestKind))) && ((match (project value response)
+      | Option.none => false
+      | Option.some payload => (journalPayloadValid payload)) && true))
+    | Bool.true => (((project value resultKind) =? 9) && ((match (project value response)
+      | Option.none => true
+      | Option.some payload => false) && true))) && true)))))))))))))),
+  axioms: []
+}
+
+definition{
+  name: journalRecordRequestEqual,
+  parameters: [left : JournalRecord, right : JournalRecord],
+  result: Bool,
+  body: ((journalBindingEqual (project left binding) (project right binding)) && ((prim equal (project left journalSession) (project right journalSession) : Bool) && ((prim equal (project left runtimeSession) (project right runtimeSession) : Bool) && (((project left operation) =? (project right operation)) && (((project left runtimeOperation) =? (project right runtimeOperation)) && (((project left requestKind) =? (project right requestKind)) && ((prim equal (project left resource) (project right resource) : Bool) && ((journalPayloadEqual (project left request) (project right request)) && true)))))))),
+  axioms: []
+}
+
+definition{
+  name: journalStateValid,
+  parameters: [value : JournalState],
+  result: Bool,
+  body: ((journalBindingValid (project value binding)) && (((project value records) <=? (project (project value binding) maximumRecords)) && (((project value nextOperation) <=? 4294967295) && ((journalRefValid (project value head)) && ((match ((project value records) =? 0)
+    | Bool.false => true
+    | Bool.true => ((project value nextOperation) =? 0)) && ((match (project value pending)
+    | Option.none => true
+    | Option.some pending => ((journalRecordValid pending) && ((journalBindingEqual (project pending binding) (project value binding)) && (((project pending phase) =? 0) && (((project pending revision) =? (project value records)) && ((((project pending operation) + 1) =? (project value nextOperation)) && true)))))) && true)))))),
+  axioms: []
+}
+
+definition{
+  name: beginOperationJournal,
+  parameters: [binding : JournalBinding, genesis : Bytes],
+  result: (Result JournalState JournalError),
+  body: (match ((journalBindingValid binding) && ((journalRefValid genesis) && true))
+    | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.BadBinding))
+    | Bool.true => (ctor Result.ok [JournalState, JournalError] (record JournalState {binding := binding, records := 0, nextOperation := 0, head := genesis, pending := (ctor Option.none [JournalRecord])}))),
+  axioms: []
+}
+
+definition{
+  name: appendOperationRecord,
+  parameters: [state : JournalState, incoming : JournalRecord, digest : Bytes],
+  result: (Result JournalState JournalError),
+  body: (match (journalStateValid state)
+    | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.BadState))
+    | Bool.true => (match ((journalRecordValid incoming) && ((journalRefValid digest) && true))
+      | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.BadRecord))
+      | Bool.true => (match (journalBindingEqual (project state binding) (project incoming binding))
+        | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.BindingChanged))
+        | Bool.true => (match ((project state records) <? (project (project state binding) maximumRecords))
+          | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.RecordLimit))
+          | Bool.true => (match ((project incoming revision) =? ((project state records) + 1))
+            | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.RevisionMismatch))
+            | Bool.true => (match (prim equal (project incoming previous) (project state head) : Bool)
+              | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.PredecessorMismatch))
+              | Bool.true => (match ((project incoming phase) =? 0)
+                | Bool.false => (match (project state pending)
+                  | Option.none => (ctor Result.error [JournalState, JournalError] (ctor JournalError.MissingPending))
+                  | Option.some old => (match (journalRecordRequestEqual old incoming)
+                    | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.TerminalMismatch))
+                    | Bool.true => (ctor Result.ok [JournalState, JournalError] (record JournalState {binding := (project state binding), records := (project incoming revision), nextOperation := (project state nextOperation), head := digest, pending := (ctor Option.none [JournalRecord])}))))
+                | Bool.true => (match (((project state records) + 2) <=? (project (project state binding) maximumRecords))
+                  | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.RecordLimit))
+                  | Bool.true => (match ((project state nextOperation) <? 4294967295)
+                    | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.OperationOverflow))
+                    | Bool.true => (match ((project incoming operation) =? (project state nextOperation))
+                      | Bool.false => (ctor Result.error [JournalState, JournalError] (ctor JournalError.OperationMismatch))
+                      | Bool.true => (match (project state pending)
+                        | Option.some old => (ctor Result.error [JournalState, JournalError] (ctor JournalError.PendingOperation))
+                        | Option.none => (ctor Result.ok [JournalState, JournalError] (record JournalState {binding := (project state binding), records := (project incoming revision), nextOperation := ((project state nextOperation) + 1), head := digest, pending := (ctor Option.some [JournalRecord] incoming)}))))))))))))),
+  axioms: []
+}
+
+definition{
+  name: journalOperationKind,
+  parameters: [value : Foundation.Browser.Application.V1.Effects::EffectOperation],
+  result: Nat,
+  body: (match value
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.InvokeGuest x0 => 0
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.RandomBytes x0 => 1
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.DigestBytes x0 => 2
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.SignBytes x0 => 3
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.VerifyBytes x0 => 4
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.ReadObject x0 => 5
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.ReadHead x0 => 6
+    | Foundation.Browser.Application.V1.Effects::EffectOperation.Commit x0 => 7),
+  axioms: []
+}
+
+definition{
+  name: journalResultKind,
+  parameters: [value : Foundation.Browser.Application.V1.Effects::EffectResult],
+  result: Nat,
+  body: (match value
+    | Foundation.Browser.Application.V1.Effects::EffectResult.GuestBytes x0 => 0
+    | Foundation.Browser.Application.V1.Effects::EffectResult.RandomBytes x0 => 1
+    | Foundation.Browser.Application.V1.Effects::EffectResult.Digest x0 => 2
+    | Foundation.Browser.Application.V1.Effects::EffectResult.Signature x0 => 3
+    | Foundation.Browser.Application.V1.Effects::EffectResult.Verification x0 => 4
+    | Foundation.Browser.Application.V1.Effects::EffectResult.Object x0 => 5
+    | Foundation.Browser.Application.V1.Effects::EffectResult.Head x0 => 6
+    | Foundation.Browser.Application.V1.Effects::EffectResult.Committed x0 => 7
+    | Foundation.Browser.Application.V1.Effects::EffectResult.Rejected x0 => 8
+    | Foundation.Browser.Application.V1.Effects::EffectResult.Unknown => 9),
+  axioms: []
+}
+
+definition{
+  name: journalRequestMatches,
+  parameters: [
+    record : JournalRecord,
+    request : Foundation.Browser.Application.V1.Effects::EffectRequest,
+    manifest : Foundation.Browser.Application.V1.Effects::EffectManifest
+  ],
+  result: Bool,
+  body: ((Foundation.Browser.Application.V1.Effects::effectManifestValid manifest) && ((Foundation.Browser.Application.V1.Effects::effectRequestValid request manifest (project var{
+    name: record
+  } runtimeSession)) && ((journalRecordValid var{
+    name: record
+  }) && ((prim equal (project (project var{
+    name: record
+  } binding) application) (project request application) : Bool) && ((prim equal (project (project var{
+    name: record
+  } binding) manifest) (project request manifest) : Bool) && ((prim equal (project var{
+    name: record
+  } runtimeSession) (project request session) : Bool) && (((project var{
+    name: record
+  } runtimeOperation) =? (project request operation)) && ((prim equal (project var{
+    name: record
+  } resource) (project request resource) : Bool) && (((project var{
+    name: record
+  } requestKind) =? (journalOperationKind (project request effect))) && true))))))))),
+  axioms: []
+}
+
+definition{
+  name: journalResultMatches,
+  parameters: [
+    record : JournalRecord,
+    request : Foundation.Browser.Application.V1.Effects::EffectRequest,
+    response : Foundation.Browser.Application.V1.Effects::EffectResult,
+    manifest : Foundation.Browser.Application.V1.Effects::EffectManifest
+  ],
+  result: Bool,
+  body: ((journalRequestMatches var{
+    name: record
+  } request manifest) && ((0 <? (project var{
+    name: record
+  } phase)) && (((project var{
+    name: record
+  } resultKind) =? (journalResultKind response)) && ((match (Foundation.Browser.Application.V1.Effects::effectFindAdapter (project manifest grants) (project var{
+      name: record
+    } resource))
+    | Option.none => false
+    | Option.some adapter => (Foundation.Browser.Application.V1.Effects::effectResultValid response request adapter)) && true)))),
+  axioms: []
+}
+
+definition{
+  name: operationChunkPlan,
+  parameters: [remaining : Nat, offset : Nat, fuel : Nat],
+  result: JournalPlan,
+  body: (match fuel
+    | Nat.zero => (record JournalPlan {chunks := (ctor List.nil [JournalChunk])})
+    | Nat.succ rest => (match (remaining =? 0)
+      | Bool.false => (record JournalPlan {chunks := (ctor List.cons [JournalChunk] (record JournalChunk {offset := offset, length := (match (remaining <=? 1048576)
+        | Bool.false => 1048576
+        | Bool.true => remaining)}) (project (operationChunkPlan (prim subtract remaining 1048576 : Nat) (offset + 1048576) rest) chunks))})
+      | Bool.true => (record JournalPlan {chunks := (ctor List.nil [JournalChunk])}))),
+  axioms: [],
+  recursive_argument: fuel
+}
 \end{semanticmodule}
 \end{lexlean}

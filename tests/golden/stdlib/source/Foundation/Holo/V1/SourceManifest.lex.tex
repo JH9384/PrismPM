@@ -1,8 +1,33 @@
 \begin{lexlean}{Foundation.Holo.V1.SourceManifest}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"path","type":{"kind":"string"}},{"name":"sha256","type":{"kind":"bytes"}},{"name":"byteLength","type":{"kind":"uint64"}}],"kind":"structure","name":"SourceFile","parameters":[],"type_parameters":[]},{"fields":[{"name":"version","type":{"kind":"uint16"}},{"name":"applicationName","type":{"kind":"string"}},{"name":"coreContract","type":{"kind":"string"}},{"name":"wasmPath","type":{"kind":"string"}},{"name":"viewPath","type":{"kind":"string"}},{"name":"files","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SourceFile"}},"kind":"list"}}],"kind":"structure","name":"SourceManifest","parameters":[],"type_parameters":[]},{"body":{"kind":"integer","representation":"uint16","value":"4"},"kind":"definition","name":"sourceManifestVersion","parameters":[],"result":{"kind":"uint16"}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: SourceFile,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: path, type: String},
+    {name: sha256, type: Bytes},
+    {name: byteLength, type: UInt64}
+  ]
+}
+
+structure{
+  name: SourceManifest,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: version, type: UInt16},
+    {name: applicationName, type: String},
+    {name: coreContract, type: String},
+    {name: wasmPath, type: String},
+    {name: viewPath, type: String},
+    {name: files, type: (List SourceFile)}
+  ]
+}
+
+definition{name: sourceManifestVersion, parameters: [], result: UInt16, body: (4 : UInt16)}
 \end{semanticmodule}
 \end{lexlean}

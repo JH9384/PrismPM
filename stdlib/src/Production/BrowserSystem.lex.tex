@@ -97,22 +97,156 @@ definition{
 }
 
 definition{
+  name: containsString,
+  parameters: [items : (List String), value : String],
+  result: Bool,
+  body: (match items
+    | List.nil => false
+    | List.cons head tail => ((prim equal head value : Bool) || ((containsString tail value) || false))),
+  recursive_argument: items
+}
+
+definition{
+  name: distinctStrings,
+  parameters: [items : (List String)],
+  result: Bool,
+  body: (match items
+    | List.nil => true
+    | List.cons head tail => ((not (containsString tail head)) && ((distinctStrings tail) && true))),
+  recursive_argument: items
+}
+
+definition{
+  name: appendStrings,
+  parameters: [left : (List String), right : (List String)],
+  result: (List String),
+  body: (match left
+    | List.nil => right
+    | List.cons head tail => (cons head (appendStrings tail right))),
+  recursive_argument: left
+}
+
+definition{
+  name: componentIds,
+  parameters: [rows : (List Component)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (componentIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: artifactIds,
+  parameters: [rows : (List GeneratedArtifact)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (artifactIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: targetIds,
+  parameters: [rows : (List Target)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (targetIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: artifactHasRole,
+  parameters: [rows : (List GeneratedArtifact), wanted : String, wantedRole : String],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons head tail => (((prim equal (project head id) wanted : Bool) && ((prim equal (project head role) wantedRole : Bool) && true)) || ((artifactHasRole tail wanted wantedRole) || false))),
+  recursive_argument: rows
+}
+
+definition{
+  name: artifactReferenced,
+  parameters: [rows : (List Component), wanted : String],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons head tail => ((prim equal (project head artifact) wanted : Bool) || ((artifactReferenced tail wanted) || false))),
+  recursive_argument: rows
+}
+
+definition{
+  name: validComponents,
+  parameters: [rows : (List Component), artifacts : (List GeneratedArtifact)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => ((not (prim equal (project head id) "" : Bool)) && ((not (prim equal (project head version) "" : Bool)) && ((((prim equal (project head kind) "browser" : Bool) && ((artifactHasRole artifacts (project head artifact) "selected-application") && true)) || (((prim equal (project head kind) "cli" : Bool) && ((artifactHasRole artifacts (project head artifact) "release-binary") && true)) || false)) && ((validComponents tail artifacts) && true))))),
+  recursive_argument: rows
+}
+
+definition{
+  name: validArtifacts,
+  parameters: [rows : (List GeneratedArtifact), components : (List Component)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => ((not (prim equal (project head id) "" : Bool)) && ((prim equal (project head licenseExpression) "MIT OR Apache-2.0" : Bool) && (((prim equal (project head role) "selected-application" : Bool) || ((prim equal (project head role) "release-binary" : Bool) || false)) && ((artifactReferenced components (project head id)) && ((validArtifacts tail components) && true)))))),
+  recursive_argument: rows
+}
+
+definition{
+  name: validTargets,
+  parameters: [rows : (List Target)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => ((not (prim equal (project head id) "" : Bool)) && ((not (prim equal (project head adapterDigest) "" : Bool)) && ((((prim equal (project head kind) "github-pages-browser" : Bool) && ((prim equal (project head apiVersion) "github-pages-artifact@v4" : Bool) && true)) || (((prim equal (project head kind) "release-binary" : Bool) && ((prim equal (project head apiVersion) "github-release-asset@v1" : Bool) && true)) || false)) && (((prim equal (project head minimumReleaseStatus) "development" : Bool) || ((prim equal (project head minimumReleaseStatus) "candidate" : Bool) || ((prim equal (project head minimumReleaseStatus) "accepted" : Bool) || false))) && ((validTargets tail) && true)))))),
+  recursive_argument: rows
+}
+
+definition{
   name: validateManifest,
   parameters: [model : SystemModel, manifest : SystemManifest],
   result: Bool,
   body: (match (project model components)
     | List.nil => false
-    | List.cons component componentRest => (match componentRest
-      | List.nil => (match (project model artifacts)
+    | List.cons component componentRest => (match (project model artifacts)
+      | List.nil => false
+      | List.cons artifact artifactRest => (match (project model targets)
         | List.nil => false
-        | List.cons artifact artifactRest => (match artifactRest
-          | List.nil => (match (project model targets)
-            | List.nil => false
-            | List.cons target targetRest => (match targetRest
-              | List.nil => ((prim equal (project (project model applicationProfile) contract) "prismpm/browser-resident-application/1" : Bool) && ((prim equal (project (project model applicationProfile) execution) "browser-session" : Bool) && ((prim equal (project (project model applicationProfile) persistentStorage) "none" : Bool) && ((prim equal (project (project model applicationProfile) externalServices) "none" : Bool) && ((equalStrings (project (project model applicationProfile) resources) (cons "dom" (cons "webassembly" (nil String)))) && ((equalStrings (project (project model applicationProfile) capabilities) (cons "portable-static-holo-application" (nil String))) && ((equalStrings (project model controls) (cons "application-acceptance" (cons "artifact-closure" (cons "source-proof" (cons "spdx" (nil String)))))) && ((equalStrings (project model standards) (cons "SPDX-3.0.1" (nil String))) && ((equalStrings (project (project model product) supportedPlatforms) (cons "browser" (nil String))) && ((not (prim equal (project (project model product) id) "" : Bool)) && ((not (prim equal (project (project model product) owner) "" : Bool)) && ((not (prim equal (project (project model product) sourcePolicy) "" : Bool)) && ((not (prim equal (project (project model product) version) "" : Bool)) && (((prim equal (project (project model product) lifecycle) "development" : Bool) || ((prim equal (project (project model product) lifecycle) "candidate" : Bool) || ((prim equal (project (project model product) lifecycle) "accepted" : Bool) || ((prim equal (project (project model product) lifecycle) "retired" : Bool) || false)))) && ((not (prim equal (project (project model applicationProfile) applicationModelDigest) "" : Bool)) && ((not (prim equal (project component id) "" : Bool)) && ((not (prim equal (project component version) "" : Bool)) && ((not (prim equal (project artifact id) "" : Bool)) && ((not (prim equal (project target id) "" : Bool)) && ((not (prim equal (project target adapterDigest) "" : Bool)) && ((prim equal (project component kind) "browser" : Bool) && ((prim equal (project component artifact) (project artifact id) : Bool) && ((prim equal (project artifact role) "selected-application" : Bool) && ((prim equal (project artifact licenseExpression) "MIT OR Apache-2.0" : Bool) && ((prim equal (project target kind) "github-pages-browser" : Bool) && ((prim equal (project target apiVersion) "github-pages-artifact@v4" : Bool) && (((prim equal (project target minimumReleaseStatus) "development" : Bool) || ((prim equal (project target minimumReleaseStatus) "candidate" : Bool) || ((prim equal (project target minimumReleaseStatus) "accepted" : Bool) || false))) && ((prim equal (project manifest applicationModelDigest) (project (project model applicationProfile) applicationModelDigest) : Bool) && ((prim equal (project manifest productId) (project (project model product) id) : Bool) && ((prim equal (project manifest productVersion) (project (project model product) version) : Bool) && ((prim equal (project manifest componentId) (project component id) : Bool) && ((prim equal (project manifest artifactId) (project artifact id) : Bool) && ((prim equal (project manifest targetId) (project target id) : Bool) && ((equalStrings (project manifest controls) (project model controls)) && ((not (prim equal (project (project model product) id) (project component id) : Bool)) && ((not (prim equal (project (project model product) id) (project artifact id) : Bool)) && ((not (prim equal (project (project model product) id) (project target id) : Bool)) && ((not (prim equal (project component id) (project artifact id) : Bool)) && ((not (prim equal (project component id) (project target id) : Bool)) && ((not (prim equal (project artifact id) (project target id) : Bool)) && true))))))))))))))))))))))))))))))))))))))))
-              | List.cons targetExtra targetRestExtra => false))
-          | List.cons artifactExtra artifactRestExtra => false))
-      | List.cons componentExtra componentRestExtra => false))
+        | List.cons target targetRest => ((prim equal (project (project model applicationProfile) contract) "prismpm/browser-resident-application/1" : Bool) && ((prim equal (project (project model applicationProfile) execution) "browser-session" : Bool) && ((prim equal (project (project model applicationProfile) persistentStorage) "none" : Bool) && ((prim equal (project (project model applicationProfile) externalServices) "none" : Bool) && ((equalStrings (project (project model applicationProfile) resources) (cons "dom" (cons "webassembly" (nil String)))) && ((equalStrings (project (project model applicationProfile) capabilities) (cons "portable-static-holo-application" (nil String))) && ((equalStrings (project model controls) (cons "application-acceptance" (cons "artifact-closure" (cons "source-proof" (cons "spdx" (nil String)))))) && ((equalStrings (project model standards) (cons "SPDX-3.0.1" (nil String))) && ((equalStrings (project (project model product) supportedPlatforms) (cons "browser" (nil String))) && ((not (prim equal (project (project model product) id) "" : Bool)) && ((not (prim equal (project (project model product) owner) "" : Bool)) && ((not (prim equal (project (project model product) sourcePolicy) "" : Bool)) && ((not (prim equal (project (project model product) version) "" : Bool)) && (((prim equal (project (project model product) lifecycle) "development" : Bool) || ((prim equal (project (project model product) lifecycle) "candidate" : Bool) || ((prim equal (project (project model product) lifecycle) "accepted" : Bool) || ((prim equal (project (project model product) lifecycle) "retired" : Bool) || false)))) && ((not (prim equal (project (project model applicationProfile) applicationModelDigest) "" : Bool)) && ((not (prim equal (project component id) "" : Bool)) && ((not (prim equal (project component version) "" : Bool)) && ((not (prim equal (project artifact id) "" : Bool)) && ((not (prim equal (project target id) "" : Bool)) && ((not (prim equal (project target adapterDigest) "" : Bool)) && ((prim equal (project component kind) "browser" : Bool) && ((prim equal (project component artifact) (project artifact id) : Bool) && ((prim equal (project artifact role) "selected-application" : Bool) && ((prim equal (project artifact licenseExpression) "MIT OR Apache-2.0" : Bool) && ((prim equal (project target kind) "github-pages-browser" : Bool) && ((prim equal (project target apiVersion) "github-pages-artifact@v4" : Bool) && (((prim equal (project target minimumReleaseStatus) "development" : Bool) || ((prim equal (project target minimumReleaseStatus) "candidate" : Bool) || ((prim equal (project target minimumReleaseStatus) "accepted" : Bool) || false))) && ((prim equal (project manifest applicationModelDigest) (project (project model applicationProfile) applicationModelDigest) : Bool) && ((prim equal (project manifest productId) (project (project model product) id) : Bool) && ((prim equal (project manifest productVersion) (project (project model product) version) : Bool) && ((prim equal (project manifest componentId) (project component id) : Bool) && ((prim equal (project manifest artifactId) (project artifact id) : Bool) && ((prim equal (project manifest targetId) (project target id) : Bool) && ((equalStrings (project manifest controls) (project model controls)) && ((distinctStrings (cons (project (project model product) id) (appendStrings (componentIds (project model components)) (appendStrings (artifactIds (project model artifacts)) (targetIds (project model targets)))))) && ((validComponents componentRest (project model artifacts)) && ((validArtifacts artifactRest (project model components)) && ((validTargets targetRest) && true)))))))))))))))))))))))))))))))))))))))))
+}
+
+definition{
+  name: exampleBrowserCliModel,
+  parameters: [cliArtifact : String],
+  result: SystemModel,
+  body: (record SystemModel {product := (record Production.Core::Product {id := "browser-cli-product", owner := "UOR Foundation", version := "A", lifecycle := "development", sourcePolicy := "selected LexLean source and kernel proof", supportedPlatforms := (cons "browser" (nil String))}), applicationProfile := (record ApplicationProfile {contract := "prismpm/browser-resident-application/1", applicationModelDigest := "sha256:de510ca735a4394615c29194f3d7b3bcafe3b7b46da6e1b126423df4ce619e4b", execution := "browser-session", persistentStorage := "none", externalServices := "none", resources := (cons "dom" (cons "webassembly" (nil String))), capabilities := (cons "portable-static-holo-application" (nil String))}), artifacts := (cons (record GeneratedArtifact {id := "generated-application", role := "selected-application", licenseExpression := "MIT OR Apache-2.0"}) (cons (record GeneratedArtifact {id := "generated-binary", role := "release-binary", licenseExpression := "MIT OR Apache-2.0"}) (nil GeneratedArtifact))), components := (cons (record Component {id := "browser-application", artifact := "generated-application", kind := "browser", version := "0.1.0"}) (cons (record Component {id := "command-line", artifact := cliArtifact, kind := "cli", version := "0.1.0"}) (nil Component))), targets := (cons (record Target {id := "pages", kind := "github-pages-browser", adapterDigest := "sha256:59df071a35deca05e62224e43b82d7bc9b5c649f989a3424fd704123633a539e", apiVersion := "github-pages-artifact@v4", minimumReleaseStatus := "development"}) (cons (record Target {id := "release", kind := "release-binary", adapterDigest := "sha256:59df071a35deca05e62224e43b82d7bc9b5c649f989a3424fd704123633a539e", apiVersion := "github-release-asset@v1", minimumReleaseStatus := "candidate"}) (nil Target))), controls := (cons "application-acceptance" (cons "artifact-closure" (cons "source-proof" (cons "spdx" (nil String))))), standards := (cons "SPDX-3.0.1" (nil String))})
+}
+
+definition{
+  name: exampleBrowserCliManifest,
+  parameters: [],
+  result: SystemManifest,
+  body: (record SystemManifest {applicationModelDigest := "sha256:de510ca735a4394615c29194f3d7b3bcafe3b7b46da6e1b126423df4ce619e4b", productId := "browser-cli-product", productVersion := "A", componentId := "browser-application", artifactId := "generated-application", targetId := "pages", controls := (cons "application-acceptance" (cons "artifact-closure" (cons "source-proof" (cons "spdx" (nil String)))))})
+}
+
+theorem{
+  name: browserAndCliSystemIsAdmitted,
+  parameters: [],
+  statement: ((validateManifest (exampleBrowserCliModel "generated-binary") (exampleBrowserCliManifest)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: cliComponentMustReferenceReleaseBinary,
+  parameters: [],
+  statement: ((validateManifest (exampleBrowserCliModel "generated-application") (exampleBrowserCliManifest)) = false),
+  proof: decide{},
+  axioms: []
 }
 \end{semanticmodule}
 \end{lexlean}

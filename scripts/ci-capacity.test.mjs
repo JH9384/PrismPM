@@ -27,9 +27,18 @@ function sourceEvents(name, value) {
 
 function parallelContract(value) {
   sourceEvents('ci-parallel', value);
-  assert.deepEqual(Object.keys(value.jobs), jobs.map(row => row[0]));
+  assert.deepEqual(Object.keys(value.jobs), ['devcontainer-image', ...jobs.map(row => row[0])]);
+  const image = value.jobs['devcontainer-image'];
+  assert.equal(image.name, 'Devcontainer image cache');
+  assert.equal(image['timeout-minutes'], 40);
+  assert(!('if' in image) && !('strategy' in image) && !('needs' in image));
+  assert.equal(image.steps[0].uses, 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683');
+  assert.equal(image.steps.at(-1).uses, 'devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6');
+  assert.equal(image.steps.at(-1).with.push, 'never');
+  assert.equal(image.steps.at(-1).with.runCmd, 'true');
   for (const [id, name, timeout, command] of jobs) {
     const job = value.jobs[id];
+    assert.equal(job.needs, 'devcontainer-image', id);
     assert.equal(job.name, name);
     assert.equal(job['timeout-minutes'], timeout);
     assert(!('if' in job) && !('strategy' in job), id);
@@ -51,6 +60,9 @@ test('parallel policy refuses missing, duplicated, weakened or unbounded executi
   const original = workflow('ci-parallel');
   for (const mutate of [
     v => delete v.jobs['model-and-audits'],
+    v => delete v.jobs['devcontainer-image'],
+    v => delete v.jobs['model-and-audits'].needs,
+    v => v.jobs['devcontainer-image'].steps.at(-1).with.runCmd = 'cargo xtask validate',
     v => v.jobs.extra = v.jobs['lint-and-policy'],
     v => v.jobs['lint-and-policy'].steps.at(-1).with.runCmd = 'cargo fmt --check',
     v => v.jobs['model-and-audits'].steps.at(-1).with.runCmd += ' || true',
@@ -309,7 +321,7 @@ const expectedMatrices = {
 // only the explicitly reviewed timeout and matrix concurrency fields differ.
 const candidateJobs = {
   'input-policy': [30, '1a2606aed5c40be2c5fd6ade291d4d8cc8f48b265ec77346e886d7e429331b1c'],
-  policy: [10, 'd8c166a9586b9ecf4e6852352218bdeec51b918562604c920fea38db8e13d499'],
+  policy: [30, 'd8c166a9586b9ecf4e6852352218bdeec51b918562604c920fea38db8e13d499'],
   build: [180, '54a93dd0777745bc3e2d455e06019b4971bce7fc4c3b2baed1451fbc796f143d'],
   publish: [60, 'eed34aecea86d7fb123167999bb1a0048f62609f6fc91d6979eeb0dcb8340128'],
   'unpublished-construction': [180, '1d3f4bfbee8ab48dcb68a2a754be821358dcd5658ea7993ad4e32aee7c023254'],

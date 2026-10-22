@@ -1368,14 +1368,19 @@ other requirements are rejected, not recorded as unused metadata.
 An authored `SystemManifest` and its empty-axiom, generated
 `validateManifest model manifest = true` theorem bind the exact selected
 model, manifest, product/release, application digest, component, artifact,
-target and mandatory control list. The first component, artifact and target are
-the browser application the manifest binds; a system may add further
-components, artifacts and targets, such as a `cli` component with a
-`release-binary` artifact and a `release-binary` target of API version
-`github-release-asset@v1`. Every entry is checked, every artifact is referenced
-by a component, a component references an artifact whose role matches its kind,
-and all graph identities are distinct. The `prismpm/system-model/2` JSON
-projection and its release pipeline still admit one entry of each. The mandatory controls are
+target and mandatory control list. The first component, artifact and target
+are the browser application the manifest binds. A text/3 application may
+additionally declare, always second, one `cli` component whose
+`command-line-program` artifact is the generated static program set of the
+same application at the head component's version; no other component,
+artifact, role or target cardinality is admitted, and the validator refuses a
+second browser, two `cli` components, a version mismatch, a dangling or
+mis-roled artifact reference and any extra target. A `cli` component on an
+application that models no command line is refused with PP2101. The optional
+command-line pair is bound by the system digest and the release binding's
+artifact rows, so a single-component system and its generated documents are
+unchanged by the admission. No release target publishes the program: no SDK
+adapter exists for it. The mandatory controls are
 `application-acceptance`, `artifact-closure`, `source-proof` and `spdx`;
 they cannot be omitted or replaced by submitted optional claims.
 Presence of ownership text does not authenticate an owner.
@@ -1386,7 +1391,9 @@ application digest and exact ordered artifact path/size/SHA-256 rows.
 Rows cover all generated build artifacts except the containing system,
 system projections and the self-identifying build manifest. The generated
 Holo/1 application and exact supported six-file browser projection are
-required. This profile accepts only the existing Legacy and Text application
+required, and a declared `cli` component additionally requires both static
+programs and `cli/sbom.spdx.json` in the closure; the SPDX projection then
+describes both packages. This profile accepts only the existing Legacy and Text application
 variants; empty Holo capabilities do not admit browser-effect requirements.
 `build-inputs/2` separately binds the complete final artifact
 table, including both system projections. This avoids a circular source

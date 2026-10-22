@@ -540,3 +540,31 @@ fn text_v3_none_resource_bounds_project_as_the_explicit_v1_budget() {
     assert!(schema().is_valid(&serde_json::to_value(&doc).unwrap()));
     assert_eq!(doc.application, project(&explicit, V3).unwrap().application);
 }
+
+/// One absent bound does not default the other: `none` pages with explicit
+/// stack bytes project 32 pages and the stated 131072 stack bytes.
+#[test]
+fn text_v3_one_none_and_one_some_bound_project_independently() {
+    let mixed = source().replace(
+        "(ctor Option.some [UInt32] (64 : UInt32))",
+        "(ctor Option.none [UInt32])",
+    );
+    assert_ne!(mixed, source());
+    let doc = project(&mixed, V3).unwrap();
+    let Some(Application::Text(text)) = &doc.application else {
+        panic!("text/3 projects a text application");
+    };
+    assert_eq!(text.core_memory_pages, Some(32));
+    assert_eq!(text.core_stack_bytes, Some(131072));
+    assert!(schema().is_valid(&serde_json::to_value(&doc).unwrap()));
+    let reverse = source().replace(
+        "(ctor Option.some [UInt32] (131072 : UInt32))",
+        "(ctor Option.none [UInt32])",
+    );
+    let doc = project(&reverse, V3).unwrap();
+    let Some(Application::Text(text)) = &doc.application else {
+        panic!("text/3 projects a text application");
+    };
+    assert_eq!(text.core_memory_pages, Some(64));
+    assert_eq!(text.core_stack_bytes, Some(65536));
+}

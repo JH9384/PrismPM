@@ -113,6 +113,44 @@ contains `canonicalIndexes` so the supported caller-owned list-return buffer
 and its exact exhaustion error are exercised; the host remains responsible for
 sorting external IDs before assigning indexes.
 
+### 2.1 Design views
+
+FT-11 and ST-18 admit OPM (ISO/PAS 19450:2015) and OMG UML 2.5.1 design views
+as ISO/IEC/IEEE 42010 views. `Foundation.Arch` declares `DesignView`, which
+conforms to a registered `Viewpoint` and is drawn as one `DesignDiagram`
+(`opmObjectProcess`, `umlComponent`, `umlSequence` or `umlStateMachine`), the
+`SystemProcess` and `SystemState` declarations that extend the system model
+beyond its components and edges (each is owned by one component), and the
+elements of a view. The covered subset is stated in `model/standards.toml`:
+
+- OPM: `OpmThing` (objects and processes), `OpmState`, `OpmLink` (agent,
+  instrument, consumption, result, effect, invocation, aggregation,
+  exhibition, generalization, classification) and `OpmZoom` (in-zooming of
+  processes).
+- UML: `UmlComponent` and `UmlConnector` (component diagrams), `UmlLifeline`
+  and `UmlMessage` (sequence diagrams, synchronous, asynchronous and reply) and
+  `UmlState` and `UmlTransition` (state machine diagrams, one initial state).
+
+Every cross-reference is the qualified `<module>::<declaration>` identifier of
+the declaration it names, the identifier the model document gives a component,
+edge or viewpoint. Design primitives are projected by the SDK from the
+snapshot and are not part of `prismpm/model-document`, so no model-document
+schema, standards profile or emitter digest depends on them.
+
+HO-18 owns the check and the rendering. The Controller resolves every name
+against the system model before any artifact is published. A view that names a
+component, edge, process, state or viewpoint the system model does not declare,
+repeats an element, mixes elements of another diagram kind, links things in a
+way its notation forbids, or sends a message or invocation across components
+without an edge of the system model in that direction is refused with `PP2012`.
+Each checked view is published as a deterministic file under `design/` of the
+build output and bound by the build manifest: OPM views as Object-Process
+Language text (`.opl`) in a Prism-defined sentence profile, UML views as
+PlantUML source (`.puml`). Rendering is a pure function of the checked view,
+independent of declaration order, and embeds no timestamp or host data. A model
+that declares no design primitive is unaffected. XMI interchange and layout
+are outside the covered subset.
+
 ## 3. Canonical Holo contract
 
 Holo/1 is the Prism application profile defined by the generated declarations
@@ -3454,6 +3492,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `FT-08` | `facets` | Every standards entry links to exactly one row in model/standards.toml. | §2 |
 | `FT-09` | `facets` | Facet lexicons produce deterministic canonical LaTeX and Lean lowerings. | §2 |
 | `FT-10` | `facets` | Lexicon package locks reproduce across multiple directory roots. | §2 |
+| `FT-11` | `facets` | prism.arch defines OPM (ISO/PAS 19450) and UML 2.5.1 design view entries as ISO/IEC/IEEE 42010 views. | §2 |
 | `HO-01` | `holo` | A Holo/1 artifact is a strict binary Hologram archive with physical version 4 and the HOLO header. | §3 |
 | `HO-02` | `holo` | Legacy application and architecture model documents retain the closed prismpm/model-document/1 schema and model.prism.json name. | §3 |
 | `HO-03` | `holo` | Prism model documents use deterministic canonical JSON and an exact SHA-256 model identity. | §3 |
@@ -3471,6 +3510,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `HO-15` | `holo` | The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application. | §3 |
 | `HO-16` | `holo` | The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults. | §3 |
 | `HO-17` | `holo` | The explicit text/3 profile models its command-line surface in source and generates static musl programs whose bounded raw input, model-owned help and version, declared exit-code map and registered usage, I/O and fault diagnostics are accepted against the Core-Wasm entry for every vector, without handwritten product code or any claim about targets not executed. | §3 |
+| `HO-18` | `holo` | The SDK checks OPM and UML design views against the system model, refuses an unknown component, edge, process, state or viewpoint with PP2012, and emits OPL text and PlantUML source as build artifacts. | §3 |
 | `CT-01` | `controller` | The Controller API exposes owned request and result types for load, check, and build. | §4 |
 | `CT-02` | `controller` | The Controller encapsulates LexLean Engine operations without exposing internal compiler types. | §4 |
 | `CT-03` | `controller` | prismpm check validates models in memory without modifying the filesystem. | §4 |
@@ -3499,6 +3539,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `ST-15` | `stdlib` | The internal organization lifecycle creates isolated provisional organizations without name privileges and composes scoped administration for revision-bound activation and founding-grant handover. | §5 |
 | `ST-16` | `stdlib` | The internal bounded CBOR primitive profile preserves deterministic encoding, typed cursor limits and strict UTF-8 through generated native and bounded Wasm execution. | §5 |
 | `ST-17` | `stdlib` | The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox. | §5 |
+| `ST-18` | `stdlib` | Prism-stdlib defines OPM and UML design view primitives in Foundation.Arch. | §5 |
 | `AR-01` | `artifacts` | Build artifacts are published under content-addressed .prism/build/<id> paths. | §6 |
 | `AR-02` | `artifacts` | Every build directory contains a canonical manifest of file paths, sizes, and hashes. | §6 |
 | `AR-03` | `artifacts` | Artifact content IDs are derived from deterministic SHA-256 digests. | §6 |

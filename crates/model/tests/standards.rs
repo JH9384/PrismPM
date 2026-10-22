@@ -39,3 +39,24 @@ fn body_and_long_quotation_fields_are_not_in_the_schema() {
     assert!(toml::from_str::<Standards>(&row("body = \"forbidden\"")).is_err());
     assert!(toml::from_str::<Standards>(&row("long_quotation = \"forbidden\"")).is_err());
 }
+
+#[test]
+fn only_exact_iso_and_omg_catalog_references_are_admitted() {
+    let omg = row("").replace(
+        "https://www.iso.org/standard/1.html",
+        "https://www.omg.org/spec/UML/2.5.1",
+    );
+    toml::from_str::<Standards>(&omg)
+        .expect("row")
+        .check()
+        .expect("OMG specification catalog URL");
+
+    let other = row("").replace(
+        "https://www.iso.org/standard/1.html",
+        "https://example.com/spec/UML/2.5.1",
+    );
+    assert!(toml::from_str::<Standards>(&other)
+        .expect("row")
+        .check()
+        .is_err());
+}

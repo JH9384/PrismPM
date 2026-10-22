@@ -1,0 +1,10 @@
+@startuml
+' UML 2.5.1 sequence diagram
+' view: Design::umlSequence
+' viewpoint: Foundation.Arch::viewpointOperations
+title Authentication
+participant "componentGateway" as p0
+participant "componentAuth" as p1
+p0 -> p1 : verifyCredentials
+p1 --> p0 : verifyCredentials
+@enduml

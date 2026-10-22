@@ -34,6 +34,7 @@ test_case!(conformance_ft_07, "FT-07");
 test_case!(conformance_ft_08, "FT-08");
 test_case!(conformance_ft_09, "FT-09");
 test_case!(conformance_ft_10, "FT-10");
+test_case!(conformance_ft_11, "FT-11");
 
 test_case!(conformance_ho_01, "HO-01");
 test_case!(conformance_ho_02, "HO-02");
@@ -52,6 +53,7 @@ test_case!(conformance_ho_14, "HO-14");
 test_case!(conformance_ho_15, "HO-15");
 test_case!(conformance_ho_16, "HO-16");
 test_case!(conformance_ho_17, "HO-17");
+test_case!(conformance_ho_18, "HO-18");
 
 test_case!(conformance_ct_01, "CT-01");
 test_case!(conformance_ct_02, "CT-02");
@@ -82,6 +84,7 @@ test_case!(conformance_st_14, "ST-14");
 test_case!(conformance_st_15, "ST-15");
 test_case!(conformance_st_16, "ST-16");
 test_case!(conformance_st_17, "ST-17");
+test_case!(conformance_st_18, "ST-18");
 
 test_case!(conformance_ar_01, "AR-01");
 test_case!(conformance_ar_02, "AR-02");

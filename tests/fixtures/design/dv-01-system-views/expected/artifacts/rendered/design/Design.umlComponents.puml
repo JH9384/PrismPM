@@ -1,0 +1,10 @@
+@startuml
+' UML 2.5.1 component diagram
+' view: Design::umlComponents
+' viewpoint: Foundation.Arch::viewpointOperations
+title Components
+component "componentAuth" as c0
+component "componentGateway" as c1
+c0 --> c1 : edgeIngress
+c1 --> c0 : edgeReturnCycle
+@enduml

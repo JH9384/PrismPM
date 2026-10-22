@@ -98,6 +98,7 @@ The three honesty levels:
 | `FT-08` | `build` | Every standards entry links to exactly one row in model/standards.toml. |
 | `FT-09` | `build` | Facet lexicons produce deterministic canonical LaTeX and Lean lowerings. |
 | `FT-10` | `build` | Lexicon package locks reproduce across multiple directory roots. |
+| `FT-11` | `build` | prism.arch defines OPM (ISO/PAS 19450) and UML 2.5.1 design view entries as ISO/IEC/IEEE 42010 views. |
 
 ## holo
 
@@ -120,6 +121,7 @@ The three honesty levels:
 | `HO-15` | `build` | The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application. |
 | `HO-16` | `build` | The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults. |
 | `HO-17` | `build` | The explicit text/3 profile models its command-line surface in source and generates static musl programs whose bounded raw input, model-owned help and version, declared exit-code map and registered usage, I/O and fault diagnostics are accepted against the Core-Wasm entry for every vector, without handwritten product code or any claim about targets not executed. |
+| `HO-18` | `build` | The SDK checks OPM and UML design views against the system model, refuses an unknown component, edge, process, state or viewpoint with PP2012, and emits OPL text and PlantUML source as build artifacts. |
 
 ## lifecycle
 
@@ -251,6 +253,7 @@ The three honesty levels:
 | `ST-15` | `build` | The internal organization lifecycle creates isolated provisional organizations without name privileges and composes scoped administration for revision-bound activation and founding-grant handover. |
 | `ST-16` | `build` | The internal bounded CBOR primitive profile preserves deterministic encoding, typed cursor limits and strict UTF-8 through generated native and bounded Wasm execution. |
 | `ST-17` | `build` | The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox. |
+| `ST-18` | `build` | Prism-stdlib defines OPM and UML design view primitives in Foundation.Arch. |
 
 ## supply-chain
 
@@ -348,6 +351,8 @@ The three honesty levels:
 | `ISO-27034-5-2017` | `2017` | https://www.iso.org/standard/55585.html | `not-acquired` | `FT-03`, `ST-03` |
 | `ISO-27005-2022` | `2022` | https://www.iso.org/standard/80585.html | `not-acquired` | `FT-04`, `ST-04` |
 | `ISO-25010-2023` | `2023` | https://www.iso.org/standard/78176.html | `not-acquired` | `FT-05`, `ST-05` |
+| `ISO-19450-2015` | `2015` | https://www.iso.org/standard/62274.html | `not-acquired` | `FT-11`, `HO-18`, `ST-18` |
+| `OMG-UML-2-5-1` | `2.5.1` | https://www.omg.org/spec/UML/2.5.1 | `not-acquired` | `FT-11`, `HO-18`, `ST-18` |
 | `CLOUDEVENTS-1-0-2` | `1.0.2` | https://codeload.github.com/cloudevents/spec/tar.gz/fc1f6f31f5f011a72183f1bcea20c987cb683ade | `b9e35734ccddc3baae04b4a18c8539e3d9f4148bbcdf48cd7b65751ee3d62614` | `AU-01`, `SY-04` |
 | `CLOUDEVENTS-SDK-GO-2-16-2` | `2.16.2` | https://codeload.github.com/cloudevents/sdk-go/tar.gz/af3e8599b3316ab6b4b73ff69aa8ec0efddbb5bb | `542bd94a70070c58ab96c5fe49affb04af6dc371b7ea6d0ad6d09337e4b3836a` | `AU-06`, `SY-04` |
 
@@ -364,3 +369,5 @@ The three honesty levels:
 | `AUTH-ISO-27034-5-2017` | `some-true` | ISO/IEC 27034-5 defines application security control data structures. |
 | `AUTH-ISO-27005-2022` | `some-true` | ISO/IEC 27005:2022 provides guidance on information security risk management. |
 | `AUTH-ISO-25010-2023` | `some-true` | ISO/IEC 25010:2023 defines the product quality model. |
+| `AUTH-ISO-19450-2015` | `some-true` | ISO/PAS 19450:2015 defines Object-Process Methodology for systems modeling. |
+| `AUTH-OMG-UML-2-5-1` | `some-true` | OMG UML 2.5.1 defines the Unified Modeling Language structural and behavioral notation. |

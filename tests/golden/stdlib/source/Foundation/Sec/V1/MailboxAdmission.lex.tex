@@ -1,8 +1,830 @@
 \begin{lexlean}{Foundation.Sec.V1.MailboxAdmission}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"Enroll"},{"fields":[],"name":"Login"},{"fields":[],"name":"Recover"},{"fields":[],"name":"ReplaceMailbox"}],"kind":"inductive","name":"MailboxOperation","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"HistoricalVerifiedAddress"},{"fields":[],"name":"ProfileSpecificCurrentControl"}],"kind":"inductive","name":"MailboxProofClass","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"Active"},{"fields":[],"name":"Disabled"}],"kind":"inductive","name":"MailboxAccountStatus","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"Active"},{"fields":[],"name":"Retired"}],"kind":"inductive","name":"MailboxAuthorityStatus","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"Open"},{"fields":[],"name":"Consumed"}],"kind":"inductive","name":"MailboxChallengeStatus","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"BadState"},{"fields":[],"name":"DisabledAccount"},{"fields":[],"name":"ConsumedChallenge"},{"fields":[],"name":"BadPolicy"},{"fields":[],"name":"RetiredAuthority"},{"fields":[],"name":"BadProof"},{"fields":[],"name":"HistoricalProof"},{"fields":[],"name":"WrongAuthority"},{"fields":[],"name":"WrongAudience"},{"fields":[],"name":"OperationDenied"},{"fields":[],"name":"WrongOperation"},{"fields":[],"name":"WrongAccount"},{"fields":[],"name":"StaleRevision"},{"fields":[],"name":"StaleEpoch"},{"fields":[],"name":"WrongCredential"},{"fields":[],"name":"WrongAuthorization"},{"fields":[],"name":"WrongMailbox"},{"fields":[],"name":"WrongCandidate"},{"fields":[],"name":"WrongChallenge"},{"fields":[],"name":"WrongNonce"},{"fields":[],"name":"WrongIntentTime"},{"fields":[],"name":"InvalidTime"},{"fields":[],"name":"FutureProof"},{"fields":[],"name":"ProofBeforeChallenge"},{"fields":[],"name":"ExpiredProof"},{"fields":[],"name":"ExpiredChallenge"},{"fields":[],"name":"StaleProof"},{"fields":[],"name":"AlreadyBound"},{"fields":[],"name":"UnboundAccount"},{"fields":[],"name":"WrongSubject"},{"fields":[],"name":"NoChange"},{"fields":[],"name":"RevisionExhausted"},{"fields":[],"name":"EpochExhausted"}],"kind":"inductive","name":"MailboxAdmissionError","parameters":[],"type_parameters":[]},{"fields":[{"name":"installationRef","type":{"kind":"string"}},{"name":"authorityRef","type":{"kind":"string"}},{"name":"configurationRef","type":{"kind":"string"}},{"name":"keyRef","type":{"kind":"string"}},{"name":"issuer","type":{"kind":"string"}},{"name":"audience","type":{"kind":"string"}},{"name":"profileRef","type":{"kind":"string"}},{"name":"authorityRevision","type":{"kind":"nat"}},{"name":"configurationRevision","type":{"kind":"nat"}},{"name":"keyRevision","type":{"kind":"nat"}}],"kind":"structure","name":"MailboxAuthorityBinding","parameters":[],"type_parameters":[]},{"fields":[{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityBinding"}}},{"name":"status","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityStatus"}}},{"name":"proofClass","type":{"arguments":[],"kind":"named","member":{"name":"MailboxProofClass"}}},{"name":"allowedOperations","type":{"element":{"arguments":[],"kind":"named","member":{"name":"MailboxOperation"}},"kind":"list"}},{"name":"maxProofAge","type":{"kind":"nat"}}],"kind":"structure","name":"MailboxAuthorityPolicy","parameters":[],"type_parameters":[]},{"fields":[{"name":"authority","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityBinding"}}},{"name":"account","type":{"kind":"string"}},{"name":"revision","type":{"kind":"nat"}},{"name":"credentialEpoch","type":{"kind":"nat"}},{"name":"currentCredentialRef","type":{"kind":"string"}},{"name":"authorizationRef","type":{"kind":"string"}},{"name":"operation","type":{"arguments":[],"kind":"named","member":{"name":"MailboxOperation"}}},{"name":"mailbox","type":{"kind":"string"}},{"name":"candidateCredentialRef","type":{"kind":"string"}},{"name":"createdAt","type":{"kind":"nat"}},{"name":"deadline","type":{"kind":"nat"}}],"kind":"structure","name":"MailboxIntent","parameters":[],"type_parameters":[]},{"fields":[{"name":"intent","type":{"arguments":[],"kind":"named","member":{"name":"MailboxIntent"}}},{"name":"challengeRef","type":{"kind":"string"}},{"name":"nonceCommitmentRef","type":{"kind":"string"}},{"name":"status","type":{"arguments":[],"kind":"named","member":{"name":"MailboxChallengeStatus"}}}],"kind":"structure","name":"MailboxChallenge","parameters":[],"type_parameters":[]},{"fields":[{"name":"installationRef","type":{"kind":"string"}},{"name":"issuer","type":{"kind":"string"}},{"name":"subject","type":{"kind":"string"}},{"name":"mailbox","type":{"kind":"string"}}],"kind":"structure","name":"MailboxBinding","parameters":[],"type_parameters":[]},{"fields":[{"name":"account","type":{"kind":"string"}},{"name":"revision","type":{"kind":"nat"}},{"name":"credentialEpoch","type":{"kind":"nat"}},{"name":"credentialRef","type":{"kind":"string"}},{"name":"authorizationRef","type":{"kind":"string"}},{"name":"status","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountStatus"}}},{"name":"mailboxBinding","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}}},{"name":"challenge","type":{"arguments":[],"kind":"named","member":{"name":"MailboxChallenge"}}}],"kind":"structure","name":"MailboxAccountState","parameters":[],"type_parameters":[]},{"fields":[{"name":"intent","type":{"arguments":[],"kind":"named","member":{"name":"MailboxIntent"}}},{"name":"challengeRef","type":{"kind":"string"}},{"name":"nonceCommitmentRef","type":{"kind":"string"}},{"name":"subject","type":{"kind":"string"}},{"name":"proofClass","type":{"arguments":[],"kind":"named","member":{"name":"MailboxProofClass"}}},{"name":"evidenceRef","type":{"kind":"string"}},{"name":"issuedAt","type":{"kind":"nat"}},{"name":"expiresAt","type":{"kind":"nat"}}],"kind":"structure","name":"AdmittedMailboxAssertion","parameters":[],"type_parameters":[]},{"fields":[{"name":"account","type":{"kind":"string"}},{"name":"operation","type":{"arguments":[],"kind":"named","member":{"name":"MailboxOperation"}}},{"name":"challengeRef","type":{"kind":"string"}},{"name":"evidenceRef","type":{"kind":"string"}},{"name":"previousRevision","type":{"kind":"nat"}},{"name":"revision","type":{"kind":"nat"}},{"name":"previousEpoch","type":{"kind":"nat"}},{"name":"credentialEpoch","type":{"kind":"nat"}},{"name":"previousCredentialRef","type":{"kind":"string"}},{"name":"credentialRef","type":{"kind":"string"}},{"name":"candidateCredentialRef","type":{"kind":"string"}},{"name":"authorizationRef","type":{"kind":"string"}},{"name":"previousMailbox","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}}},{"name":"currentMailbox","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}}}],"kind":"structure","name":"MailboxAdmissionIntent","parameters":[],"type_parameters":[]},{"fields":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"effect","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionIntent"}}}],"kind":"structure","name":"MailboxAdmissionAccepted","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"maximum"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxTextBounded","parameters":[{"name":"value","type":{"kind":"string"}},{"name":"maximum","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"MailboxOperation.Enroll"}},{"binders":[],"body":{"kind":"nat","value":"1"},"constructor":{"name":"MailboxOperation.Login"}},{"binders":[],"body":{"kind":"nat","value":"2"},"constructor":{"name":"MailboxOperation.Recover"}},{"binders":[],"body":{"kind":"nat","value":"3"},"constructor":{"name":"MailboxOperation.ReplaceMailbox"}}],"kind":"match","scrutinee":{"kind":"var","name":"operation"}},"kind":"definition","name":"mailboxOperationCode","parameters":[{"name":"operation","type":{"arguments":[],"kind":"named","member":{"name":"MailboxOperation"}}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"MailboxProofClass.HistoricalVerifiedAddress"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"MailboxProofClass.ProfileSpecificCurrentControl"}}],"kind":"match","scrutinee":{"kind":"var","name":"proofClass"}},"kind":"definition","name":"mailboxCurrentControl","parameters":[{"name":"proofClass","type":{"arguments":[],"kind":"named","member":{"name":"MailboxProofClass"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"MailboxAccountStatus.Active"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"MailboxAccountStatus.Disabled"}}],"kind":"match","scrutinee":{"kind":"var","name":"status"}},"kind":"definition","name":"mailboxAccountActive","parameters":[{"name":"status","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountStatus"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"MailboxAuthorityStatus.Active"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"MailboxAuthorityStatus.Retired"}}],"kind":"match","scrutinee":{"kind":"var","name":"status"}},"kind":"definition","name":"mailboxAuthorityActive","parameters":[{"name":"status","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityStatus"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"MailboxChallengeStatus.Open"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"MailboxChallengeStatus.Consumed"}}],"kind":"match","scrutinee":{"kind":"var","name":"status"}},"kind":"definition","name":"mailboxChallengeOpen","parameters":[{"name":"status","type":{"arguments":[],"kind":"named","member":{"name":"MailboxChallengeStatus"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"installationRef","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"authorityRef","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"configurationRef","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"keyRef","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"issuer","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"512"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"audience","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"512"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"profileRef","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"authorityRevision","kind":"project","value":{"kind":"var","name":"binding"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"configurationRevision","kind":"project","value":{"kind":"var","name":"binding"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"keyRevision","kind":"project","value":{"kind":"var","name":"binding"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"bool","value":true}}}}}}}}}}},"kind":"definition","name":"mailboxAuthorityBounded","parameters":[{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityBinding"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"installationRef","kind":"project","value":{"kind":"var","name":"first"}},{"field":"installationRef","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"authorityRef","kind":"project","value":{"kind":"var","name":"first"}},{"field":"authorityRef","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"configurationRef","kind":"project","value":{"kind":"var","name":"first"}},{"field":"configurationRef","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"keyRef","kind":"project","value":{"kind":"var","name":"first"}},{"field":"keyRef","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"issuer","kind":"project","value":{"kind":"var","name":"first"}},{"field":"issuer","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"profileRef","kind":"project","value":{"kind":"var","name":"first"}},{"field":"profileRef","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"authorityRevision","kind":"project","value":{"kind":"var","name":"first"}},{"field":"authorityRevision","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"configurationRevision","kind":"project","value":{"kind":"var","name":"first"}},{"field":"configurationRevision","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"keyRevision","kind":"project","value":{"kind":"var","name":"first"}},{"field":"keyRevision","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}}}}}}}}},"kind":"definition","name":"mailboxSameAuthority","parameters":[{"name":"first","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityBinding"}}},{"name":"second","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityBinding"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"operation"},{"kind":"var","name":"rest"}],"function":{"name":"mailboxOperationAllowed"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"operation"}],"function":{"name":"mailboxOperationCode"},"kind":"call"},{"arguments":[{"kind":"var","name":"head"}],"function":{"name":"mailboxOperationCode"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"allowed"}},"kind":"definition","name":"mailboxOperationAllowed","parameters":[{"name":"operation","type":{"arguments":[],"kind":"named","member":{"name":"MailboxOperation"}}},{"name":"allowed","type":{"element":{"arguments":[],"kind":"named","member":{"name":"MailboxOperation"}},"kind":"list"}}],"recursive_argument":"allowed","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","rest"],"body":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"head"},{"kind":"var","name":"rest"}],"function":{"name":"mailboxOperationAllowed"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"}],"function":{"name":"mailboxOperationsUnique"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"allowed"}},"kind":"definition","name":"mailboxOperationsUnique","parameters":[{"name":"allowed","type":{"element":{"arguments":[],"kind":"named","member":{"name":"MailboxOperation"}},"kind":"list"}}],"recursive_argument":"allowed","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"binding","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"mailboxAuthorityBounded"},"kind":"call"},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"field":"allowedOperations","kind":"project","value":{"kind":"var","name":"policy"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"allowedOperations","kind":"project","value":{"kind":"var","name":"policy"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"4"}},"right":{"kind":"and","left":{"arguments":[{"field":"allowedOperations","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"mailboxOperationsUnique"},"kind":"call"},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"maxProofAge","kind":"project","value":{"kind":"var","name":"policy"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"maxProofAge","kind":"project","value":{"kind":"var","name":"policy"}},"right":{"kind":"nat","value":"3600"}},"right":{"kind":"bool","value":true}}}}}}},"kind":"definition","name":"mailboxPolicyBounded","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityPolicy"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"authority","kind":"project","value":{"kind":"var","name":"intent"}}],"function":{"name":"mailboxAuthorityBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"account","kind":"project","value":{"kind":"var","name":"intent"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"currentCredentialRef","kind":"project","value":{"kind":"var","name":"intent"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"authorizationRef","kind":"project","value":{"kind":"var","name":"intent"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"candidateCredentialRef","kind":"project","value":{"kind":"var","name":"intent"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"mailbox","kind":"project","value":{"kind":"var","name":"intent"}},{"kind":"nat","value":"320"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"intent"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"credentialEpoch","kind":"project","value":{"kind":"var","name":"intent"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"createdAt","kind":"project","value":{"kind":"var","name":"intent"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"deadline","kind":"project","value":{"kind":"var","name":"intent"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"blt","left":{"field":"createdAt","kind":"project","value":{"kind":"var","name":"intent"}},"right":{"field":"deadline","kind":"project","value":{"kind":"var","name":"intent"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"deadline","kind":"project","value":{"kind":"var","name":"intent"}},"right":{"kind":"add","left":{"field":"createdAt","kind":"project","value":{"kind":"var","name":"intent"}},"right":{"kind":"nat","value":"3600"}}},"right":{"kind":"bool","value":true}}}}}}}}}}}}},"kind":"definition","name":"mailboxIntentBounded","parameters":[{"name":"intent","type":{"arguments":[],"kind":"named","member":{"name":"MailboxIntent"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"installationRef","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"issuer","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"512"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"subject","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"255"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"mailbox","kind":"project","value":{"kind":"var","name":"binding"}},{"kind":"nat","value":"320"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"mailboxBindingBounded","parameters":[{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Option.none"}},{"binders":["found"],"body":{"arguments":[{"kind":"var","name":"found"}],"function":{"name":"mailboxBindingBounded"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"kind":"var","name":"binding"}},"kind":"definition","name":"mailboxOptionalBindingBounded","parameters":[{"name":"binding","type":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"account","kind":"project","value":{"kind":"var","name":"state"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"credentialRef","kind":"project","value":{"kind":"var","name":"state"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"authorizationRef","kind":"project","value":{"kind":"var","name":"state"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"credentialEpoch","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"arguments":[{"field":"mailboxBinding","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"mailboxOptionalBindingBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}],"function":{"name":"mailboxIntentBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"challengeRef","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"nonceCommitmentRef","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}}}}},"kind":"definition","name":"mailboxStateBounded","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}],"function":{"name":"mailboxIntentBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"challengeRef","kind":"project","value":{"kind":"var","name":"proof"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"nonceCommitmentRef","kind":"project","value":{"kind":"var","name":"proof"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"evidenceRef","kind":"project","value":{"kind":"var","name":"proof"}},{"kind":"nat","value":"128"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"subject","kind":"project","value":{"kind":"var","name":"proof"}},{"kind":"nat","value":"255"}],"function":{"name":"mailboxTextBounded"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"issuedAt","kind":"project","value":{"kind":"var","name":"proof"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"expiresAt","kind":"project","value":{"kind":"var","name":"proof"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"blt","left":{"field":"issuedAt","kind":"project","value":{"kind":"var","name":"proof"}},"right":{"field":"expiresAt","kind":"project","value":{"kind":"var","name":"proof"}}},"right":{"kind":"bool","value":true}}}}}}}}},"kind":"definition","name":"mailboxProofBounded","parameters":[{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"fields":[{"field":"installationRef","value":{"field":"installationRef","kind":"project","value":{"field":"authority","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}}},{"field":"issuer","value":{"field":"issuer","kind":"project","value":{"field":"authority","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}}},{"field":"subject","value":{"field":"subject","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"mailbox","value":{"field":"mailbox","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}}],"kind":"record","type":{"name":"MailboxBinding"}},"kind":"definition","name":"mailboxProofBinding","parameters":[{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"installationRef","kind":"project","value":{"kind":"var","name":"first"}},{"field":"installationRef","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"issuer","kind":"project","value":{"kind":"var","name":"first"}},{"field":"issuer","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"subject","kind":"project","value":{"kind":"var","name":"first"}},{"field":"subject","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"mailbox","kind":"project","value":{"kind":"var","name":"first"}},{"field":"mailbox","kind":"project","value":{"kind":"var","name":"second"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"mailboxBindingEqual","parameters":[{"name":"first","type":{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}},{"name":"second","type":{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[{"kind":"var","name":"proof"}],"function":{"name":"mailboxProofBinding"},"kind":"call"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}]},"constructor":{"name":"MailboxOperation.Enroll"}},{"binders":[],"body":{"field":"mailboxBinding","kind":"project","value":{"kind":"var","name":"state"}},"constructor":{"name":"MailboxOperation.Login"}},{"binders":[],"body":{"field":"mailboxBinding","kind":"project","value":{"kind":"var","name":"state"}},"constructor":{"name":"MailboxOperation.Recover"}},{"binders":[],"body":{"arguments":[{"arguments":[{"kind":"var","name":"proof"}],"function":{"name":"mailboxProofBinding"},"kind":"call"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}]},"constructor":{"name":"MailboxOperation.ReplaceMailbox"}}],"kind":"match","scrutinee":{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}},"kind":"definition","name":"mailboxNewBinding","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"MailboxBinding"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"field":"credentialRef","kind":"project","value":{"kind":"var","name":"state"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"field":"candidateCredentialRef","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}],"function":{"name":"mailboxOperationCode"},"kind":"call"},{"arguments":[{"arguments":[],"constructor":{"name":"MailboxOperation.Recover"},"kind":"constructor"}],"function":{"name":"mailboxOperationCode"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"kind":"definition","name":"mailboxNextCredential","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"string"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"field":"credentialEpoch","kind":"project","value":{"kind":"var","name":"state"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"add","left":{"field":"credentialEpoch","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"1"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"operation"}],"function":{"name":"mailboxOperationCode"},"kind":"call"},{"arguments":[{"arguments":[],"constructor":{"name":"MailboxOperation.Recover"},"kind":"constructor"}],"function":{"name":"mailboxOperationCode"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"kind":"definition","name":"mailboxNextEpoch","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"operation","type":{"arguments":[],"kind":"named","member":{"name":"MailboxOperation"}}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"fields":[{"field":"account","value":{"field":"account","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"revision","value":{"kind":"add","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"1"}}},{"field":"credentialEpoch","value":{"arguments":[{"kind":"var","name":"state"},{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}],"function":{"name":"mailboxNextEpoch"},"kind":"call"}},{"field":"credentialRef","value":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxNextCredential"},"kind":"call"}},{"field":"authorizationRef","value":{"field":"authorizationRef","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"status","value":{"field":"status","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"mailboxBinding","value":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxNewBinding"},"kind":"call"}},{"field":"challenge","value":{"fields":[{"field":"intent","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"challengeRef","value":{"field":"challengeRef","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"nonceCommitmentRef","value":{"field":"nonceCommitmentRef","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"status","value":{"arguments":[],"constructor":{"name":"MailboxChallengeStatus.Consumed"},"kind":"constructor"}}],"kind":"record","type":{"name":"MailboxChallenge"}}}],"kind":"record","type":{"name":"MailboxAccountState"}},"kind":"definition","name":"mailboxAcceptedState","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"axioms":[],"body":{"arguments":[{"fields":[{"field":"state","value":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxAcceptedState"},"kind":"call"}},{"field":"effect","value":{"fields":[{"field":"account","value":{"field":"account","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"operation","value":{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}},{"field":"challengeRef","value":{"field":"challengeRef","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"evidenceRef","value":{"field":"evidenceRef","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"previousRevision","value":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"revision","value":{"kind":"add","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"1"}}},{"field":"previousEpoch","value":{"field":"credentialEpoch","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"credentialEpoch","value":{"arguments":[{"kind":"var","name":"state"},{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}],"function":{"name":"mailboxNextEpoch"},"kind":"call"}},{"field":"previousCredentialRef","value":{"field":"credentialRef","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"credentialRef","value":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxNextCredential"},"kind":"call"}},{"field":"candidateCredentialRef","value":{"field":"candidateCredentialRef","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}},{"field":"authorizationRef","value":{"field":"authorizationRef","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"previousMailbox","value":{"field":"mailboxBinding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"currentMailbox","value":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxNewBinding"},"kind":"call"}}],"kind":"record","type":{"name":"MailboxAdmissionIntent"}}}],"kind":"record","type":{"name":"MailboxAdmissionAccepted"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"kind":"definition","name":"mailboxAccept","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.UnboundAccount"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxAccept"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}],"function":{"name":"mailboxOperationCode"},"kind":"call"},{"arguments":[{"arguments":[],"constructor":{"name":"MailboxOperation.Enroll"},"kind":"constructor"}],"function":{"name":"mailboxOperationCode"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Option.none"}},{"binders":["binding"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.AlreadyBound"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"MailboxOperation.Enroll"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongAuthority"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongMailbox"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongSubject"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxAccept"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"subject","kind":"project","value":{"kind":"var","name":"binding"}},{"field":"subject","kind":"project","value":{"kind":"var","name":"proof"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"mailbox","kind":"project","value":{"kind":"var","name":"binding"}},{"field":"mailbox","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"field":"issuer","kind":"project","value":{"kind":"var","name":"binding"}},{"field":"issuer","kind":"project","value":{"field":"authority","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"installationRef","kind":"project","value":{"kind":"var","name":"binding"}},{"field":"installationRef","kind":"project","value":{"field":"authority","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"MailboxOperation.Login"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongAuthority"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongMailbox"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongSubject"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.NoChange"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxAccept"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"not","value":{"arguments":[{"field":"credentialRef","kind":"project","value":{"kind":"var","name":"state"}},{"field":"candidateCredentialRef","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"subject","kind":"project","value":{"kind":"var","name":"binding"}},{"field":"subject","kind":"project","value":{"kind":"var","name":"proof"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"mailbox","kind":"project","value":{"kind":"var","name":"binding"}},{"field":"mailbox","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"field":"issuer","kind":"project","value":{"kind":"var","name":"binding"}},{"field":"issuer","kind":"project","value":{"field":"authority","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"installationRef","kind":"project","value":{"kind":"var","name":"binding"}},{"field":"installationRef","kind":"project","value":{"field":"authority","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"MailboxOperation.Recover"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxAccept"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.NoChange"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"binding"},{"arguments":[{"kind":"var","name":"proof"}],"function":{"name":"mailboxProofBinding"},"kind":"call"}],"function":{"name":"mailboxBindingEqual"},"kind":"call"}},"constructor":{"name":"MailboxOperation.ReplaceMailbox"}}],"kind":"match","scrutinee":{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"field":"mailboxBinding","kind":"project","value":{"kind":"var","name":"state"}}},"kind":"definition","name":"mailboxCheckExistingBinding","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}}}},{"axioms":[],"body":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"mailboxStateBounded"},"kind":"call"},"kind":"definition","name":"mailboxGateBadState","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"field":"status","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"mailboxAccountActive"},"kind":"call"},"kind":"definition","name":"mailboxGateDisabledAccount","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"field":"status","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}],"function":{"name":"mailboxChallengeOpen"},"kind":"call"},"kind":"definition","name":"mailboxGateConsumedChallenge","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"kind":"var","name":"policy"}],"function":{"name":"mailboxPolicyBounded"},"kind":"call"},"kind":"definition","name":"mailboxGateBadPolicy","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityPolicy"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"field":"status","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"mailboxAuthorityActive"},"kind":"call"},"kind":"definition","name":"mailboxGateRetiredAuthority","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityPolicy"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"kind":"var","name":"proof"}],"function":{"name":"mailboxProofBounded"},"kind":"call"},"kind":"definition","name":"mailboxGateBadProof","parameters":[{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"proofClass","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"mailboxCurrentControl"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"proofClass","kind":"project","value":{"kind":"var","name":"proof"}}],"function":{"name":"mailboxCurrentControl"},"kind":"call"},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxGateHistoricalProof","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityPolicy"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"authority","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"binding","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"mailboxSameAuthority"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"authority","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"binding","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"mailboxSameAuthority"},"kind":"call"},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxGateWrongAuthority","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityPolicy"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"audience","kind":"project","value":{"field":"authority","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}},{"field":"audience","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"policy"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"audience","kind":"project","value":{"field":"authority","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}}},{"field":"audience","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"policy"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxGateWrongAudience","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityPolicy"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"allowedOperations","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"mailboxOperationAllowed"},"kind":"call"},"kind":"definition","name":"mailboxGateOperationDenied","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityPolicy"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"arguments":[{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}],"function":{"name":"mailboxOperationCode"},"kind":"call"},{"arguments":[{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}}],"function":{"name":"mailboxOperationCode"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"kind":"definition","name":"mailboxGateWrongOperation","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"account","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"account","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"account","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"account","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxGateWrongAccount","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"revision","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"revision","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxGateStaleRevision","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"credentialEpoch","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"credentialEpoch","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"credentialEpoch","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"credentialEpoch","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxGateStaleEpoch","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"currentCredentialRef","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"credentialRef","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"currentCredentialRef","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"credentialRef","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxGateWrongCredential","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"authorizationRef","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"authorizationRef","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"authorizationRef","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"authorizationRef","kind":"project","value":{"kind":"var","name":"state"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxGateWrongAuthorization","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"field":"mailbox","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"mailbox","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"kind":"definition","name":"mailboxGateWrongMailbox","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"field":"candidateCredentialRef","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"candidateCredentialRef","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"kind":"definition","name":"mailboxGateWrongCandidate","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"field":"challengeRef","kind":"project","value":{"kind":"var","name":"proof"}},{"field":"challengeRef","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"kind":"definition","name":"mailboxGateWrongChallenge","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"arguments":[{"field":"nonceCommitmentRef","kind":"project","value":{"kind":"var","name":"proof"}},{"field":"nonceCommitmentRef","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"kind":"definition","name":"mailboxGateWrongNonce","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"createdAt","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"createdAt","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"deadline","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}},{"field":"deadline","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxGateWrongIntentTime","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"ble","left":{"kind":"var","name":"now"},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"createdAt","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},"right":{"kind":"var","name":"now"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"mailboxGateInvalidTime","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"now","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"ble","left":{"field":"issuedAt","kind":"project","value":{"kind":"var","name":"proof"}},"right":{"kind":"var","name":"now"}},"kind":"definition","name":"mailboxGateFutureProof","parameters":[{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}},{"name":"now","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"ble","left":{"field":"createdAt","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}},"right":{"field":"issuedAt","kind":"project","value":{"kind":"var","name":"proof"}}},"kind":"definition","name":"mailboxGateProofBeforeChallenge","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"blt","left":{"kind":"var","name":"now"},"right":{"field":"expiresAt","kind":"project","value":{"kind":"var","name":"proof"}}},"kind":"definition","name":"mailboxGateExpiredProof","parameters":[{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}},{"name":"now","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"blt","left":{"kind":"var","name":"now"},"right":{"field":"deadline","kind":"project","value":{"field":"intent","kind":"project","value":{"field":"challenge","kind":"project","value":{"kind":"var","name":"state"}}}}},"kind":"definition","name":"mailboxGateExpiredChallenge","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"now","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"ble","left":{"kind":"var","name":"now"},"right":{"kind":"add","left":{"field":"issuedAt","kind":"project","value":{"kind":"var","name":"proof"}},"right":{"field":"maxProofAge","kind":"project","value":{"kind":"var","name":"policy"}}}},"kind":"definition","name":"mailboxGateStaleProof","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityPolicy"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}},{"name":"now","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"blt","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}},"kind":"definition","name":"mailboxGateRevisionExhausted","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"blt","left":{"field":"credentialEpoch","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"field":"operation","kind":"project","value":{"field":"intent","kind":"project","value":{"kind":"var","name":"proof"}}}],"function":{"name":"mailboxOperationCode"},"kind":"call"},{"arguments":[{"arguments":[],"constructor":{"name":"MailboxOperation.Recover"},"kind":"constructor"}],"function":{"name":"mailboxOperationCode"},"kind":"call"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"kind":"definition","name":"mailboxGateEpochExhausted","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.BadState"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.DisabledAccount"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.ConsumedChallenge"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.BadPolicy"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.RetiredAuthority"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.BadProof"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.HistoricalProof"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongAuthority"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongAudience"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.OperationDenied"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongOperation"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongAccount"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.StaleRevision"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.StaleEpoch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongCredential"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongAuthorization"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongMailbox"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongCandidate"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongChallenge"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongNonce"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.WrongIntentTime"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.InvalidTime"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.FutureProof"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.ProofBeforeChallenge"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.ExpiredProof"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.ExpiredChallenge"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.StaleProof"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.RevisionExhausted"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"MailboxAdmissionError.EpochExhausted"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}},{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxCheckExistingBinding"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateEpochExhausted"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"mailboxGateRevisionExhausted"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"policy"},{"kind":"var","name":"proof"},{"kind":"var","name":"now"}],"function":{"name":"mailboxGateStaleProof"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"now"}],"function":{"name":"mailboxGateExpiredChallenge"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"proof"},{"kind":"var","name":"now"}],"function":{"name":"mailboxGateExpiredProof"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateProofBeforeChallenge"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"proof"},{"kind":"var","name":"now"}],"function":{"name":"mailboxGateFutureProof"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"now"}],"function":{"name":"mailboxGateInvalidTime"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongIntentTime"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongNonce"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongChallenge"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongCandidate"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongMailbox"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongAuthorization"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongCredential"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateStaleEpoch"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateStaleRevision"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongAccount"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongOperation"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"policy"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateOperationDenied"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"policy"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongAudience"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"},{"kind":"var","name":"policy"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateWrongAuthority"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"policy"},{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateHistoricalProof"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"proof"}],"function":{"name":"mailboxGateBadProof"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"policy"}],"function":{"name":"mailboxGateRetiredAuthority"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"policy"}],"function":{"name":"mailboxGateBadPolicy"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"mailboxGateConsumedChallenge"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"mailboxGateDisabledAccount"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"mailboxGateBadState"},"kind":"call"}},"kind":"definition","name":"admitMailboxAssertion","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAccountState"}}},{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"MailboxAuthorityPolicy"}}},{"name":"proof","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedMailboxAssertion"}}},{"name":"now","type":{"kind":"nat"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"MailboxAdmissionAccepted"}}}}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: MailboxOperation,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Enroll, fields: []},
+    {name: Login, fields: []},
+    {name: Recover, fields: []},
+    {name: ReplaceMailbox, fields: []}
+  ]
+}
+
+inductive{
+  name: MailboxProofClass,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: HistoricalVerifiedAddress, fields: []},
+    {name: ProfileSpecificCurrentControl, fields: []}
+  ]
+}
+
+inductive{
+  name: MailboxAccountStatus,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Active, fields: []}, {name: Disabled, fields: []}]
+}
+
+inductive{
+  name: MailboxAuthorityStatus,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Active, fields: []}, {name: Retired, fields: []}]
+}
+
+inductive{
+  name: MailboxChallengeStatus,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Open, fields: []}, {name: Consumed, fields: []}]
+}
+
+inductive{
+  name: MailboxAdmissionError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BadState, fields: []},
+    {name: DisabledAccount, fields: []},
+    {name: ConsumedChallenge, fields: []},
+    {name: BadPolicy, fields: []},
+    {name: RetiredAuthority, fields: []},
+    {name: BadProof, fields: []},
+    {name: HistoricalProof, fields: []},
+    {name: WrongAuthority, fields: []},
+    {name: WrongAudience, fields: []},
+    {name: OperationDenied, fields: []},
+    {name: WrongOperation, fields: []},
+    {name: WrongAccount, fields: []},
+    {name: StaleRevision, fields: []},
+    {name: StaleEpoch, fields: []},
+    {name: WrongCredential, fields: []},
+    {name: WrongAuthorization, fields: []},
+    {name: WrongMailbox, fields: []},
+    {name: WrongCandidate, fields: []},
+    {name: WrongChallenge, fields: []},
+    {name: WrongNonce, fields: []},
+    {name: WrongIntentTime, fields: []},
+    {name: InvalidTime, fields: []},
+    {name: FutureProof, fields: []},
+    {name: ProofBeforeChallenge, fields: []},
+    {name: ExpiredProof, fields: []},
+    {name: ExpiredChallenge, fields: []},
+    {name: StaleProof, fields: []},
+    {name: AlreadyBound, fields: []},
+    {name: UnboundAccount, fields: []},
+    {name: WrongSubject, fields: []},
+    {name: NoChange, fields: []},
+    {name: RevisionExhausted, fields: []},
+    {name: EpochExhausted, fields: []}
+  ]
+}
+
+structure{
+  name: MailboxAuthorityBinding,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: installationRef, type: String},
+    {name: authorityRef, type: String},
+    {name: configurationRef, type: String},
+    {name: keyRef, type: String},
+    {name: issuer, type: String},
+    {name: audience, type: String},
+    {name: profileRef, type: String},
+    {name: authorityRevision, type: Nat},
+    {name: configurationRevision, type: Nat},
+    {name: keyRevision, type: Nat}
+  ]
+}
+
+structure{
+  name: MailboxAuthorityPolicy,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: binding, type: MailboxAuthorityBinding},
+    {name: status, type: MailboxAuthorityStatus},
+    {name: proofClass, type: MailboxProofClass},
+    {name: allowedOperations, type: (List MailboxOperation)},
+    {name: maxProofAge, type: Nat}
+  ]
+}
+
+structure{
+  name: MailboxIntent,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: authority, type: MailboxAuthorityBinding},
+    {name: account, type: String},
+    {name: revision, type: Nat},
+    {name: credentialEpoch, type: Nat},
+    {name: currentCredentialRef, type: String},
+    {name: authorizationRef, type: String},
+    {name: operation, type: MailboxOperation},
+    {name: mailbox, type: String},
+    {name: candidateCredentialRef, type: String},
+    {name: createdAt, type: Nat},
+    {name: deadline, type: Nat}
+  ]
+}
+
+structure{
+  name: MailboxChallenge,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: intent, type: MailboxIntent},
+    {name: challengeRef, type: String},
+    {name: nonceCommitmentRef, type: String},
+    {name: status, type: MailboxChallengeStatus}
+  ]
+}
+
+structure{
+  name: MailboxBinding,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: installationRef, type: String},
+    {name: issuer, type: String},
+    {name: subject, type: String},
+    {name: mailbox, type: String}
+  ]
+}
+
+structure{
+  name: MailboxAccountState,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: account, type: String},
+    {name: revision, type: Nat},
+    {name: credentialEpoch, type: Nat},
+    {name: credentialRef, type: String},
+    {name: authorizationRef, type: String},
+    {name: status, type: MailboxAccountStatus},
+    {name: mailboxBinding, type: (Option MailboxBinding)},
+    {name: challenge, type: MailboxChallenge}
+  ]
+}
+
+structure{
+  name: AdmittedMailboxAssertion,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: intent, type: MailboxIntent},
+    {name: challengeRef, type: String},
+    {name: nonceCommitmentRef, type: String},
+    {name: subject, type: String},
+    {name: proofClass, type: MailboxProofClass},
+    {name: evidenceRef, type: String},
+    {name: issuedAt, type: Nat},
+    {name: expiresAt, type: Nat}
+  ]
+}
+
+structure{
+  name: MailboxAdmissionIntent,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: account, type: String},
+    {name: operation, type: MailboxOperation},
+    {name: challengeRef, type: String},
+    {name: evidenceRef, type: String},
+    {name: previousRevision, type: Nat},
+    {name: revision, type: Nat},
+    {name: previousEpoch, type: Nat},
+    {name: credentialEpoch, type: Nat},
+    {name: previousCredentialRef, type: String},
+    {name: credentialRef, type: String},
+    {name: candidateCredentialRef, type: String},
+    {name: authorizationRef, type: String},
+    {name: previousMailbox, type: (Option MailboxBinding)},
+    {name: currentMailbox, type: (Option MailboxBinding)}
+  ]
+}
+
+structure{
+  name: MailboxAdmissionAccepted,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: state, type: MailboxAccountState}, {name: effect, type: MailboxAdmissionIntent}]
+}
+
+definition{
+  name: mailboxTextBounded,
+  parameters: [value : String, maximum : Nat],
+  result: Bool,
+  body: ((0 <? (prim length (prim utf8_encode value : Bytes) : Nat)) && (((prim length (prim utf8_encode value : Bytes) : Nat) <=? maximum) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxOperationCode,
+  parameters: [operation : MailboxOperation],
+  result: Nat,
+  body: (match operation
+    | MailboxOperation.Enroll => 0
+    | MailboxOperation.Login => 1
+    | MailboxOperation.Recover => 2
+    | MailboxOperation.ReplaceMailbox => 3),
+  axioms: []
+}
+
+definition{
+  name: mailboxCurrentControl,
+  parameters: [proofClass : MailboxProofClass],
+  result: Bool,
+  body: (match proofClass
+    | MailboxProofClass.HistoricalVerifiedAddress => false
+    | MailboxProofClass.ProfileSpecificCurrentControl => true),
+  axioms: []
+}
+
+definition{
+  name: mailboxAccountActive,
+  parameters: [status : MailboxAccountStatus],
+  result: Bool,
+  body: (match status
+    | MailboxAccountStatus.Active => true
+    | MailboxAccountStatus.Disabled => false),
+  axioms: []
+}
+
+definition{
+  name: mailboxAuthorityActive,
+  parameters: [status : MailboxAuthorityStatus],
+  result: Bool,
+  body: (match status
+    | MailboxAuthorityStatus.Active => true
+    | MailboxAuthorityStatus.Retired => false),
+  axioms: []
+}
+
+definition{
+  name: mailboxChallengeOpen,
+  parameters: [status : MailboxChallengeStatus],
+  result: Bool,
+  body: (match status
+    | MailboxChallengeStatus.Open => true
+    | MailboxChallengeStatus.Consumed => false),
+  axioms: []
+}
+
+definition{
+  name: mailboxAuthorityBounded,
+  parameters: [binding : MailboxAuthorityBinding],
+  result: Bool,
+  body: ((mailboxTextBounded (project binding installationRef) 128) && ((mailboxTextBounded (project binding authorityRef) 128) && ((mailboxTextBounded (project binding configurationRef) 128) && ((mailboxTextBounded (project binding keyRef) 128) && ((mailboxTextBounded (project binding issuer) 512) && ((mailboxTextBounded (project binding audience) 512) && ((mailboxTextBounded (project binding profileRef) 128) && (((project binding authorityRevision) <=? 4294967295) && (((project binding configurationRevision) <=? 4294967295) && (((project binding keyRevision) <=? 4294967295) && true)))))))))),
+  axioms: []
+}
+
+definition{
+  name: mailboxSameAuthority,
+  parameters: [first : MailboxAuthorityBinding, second : MailboxAuthorityBinding],
+  result: Bool,
+  body: ((prim equal (project var{
+    name: first
+  } installationRef) (project var{
+    name: second
+  } installationRef) : Bool) && ((prim equal (project var{
+    name: first
+  } authorityRef) (project var{
+    name: second
+  } authorityRef) : Bool) && ((prim equal (project var{
+    name: first
+  } configurationRef) (project var{
+    name: second
+  } configurationRef) : Bool) && ((prim equal (project var{
+    name: first
+  } keyRef) (project var{
+    name: second
+  } keyRef) : Bool) && ((prim equal (project var{
+    name: first
+  } issuer) (project var{
+    name: second
+  } issuer) : Bool) && ((prim equal (project var{
+    name: first
+  } profileRef) (project var{
+    name: second
+  } profileRef) : Bool) && ((prim equal (project var{
+    name: first
+  } authorityRevision) (project var{
+    name: second
+  } authorityRevision) : Bool) && ((prim equal (project var{
+    name: first
+  } configurationRevision) (project var{
+    name: second
+  } configurationRevision) : Bool) && ((prim equal (project var{
+    name: first
+  } keyRevision) (project var{name: second} keyRevision) : Bool) && true))))))))),
+  axioms: []
+}
+
+definition{
+  name: mailboxOperationAllowed,
+  parameters: [operation : MailboxOperation, allowed : (List MailboxOperation)],
+  result: Bool,
+  body: (match allowed
+    | List.nil => false
+    | List.cons head rest => (match (prim equal (mailboxOperationCode operation) (mailboxOperationCode head) : Bool)
+      | Bool.false => (mailboxOperationAllowed operation rest)
+      | Bool.true => true)),
+  axioms: [],
+  recursive_argument: allowed
+}
+
+definition{
+  name: mailboxOperationsUnique,
+  parameters: [allowed : (List MailboxOperation)],
+  result: Bool,
+  body: (match allowed
+    | List.nil => true
+    | List.cons head rest => ((not (mailboxOperationAllowed head rest)) && ((mailboxOperationsUnique rest) && true))),
+  axioms: [],
+  recursive_argument: allowed
+}
+
+definition{
+  name: mailboxPolicyBounded,
+  parameters: [policy : MailboxAuthorityPolicy],
+  result: Bool,
+  body: ((mailboxAuthorityBounded (project policy binding)) && ((0 <? (prim length (project policy allowedOperations) : Nat)) && (((prim length (project policy allowedOperations) : Nat) <=? 4) && ((mailboxOperationsUnique (project policy allowedOperations)) && ((0 <? (project policy maxProofAge)) && (((project policy maxProofAge) <=? 3600) && true)))))),
+  axioms: []
+}
+
+definition{
+  name: mailboxIntentBounded,
+  parameters: [intent : MailboxIntent],
+  result: Bool,
+  body: ((mailboxAuthorityBounded (project intent authority)) && ((mailboxTextBounded (project intent account) 128) && ((mailboxTextBounded (project intent currentCredentialRef) 128) && ((mailboxTextBounded (project intent authorizationRef) 128) && ((mailboxTextBounded (project intent candidateCredentialRef) 128) && ((mailboxTextBounded (project intent mailbox) 320) && (((project intent revision) <=? 4294967295) && (((project intent credentialEpoch) <=? 4294967295) && (((project intent createdAt) <=? 4294967295) && (((project intent deadline) <=? 4294967295) && (((project intent createdAt) <? (project intent deadline)) && (((project intent deadline) <=? ((project intent createdAt) + 3600)) && true)))))))))))),
+  axioms: []
+}
+
+definition{
+  name: mailboxBindingBounded,
+  parameters: [binding : MailboxBinding],
+  result: Bool,
+  body: ((mailboxTextBounded (project binding installationRef) 128) && ((mailboxTextBounded (project binding issuer) 512) && ((mailboxTextBounded (project binding subject) 255) && ((mailboxTextBounded (project binding mailbox) 320) && true)))),
+  axioms: []
+}
+
+definition{
+  name: mailboxOptionalBindingBounded,
+  parameters: [binding : (Option MailboxBinding)],
+  result: Bool,
+  body: (match binding | Option.none => true | Option.some found => (mailboxBindingBounded found)),
+  axioms: []
+}
+
+definition{
+  name: mailboxStateBounded,
+  parameters: [state : MailboxAccountState],
+  result: Bool,
+  body: ((mailboxTextBounded (project state account) 128) && ((mailboxTextBounded (project state credentialRef) 128) && ((mailboxTextBounded (project state authorizationRef) 128) && (((project state revision) <=? 4294967295) && (((project state credentialEpoch) <=? 4294967295) && ((mailboxOptionalBindingBounded (project state mailboxBinding)) && ((mailboxIntentBounded (project (project state challenge) intent)) && ((mailboxTextBounded (project (project state challenge) challengeRef) 128) && ((mailboxTextBounded (project (project state challenge) nonceCommitmentRef) 128) && true))))))))),
+  axioms: []
+}
+
+definition{
+  name: mailboxProofBounded,
+  parameters: [proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: ((mailboxIntentBounded (project proof intent)) && ((mailboxTextBounded (project proof challengeRef) 128) && ((mailboxTextBounded (project proof nonceCommitmentRef) 128) && ((mailboxTextBounded (project proof evidenceRef) 128) && ((mailboxTextBounded (project proof subject) 255) && (((project proof issuedAt) <=? 4294967295) && (((project proof expiresAt) <=? 4294967295) && (((project proof issuedAt) <? (project proof expiresAt)) && true)))))))),
+  axioms: []
+}
+
+definition{
+  name: mailboxProofBinding,
+  parameters: [proof : AdmittedMailboxAssertion],
+  result: MailboxBinding,
+  body: (record MailboxBinding {installationRef := (project (project (project proof intent) authority) installationRef), issuer := (project (project (project proof intent) authority) issuer), subject := (project proof subject), mailbox := (project (project proof intent) mailbox)}),
+  axioms: []
+}
+
+definition{
+  name: mailboxBindingEqual,
+  parameters: [first : MailboxBinding, second : MailboxBinding],
+  result: Bool,
+  body: ((prim equal (project var{
+    name: first
+  } installationRef) (project var{
+    name: second
+  } installationRef) : Bool) && ((prim equal (project var{
+    name: first
+  } issuer) (project var{
+    name: second
+  } issuer) : Bool) && ((prim equal (project var{
+    name: first
+  } subject) (project var{
+    name: second
+  } subject) : Bool) && ((prim equal (project var{
+    name: first
+  } mailbox) (project var{name: second} mailbox) : Bool) && true)))),
+  axioms: []
+}
+
+definition{
+  name: mailboxNewBinding,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: (Option MailboxBinding),
+  body: (match (project (project proof intent) operation)
+    | MailboxOperation.Enroll => (ctor Option.some [MailboxBinding] (mailboxProofBinding proof))
+    | MailboxOperation.Login => (project state mailboxBinding)
+    | MailboxOperation.Recover => (project state mailboxBinding)
+    | MailboxOperation.ReplaceMailbox => (ctor Option.some [MailboxBinding] (mailboxProofBinding proof))),
+  axioms: []
+}
+
+definition{
+  name: mailboxNextCredential,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: String,
+  body: (match (prim equal (mailboxOperationCode (project (project proof intent) operation)) (mailboxOperationCode (ctor MailboxOperation.Recover)) : Bool)
+    | Bool.false => (project state credentialRef)
+    | Bool.true => (project (project proof intent) candidateCredentialRef)),
+  axioms: []
+}
+
+definition{
+  name: mailboxNextEpoch,
+  parameters: [state : MailboxAccountState, operation : MailboxOperation],
+  result: Nat,
+  body: (match (prim equal (mailboxOperationCode operation) (mailboxOperationCode (ctor MailboxOperation.Recover)) : Bool)
+    | Bool.false => (project state credentialEpoch)
+    | Bool.true => ((project state credentialEpoch) + 1)),
+  axioms: []
+}
+
+definition{
+  name: mailboxAcceptedState,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: MailboxAccountState,
+  body: (record MailboxAccountState {account := (project state account), revision := ((project state revision) + 1), credentialEpoch := (mailboxNextEpoch state (project (project proof intent) operation)), credentialRef := (mailboxNextCredential state proof), authorizationRef := (project state authorizationRef), status := (project state status), mailboxBinding := (mailboxNewBinding state proof), challenge := (record MailboxChallenge {intent := (project (project state challenge) intent), challengeRef := (project (project state challenge) challengeRef), nonceCommitmentRef := (project (project state challenge) nonceCommitmentRef), status := (ctor MailboxChallengeStatus.Consumed)})}),
+  axioms: []
+}
+
+definition{
+  name: mailboxAccept,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: (Result MailboxAdmissionAccepted MailboxAdmissionError),
+  body: (ctor Result.ok [MailboxAdmissionAccepted, MailboxAdmissionError] (record MailboxAdmissionAccepted {state := (mailboxAcceptedState state proof), effect := (record MailboxAdmissionIntent {account := (project state account), operation := (project (project proof intent) operation), challengeRef := (project proof challengeRef), evidenceRef := (project proof evidenceRef), previousRevision := (project state revision), revision := ((project state revision) + 1), previousEpoch := (project state credentialEpoch), credentialEpoch := (mailboxNextEpoch state (project (project proof intent) operation)), previousCredentialRef := (project state credentialRef), credentialRef := (mailboxNextCredential state proof), candidateCredentialRef := (project (project proof intent) candidateCredentialRef), authorizationRef := (project state authorizationRef), previousMailbox := (project state mailboxBinding), currentMailbox := (mailboxNewBinding state proof)})})),
+  axioms: []
+}
+
+definition{
+  name: mailboxCheckExistingBinding,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: (Result MailboxAdmissionAccepted MailboxAdmissionError),
+  body: (match (project state mailboxBinding)
+    | Option.none => (match (prim equal (mailboxOperationCode (project (project proof intent) operation)) (mailboxOperationCode (ctor MailboxOperation.Enroll)) : Bool)
+      | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.UnboundAccount))
+      | Bool.true => (mailboxAccept state proof))
+    | Option.some binding => (match (project (project proof intent) operation)
+      | MailboxOperation.Enroll => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.AlreadyBound))
+      | MailboxOperation.Login => (match ((prim equal (project binding issuer) (project (project (project proof intent) authority) issuer) : Bool) && ((prim equal (project binding installationRef) (project (project (project proof intent) authority) installationRef) : Bool) && true))
+        | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongAuthority))
+        | Bool.true => (match (prim equal (project binding mailbox) (project (project proof intent) mailbox) : Bool)
+          | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongMailbox))
+          | Bool.true => (match (prim equal (project binding subject) (project proof subject) : Bool)
+            | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongSubject))
+            | Bool.true => (mailboxAccept state proof))))
+      | MailboxOperation.Recover => (match ((prim equal (project binding issuer) (project (project (project proof intent) authority) issuer) : Bool) && ((prim equal (project binding installationRef) (project (project (project proof intent) authority) installationRef) : Bool) && true))
+        | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongAuthority))
+        | Bool.true => (match (prim equal (project binding mailbox) (project (project proof intent) mailbox) : Bool)
+          | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongMailbox))
+          | Bool.true => (match (prim equal (project binding subject) (project proof subject) : Bool)
+            | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongSubject))
+            | Bool.true => (match (not (prim equal (project state credentialRef) (project (project proof intent) candidateCredentialRef) : Bool))
+              | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.NoChange))
+              | Bool.true => (mailboxAccept state proof)))))
+      | MailboxOperation.ReplaceMailbox => (match (mailboxBindingEqual binding (mailboxProofBinding proof))
+        | Bool.false => (mailboxAccept state proof)
+        | Bool.true => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.NoChange))))),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateBadState,
+  parameters: [state : MailboxAccountState],
+  result: Bool,
+  body: (mailboxStateBounded state),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateDisabledAccount,
+  parameters: [state : MailboxAccountState],
+  result: Bool,
+  body: (mailboxAccountActive (project state status)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateConsumedChallenge,
+  parameters: [state : MailboxAccountState],
+  result: Bool,
+  body: (mailboxChallengeOpen (project (project state challenge) status)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateBadPolicy,
+  parameters: [policy : MailboxAuthorityPolicy],
+  result: Bool,
+  body: (mailboxPolicyBounded policy),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateRetiredAuthority,
+  parameters: [policy : MailboxAuthorityPolicy],
+  result: Bool,
+  body: (mailboxAuthorityActive (project policy status)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateBadProof,
+  parameters: [proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: (mailboxProofBounded proof),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateHistoricalProof,
+  parameters: [policy : MailboxAuthorityPolicy, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: ((mailboxCurrentControl (project policy proofClass)) && ((mailboxCurrentControl (project proof proofClass)) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongAuthority,
+  parameters: [
+    state : MailboxAccountState,
+    policy : MailboxAuthorityPolicy,
+    proof : AdmittedMailboxAssertion
+  ],
+  result: Bool,
+  body: ((mailboxSameAuthority (project (project proof intent) authority) (project policy binding)) && ((mailboxSameAuthority (project (project (project state challenge) intent) authority) (project policy binding)) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongAudience,
+  parameters: [
+    state : MailboxAccountState,
+    policy : MailboxAuthorityPolicy,
+    proof : AdmittedMailboxAssertion
+  ],
+  result: Bool,
+  body: ((prim equal (project (project (project proof intent) authority) audience) (project (project policy binding) audience) : Bool) && ((prim equal (project (project (project (project state challenge) intent) authority) audience) (project (project policy binding) audience) : Bool) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateOperationDenied,
+  parameters: [policy : MailboxAuthorityPolicy, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: (mailboxOperationAllowed (project (project proof intent) operation) (project policy allowedOperations)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongOperation,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: (prim equal (mailboxOperationCode (project (project proof intent) operation)) (mailboxOperationCode (project (project (project state challenge) intent) operation)) : Bool),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongAccount,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: ((prim equal (project (project proof intent) account) (project state account) : Bool) && ((prim equal (project (project (project state challenge) intent) account) (project state account) : Bool) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateStaleRevision,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: ((prim equal (project (project proof intent) revision) (project state revision) : Bool) && ((prim equal (project (project (project state challenge) intent) revision) (project state revision) : Bool) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateStaleEpoch,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: ((prim equal (project (project proof intent) credentialEpoch) (project state credentialEpoch) : Bool) && ((prim equal (project (project (project state challenge) intent) credentialEpoch) (project state credentialEpoch) : Bool) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongCredential,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: ((prim equal (project (project proof intent) currentCredentialRef) (project state credentialRef) : Bool) && ((prim equal (project (project (project state challenge) intent) currentCredentialRef) (project state credentialRef) : Bool) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongAuthorization,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: ((prim equal (project (project proof intent) authorizationRef) (project state authorizationRef) : Bool) && ((prim equal (project (project (project state challenge) intent) authorizationRef) (project state authorizationRef) : Bool) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongMailbox,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: (prim equal (project (project proof intent) mailbox) (project (project (project state challenge) intent) mailbox) : Bool),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongCandidate,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: (prim equal (project (project proof intent) candidateCredentialRef) (project (project (project state challenge) intent) candidateCredentialRef) : Bool),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongChallenge,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: (prim equal (project proof challengeRef) (project (project state challenge) challengeRef) : Bool),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongNonce,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: (prim equal (project proof nonceCommitmentRef) (project (project state challenge) nonceCommitmentRef) : Bool),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateWrongIntentTime,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: ((prim equal (project (project proof intent) createdAt) (project (project (project state challenge) intent) createdAt) : Bool) && ((prim equal (project (project proof intent) deadline) (project (project (project state challenge) intent) deadline) : Bool) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateInvalidTime,
+  parameters: [state : MailboxAccountState, now : Nat],
+  result: Bool,
+  body: ((now <=? 4294967295) && (((project (project (project state challenge) intent) createdAt) <=? now) && true)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateFutureProof,
+  parameters: [proof : AdmittedMailboxAssertion, now : Nat],
+  result: Bool,
+  body: ((project proof issuedAt) <=? now),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateProofBeforeChallenge,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: ((project (project (project state challenge) intent) createdAt) <=? (project proof issuedAt)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateExpiredProof,
+  parameters: [proof : AdmittedMailboxAssertion, now : Nat],
+  result: Bool,
+  body: (now <? (project proof expiresAt)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateExpiredChallenge,
+  parameters: [state : MailboxAccountState, now : Nat],
+  result: Bool,
+  body: (now <? (project (project (project state challenge) intent) deadline)),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateStaleProof,
+  parameters: [policy : MailboxAuthorityPolicy, proof : AdmittedMailboxAssertion, now : Nat],
+  result: Bool,
+  body: (now <=? ((project proof issuedAt) + (project policy maxProofAge))),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateRevisionExhausted,
+  parameters: [state : MailboxAccountState],
+  result: Bool,
+  body: ((project state revision) <? 4294967295),
+  axioms: []
+}
+
+definition{
+  name: mailboxGateEpochExhausted,
+  parameters: [state : MailboxAccountState, proof : AdmittedMailboxAssertion],
+  result: Bool,
+  body: (match (prim equal (mailboxOperationCode (project (project proof intent) operation)) (mailboxOperationCode (ctor MailboxOperation.Recover)) : Bool)
+    | Bool.false => true
+    | Bool.true => ((project state credentialEpoch) <? 4294967295)),
+  axioms: []
+}
+
+definition{
+  name: admitMailboxAssertion,
+  parameters: [
+    state : MailboxAccountState,
+    policy : MailboxAuthorityPolicy,
+    proof : AdmittedMailboxAssertion,
+    now : Nat
+  ],
+  result: (Result MailboxAdmissionAccepted MailboxAdmissionError),
+  body: (match (mailboxGateBadState state)
+    | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.BadState))
+    | Bool.true => (match (mailboxGateDisabledAccount state)
+      | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.DisabledAccount))
+      | Bool.true => (match (mailboxGateConsumedChallenge state)
+        | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.ConsumedChallenge))
+        | Bool.true => (match (mailboxGateBadPolicy policy)
+          | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.BadPolicy))
+          | Bool.true => (match (mailboxGateRetiredAuthority policy)
+            | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.RetiredAuthority))
+            | Bool.true => (match (mailboxGateBadProof proof)
+              | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.BadProof))
+              | Bool.true => (match (mailboxGateHistoricalProof policy proof)
+                | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.HistoricalProof))
+                | Bool.true => (match (mailboxGateWrongAuthority state policy proof)
+                  | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongAuthority))
+                  | Bool.true => (match (mailboxGateWrongAudience state policy proof)
+                    | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongAudience))
+                    | Bool.true => (match (mailboxGateOperationDenied policy proof)
+                      | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.OperationDenied))
+                      | Bool.true => (match (mailboxGateWrongOperation state proof)
+                        | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongOperation))
+                        | Bool.true => (match (mailboxGateWrongAccount state proof)
+                          | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongAccount))
+                          | Bool.true => (match (mailboxGateStaleRevision state proof)
+                            | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.StaleRevision))
+                            | Bool.true => (match (mailboxGateStaleEpoch state proof)
+                              | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.StaleEpoch))
+                              | Bool.true => (match (mailboxGateWrongCredential state proof)
+                                | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongCredential))
+                                | Bool.true => (match (mailboxGateWrongAuthorization state proof)
+                                  | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongAuthorization))
+                                  | Bool.true => (match (mailboxGateWrongMailbox state proof)
+                                    | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongMailbox))
+                                    | Bool.true => (match (mailboxGateWrongCandidate state proof)
+                                      | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongCandidate))
+                                      | Bool.true => (match (mailboxGateWrongChallenge state proof)
+                                        | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongChallenge))
+                                        | Bool.true => (match (mailboxGateWrongNonce state proof)
+                                          | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongNonce))
+                                          | Bool.true => (match (mailboxGateWrongIntentTime state proof)
+                                            | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.WrongIntentTime))
+                                            | Bool.true => (match (mailboxGateInvalidTime state now)
+                                              | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.InvalidTime))
+                                              | Bool.true => (match (mailboxGateFutureProof proof now)
+                                                | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.FutureProof))
+                                                | Bool.true => (match (mailboxGateProofBeforeChallenge state proof)
+                                                  | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.ProofBeforeChallenge))
+                                                  | Bool.true => (match (mailboxGateExpiredProof proof now)
+                                                    | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.ExpiredProof))
+                                                    | Bool.true => (match (mailboxGateExpiredChallenge state now)
+                                                      | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.ExpiredChallenge))
+                                                      | Bool.true => (match (mailboxGateStaleProof policy proof now)
+                                                        | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.StaleProof))
+                                                        | Bool.true => (match (mailboxGateRevisionExhausted state)
+                                                          | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.RevisionExhausted))
+                                                          | Bool.true => (match (mailboxGateEpochExhausted state proof)
+                                                            | Bool.false => (ctor Result.error [MailboxAdmissionAccepted, MailboxAdmissionError] (ctor MailboxAdmissionError.EpochExhausted))
+                                                            | Bool.true => (mailboxCheckExistingBinding state proof)))))))))))))))))))))))))))))),
+  axioms: []
+}
 \end{semanticmodule}
 \end{lexlean}

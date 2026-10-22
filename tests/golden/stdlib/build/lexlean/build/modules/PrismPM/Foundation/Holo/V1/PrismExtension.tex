@@ -5,10 +5,39 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{BrowserProjection}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{None}: \texttt{()}.\par
+\noindent Constructor \texttt{Present}: \texttt{(ByteArray)}.\par
 \subsection*{\texttt{ViewBinding}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{None}: \texttt{()}.\par
+\noindent Constructor \texttt{Present}: \texttt{(ByteArray, ByteArray, BrowserProjection)}.\par
 \subsection*{\texttt{ModelProvenance}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{schema}: \texttt{String}.\par
+\noindent Field \texttt{modelContentKappa}: \texttt{ByteArray}.\par
+\noindent Field \texttt{modelId}: \texttt{ByteArray}.\par
+\noindent Field \texttt{sourceId}: \texttt{ByteArray}.\par
+\noindent Field \texttt{semanticId}: \texttt{ByteArray}.\par
+\noindent Field \texttt{compilerSemanticsId}: \texttt{ByteArray}.\par
+\noindent Field \texttt{snapshotId}: \texttt{ByteArray}.\par
+\noindent Field \texttt{stdlibSemanticsId}: \texttt{ByteArray}.\par
+\noindent Field \texttt{prismStdlibCrateSha256}: \texttt{ByteArray}.\par
+\noindent Field \texttt{lexleanCommit}: \texttt{ByteArray}.\par
+\noindent Field \texttt{lexleanPackageSha256}: \texttt{ByteArray}.\par
+\noindent Field \texttt{lean4ProdCommit}: \texttt{ByteArray}.\par
+\noindent Field \texttt{hologramLiveCommit}: \texttt{ByteArray}.\par
+\noindent Field \texttt{uorHologramCommit}: \texttt{ByteArray}.\par
+\noindent Field \texttt{targetProfileId}: \texttt{ByteArray}.\par
+\noindent Field \texttt{coreWasmContract}: \texttt{String}.\par
+\noindent Field \texttt{leanManifestSha256}: \texttt{ByteArray}.\par
+\noindent Field \texttt{lcnfManifestSha256}: \texttt{ByteArray}.\par
+\noindent Field \texttt{generatedCoreSha256}: \texttt{ByteArray}.\par
+\noindent Field \texttt{cargoName}: \texttt{String}.\par
+\noindent Field \texttt{cargoVersion}: \texttt{String}.\par
+\noindent Field \texttt{cargoCrateSha256}: \texttt{ByteArray}.\par
+\noindent Field \texttt{guestContentKappa}: \texttt{ByteArray}.\par
+\noindent Field \texttt{viewBinding}: \texttt{ViewBinding}.\par
+\noindent Field \texttt{applicationKappa}: \texttt{ByteArray}.\par
 \subsection*{\texttt{extensionName}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{String}.\par

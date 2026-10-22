@@ -1,9 +1,275 @@
 \begin{lexlean}{Foundation.Organization.V1.Lifecycle}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Organization.V1.Administration}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"BadRegistry"},{"fields":[],"name":"BadRequest"},{"fields":[],"name":"WrongRegistry"},{"fields":[],"name":"StaleRevision"},{"fields":[],"name":"RevisionExhausted"},{"fields":[],"name":"ActorMismatch"},{"fields":[],"name":"DuplicateOrganization"},{"fields":[],"name":"DuplicateCreationRequest"},{"fields":[],"name":"RegistryFull"},{"fields":[],"name":"UnknownOrganization"},{"fields":[],"name":"WrongOrganization"},{"fields":[{"arguments":[],"kind":"named","member":{"module":"Foundation.Organization.V1.Administration","name":"AdministrationError"}}],"name":"AdministrationRejected"}],"kind":"inductive","name":"OrganizationLifecycleError","parameters":[],"type_parameters":[]},{"fields":[{"name":"creator","type":{"kind":"string"}},{"name":"creationRequest","type":{"kind":"string"}},{"name":"administration","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Organization.V1.Administration","name":"AdministrationSnapshot"}}}],"kind":"structure","name":"OrganizationEntry","parameters":[],"type_parameters":[]},{"fields":[{"name":"entries","type":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"list"}}],"kind":"structure","name":"OrganizationEntries","parameters":[],"type_parameters":[]},{"fields":[{"name":"registry","type":{"kind":"string"}},{"name":"revision","type":{"kind":"nat"}},{"name":"capacity","type":{"kind":"nat"}},{"name":"entries","type":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"list"}}],"kind":"structure","name":"OrganizationRegistry","parameters":[],"type_parameters":[]},{"fields":[{"name":"registry","type":{"kind":"string"}},{"name":"revision","type":{"kind":"nat"}},{"name":"request","type":{"kind":"string"}},{"name":"actor","type":{"kind":"string"}},{"name":"organization","type":{"kind":"string"}},{"name":"root","type":{"kind":"string"}},{"name":"label","type":{"kind":"string"}}],"kind":"structure","name":"OrganizationCreation","parameters":[],"type_parameters":[]},{"fields":[{"name":"registry","type":{"kind":"string"}},{"name":"revision","type":{"kind":"nat"}},{"name":"actor","type":{"kind":"string"}},{"name":"organization","type":{"kind":"string"}},{"name":"administration","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Organization.V1.Administration","name":"AdministrationRequest"}}}],"kind":"structure","name":"OrganizationAdministration","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"List.nil"}},{"binders":["unusedHead","tail"],"body":{"kind":"add","left":{"kind":"nat","value":"1"},"right":{"arguments":[{"kind":"var","name":"tail"}],"function":{"name":"lifecycleEntryCount"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"entries"}},"kind":"definition","name":"lifecycleEntryCount","parameters":[{"name":"entries","type":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"list"}}],"recursive_argument":"entries","result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"add","left":{"kind":"add","left":{"kind":"nat","value":"1"},"right":{"field":"revision","kind":"project","value":{"field":"administration","kind":"project","value":{"kind":"var","name":"head"}}}},"right":{"arguments":[{"kind":"var","name":"tail"}],"function":{"name":"lifecycleHistoryRevision"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"entries"}},"kind":"definition","name":"lifecycleHistoryRevision","parameters":[{"name":"entries","type":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"list"}}],"recursive_argument":"entries","result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"or","left":{"arguments":[{"field":"organization","kind":"project","value":{"field":"administration","kind":"project","value":{"kind":"var","name":"head"}}},{"kind":"var","name":"reference"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"reference"}],"function":{"name":"lifecycleHasOrganization"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"entries"}},"kind":"definition","name":"lifecycleHasOrganization","parameters":[{"name":"entries","type":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"list"}},{"name":"reference","type":{"kind":"string"}}],"recursive_argument":"entries","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"or","left":{"arguments":[{"field":"creationRequest","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"var","name":"reference"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"reference"}],"function":{"name":"lifecycleHasCreationRequest"},"kind":"call"},"right":{"kind":"bool","value":false}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"entries"}},"kind":"definition","name":"lifecycleHasCreationRequest","parameters":[{"name":"entries","type":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"list"}},{"name":"reference","type":{"kind":"string"}}],"recursive_argument":"entries","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"kind":"and","left":{"arguments":[{"field":"creator","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"creationRequest","kind":"project","value":{"kind":"var","name":"head"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"administration","kind":"project","value":{"kind":"var","name":"head"}}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationStateValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"tail"},{"field":"organization","kind":"project","value":{"field":"administration","kind":"project","value":{"kind":"var","name":"head"}}}],"function":{"name":"lifecycleHasOrganization"},"kind":"call"}},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"tail"},{"field":"creationRequest","kind":"project","value":{"kind":"var","name":"head"}}],"function":{"name":"lifecycleHasCreationRequest"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"tail"}],"function":{"name":"lifecycleEntriesValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"entries"}},"kind":"definition","name":"lifecycleEntriesValid","parameters":[{"name":"entries","type":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"list"}}],"recursive_argument":"entries","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"registry","kind":"project","value":{"kind":"var","name":"state"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"capacity","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"capacity","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"64"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"entries","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"lifecycleEntryCount"},"kind":"call"},"right":{"field":"capacity","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"and","left":{"arguments":[{"field":"entries","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"lifecycleEntriesValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"beq","left":{"arguments":[{"field":"entries","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"lifecycleHistoryRevision"},"kind":"call"},"right":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"bool","value":true}}}}}}}},"kind":"definition","name":"lifecycleRegistryValid","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"fields":[{"field":"entries","value":{"head":{"kind":"var","name":"entry"},"kind":"cons","tail":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"nil"}}}],"kind":"record","type":{"name":"OrganizationEntries"}},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"fields":[{"field":"entries","value":{"head":{"kind":"var","name":"head"},"kind":"cons","tail":{"field":"entries","kind":"project","value":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"entry"}],"function":{"name":"lifecycleAppend"},"kind":"call"}}}}],"kind":"record","type":{"name":"OrganizationEntries"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"entries"}},"kind":"definition","name":"lifecycleAppend","parameters":[{"name":"entries","type":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"list"}},{"name":"entry","type":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}}}],"recursive_argument":"entries","result":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntries"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}}]},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"organization"}],"function":{"name":"lifecycleFind"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"head"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"organization","kind":"project","value":{"field":"administration","kind":"project","value":{"kind":"var","name":"head"}}},{"kind":"var","name":"organization"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"entries"}},"kind":"definition","name":"lifecycleFind","parameters":[{"name":"entries","type":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"list"}},{"name":"organization","type":{"kind":"string"}}],"recursive_argument":"entries","result":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"fields":[{"field":"entries","value":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"nil"}}],"kind":"record","type":{"name":"OrganizationEntries"}},"constructor":{"name":"List.nil"}},{"binders":["head","tail"],"body":{"branches":[{"binders":[],"body":{"fields":[{"field":"entries","value":{"head":{"kind":"var","name":"head"},"kind":"cons","tail":{"field":"entries","kind":"project","value":{"arguments":[{"kind":"var","name":"tail"},{"kind":"var","name":"organization"},{"kind":"var","name":"next"}],"function":{"name":"lifecycleReplace"},"kind":"call"}}}}],"kind":"record","type":{"name":"OrganizationEntries"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"fields":[{"field":"entries","value":{"head":{"fields":[{"field":"creator","value":{"field":"creator","kind":"project","value":{"kind":"var","name":"head"}}},{"field":"creationRequest","value":{"field":"creationRequest","kind":"project","value":{"kind":"var","name":"head"}}},{"field":"administration","value":{"kind":"var","name":"next"}}],"kind":"record","type":{"name":"OrganizationEntry"}},"kind":"cons","tail":{"kind":"var","name":"tail"}}}],"kind":"record","type":{"name":"OrganizationEntries"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"organization","kind":"project","value":{"field":"administration","kind":"project","value":{"kind":"var","name":"head"}}},{"kind":"var","name":"organization"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"entries"}},"kind":"definition","name":"lifecycleReplace","parameters":[{"name":"entries","type":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"list"}},{"name":"organization","type":{"kind":"string"}},{"name":"next","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Organization.V1.Administration","name":"AdministrationSnapshot"}}}],"recursive_argument":"entries","result":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntries"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.BadRequest"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"registry","value":{"kind":"var","name":"registry"}},{"field":"revision","value":{"kind":"nat","value":"0"}},{"field":"capacity","value":{"kind":"var","name":"capacity"}},{"field":"entries","value":{"element":{"arguments":[],"kind":"named","member":{"name":"OrganizationEntry"}},"kind":"nil"}}],"kind":"record","type":{"name":"OrganizationRegistry"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"kind":"var","name":"registry"},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"kind":"var","name":"capacity"}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"var","name":"capacity"},"right":{"kind":"nat","value":"64"}},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"emptyOrganizationRegistry","parameters":[{"name":"registry","type":{"kind":"string"}},{"name":"capacity","type":{"kind":"nat"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.BadRegistry"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.BadRequest"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.WrongRegistry"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.StaleRevision"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.RevisionExhausted"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.ActorMismatch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.BadRequest"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.DuplicateOrganization"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.DuplicateCreationRequest"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.RegistryFull"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":["error"],"body":{"arguments":[{"arguments":[{"kind":"var","name":"error"}],"constructor":{"name":"OrganizationLifecycleError.AdministrationRejected"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Result.error"}},{"binders":["administration"],"body":{"arguments":[{"fields":[{"field":"registry","value":{"field":"registry","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"revision","value":{"kind":"add","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"1"}}},{"field":"capacity","value":{"field":"capacity","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"entries","value":{"field":"entries","kind":"project","value":{"arguments":[{"field":"entries","kind":"project","value":{"kind":"var","name":"state"}},{"fields":[{"field":"creator","value":{"kind":"var","name":"account"}},{"field":"creationRequest","value":{"field":"request","kind":"project","value":{"kind":"var","name":"request"}}},{"field":"administration","value":{"kind":"var","name":"administration"}}],"kind":"record","type":{"name":"OrganizationEntry"}}],"function":{"name":"lifecycleAppend"},"kind":"call"}}}],"kind":"record","type":{"name":"OrganizationRegistry"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"field":"organization","kind":"project","value":{"kind":"var","name":"request"}},{"field":"label","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"var","name":"account"},{"field":"root","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"module":"Foundation.Organization.V1.Administration","name":"createAdministration"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"arguments":[{"field":"entries","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"lifecycleEntryCount"},"kind":"call"},"right":{"field":"capacity","kind":"project","value":{"kind":"var","name":"state"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"not","value":{"arguments":[{"field":"entries","kind":"project","value":{"kind":"var","name":"state"}},{"field":"request","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"lifecycleHasCreationRequest"},"kind":"call"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"not","value":{"arguments":[{"field":"entries","kind":"project","value":{"kind":"var","name":"state"}},{"field":"organization","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"lifecycleHasOrganization"},"kind":"call"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"field":"request","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"organization","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"root","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"label","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"256"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"account"},{"field":"actor","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"field":"revision","kind":"project","value":{"kind":"var","name":"request"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"registry","kind":"project","value":{"kind":"var","name":"state"}},{"field":"registry","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"kind":"var","name":"account"},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"registry","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"actor","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"request"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"bool","value":true}}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"lifecycleRegistryValid"},"kind":"call"}},"kind":"definition","name":"createOrganization","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}}},{"name":"account","type":{"kind":"string"}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"OrganizationCreation"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}}}},{"axioms":[],"body":{"arguments":[{"kind":"var","name":"current"},{"kind":"var","name":"request"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"transitionAdministration"},"kind":"call"},"kind":"definition","name":"lifecycleApplyAdministration","parameters":[{"name":"current","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Organization.V1.Administration","name":"AdministrationSnapshot"}}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Organization.V1.Administration","name":"AdministrationRequest"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"module":"Foundation.Organization.V1.Administration","name":"AdministrationError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"module":"Foundation.Organization.V1.Administration","name":"AdministrationSnapshot"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.BadRegistry"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.BadRequest"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.WrongRegistry"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.StaleRevision"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.RevisionExhausted"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.ActorMismatch"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.BadRequest"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.WrongOrganization"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"OrganizationLifecycleError.UnknownOrganization"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Option.none"}},{"binders":["entry"],"body":{"branches":[{"binders":["error"],"body":{"arguments":[{"arguments":[{"kind":"var","name":"error"}],"constructor":{"name":"OrganizationLifecycleError.AdministrationRejected"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Result.error"}},{"binders":["next"],"body":{"arguments":[{"fields":[{"field":"registry","value":{"field":"registry","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"revision","value":{"kind":"add","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"1"}}},{"field":"capacity","value":{"field":"capacity","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"entries","value":{"field":"entries","kind":"project","value":{"arguments":[{"field":"entries","kind":"project","value":{"kind":"var","name":"state"}},{"field":"organization","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"var","name":"next"}],"function":{"name":"lifecycleReplace"},"kind":"call"}}}],"kind":"record","type":{"name":"OrganizationRegistry"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}},{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}}]},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"field":"administration","kind":"project","value":{"kind":"var","name":"entry"}},{"field":"administration","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"lifecycleApplyAdministration"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"entries","kind":"project","value":{"kind":"var","name":"state"}},{"field":"organization","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"lifecycleFind"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"organization","kind":"project","value":{"kind":"var","name":"request"}},{"field":"organization","kind":"project","value":{"field":"administration","kind":"project","value":{"kind":"var","name":"request"}}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"organization","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"account"},{"field":"actor","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"4294967295"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"state"}},"right":{"field":"revision","kind":"project","value":{"kind":"var","name":"request"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"registry","kind":"project","value":{"kind":"var","name":"state"}},{"field":"registry","kind":"project","value":{"kind":"var","name":"request"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"kind":"var","name":"account"},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"registry","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"actor","kind":"project","value":{"kind":"var","name":"request"}},{"kind":"nat","value":"128"}],"function":{"module":"Foundation.Organization.V1.Administration","name":"administrationBoundedText"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"request"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"bool","value":true}}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"lifecycleRegistryValid"},"kind":"call"}},"kind":"definition","name":"administerOrganization","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}}},{"name":"account","type":{"kind":"string"}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"OrganizationAdministration"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"OrganizationLifecycleError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"OrganizationRegistry"}}}}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: OrganizationLifecycleError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BadRegistry, fields: []},
+    {name: BadRequest, fields: []},
+    {name: WrongRegistry, fields: []},
+    {name: StaleRevision, fields: []},
+    {name: RevisionExhausted, fields: []},
+    {name: ActorMismatch, fields: []},
+    {name: DuplicateOrganization, fields: []},
+    {name: DuplicateCreationRequest, fields: []},
+    {name: RegistryFull, fields: []},
+    {name: UnknownOrganization, fields: []},
+    {name: WrongOrganization, fields: []},
+    {
+      name: AdministrationRejected,
+      fields: [Foundation.Organization.V1.Administration::AdministrationError]
+    }
+  ]
+}
+
+structure{
+  name: OrganizationEntry,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: creator, type: String},
+    {name: creationRequest, type: String},
+    {name: administration, type: Foundation.Organization.V1.Administration::AdministrationSnapshot}
+  ]
+}
+
+structure{
+  name: OrganizationEntries,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: entries, type: (List OrganizationEntry)}]
+}
+
+structure{
+  name: OrganizationRegistry,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: registry, type: String},
+    {name: revision, type: Nat},
+    {name: capacity, type: Nat},
+    {name: entries, type: (List OrganizationEntry)}
+  ]
+}
+
+structure{
+  name: OrganizationCreation,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: registry, type: String},
+    {name: revision, type: Nat},
+    {name: request, type: String},
+    {name: actor, type: String},
+    {name: organization, type: String},
+    {name: root, type: String},
+    {name: label, type: String}
+  ]
+}
+
+structure{
+  name: OrganizationAdministration,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: registry, type: String},
+    {name: revision, type: Nat},
+    {name: actor, type: String},
+    {name: organization, type: String},
+    {name: administration, type: Foundation.Organization.V1.Administration::AdministrationRequest}
+  ]
+}
+
+definition{
+  name: lifecycleEntryCount,
+  parameters: [entries : (List OrganizationEntry)],
+  result: Nat,
+  body: (match entries
+    | List.nil => 0
+    | List.cons unusedHead tail => (1 + (lifecycleEntryCount tail))),
+  axioms: [],
+  recursive_argument: entries
+}
+
+definition{
+  name: lifecycleHistoryRevision,
+  parameters: [entries : (List OrganizationEntry)],
+  result: Nat,
+  body: (match entries
+    | List.nil => 0
+    | List.cons head tail => ((1 + (project (project head administration) revision)) + (lifecycleHistoryRevision tail))),
+  axioms: [],
+  recursive_argument: entries
+}
+
+definition{
+  name: lifecycleHasOrganization,
+  parameters: [entries : (List OrganizationEntry), reference : String],
+  result: Bool,
+  body: (match entries
+    | List.nil => false
+    | List.cons head tail => ((prim equal (project (project head administration) organization) reference : Bool) || ((lifecycleHasOrganization tail reference) || false))),
+  axioms: [],
+  recursive_argument: entries
+}
+
+definition{
+  name: lifecycleHasCreationRequest,
+  parameters: [entries : (List OrganizationEntry), reference : String],
+  result: Bool,
+  body: (match entries
+    | List.nil => false
+    | List.cons head tail => ((prim equal (project head creationRequest) reference : Bool) || ((lifecycleHasCreationRequest tail reference) || false))),
+  axioms: [],
+  recursive_argument: entries
+}
+
+definition{
+  name: lifecycleEntriesValid,
+  parameters: [entries : (List OrganizationEntry)],
+  result: Bool,
+  body: (match entries
+    | List.nil => true
+    | List.cons head tail => ((Foundation.Organization.V1.Administration::administrationBoundedText (project head creator) 128) && ((Foundation.Organization.V1.Administration::administrationBoundedText (project head creationRequest) 128) && ((Foundation.Organization.V1.Administration::administrationStateValid (project head administration)) && ((not (lifecycleHasOrganization tail (project (project head administration) organization))) && ((not (lifecycleHasCreationRequest tail (project head creationRequest))) && ((lifecycleEntriesValid tail) && true))))))),
+  axioms: [],
+  recursive_argument: entries
+}
+
+definition{
+  name: lifecycleRegistryValid,
+  parameters: [state : OrganizationRegistry],
+  result: Bool,
+  body: ((Foundation.Organization.V1.Administration::administrationBoundedText (project state registry) 128) && ((0 <? (project state capacity)) && (((project state capacity) <=? 64) && (((project state revision) <=? 4294967295) && (((lifecycleEntryCount (project state entries)) <=? (project state capacity)) && ((lifecycleEntriesValid (project state entries)) && (((lifecycleHistoryRevision (project state entries)) =? (project state revision)) && true))))))),
+  axioms: []
+}
+
+definition{
+  name: lifecycleAppend,
+  parameters: [entries : (List OrganizationEntry), entry : OrganizationEntry],
+  result: OrganizationEntries,
+  body: (match entries
+    | List.nil => (record OrganizationEntries {entries := (cons entry (nil OrganizationEntry))})
+    | List.cons head tail => (record OrganizationEntries {entries := (cons head (project (lifecycleAppend tail entry) entries))})),
+  axioms: [],
+  recursive_argument: entries
+}
+
+definition{
+  name: lifecycleFind,
+  parameters: [entries : (List OrganizationEntry), organization : String],
+  result: (Option OrganizationEntry),
+  body: (match entries
+    | List.nil => (ctor Option.none [OrganizationEntry])
+    | List.cons head tail => (match (prim equal (project (project head administration) organization) organization : Bool)
+      | Bool.false => (lifecycleFind tail organization)
+      | Bool.true => (ctor Option.some [OrganizationEntry] head))),
+  axioms: [],
+  recursive_argument: entries
+}
+
+definition{
+  name: lifecycleReplace,
+  parameters: [
+    entries : (List OrganizationEntry),
+    organization : String,
+    next : Foundation.Organization.V1.Administration::AdministrationSnapshot
+  ],
+  result: OrganizationEntries,
+  body: (match entries
+    | List.nil => (record OrganizationEntries {entries := (nil OrganizationEntry)})
+    | List.cons head tail => (match (prim equal (project (project head administration) organization) organization : Bool)
+      | Bool.false => (record OrganizationEntries {entries := (cons head (project (lifecycleReplace tail organization next) entries))})
+      | Bool.true => (record OrganizationEntries {entries := (cons (record OrganizationEntry {creator := (project head creator), creationRequest := (project head creationRequest), administration := next}) tail)}))),
+  axioms: [],
+  recursive_argument: entries
+}
+
+definition{
+  name: emptyOrganizationRegistry,
+  parameters: [registry : String, capacity : Nat],
+  result: (Result OrganizationRegistry OrganizationLifecycleError),
+  body: (match ((Foundation.Organization.V1.Administration::administrationBoundedText registry 128) && ((0 <? capacity) && ((capacity <=? 64) && true)))
+    | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.BadRequest))
+    | Bool.true => (ctor Result.ok [OrganizationRegistry, OrganizationLifecycleError] (record OrganizationRegistry {registry := registry, revision := 0, capacity := capacity, entries := (nil OrganizationEntry)}))),
+  axioms: []
+}
+
+definition{
+  name: createOrganization,
+  parameters: [state : OrganizationRegistry, account : String, request : OrganizationCreation],
+  result: (Result OrganizationRegistry OrganizationLifecycleError),
+  body: (match (lifecycleRegistryValid state)
+    | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.BadRegistry))
+    | Bool.true => (match ((Foundation.Organization.V1.Administration::administrationBoundedText account 128) && ((Foundation.Organization.V1.Administration::administrationBoundedText (project request registry) 128) && ((Foundation.Organization.V1.Administration::administrationBoundedText (project request actor) 128) && (((project request revision) <=? 4294967295) && true))))
+      | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.BadRequest))
+      | Bool.true => (match (prim equal (project state registry) (project request registry) : Bool)
+        | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.WrongRegistry))
+        | Bool.true => (match ((project state revision) =? (project request revision))
+          | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.StaleRevision))
+          | Bool.true => (match ((project state revision) <? 4294967295)
+            | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.RevisionExhausted))
+            | Bool.true => (match (prim equal account (project request actor) : Bool)
+              | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.ActorMismatch))
+              | Bool.true => (match ((Foundation.Organization.V1.Administration::administrationBoundedText (project request request) 128) && ((Foundation.Organization.V1.Administration::administrationBoundedText (project request organization) 128) && ((Foundation.Organization.V1.Administration::administrationBoundedText (project request root) 128) && ((Foundation.Organization.V1.Administration::administrationBoundedText (project request label) 256) && true))))
+                | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.BadRequest))
+                | Bool.true => (match (not (lifecycleHasOrganization (project state entries) (project request organization)))
+                  | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.DuplicateOrganization))
+                  | Bool.true => (match (not (lifecycleHasCreationRequest (project state entries) (project request request)))
+                    | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.DuplicateCreationRequest))
+                    | Bool.true => (match ((lifecycleEntryCount (project state entries)) <? (project state capacity))
+                      | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.RegistryFull))
+                      | Bool.true => (match (Foundation.Organization.V1.Administration::createAdministration (project request organization) (project request label) account (project request root))
+                        | Result.error error => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.AdministrationRejected error))
+                        | Result.ok administration => (ctor Result.ok [OrganizationRegistry, OrganizationLifecycleError] (record OrganizationRegistry {registry := (project state registry), revision := ((project state revision) + 1), capacity := (project state capacity), entries := (project (lifecycleAppend (project state entries) (record OrganizationEntry {creator := account, creationRequest := (project request request), administration := administration})) entries)}))))))))))))),
+  axioms: []
+}
+
+definition{
+  name: lifecycleApplyAdministration,
+  parameters: [
+    current : Foundation.Organization.V1.Administration::AdministrationSnapshot,
+    request : Foundation.Organization.V1.Administration::AdministrationRequest
+  ],
+  result: (Result Foundation.Organization.V1.Administration::AdministrationSnapshot Foundation.Organization.V1.Administration::AdministrationError),
+  body: (Foundation.Organization.V1.Administration::transitionAdministration current request),
+  axioms: []
+}
+
+definition{
+  name: administerOrganization,
+  parameters: [
+    state : OrganizationRegistry,
+    account : String,
+    request : OrganizationAdministration
+  ],
+  result: (Result OrganizationRegistry OrganizationLifecycleError),
+  body: (match (lifecycleRegistryValid state)
+    | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.BadRegistry))
+    | Bool.true => (match ((Foundation.Organization.V1.Administration::administrationBoundedText account 128) && ((Foundation.Organization.V1.Administration::administrationBoundedText (project request registry) 128) && ((Foundation.Organization.V1.Administration::administrationBoundedText (project request actor) 128) && (((project request revision) <=? 4294967295) && true))))
+      | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.BadRequest))
+      | Bool.true => (match (prim equal (project state registry) (project request registry) : Bool)
+        | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.WrongRegistry))
+        | Bool.true => (match ((project state revision) =? (project request revision))
+          | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.StaleRevision))
+          | Bool.true => (match ((project state revision) <? 4294967295)
+            | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.RevisionExhausted))
+            | Bool.true => (match (prim equal account (project request actor) : Bool)
+              | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.ActorMismatch))
+              | Bool.true => (match (Foundation.Organization.V1.Administration::administrationBoundedText (project request organization) 128)
+                | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.BadRequest))
+                | Bool.true => (match (prim equal (project request organization) (project (project request administration) organization) : Bool)
+                  | Bool.false => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.WrongOrganization))
+                  | Bool.true => (match (lifecycleFind (project state entries) (project request organization))
+                    | Option.none => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.UnknownOrganization))
+                    | Option.some entry => (match (lifecycleApplyAdministration (project entry administration) (project request administration))
+                      | Result.error error => (ctor Result.error [OrganizationRegistry, OrganizationLifecycleError] (ctor OrganizationLifecycleError.AdministrationRejected error))
+                      | Result.ok next => (ctor Result.ok [OrganizationRegistry, OrganizationLifecycleError] (record OrganizationRegistry {registry := (project state registry), revision := ((project state revision) + 1), capacity := (project state capacity), entries := (project (lifecycleReplace (project state entries) (project request organization) next) entries)})))))))))))),
+  axioms: []
+}
 \end{semanticmodule}
 \end{lexlean}

@@ -5,201 +5,241 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{journalCount}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{(match (Nat.beq ((LexLeanRuntime.length ((head).bytes) : Nat)) (0)) with | Bool.false => PrismPM.Foundation.Browser.V1.Workspace.readU16At ((head).bytes) (36) | Bool.true => 0)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalDigestValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.beq ((LexLeanRuntime.length ((value).bytes) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((value).bytes) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalOctetCandidateEqual}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(left : UInt8) (right : Option (UInt8))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match right with | Option.none => false | Option.some rightValue => (LexLeanRuntime.equal (left) (rightValue) : Bool))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{journalOctetsEqual}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(left : Option (UInt8)) (right : Option (UInt8))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match left with | Option.none => false | Option.some leftValue => journalOctetCandidateEqual (leftValue) (right))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{journalRowBytesEqual}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(view : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (left : Nat) (right : Nat) (remaining : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match remaining with | Nat.zero => true | Nat.succ rest => (journalOctetsEqual ((LexLeanRuntime.index ((view).bytes) ((left + rest)) : Option (UInt8))) ((LexLeanRuntime.index ((view).bytes) ((right + rest)) : Option (UInt8))) \&\& (journalRowBytesEqual (view) (left) (right) (rest) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{journalPriorRowBlock}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(view : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (position : Nat) (offset : Nat) (start : Nat) (remaining : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match remaining with | Nat.zero => true | Nat.succ rest => ((match (Nat.ble (position) ((start + rest))) with | Bool.false => (!journalRowBytesEqual (view) (((LexLeanRuntime.multiply (position) (64) : Nat) + offset)) (((LexLeanRuntime.multiply ((start + rest)) (64) : Nat) + offset)) (32)) | Bool.true => true) \&\& (journalPriorRowBlock (view) (position) (offset) (start) (rest) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{journalPriorRowBlocks}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(view : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (position : Nat) (offset : Nat) (groups : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match groups with | Nat.zero => true | Nat.succ rest => ((match (Nat.ble (position) ((LexLeanRuntime.multiply (rest) (32) : Nat))) with | Bool.false => journalPriorRowBlock (view) (position) (offset) ((LexLeanRuntime.multiply (rest) (32) : Nat)) (32) | Bool.true => true) \&\& (journalPriorRowBlocks (view) (position) (offset) (rest) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{journalPriorDigestAbsent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(view : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (digest : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (offset : Nat) (count : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match count with | Nat.zero => true | Nat.succ rest => ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (view) (((LexLeanRuntime.multiply (rest) (64) : Nat) + offset)) (32)) ((digest).bytes)) \&\& (journalPriorDigestAbsent (view) (digest) (offset) (rest) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalRowValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(view : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (position : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(((Nat.beq ((LexLeanRuntime.length (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (view) ((LexLeanRuntime.multiply (position) (64) : Nat)) (32)) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (view) ((LexLeanRuntime.multiply (position) (64) : Nat)) (32)) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true)) \&\& (((Nat.beq ((LexLeanRuntime.length (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (view) (((LexLeanRuntime.multiply (position) (64) : Nat) + 32)) (32)) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (view) (((LexLeanRuntime.multiply (position) (64) : Nat) + 32)) (32)) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true)) \&\& (journalPriorRowBlocks (view) (position) (0) (32) \&\& (journalPriorRowBlocks (view) (position) (32) (32) \&\& true))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalRowsBlock}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(view : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (count : Nat) (start : Nat) (remaining : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match remaining with | Nat.zero => true | Nat.succ rest => ((match (Nat.ble (count) ((start + rest))) with | Bool.false => journalRowValid (view) ((start + rest)) | Bool.true => true) \&\& (journalRowsBlock (view) (count) (start) (rest) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalRowsBlocks}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(view : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (count : Nat) (groups : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match groups with | Nat.zero => true | Nat.succ rest => ((match (Nat.ble (count) ((LexLeanRuntime.multiply (rest) (32) : Nat))) with | Bool.false => journalRowsBlock (view) (count) ((LexLeanRuntime.multiply (rest) (32) : Nat)) (32) | Bool.true => true) \&\& (journalRowsBlocks (view) (count) (rest) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalRowsValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(view : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (count : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.ble (count) (1024)) \&\& (journalRowsBlocks (view) (count) (32) \&\& true))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalHeadValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match (Nat.beq ((LexLeanRuntime.length ((head).bytes) : Nat)) (0)) with | Bool.false => ((Nat.ble (102) ((LexLeanRuntime.length ((head).bytes) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length ((head).bytes) : Nat)) (65574)) \&\& (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (head) (0) (4)) (ByteArray.mk \#[80, 87, 74, 1]) \&\& (((Nat.beq ((LexLeanRuntime.length (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (head) (4) (32)) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (head) (4) (32)) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true)) \&\& ((Nat.ble (1) (journalCount (head))) \&\& ((Nat.ble (journalCount (head)) (1024)) \&\& ((Nat.beq ((LexLeanRuntime.length ((head).bytes) : Nat)) ((38 + (LexLeanRuntime.multiply (journalCount (head)) (64) : Nat)))) \&\& (journalRowsValid ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (head) (38) ((LexLeanRuntime.subtract ((LexLeanRuntime.length ((head).bytes) : Nat)) (38) : Nat)) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) (journalCount (head)) \&\& true)))))))) | Bool.true => true)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalSeenMatches}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(rows : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (seen : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (count : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match count with | Nat.zero => true | Nat.succ rest => (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (rows) ((LexLeanRuntime.multiply (rest) (64) : Nat)) (32)) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (seen) ((LexLeanRuntime.multiply (rest) (32) : Nat)) (32)) \&\& (journalSeenMatches (rows) (seen) (rest) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalStateMatchesDecoded}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceState)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (head) (4) (32)) ((state).workspace) \&\& (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (head) ((38 + (LexLeanRuntime.multiply ((LexLeanRuntime.subtract (journalCount (head)) (1) : Nat)) (64) : Nat))) (32)) ((state).head) \&\& ((Nat.beq (((state).sequence + 1)) (journalCount (head))) \&\& ((Nat.beq ((LexLeanRuntime.length ((state).seen) : Nat)) ((LexLeanRuntime.multiply (journalCount (head)) (32) : Nat))) \&\& (journalSeenMatches ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (head) (38) ((LexLeanRuntime.subtract ((LexLeanRuntime.length ((head).bytes) : Nat)) (38) : Nat)) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := (state).seen \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) (journalCount (head)) \&\& true)))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalStateMatches}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match (Nat.beq ((LexLeanRuntime.length ((head).bytes) : Nat)) (0)) with | Bool.false => (match PrismPM.Foundation.Browser.V1.Workspace.decodeWorkspaceState ((state).bytes) with | Option.none => false | Option.some decoded => journalStateMatchesDecoded (head) (decoded)) | Bool.true => (Nat.beq ((LexLeanRuntime.length ((state).bytes) : Nat)) (0)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalNextHead}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (event : PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[80, 87, 74, 1]) : ByteArray)) ((event).workspace) : ByteArray)) (PrismPM.Foundation.Browser.V1.Workspace.encodeU16 ((journalCount (head) + 1))) : ByteArray)) ((match (Nat.beq ((LexLeanRuntime.length ((head).bytes) : Nat)) (0)) with | Bool.false => PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (head) (38) ((LexLeanRuntime.subtract ((LexLeanRuntime.length ((head).bytes) : Nat)) (38) : Nat)) | Bool.true => ByteArray.mk \#[])) : ByteArray)) ((event).eventId) : ByteArray)) ((objectId).bytes) : ByteArray)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalPlanBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(nextHead : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (nextState : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[0]) : ByteArray)) (PrismPM.Foundation.Browser.V1.Workspace.encodeU24 ((LexLeanRuntime.length ((nextHead).bytes) : Nat))) : ByteArray)) (PrismPM.Foundation.Browser.V1.Workspace.encodeU24 ((LexLeanRuntime.length ((nextState).bytes) : Nat))) : ByteArray)) ((nextHead).bytes) : ByteArray)) ((nextState).bytes) : ByteArray)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{journalAcceptedPlan}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (event : PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (nextState : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceState)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{journalPlanBytes ((\{ bytes := journalNextHead (head) (event) (objectId) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.encodeWorkspaceState (nextState) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalReduce}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : Option (PrismPM.Foundation.Browser.V1.Workspace.WorkspaceState)) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (event : PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match PrismPM.Foundation.Browser.V1.Workspace.reduceAuthenticatedEvent (state) (event) with | PrismPM.Foundation.Browser.V1.Workspace.WorkspaceTransition.Rejected error => (LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[16]) : ByteArray)) (PrismPM.Foundation.Browser.V1.Workspace.encodeWorkspaceError (error)) : ByteArray) | PrismPM.Foundation.Browser.V1.Workspace.WorkspaceTransition.Accepted nextState => journalAcceptedPlan (head) (event) (objectId) (nextState))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalAppendChecked}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : Option (PrismPM.Foundation.Browser.V1.Workspace.WorkspaceState)) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (event : PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (!((Nat.beq ((LexLeanRuntime.length ((event).workspace) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((event).workspace) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true))) with | Bool.false => (match (!((Nat.beq ((LexLeanRuntime.length ((objectId).bytes) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((objectId).bytes) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true))) with | Bool.false => (match (Nat.ble (1024) (journalCount (head))) with | Bool.false => (match (!journalPriorDigestAbsent ((\{ bytes := (match (Nat.beq ((LexLeanRuntime.length ((head).bytes) : Nat)) (0)) with | Bool.false => PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (head) (38) ((LexLeanRuntime.subtract ((LexLeanRuntime.length ((head).bytes) : Nat)) (38) : Nat)) | Bool.true => ByteArray.mk \#[]) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) (objectId) (32) (journalCount (head))) with | Bool.false => journalReduce (head) (state) (objectId) (event) | Bool.true => ByteArray.mk \#[5]) | Bool.true => ByteArray.mk \#[6]) | Bool.true => ByteArray.mk \#[4]) | Bool.true => ByteArray.mk \#[2])}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalAppendExisting}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceState) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (event : PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match journalStateMatchesDecoded (head) (state) with | Bool.false => ByteArray.mk \#[3] | Bool.true => journalAppendChecked (head) (Option.some (state)) (objectId) (event))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalAppendEvent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (event : PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (!journalHeadValid (head)) with | Bool.false => (match (Nat.beq ((LexLeanRuntime.length ((head).bytes) : Nat)) (0)) with | Bool.false => (match PrismPM.Foundation.Browser.V1.Workspace.decodeWorkspaceState ((state).bytes) with | Option.none => ByteArray.mk \#[3] | Option.some existing => journalAppendExisting (head) (existing) (objectId) (event)) | Bool.true => (match (Nat.beq ((LexLeanRuntime.length ((state).bytes) : Nat)) (0)) with | Bool.false => ByteArray.mk \#[3] | Bool.true => journalAppendChecked (head) (Option.none) (objectId) (event))) | Bool.true => ByteArray.mk \#[2])}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalAppendCandidate}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (candidate : PrismPM.Foundation.Browser.V1.WorkspaceEnvelope.WorkspaceEnvelope)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match PrismPM.Foundation.Browser.V1.Workspace.decodeAuthenticatedEvent ((candidate).eventBytes) with | Option.none => ByteArray.mk \#[1] | Option.some event => journalAppendEvent (head) (state) (objectId) (event))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{prepareJournalAppend}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (envelope : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match PrismPM.Foundation.Browser.V1.WorkspaceEnvelope.decodeWorkspaceEnvelope ((envelope).bytes) with | Option.none => ByteArray.mk \#[1] | Option.some candidate => journalAppendCandidate (head) (state) (objectId) (candidate))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalAppendFields}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(request : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (headLength : Nat) (stateLength : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match ((Nat.ble (headLength) (65574)) \&\& ((Nat.ble (stateLength) (1100427)) \&\& ((Nat.ble (((305 + headLength) + stateLength)) ((LexLeanRuntime.length ((request).bytes) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length ((request).bytes) : Nat)) (((4401 + headLength) + stateLength))) \&\& true)))) with | Bool.false => ByteArray.mk \#[1] | Bool.true => prepareJournalAppend ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) (6) (headLength) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) ((6 + headLength)) (stateLength) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) (((6 + headLength) + stateLength)) (32) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) (((38 + headLength) + stateLength)) ((LexLeanRuntime.subtract ((LexLeanRuntime.length ((request).bytes) : Nat)) (((38 + headLength) + stateLength)) : Nat)) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalAppendBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(request : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (Nat.ble (6) ((LexLeanRuntime.length ((request).bytes) : Nat))) with | Bool.false => ByteArray.mk \#[1] | Bool.true => journalAppendFields (request) (PrismPM.Foundation.Browser.V1.Workspace.readU24At ((request).bytes) (0)) (PrismPM.Foundation.Browser.V1.Workspace.readU24At ((request).bytes) (3)))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalReplayBound}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(target : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (envelope : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (event : PrismPM.Foundation.Browser.V1.Workspace.AuthenticatedEvent)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (journalHeadValid (target) \&\& ((!(Nat.beq ((LexLeanRuntime.length ((target).bytes) : Nat)) (0))) \&\& (journalHeadValid (head) \&\& ((Nat.ble ((journalCount (head) + 1)) (journalCount (target))) \&\& (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (head) (38) ((LexLeanRuntime.subtract ((LexLeanRuntime.length ((head).bytes) : Nat)) (38) : Nat))) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (target) (38) ((LexLeanRuntime.multiply (journalCount (head)) (64) : Nat))) \&\& (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((event).workspace) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (target) (4) (32)) \&\& (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((event).eventId) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (target) ((38 + (LexLeanRuntime.multiply (journalCount (head)) (64) : Nat))) (32)) \&\& (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((objectId).bytes) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (target) ((70 + (LexLeanRuntime.multiply (journalCount (head)) (64) : Nat))) (32)) \&\& true)))))))) with | Bool.false => ByteArray.mk \#[7] | Bool.true => prepareJournalAppend (head) (state) (objectId) (envelope))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalReplayCandidate}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(target : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (envelope : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (candidate : PrismPM.Foundation.Browser.V1.WorkspaceEnvelope.WorkspaceEnvelope)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match PrismPM.Foundation.Browser.V1.Workspace.decodeAuthenticatedEvent ((candidate).eventBytes) with | Option.none => ByteArray.mk \#[1] | Option.some event => journalReplayBound (target) (head) (state) (objectId) (envelope) (event))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{replayJournalEntry}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(target : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (objectId : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (envelope : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match PrismPM.Foundation.Browser.V1.WorkspaceEnvelope.decodeWorkspaceEnvelope ((envelope).bytes) with | Option.none => ByteArray.mk \#[1] | Option.some candidate => journalReplayCandidate (target) (head) (state) (objectId) (envelope) (candidate))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalReplayFields}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(target : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (request : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (headLength : Nat) (stateLength : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match ((Nat.ble (headLength) (65574)) \&\& ((Nat.ble (stateLength) (1100427)) \&\& ((Nat.ble (((305 + headLength) + stateLength)) ((LexLeanRuntime.length ((request).bytes) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length ((request).bytes) : Nat)) (((4401 + headLength) + stateLength))) \&\& true)))) with | Bool.false => ByteArray.mk \#[1] | Bool.true => replayJournalEntry (target) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) (6) (headLength) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) ((6 + headLength)) (stateLength) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) (((6 + headLength) + stateLength)) (32) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) (((38 + headLength) + stateLength)) ((LexLeanRuntime.subtract ((LexLeanRuntime.length ((request).bytes) : Nat)) (((38 + headLength) + stateLength)) : Nat)) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalReplayPayload}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(target : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (request : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (Nat.ble (6) ((LexLeanRuntime.length ((request).bytes) : Nat))) with | Bool.false => ByteArray.mk \#[1] | Bool.true => journalReplayFields (target) (request) (PrismPM.Foundation.Browser.V1.Workspace.readU24At ((request).bytes) (0)) (PrismPM.Foundation.Browser.V1.Workspace.readU24At ((request).bytes) (3)))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{journalReplayBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(request : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (targetLength : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match ((Nat.ble (targetLength) (65574)) \&\& ((Nat.ble ((3 + targetLength)) ((LexLeanRuntime.length ((request).bytes) : Nat))) \&\& true)) with | Bool.false => ByteArray.mk \#[1] | Bool.true => journalReplayPayload ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) (3) (targetLength) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) ((3 + targetLength)) ((LexLeanRuntime.subtract ((LexLeanRuntime.length ((request).bytes) : Nat)) ((3 + targetLength)) : Nat)) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{finishJournalReplay}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(target : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (head : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (state : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (journalHeadValid (target) \&\& ((!(Nat.beq ((LexLeanRuntime.length ((target).bytes) : Nat)) (0))) \&\& (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((target).bytes) ((head).bytes) \&\& (journalStateMatches (head) (state) \&\& true)))) with | Bool.false => ByteArray.mk \#[8] | Bool.true => (LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[0]) : ByteArray)) ((state).bytes) : ByteArray))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalReplayCompleteFields}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(request : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (targetLength : Nat) (headLength : Nat) (stateLength : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match ((Nat.ble (targetLength) (65574)) \&\& ((Nat.ble (headLength) (65574)) \&\& ((Nat.ble (stateLength) (1100427)) \&\& ((Nat.beq ((LexLeanRuntime.length ((request).bytes) : Nat)) ((((9 + targetLength) + headLength) + stateLength))) \&\& true)))) with | Bool.false => ByteArray.mk \#[1] | Bool.true => finishJournalReplay ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) (9) (targetLength) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) ((9 + targetLength)) (headLength) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (request) (((9 + targetLength) + headLength)) (stateLength) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalCommitBound}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(session : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (receipt : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.beq ((LexLeanRuntime.length ((session).bytes) : Nat)) (129)) \&\& ((Nat.beq ((LexLeanRuntime.length ((receipt).bytes) : Nat)) (161)) \&\& (((Nat.beq ((LexLeanRuntime.length (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (1) (32)) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (1) (32)) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true)) \&\& (((Nat.beq ((LexLeanRuntime.length (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (65) (32)) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (65) (32)) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true)) \&\& (((Nat.beq ((LexLeanRuntime.length (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (97) (32)) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (97) (32)) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true)) \&\& (PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (1) (128)) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (receipt) (1) (128)) \&\& true))))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{journalCommitResult}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(session : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (receipt : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (status : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (Nat.beq (status) (0)) with | Bool.false => (match ((Nat.ble (1) (status)) \&\& ((Nat.ble (status) (5)) \&\& ((match (Nat.beq (status) (1)) with | Bool.false => PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (receipt) (129) (32)) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (33) (32)) | Bool.true => (!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (receipt) (129) (32)) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (33) (32)))) \&\& true))) with | Bool.false => ByteArray.mk \#[9] | Bool.true => (LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (PrismPM.Foundation.Browser.V1.Workspace.encodeOctet ((32 + status))) : ByteArray)) (ByteArray.mk \#[2]) : ByteArray)) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (1) (128)) : ByteArray)) | Bool.true => (match PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (receipt) (129) (32)) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (65) (32)) with | Bool.false => ByteArray.mk \#[9] | Bool.true => (LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[0, 1]) : ByteArray)) (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (1) (128)) : ByteArray)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{finishJournalCommit}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(session : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (receipt : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (!journalCommitBound (session) (receipt)) with | Bool.false => (match (!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (session) (0) (1)) (ByteArray.mk \#[0])) with | Bool.false => journalCommitResult (session) (receipt) (PrismPM.Foundation.Browser.V1.Workspace.decodeOctet (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (receipt) (0) (1))) | Bool.true => ByteArray.mk \#[10]) | Bool.true => ByteArray.mk \#[9])}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{workspaceJournalOperation}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(operation : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView) (payload : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((operation).bytes) (ByteArray.mk \#[0]) with | Bool.false => (match PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((operation).bytes) (ByteArray.mk \#[1]) with | Bool.false => (match PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((operation).bytes) (ByteArray.mk \#[2]) with | Bool.false => (match PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((operation).bytes) (ByteArray.mk \#[3]) with | Bool.false => (match PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((operation).bytes) (ByteArray.mk \#[4]) with | Bool.false => (match PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((operation).bytes) (ByteArray.mk \#[5]) with | Bool.false => (match PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual ((operation).bytes) (ByteArray.mk \#[6]) with | Bool.false => ByteArray.mk \#[11] | Bool.true => PrismPM.Foundation.Browser.V1.WorkspaceEnvelope.workspaceEnvelopeBytes ((payload).bytes)) | Bool.true => (match ((Nat.beq ((LexLeanRuntime.length ((payload).bytes) : Nat)) (96)) \&\& (((Nat.beq ((LexLeanRuntime.length (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (payload) (32) (32)) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (payload) (32) (32)) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true)) \&\& (((Nat.beq ((LexLeanRuntime.length (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (payload) (64) (32)) : Nat)) (32)) \&\& ((!PrismPM.Foundation.Browser.V1.Workspace.workspaceBytesEqual (PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (payload) (64) (32)) (PrismPM.Foundation.Browser.V1.Workspace.zeroDigest)) \&\& true)) \&\& true))) with | Bool.false => ByteArray.mk \#[9] | Bool.true => (LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[0]) : ByteArray)) (ByteArray.mk \#[112, 114, 105, 115, 109, 112, 109, 47, 106, 111, 117, 114, 110, 97, 108, 45, 99, 111, 109, 109, 105, 116, 47, 49, 0]) : ByteArray)) ((payload).bytes) : ByteArray))) | Bool.true => (match (Nat.ble (9) ((LexLeanRuntime.length ((payload).bytes) : Nat))) with | Bool.false => ByteArray.mk \#[1] | Bool.true => journalReplayCompleteFields (payload) (PrismPM.Foundation.Browser.V1.Workspace.readU24At ((payload).bytes) (0)) (PrismPM.Foundation.Browser.V1.Workspace.readU24At ((payload).bytes) (3)) (PrismPM.Foundation.Browser.V1.Workspace.readU24At ((payload).bytes) (6)))) | Bool.true => (match (Nat.ble (3) ((LexLeanRuntime.length ((payload).bytes) : Nat))) with | Bool.false => ByteArray.mk \#[1] | Bool.true => journalReplayBytes (payload) (PrismPM.Foundation.Browser.V1.Workspace.readU24At ((payload).bytes) (0)))) | Bool.true => (match (Nat.beq ((LexLeanRuntime.length ((payload).bytes) : Nat)) (290)) with | Bool.false => ByteArray.mk \#[1] | Bool.true => finishJournalCommit ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (payload) (0) (129) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindowView (payload) (129) (161) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)))) | Bool.true => journalAppendBytes (payload)) | Bool.true => (match journalHeadValid (payload) with | Bool.false => ByteArray.mk \#[2] | Bool.true => (LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[0]) : ByteArray)) ((payload).bytes) : ByteArray)))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{workspaceJournalBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(request : ByteArray)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match ((Nat.ble (1) ((LexLeanRuntime.length (request) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length (request) : Nat)) (1235980)) \&\& true)) with | Bool.false => ByteArray.mk \#[1] | Bool.true => workspaceJournalOperation ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindow (request) (0) (1) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)) ((\{ bytes := PrismPM.Foundation.Browser.V1.Workspace.byteWindow (request) (1) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (request) : Nat)) (1) : Nat)) \} : PrismPM.Foundation.Browser.V1.Workspace.WorkspaceByteView)))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par

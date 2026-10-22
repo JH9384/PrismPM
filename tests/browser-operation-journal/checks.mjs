@@ -70,6 +70,7 @@ export function sourceClosure() {
     'tests/browser-view/compile.mjs', 'tests/browser-view/driver-cache.mjs', 'tests/browser-view/prerequisites.mjs',
     'tests/browser-view/compiler-artifact.mjs', 'tests/browser-view/compiler-owner-checks.mjs', 'tests/browser-view/compiler-owner.mjs',
     'tests/browser-view/verification-products.mjs',
+    'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs',
     'tests/browser-effects/checks.mjs', 'tests/browser-effects/compile.mjs', 'tests/browser-effects/corpus.mjs',
     'tests/browser-custody/compile.mjs', 'tests/browser-custody/checks.mjs', 'tests/browser-custody/corpus.mjs',
     'tests/browser-custody/browser.mjs', 'tests/browser-custody/browser-fixture.mjs', 'LICENSE-MIT', 'LICENSE-APACHE',

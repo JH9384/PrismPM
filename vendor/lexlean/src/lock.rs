@@ -85,7 +85,11 @@ impl Lock {
     #[must_use]
     pub fn canonical_bytes(&self) -> Vec<u8> {
         let mut out = String::new();
-        out.push_str(&format!("spec = {}\n", toml_string("lexlean/lock/1")));
+        let spec = match self.language.as_str() {
+            "1.2" => "lexlean/lock/2",
+            _ => "lexlean/lock/1",
+        };
+        out.push_str(&format!("spec = {}\n", toml_string(spec)));
         out.push_str(&format!("language = {}\n", toml_string(&self.language)));
         out.push_str(&format!(
             "compiler_semantics = {}\n",
@@ -224,10 +228,22 @@ pub fn parse_lock(path: &str, bytes: &[u8]) -> Result<Lock, Vec<Diagnostic>> {
     let raw: RawLock = toml::from_str(text)
         .map_err(|error| vec![lock_error(format!("{path}: invalid lock: {error}"))])?;
     let mut diagnostics = Vec::new();
-    if raw.spec != "lexlean/lock/1" {
+    let expected_spec = match raw.language.as_str() {
+        "1.2" => "lexlean/lock/2",
+        _ => "lexlean/lock/1",
+    };
+    if raw.spec != "lexlean/lock/1" && raw.spec != "lexlean/lock/2" {
         diagnostics.push(Diagnostic::new(
             code!("LLC0103"),
             format!("{path}: unsupported lock schema `{}`", raw.spec),
+        ));
+    } else if raw.spec != expected_spec {
+        diagnostics.push(Diagnostic::new(
+            code!("LLC0103"),
+            format!(
+                "{path}: unsupported lock schema `{}` for language `{}`",
+                raw.spec, raw.language
+            ),
         ));
     }
     if !crate::supports_language(&raw.language) {

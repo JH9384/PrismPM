@@ -1,0 +1,226 @@
+name: Prepare M0 LexLean reconciliation patch
+
+on:
+  push:
+    branches: [work/compression-m0-reconcile]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m0-lexlean-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      LEXLEAN_SOURCE_SHA: 0865df4e540ca643b090a29e9df6d319d6906da6
+      CARGO_INCREMENTAL: "0"
+      CARGO_NET_OFFLINE: "true"
+      CARGO_HOME: ${{ github.workspace }}/target/m0-locked-cargo-inputs
+    steps:
+      - name: Check out PrismPM reconciliation branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out the frozen LexLean source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: UOR-Foundation/LexLean
+          ref: 0865df4e540ca643b090a29e9df6d319d6906da6
+          path: _m0/lexlean
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Select the pinned host Node toolchain
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+
+      - name: Acquire the separate exact locked Cargo inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/m0-reconciliation-diagnostics"
+          exec > "$RUNNER_TEMP/m0-reconciliation-diagnostics/acquisition-step.log" 2>&1
+          test ! -e "$CARGO_HOME" && test ! -L "$CARGO_HOME"
+          mkdir -p "$CARGO_HOME"
+          rustup toolchain install 1.97.1 --profile minimal
+          export RUSTUP_TOOLCHAIN=1.97.1
+          # Only this acquisition phase accesses official registries. Cargo
+          # verifies published archive checksums against each unchanged lock.
+          manifests=(Cargo.toml _m0/lexlean/Cargo.toml vendor/lexlean/Cargo.toml vendor/lean4-prod/rust/Cargo.toml stdlib/generated/package/Cargo.toml)
+          for manifest in "${manifests[@]}"; do
+            test -f "$(dirname "$manifest")/Cargo.lock"
+            CARGO_NET_OFFLINE=false cargo fetch --locked --manifest-path "$manifest"
+          done
+
+      - name: Prepare the exact packaged dependency with its owning helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/m0-reconciliation-diagnostics"
+          exec > "$RUNNER_TEMP/m0-reconciliation-diagnostics/dependency-step.log" 2>&1
+          export RUSTUP_TOOLCHAIN=1.97.1
+          node --test scripts/reconcile-lexlean.test.mjs
+          node scripts/reconcile-lexlean.mjs _m0/lexlean "$LEXLEAN_SOURCE_SHA" \
+            | tee "$RUNNER_TEMP/m0-reconcile.json"
+          test "$(git -C _m0/lexlean rev-parse HEAD)" = "$LEXLEAN_SOURCE_SHA"
+          test -z "$(git -C _m0/lexlean status --porcelain=v1 --untracked-files=all)"
+          rm -rf _m0
+          cargo test --locked --offline -p xtask --bin xtask lean_source_audit_tests
+
+      - name: Update the root dependency lock and every real LexLean consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          export RUSTUP_TOOLCHAIN=1.97.1
+          mkdir -p "$RUNNER_TEMP/m0-reconciliation-diagnostics"
+          exec > "$RUNNER_TEMP/m0-reconciliation-diagnostics/relock-step.log" 2>&1
+          target="$RUNNER_TEMP/vendor-lexlean-target"
+          CARGO_TARGET_DIR="$target" cargo build --locked --offline --manifest-path vendor/lexlean/Cargo.toml --bin lexlean
+          lexlean="$target/debug/lexlean"
+          while IFS= read -r config; do
+            directory="$(dirname "$config")"
+            test -f "$directory/lexlean.lock" || continue
+            echo "relocking $directory"
+            # Normal lock authoring creates a build-root lock file. Retire that
+            # temporary root through the same compiler before fixture readers.
+            (cd "$directory" && "$lexlean" lock && "$lexlean" clean)
+          done < <(find . \
+            -path './vendor' -prune -o \
+            -path './target' -prune -o \
+            -name lexlean.toml -type f -print | sort)
+
+      - name: Regenerate owned PrismPM evidence through the pinned devcontainer
+        id: generated_prefix
+        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca
+        with:
+          push: never
+          runCmd: |
+            set -euo pipefail
+            export CARGO_NET_OFFLINE=true
+            # Same acquired input cache, resolved inside this container's
+            # workspace. This is never a compiler/output or acceptance cache.
+            export CARGO_HOME="$PWD/target/m0-locked-cargo-inputs"
+            mkdir -p target/m0-reconciliation-diagnostics
+            exec > target/m0-reconciliation-diagnostics/generation-step.log 2>&1
+            just codegen
+            just fixtures-write
+            just golden-write "M0 issue #5: reconcile reviewed LexLean PR68 0865df4e540ca643b090a29e9df6d319d6906da6"
+            just stdlib-package-write
+            stage="$(mktemp -d)"
+            cp -a stdlib/generated/package "$stage/stdlib"
+            (
+              cd "$stage/stdlib"
+              CARGO_NET_OFFLINE=true cargo package --locked --offline --target-dir target
+            )
+            cp "$stage/stdlib/target/package/prism-stdlib-0.2.0.crate" \
+              stdlib/generated/prism-stdlib-0.2.0.crate
+            crate_sha="$(sha256sum stdlib/generated/prism-stdlib-0.2.0.crate | cut -d' ' -f1)"
+            semantic_id="$(python3 - <<'PY'
+            import json
+            print(json.load(open("tests/golden/stdlib/build/model.prism.json"))["provenance"]["semantic_id"])
+            PY
+            )"
+            python3 - "$crate_sha" "$semantic_id" <<'PY'
+            import json, pathlib, sys
+            crate_sha, semantic_id = sys.argv[1:]
+            value = {
+                "crate_path": "stdlib/generated/prism-stdlib-0.2.0.crate",
+                "crate_sha256": crate_sha,
+                "schema": "prismpm/stdlib-release/1",
+                "semantic_id": semantic_id,
+            }
+            pathlib.Path("stdlib/release.json").write_text(
+                json.dumps(value, separators=(",", ":"), sort_keys=True)
+            )
+            PY
+            just golden-check
+            just stdlib-package-check
+            just check-fixtures
+            just package-release-crates-check
+            rm -r -- "$stage"
+
+      - name: Preserve an inert patch and its selected-source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/m0-reconciliation"
+          mkdir -p "$evidence"
+          git diff --check
+          # Intent-to-add includes new generated files without committing them.
+          git add -N -- .
+          git diff --binary HEAD > "$evidence/reconciliation.patch"
+          # A fully revalidated, already-reconciled dependency may have no diff.
+          # Empty patches are preparation outcomes, never acceptance evidence.
+          git status --short > "$evidence/worktree-status.txt"
+          git rev-parse HEAD > "$evidence/prismpm-source.txt"
+          cp "$RUNNER_TEMP/m0-reconcile.json" "$evidence/dependency.json"
+          printf '%s\n' \
+            'Preparation only. Complete source and installed-SDK V&V, both platforms, security, reproducibility and publication remain required.' \
+            > "$evidence/UNACCEPTED.txt"
+          sha256sum "$evidence/reconciliation.patch" > "$evidence/SHA256SUMS"
+      - name: Upload the reviewable preparation patch
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: m0-lexlean-reconciliation-proposal
+          path: ${{ runner.temp }}/m0-reconciliation/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Run the complete generated-evidence audit through the pinned devcontainer
+        # Fresh shared goldens must be reviewable before their native profiles
+        # can be regenerated. This audit remains mandatory and fail-closed;
+        # proposal preservation or upload cannot suppress it.
+        if: ${{ always() && !cancelled() && steps.generated_prefix.outcome == 'success' }}
+        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca
+        with:
+          push: never
+          runCmd: |
+            set -euo pipefail
+            export CARGO_NET_OFFLINE=true
+            export CARGO_HOME="$PWD/target/m0-locked-cargo-inputs"
+            mkdir -p target/m0-reconciliation-diagnostics
+            exec > target/m0-reconciliation-diagnostics/validation-step.log 2>&1
+            node scripts/reconcile-lexlean.mjs --validate-generated
+
+      - name: Preserve preparation diagnostics even after failure
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          diagnostics="$RUNNER_TEMP/m0-reconciliation-diagnostics"
+          mkdir -p "$diagnostics"
+          printf '%s\n' \
+            'Diagnostic-only partial preparation. No accepted patch, dependency closure or SDK gate result is implied.' \
+            > "$diagnostics/UNACCEPTED.txt"
+          printf '%s\n' "$LEXLEAN_SOURCE_SHA" > "$diagnostics/selected-lexlean-source.txt"
+          if test -f "$RUNNER_TEMP/m0-reconcile.json"; then
+            cp "$RUNNER_TEMP/m0-reconcile.json" "$diagnostics/partial-dependency.json"
+          fi
+          if test -f target/m0-reconciliation-diagnostics/generation-step.log; then
+            cp target/m0-reconciliation-diagnostics/generation-step.log "$diagnostics/"
+          fi
+          if test -f target/m0-reconciliation-diagnostics/validation-step.log; then
+            cp target/m0-reconciliation-diagnostics/validation-step.log "$diagnostics/"
+          fi
+          if test -f model/dependencies.toml; then
+            cp model/dependencies.toml "$diagnostics/observed-dependencies.toml"
+          fi
+          if git rev-parse HEAD > "$diagnostics/prismpm-source.txt" 2> "$diagnostics/git-errors.log"; then
+            git status --short > "$diagnostics/worktree-status.txt"
+          fi
+      - name: Upload diagnostic-only partial preparation
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: m0-lexlean-reconciliation-diagnostics
+          path: ${{ runner.temp }}/m0-reconciliation-diagnostics/
+          if-no-files-found: error
+          retention-days: 7

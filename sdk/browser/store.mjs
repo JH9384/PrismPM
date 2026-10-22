@@ -41,7 +41,9 @@ async function transaction(db, stores, mode, operation) {
   let tx;
   try {
     tx = db.transaction(stores, mode, { durability: 'strict' });
+    if (tx.durability !== 'strict') throw fail('storage-unavailable');
   } catch (error) {
+    try { tx?.abort(); } catch { /* No operation or acknowledgement has occurred. */ }
     throw storageError(error);
   }
   const done = new Promise((resolve, reject) => {

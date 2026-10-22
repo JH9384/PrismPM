@@ -1,15 +1,17 @@
 // Independent installed-SDK orchestration. Unit transports are not acceptance.
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
-import { spawn } from 'node:child_process';
 import { constants, closeSync, fstatSync, lstatSync, mkdirSync, openSync, readSync,
   realpathSync, statfsSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateVvEvidence } from './sdk-vv-run.mjs';
 import {bootstrapNames, validateBootstrapRetention} from './sdk-bootstrap-retention.mjs';
+import {executeOwnedSdkCommand} from './sdk-command-owner.mjs';
 import { validateResolver, isolatedResolver } from './sdk-vv-probe.mjs';
 import { verifyTap } from './browser-api-sdk-check.mjs';
+import {createSdkRegistryReader, sdkRegistryCertificate, readSdkRegistryManifest,
+  closeSdkRegistryReader} from './sdk-registry-reader.mjs';
 
 const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item)
   ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
@@ -23,11 +25,12 @@ const SHARED = '/opt/prismpm/share';
 const SOCKET = 'unix:///var/run/docker.sock';
 
 function regular(path, limit = 1024 * 1024) {
+  assert.equal(realpathSync(path), resolve(path), 'unaliased evidence path required');
   assert(lstatSync(path).isFile(), 'regular evidence required');
   const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
     const before = fstatSync(fd, { bigint: true });
-    assert(before.isFile() && before.size <= BigInt(limit), 'bounded evidence required');
+    assert(before.isFile() && before.nlink === 1n && before.size <= BigInt(limit), 'bounded singly linked evidence required');
     const bytes = Buffer.alloc(Number(before.size));
     for (let offset = 0; offset < bytes.length;) {
       const count = readSync(fd, bytes, offset, bytes.length - offset, null);
@@ -35,7 +38,7 @@ function regular(path, limit = 1024 * 1024) {
     }
     assert.equal(readSync(fd, Buffer.alloc(1), 0, 1, null), 0, 'evidence grew');
     for (const after of [fstatSync(fd, { bigint: true }), lstatSync(path, { bigint: true })]) {
-      for (const key of ['dev', 'ino', 'size', 'mode', 'mtimeNs', 'ctimeNs']) assert.equal(after[key], before[key]);
+      for (const key of ['dev', 'ino', 'size', 'mode', 'nlink', 'mtimeNs', 'ctimeNs']) assert.equal(after[key], before[key]);
     }
     return bytes;
   } finally { closeSync(fd); }
@@ -192,36 +195,9 @@ export function validateExecution(bytes, originals, image, revision, arch) {
 }
 
 // Fixed CLI transport. Injection below is available only to owning unit tests.
-export function execute(command, args, { environment, timeout = 120000, limit = 8 * 1024 * 1024 } = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { env: environment, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    const streams = [[], []], lengths = [0, 0]; let failure;
-    const stop = error => {
-      failure ??= error;
-      // Docker CLI plugins can outlive their parent and keep its pipes open.
-      // Kill only this invocation's private process group, including plugins.
-      if (child.pid) {
-        try { process.kill(-child.pid, 'SIGKILL'); }
-        catch (error) { if (error.code !== 'ESRCH') failure = error; }
-      }
-    };
-    const timer = setTimeout(() => stop(Error('bounded process timed out')), timeout);
-    const handlers = ['SIGHUP', 'SIGINT', 'SIGTERM'].map(signal => [signal, () => stop(Error(`interrupted by ${signal}`))]);
-    for (const [signal, handler] of handlers) process.on(signal, handler);
-    for (const [index, stream] of [child.stdout, child.stderr].entries()) stream.on('data', bytes => {
-      const remaining = Math.max(0, limit - lengths[index]); streams[index].push(bytes.subarray(0, remaining));
-      lengths[index] += bytes.length;
-      if (lengths[index] > limit) stop(Error('bounded process output exceeded'));
-    });
-    const clean = () => { clearTimeout(timer); for (const [signal, handler] of handlers) process.removeListener(signal, handler); };
-    child.once('error', error => { clean(); reject(error); });
-    child.once('close', (status, signal) => {
-      clean(); const result = {status, signal, stdout: Buffer.concat(streams[0]), stderr: Buffer.concat(streams[1])};
-      if (failure) { failure.result = result; reject(failure); } else resolve(result);
-    });
-  });
+export function execute(command, args, {environment, timeout = 120000, limit = 8 * 1024 * 1024} = {}) {
+  return executeOwnedSdkCommand(command, args, {profile: 'vv', environment, timeout, limit, interruptions: true});
 }
-
 function successful(result, label) {
   assert.equal(result.signal, null, `${label} interrupted`);
   assert.equal(result.status, 0, `${label} failed: ${result.stderr.toString().slice(-4096)}`);
@@ -234,6 +210,22 @@ export async function acquireImageMetadata(call, image, arch) {
   const child = selectPlatform(index, image.split('@')[1], arch);
   const referenceChild = image.split('@')[0] + '@' + child.digest;
   const manifest = successful(await call(['buildx', 'imagetools', 'inspect', '--raw', referenceChild]), 'read OCI child');
+  return validateImageMetadata(index, manifest, image, arch);
+}
+
+// Shared by the real installed-SDK orchestrator and native transport qualifier.
+// This is acquisition only: the caller must separately retire the actual reader.
+export async function acquireOwnedImageMetadata(reader, image, arch) {
+  const index = await readSdkRegistryManifest(reader, image);
+  const child = selectPlatform(index, image.split('@')[1], arch);
+  const manifest = await readSdkRegistryManifest(reader, image.split('@')[0] + '@' + child.digest);
+  return {index, manifest, metadata: validateImageMetadata(index, manifest, image, arch)};
+}
+
+export function validateImageMetadata(index, manifest, image, arch) {
+  reference(image); architecture(arch);
+  const child = selectPlatform(index, image.split('@')[1], arch);
+  assert(Buffer.isBuffer(manifest) && manifest.length <= 4 * 1024 * 1024);
   assert.equal(manifest.length, child.size); assert.equal('sha256:' + hash(manifest), child.digest);
   const parsed = JSON.parse(manifest); assert.equal(parsed.schemaVersion, 2); digest(parsed.config?.digest);
   assert(['application/vnd.oci.image.manifest.v1+json', 'application/vnd.docker.distribution.manifest.v2+json'].includes(parsed.mediaType));
@@ -263,7 +255,7 @@ function nativeBasis(arch, environment) {
 
 // All callers get the same fixed operations; there is no configurable command,
 // acceptance shortcut, alternate evidence path or public unit-transport option.
-export async function runOuter({image, revision, arch, destination, source}, transport = execute, environment = process.env) {
+export async function runOuter({image, revision, arch, destination, source, registryCertificate}, transport = execute, environment = process.env) {
   reference(image); oid(revision); architecture(arch);
   const native = nativeBasis(arch, environment);
   assert.equal(environment.GITHUB_SHA, revision); source = realpathSync(source); destination = resolve(destination);
@@ -277,8 +269,11 @@ export async function runOuter({image, revision, arch, destination, source}, tra
   const names = {daemon: `${prefix}-daemon`, control: `${prefix}-control`, sdk: `${prefix}-sdk`, network: `${prefix}-bootstrap`,
     data: `${prefix}-data`, socket: `${prefix}-socket`, work: `${prefix}-work`};
   const sanitized = {PATH: environment.PATH, HOME: join(destination, 'docker'), DOCKER_CONFIG: join(destination, 'docker'), LANG: 'C', LC_ALL: 'C'};
-  let sequence = 0, interrupted, cleaning = false;
-  const handlers = ['SIGHUP', 'SIGINT', 'SIGTERM'].map(signal => [signal, () => { interrupted ??= Error(`outer verification interrupted by ${signal}`); }]);
+  let sequence = 0, interrupted, cleaning = false, registryReader, registryRetired = false, registryEvidence, registryCa, registryDirectory;
+  const registryController = new AbortController();
+  const handlers = ['SIGHUP', 'SIGINT', 'SIGTERM'].map(signal => [signal, () => {
+    interrupted ??= Error(`outer verification interrupted by ${signal}`); registryController.abort(interrupted);
+  }]);
   for (const [signal, handler] of handlers) process.on(signal, handler);
   const call = async (args, options = {}) => {
     if (interrupted && !cleaning) throw interrupted;
@@ -288,7 +283,8 @@ export async function runOuter({image, revision, arch, destination, source}, tra
     writeFileSync(join(destination, `${number}.stdout`), result.stdout, {flag: 'wx', mode: 0o600});
     writeFileSync(join(destination, `${number}.stderr`), result.stderr, {flag: 'wx', mode: 0o600});
     writeFileSync(join(destination, `${number}.json`), canonical({arguments: args, status: result.status, signal: result.signal,
-      stdout_sha256: hash(result.stdout), stderr_sha256: hash(result.stderr)}), {flag: 'wx', mode: 0o600});
+      stdout_sha256: hash(result.stdout), stderr_sha256: hash(result.stderr),
+      ...(result.retirement ? {process_retirement: result.retirement} : {})}), {flag: 'wx', mode: 0o600});
     if (failure) throw failure;
     if (interrupted && !cleaning) throw interrupted;
     assert.equal(result.signal, null, 'Docker transport interrupted');
@@ -316,8 +312,28 @@ export async function runOuter({image, revision, arch, destination, source}, tra
       identity: (await outer(['exec', names.daemon, 'readlink', '/proc/self/ns/net'])).toString().trim()});
   };
   try {
+    if (registryCertificate !== undefined) {
+      registryReader = createSdkRegistryReader(image, registryCertificate, {signal: registryController.signal});
+      registryCa = sdkRegistryCertificate(registryReader);
+      registryDirectory = join(destination, 'docker', 'registry-trust'); mkdirSync(registryDirectory, {mode: 0o700});
+      writeFileSync(join(registryDirectory, 'ca.crt'), registryCa, {flag: 'wx', mode: 0o444});
+      assert.deepEqual(regular(join(registryDirectory, 'ca.crt'), 65536), registryCa);
+    }
+    const ownedMetadata = async () => {
+      const {index, manifest, metadata} = await acquireOwnedImageMetadata(registryReader, image, arch);
+      registryEvidence = {authority: registryReader.authority, ca_sha256: registryReader.ca_sha256,
+        ca_pem: registryCa.toString('ascii'), original_index_base64: index.toString('base64'),
+        original_manifest_base64: manifest.toString('base64'),
+        outer_roots: 'explicit-ca-only', daemon_roots: 'system-roots-plus-exact-authority-ca',
+        provenance: 'TLS identity only; independently admitted construction digest remains required'};
+      return metadata;
+    };
     const metadata = await Promise.allSettled(Object.entries({...lock.images, sdk: {reference: image}}).map(async ([id, row]) =>
-      [id, await acquireImageMetadata(call, row.reference, arch)]));
+      [id, await (id === 'sdk' && registryReader ? ownedMetadata() : acquireImageMetadata(call, row.reference, arch))]));
+    if (registryReader) {
+      const retirement = closeSdkRegistryReader(registryReader); registryRetired = true;
+      if (registryEvidence) registryEvidence.transport = retirement;
+    }
     for (const result of metadata) if (result.status === 'rejected') throw result.reason;
     const expected = Object.fromEntries(metadata.map(result => result.value));
     assert.equal(expected.dind.annotations['org.opencontainers.image.revision'], lock.images.dind.source_revision);
@@ -325,7 +341,10 @@ export async function runOuter({image, revision, arch, destination, source}, tra
     // Expanded layers and independent Cargo/build roots need additional space;
     // this deliberately conservative bound is not permission to exhaust disk.
     const imageBytes = Object.values(expected).reduce((sum, row) => sum + row.compressed_bytes, 0);
-    assert(space.bavail * space.bsize >= imageBytes * 4 + 12 * 1024 ** 3, 'insufficient disk for isolated image closure and reserve');
+    // Metadata acquisition is asynchronous; its earlier admission cannot
+    // authorize image expansion after another writer consumes this filesystem.
+    const imageSpace = statfsSync(dirname(destination));
+    assert(imageSpace.bavail * imageSpace.bsize >= imageBytes * 4 + 12 * 1024 ** 3, 'insufficient disk for isolated image closure and reserve');
     writeFileSync(join(destination, 'image-plan.json'), canonical(expected), {flag: 'wx'});
     await outer(['pull', '--platform', `linux/${arch}`, lock.images.dind.reference], {timeout: 1200000});
     await inspectLoadedImage(call, expected.dind, arch);
@@ -334,6 +353,7 @@ export async function runOuter({image, revision, arch, destination, source}, tra
     await own('container', names.daemon, ['create', '--name', names.daemon, '--label', `${owner}=${nonce}`, '--privileged',
       '--network', names.network, '--env', 'DOCKER_TLS_CERTDIR=', '--mount', `type=volume,source=${names.data},target=/var/lib/docker`,
       '--mount', `type=volume,source=${names.socket},target=/var/run`, '--mount', `type=volume,source=${names.work},target=/workspace`,
+      ...(registryReader ? ['--mount', `type=bind,source=${registryDirectory},target=/etc/docker/certs.d/${registryReader.authority},readonly`] : []),
       lock.images.dind.reference, 'dockerd', '--host=' + SOCKET, '--data-root=/var/lib/docker', '--dns=127.0.0.1']);
     await outer(['start', names.daemon]);
     let ready = false;
@@ -350,6 +370,13 @@ export async function runOuter({image, revision, arch, destination, source}, tra
     await outer(['exec', names.daemon, 'chown', '1000:1000', '/workspace']);
     const loadedIdentities = {};
     for (const id of ['sdk', 'zot', 'buildkit', 'distribution']) {
+      if (id === 'sdk' && registryReader) {
+        assert.deepEqual(regular(join(registryDirectory, 'ca.crt'), 65536), registryCa, 'held SDK registry CA changed');
+        const path = `/etc/docker/certs.d/${registryReader.authority}/ca.crt`;
+        assert.deepEqual(await outer(['exec', names.daemon, 'cat', path]), registryCa, 'isolated daemon SDK registry CA differs');
+        registryEvidence.daemon_ca_path = path;
+        registryEvidence.daemon_ca_sha256 = hash(registryCa);
+      }
       await inner(['pull', '--platform', `linux/${arch}`, expected[id].reference], {timeout: 1200000});
       loadedIdentities[id] = await inspectLoadedImage(inside, expected[id], arch, id === 'sdk' ? revision : undefined);
     }
@@ -385,7 +412,9 @@ export async function runOuter({image, revision, arch, destination, source}, tra
     const ownImage = (await sdk(['docker', '--host', SOCKET, 'inspect', names.sdk, '--format', '{{.Image}}'])).toString().trim();
     assert.equal(ownImage, loadedIdentities.sdk.id);
     const boundPaths = ['scripts/sdk-vv-run.mjs', 'scripts/sdk-vv-probe.mjs', 'scripts/sdk-vv-check.mjs',
-      'scripts/sdk-bootstrap-retention.mjs', 'scripts/bootstrap-evidence.mjs', 'sdk/vv-runtime.lock.json'];
+      'scripts/sdk-command-owner.mjs', 'scripts/sdk-command-owner.py',
+      'scripts/sdk-vv-outer.sh',
+      'scripts/sdk-bootstrap-retention.mjs', 'scripts/bootstrap-evidence.mjs', 'scripts/sdk-registry-reader.mjs', 'sdk/vv-runtime.lock.json'];
     for (const path of boundPaths) assert.deepEqual(await sdk(['cat', `${SHARED}/conformance-root/${path}`]), regular(join(source, path)), 'installed outer/inner source differs');
     const elf = JSON.parse(await sdk(['node', probePath, 'native']));
     assert.deepEqual(elf, {architecture: arch, process_architecture: arch === 'amd64' ? 'x64' : 'arm64'});
@@ -434,13 +463,22 @@ export async function runOuter({image, revision, arch, destination, source}, tra
     for (const [index, original] of originals.entries()) writeFileSync(join(destination, `run-${index + 1}.json`), original, {flag: 'wx', mode: 0o444});
     writeFileSync(join(destination, 'execution.json'), bytes, {flag: 'wx', mode: 0o444});
     phases.push('both-full-vv-records-verified');
+    if (registryReader) {
+      assert.deepEqual(regular(join(registryDirectory, 'ca.crt'), 65536), registryCa, 'held SDK registry CA changed after execution');
+      assert.deepEqual(await outer(['exec', names.daemon, 'cat', registryEvidence.daemon_ca_path]), registryCa,
+        'isolated daemon SDK registry CA changed after execution');
+    }
     resultRecord = {schema: 'prismpm/sdk-installed-vv-check/1', status: 'passed', scope: 'isolated-installed-two-run-vv',
       source_revision: revision, image_reference: image, architecture: arch, native_execution: native,
       images: expected, runtime_lock_sha256: hash(lockBytes), before, after, initial_namespace: firstNamespace,
-      execution_sha256: hash(bytes), phases, unclaimed: ['hardware-attestation', 'sdk-release', 'product-readiness']};
+      execution_sha256: hash(bytes), phases, ...(registryEvidence ? {sdk_registry_transport: registryEvidence} : {}),
+      unclaimed: ['hardware-attestation', 'sdk-release', 'product-readiness']};
   } catch (error) { failure = error; }
   finally {
     cleaning = true;
+    if (registryReader && !registryRetired) {
+      try { closeSdkRegistryReader(registryReader); registryRetired = true; } catch (error) { failure ??= error; }
+    }
     for (const resource of owned.reverse()) {
       try {
         const inspection = JSON.parse(await outer([resource.kind, 'inspect', resource.name]))[0];
@@ -460,7 +498,7 @@ export async function runOuter({image, revision, arch, destination, source}, tra
 
 export function validateOwningTests(result) {
   successful(result, 'owning orchestrator tests');
-  assert.equal(verifyTap(result.stdout.toString(), 16), 16, 'exact complete owning test set');
+  assert.equal(verifyTap(result.stdout.toString(), 20), 20, 'exact complete owning test set');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -470,9 +508,25 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const result = await execute(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', '--test-timeout=120000',
       resolve(dirname(process.argv[1]), 'sdk-vv-check.test.mjs')], {environment, timeout: 150000, limit: 16 * 1024 * 1024});
     process.stdout.write(result.stdout); process.stderr.write(result.stderr); validateOwningTests(result);
+    const supervision = await execute(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', '--test-timeout=120000',
+      resolve(dirname(process.argv[1]), 'sdk-command-owner.test.mjs')], {environment, timeout: 150000, limit: 16 * 1024 * 1024});
+    process.stdout.write(supervision.stdout); process.stderr.write(supervision.stderr); successful(supervision, 'SDK command supervisor owning tests');
+    // Original12 owners plus exact cwd/argv and graceful interruption controls.
+    assert.equal(verifyTap(supervision.stdout.toString(), 14), 14, 'complete SDK command supervisor owning test set');
+    const tls = await execute(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', '--test-timeout=120000',
+      resolve(dirname(process.argv[1]), 'sdk-registry-reader.test.mjs')], {environment, timeout: 150000, limit: 16 * 1024 * 1024});
+    process.stdout.write(tls.stdout); process.stderr.write(tls.stderr); successful(tls, 'SDK registry transport owning tests');
+    assert.equal(verifyTap(tls.stdout.toString(), 10), 10, 'complete SDK registry transport owning test set');
+    const qualification = await execute(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', '--test-timeout=120000',
+      resolve(dirname(process.argv[1]), 'sdk-registry-qualification.test.mjs')], {environment, timeout: 150000, limit: 16 * 1024 * 1024});
+    process.stdout.write(qualification.stdout); process.stderr.write(qualification.stderr); successful(qualification, 'SDK registry qualification owning tests');
+    assert.equal(verifyTap(qualification.stdout.toString(), 17), 17, 'complete SDK registry qualification owning test set');
   } else {
-    assert.equal(operation, 'run'); assert(image && revision && arch && destination && extra.length === 0,
-      'usage: sdk-vv-check.mjs tests | run IMAGE@sha256:DIGEST SOURCE_COMMIT ARCH FRESH_OUTPUT');
-    console.log(canonical(await runOuter({image, revision, arch, destination, source: resolve(dirname(process.argv[1]), '..')})));
+    assert(['run', 'run-owned-registry'].includes(operation));
+    assert(image && revision && arch && destination && extra.length === (operation === 'run' ? 0 : 1),
+      'usage: sdk-vv-check.mjs tests | run IMAGE@sha256:DIGEST SOURCE_COMMIT ARCH FRESH_OUTPUT | run-owned-registry IMAGE@sha256:DIGEST SOURCE_COMMIT ARCH FRESH_OUTPUT CA_PEM');
+    const registryCertificate = operation === 'run-owned-registry' ? regular(resolve(extra[0]), 65536) : undefined;
+    console.log(canonical(await runOuter({image, revision, arch, destination, registryCertificate,
+      source: resolve(dirname(process.argv[1]), '..')})));
   }
 }

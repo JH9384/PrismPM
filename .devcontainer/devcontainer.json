@@ -1,5 +1,6 @@
 {
   "name": "PrismPM",
+  "init": true,
   "build": {
     "context": "..",
     "dockerfile": "Dockerfile"

@@ -1,0 +1,22 @@
+[
+  {"id":"large-decimal","location":"root","member":"\"opaque\":1e400","accepted":true},
+  {"id":"nested-irrelevant-number-fields","location":"root","member":"\"opaque\":{\"size\":1e400,\"schemaVersion\":0.5}","accepted":true},
+  {"id":"surrogate-value","location":"root","member":"\"opaque\":\"\\uD800\"","accepted":true},
+  {"id":"surrogate-key","location":"root","member":"\"\\uD800\":0","accepted":true},
+  {"id":"distinct-surrogate-keys","location":"root","member":"\"\\uD800\":0,\"\\uD801\":1","accepted":true},
+  {"id":"paired-surrogate-key","location":"root","member":"\"\\uD83D\\uDE00\":0","accepted":true},
+  {"id":"descriptor-large-decimal","location":"descriptor","member":"\"opaque\":1e400","accepted":true},
+  {"id":"platform-surrogate","location":"platform","member":"\"opaque\":\"\\uDEAD\"","accepted":true},
+  {"id":"duplicate-surrogate-key","location":"root","member":"\"\\uD800\":0,\"\\ud800\":1","accepted":false},
+  {"id":"duplicate-supplementary-key","location":"root","member":"\"\\uD83D\\uDE00\":0,\"😀\":1","accepted":false},
+  {"id":"mandatory-casing-before-projection","location":"root","member":"\"Manifeſts\":1e400","accepted":false},
+  {"id":"descriptor-casing-before-projection","location":"descriptor","member":"\"MediaType\":\"\\uD800\"","accepted":false},
+  {"id":"platform-casing-before-projection","location":"platform","member":"\"OS\":1e400","accepted":false},
+  {"id":"forbidden-null-descriptor-data","location":"descriptor","member":"\"data\":null","accepted":false},
+  {"id":"forbidden-null-platform-requirement","location":"platform","member":"\"os.version\":null","accepted":false},
+  {"id":"duplicate-nested-extension-key","location":"root","member":"\"opaque\":{\"a\":1,\"\\u0061\":2}","accepted":false},
+  {"id":"invalid-number","location":"root","member":"\"opaque\":1e","accepted":false},
+  {"id":"infinity-literal","location":"root","member":"\"opaque\":Infinity","accepted":false},
+  {"id":"invalid-string-escape","location":"root","member":"\"opaque\":\"\\x20\"","accepted":false},
+  {"id":"trailing-array-comma","location":"root","member":"\"opaque\":[1,]","accepted":false}
+]

@@ -2994,6 +2994,12 @@ mod tests {
         assert!(super::ingress_controller_resources(&json!({}))
             .unwrap()
             .is_empty());
+        assert_eq!(
+            super::ingress_controller_resources(&json!({"ingress_class_name": "unknown"}))
+                .unwrap_err()
+                .code,
+            "PP7101"
+        );
     }
 
     #[test]

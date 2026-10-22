@@ -154,6 +154,47 @@ export async function runFixture(input) {
     check(document.activeElement === first.input() && first.root.querySelector('[role=status]').getAttribute('aria-live') === 'polite', 'generated focus/live');
     cases.push('semantic-safe-text-catalogue-focus-live');
 
+    {
+      const announcements = open(), writes = [];
+      const textDescriptor = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+      try {
+        Object.defineProperty(Node.prototype, 'textContent', {...textDescriptor, set(value) {
+          writes.push({node: this, value, connected: this.isConnected, role: this.getAttribute?.('role')});
+          textDescriptor.set.call(this, value);
+        }});
+        paint(announcements.view, frame(1, 0, 0));
+      } finally { Object.defineProperty(Node.prototype, 'textContent', textDescriptor); }
+      const status = announcements.root.querySelector('[data-presentation-status]');
+      check(writes.some(row => row.node === status && row.value === 'Status' && row.connected && row.role === 'status'),
+        'status region must be connected with its role before message insertion');
+      check(status.getAttribute('aria-atomic') === 'true', 'status region explicitly announces the complete message');
+      const observer = new MutationObserver(() => {});
+      observer.observe(announcements.root, {subtree: true, childList: true, characterData: true});
+      const unchanged = frame(2, 0, 0);
+      paint(announcements.view, unchanged);
+      const retained = observer.takeRecords();
+      check(announcements.root.querySelector('[data-presentation-status]') === status
+        && !retained.some(row => [...row.removedNodes].includes(status)), 'status region stays connected across revisions');
+      check(!retained.some(row => row.target === status || status.contains(row.target)),
+        'unchanged status text has no duplicate mutation');
+      paint(announcements.view, unchanged);
+      check(observer.takeRecords().length === 0, 'identical frame has no announcement mutation');
+      const external = document.createElement('button'); external.textContent = 'Outside';
+      document.body.append(external); external.focus();
+      for (const [revision, phaseValue, statusLabel, mode] of [[3, 1, 4, 1], [4, 2, 12, 2], [5, 0, 13, 1], [6, 3, 0, 0]]) {
+        const next = frame(revision, phaseValue, 0); next[3] = statusLabel; next[4] = mode;
+        paint(announcements.view, next);
+        const records = observer.takeRecords();
+        check(announcements.root.querySelector('[data-presentation-status]') === status
+          && !records.some(row => [...row.removedNodes].includes(status)), 'lifecycle never disconnects status region');
+        check(status.textContent === (statusLabel ? labels[statusLabel - 1].text : '')
+          && status.getAttribute('aria-live') === ['off', 'polite', 'assertive'][mode], 'status reflects exact modeled text and live mode');
+        check(document.activeElement === external, 'status updates never acquire focus');
+      }
+      observer.disconnect(); external.remove();
+      cases.push('connected-atomic-status-lifecycle-and-idempotence');
+    }
+
     const before = first.root.innerHTML, originalControl = first.input();
     for (const mutate of [
       value => { value[6][0][1][1] = 255; },
@@ -292,15 +333,47 @@ export async function runFixture(input) {
     failure(() => closing.view.render(bytes(frame(10))), 'closed');
     cases.push('terminal-close-listeners-late-result-and-root-ownership');
 
+    for (const boundary of ['initial-status-mount', 'retained-child-removal']) {
+      const item = open(); let invoked = 0, restore;
+      if (boundary === 'initial-status-mount') {
+        const original = CharacterData.prototype.replaceWith;
+        CharacterData.prototype.replaceWith = function(...args) {
+          if (this.nodeType === Node.COMMENT_NODE && this.data === 'presentation status') {
+            invoked++; throw Error('synthetic status mount failure');
+          }
+          return original.apply(this, args);
+        };
+        restore = () => { CharacterData.prototype.replaceWith = original; };
+      } else {
+        paint(item.view, frame(1, 0, 0));
+        const child = [...item.root.children].find(node => !node.hasAttribute('data-presentation-status'));
+        const original = child.remove;
+        child.remove = () => { invoked++; throw Error('synthetic retained child removal failure'); };
+        restore = () => { child.remove = original; };
+      }
+      try { failure(() => paint(item.view, frame(2, 0, 0)), 'dom'); }
+      finally { restore(); }
+      check(invoked === 1 && item.root.childElementCount === 0 && item.listeners.size === 0,
+        boundary + ' terminates ownership, clears partial content and removes listeners');
+      failure(() => paint(item.view, frame(3, 0, 0)), 'closed');
+    }
+    cases.push('status-mount-and-retained-removal-failure-are-terminal');
+
     const brands = open(); const protectedBytes = bytes(frame());
     for (const name of ['buffer', 'byteLength', 'byteOffset', 'length']) Object.defineProperty(protectedBytes, name, {get() { throw Error('shadow getter evaluated'); }});
     brands.view.render(protectedBytes);
     const detached = bytes(frame(2)); structuredClone(detached.buffer, {transfer: [detached.buffer]});
     const brandsBefore = brands.root.innerHTML; failure(() => brands.view.render(detached), 'bytes');
-    if (typeof SharedArrayBuffer === 'function') {
-      const shared = new Uint8Array(new SharedArrayBuffer(8)); Object.defineProperty(shared, 'buffer', {value: new ArrayBuffer(8)});
+    // Some browser builds hide the global constructor but still expose genuine
+    // shared Wasm memory. That native brand must be rejected in every engine.
+    const sharedBuffers = [new WebAssembly.Memory({initial: 1, maximum: 1, shared: true}).buffer];
+    check(Object.prototype.toString.call(sharedBuffers[0]) === '[object SharedArrayBuffer]',
+      'genuine shared Wasm memory is required');
+    if (typeof SharedArrayBuffer === 'function') sharedBuffers.push(new SharedArrayBuffer(8));
+    for (const backing of sharedBuffers) {
+      const shared = new Uint8Array(backing, 0, 8); Object.defineProperty(shared, 'buffer', {value: new ArrayBuffer(8)});
       failure(() => brands.view.render(shared), 'bytes');
-    } else throw Error('isolated real browser SharedArrayBuffer is required');
+    }
     failure(() => brands.view.render({}), 'bytes'); failure(() => brands.view.render(bytes(frame(2)), true), 'options');
     check(brands.root.innerHTML === brandsBefore, 'native byte-brand failures do not mutate DOM');
     cases.push('native-byte-brands-detached-shared-and-closed-arity');
@@ -548,9 +621,9 @@ export async function runFixture(input) {
     const brokenWait = deferred(); let brokenToken;
     const broken = open((raw, token) => { checked(raw); brokenToken = token; return brokenWait.promise; });
     paint(broken.view, frame()); broken.buttons()[0].click();
-    const replace = broken.root.replaceChildren;
-    broken.root.replaceChildren = function(...args) {
-      broken.root.replaceChildren = replace; throw Error('synthetic native DOM failure');
+    const append = broken.root.append;
+    broken.root.append = function(...args) {
+      broken.root.append = append; throw Error('synthetic native DOM failure');
     };
     failure(() => progressPresentation(broken.view, brokenToken, bytes(frame(2, 1, 0))), 'dom');
     check(broken.root.childElementCount === 0 && broken.listeners.size === 0, 'internal progress DOM failure terminates and clears instead of promising rollback');

@@ -1,0 +1,13 @@
+; Private source-defined recipe. Layout is always generated from captured state.
+; Complete input/output frames, including wrappers, remain at most 64 MiB.
+u32 = 0..4294967295
+payload = bstr .size (0..67108864)
+ref = bstr .size 32
+limits = [1..67108864, 1..67108864, 1..67108864, 1..67108864,
+          1..67108864, 1..512, 1..67108864]
+layout = [1..67108864, limits, ref, ref, u32, ref]
+layout-reply = [1, 6, layout]
+authority = [ref, ref, u32, payload]
+tail-request = [1, [1, layout, authority, ref, payload, payload]]
+tail-reply = [1, 7, [1..67108864, payload]]
+; Generated full canonical Session validation remains mandatory after assembly.

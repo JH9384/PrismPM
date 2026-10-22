@@ -436,6 +436,7 @@ fn browser_compiler_toolchain_rejects_ambient_selection_and_spoofed_cargo() {
 
 #[test]
 fn browser_compiler_actual_source_native_wasm_and_complete_replay() {
+    let _compiler = crate::test_compiler::acquire();
     let repository = repository();
     let sources = [fixture(&repository), fixture(&repository)];
     let first = compile(sources[0].path()).unwrap();

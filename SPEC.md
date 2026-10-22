@@ -192,6 +192,159 @@ validator. Actual browser execution remains a separate required part of
 application verification, including the Calculator and text application examples
 in the ordinary full acceptance gate.
 
+Source V&V checks every frozen interoperability source-pin assertion before
+expensive compiler/oracle work. The closed four-path set retains the unchanged
+imported Hologram archive and codec Cargo inputs, plus the reviewed local browser
+driver. The independently reviewed active Rust owner is also byte-bound;
+commented or disabled pin literals cannot substitute for its assertions.
+Bounded stable descriptor hashing refuses changed bytes, removed pin
+assertions and unknown aliases. This early source refusal and its negative
+controls do not replace the original Rust pin checks, either live profile,
+complete trigger matrix, imported oracles or current immutable SDK acceptance.
+
+The workspace `hologram_interop` owner retains both complete profile acceptance
+bodies and qualifies the closed `portable-oracle-matrix.json` inventory with one
+fresh source-bound oracle compiler: 18 interaction cases per profile and trigger,
+plus three separately labeled infrastructure cases per profile (78 cases).
+Four additional live negative controls reject a no-op response probe and a
+wrong-status failure masquerading as envelope-validation evidence.
+Eight further live controls remove or corrupt the actual request-completion
+diagnostic listener for both profiles and both triggers; the completion predicate
+itself must refuse them. All twelve controls are mandatory and cannot weaken
+application-response acceptance.
+Every outcome is retained; no missing, failed, timed-out, or skipped case passes.
+Each case binds the live Controller-verified model, archive, Wasm and verification
+manifest, and its Linux subreaper must establish descendant cleanup before the
+next case. Construction uses isolated Cargo configuration and fresh Git checkouts
+from authenticated object downloads, with staged-source and toolchain custody.
+Delayed initialization uses the same correlated submission observer without
+refilling the retained draft. Its owned module-delay route is removed after
+module completion and before the real intent, so setup interception does not
+remain active during response validation. Payload-safe diagnostics preserve the first failure
+even when cleanup also fails. They identify the owning journey and modeled-vector
+index, observed request completion, and only closed network-failure categories;
+arbitrary browser error text is not forwarded. These observations never replace
+the actual response-body or submission checks. `HO-12` does not duplicate this integration run.
+Submission diagnostic version 2 additionally observes the correlated Chromium
+Network lifecycle through a separate CDP session. Only closed method, payload-match,
+status/cache, byte-count and cancellation observations are retained, with at most
+32 request ordinals and the existing 32-event limit, with explicit overflow and
+truncation indicators. Protocol identifiers, URLs, headers, payloads and arbitrary
+errors do not escape. Post-data is bounded to 393,472 UTF-16 code units before JSON
+parsing; oversized or unavailable post-data cannot claim a payload match. Submission
+and cleanup emission contain sink errors and preserve the first failure. Collection
+must not retrieve another body, intercept traffic, override caches or enlarge browser
+retention buffers. Version 1 remains readable without acquiring these fields.
+Unavailable observations cannot establish causality or replace the first body
+failure, actual rendered result, single-invocation check or cleanup requirement.
+The same fresh matrix compiler additionally executes both complete profiles with
+and without the read-only collector, for click and keyboard (eight runs). Reports
+must agree exactly, with one ordered observation witness for every modeled submit:
+20 for Calculator and 13 for Text Request. Observed runs require actual correlated
+CDP request, response and completion events; matching omissions, unavailable
+collectors, duplicated or relabeled witnesses fail qualification. The unobserved
+driver omits only diagnostic acquisition; all response-body, rendering, readiness,
+single-invocation and navigation checks remain. Exact drivers and closed failure
+witnesses are retained before assertions. These runs supplement all original cases
+and controls, without increasing their deadlines or claiming historical causality.
+Four additional whole-profile runs retain the ordinary observer schedule: neither
+acquisition nor per-submission detach is joined. Every modeled submission still
+has its exact ordered witness and all original body, rendering, single-invocation,
+readiness and navigation predicates. Optional CDP observations may be absent or
+partial, but cannot be invented, duplicated, overflowed or report failures. Each
+ordinary qualification run must observe at least one actual correlated request;
+an entirely unavailable or empty collector cannot qualify noninterference. Their
+complete application reports must equal the corresponding unobserved reports.
+The original eight serialized-observed/unobserved runs remain mandatory and
+retain their stricter complete CDP request/response/completion witnesses.
+Injected duplicate clients own and consume their actual response with the same
+modeled envelope bound. Their tasks are retained, rejection-observed, and joined
+within the original browser-cleanup deadline. A duplicate control requires one
+fully consumed successful duplicate response, zero pending tasks, and the
+unchanged primary `single-invocation` assertion with two actual invocations;
+unavailable bodies, abandoned tasks or unrelated failures cannot qualify it.
+This negative-control lifecycle is not a change to production body acceptance
+and does not establish the cause of historical browser failures.
+The matrix incrementally retains a source-bound, nonacceptance diagnostic bundle
+under the existing uploaded `target/ci-diagnostics/` path. Exact original
+generated subjects and executed drivers, receipt/cleanup digests, closed
+payload-free observations and complete outcome inventories remain separate
+from proof/release evidence. The bundle is bounded to 284 files, 16 MiB per
+file and 32 MiB total, reserving two file slots and two bounded byte slots for
+index replacement. Its complete expanded inventory has 282 members: nine
+source/subject files, two files for each of the 78 cases, twelve controls,
+twelve observation runs and 34 retirement runs, and one final outcome file.
+An admitted asynchronous task failure and synchronous registry admission refusal
+are separate full-profile controls. The refusal control starts actual registry
+closure before submissions; every acquisition and ready-task admission must
+refuse without starting a session. Source-bound witnesses require the exact
+ordered pair of refusals for every modeled submission, zero sessions, enables,
+detaches and unresolved work; aggregate counts cannot authorize matching omissions.
+The original admitted-task failure remains required with all actual sessions.
+Per-file, aggregate and index byte limits and every execution deadline remain
+unchanged. Closed source-owned journey identifiers are retained. Final
+case inventories remain collectible after a copy failure, without changing the
+incomplete state. Retirement rechecks every observed member after bounded
+streaming enumeration; it does not claim an atomic filesystem snapshot.
+Interrupted or failed collection
+is explicitly incomplete; it cannot replace the original failure, retry a case,
+establish acceptance or omit any of the 78 cases/twelve controls. The eight
+additional controls remove or corrupt the actual request-completion diagnostic
+listener for both profiles and both triggers; the completion predicate itself
+must refuse them without weakening application-response acceptance.
+Readiness fault probes explicitly hold readiness after a real submission and
+release it only after actual result rendering. Body-loss probes close the actual
+target after correlated headers; method-rewrite probes separately retain the
+HTTP 405 rejection or actual protocol body-unavailability evidence. Body reads
+and browser cleanup are each bounded to ten seconds, and observed prohibited
+main-frame navigation rejects the pending submission immediately.
+An observed response-body failure rejects completion without waiting for the
+initiating action to settle, so later navigation or trigger teardown cannot
+replace that failure. Trigger rejections remain eagerly observed even after
+completion. A successful body still requires a completed successful trigger
+and no prohibited navigation; navigation observed first remains an immediate
+failure. These ordering rules do not establish historical failure causality.
+Optional CDP setup starts concurrently with ordinary submissions and is never
+awaited by their acceptance path. The owner still retires its listeners and
+session, including a late acquisition after retirement; the enclosing browser
+owner remains cleanup authority. Diagnostic-only timers retain the ten-second
+bound but cannot keep a completed process alive. The separate eight mandatory
+observation runs explicitly await setup before collecting their complete
+ordered witnesses, while retaining every original acceptance check and deadline.
+Unavailable diagnostics never constitute acceptance or historical causality.
+Ordinary submission retires diagnostic listeners synchronously and queues any
+detach under its browser lifetime owner, without serially awaiting optional
+detach completion. An acquisition is registered before it starts; a late
+session is detached through the same owner and cannot enable retired listeners.
+The private registry retains at most 128 active operations, observes rejections
+immediately, includes tasks added by pending acquisitions, and seals at final
+joining. Overflow or a post-seal task is cleanup uncertainty, not permission to
+drop resource ownership. Unexpected registered-task rejection also marks
+cleanup uncertainty; expected optional acquisition/detach refusal is contained
+by its caller. Mandatory observation qualification explicitly joins
+its own retired observer. Final registry joining and browser close run
+concurrently under one unchanged ten-second cleanup deadline; both outcomes
+remain owned, and cleanup failure cannot replace a primary submission failure.
+The first observed browser cleanup failure remains authoritative even if a
+second cleanup task subsequently reaches that shared deadline. Additive real
+session qualification retains every original case and observed/unobserved run
+and executes 32 cleanup-fault controls across both complete application profiles,
+including actual closed-target acquisition refusal and preclosed-browser refusal.
+Final cleanup closes admission to new acquisitions and tasks while still owning
+retirement children of already-admitted acquisitions. An actually initiated
+session detach may transfer to the browser owner only after that owner's awaited
+`close()` fulfills and the same browser is disconnected. A pending, rejected or
+merely disconnected browser cannot mint this witness. The actual detach promise
+remains observed after transfer. The race occurs inside the existing diagnostic
+operation bound, so physical browser retirement clears its timer. A timed-out
+detach without a retirement witness remains owned, rather than becoming success.
+Acquisition, readiness, registry uncertainty and joining never race this witness.
+Diagnostics distinguish actually settled detach calls, closed-browser transfers,
+unresolved detach obligations and unresolved acquisitions; every successful
+cleanup has zero unresolved obligations. All original deadlines remain unchanged.
+Settled means the actual detach promise fulfilled or rejected, not that detachment
+succeeded; successful cleanup still requires the verified enclosing browser close.
+
 The generic model retains its u32 request and response bounds. The pinned
 Hologram portable intent transport supports at most 65,536 request bytes and
 1,048,576 output bytes. Application verification rejects larger declared bounds
@@ -205,7 +358,18 @@ Before loading the browser driver, verification checks the real installed
 Playwright driver/core and Chromium headless-shell trees against the native
 SDK inventory, using the same length-prefixed SHA-256 tree encoding as SDK
 inventory production. Source-bootstrap verification instead uses independently
-reviewed digests from the locked npm packages and pinned x64 browser image.
+reviewed digests from the locked npm packages and complete immutable official
+Chrome for Testing 157.0.8099.0 x64 archive. `sdk/browser-engine/authority.json`
+binds both platform archives by object generation, compressed digest, complete
+member contents/modes, native architecture and installed-tree digest. Its
+Canary status is explicit; Playwright driver/core remain pinned to 1.62.1.
+Archive admission checks the bounded immutable compressed snapshot, complete
+classic-ZIP index and every member before creating an extraction stage; it
+does not continue after refused admission. The installer preserves complete
+upstream notices. Its no-clobber publication assumes the serialized trusted
+image-build namespace; it does not claim protection against another same-UID
+build writer. Both native compatibility and all original browser/SDK owners
+remain mandatory; an input declaration or version probe is not acceptance.
 Symlinks, special files, writable shared entries, oversized trees and digest
 changes fail with `PP5301`. Node is resolved through the existing tool inventory
 boundary; the verified absolute Node and browser executable paths are passed
@@ -228,6 +392,19 @@ are pinned adapter primitives. The stdlib validates algorithm, digest width,
 role, phase, ordering, and dependencies; it does not claim collision
 resistance or a proof of the external compression implementation.
 
+HO-14 binds the complete 35-case BLAKE3 1.5.5 source-revision vector corpus,
+licenses and upstream harness to their immutable imported bytes. The native
+adapter checks hash, keyed-hash and derive-key modes, all 131 extended-output
+bytes and 32-byte default outputs. Input partitions are whole input and chunks
+of 1, 63, 64, 65, 1023, 1024, 1025 and 4096 bytes; empty input remains a case.
+Every default hash also passes through the actual archive content-identity
+adapter. Changed expectation, input length, pattern, key and context controls
+must fail. Corpus custody is checked before and after execution. This finite
+oracle does not establish collision resistance, native effects or durability.
+The standards lock binds the upstream vector JSON authority; HO-14 separately
+binds the complete seven-member packaged closure. This internal conformance
+owner is not an executable `prismpm oracle` profile.
+
 ### 3.1 Closed browser surface wire prerequisite
 
 `Foundation.Holo.V1.BrowserWire` defines a separate modeled codec for the
@@ -249,6 +426,30 @@ Footer and content hashes remain independently checked cryptographic facts,
 not claims of the pure framing model. This prerequisite does not implement a
 public browser runtime, trusted effect policy, accepted application, or release.
 The normative boundary is `stdlib/src/Foundation/Holo/V1/BrowserWire.md`.
+
+### 3.2 Private primary-only component interoperability
+
+`Foundation.Holo.V1.PrimaryWire` defines a distinct private component profile:
+one primary Core-Wasm v1 layer, empty native capabilities, no View or children,
+and three sorted addressed blobs containing capabilities, the generated guest
+and its exact component/source closure. Seven physical-v4 sections carry the
+manifest, source metadata, application directory, distinct component provenance
+and blobs. The component extension is
+`https://uor.foundation/extension/prismpm-component/v1`. Generated source owns
+canonical framing and parsing; cryptographic adapters bind every actual byte.
+Existing portable and browser profiles and Holo/1 remain unchanged.
+
+HO-15 freshly verifies the source/compiler/package closure, executes generated
+std/no_std framing against pinned upstream encoding, and runs the exact produced
+archive through pinned Live direct and resident binary execution. Native/Wasm
+parity, complete Session vectors and 64-MiB boundaries remain required. Missing,
+changed or empty provenance/corpora, malformed profiles and actual source/host
+defects must fail. Upstream-written archives are independent codec expectations,
+never substitutes for the executed producer artifact. No portable View evidence
+is fabricated or transport limit raised. A workstation receipt is diagnostic
+input only; the registered owner is self-contained on a clean devcontainer.
+This component gate cannot satisfy public application, browser design, authority,
+journal, SDK or deployment acceptance. `PP2011` remains enforced.
 
 ## 4. Controller API, CLI, and diagnostics
 
@@ -395,6 +596,21 @@ ST-13 executes the modeled corpus in generated native `std` and `no_std` package
 audits all selected declarations and rejects planted behavioral defects.
 Cryptographic verification, challenge issuance, atomic durable admission,
 provider integration and browser/deployment acceptance remain distinct gates.
+
+### 5.3a Private PKCE S256 prerequisite
+
+ST-17 owns the bounded RFC 7636 client primitive in
+`Foundation.Sec.V1.Pkce`, its private browser adapter and the exact imported
+Appendix B oracle. The source admits the complete 43–128 ASCII-unreserved
+verifier domain and encodes exact 32-byte entropy and SHA-256 values without
+padding. The adapter uses fresh browser randomness and actual SHA-256; it
+never falls back to plain. Native std/no_std, bounded Wasm, all three browsers,
+source/host defects and copied-input/revocation checks are mandatory.
+`stdlib/src/Foundation/Sec/V1/Pkce.md` defines the closed internal byte grammar.
+PKCE material is not an authenticated assertion or a transaction. Provider
+authority, client registration, state/nonce binding, token admission, mailbox
+control and durable account recovery remain separate requirements. ST-17 does
+not open PP2011 or authorize an application release.
 
 ### 5.4 Internal candidate browser-bootstrap prerequisite
 
@@ -547,6 +763,11 @@ KILL grace period, and independent 16,777,216-byte stdout/stderr limits.
 Process records contain normalized arguments/output, exit status, and SHA-256
 of the executable bytes. Timeout, signal, overflow, malformed output, nonzero
 exit, or missing executable is a registered failure.
+Timeout-class failures retain the observed wrapper exit code and bounded
+normalized stdout/stderr excerpts (at most 2,048 UTF-8-aligned bytes from each
+end, with the omitted-byte count). Notes also bind the complete normalized
+streams by byte length and SHA-256. These diagnostics do not constitute
+successful process records; exit 137 alone does not establish the cause of a kill.
 Normalization replaces confined absolute roots with fixed tokens, converts
 line endings to LF, replaces Lake build durations with `<DURATION>`, removes
 Lake's schedule-dependent `[job/total]` progress ordinals, and sorts the
@@ -593,11 +814,36 @@ manifest.
 
 All source/config/package inputs are confined regular files. Symlinks,
 absolute paths, traversal, hidden adjacent dependencies, generated source in
-the repository, handwritten Lean, unsafe Rust, unregistered public errors,
+the repository, handwritten PrismPM Lean, unsafe Rust, unregistered public errors,
 unbounded child output, and mutable dependency references are rejected. Build
 and verification are offline. Canonical platform-independent artifacts contain
 no absolute checkout path, hostname, locale text, random identifier, timestamp,
 or traversal-order dependence.
+
+The only imported Lean-source exception is the registered LexLean 0.3.0 package
+at reviewed revision `0865df4e540ca643b090a29e9df6d319d6906da6`. Its exact
+18-file compiler-authority closure is `language/lcnf-1.2/extract.lean` plus the
+following 17 paths under `language/preservation-1.2/`, all inside `vendor/lexlean/`:
+`library/LexLeanPreservation/{Compose,Core,Fixed,Keys,Primitives,RustBase,RustCorr,RustLemmas,RustMatches,RustSound,Templates,Validate,Values}.lean`
+and `modules/LexLeanTarget/{RustSemantics,RustSyntax,TargetSemantics,TargetSyntax}.lean`.
+These braces enumerate the named files; they are not a wildcard admission rule.
+The extraction adapter and preservation library are untouched dependency-owned
+compiler authorities, not PrismPM-authored models or proofs. Admission verifies
+the complete dependency register, package and tree checksums, exact selected
+revision and crate path, and clean package VCS provenance. It then independently
+decodes the registered archive and requires the exact 18-member Lean set and
+complete archive-member/tree-manifest membership and byte equality, including
+the package VCS file and every non-Lean file. Only the extracted tree's root
+`MANIFEST.sha256` and `lexlean-0.3.0.crate`, added by the normal package importer,
+are excluded from archive membership; no nested path or `target/` is excluded.
+Duplicate, traversing, aliased, nonregular, missing, substituted or additional
+Lean members are refused, including a separately resealed tree. Archive admission
+is bounded to 32 MiB compressed, 128 MiB expanded, 32 MiB per physical member,
+8,192 physical headers and 4,096 logical members; it rejects hidden trailing data
+and validates physical extents before interpreting GNU long-name metadata.
+Both the archive and complete LexLean tree must be registered. No other vendored
+Lean path is admitted, even when checksummed. This boundary cannot introduce
+handwritten PrismPM definitions, proofs or replacement application behavior.
 
 `cargo xtask vv` is the sole normative acceptance entry point and `just vv` is
 its alias. It performs these 15 non-mutating gates in order: formatting; model,
@@ -613,6 +859,12 @@ rewriting require separate explicit commands and a review reason. Linux CI
 runs that exact command in the pinned devcontainer. Acceptance evidence is
 canonical `prismpm/vv-evidence/1`, lists all 15 gates, records `passed`, and
 binds the exact full Git commit.
+
+The source audit first checks both retained native-record sets against the
+shared golden tree using the same closed composition rules as the later native
+consistency tests. Missing, stale, substituted or extra records fail before
+expensive suites run. This check performs no native execution and supplies no
+cached acceptance; all subsequent tests and fresh verification gates remain.
 
 Formatting checks a closed inventory of authored test manifests and Rust inputs.
 Generated stdlib packages are verified by regeneration, not rewritten by rustfmt.
@@ -630,12 +882,29 @@ existence or a Lake fingerprint is not compiler-source provenance. This fresh
 construction boundary does not qualify future compiler-seed reuse or establish
 application acceptance by itself.
 
+An already constructed owner may lend its immutable compiler handle through
+the owner-scoped API only to serial requests in the same owner, registered
+family, and identical complete immutable compiler/tool input-digest closure.
+This in-process owner-scoped borrow is not a shared exporter cache or
+compiler-seed reuse: the owner retains the busy lock, performs the source,
+toolchain, runtime and executable pre/post checks, and alone controls retirement.
+Each borrower still creates its own diagnostic and output workspace and performs
+fresh model/source staging, generation, kernel, native/no_std, Core-Wasm, oracle,
+negative and final-custody checks; generated artifacts, results, evidence and SDK
+inputs are never borrowed.
+
 Browser verification drivers likewise use absent targets beneath owned private
 workspaces. They do not adopt executables from a shared Cargo target, even when
 its source fingerprints appear current. Cargo initializes the target and its
 cache tag; private compiler-driver builds use one job, no incremental state and
 no development debug symbols to bound temporary storage. Generated program
 builds, kernel checks, native/Wasm execution and oracle cases are unchanged.
+Budget and Operation Journal verification each execute their complete shared
+compiler owner and a separately registered independent-construction owner.
+Each independent owner retains the same per-file deadline and all native,
+Wasm, source-mutant and applicable browser/host checks; compiler-cache retirement
+receipts supplement, rather than replace, generated-artifact verification.
+Source conformance and installed-SDK verification require both constructions.
 
 Reviewed stdlib goldens retain the original verification records, including
 the exact caller executable digest. `prismpm/golden-manifest/2` selects the
@@ -648,6 +917,15 @@ rewritten. Every other byte, tool digest, declaration audit, execution result,
 and artifact descriptor remains significant. These projections are not
 verification or release evidence. Actual verification and same-executable
 two-root reproducibility continue to bind and compare complete raw evidence.
+
+Historical six-field process records remain inspectable, but cannot satisfy
+current-caller or selected native-profile checks. Current goldens require both
+actual exporter invocations, closed child measurements, the compiled archive
+identity and identical cold-acquisition provenance. These source-review trees
+have no independent SDK lock and cannot admit warm receipts. Native review may
+vary the child executable size and hash, not its mode, source, schema or
+acquisition semantics; ordinary comparison retains all measurement bytes.
+Baseline migration requires genuine regeneration, never metadata backfilling.
 
 Golden execution profiles distinguish Debian 12 AMD64 development from Ubuntu
 24.04 AMD64 and ARM64 SDK processes. The actual OS release and compiled process
@@ -668,10 +946,32 @@ including failure diagnostics. It does not commit a baseline, publish an image,
 accept the current SDK, or bypass candidate/release policy. Native runner
 selection is a trusted CI property, not physical hardware attestation.
 
+Before image acquisition, source review also checks the shared build manifest's
+application-generator input against the exact concatenation owned by the
+independently reviewed active Rust controller. It hashes the original Rust
+generator inputs, the dereferenced reviewed embedded compiler-manifest alias,
+and the recipe literal. Unknown recipe-owner bytes or aliases fail closed;
+commented recipe literals are not authority. This early refusal never writes
+goldens or normalizes native records, and does not replace either genuine native
+write/repeat execution or subsequent SDK qualification.
+
+Before native cache initialization or compiler construction, each verified
+review container executes all 38 exporter-seed tests with its actual Node,
+Python, C compiler, GNU readelf and libc. Native ELF64 program headers establish
+static linkage; neither failed ldd status nor error text can authorize it.
+Dynamic dependency inspection and executable custody remain fail-closed.
+The exact outer TAP plan, successful test count and absence
+of failures, omissions, cancellation or skips are required; failure prevents
+golden generation. This component check does not authorize SDK acceptance.
+
 Source development and test profiles optimize only the `sha2` dependency at
 level 3. Complete per-invocation SDK inventory and executable byte checks,
 native golden write/repeat commands and deadlines remain unchanged; caller
 compiler/profile environment overrides do not enter the native review container.
+
+Private browser compiler-driver builds use that same fixed SHA2-only setting.
+Locked/offline construction, fresh owned targets, source custody, all owning
+executions and their original resource/deadline bounds remain mandatory.
 
 The review container explicitly selects a private Cargo home, seeded only from
 the selected image's immutable cache before generation. Copying is bounded to
@@ -723,6 +1023,39 @@ execute one at a time within a conformance process. Nested requests reuse the
 owning slot; a failed owner releases it without suppressing subsequent tests.
 Scheduling changes neither checks nor deadlines. Cached failures retain their
 structured diagnostics, and failed prerequisites stop dependent browser checks.
+Successful Node owners expose a closed diagnostic containing the owner identifier,
+selected-file count, validated test count and actual child elapsed milliseconds,
+excluding compiler-slot wait. It is emitted only after every original completion
+check passes, before libtest's summary, without dumping child output or private
+paths. Diagnostic write failure cannot alter acceptance. These timings are not
+acceptance receipts or evidence of a speedup without comparable measurements.
+Bounded compiler-phase diagnostics separately count actual calls, failures and
+elapsed milliseconds under closed phase labels. They preserve every command,
+argument, timeout, source/tool custody check and test outcome; absent, malformed
+or truncated diagnostics never qualify acceptance or supply missing timings.
+The existing workspace-model and journal process wrappers report the same
+closed phase observations without changing their process contracts. Successful
+Rust diagnostic records are formatted before transport and bounded to 4096
+UTF-8 bytes; diagnostic loss is never inferred to be a successful measurement.
+Rust conformance owners separately report compiler-slot admission wait and
+subsequent owner-body wall time, including unwinding. These closed numeric
+diagnostics are not CPU timings, acceptance receipts or final test outcomes.
+Later shared-initialization waits and nested owners remain within body time;
+optional diagnostic transport contention is excluded. Original assertions,
+panic payloads, scheduling, full-gate commands and qualification remain intact.
+
+Browser compiler fixtures never accept the existence of a cached executable as
+compiler evidence. The shared exporter helper captures and verifies the selected
+repository's pinned source, refuses aliases, and builds with the verified SDK
+toolchain in a new private directory; existing shared caches are untouched.
+All browser fixture drivers compile into new private targets; Cargo fingerprint
+freshness does not authenticate a previously emitted executable.
+Effects and Custody compile captured driver sources into these private targets.
+Retained fixtures retire completed tool caches after the final compiler invocation,
+recording exact original tool identities and preserving source and execution evidence.
+Older fixtures may read only their registered repository manifests for Cargo cleanup;
+every removed path remains private owned work. Workspace and envelope fixtures keep
+exporters inside their existing test-owned cleanup scope. No shared cache is adopted.
 
 The historical version 0.1.0 is a prototype and is not PrismPM completion.
 Release version 0.2.0 was the portable application baseline across PrismPM,
@@ -776,6 +1109,12 @@ environment cleared, fixed SDK environment values, read-only inputs and bounded
 scratch, and emits an in-toto validation statement whose subject is the validated
 artifact.
 
+The repository ships the exact lock resolved from its live embedded catalog,
+including current wrapper-source identities. Source audits compare it without
+writes before expensive suites. SDK construction uses the newly built CLI to
+admit that same lock with `authority resolve --locked` before further SDK
+compilation; construction never silently refreshes or bypasses a stale lock.
+
 Compose validation binds `PRISMPM_SECRET_DIR` to the isolated non-secret path
 `/scratch/prismpm-secret-references`; it does not import host paths or credentials.
 Interpolation, normalization and consistency checks stay enabled. This validates
@@ -788,6 +1127,35 @@ reads the wrong subject, uses another edition, or has changed bytes fails with
 the authority/oracle diagnostics in the PP54xx range. If no executable oracle
 exists, coverage is `not-executable`; PrismPM cannot manufacture an external
 conformance claim from its own validator.
+
+### 10.1 OSCAL JSON structural validation
+
+AU-07 owns the imported OSCAL 1.1.0 JSON schema boundary: all seven model
+schemas and the complete schema, with their original release bytes. The
+published, checksum-locked JSON Schema engine runs without network retrieval.
+The complete selected draft-07 corpus includes all 37 mandatory files and the
+four format suites used by these schemas: 1,120 cases. All 44 pinned NIST
+content documents are structural probes; their original 1.1.1 edition is
+retained and refused by the 1.1.0 admission boundary. Seven local valid model
+documents and 57 local invalid mutations are not attributed to NIST.
+
+The adapter captures one regular, unaliased, singly linked subject through a
+bounded no-follow descriptor, checking held/path identity before and after
+reading. Strict UTF-8 JSON refuses duplicate decoded keys and preserves exact
+numbers. Resource ceilings are 64 MiB, depth 128, one million JSON nodes and
+numeric digits, and absolute decimal exponent/adjustment of one million.
+Exceeding a ceiling is resource refusal, never a schema-invalid verdict.
+Exit codes are success 0, invocation 2, rejected subject 4, resource refusal 5
+and unavailable oracle 6. Failure emits no accepted-subject record.
+
+Successful evidence binds exact subject bytes, model and edition and reports
+only JSON structural validation. It does not establish profile resolution,
+control implementation, assessment authenticity, inheritance, security or
+whole-standard conformance. The complete owning gate requires freshly built
+locked engine execution, exact upstream inventory, actual CLI boundaries and
+compiled defects for invalid acceptance, wrong editions and unstable capture.
+Changed compiled schema bytes must produce an unavailable-oracle refusal.
+Source-only registration or a locally overridden engine cannot accept it.
 
 ## 11. Production system model and projections
 
@@ -916,6 +1284,219 @@ not assert a universal soundness theorem or imported standards conformance.
 
 ## 12. SDK and lock contract
 
+Private fresh compiler owners bind original/private executables and their
+exporter runtime members to exact native device, inode, ownership and mode,
+in addition to file bytes, sizes and link counts. Permission-only drift is
+refused before and after execution, including failed execution. Special
+permission bits are forbidden. Completed-owner cache retirement verifies the
+retained executables through bounded, stable descriptor reads and their full
+captured identities. These checks are custody, not compiler provenance or
+atomic filesystem isolation; fresh pinned compilation remains required.
+
+Each synchronous compiler verification barrier takes a fresh complete content
+measurement for every runtime member and executable. Overlapping runtime and
+artifact roles may share that immutable measurement only within that barrier,
+after applying their independent admission predicates and freshly checking the
+pathname, ancestry and full native metadata. Every observed name is checked
+again on completion, including failure. Nested execution boundaries first check
+and permanently clear suspended observations; pre-child and post-child checks
+take independent fresh measurements. No measurement is retained between
+barriers, even when an action fails. This is a single content measurement per
+declared barrier, not atomic protection against concurrent same-user writes or
+equivalence for every possible interleaving of repeated content reads.
+
+Runtime capture enumerates one directory iterator with a one-entry buffer,
+charges each member before queueing descendants, and hashes files in at most
+64 KiB chunks. Source and build closures independently admit 4,096 members
+and 16 MiB/512 MiB respectively. The package root and captured source archive
+are additional members; the archive retains its independent 256 MiB bound.
+Traversal has no additional depth restriction. Every observed member is
+rechecked after complete traversal; metadata remains private custody evidence.
+
+`DK-30` owns the internal conditional native-lane reducer in
+`Foundation.Native.Application.V1.Lease`. Its explicit corpus is mechanically
+bound to every generated LexLean probe and executes in standard and no_std Rust.
+The same verified IR also produces an import-free Core-Wasm guest executing all
+93 closed corpus probes in the pinned Node engine. The selector is source-modeled
+in LexLean, checked for exact one-to-one routing, and rejects invalid selectors.
+Misrouting/constant-result mutations and an actual wrong-expectation execution
+must fail. This is compiled corpus agreement, not general runtime-input or
+OS-effect qualification; no native checks are replaced.
+Pending operations have exactly the predecessor of the next sequence; immutable
+request bindings do not change during cancellation or unknown cleanup. Host-only
+terminal transitions require independently captured worker termination and
+handle cleanup. Matching model bytes do not prove those facts. The private host
+owns the session-relative monotonic nanosecond clock and all OS authority.
+The nine pure declarations have closed generated stdlib signatures in
+`model/stdlib-exports.toml`. Calling them on constructed values grants no host
+authority. Host-effect APIs must not accept caller-produced lane state,
+bindings, clocks, cancellation flags or cleanup evidence. The private binding
+retains its own state and fails closed on an outer generated `ComputeError`,
+which is not a modeled `NativeLeaseError` or evidence of cleanup.
+See `stdlib/src/Foundation/Native/Application/V1/Lease.md` for the complete
+conditional protocol. This kernel is not a filesystem binding, an executable
+native application profile, durable-effect idempotency or release acceptance.
+
+`DK-29` uses one fresh exporter acquisition boundary for library, browser,
+application and verification pipelines. Only a validated native
+`prismpm/sdk-lock/2` inventory digest may authorize the fixed installed SDK
+seed. Legacy or unlocked source bootstrap remains cold; local fingerprints,
+caller caches and a digest recomputed from the installed inventory are not
+independent authority. An advertised seed that is absent or malformed fails
+closed; it does not fall back to cold construction.
+
+The closed `prismpm/exporter-seed/1` manifest binds the registered compiler
+revision/archive, native platform, exact build configuration, complete source,
+toolchain and runtime closure, and every seed path, mode, length and hash.
+Seed construction and PrismPM verification children receive the fixed Lake
+task-pool setting `LEAN_NUM_THREADS=2`. This environment setting does not bound
+Lean CLI compiler children. Fresh generated-module projects additionally use
+traced `moreLeanArgs = ["-j2"]` for their actual compiler invocations. Caller
+environment overrides cannot change these generated-project settings. These
+controls are not a replacement for process memory limits and do not claim to
+cap every compiler or exporter subprocess's operating-system thread count.
+All generated-module builds, exports, kernel checks and deadlines are retained.
+Seed files are bounded to 4,096 entries, 256 MiB per file and 512 MiB total.
+SDK tree enumeration streams directory entries before applying bounds, closes
+every iterator, and preserves canonical bytewise ordering. Source construction
+uses its separate 4,096-entry/16-MiB allowance, never the seed-only allowance.
+Root-owned immutable SDK paths are checked before and after bounded copying;
+custody supplements rather than replaces the independent inventory binding.
+Installed native-library qualification preserves its four sequential cold/warm
+two-root executions and additionally executes two fresh installed `verify`
+commands concurrently. Each has a separate private temporary namespace. The
+source-bound gate holds both original no-follow exporter-owner descriptors at
+one shared observation, records distinct native identities, and requires owner
+retirement and actual descendant reaping after each command. CLI wall-clock
+overlap alone is insufficient. The original temporary namespaces must retain
+their native identities and contain only their original process-owner receipts
+after retirement; leaked caches, aliases, linked receipts and replacement
+namespaces fail. Children receive the closed source-pinned SDK environment,
+not caller process variables; Python uses isolated execution. Complete generated artifacts and both phase
+transcripts must match the original cold/warm execution closure. Independently
+locked inventory/manifest, seed, toolchain, runtime bytes and their original
+root-owned namespace identities are checked before and after both invocations.
+The same retained closure includes the installed CLI, Node and Python commands
+bound to the independently locked inventory, and the original captured process
+owner helper. The complete source/image gates are mandatory predecessors.
+The native-library path creates separate operation-private Cargo homes for
+package construction and std/no_std replay; it does not write to or build from
+the shared read-only SDK Cargo home. Installed toolchain lookups remain read-only.
+Closed concurrency observations remain qualification evidence, not stable
+product attestations, OS authority or universal same-user race isolation.
+The owning installed gate requires all 29 named parser, transport, construction,
+migration and real process/descriptor controls with no skips; structural test
+fixtures never qualify installed compiler execution or an SDK release.
+The copy opens source/staging roots and every named ancestor through held Linux
+directory descriptors. Staging ancestor identities are captured when created;
+a replacement cannot redirect writes into foreign content. The private helper
+handoff carries the unchanged acquisition receipt and original authenticated
+manifest bytes. Rust rebinds every staged member before descriptor-relative
+no-overwrite publication, retains descendant identities across relocation, and
+transfers that authenticated snapshot directly to the consumer. Fresh SDK
+construction binds the original staging creation identity, uses inherited
+package/stage descriptors for actual tar/Lake working paths and temporary
+storage, and preserves their genuine descriptor paths in raw process records.
+Installed compiler qualification binds every construction and relocation
+extraction transcript to the exact `tar` executable and hash in its independently
+captured native SDK inventory. Hash syntax, a caller-rehashed inventory or a
+different platform's inventory cannot supply extraction authority. Each reader
+negative begins from a separately valid fixture so one mutation cannot poison
+the authority or silently satisfy subsequent negative assertions.
+Source members retain their original native identities across construction.
+Every first
+exporter build checks the original snapshot; a fresh self-measurement cannot
+replace it. The completed build snapshot is retained exactly through export,
+owner completion and final cleanup; cold source-only growth cannot authorize
+a replacement build tree after export. Private verification owners retain
+that custody across generation.
+Failed or interrupted admission marks enclosing retirement uncertain;
+replacement roots and descendants are retained, never pathname-deleted or
+adopted as accepted state. Cleanup uses a retained original node inventory and
+constant-descriptor iterative removal, not recursive descriptor retention. These
+observed-identity checks do not claim atomic isolation against same-user races.
+
+Only the new exporter's `.lake` may be published, from a private sibling stage
+through atomic no-overwrite rename. Generated application workspaces, user
+caches and acceptance evidence are never seeded. Temporary stages are owned
+by their invocation. Cleanup removes only identity-bound owned nodes; uncertain
+or interrupted stages remain unaccepted and are never reused.
+SDK seed production and admission share a manifest-driven, exclusive-creation
+copy boundary; recursive discovery cannot expand copied bytes or files. Before
+publication, production rechecks the source closure and preserves declared
+permissions while making the installed seed readable by the SDK user.
+Construction publication uses Linux `renameat2(RENAME_NOREPLACE)` relative to
+identity-bound directory descriptors; no replacing fallback is permitted.
+The destination parent must be process-owned and not group/world writable.
+Private-parent and destination identities are rechecked after publication.
+Late failure may retain a destination; unverified parents or destinations are
+never deleted or adopted as successful construction. Source admission applies
+its own 4,096-entry/16-MiB limits before enumeration and reading.
+
+Each actual `lake exe prod-export` invocation records a closed
+`prismpm/exporter-execution/1` child executable measurement and
+`prismpm/exporter-acquisition/1` cold/seed provenance.
+Executable byte, mode and file-identity checks run after failed invocations too.
+The complete exporter package is captured before and after execution. Source
+members must still equal the pinned archive; only the private `.lake` build tree
+may extend it. Aliases, hard links, special files, omitted deep entries and
+changes to any source, configuration, build member or directory identity are
+rejected. The build tree retains its full 4,096-entry, 256-MiB-per-file and
+512-MiB-total allowance; the exact pinned source inventory is bounded separately.
+Buffered names are bounded by those inventories plus the package root.
+Detected custody drift takes precedence; otherwise the original process failure
+is preserved and no successful execution receipt is constructed.
+Seed receipts bind their inventory and manifest to the consumer lock, and the actual child to its
+locked binary. Their native platform must match the retained, validated
+Lean/Rust preflight, not the admission reader's host or a self-selected foreign
+SDK row. Release admission checks this context independently of
+structural transcript replay. Application build artifacts contain only the
+stable `prismpm/exporter-identity/1` sidecar; acquisition and process receipts
+belong to the distinct verification regeneration, bound to the unchanged build
+identity. Its complete generated artifact set must match byte-for-byte, without
+field rewriting or omitted generated files. This does not change the
+authoritative `.holo` format. Real `lake build prod-export`,
+generated-module/kernel builds, axiom audits, independent exports, two-root
+reproducibility, native/Wasm executions and imported oracles remain mandatory.
+Within one library or application `verify`, one private, non-cloneable exporter
+package serves controller generation A and independent replay B on the
+qualified native Linux x86_64/aarch64 SDK platforms; other owner execution
+platforms fail closed before acquisition. Each phase
+still creates its own generated-module workspace and executes its own module
+build, `lake build prod-export`, and actual export. No caller-selected cache,
+cross-request package, retained generated workspace or acceptance reuse exists.
+Both original phase transcripts, exact model/Lean-manifest digests and complete
+generated artifact rows are retained in closed
+`prismpm/verification-exporter-owner/1` evidence. New library/application
+verification manifests use `/2`; historical `/1` readers remain unchanged and
+cannot qualify a newly installed SDK. Readers bind replay to the original
+transcript, both phases to retained inputs/products and native Lake preflight,
+and both exporter measurements to the independent SDK authority where required.
+Whole-package custody is checked between phases and before retirement. During
+each actual native-library generation command, original exporter namespace,
+source/runtime, launcher and held cwd identities are checked before and after
+the child, including failures. Both phases retain distinct fresh generated
+Lean/proof/export/package work and all thirteen original verification commands.
+Manifest `/2` preserves each original process field and the authenticated
+exporter extension; it does not claim the historical six-key `/1` schema.
+The generator identity frames the actual library generation, exporter owner,
+custody, directory and embedded seed-admission helpers by path and byte length.
+Standalone unadvertised builds and
+separate verification requests start cold; only independently authenticated
+installed-SDK seed admission may initialize the new private exporter package.
+No caller cache, model output, acceptance record or cross-request owner is reused.
+During the second real build only existing `.trace` bodies and directory timestamps
+may refresh; compiled members, paths, source and executable identities stay
+exact. Failed/reordered/repeated phases poison the owner; retirement removes
+only proved-owned nodes and refuses changed or unknown descendants.
+unwind/drop cannot publish acceptance. Successful retirement precedes accepted
+manifest publication. Ordinary non-application/non-library verification retains
+its one fresh acquisition and actual export; it has no duplicated A/B package.
+Neither seed validity nor faster acquisition establishes SDK or application
+acceptance. SDK qualification requires measured cold/seeded equivalence on
+both native platforms with genuine relocated traces, without trace rewriting,
+deadline inflation or reuse of acceptance results.
+
 The PrismPM 0.3 SDK consists of the CLI/library, LexLean, exact Lean and
 lean4-prod tools, prism-stdlib, schemas, standard bindings, redistributable
 oracles, adapters, and conformance tooling. Its canonical inventory maps every
@@ -966,6 +1547,26 @@ Ordinary commands never update locks. `lock update --sdk-image <digest-ref>
 For a platform lock, `DK-28` acquires the exact pinned OCI index, its two child
 manifests, configurations and terminal metadata layers. It never pulls ordinary
 filesystem layers, synthesizes Docker inspection results, or starts target code.
+All captured, materialized and persisted platform-lock readers reject duplicate
+decoded index keys, OCI field-case aliases, alternate descriptor URLs/inline
+data, unsupported platform requirements and explicit null CPU variants. Index
+and child-manifest bounds apply before acquisition; nesting is limited to 64
+levels during parsing. The Rust runtime enforces the same rules on the original
+digest-bound nested index, even when an invalid index and its reference are
+coherently rehashed. OCI whitespace and equivalent integral numeric spellings
+remain valid; original OCI bytes are never replaced with Prism canonical JSON.
+Integral index fields are checked against their original decimal tokens before
+floating-point conversion. Fractional values that round to schema version 2 or
+to a permitted child size are rejected; equivalent exact integral decimal and
+exponent spellings and unrelated fractional extension values remain valid.
+Unknown OCI extension values and names remain opaque: valid JSON decimal
+numbers need not fit binary64, and ignored escaped UTF-16 units need not form
+Unicode scalar values. Readers validate complete original UTF-8 JSON syntax,
+all decoded-key duplicates (by UTF-16 units) and nesting before admitting the
+understood SDK fields. No extension is lossy-reencoded into the locked index;
+the exact original bytes and digest remain authoritative.
+These OCI rules are confined to SDK index admission. They do not change the
+Holo canonical decoder, its no-float contract, emitter semantics or golden bytes.
 The SDK acquisition profile `prismpm/sdk-metadata/1` is declared by the image
 configuration label `org.prismpm.sdk.metadata`. Its last filesystem layer contains
 only `opt/`, `opt/prismpm/`, `opt/prismpm/share/`, and the exact installed
@@ -980,6 +1581,10 @@ descriptor lengths, configuration layer order, platforms and volume intersection
 are checked before inventory acceptance. Canonical original inventory bytes and
 cross-platform artifact identities must agree; both original standards files
 must match each other and the requested digest.
+OCI's imported configuration schema permits absent, null or object `Volumes`.
+Absent/null declare no mounts; an object requires object-valued entries and
+canonical absolute paths. Every metadata-intersecting mount and field-case
+alias remains forbidden even when the ordinary OCI schema permits that map.
 
 Bounds are 1 MiB per index/manifest/configuration, 256 layers per manifest,
 32 MiB compressed and expanded terminal layer, 8 MiB inventory, 16 MiB standards,
@@ -1016,7 +1621,7 @@ locks retain their existing `prismpm/sdk-lock-update/1` proposal behavior.
 That legacy digest-only proposal is not an executable SDK upgrade and does not
 refresh target inventory. Explicit `lock migrate --sdk-image <digest-ref>
 --standards-lock <digest>` instead captures a v2 target through the same exact
-two-platform metadata acquisition. Only this operation reads the canonical regular v1
+two-platform bounded metadata capture. Only this operation reads the canonical regular v1
 lock as historical evidence without comparing it to the updater's native
 inventory. The updater still verifies its own environment; ordinary project
 execution retains all inventory checks. The source lock must remain unchanged
@@ -1028,6 +1633,17 @@ generated-output and security reviews remain required; capture and a valid
 proposal are not SDK qualification or release acceptance. Existing v2 projects
 use `lock update`, not migration. Proposal limits are 192 MiB and 262,144 items;
 each embedded lock independently retains its existing closed schema and bounds.
+Private, gate-internal installed migration qualification records use
+`prismpm/installed-lock-migration/2`, binding the original historical document
+through the pinned Hologram Git commit, its root tree and the regular-file blob.
+Captured raw Git objects have independently reviewed SHA-256 identities; their
+Git object identities and complete commit/tree/blob relation are rechecked
+offline. These witnesses establish immutable historical-input identity, not
+signed publisher authenticity. The closed historical-source witness is input provenance only, not
+target SDK or release acceptance. Historical `/1` records retain their reader;
+the current installed acquisition gate requires `/2` and rejects missing or
+changed source witnesses. All original migration executions and independent
+target-inventory checks remain mandatory.
 `fetch --locked`
 materializes all content required for subsequent check, build, test, package,
 verify and release assembly with networking disabled. Native Linux archives
@@ -1110,6 +1726,20 @@ retained separately and rechecked before publishing the internal execution
 record. A failure retains diagnostics but cannot produce completion evidence.
 Cancellation uses the existing diagnostic supervisor's cleanup boundary.
 
+Original source/native release command capture uses the private Linux
+`release-command-owner.py` subreaper. The application cannot inherit its
+receipt descriptor. A successful capture requires complete original streams,
+the original command status, a valid private owner protocol, and kernel
+`waitpid` exhaustion of all adopted descendants; pipe closure or a process
+snapshot is insufficient. Leader exit permits five seconds of trailing work,
+then cleanup uses a five-second TERM grace and a bounded one-second kill/reap
+phase. Group TERM is used while the original session leader remains owned;
+otherwise adopted direct children are signaled. Escaped descendants are
+adopted and retired within that same cleanup budget, not granted a new grace.
+No foreground execution
+deadline is added. Failed capture or uncertain retirement cannot be admitted
+from the retained command record, even when the original leader exited zero.
+
 The inner record does not establish physical native architecture, network
 isolation, the selected OCI image's identity, release acceptance or product
 readiness. An independent outer job must verify those facts and the retained
@@ -1134,12 +1764,187 @@ After acquisition, only the owned daemon's resolver is replaced with the
 recorded loopback-only configuration; nested containers use that same DNS
 policy. Effective resolver bytes, a live external bootstrap control, blocked
 literal-address access and blocked default DNS resolution are checked before
-and after execution. Bounded command groups and owner-checked cleanup retain
-raw diagnostics without accepting interrupted runs. The release gate requires
+and after execution. Each command has a private Linux subreaper established
+before spawning, with one exclusive waiter. Actual `waitpid` exhaustion, the
+original leader result, complete streams, a closed bounded private protocol and
+successful supervisor termination are all required for completion. FD3 receipts
+and FD4 cancellation are not inherited by the command. Natural trailing work
+may finish within the original command deadline. After timeout, output overflow
+or interruption, the outer transport immediately kills owned work within one
+fixed five-second retirement budget; registry qualification retains its distinct
+TERM/four-second KILL/five-second retirement policy. A process group is signaled
+only while its original session leader remains directly owned and unreaped.
+After reaping, adopted direct children are individually signaled under unreaped
+ownership; old numeric PGIDs never authorize signals. Streams remain bounded.
+Observation, protocol or supervision failure prohibits acceptance even if later
+cleanup succeeds. Timed-out retirement is snapshotted before releasing handles;
+descriptor disposal or enclosing-container removal is not timely reaping.
+The fixed interpreter is admitted from each digest-pinned image: Bookworm
+Python 3.11.2 or Noble Python 3.12.3, using isolated execution with no host
+fallback. Source binding includes both private supervisor files. Original
+command, file, actor and two-run deadlines remain unchanged.
+Source full V&V and desktop/browser conformance additionally execute the six
+original standalone Session file pairs: Projection (7+1), Reservation (10+23),
+Payload (4+30), Recovery Frames (3+1), Journal Recovery (7+1), Retention (3+18).
+Installed browser qualification preserves all26 original owners and both
+fixed-null fallbacks, then executes these same108 additional cases. Each
+original selected file must report its exact count with no omitted, failed,
+skipped, cancelled or TODO tests. Five groups retain their3600000ms file and
+process bounds; Journal Recovery retains5500000ms with its5400000ms owner.
+Registered DK execution or inclusion of source bytes cannot replace these
+separate pairs. The original19 product boundary units also run in the source
+audit; synthetic unit inputs never qualify installed products or deployment.
+Standalone groups use the same pinned private subreaper: TERM then KILL within
+the original five-second retirement bound. A zero leader exit or passing TAP
+cannot repair timeout, overflow, abort, interruption or orphaned trailing work.
+Exact cwd, environment and argv remain intact; descendant exhaustion and clean
+supervisor completion are required before test results can qualify.
+The release's outer SDK owner executes in the existing source-independent thin
+tools stage, not host Python. Its current image ID, original Docker metadata,
+source readbacks, command output, terminal state and exact-ID cleanup are
+retained alongside—not substituted for—the original two full V&V records.
+The existing native registry CI reuses its immutable thin tools image for the
+complete original 71 process/construction cases, two new normal-exit cases,
+one complete outer-launcher lifecycle unit, the original twelve real supervisor
+controls plus two exact-cwd/interruption controls, and
+all 17 registry-process cases on both native platforms, with the
+original file deadline, source readbacks, raw results, cgroup observations and
+observed owned-container/network retirement. These unit results do not qualify
+an installed SDK or release acceptance. Descendant adoption is qualified only
+by the real process controls and actual per-command exhaustion receipts.
+The release gate requires
 the complete, non-skipped owning test set in dedicated native AMD64 and ARM64
 SDK jobs, independent of image rebuild jobs and mandatory before publication.
 The two-run execution remains bounded to four hours; operational fit must be
 measured on the actual selected image, not inferred from source or unit runs.
+Image-capacity admission re-samples the destination filesystem after all
+asynchronous metadata reads and before the first pull. The initial12GiB
+reserve sample cannot authorize later expansion; the unchanged four-times
+compressed image closure plus12GiB must fit the current available bytes.
+
+The private `run-owned-registry` acquisition path additionally accepts one
+explicit PEM CA for a non-loopback, private IPv4 registry. A private HTTPS
+agent reads only digest-addressed SDK metadata at that exact authority and
+repository, without ambient proxies, default roots, credentials or redirects.
+Both metadata reads share a 45-second deadline and the original 4 MiB document
+bound; request/socket retirement has a separate five-second bound. Original
+index/child bytes and actual TLS peer and retirement observations are retained.
+The selected child still passes the same OCI graph checks. The held CA is
+read back from the exact authority's read-only mount in the fresh daemon before
+the SDK pull and after execution. Its system roots plus named CA are not the
+outer reader's CA-only root set. Other image acquisition, disconnection controls
+and both unchanged full V&V runs remain mandatory. The reader itself joins the
+installed/source byte comparison. TLS proves server identity, not construction
+provenance: independently admitted artifact/index digests and fresh images
+constructed from the final source are still required. Existing constructed
+images cannot be relabeled or patched to satisfy that source boundary.
+
+Native transport qualification uses the same two-read acquisition function,
+actual pinned Distribution and fresh pinned Docker daemons, with original OCI
+fixture bytes and exact authority CA readback. Its scratch transport fixture is
+not an SDK and is never executed. Negative TLS, CA-path and HTTP pulls retain
+actual daemon failures and zero-image state. Real redirect controls prove a
+reachable target receives no contacts at the shared acquisition boundary;
+they do not assert that Docker itself refuses redirects. Command evidence,
+source bytes, public certificates and owner-checked cleanup are retained on
+both native platforms. This qualifier cannot replace installed SDK V&V.
+
+`scripts/sdk-construction-handoff.mjs` is an internal metadata-admission boundary.
+Independently selected source, run, attempt and artifact IDs bind the complete
+original construction job inventory, successful ordered steps, declared native
+runner assignments,
+input-policy dependency and artifact upload windows. Its caller must acquire
+and retain the provider responses through authenticated GitHub endpoints;
+passing bytes to this validator does not authenticate their origin. Expired,
+future or incomplete metadata, and mismatched bound identities or bytes, fail
+closed. Original construction
+and smoke metadata have a 96 MiB aggregate budget per platform; construction
+and candidate records are limited to 64 KiB, configuration and manifest JSON
+to 4 MiB, and other smoke files to 64 MiB each. Hashes, fatal UTF-8 decoding,
+smoke schemas, source labels and independently selected source standards are
+checked before opaque in-process handles can compose a deterministic native
+OCI index. Such handles and index bytes establish neither archive/blob integrity,
+registry availability, installed execution, full V&V nor release acceptance.
+
+`scripts/sdk-construction-archive.mjs` checks the original stored-ZIP transport
+after independent provider authentication and metadata admission. It snapshots
+the selected descriptors and eleven metadata files before asynchronous reads,
+then streams every original member, CRC, SHA-256, ZIP64 directory and descriptor.
+The fixed twelve-member inventory, complete provider digest and archive digest
+must match. The unexpanded OCI USTAR layout must contain precisely its bounded
+manifest/configuration/layer graph, with every blob length and digest checked;
+duplicate members, links, special entries, extra paths and incomplete termination
+are rejected. No archive path is materialized and no layer is expanded. Reads
+are bounded to 1 MiB chunks, metadata to 96 MiB, OCI documents to 4 MiB, layers
+to 256 and the archive to 64 GiB. A caller may lower the thirty-minute execution
+budget. Each asynchronous read owns one deadline-abort listener, detached on
+settlement; a shared pending timeout promise must not retain consumed chunks.
+Actual transport closure is required within a separate five-second
+cleanup budget, preserving verification and cleanup failures. This establishes
+original archive/blob integrity only, not provider authentication, expanded
+filesystem semantics, registry availability, installed SDK execution, full V&V
+or release acceptance. Tiny synthetic archive fixtures test this internal
+boundary; they are not SDK, application or product qualification.
+
+The private `stageConstructionArchiveStream` path writes only the original
+`sdk.oci.tar` payload to an exclusive, randomly named file anchored by a held
+Linux directory descriptor. It never extracts archive member paths or layers.
+The caller-owned directory is unaliased and mode0700. Admission reserves the
+complete original tar length plus12GiB on its filesystem; that reserve remains
+mandatory after staging. Writes apply backpressure with at most one1MiB copied
+transport chunk and64KiB file operations. Publication additionally requires the
+complete original ZIP/OCI verification, actual transport closure, unchanged
+directory/file identities, a singly linked mode0400 file, an identity-checked
+read-only held descriptor with its original writable descriptor closed, and a full original
+tar digest readback within the original thirty-minute budget. Only a genuine
+in-process whole-stream receipt can mint an opaque stage handle. Copied records
+and guessed handles cannot substitute for that authority.
+
+Stage consumers receive copied64KiB chunks, never a pathname or descriptor.
+Consumption rechecks exact file custody and the complete original digest;
+consumer waits have their own bounded, at-most-thirty-minute deadline. A timeout
+does not assert that arbitrary consumer code stopped or a registry import was
+retired. Owned-file retirement is anchored to the original held directory and
+requires exact file identity before unlinking, actual held-inode zero link count,
+observed pathname absence and descriptor closure. Observed replacement files and
+aliased inodes are refused; uncertain cleanup fails. The caller owns this private
+directory. Check-then-unlink is not an atomic conditional inode deletion: this
+boundary does not claim immunity to concurrent namespace changes by that owner
+or a privileged host process. Such a race cannot establish retirement merely
+from pathname absence. These primitives do not yet make the read-only acquisition mode an import
+or qualify provider authentication, registry availability, expanded filesystem
+semantics, SDK execution, fullVV, release or product readiness. Those acceptance
+requirements remain unchanged.
+
+The additive `construction_integrity` workflow mode authenticates fixed GitHub
+API responses and selects an explicit source/run/attempt/two-artifact tuple.
+It is mutually exclusive with construction and publication. Older construction
+workflows have six jobs; newer ones additionally require the integrity owner to
+be skipped when admitting genuine native construction. Independently Git-selected
+source workflow bytes select a closed reviewed digest profile and its exact job
+inventory; unknown profiles or omitted jobs fail closed. The acquisition owner
+reads only bounded original stored-ZIP metadata ranges, admits source standards,
+then verifies both complete original archive streams. Signed HTTPS storage URLs
+and credentials remain in memory; bearer credentials are not forwarded to
+storage. Original provider bytes, small metadata, source/runtime hashes, resource
+observations and terminal ownership cleanup are retained. The interpreter is
+the digest-pinned official Node 22.23.2 container, not an SDK qualification target.
+Its nonroot, read-only, one-CPU, 512 MiB/no-swap container stores no SDK archives;
+at least 1.5 GiB host storage reserve is required. Metadata range acquisition
+shares a fifteen-minute budget across both platforms, each original stream
+retains its thirty-minute bound, and the outer diagnostic is bounded to 5000
+seconds, including Docker startup, with a separate sixty-second terminal cleanup
+allowance. Evidence destinations are resolved through their real parent directory
+and must remain outside the real source checkout. Provider response/request/socket
+closure and actual owned-container absence are observed before completion.
+The observer separately reads back the bounded original small files, native
+receipt references, source inputs and resource observations; missing, substituted,
+duplicate or symlinked retained evidence fails. This custody check does not replay
+archive streams or independently authenticate provider responses.
+Unit request transports and workflow policy mutations are not authenticated
+provider or SDK evidence. Successful acquisition establishes original transport
+and blob integrity only; registry serving, installed SDK/full V&V, downstream
+consumption and production acceptance remain independent mandatory obligations.
 
 `scripts/sdk-image-inputs.mjs` binds SDK image construction to this closure.
 The committed `sdk/vv-inputs.lock.json` selects the reviewed RustSec snapshot;
@@ -1151,8 +1956,25 @@ closure at `/opt/prismpm/share/vv-inputs` and the closed expected policy at
 bytes and helper/policy identities. Generated Git stores, caller configuration,
 credentials, caches and untracked source do not enter the image. The shared
 build wrapper refuses conflicting context, source, file or target arguments.
+Docker receives a private recipe context containing only the five bootstrap
+files reconstructed from the verified source closure, never the caller's
+mutable checkout. Their exact bytes and private path identities, the closed
+directory inventory and the complete sealed input closure are freshly checked
+before and after Docker, including failed construction. Source drift detected
+after acquisition refuses invocation. This observed-custody boundary does not
+claim atomic isolation against a same-user filesystem attacker.
 This is image-input construction; full V&V execution, freshness, independent
 native-platform and immutable-image acceptance remain separate gates.
+
+Release reproducibility reads both complete local OCI layer closures, not just
+their index-selected manifests and configurations. Each declared layer must
+be an independent regular, unaliased file with its exact descriptor size and
+SHA-256 digest. Reads are streamed through EOF with fresh file and directory
+identity checks; no previous invocation supplies acceptance. Metadata is at
+most 16 MiB, individual layers 32 GiB, and a layout contains at most 4,096 layers
+and 128 GiB of declared layer bytes. Observed custody is not atomic filesystem
+isolation. Matching rebuilds must still equal the shipped platform manifest;
+this transport check grants neither installed-SDK nor application acceptance.
 
 ### 12.1 Browser host prerequisites
 
@@ -1448,14 +2270,62 @@ Lean elaboration and kernel replay. Independent regeneration must reproduce
 every library artifact byte. Registry-format consumers of the exact package
 execute every modeled acceptance root under both `std` and `no_std + alloc`;
 false results, computation errors, omissions and changed bytes fail closed.
+The false-acceptance conformance negative requires the actual generated `std`
+acceptance process to exit101 with its first main assertion naming the exact
+modeled root. A shared diagnostic code, compilation error, timeout, wrong-root
+panic or mismatching success transcript cannot satisfy that negative. Installed
+qualification retains the original CLI refusal in closed
+`prismpm/generated-acceptance-rejection/1` evidence and rechecks it on replay;
+this is private gate-internal evidence, not a public SDK or model contract.
+the original positive, restored-source and `no_std` executions remain mandatory.
 
 Only then are `prismpm/library-acceptance/1` and
-`prismpm/library-verification-manifest/1` atomically published. This is finite
+`prismpm/library-verification-manifest/2` atomically published. This is finite
 native-code evidence, not a universal semantic proof, standards certification,
 browser profile, `.holo`, or deployed service. Product-release construction and
 source-free product-release replay reject library evidence with `PP6101`.
 The library may supply modeled code to an application, whose own complete
 application and deployment acceptance remains mandatory.
+
+The installed native-library SDK gate acquires the complete two-platform lock
+through the source-bound SDK metadata transport before offline execution. Its
+native inventory must equal the independently selected immutable image's bytes.
+Registry credentials are read-only inputs to acquisition only; library execution
+has no network, credentials or host implementation mounts. Two fresh cold roots
+and two fresh seeded roots must reproduce every build artifact byte, execute
+both consumers and retain original process manifests. Seeded records must bind
+the captured native inventory, seed and exporter; cold fallback is a failure.
+The same native gate requires two fresh exporter constructions to match the
+captured installed seed manifest, then reuses the first seed for two-root
+cold/relocated kernel checks and eight exact exports. Original manifests,
+process records, export bytes and timings are retained. Construction is non-root
+with a bounded sub-1-GiB temporary filesystem; root-only custody adversaries
+use a separate disposable fixture mount. Neither phase replaces consumer tests.
+This gate remains native-library evidence, not full SDK or deployment acceptance.
+
+Private gate-internal `prismpm/sdk-metadata-inputs/1` records retain exactly the
+seven original digest-selected OCI objects, their bounded request identities
+and observed timings. Offline replay uses the unchanged metadata decoder and
+must reproduce the canonical lock byte-for-byte. Acquisition deadlines,
+per-object and aggregate transfer bounds do not change. The private acquisition
+record's 288-MiB retention allowance includes the separately bounded base64 raw
+object witness; it does not increase accepted lock or transport limits.
+The private acquisition producer emits exact canonical JSON without a final LF.
+Both the acquired-lock CLI and retained-lane reader validate those original
+bytes before projecting the nested lock. Duplicate decoded keys, invalid UTF-8,
+extra envelope members and noncanonical serialization fail closed; retained
+evidence preserves the original acquisition bytes rather than normalized data.
+
+Each successful native library gate retains its original source, image,
+independently materialized inventory/standards, acquisition, construction,
+custody and execution bytes. Complete source and original readers must pass
+before the fresh, non-overwriting evidence directory gains its final manifest.
+The release evidence phase joins both actual native lanes against one immutable
+SDK index, requiring identical captured lock/object bytes and each platform's
+exact independently materialized inventory. Missing, swapped, altered or
+incomplete lanes fail closed. This is metadata/native byte correspondence,
+not an additional execution, signed publisher authentication, hardware
+attestation or a substitute for complete installed V&V and consumer acceptance.
 
 ### 12.7 Internal browser effect protocol
 
@@ -1633,9 +2503,171 @@ contains raw secret input; internal DOM failure terminates instead of rollback.
 Acceptance requires fresh generated native/no_std/Wasm parity, declared actual
 maxima and one-over negatives, real browser keyboard/focus/live/close journeys,
 native replay of observed generated transcripts and owning guard mutations.
+Maximum binary acceptance fixtures are captured from their held exclusive
+creation descriptor; original file/parent identity and bounded streamed digest
+remain checked through both complete native consumers. After their final use,
+the owner verifies the entire original inventory, removes only those exact files
+and observes absence before browser
+execution. Changed/missing/aliased files, premature/omitted retirement or partial
+unlink failure cannot produce acceptance; remaining failure evidence is retained.
+This retires consumed fixture storage, not generated artifacts or acceptance
+cases, and does not increase memory limits or execution deadlines.
 This private presentation prerequisite leaves `PP2011`, credential custody,
 generated authorized dispatch, durable recovery and complete public application,
 Foundry and deployment gates unchanged.
+
+#### 12.11.1 Complete P-256 point admission
+
+DK-34 owns the bounded source-generated predicate in
+`Foundation.Crypto.P256.Model` and its private canonical CBOR verification
+boundary. Only SEC1 uncompressed P-256 points with exact coordinate widths,
+coordinates below the SEC2 prime and the complete curve equation are admitted.
+The cofactor-one subgroup implication is specific to this fixed domain.
+Malformed field representations are refused without reducing caller inputs.
+Fixed-limb intermediates are bounded below `u64`; no unbounded integer backend,
+handwritten host field arithmetic or provider-import validity assumption is used.
+
+Acceptance requires complete imported applicable NIST key-validation vectors,
+independent field/curve oracles, actual native/std/no_std/two-Wasm parity,
+all three pinned browser engines, exact artifact/source custody and genuine
+arithmetic/codec mutants. DK-33 account and DK-32 signer admission must use this
+source predicate and independently pass their complete owning journeys. This
+component grants no key possession, account authority, freshness, signature
+conformance, NIST certification or public application acceptance.
+
+#### 12.11.2 Private stable account genesis
+
+DK-33 defines an immutable account declaration containing a stable namespace,
+creation nonce and initial uncompressed P-256 public key. Generated source owns
+canonical encoding, complete P-256 point admission, exact expected-namespace
+admission and the domain-separated identity preimage. Source admission checks
+SEC 1 uncompressed format, coordinate range and curve equation using the fixed
+SEC 2 secp256r1 parameters; its cofactor-one subgroup implication applies only
+to that curve. The browser performs actual key import and SHA-256; only
+its factory returns opaque captured facts. The resulting reference identifies
+this declaration, not a human, mailbox owner, organization role or current
+credential. Application updates and authorized credential rotation preserve the
+original genesis. Changing its namespace or any other field creates a different
+declaration, never transfers authority.
+
+`AccountGenesis.cddl` fixes the internal definite-CBOR frame: genesis 137 bytes,
+identity material 163, largest valid request 174 and response 409, with a 512-byte
+complete frame ceiling. Parsing consumes every byte. No caller hash, callback,
+verification flag or public constructor replaces generated admission or actual
+cryptography. The private bootstrap must bind the selected artifact to verified
+source/package provenance; a self-consistent module digest alone does not.
+The factory selects its fixed SDK-relative artifact using the generated portable
+model/IR/two-Wasm binding; legacy artifact arguments are assertions, not code
+selection. Each native SDK build reconstructs and checks the binding and bytes,
+retains platform-specific kernel construction proofs, and inventories them with
+the installed module. Same-origin credential-free acquisition refuses redirects,
+requires exact bounded bytes, EOF and SHA-256 within 30 seconds, and aborts and
+observes cancellation on failure before any verifier can be returned.
+Malformed bindings refuse before allocation or fetch. Cancellation rejection or
+non-settlement preserves refusal with a five-second cleanup bound, never grants
+a verifier or establishes platform quiescence. Installed SDK owners execute the
+actual shipped modules and Wasm and verify their unchanged identities against
+the fresh constructor. Inventory-verified construction-file integrity joins do
+not replace kernel, source, package, retirement or full-owner acceptance.
+
+Acceptance requires full generated kernel/native std/no_std/two-Wasm parity,
+canonical and malformed boundaries, actual maximum and one-over frames,
+all applicable original P-256 records in both complete pinned NIST CAVP/ACVP
+supplier files (including the explicitly labeled ACVP sample data), independent digest
+calculations, compiled source defects and three-engine
+capture/curve/hash/opaque-handle adversaries with exact native transcript replay.
+Complete imported-corpus execution is not exhaustive point enumeration or NIST
+algorithm certification. This is a private SDK prerequisite, not a public
+`prism-stdlib` crate export.
+Account allocation, proof of initial key possession, authenticated succession,
+mailbox verification, recovery, currentness and organization authority remain
+separate required integrations. This private component is not DID, VC, JOSE,
+COSE or application acceptance. `PP2011` remains closed.
+#### 12.11.3 Private semantic presentation
+
+DK-38 owns the separate `SemanticPresentation/1` envelope, `Design`,
+`DesignWire`, `Semantics` and `SemanticsWire` LexLean sources. Its closed contract
+is `stdlib/src/Foundation/View/Browser/V1/Semantics.md` and `SemanticsWire.cddl`.
+DK-23 Presentation/Intent bytes, limits and secret routing remain unchanged.
+Sorted annotations bind typed input purposes, help/error labels, landmarks and
+layout to exact nodes and the complete revision/lifecycle. A unique Main and
+local skip target are required except in an empty Closed frame. Immutable
+source-bound light/dark design catalogues admit only bounded numeric tokens and
+closed font families; raw CSS, HTML, URLs and arbitrary attributes remain refused.
+
+The generic adapter preserves exact input bytes, native labels, autofill/paste,
+reading order, focus visibility, responsive reflow and forced-color overrides.
+Secret metadata changes clear prior drafts. Complete metadata/catalogue preflight
+precedes DOM mutation; a changed equal-revision envelope cannot replace context.
+Shape validity is neither authority nor contrast/usability evidence.
+
+Acceptance requires independent complete source/kernel/native/no_std/Wasm
+corpora, 64 MiB combined maxima, one-over negatives, generated browser transcripts
+replayed natively, real keyboard/reflow/error/secret journeys and source/adapter
+mutants. The pinned axe-core oracle executes on rendered output and must detect
+real broken-label/contrast controls. Adapter mutation evidence requires a complete
+pristine baseline, including that oracle, and an assertion-owned counterexample
+at the mutation's exact expected journey and semantic check. Missing tooling,
+browser failures, surviving mutations and different failures cannot count as
+detected mutants; actual negative tests enforce each boundary. Its automated
+subset is not complete WCAG
+conformance, manual usability assessment, a brand approval or Foundry acceptance.
+The private tokens do not claim Design Tokens Community Group conformance.
+
+#### 12.11.4 Dynamic plain-text choices
+
+DK-31 adds the private `Content.TextSelect` presentation prerequisite to DK-23.
+Wire tag 11 is `[11,label,enabled,required,selected,[[id,text],...],draftEpoch]`.
+Option identifiers are distinct nonzero uint32 values in source-chosen display
+order. Names are nonempty strict UTF-8 text of at most 4096 bytes each; duplicate
+names are allowed. Selection is zero or an existing identifier, never an index
+or display name. The 256-option aggregate includes both tag 7 and tag 11.
+Every existing tag, catalogue reference, epoch, lifecycle, intent, parent,
+structural limit and 64 MiB aggregate frame contract remains unchanged.
+DK-38 helper/error annotations apply to the new field, but its option text is
+not a catalogue index. No control or selected identifier grants authority.
+
+Acceptance requires complete generated native/std/no_std/Wasm parity, actual
+browser selection and accessible-name observations, mixed aggregate and text
+maxima, unchanged DK-23/DK-38 owners, and actual source/renderer mutations.
+Source order, filtered options, duplicate names, preserved edits, epoch resets,
+stale revisions and hostile plain text are owning cases. Nonempty text alone
+does not establish useful accessible naming or human-centered design. Foundry
+journeys, organization authority and public application acceptance remain
+separate requirements; `PP2011` remains mandatory.
+
+#### 12.11.5 Private signed contexts
+
+DK-32 binds the unchanged six-reference `SourceSessionBinding`, origin,
+source-owned purpose, subject, scope, state, request, credential epoch and
+challenge to an exact expected context/key and canonical unsigned statement.
+`SignedContext.cddl` fixes the internal versioned frame. References are 32 bytes,
+epoch is uint32, the raw uncompressed P-256 key is 65 bytes and its P1363
+signature is 64 bytes. Source owns canonical parsing, exact matching and signing
+projection. Signer and expected keys must pass DK-34's complete P-256 predicate
+before signature-width admission or provider import, retaining the existing
+key error and precedence. The SDK supplies actual key import, hashing and
+signature verification through the existing domain-separated Web Cryptography profile. The largest
+valid match request is 1037 bytes within a 2048-byte frame; malformed and
+one-over frames are rejected without reducing any application frame domain.
+
+Evidence is factory-only, bound to one verifier and captured artifact, and
+returns copies of captured statement facts. The private bootstrap must select
+the semantic artifact from independently verified source/package provenance;
+matching a caller-selected module's hash is not that provenance. Key possession,
+statement identity and release/session binding are not stable account identity,
+email ownership, organization permission, credential succession or freshness.
+Randomized/malleable signatures never define accounts or distinct approvals.
+Every consumer must derive expected context and resolve current credentials
+through its own admitted model; no verification boolean is an authority grant.
+
+Acceptance requires full generated source/kernel/native/std/no_std/two-Wasm
+parity, complete finite framing and actual bounds, real source and host mutants,
+three-engine captured-input/opaque-evidence journeys with native transcript
+replay, the complete pinned original WPT ECDSA entry in Window and
+DedicatedWorker, and independent native cryptographic verification. This
+selected suite is not whole Web Cryptography, DID/VC/JOSE/COSE, identity,
+application or installed-SDK acceptance. `PP2011` remains closed.
 
 ### 12.12 Private durable operation journal
 
@@ -1704,6 +2736,91 @@ organization authority, mailbox proof, key rotation, backup restoration,
 origin-eviction protection, or public application acceptance. Explicit creation
 after total origin loss creates new custody, never restores an earlier identity.
 DK-08, DK-20 and the public `PP2011` build refusal remain unchanged.
+
+### 12.14 Private source-owned session kernel
+
+
+`DK-26` is a pure transition and canonical-codec prerequisite, not a public
+dispatcher or durable host. Source application wrappers admit authority facts,
+derive domain transitions and validate volatile selectors against durable
+application state. The kernel binds the selected principal, scope, epoch,
+command, complete prior state, exact effect and continuation. Caller flags,
+control presence and private wire observations confer no authority.
+
+Durable instance, command sequence, application, authority and pending records
+are distinct from volatile execution, revision, selector and presentation.
+Read-only actions preserve durable state. Ordinary action admission uses the
+actual typed presentation/Intent predicates and rejects only the selected
+secret-bearing action. Begin consumes one command sequence; finite continuation
+steps bind the actual prior request, result and continuation. Unknown and Close
+retain pending custody, forbid late promotion and never imply retry on reopening.
+
+Source limits bound each application, selector, continuation, evidence, Intent
+and presentation byte field to 1–64 MiB and effects per command to 1–512. The complete
+encoded request and response are each at most 64 MiB; independently legal fields
+need not fit together. Field-scoped canonical references share only the exact
+declared predecessor; explicit equal values reject, while differing values still
+undergo full typed context comparison. Before each effect, source arithmetic
+reserves actual-family terminal/refusal/Unknown domains and every later
+observation/continuation envelope, including future distinct payload maxima.
+Infeasible global budgets refuse before effects; no scalar cap is clamped.
+Source-owned size folds preserve the actual View/Effects encoders' complete
+byte-count and error domains. Their owning oracle compares real encoder output,
+including typed writer failures and combined maxima. Session-private balanced
+Commit assembly reuses the accepted EffectsWire scalar/item encoders and emits
+identical bytes/errors; it does not change the effect contract.
+The fixed generated Wasm ceiling is 1 GiB. Acceptance
+requires actual source/kernel/axiom verification, native std/no_std and Wasm
+execution, combined aggregate maxima and source guard mutations.
+
+This does not authenticate a principal, persist a context, execute an effect or
+accept a public application. Atomic initial state, authenticated contextual
+history, effect acknowledgments, safe checkpoint/segment rotation, rollback
+witnesses and private secret-to-nonsecret evidence composition remain separately
+required SessionJournal/runtime obligations. `PP2011` and Holo/1 are unchanged.
+
+#### 12.14.1 Private operation capture
+
+DK-35 captures one exact operation before any asynchronous work. The actual
+generated predecessor, session, observation, partition and descriptor kernels
+derive complete frames and ordered content hashes. A source error never mints
+a successful handle. Factory-only handles reject fabrication, cross-owner use
+and use after close; reads return defensive copies. Every existing frame and
+combined-domain bound remains mandatory.
+
+Matching captured artifact bytes to caller digests is not artifact authority.
+SDK assembly must supply independently accepted artifacts. Neither a derived
+predecessor nor a generated successor observation is authenticated current or
+committed state. This component signs nothing, releases no effects and does not
+complete the source-owned browser session host or bypass `PP2011`. Current
+DK-30 is the separate native-lane reducer, not that session-host obligation.
+
+Acceptance requires fresh kernel/native/no_std/paired-Wasm verification,
+kernel-manifest/generated-Lean linkage, original/private artifact custody,
+complete independent operations and all 27 combined maxima in each pinned
+browser, actual source/host mutations and the unchanged full payload owner.
+
+### Private contextual effect staging
+
+DK-37 extends only private SDK composition over DK-18's existing generated
+effect admission. Its separate factory observes copied application, manifest,
+execution and next-operation bindings; observations reserve no counter, grant
+no authority and contain no signing key. The caller cannot choose an execution
+identifier. Exact canonical requests reach the generated reducer unchanged;
+stale or substituted fields cannot be repaired by relabeling them.
+
+Admitted requests execute only through a private single-use release. Its result
+binds the originally captured request to the actual modeled primitive result,
+never a caller completion. Close and unknown outcomes cannot authorize retries
+or manufacture durable receipts. Existing DK-20 and DK-24 interfaces, custody
+checks, queue bounds and acceptance remain unchanged and mandatory.
+
+The owner exercises all primitive families, stale and competing observations,
+cross-execution reuse, input/output aliasing, malformed frames, queue exhaustion,
+unknown/close races and planted host defects in real browsers, with native
+std/no_std replay of actual generated transcripts. This is not SessionJournal,
+source-wrapper authorization, per-resource budget composition or public runtime
+acceptance; it does not open PP2011 or establish a deployable Foundry.
 
 ### Private per-resource admission
 
@@ -1849,6 +2966,14 @@ byte observation and every deployment-specific assessment. Stale, unknown,
 failed, replayed and substituted facts do not advance state. The complete
 private wire and bounds are in `Production/PublicationAdmission/V1.md` and its
 CDDL; real generated std/no_std/Wasm tests own the conditional semantics.
+The serial OC-09 owner constructs one fresh source-bound compiler tool closure
+for its baseline and all six independent source mutants. Each subject still
+performs fresh source/kernel verification, export, native std/no_std execution
+and two independent byte-equal Wasm builds. The opaque tool owner checks its
+complete immutable closure before and after each use, rejects substitutions,
+and retires exactly once before final acceptance evidence is written. No prior
+target, subject artifact or cross-test compiler owner is admitted; standalone
+preparation remains cold. Phase timings are diagnostic, not acceptance.
 This prerequisite does not enable public Pages deployment, authorize a target,
 certify a producer, or convert OC-08's integrity receipt into product acceptance.
 
@@ -2047,6 +3172,25 @@ defects. Its devcontainer uses the exact SDK image digest and its workflows call
 a full-commit-pinned thin action/reusable workflow that executes the same CLI.
 There is no copied validation, generation, publication or deployment logic.
 
+The reusable SDK's optional `invocation-key` identifies one caller job/project
+within its workflow. Callers opting into read-only CI supersession MUST use a
+distinct, stable lowercase ASCII key for each independent invocation. Keys are
+1–64 characters, start with a letter or digit, and contain only lowercase
+letters, digits, dots, underscores and hyphens. This prevents case-insensitive
+GitHub concurrency aliases. Only `check`, `build`,
+`verify` and `test` with a nonempty key can supersede earlier work on the same
+repository, caller workflow file and ref. Existing callers without a key retain independent
+execution. Deployment, promotion, recovery and other operations never enter
+this cancellation group. All existing SDK inputs and outputs are preserved.
+The key is validated in a separate, non-concurrent job before the execution
+job can enter its group; invalid keys cannot cancel a valid invocation.
+The existing `TM-03` owner runs all 19 Action controls and all 13 CI-capacity
+controls together. The full source audit additionally owns all 26 diagnostic
+transport controls; its previous file inventory and compiler-phase controls
+remain selected. CI-capacity controls preserve all six current SDK-candidate
+lanes, including input policy, unpublished construction and archive integrity,
+without treating any diagnostic or construction lane as SDK acceptance.
+
 The shared Action exposes `export-browser` with `reference` and `output` inputs
 passed unchanged to the SDK's existing command. The SDK owns immutable-reference,
 release-evidence and new direct-child destination validation. Export executes
@@ -2134,6 +3278,8 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `HO-11` | `holo` | The explicit text application profile projects to closed model-document/2, retaining legacy model-document/1 and rejecting invalid UTF-8 response, field, root, and byte-bound declarations. | §3 |
 | `HO-12` | `holo` | Application verification executes the exact portable View in Chromium through the authoritative Hologram intent and Core-Wasm session, rejecting incomplete browser evidence. | §3 |
 | `HO-13` | `holo` | The modeled browser-surface wire codec preserves legacy bytes, reproduces pinned upstream framing in generated std and no_std code, and rejects malformed or mixed profiles without granting browser authority. | §3 |
+| `HO-14` | `holo` | Pinned BLAKE3 vectors qualify every imported digest mode, streaming partition and content-identity result without claiming cryptographic proof or durable native storage. | §3 |
+| `HO-15` | `holo` | The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application. | §3 |
 | `CT-01` | `controller` | The Controller API exposes owned request and result types for load, check, and build. | §4 |
 | `CT-02` | `controller` | The Controller encapsulates LexLean Engine operations without exposing internal compiler types. | §4 |
 | `CT-03` | `controller` | prismpm check validates models in memory without modifying the filesystem. | §4 |
@@ -2161,6 +3307,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `ST-14` | `stdlib` | The internal candidate browser-bootstrap kernel binds admitted peer sessions to explicit public-operator policy, consent, bounded reservations and fail-closed channel lifecycle in generated native execution. | §5 |
 | `ST-15` | `stdlib` | The internal organization lifecycle creates isolated provisional organizations without name privileges and composes scoped administration for revision-bound activation and founding-grant handover. | §5 |
 | `ST-16` | `stdlib` | The internal bounded CBOR primitive profile preserves deterministic encoding, typed cursor limits and strict UTF-8 through generated native and bounded Wasm execution. | §5 |
+| `ST-17` | `stdlib` | The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox. | §5 |
 | `AR-01` | `artifacts` | Build artifacts are published under content-addressed .prism/build/<id> paths. | §6 |
 | `AR-02` | `artifacts` | Every build directory contains a canonical manifest of file paths, sizes, and hashes. | §6 |
 | `AR-03` | `artifacts` | Artifact content IDs are derived from deterministic SHA-256 digests. | §6 |
@@ -2207,6 +3354,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `AU-04` | `authorities` | Authority and oracle verification reproduces from a populated cache with network access disabled. | §10 |
 | `AU-05` | `authorities` | Oracle runners are digest-bound, resource-bounded, networkless, and report exact covered and uncovered requirements. | §10 |
 | `AU-06` | `authorities` | Official positive and negative corpora plus Prism mutations detect stale, bypassed, changed, or always-passing oracles. | §10 |
+| `AU-07` | `authorities` | The imported OSCAL JSON structural oracle executes complete pinned schema corpora and bounded subject-capture adversaries without claiming implemented controls or whole-standard acceptance. | §10 |
 | `SY-01` | `system` | Prism system models cover product, components, interfaces, topology, configuration, data, operations, and lifecycle. | §11 |
 | `SY-02` | `system` | System validation enforces closure, uniqueness, references, compatibility, capabilities, ordering, and release completeness. | §11 |
 | `SY-03` | `system` | All Prism system semantics and validators are authored in LexLean and exported only from generated Lean roots. | §11 |
@@ -2240,8 +3388,18 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `DK-23` | `sdk` | A source-owned bounded presentation codec and private closed DOM adapter preserve semantic labels, actions, lifecycle and plain text through actual generated execution without granting authority or accepting a public application. | §12 |
 | `DK-24` | `sdk` | The private generated operation journal persists exact admitted effect bindings before execution and authenticates durable terminal receipts on replay, retaining unresolved outcomes without retry or application acceptance. | §12 |
 | `DK-25` | `sdk` | Private modeled credential custody binds immutable application policy, complete logical key slots and exact signing resources to atomic nonextractable browser key creation and validated reopening without key export, silent replacement or account authority. | §12 |
+| `DK-26` | `sdk` | The private generated session kernel binds visible ordinary intents, admitted authority facts and exact effect continuations while separating durable application state from volatile presentation and retaining uncertain or closed pending work without claiming host durability or public runtime acceptance. | §12 |
 | `DK-27` | `sdk` | Private source-modeled effect budgets bind every admitted manifest resource and exact request to concrete per-resource maxima and immutable policy context without issuing grants or enabling public application builds. | §12 |
 | `DK-28` | `sdk` | SDK lock acquisition validates exact OCI metadata graphs and a closed terminal filesystem layer under explicit resource and credential bounds without full-image fallback or implying executable or release acceptance. | §12 |
+| `DK-29` | `sdk` | Native exporter acquisition binds bounded fresh compiler seeds to independent SDK inventory authority and actual child measurements without replacing cold construction, actual exports or application acceptance. | §12 |
+| `DK-30` | `sdk` | The internal native-lane reducer preserves exact operation identity, finite sequencing and conditional cleanup transitions in generated std/no_std execution and import-free Wasm corpus probes without granting OS authority or claiming native application acceptance. | §12 |
+| `DK-31` | `sdk` | Private source-owned dynamic choice names preserve bounded plain text, unique stable option identifiers, source order and exact selection through generated native/Wasm and browser execution without changing catalogue-based choices or granting authority. | §12 |
+| `DK-32` | `sdk` | Private source-owned signed contexts bind exact expected statements and keys to actual cryptographic verification and opaque captured evidence through complete generated and browser oracles without granting account, mailbox, organization or freshness authority. | §12 |
+| `DK-33` | `sdk` | Private source-owned account genesis preserves an immutable namespace, nonce and initial key in canonical domain-separated identity bytes without conflating account identity with signatures, current credentials, deployment revisions or authority. | §12 |
+| `DK-34` | `sdk` | Private source-owned P-256 public-key validation checks complete uncompressed SEC1 points with bounded generated field arithmetic and authoritative key-validation vectors before account or signature admission without claiming possession, authority or cryptographic certification. | §12 |
+| `DK-37` | `sdk` | Private contextual effect staging preserves exact source-generated requests, copied execution observations and one-shot actual completions without caller-selected execution identity, premature effects or public application acceptance. | §12 |
+| `DK-38` | `sdk` | Private source-owned semantic presentation binds exact input purposes, descriptions, errors, landmarks and bounded design catalogues to complete generated native/Wasm and rendered browser oracle checks without changing DK-23 bytes or granting application acceptance. | §12 |
+| `DK-35` | `sdk` | Private operation capture derives immutable predecessor, successor, observations and content descriptors from exact captured operation bytes through generated source kernels, with factory-owned revocable handles and complete native/Wasm/browser bounds, without authenticating current history, releasing effects or accepting a public application. | §12 |
 | `OC-01` | `oci` | Product releases use OCI 1.1 descriptors, manifests, indexes, subjects, annotations, and referrers with registered media types. | §13 |
 | `OC-02` | `oci` | A locked build atomically emits a verified root only after every declared source, proof, package, oracle, and release gate passes. | §13 |
 | `OC-03` | `oci` | The release graph closes over all artifacts and binds SBOM, provenance, validation, signature, policy, and deployment referrers to exact subjects. | §13 |
@@ -2251,6 +3409,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `OC-07` | `oci` | Browser export replays the immutable release closure without source or execution and atomically copies only its exact browser artifacts without granting publication authority. | §13 |
 | `OC-08` | `oci` | Browser publication integrity replays the source-free release and compares its complete browser closure at one explicit canonical HTTPS base, rejecting redirects and bounded transport failures without claiming deployment authorization or product acceptance. | §13 |
 | `OC-09` | `oci` | A private source-modeled publication reducer binds complete stage obligations, immutable subjects, scoped authorization and distinct deployment evidence without treating conditional facts as authentication or enabling public deployment. | §13 |
+| `OC-10` | `oci` | Private publication context linkage projects a unique source-owned declaration and binds generated canonical preimages to the complete captured release and tool closure without inventing absent identities, authenticating caller facts, or authorizing deployment. | §13 |
 | `LC-01` | `lifecycle` | The Controller owns fetch, build, push, pull, inspect, run, plan, deploy, status, rollback, and explicit destroy operations. | §14 |
 | `LC-02` | `lifecycle` | Build, push, run, and deploy accept Docker-simple command forms and return stable pipe-safe canonical result values. | §14 |
 | `LC-03` | `lifecycle` | Local run uses unmodified OCI, container, Compose, and Hologram runtimes with modeled isolation, readiness, acceptance, signals, and shutdown. | §14 |

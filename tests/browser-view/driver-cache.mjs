@@ -4,28 +4,42 @@ import {closeSync, constants, existsSync, fstatSync, lstatSync, openSync, readSy
   realpathSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {basename, dirname, join} from 'node:path';
-import {run, sha} from './compile.mjs';
+import {repository, run, sha} from './compile.mjs';
 
 const owners = Object.freeze({
+  'holo-primary-component': {directory:'holo-primary-component', executable:'holo-primary-component-driver'},
+  'session-retention': {directory:'browser-session-journal-retention', executable:'browser-session-journal-retention-driver'},
+  'session-payloads': {directory:'browser-session-payloads', executable:'browser-session-payloads-driver'},
   publication: {directory:'publication-admission', executable:'publication-admission-driver'},
   budget: {directory:'browser-budget', executable:'browser-budget-driver'},
   session: {directory:'browser-session', executable:'browser-session-driver'},
+  'session-journal': {directory:'browser-session-journal', executable:'browser-session-journal-driver'},
+  'session-recovery-frames': {directory:'browser-session-recovery-frames', executable:'browser-session-recovery-frames-driver'},
+  'session-journal-recovery': {directory:'browser-session-journal-recovery', executable:'browser-session-journal-recovery-driver'},
   effects: {directory:'browser-effects', executable:'browser-effects-driver'},
   custody: {directory:'browser-custody', executable:'browser-custody-driver'},
+  'operation-journal': {directory:'browser-operation-journal', executable:'browser-operation-journal-driver'},
+  presentation: {directory:'browser-presentation', executable:'browser-presentation-driver'},
+  'semantic-presentation': {directory:'browser-semantic-presentation', executable:'browser-semantic-presentation-driver'},
+  'dynamic-choice': {directory:'browser-dynamic-choice', executable:'browser-dynamic-choice-driver'},
+  view: {repositoryManifest:'tests/browser-view/driver/Cargo.toml', executable:'browser-workspace-view-driver'},
+  journal: {repositoryManifest:'tests/browser-journal/driver/Cargo.toml', executable:'browser-workspace-journal-driver'},
+  query: {repositoryManifest:'tests/browser-query/driver/Cargo.toml', executable:'browser-workspace-query-driver'},
+  command: {repositoryManifest:'tests/browser-command/driver/Cargo.toml', executable:'browser-workspace-command-driver'},
 });
 
-function directory(path) {
+function directory(path, owned = true) {
   assert.equal(realpathSync(path), path, 'compiler cache ancestor cannot be aliased');
   const stat = lstatSync(path);
-  assert(stat.isDirectory() && stat.uid === process.getuid(), 'owned compiler cache directory required');
+  assert(stat.isDirectory() && (!owned || stat.uid === process.getuid()), 'owned compiler cache directory required');
 }
 
-function capture(path, maximum) {
-  directory(dirname(path));
+function capture(path, maximum, owned = true) {
+  directory(dirname(path), owned);
   const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
     const before = fstatSync(fd, {bigint:true});
-    assert(before.isFile() && before.uid === BigInt(process.getuid()) && before.size <= BigInt(maximum),
+    assert(before.isFile() && (!owned || before.uid === BigInt(process.getuid())) && before.size <= BigInt(maximum),
       'bounded owned regular compiler input required');
     const bytes = Buffer.alloc(Number(before.size));
     for (let offset = 0; offset < bytes.length;) {
@@ -50,7 +64,11 @@ export function retireCompletedCompilerCaches(work, owner) {
   assert.equal(dirname(work), realpathSync(tmpdir()), 'fresh private temporary work required');
   assert.match(basename(work), new RegExp('^prismpm-' + owner + '-[A-Za-z0-9]+$'), 'owned work prefix required');
   const selected = owners[owner], target = join(work, 'driver-target');
-  const manifest = join(work, 'tests', selected.directory, 'driver/Cargo.toml');
+  // Older fixtures compile directly from the read-only SDK source tree. Only
+  // these closed manifests may be external; every cleaned path remains owned
+  // private work. Source ownership is not cache ownership.
+  const manifest = selected.repositoryManifest ? join(repository, selected.repositoryManifest)
+    : join(work, 'tests', selected.directory, 'driver/Cargo.toml');
   const driver = join(target, 'debug', selected.executable);
   const exporter = join(work, 'exporter'), build = join(exporter, '.lake/build');
   const receiptPath = join(work, 'compiler-cache-retirement.json');
@@ -60,8 +78,10 @@ export function retireCompletedCompilerCaches(work, owner) {
     'Signature: 8a477f597d28d172789f06886806bc55', 'actual Cargo cache tag required');
   const inputs = [manifest, driver, join(exporter, 'lakefile.lean'), join(build, 'bin/prod-export')];
   const records = inputs.map(path => {
-    const bytes = capture(path, 256 * 1024 ** 2);
-    return {path:path.slice(work.length + 1), byte_length:bytes.length, sha256:sha(bytes)};
+    const external = path === manifest && selected.repositoryManifest;
+    const bytes = capture(path, 256 * 1024 ** 2, !external);
+    return {path:external ? 'repository/' + selected.repositoryManifest : path.slice(work.length + 1),
+      byte_length:bytes.length, sha256:sha(bytes)};
   });
   const receipt = {scope:'completed-private-tool-caches-only', owner, records};
   writeFileSync(receiptPath, JSON.stringify(receipt) + '\n', {flag:'wx', mode:0o444});

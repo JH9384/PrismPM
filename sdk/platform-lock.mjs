@@ -2,9 +2,11 @@
 // actual digest-selected images; this does not grant release acceptance.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { lstat, readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { lstat, open, realpath } from 'node:fs/promises';
+import { constants, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import {boundedPositiveInteger, caseKeys, descriptor as ociDescriptor, limits, parseJson} from './metadata-layer.mjs';
 
 const sha = bytes => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const digest = /^sha256:[0-9a-f]{64}$/;
@@ -17,10 +19,42 @@ const canonical = value => Array.isArray(value) ? value.map(canonical)
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 
 async function boundedFile(file, maximum = 8 * 1024 * 1024) {
-  const metadata = await lstat(file);
-  assert.ok(metadata.isFile() && !metadata.isSymbolicLink(), 'SDK evidence must be a regular file');
-  assert.ok(metadata.size <= maximum, 'SDK evidence exceeds its byte bound');
-  return readFile(file);
+  const path=resolve(file);
+  assert.equal(await realpath(path),path,'SDK evidence ancestry is aliased');
+  const handle=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_NONBLOCK);
+  let failure;
+  try {
+    const before=await handle.stat({bigint:true});
+    assert(before.isFile()&&before.nlink===1n,'SDK evidence must be a single-link regular file');
+    assert(before.size<=BigInt(maximum),'SDK evidence exceeds its byte bound');
+    const bytes=Buffer.alloc(Number(before.size));let offset=0;
+    while(offset<bytes.length) {
+      const {bytesRead}=await handle.read(bytes,offset,Math.min(65536,bytes.length-offset),null);
+      assert(bytesRead>0,'SDK evidence shortened');offset+=bytesRead;
+    }
+    assert.equal((await handle.read(Buffer.alloc(1),0,1,null)).bytesRead,0,'SDK evidence grew');
+    for(const after of [await handle.stat({bigint:true}),await lstat(path,{bigint:true})])
+      for(const key of ['dev','ino','uid','gid','mode','nlink','size','mtimeNs','ctimeNs'])
+        assert.equal(after[key],before[key],'SDK evidence descriptor or name changed');
+    assert.equal(await realpath(path),path,'SDK evidence ancestry changed');
+    return bytes;
+  } catch(error) {failure=error;throw error;}
+  finally {
+    try {await handle.close();}catch(error) {
+      throw new AggregateError(failure?[failure,error]:[error],
+        'SDK evidence read or descriptor retirement failed',{cause:failure});
+    }
+  }
+}
+
+async function boundedIndexInput() {
+  const chunks=[];let length=0;
+  for await(const chunk of process.stdin) {
+    assert(Buffer.isBuffer(chunk),'raw SDK index input required');
+    length+=chunk.length;assert(length<=limits.document,'SDK index exceeds its byte bound');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks,length);
 }
 
 export function parseSdkIndex(bytes, reference) {
@@ -29,7 +63,13 @@ export function parseSdkIndex(bytes, reference) {
   const port = reference.split('/', 1)[0].split(':', 2)[1];
   assert.ok(port === undefined || (Number(port) >= 1 && Number(port) <= 65535));
   assert.equal(sha(bytes), reference.split('@')[1], 'SDK index bytes disagree with pinned digest');
-  const index = JSON.parse(bytes);
+  const index = parseJson(bytes, (token, path) => {
+    if (path.length === 1 && path[0] === 'schemaVersion')
+      assert.equal(boundedPositiveInteger(token, 2), 2, 'OCI schema version differs');
+    if (path.length === 3 && path[0] === 'manifests' && Number.isInteger(path[1]) && path[2] === 'size')
+      boundedPositiveInteger(token, limits.document);
+  });
+  caseKeys(index, ['schemaVersion', 'mediaType', 'manifests', 'annotations', 'subject', 'artifactType']);
   assert.equal(index.schemaVersion, 2);
   assert.equal(index.mediaType, 'application/vnd.oci.image.index.v1+json');
   assert.equal(index.manifests.length, 2, 'SDK index must have exactly the two supported native platforms');
@@ -38,9 +78,10 @@ export function parseSdkIndex(bytes, reference) {
       && row.platform.architecture === architecture);
     assert.equal(matching.length, 1, `SDK index must contain exactly one linux/${architecture}`);
     const descriptor = matching[0];
-    assert.equal(descriptor.mediaType, 'application/vnd.oci.image.manifest.v1+json');
-    assert.ok(Number.isSafeInteger(descriptor.size) && descriptor.size > 0);
-    assert.match(descriptor.digest, digest);
+    ociDescriptor(descriptor, limits.document, 'application/vnd.oci.image.manifest.v1+json');
+    caseKeys(descriptor.platform, ['architecture', 'os', 'os.version', 'os.features', 'variant']);
+    assert.ok(descriptor.platform['os.version'] === undefined && descriptor.platform['os.features'] === undefined,
+      'SDK platform requirements are unsupported');
     assert.ok(descriptor.platform.variant === undefined
       || (architecture === 'arm64' && descriptor.platform.variant === 'v8'));
     return {architecture, reference: `${reference.split('@')[0]}@${descriptor.digest}`, descriptor};
@@ -141,7 +182,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const [command, reference, standardsDigest] = process.argv.slice(2);
   if (command === 'index') {
     assert.equal(process.argv.length, 4);
-    for (const child of parseSdkIndex(await readFile('/dev/stdin'), reference)) {
+    for (const child of parseSdkIndex(await boundedIndexInput(), reference)) {
       process.stdout.write(`${child.architecture} ${child.reference}\n`);
     }
   } else {

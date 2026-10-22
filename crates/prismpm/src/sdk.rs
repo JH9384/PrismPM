@@ -15,9 +15,10 @@ use std::path::PathBuf;
 use std::path::{Component, Path};
 
 mod executable_file;
+mod executable_inventory;
 pub(crate) use executable_file::ExecutableFile;
 
-const STDLIB_SOURCES: &[u8] = include_bytes!("../sdk/stdlib-sources.tar");
+pub(crate) const STDLIB_SOURCES: &[u8] = include_bytes!("../sdk/stdlib-sources.tar");
 const RELEASED_INVENTORY: &str = "/opt/prismpm/share/inventory.json";
 const SDK_INVENTORY_MAX_BYTES: usize = 8 * 1024 * 1024;
 const SDK_INDEX_MAX_BYTES: usize = 1024 * 1024;
@@ -25,6 +26,14 @@ const SDK_INDEX_MAX_BYTES: usize = 1024 * 1024;
 // their artifact rows also appear separately. Allow the bounded index and
 // envelope too; the per-document limits are still enforced independently.
 const SDK_CAPTURE_MAX_BYTES: usize = 64 * 1024 * 1024;
+
+pub(crate) fn exporter_seed_manifest_bytes() -> Result<Vec<u8>, PrismError> {
+    read_metadata(
+        Path::new("/opt/prismpm/share/exporter-seed/manifest.json"),
+        SDK_INVENTORY_MAX_BYTES,
+        "PP5008",
+    )
+}
 
 // Apply wire limits before allocation as well as during reading. Metadata is
 // never executable: aliases, hard links and replacements cannot supply it.
@@ -131,50 +140,7 @@ fn executable_digest(selected: &Path, resolved: &Path) -> std::io::Result<String
 fn executable_inventory() -> Result<serde_json::Value, PrismError> {
     let path =
         std::env::var_os("PATH").ok_or_else(|| PrismError::new("PP5401", "SDK PATH is absent"))?;
-    let mut seen = BTreeSet::new();
-    let mut commands = Vec::new();
-    for directory in std::env::split_paths(&path) {
-        let mut entries = match std::fs::read_dir(&directory) {
-            Ok(entries) => entries
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|error| PrismError::new("PP5401", error.to_string()))?,
-            Err(_) => continue,
-        };
-        entries.sort_by_key(std::fs::DirEntry::file_name);
-        for entry in entries {
-            let command = entry.file_name().into_string().map_err(|_| {
-                PrismError::new("PP5401", "SDK PATH contains a non-UTF-8 command name")
-            })?;
-            if seen.contains(&command) {
-                continue;
-            }
-            let resolved = match entry.path().canonicalize() {
-                Ok(path) => path,
-                Err(_) => continue,
-            };
-            let metadata = match std::fs::metadata(&resolved) {
-                Ok(metadata) if metadata.is_file() => metadata,
-                _ => continue,
-            };
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                if metadata.permissions().mode() & 0o111 == 0 {
-                    continue;
-                }
-            }
-            let digest = executable_digest(&entry.path(), &resolved)
-                .map_err(|error| PrismError::new("PP5401", error.to_string()))?;
-            commands.push(json!({
-                "command": command,
-                "executable": resolved.to_string_lossy(),
-                "sha256": digest
-            }));
-            seen.insert(command);
-        }
-    }
-    commands.sort_by(|left, right| left["command"].as_str().cmp(&right["command"].as_str()));
-    Ok(json!({"commands":commands,"schema":"prismpm/sdk-inventory/1"}))
+    executable_inventory::inventory(&path)
 }
 
 /// Verify that the current executable search path is exactly the signed SDK inventory.
@@ -241,6 +207,11 @@ pub fn verify_environment() -> Result<Option<serde_json::Value>, PrismError> {
 /// Released images always carry the fixed inventory file; source bootstrap
 /// environments are governed by the independently pinned repository gate.
 pub fn executable(command: &str) -> Result<PathBuf, PrismError> {
+    let [selected] = executables([command])?;
+    Ok(selected)
+}
+
+fn validate_command(command: &str) -> Result<(), PrismError> {
     if command.is_empty()
         || command.len() > 128
         || !command
@@ -249,8 +220,36 @@ pub fn executable(command: &str) -> Result<PathBuf, PrismError> {
     {
         return Err(PrismError::new("PP5401", "SDK command name is malformed"));
     }
+    Ok(())
+}
+
+// Resolve adjacent lookups using one fresh inventory before their first child.
+// Nothing is retained across calls; each selected command is still freshly
+// hashed and checked against the signed inventory by resolve_executable.
+pub(crate) fn executables<const N: usize>(commands: [&str; N]) -> Result<[PathBuf; N], PrismError> {
+    for command in commands {
+        validate_command(command)?;
+    }
     let inventory_path = inventory_path();
     let inventory = verify_environment()?;
+    let mut selected = std::array::from_fn(|_| PathBuf::new());
+    for (command, result) in commands.into_iter().zip(&mut selected) {
+        *result = resolve_executable(command, inventory_path.as_deref(), inventory.is_some())?;
+    }
+    // A batch closes with another complete fresh byte inventory before its
+    // caller can spawn any child. Never substitute cached hashes or metadata
+    // for this closing verification, or retain a barrier across execution.
+    if N > 1 && inventory.is_some() {
+        verify_environment()?;
+    }
+    Ok(selected)
+}
+
+fn resolve_executable(
+    command: &str,
+    inventory_path: Option<&Path>,
+    verified: bool,
+) -> Result<PathBuf, PrismError> {
     let candidate = std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
         .map(|directory| directory.join(command))
         .find(|path| path.is_file())
@@ -258,9 +257,9 @@ pub fn executable(command: &str) -> Result<PathBuf, PrismError> {
     let resolved = candidate
         .canonicalize()
         .map_err(|error| PrismError::new("PP5401", format!("SDK command {command}: {error}")))?;
-    if inventory.is_some() {
+    if verified {
         let bytes = read_metadata(
-            &inventory_path.ok_or_else(|| PrismError::new("PP5401", "SDK inventory is absent"))?,
+            inventory_path.ok_or_else(|| PrismError::new("PP5401", "SDK inventory is absent"))?,
             SDK_INVENTORY_MAX_BYTES,
             "PP5401",
         )?;
@@ -465,6 +464,303 @@ pub fn parse_lock(bytes: &[u8]) -> Result<CanonicalDocument, PrismError> {
     CanonicalDocument::parse(schema, bytes)
 }
 
+fn oci_field_casing(value: &serde_json::Value, names: &[&str]) -> bool {
+    value.as_object().is_some_and(|object| {
+        object.keys().all(|key| {
+            let folded = key.to_uppercase().to_lowercase();
+            names
+                .iter()
+                .all(|name| folded != name.to_uppercase().to_lowercase() || key == name)
+        })
+    })
+}
+
+fn bounded_positive_integer(token: &str, maximum: usize) -> Option<usize> {
+    let (mantissa, exponent) = token.split_once(['e', 'E']).unwrap_or((token, "0"));
+    let exponent_digits = exponent
+        .trim_start_matches(['+', '-'])
+        .trim_start_matches('0');
+    if exponent_digits.len() > 7 {
+        return None;
+    }
+    let exponent = exponent.parse::<i64>().ok()?;
+    let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+    if whole.is_empty()
+        || !whole
+            .bytes()
+            .chain(fraction.bytes())
+            .all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    let coefficient = format!("{whole}{fraction}");
+    let digits = coefficient.trim_start_matches('0');
+    let significant = digits.trim_end_matches('0');
+    if significant.is_empty() {
+        return None;
+    }
+    let scale = exponent - fraction.len() as i64 + (digits.len() - significant.len()) as i64;
+    let maximum = maximum.to_string();
+    if scale < 0 || significant.len() as i64 + scale > maximum.len() as i64 {
+        return None;
+    }
+    let exact = format!("{significant}{}", "0".repeat(scale as usize));
+    if exact.len() == maximum.len() && exact > maximum {
+        return None;
+    }
+    exact.parse().ok()
+}
+
+// Decode only understood SDK fields, without interpreting opaque OCI extensions
+// as Rust strings or binary64 numbers. The original bytes remain the digest and
+// lock authority. Walk all members for duplicates/depth, then validate complete
+// JSON syntax independently, without serde's global raw-value/number features.
+fn decode_sdk_index(bytes: &[u8]) -> Option<serde_json::Value> {
+    #[derive(Clone, Copy)]
+    enum Focus {
+        Index,
+        Children,
+        Child,
+        Platform,
+        Schema,
+        Size,
+        Scalar,
+        Other,
+    }
+    fn white(bytes: &[u8], at: &mut usize) {
+        while bytes.get(*at).is_some_and(u8::is_ascii_whitespace) {
+            *at += 1;
+        }
+    }
+    fn string<'a>(bytes: &'a [u8], at: &mut usize) -> Option<&'a [u8]> {
+        let start = *at;
+        if *bytes.get(*at)? != b'"' {
+            return None;
+        }
+        *at += 1;
+        loop {
+            match *bytes.get(*at)? {
+                b'"' => {
+                    *at += 1;
+                    return bytes.get(start..*at);
+                }
+                b'\\' => *at += 2,
+                _ => *at += 1,
+            }
+        }
+    }
+    // JSON object keys compare decoded UTF-16 units, including opaque unpaired
+    // surrogates. Do not collapse distinct invalid-scalar keys lossily, or reject
+    // a valid ignored extension merely because Rust String cannot represent it.
+    fn key_units(raw: &[u8]) -> Option<Vec<u16>> {
+        let text = std::str::from_utf8(raw.get(1..raw.len().checked_sub(1)?)?).ok()?;
+        let mut chars = text.chars();
+        let mut units = Vec::new();
+        while let Some(ch) = chars.next() {
+            if ch != '\\' {
+                units.extend_from_slice(ch.encode_utf16(&mut [0; 2]));
+                continue;
+            }
+            units.push(match chars.next()? {
+                '"' => b'"' as u16,
+                '\\' => b'\\' as u16,
+                '/' => b'/' as u16,
+                'b' => 8,
+                'f' => 12,
+                'n' => 10,
+                'r' => 13,
+                't' => 9,
+                'u' => {
+                    let mut code = 0;
+                    for _ in 0..4 {
+                        code = code * 16 + chars.next()?.to_digit(16)? as u16;
+                    }
+                    code
+                }
+                _ => return None,
+            });
+        }
+        Some(units)
+    }
+    fn names(focus: Focus) -> &'static [&'static str] {
+        match focus {
+            Focus::Index => &[
+                "schemaVersion",
+                "mediaType",
+                "manifests",
+                "annotations",
+                "subject",
+                "artifactType",
+            ],
+            Focus::Child => &[
+                "mediaType",
+                "digest",
+                "size",
+                "urls",
+                "data",
+                "annotations",
+                "platform",
+                "artifactType",
+            ],
+            Focus::Platform => &["architecture", "os", "os.version", "os.features", "variant"],
+            _ => &[],
+        }
+    }
+    fn member(focus: Focus, key: Option<&str>) -> Option<Focus> {
+        match (focus, key?) {
+            (Focus::Index, "schemaVersion") => Some(Focus::Schema),
+            (Focus::Index, "manifests") => Some(Focus::Children),
+            (Focus::Index | Focus::Child, "mediaType")
+            | (Focus::Child, "digest")
+            | (Focus::Platform, "architecture" | "os" | "variant") => Some(Focus::Scalar),
+            (Focus::Child, "size") => Some(Focus::Size),
+            (Focus::Child, "platform") => Some(Focus::Platform),
+            // These fields are forbidden even when their value is null.
+            (Focus::Child, "urls" | "data") | (Focus::Platform, "os.version" | "os.features") => {
+                Some(Focus::Other)
+            }
+            _ => None,
+        }
+    }
+    fn value(
+        bytes: &[u8],
+        at: &mut usize,
+        focus: Focus,
+        depth: usize,
+    ) -> Option<serde_json::Value> {
+        if depth > 64 {
+            return None;
+        }
+        white(bytes, at);
+        let start = *at;
+        let first = *bytes.get(*at)?;
+        if matches!(focus, Focus::Schema | Focus::Size) {
+            while bytes
+                .get(*at)
+                .is_some_and(|byte| !b",]} \t\r\n".contains(byte))
+            {
+                *at += 1;
+            }
+            let maximum = if matches!(focus, Focus::Schema) {
+                2
+            } else {
+                SDK_INDEX_MAX_BYTES
+            };
+            let integer = bounded_positive_integer(
+                std::str::from_utf8(bytes.get(start..*at)?).ok()?,
+                maximum,
+            )?;
+            return (!matches!(focus, Focus::Schema) || integer == 2)
+                .then(|| serde_json::Value::from(integer));
+        }
+        match first {
+            b'"' => {
+                let raw = string(bytes, at)?;
+                return if matches!(focus, Focus::Scalar) {
+                    serde_json::from_slice(raw).ok()
+                } else {
+                    Some(serde_json::Value::Null)
+                };
+            }
+            b'{' | b'[' => {
+                *at += 1;
+                let mut keys = BTreeSet::new();
+                let mut object = serde_json::Map::new();
+                let mut array = Vec::new();
+                let end = if first == b'{' { b'}' } else { b']' };
+                white(bytes, at);
+                if bytes.get(*at) == Some(&end) {
+                    *at += 1;
+                } else {
+                    loop {
+                        white(bytes, at);
+                        let (key, child) = if first == b'{' {
+                            let units = key_units(string(bytes, at)?)?;
+                            white(bytes, at);
+                            if *bytes.get(*at)? != b':' {
+                                return None;
+                            }
+                            *at += 1;
+                            let key = String::from_utf16(&units).ok();
+                            if !keys.insert(units) {
+                                return None;
+                            }
+                            if let Some(key) = &key {
+                                let folded = key.to_uppercase().to_lowercase();
+                                if names(focus).iter().any(|name| {
+                                    folded == name.to_uppercase().to_lowercase() && key != name
+                                }) {
+                                    return None;
+                                }
+                            }
+                            let selected = member(focus, key.as_deref());
+                            (
+                                key.filter(|_| selected.is_some()),
+                                selected.unwrap_or(Focus::Other),
+                            )
+                        } else if matches!(focus, Focus::Children) {
+                            (None, Focus::Child)
+                        } else {
+                            (None, Focus::Other)
+                        };
+                        let decoded = value(bytes, at, child, depth + 1)?;
+                        if let Some(key) = key {
+                            object.insert(key, decoded);
+                        } else if first == b'[' && matches!(focus, Focus::Children) {
+                            array.push(decoded);
+                        }
+                        white(bytes, at);
+                        match *bytes.get(*at)? {
+                            byte if byte == end => {
+                                *at += 1;
+                                break;
+                            }
+                            b',' => *at += 1,
+                            _ => return None,
+                        }
+                    }
+                }
+                return Some(
+                    if first == b'{'
+                        && matches!(focus, Focus::Index | Focus::Child | Focus::Platform)
+                    {
+                        serde_json::Value::Object(object)
+                    } else if first == b'[' && matches!(focus, Focus::Children) {
+                        serde_json::Value::Array(array)
+                    } else {
+                        serde_json::Value::Null
+                    },
+                );
+            }
+            _ => {
+                while bytes
+                    .get(*at)
+                    .is_some_and(|byte| !b",]} \t\r\n".contains(byte))
+                {
+                    *at += 1;
+                }
+                if *at == start {
+                    return None;
+                }
+            }
+        }
+        if matches!(focus, Focus::Scalar) {
+            serde_json::from_slice(bytes.get(start..*at)?).ok()
+        } else {
+            Some(serde_json::Value::Null)
+        }
+    }
+    let mut at = 0;
+    std::str::from_utf8(bytes).ok()?;
+    let decoded = value(bytes, &mut at, Focus::Index, 0)?;
+    white(bytes, &mut at);
+    if at != bytes.len() {
+        return None;
+    }
+    serde_json::from_slice::<serde::de::IgnoredAny>(bytes).ok()?;
+    Some(decoded)
+}
+
 pub(crate) fn validate_platform_lock(value: &serde_json::Value) -> Result<(), PrismError> {
     let fail = || {
         PrismError::new(
@@ -485,10 +781,20 @@ pub(crate) fn validate_platform_lock(value: &serde_json::Value) -> Result<(), Pr
     {
         return Err(fail());
     }
-    let index: serde_json::Value = serde_json::from_slice(bytes).map_err(|_| fail())?;
+    let index = decode_sdk_index(bytes).ok_or_else(fail)?;
     let manifests = index["manifests"].as_array().ok_or_else(fail)?;
     let platforms = value["platforms"].as_array().ok_or_else(fail)?;
-    if index["schemaVersion"] != 2
+    if !oci_field_casing(
+        &index,
+        &[
+            "schemaVersion",
+            "mediaType",
+            "manifests",
+            "annotations",
+            "subject",
+            "artifactType",
+        ],
+    ) || index["schemaVersion"].as_f64() != Some(2.0)
         || index["mediaType"] != "application/vnd.oci.image.index.v1+json"
         || manifests.len() != 2
         || platforms.len() != 2
@@ -514,11 +820,31 @@ pub(crate) fn validate_platform_lock(value: &serde_json::Value) -> Result<(), Pr
             return Err(fail());
         }
         let manifest = matching[0];
-        if manifest["digest"] != row["manifest_digest"]
+        let platform = &manifest["platform"];
+        if !oci_field_casing(
+            manifest,
+            &[
+                "mediaType",
+                "digest",
+                "size",
+                "urls",
+                "data",
+                "annotations",
+                "platform",
+                "artifactType",
+            ],
+        ) || !oci_field_casing(
+            platform,
+            &["architecture", "os", "os.version", "os.features", "variant"],
+        ) || manifest.get("urls").is_some()
+            || manifest.get("data").is_some()
+            || platform.get("os.version").is_some()
+            || platform.get("os.features").is_some()
+            || manifest["digest"] != row["manifest_digest"]
             || manifest["mediaType"] != "application/vnd.oci.image.manifest.v1+json"
-            || manifest["size"].as_u64().is_none_or(|size| size == 0)
-            || !(manifest["platform"]["variant"].is_null()
-                || (architecture == "arm64" && manifest["platform"]["variant"] == "v8"))
+            || !manifest["size"].is_number()
+            || !(platform.get("variant").is_none()
+                || (architecture == "arm64" && platform["variant"] == "v8"))
         {
             return Err(fail());
         }
@@ -679,6 +1005,48 @@ pub(crate) fn check_existing_lock(root: &Path) -> Result<(), PrismError> {
     Ok(())
 }
 
+/// Invocation-local authority snapshot, including cold source-bootstrap locks.
+/// A later lock addition, removal or replacement must not silently reuse the
+/// earlier verification package, even when neither phase can use an SDK seed.
+pub(crate) fn exporter_lock_authority(root: &Path) -> Result<Option<String>, PrismError> {
+    if lock_is_present(root)? {
+        Ok(Some(execution_lock(root)?.digest()))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Seed authority comes from the consumer's platform lock, never a digest
+/// recomputed from the installed inventory. Legacy/unlocked bootstrap is cold.
+pub(crate) fn exporter_seed_inventory(root: &Path) -> Result<Option<String>, PrismError> {
+    if !lock_is_present(root)? || inventory_path().as_deref() != Some(Path::new(RELEASED_INVENTORY))
+    {
+        return Ok(None);
+    }
+    let lock = execution_lock(root)?;
+    if lock.schema() != "prismpm/sdk-lock/2" {
+        return Ok(None);
+    }
+    let architecture = match std::env::consts::ARCH {
+        "x86_64" => "amd64",
+        "aarch64" => "arm64",
+        _ => {
+            return Err(PrismError::new(
+                "PP5401",
+                "unsupported native exporter platform",
+            ));
+        }
+    };
+    let platform = format!("{}/{architecture}", std::env::consts::OS);
+    let digest = lock.value()["platforms"]
+        .as_array()
+        .and_then(|rows| rows.iter().find(|row| row["platform"] == platform))
+        .and_then(|row| row["inventory_digest"].as_str())
+        .and_then(|digest| digest.strip_prefix("sha256:"))
+        .ok_or_else(|| PrismError::new("PP5401", "native SDK inventory authority is missing"))?;
+    Ok(Some(digest.to_owned()))
+}
+
 pub(crate) fn execution_lock(root: &Path) -> Result<CanonicalDocument, PrismError> {
     if !lock_is_present(root)? {
         return Err(PrismError::new("PP5401", "prismpm.lock is absent"));
@@ -780,8 +1148,15 @@ pub fn propose_lock_migration(
             "standards-lock digest is malformed",
         ));
     }
+    capture_migration(root, || capture_platform_update(sdk_image, standards_lock))
+}
+
+fn capture_migration(
+    root: &Path,
+    capture: impl FnOnce() -> Result<CanonicalDocument, PrismError>,
+) -> Result<serde_json::Value, PrismError> {
     let current = historical_migration_lock(root)?;
-    let proposed = capture_platform_update(sdk_image, standards_lock)?;
+    let proposed = capture()?;
     if historical_migration_lock(root)?.bytes() != current.bytes() {
         return Err(PrismError::new(
             "PP5401",
@@ -1164,6 +1539,46 @@ mod tests {
         );
     }
 
+    #[test]
+    fn adjacent_sdk_selections_match_fresh_scalar_selections_before_any_child() {
+        let commands = ["lake", "lean", "rustfmt", "rustc", "timeout"];
+        let started = std::time::Instant::now();
+        let scalar = commands.map(|name| super::executable(name).unwrap());
+        let scalar_elapsed = started.elapsed();
+        let started = std::time::Instant::now();
+        let batch = super::executables(commands).unwrap();
+        let batch_elapsed = started.elapsed();
+        assert_eq!(batch, scalar);
+        for (name, selected) in commands.into_iter().zip(batch) {
+            let expected = std::env::split_paths(&std::env::var_os("PATH").unwrap())
+                .map(|directory| directory.join(name))
+                .find(|path| path.is_file())
+                .unwrap();
+            assert_eq!(selected, expected);
+            let mut file = super::ExecutableFile::open(&selected.canonicalize().unwrap()).unwrap();
+            assert_eq!(file.sha256().unwrap().len(), 64);
+            file.verify_reference(&selected).unwrap();
+        }
+        eprintln!(
+            "Fresh adjacent SDK selections: scalar_ms={}, batch_ms={}",
+            scalar_elapsed.as_millis(),
+            batch_elapsed.as_millis()
+        );
+    }
+
+    #[test]
+    fn adjacent_sdk_selections_refuse_malformed_names_and_missing_commands() {
+        for malformed in ["", "../node", "cargo;true", "name with space"] {
+            assert_eq!(
+                super::executables(["cargo", malformed]).unwrap_err().code,
+                "PP5401"
+            );
+        }
+        let error = super::executables(["cargo", "prismpm-absent-sdk-command"]).unwrap_err();
+        assert_eq!(error.code, "PP5401");
+        assert!(error.message.contains("absent"));
+    }
+
     #[cfg(unix)]
     #[test]
     fn execution_boundary_rejects_dangling_external_and_nonfile_locks() {
@@ -1283,6 +1698,177 @@ mod tests {
     }
 
     #[test]
+    fn platform_lock_rejects_rehashed_ambiguous_nested_indexes() {
+        let baseline = platform_fixture("strict-index");
+        let original: Value =
+            serde_json::from_str(baseline["sdk_index"].as_str().unwrap()).unwrap();
+        let admit = |raw: String| {
+            let mut lock = baseline.clone();
+            lock["sdk_image"] = json!(format!(
+                "example.invalid/test-sdk@sha256:{:x}",
+                Sha256::digest(raw.as_bytes())
+            ));
+            lock["sdk_index"] = json!(raw);
+            let constructed =
+                super::CanonicalDocument::from_value("prismpm/sdk-lock/2", lock.clone());
+            let parsed = super::parse_lock(&super::encode_value(&lock)?);
+            assert_eq!(
+                constructed.is_ok(),
+                parsed.is_ok(),
+                "constructor and public runtime reader must agree"
+            );
+            if let (Ok(constructed), Ok(parsed)) = (&constructed, &parsed) {
+                assert_eq!(constructed.bytes(), parsed.bytes());
+            }
+            if let (Err(constructed), Err(parsed)) = (&constructed, &parsed) {
+                assert_eq!(constructed.code, parsed.code);
+            }
+            parsed
+        };
+        assert!(admit(serde_json::to_string_pretty(&original).unwrap() + "\n").is_ok());
+        let raw = baseline["sdk_index"].as_str().unwrap();
+        let extension_cases: Value =
+            serde_json::from_str(include_str!("../sdk/sdk-index-extensions.json")).unwrap();
+        for case in extension_cases.as_array().unwrap() {
+            let member = case["member"].as_str().unwrap();
+            let changed = match case["location"].as_str().unwrap() {
+                "root" => format!("{{{member},{}", &raw[1..]),
+                "descriptor" => raw.replacen(
+                    "\"manifests\":[{",
+                    &format!("\"manifests\":[{{{member},"),
+                    1,
+                ),
+                "platform" => {
+                    raw.replacen("\"platform\":{", &format!("\"platform\":{{{member},"), 1)
+                }
+                _ => panic!("unknown corpus location"),
+            };
+            assert_ne!(changed, raw);
+            assert!(admit(raw.to_owned()).is_ok());
+            assert_eq!(
+                admit(changed).is_ok(),
+                case["accepted"].as_bool().unwrap(),
+                "{}",
+                case["id"]
+            );
+        }
+        for spelling in ["2.0", "2e0", "2000e-3", "2.0000000000000000000000"] {
+            assert!(admit(
+                raw.replace(
+                    "\"schemaVersion\":2",
+                    &format!("\"schemaVersion\":{spelling}")
+                )
+                .replace("\"size\":100", "\"size\":1e2")
+            )
+            .is_ok());
+        }
+        let nested = |depth| {
+            format!(
+                "{{\"extension\":{}0{},{}",
+                "[".repeat(depth),
+                "]".repeat(depth),
+                &raw[1..]
+            )
+        };
+        assert!(admit(nested(63)).is_ok());
+        assert_eq!(admit(nested(64)).unwrap_err().code, "PP5401");
+        for number in [
+            "0",
+            "-0",
+            "-1",
+            "0.5",
+            "100.1",
+            "1048577",
+            "9007199254740993",
+            "1e400",
+            "100.000000000000000001",
+            "1048576.00000000001",
+            "99.999999999999999999",
+            "1e-10000000",
+            "1e10000000",
+        ] {
+            assert_eq!(
+                admit(raw.replace("\"size\":100", &format!("\"size\":{number}")))
+                    .unwrap_err()
+                    .code,
+                "PP5401"
+            );
+        }
+        for number in [
+            "2.0000000000000000001",
+            "1.9999999999999999999",
+            "2.0000000000000000001e0",
+        ] {
+            assert_eq!(
+                admit(raw.replace(
+                    "\"schemaVersion\":2",
+                    &format!("\"schemaVersion\":{number}")
+                ))
+                .unwrap_err()
+                .code,
+                "PP5401"
+            );
+        }
+        assert!(admit(format!("{{\"extension\":0.125,{}", &raw[1..])).is_ok());
+        assert!(admit(format!(
+            "{{\"extension\":{{\"size\":0.5,\"schemaVersion\":2.0000000000000000001}},{}",
+            &raw[1..]
+        ))
+        .is_ok());
+        assert!(admit(raw.replace("\"schemaVersion\":2", "\"schema\\u0056ersion\":2.0")).is_ok());
+        assert_eq!(
+            admit(raw.replace(
+                "\"schemaVersion\":2",
+                "\"schema\\u0056ersion\":2.0000000000000000001"
+            ))
+            .unwrap_err()
+            .code,
+            "PP5401"
+        );
+        // No serde feature may reinterpret reserved-looking ordinary objects.
+        assert_eq!(
+            serde_json::from_str::<Value>(r#"{"$serde_json::private::RawValue":"1"}"#).unwrap(),
+            json!({"$serde_json::private::RawValue":"1"})
+        );
+        for duplicate in [
+            format!("{{\"schemaVersion\":2,{}", &raw[1..]),
+            format!("{{\"extension\":{{\"a\":1,\"\\u0061\":2}},{}", &raw[1..]),
+            raw.replace(
+                "\"architecture\":\"amd64\"",
+                "\"architecture\":\"amd64\",\"architec\\u0074ure\":\"amd64\"",
+            ),
+        ] {
+            assert!(admit(raw.to_owned()).is_ok());
+            assert_eq!(admit(duplicate).unwrap_err().code, "PP5401");
+        }
+        for mutation in 0..10 {
+            assert!(admit(raw.to_owned()).is_ok());
+            let mut index = original.clone();
+            match mutation {
+                0 => index["SchemaVersion"] = json!(2),
+                1 => index["Manifeſts"] = json!([]),
+                2 => {
+                    index["manifests"][0]["MediaType"] = index["manifests"][0]["mediaType"].clone()
+                }
+                3 => index["manifests"][0]["urls"] = json!([]),
+                4 => index["manifests"][0]["data"] = Value::Null,
+                5 => index["manifests"][0]["size"] = json!(super::SDK_INDEX_MAX_BYTES + 1),
+                6 => index["manifests"][0]["platform"]["OS"] = json!("linux"),
+                7 => index["manifests"][0]["platform"]["variant"] = Value::Null,
+                8 => index["manifests"][0]["platform"]["os.version"] = Value::Null,
+                _ => index["manifests"][1]["platform"]["os.features"] = json!([]),
+            }
+            assert_eq!(
+                admit(serde_json::to_string(&index).unwrap())
+                    .unwrap_err()
+                    .code,
+                "PP5401",
+                "mutation {mutation}"
+            );
+        }
+    }
+
+    #[test]
     fn platform_update_proposal_describes_every_changed_field_without_adopting_it() {
         let current = platform_fixture("old");
         let proposed = platform_fixture("new");
@@ -1348,6 +1934,44 @@ mod tests {
                     .as_bytes()
             )
             .is_err());
+        }
+    }
+
+    #[test]
+    fn migration_rechecks_actual_historical_file_after_target_capture() {
+        // Only the capture result is synthetic: this tests the public path's
+        // real pre/post file reads, not installed OCI acquisition qualification.
+        for mutate in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("prismpm.lock");
+            let original = super::CanonicalDocument::from_value(
+                "prismpm/sdk-lock/1",
+                legacy_migration_fixture(),
+            )
+            .unwrap();
+            std::fs::write(&path, original.bytes()).unwrap();
+            let mut changed = legacy_migration_fixture();
+            changed["standards_lock"] = json!(format!("sha256:{}", "c".repeat(64)));
+            let changed =
+                super::CanonicalDocument::from_value("prismpm/sdk-lock/1", changed).unwrap();
+            let target = platform_fixture("captured");
+            let result = super::capture_migration(root.path(), || {
+                assert_eq!(std::fs::read(&path).unwrap(), original.bytes());
+                if mutate {
+                    std::fs::write(&path, changed.bytes()).unwrap();
+                }
+                super::CanonicalDocument::from_value("prismpm/sdk-lock/2", target.clone())
+            });
+            if mutate {
+                let error = result.unwrap_err();
+                assert_eq!(error.code, "PP5401");
+                assert_eq!(error.message, "historical SDK lock changed during capture");
+                assert_eq!(std::fs::read(&path).unwrap(), changed.bytes());
+            } else {
+                assert_eq!(result.unwrap()["patch"][1]["value"], target);
+                assert_eq!(std::fs::read(&path).unwrap(), original.bytes());
+            }
+            assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
         }
     }
 
@@ -1437,7 +2061,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn historical_migration_rejects_symlinks_and_oversized_files() {
+    fn historical_migration_rejects_aliases_and_oversized_files() {
         let root = tempfile::tempdir().unwrap();
         let target = root.path().join("target");
         let path = root.path().join("prismpm.lock");
@@ -1450,6 +2074,11 @@ mod tests {
         std::fs::remove_file(&target).unwrap();
         assert!(super::historical_migration_lock(root.path()).is_err());
         std::fs::remove_file(&path).unwrap();
+        std::fs::write(&target, source.bytes()).unwrap();
+        std::fs::hard_link(&target, &path).unwrap();
+        assert!(super::historical_migration_lock(root.path()).is_err());
+        std::fs::remove_file(&path).unwrap();
+        std::fs::remove_file(&target).unwrap();
         std::fs::File::create(&path)
             .unwrap()
             .set_len(super::SDK_CAPTURE_MAX_BYTES as u64 + 1)

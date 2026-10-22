@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {spawn, execFileSync} from 'node:child_process';
 import {closeSync, constants, lstatSync, mkdirSync, openSync, realpathSync, unlinkSync, writeFileSync, writeSync} from 'node:fs';
 import {basename, dirname, join, resolve} from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import {bootstrapNames, canonical, captureBootstrap, hash, readOriginal, validateBootstrapBytes} from './sdk-bootstrap-retention.mjs';
 import {validateVvEvidence} from './sdk-vv-run.mjs';
 
@@ -25,20 +25,44 @@ export async function captureCommand(output, prefix, command, args, cwd, environ
   assert(Array.isArray(args) && args.every(value => typeof value === 'string'));
   const streams = ['stdout', 'stderr'], maxima = [256 * 1024 * 1024, 64 * 1024 * 1024];
   const fds = [], sizes = [0, 0], written = [0, 0], digests = streams.map(() => createHash('sha256'));
-  let child, failure, killer, drain, orphaned = false, overflow = false, interrupted = null;
+  let child, failure, watchdog, closeDrain, completion, started=false, protocolValid=true, protocol=Buffer.alloc(0), overflow=false, interrupted=null;
   const stop = error => {
     failure ??= error;
-    clearTimeout(drain);
-    if (child?.pid) try { process.kill(-child.pid, 'SIGTERM'); } catch (error) { if (error.code !== 'ESRCH') failure ??= error; }
-    if (child?.pid && !killer) killer = setTimeout(() => {
-      try {process.kill(-child.pid, 'SIGKILL');} catch (error) {if (error.code !== 'ESRCH') failure ??= error;}
-    }, 5000).unref();
+    child?.kill('SIGTERM');
+    // The owner has its original five-second TERM grace and one-second
+    // retirement bound. Losing supervision never creates accepted output.
+    watchdog ??= setTimeout(()=>{
+      child?.kill('SIGKILL');child?.stdout.destroy();child?.stderr.destroy();child?.stdio[3].destroy();
+    },11000);
   };
   const handlers = ['SIGHUP', 'SIGINT', 'SIGTERM'].map(signal => [signal, () => {interrupted = signal; stop(Error('gate interrupted'));}]);
   try {
     for (const stream of streams) fds.push(openSync(join(output, `${prefix}.${stream}`), constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o644));
     for (const [signal, handler] of handlers) process.on(signal, handler);
-    child = spawn(command, args, {cwd, env: environment, detached: true, stdio: ['ignore', 'pipe', 'pipe']});
+    const owner=fileURLToPath(new URL('./release-command-owner.py',import.meta.url));
+    child=spawn('/usr/bin/python3',['-I','-B',owner,command,...args],{cwd,env:environment,detached:true,stdio:['ignore','pipe','pipe','pipe']});
+    child.stdio[3].on('error',stop).on('data',bytes=>{
+      try {
+        assert(protocol.length+bytes.length<=4096,'bounded private process-owner protocol');
+        protocol=Buffer.concat([protocol,bytes]);
+        for(let end;(end=protocol.indexOf(10))!==-1;) {
+          const row=JSON.parse(protocol.subarray(0,end));protocol=protocol.subarray(end+1);
+          if(row.event==='started') {
+            assert(!started&&!completion);assert.deepEqual(Object.keys(row).sort(),['event','pid']);
+            assert(Number.isSafeInteger(row.pid)&&row.pid>1);started=true;
+          } else if(row.event==='completed') {
+            assert(!completion);assert.deepEqual(Object.keys(row).sort(),['cleanup_verified','error','event','orphaned','signal','status']);
+            assert.equal(typeof row.cleanup_verified,'boolean');assert.equal(typeof row.orphaned,'boolean');
+            assert(row.status===null||Number.isInteger(row.status)&&row.status>=0&&row.status<=255);
+            assert(row.signal===null||/^SIG[A-Z0-9]+$/.test(row.signal));
+            assert(row.error===null||['observation','ownership','signal','retirement','supervision'].includes(row.error));
+            completion=row;
+            if(row.orphaned)failure??=Error('gate left orphaned output pipes');
+            if(!started||!row.cleanup_verified||row.error)failure??=Error('gate process retirement is uncertain');
+          } else throw Error('gate process supervision failed');
+        }
+      } catch(error) {protocolValid=false;stop(error);}
+    });
     for (const [index, stream] of [child.stdout, child.stderr].entries()) stream.on('error', stop).on('data', bytes => {
       sizes[index] += bytes.length;
       if (sizes[index] > maxima[index]) {overflow = true; stop(Error('complete original output exceeds bound')); return;}
@@ -49,18 +73,22 @@ export async function captureCommand(output, prefix, command, args, cwd, environ
       }}
       catch (error) {stop(error);}
     });
-    const result = await new Promise(resolveResult => {
+    const ownerResult = await new Promise(resolveResult => {
       child.once('error', error => {failure ??= error;});
-      // A successful leader exit is not EOF: a background descendant can
-      // still own either pipe. Allow ordinary trailing output to drain, then
-      // fail and clean only this invocation's detached process group.
-      child.once('exit', () => {
-        if (!failure) drain = setTimeout(() => {
-          orphaned = true; stop(Error('gate left orphaned output pipes'));
-        }, 5000).unref();
+      child.once('exit',()=>{
+        // If an uncertain owner exits while an escaped child holds pipes,
+        // refuse after a bounded drain, without accepting truncated output.
+        closeDrain=setTimeout(()=>{
+          failure??=Error('process owner exited without complete output retirement');
+          child.stdout.destroy();child.stderr.destroy();child.stdio[3].destroy();
+        },1000);
       });
       child.once('close', (status, signal) => resolveResult({status, signal}));
     });
+    const descendantsReaped=protocolValid&&protocol.length===0&&started&&completion?.cleanup_verified===true&&completion.error===null
+      &&ownerResult.status===0&&ownerResult.signal===null;
+    if(!descendantsReaped)
+      failure??=Error('gate process retirement is uncertain');
     for (const fd of fds.splice(0)) closeSync(fd);
     const captured = streams.map((stream, index) => {
       const path = `${prefix}.${stream}`, bytes = readOriginal(join(output, path), maxima[index]);
@@ -68,13 +96,14 @@ export async function captureCommand(output, prefix, command, args, cwd, environ
       assert.equal(hash(bytes), digests[index].digest('hex'), 'stored output differs from observed process bytes');
       return describe(path, bytes);
     });
-    const record = {command, arguments: args, ...result, orphaned, overflow, interrupted, stdout: captured[0], stderr: captured[1]};
+    const record = {command,arguments:args,status:completion?.status??null,signal:completion?.signal??null,
+      descendants_reaped:descendantsReaped,capture_failed:!!failure,orphaned:!!completion?.orphaned,overflow,interrupted,stdout:captured[0],stderr:captured[1]};
     writeFileSync(join(output, `${prefix}.json`), canonical(record), {flag: 'wx', mode: 0o644});
     if (failure) throw failure;
     return record;
   } finally {
-    clearTimeout(killer);
-    clearTimeout(drain);
+    clearTimeout(watchdog);
+    clearTimeout(closeDrain);
     for (const fd of fds) closeSync(fd);
     for (const [signal, handler] of handlers) process.removeListener(signal, handler);
   }
@@ -82,10 +111,12 @@ export async function captureCommand(output, prefix, command, args, cwd, environ
 export function validateCommand(files, prefix, expectedCommand, expectedArgs, status) {
   const row = JSON.parse(files.get(`${prefix}.json`));
   assert.equal(files.get(`${prefix}.json`).toString(), canonical(row));
-  assert.deepEqual(Object.keys(row).sort(), ['arguments', 'command', 'interrupted', 'orphaned', 'overflow', 'signal', 'status', 'stderr', 'stdout']);
+  assert.deepEqual(Object.keys(row).sort(), ['arguments', 'capture_failed', 'command', 'descendants_reaped', 'interrupted', 'orphaned', 'overflow', 'signal', 'status', 'stderr', 'stdout']);
   assert.equal(row.command, expectedCommand); assert.deepEqual(row.arguments, expectedArgs);
   assert.equal(row.status, status); assert.equal(row.signal, null); assert.equal(row.orphaned, false);
   assert.equal(row.overflow, false); assert.equal(row.interrupted, null);
+  assert.equal(row.capture_failed,false,'failed original command capture cannot grant acceptance');
+  assert.equal(row.descendants_reaped,true,'actual owned descendants must be reaped');
   for (const stream of ['stdout', 'stderr']) {
     const name = `${prefix}.${stream}`, bytes = files.get(name); assert(Buffer.isBuffer(bytes));
     assert.deepEqual(row[stream], describe(name, bytes));

@@ -486,7 +486,9 @@ jobs:
         if: always() && matrix.image == 'sdk'
         with:
           name: library-sdk-${{ matrix.name }}
-          path: ${{ matrix.name }}-library-sdk.log
+          path: |
+            ${{ matrix.name }}-library-sdk.log
+            root-a/target/library-sdk-evidence/
           if-no-files-found: error
           retention-days: 30
   installed-sdk:
@@ -530,14 +532,15 @@ jobs:
           NATIVE_PLATFORM: linux/${{ matrix.arch }}
         run: |
           set -euo pipefail
-          node root-a/scripts/sdk-vv-check.mjs tests
-          node root-a/scripts/sdk-vv-check.mjs run "$(cat .shipped-image/sdk-image.txt)" \
+          bash root-a/scripts/sdk-vv-outer.sh "$(cat .shipped-image/sdk-image.txt)" \
             "$GITHUB_SHA" "${NATIVE_PLATFORM#linux/}" "$RESULT_NAME-full-sdk-vv"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: full-sdk-vv-sdk-${{ matrix.arch }}
-          path: sdk-${{ matrix.arch }}-full-sdk-vv/
+          path: |
+            sdk-${{ matrix.arch }}-full-sdk-vv/
+            sdk-${{ matrix.arch }}-full-sdk-vv-outer-owner/
           if-no-files-found: error
           retention-days: 30
       - name: Verify genuine installed product CLI and source-free browser release
@@ -709,11 +712,11 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: library-sdk-sdk-amd64
-          path: release
+          path: .sdk-gate-evidence/library-sdk-sdk-amd64
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: library-sdk-sdk-arm64
-          path: release
+          path: .sdk-gate-evidence/library-sdk-sdk-arm64
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: source-vv
@@ -731,9 +734,18 @@ jobs:
         run: |
           set -euo pipefail
           image=$(cat release/sdk-image.txt)
+          node scripts/library-sdk-metadata-evidence.mjs join \
+            .sdk-gate-evidence/library-sdk-sdk-amd64/root-a/target/library-sdk-evidence/linux-amd64 \
+            .sdk-gate-evidence/library-sdk-sdk-arm64/root-a/target/library-sdk-evidence/linux-arm64 \
+            . "$image" "$GITHUB_SHA" > release/sdk-metadata-native-join.json
+          cp .sdk-gate-evidence/library-sdk-sdk-amd64/sdk-amd64-library-sdk.log release/
+          cp .sdk-gate-evidence/library-sdk-sdk-arm64/sdk-arm64-library-sdk.log release/
           node scripts/sdk-release-evidence.mjs source-vv .sdk-gate-evidence/source-vv \
             release/source-vv.tar - "$GITHUB_SHA" amd64 "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
           for architecture in amd64 arm64; do
+            node scripts/library-sdk-metadata-evidence.mjs pack \
+              ".sdk-gate-evidence/library-sdk-sdk-$architecture/root-a/target/library-sdk-evidence/linux-$architecture" \
+              "release/sdk-$architecture-native-metadata.tar" . "$image" "$GITHUB_SHA" "$architecture"
             for kind in full-sdk-vv product-cli; do
               node scripts/sdk-release-evidence.mjs "$kind" \
                 ".sdk-gate-evidence/$kind-sdk-$architecture" "release/sdk-$architecture-$kind.tar" \

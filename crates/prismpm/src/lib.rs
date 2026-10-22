@@ -19,7 +19,9 @@ pub mod controller;
 pub mod deployment;
 pub mod diagnostics;
 pub mod error;
+mod exporter;
 pub mod holo;
+mod lean_project;
 mod library_build;
 mod library_verification;
 pub mod lifecycle;
@@ -30,6 +32,8 @@ pub mod sdk;
 pub mod supply_chain;
 pub mod system;
 pub mod template;
+#[cfg(test)]
+mod test_compiler;
 pub mod upstream_conformance;
 mod verification;
 

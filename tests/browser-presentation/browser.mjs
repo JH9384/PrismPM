@@ -7,7 +7,8 @@ import {withBrowser} from '../../sdk/browser/browser-test-server.mjs';
 import {maximumCases} from './maximum-fixtures.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url)), root = resolve(here, '../..');
-const names = ['presentation-dom.mjs', 'presentation-wire.mjs', 'browser-fixture.mjs', 'maximum-fixtures.mjs'];
+const names = ['presentation-dom.mjs', 'presentation-wire.mjs', 'semantic-presentation-wire.mjs',
+  'semantic-presentation-style.mjs', 'browser-fixture.mjs', 'maximum-fixtures.mjs'];
 const path = name => join(['browser-fixture.mjs', 'maximum-fixtures.mjs'].includes(name) ? here : join(root, 'sdk/browser'), name);
 const sha = value => createHash('sha256').update(value).digest('hex');
 const closure = () => Object.fromEntries([...names.map(name => [name, path(name)]),
@@ -17,6 +18,7 @@ const closure = () => Object.fromEntries([...names.map(name => [name, path(name)
 ].map(([name, path]) => [name, sha(readFileSync(path))]));
 export const expectedCases = [
   'semantic-safe-text-catalogue-focus-live',
+  'connected-atomic-status-lifecycle-and-idempotence',
   'full-validation-stale-and-secret-rejection-before-mutation',
   'keyed-edit-focus-reset-and-modeled-lifecycle',
   'source-owned-draft-reset-context-and-stale-response',
@@ -24,6 +26,7 @@ export const expectedCases = [
   'required-utf8-request-bounds-and-choice-bindings',
   'serialized-reentrancy-stale-results-and-private-diagnostics',
   'terminal-close-listeners-late-result-and-root-ownership',
+  'status-mount-and-retained-removal-failure-are-terminal',
   'native-byte-brands-detached-shared-and-closed-arity',
   'closed-options-and-immutable-catalogue-capture',
   'combined-structural-maxima-and-overruns',
@@ -44,8 +47,9 @@ export const expectedCases = [
   'actual-native-password-keyboard-secret-submission',
 ];
 
-export async function journey(build, replacements = {}) {
-  return withBrowser(async ({browser, baseURL}) => {
+export async function journey(build, replacements = {}, engine = 'chromium') {
+  if (build) build.unchanged();
+  try {return await withBrowser(async ({browser, baseURL}) => {
     const page = await browser.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     for (const name of names) await page.route('**/' + name, route => route.fulfill({status: 200,
@@ -81,23 +85,24 @@ export async function journey(build, replacements = {}) {
         return result;
       })(), new Promise((_, reject) => { timer = setTimeout(() => reject(Error('presentation browser journey deadline')), 90000); })]);
     } finally { clearTimeout(timer); }
-  });
+  }, {engine});} finally {if (build) build.unchanged();}
 }
 
-export async function verifyJourneys(t, build) {
+export async function verifyJourneys(t, build, engine = 'chromium') {
   assert.ok(build?.wasmBytes && build?.fixtureBytes && build?.labelsBytes,
     'generated codec, modeled fixture and source catalogue are mandatory for owning acceptance');
-  const before = closure(), result = await journey(build);
+  const before = closure(), result = await journey(build, {}, engine);
   assert.equal(result.modelChecked, true); assert.ok(result.calls.length > 0);
   assert.ok(result.maxMemory > 0 && result.maxMemory <= 16384 * 65536);
   assert.deepEqual(closure(), before, 'actual DOM and codec source closure remained frozen');
-  t?.diagnostic(JSON.stringify({cases: result.cases, calls: result.calls.length,
+  t?.diagnostic(JSON.stringify({engine, cases: result.cases, calls: result.calls.length,
     maximum: result.maxMemory, sources: before}));
   return result;
 }
 
 export async function verifyMaximum(t, build) {
   assert.ok(build?.wasmBytes, 'generated codec is mandatory for maximum acceptance');
+  build.unchanged();
   const before = closure();
   const results = await withBrowser(async ({browser, baseURL}) => {
     const observed = [];
@@ -149,10 +154,12 @@ export async function verifyMaximum(t, build) {
   t?.diagnostic(JSON.stringify(secret));
   build.progressMaximumBrowser = await verifyProgressMaximum(t, build);
   assert.deepEqual(closure(), before);
+  build.unchanged();
   return results;
 }
 
 export async function verifyProgressMaximum(t, build) {
+  build.unchanged();
   const before = closure();
   const progress = await withBrowser(async ({browser, baseURL}) => {
     const page = await browser.newPage(), errors = []; page.on('pageerror', error => errors.push(error.message));
@@ -180,15 +187,20 @@ export async function verifyProgressMaximum(t, build) {
   assert.equal(progress.calls.length, 5);
   t?.diagnostic(JSON.stringify({...progress, calls: progress.calls.length}));
   assert.deepEqual(closure(), before);
+  build.unchanged();
   return progress;
 }
 
 export async function verifyMutants(t, build) {
   const before = closure(), original = readFileSync(path('presentation-dom.mjs'), 'utf8');
   const mutants = [
+    ['missing atomic status', "status.setAttribute('aria-atomic', 'true');", '', /status region explicitly announces the complete message/],
+    ['replaced live region', 'if (status.parentNode === root) {', 'if (false) {', /status region stays connected across revisions/],
+    ['repeated unchanged status', 'if (status.textContent !== message) status.textContent = message;',
+      'status.textContent = message;', /unchanged status text has no duplicate mutation/],
     ['unsafe DOM sink', 'node.textContent = text', 'node.innerHTML = text', /text-only closed DOM/],
     ['stale equal revision', "if (frame && next[1] <= frame[1]) fail('stale');", '', /expected presentation refusal stale/],
-    ['lost edited control value', 'const preserve = retained && record.defaultValue === defaultValue && record.draftEpoch === content[6];', 'const preserve = false;', /keyed edits survive/],
+    ['lost edited control value', 'const preserve = retained && record.defaultValue === defaultValue && record.draftEpoch === content[6]', 'const preserve = false', /keyed edits survive/],
     ['missing modeled draft epoch', ' && record.draftEpoch === content[6]', '', /modeled draft epoch clears/],
     ['changed kind steals implicit focus', 'surviving?.tag === focused?.tag ? surviving : undefined', 'surviving', /changed control kind cannot inherit/],
     ['reset restores stale selection', ' && chosen.preservedDraft', '', /same-kind reset retains focus/],

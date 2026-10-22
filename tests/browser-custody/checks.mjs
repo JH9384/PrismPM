@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {readFileSync, writeFileSync, rmSync} from 'node:fs';
+import {readFileSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {prepare, run, sha, repository, draft} from './compile.mjs';
 import {corpus, maximumCorpus} from './corpus.mjs';
@@ -70,12 +70,13 @@ export function verifyInventory() {
   return {requests, output};
 }
 
-export async function verifyWire(t) {
+export async function verifyWire(t, compilerOwner = null) {
   const files = ['checks.mjs', 'corpus.mjs', 'compile.mjs', 'runner.rs', 'driver/Cargo.toml', 'driver/Cargo.lock', 'driver/src/main.rs', 'browser.mjs', 'browser-fixture.mjs'];
   const closure = () => Object.fromEntries(files.map(path => [path, sha(readFileSync(join(draft, path)))]));
   const sources = closure(), vectors = corpus(), maximum = maximumCorpus();
   assert.equal(vectors.length, 90); assert.equal(maximum.length, 10);
-  const bounds = verifyInventory(), build = prepare();
+  const bounds = verifyInventory(), build = prepare(null, compilerOwner);
+  t.diagnostic(JSON.stringify({compilerOwner: build.compilerOwner, preparationMs: build.preparationMs}));
   const file = join(build.work, 'vectors.tsv'); writeFileSync(file, tsv(vectors), {flag: 'wx'});
   const binaries = maximum.map(row => {
     const input = join(build.work, row.id + '.request'), output = join(build.work, row.id + '.response');
@@ -100,10 +101,10 @@ export async function verifyWire(t) {
   return build;
 }
 
-export function verifyModelMutation(kind) {
+export function verifyModelMutation(kind, compilerOwner = null) {
   const selected = {policy: 'PolicyMismatchContext', limit: 'SignOverSmall', trailing: 'Trailing'}[kind];
   const vector = corpus().find(row => row.id === selected); assert.ok(vector);
-  const build = prepare(kind);
+  const build = prepare(kind, compilerOwner);
   let passed = false;
   try {
     const file = join(build.work, 'mutation.tsv'); writeFileSync(file, tsv([vector]), {flag: 'wx'});
@@ -113,8 +114,13 @@ export function verifyModelMutation(kind) {
     }
     assert.throws(() => executeWasm(build.wasmBytes, [vector]), /generated Wasm output mismatch/);
     passed = true;
-    return {kind, source: build.verified.source_id, attestation: build.verified.attestation_id,
+    return {kind, compilerOwner: build.compilerOwner, preparationMs: build.preparationMs,
+      source: build.verified.source_id, attestation: build.verified.attestation_id,
       ir: build.generation.ir_sha256, wasm: sha(build.wasmBytes), vector: vector.id,
       request: sha(vector.request), response: sha(vector.response)};
-  } finally { if (passed) rmSync(build.work, {recursive: true, force: true}); }
+  } finally {
+    // Retain original source, proofs and generated products for independent
+    // review. Compiler tools belong to the guarded owner, not this workspace.
+    if (!passed) process.stderr.write('Retained failed custody mutation ' + build.work + '\n');
+  }
 }

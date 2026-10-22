@@ -68,18 +68,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "publication-admission-driver"
-version = "0.1.0"
-dependencies = [
- "camino",
- "lexlean",
- "prod-codegen",
- "prod-ir",
- "serde_json",
- "sha2",
-]
-
-[[package]]
 name = "camino"
 version = "1.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -260,11 +248,13 @@ dependencies = [
  "camino",
  "clap",
  "fs4",
+ "rustix",
  "same-file",
  "semver",
  "serde",
  "serde_json",
  "sha2",
+ "signal-hook",
  "tempfile",
  "toml",
  "unicode-normalization",
@@ -331,7 +321,11 @@ name = "prod-codegen"
 version = "0.1.0"
 dependencies = [
  "prod-ir",
+ "serde_json",
  "sha2",
+ "unicode-ident",
+ "unicode-normalization",
+ "wasmparser",
 ]
 
 [[package]]
@@ -341,6 +335,18 @@ dependencies = [
  "nom",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "publication-admission-driver"
+version = "0.1.0"
+dependencies = [
+ "camino",
+ "lexlean",
+ "prod-codegen",
+ "prod-ir",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -447,6 +453,26 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "signal-hook"
+version = "0.3.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d881a16cf4426aa584979d30bd82cb33429027e42122b169753d6ef1085ed6e2"
+dependencies = [
+ "libc",
+ "signal-hook-registry",
+]
+
+[[package]]
+name = "signal-hook-registry"
+version = "1.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
+dependencies = [
+ "errno",
+ "libc",
 ]
 
 [[package]]
@@ -576,6 +602,15 @@ checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
 dependencies = [
  "same-file",
  "winapi-util",
+]
+
+[[package]]
+name = "wasmparser"
+version = "0.245.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f08c9adee0428b7bddf3890fc27e015ac4b761cc608c822667102b8bfd6995e"
+dependencies = [
+ "bitflags",
 ]
 
 [[package]]

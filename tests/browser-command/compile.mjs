@@ -19,6 +19,7 @@ function verifyPins(){
 }
 export {ensureProdExport, run} from '../browser-journal/compile.mjs';
 import {createPrivateDriverTarget, ensureProdExport, run} from '../browser-journal/compile.mjs';
+import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 export function prepare(){
   verifyPins();
   const work=mkdtempSync(join(tmpdir(),'prismpm-command-'));
@@ -34,7 +35,7 @@ export function prepare(){
   for(const file of ['lexlean.toml','lakefile.toml','lean-toolchain'])copyFileSync(join(draft,file),join(project,file));
   copyFileSync(join(repository,'rust-toolchain.toml'),join(work,'rust-toolchain.toml'));
   const driverTarget=createPrivateDriverTarget(work);
-  run('cargo',['build','--locked','--offline','--jobs','1','--config','profile.dev.debug=0','--config','build.incremental=false','--manifest-path',join(draft,'driver/Cargo.toml')],repository,{CARGO_TARGET_DIR:driverTarget});
+  run('cargo',['build','--locked','--offline','--jobs','1','--config','profile.dev.debug=0','--config','build.incremental=false','--config','profile.dev.package.sha2.opt-level=3','--manifest-path',join(draft,'driver/Cargo.toml')],repository,{CARGO_TARGET_DIR:driverTarget});
   const driver=join(driverTarget,'debug/browser-workspace-command-driver');
   run('lake',['update'],project);
   const verified=JSON.parse(run(driver,['verify',join(project,'lexlean.toml')],repository));
@@ -57,7 +58,8 @@ export function prepare(){
   const journalWasm=readFileSync(join(journalGuest,'target/wasm32-unknown-unknown/release/browser_workspace_command_wasm_probe.wasm'));
   verifyPins();assert.equal(generation.ir_sha256,sha(readFileSync(join(exported,'kernel.ir'))));
   for(const [name,bytes]of sources){const current=readFileSync(join(repository,'stdlib/src/Foundation/Browser/V1',name+'.lex.tex'));assert.equal(current.length,bytes.length,'source length changed '+name);assert.ok(current.equals(bytes),'source bytes changed '+name);}
+  const cacheRetirement=retireCompletedCompilerCaches(work,'command');
   completed=true;
-  return {work,sources,verified,generation,compileNative,runner,wasmBytes,journalWasm};
+  return {work,sources,verified,generation,compileNative,runner,cacheRetirement,wasmBytes,journalWasm};
   } finally { if(!completed)rmSync(work,{recursive:true,force:true}); }
 }

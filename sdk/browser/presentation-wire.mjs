@@ -66,6 +66,12 @@ function decode(bytes, maximum) {
   const value = read(0); need(cursor === input.length, 'trailing'); return value;
 }
 
+// SDK-private composition only. Consumers must validate their complete closed
+// frame after this bounded canonical decoder; decoded arrays grant no authority.
+export function decodePresentationWireValue(bytes, maximum = PRESENTATION_MAXIMUM) {
+  return decode(bytes, maximum);
+}
+
 export function validatePresentation(frame) {
   need(array(frame, 7) && frame[0] === 1 && integer(frame[1]) && integer(frame[2], 0, 3)
     && integer(frame[3], 0, 256) && integer(frame[4], 0, 2) && integer(frame[5], 0, 256)
@@ -75,11 +81,11 @@ export function validatePresentation(frame) {
   const fields = [];
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]; need(array(node, 2) && integer(node[0], 0, i) && Array.isArray(node[1]));
-    const [parent, value] = node, tag = value[0]; need(integer(tag, 0, 10), 'unsupported');
+    const [parent, value] = node, tag = value[0]; need(integer(tag, 0, 11), 'unsupported');
     need(parent === 0 || [0, 1, 2].includes(nodes[parent - 1][1][0]), 'parent');
     depths.push(depths[parent] + 1); need(depths[i + 1] <= 16, 'limit');
     need(tag !== 2 || !forms[parent], 'parent'); forms.push(forms[parent] || tag === 2);
-    if ([5, 6, 7, 8, 10].includes(tag)) need(parent > 0 && nodes[parent - 1][1][0] === 2, 'parent');
+    if ([5, 6, 7, 8, 10, 11].includes(tag)) need(parent > 0 && nodes[parent - 1][1][0] === 2, 'parent');
     if ([0, 1, 2].includes(tag)) need(array(value, 2) && label(value[1]));
     else if (tag === 3) need(array(value, 3) && integer(value[1], 1, 6) && label(value[2]));
     else if (tag === 4) { need(array(value, 2)); textBytes(value[1]); }
@@ -88,11 +94,20 @@ export function validatePresentation(frame) {
         && integer(value[4], 1, PRESENTATION_MAXIMUM) && integer(value[6]));
       need(textBytes(value[5]) <= value[4], 'limit');
       need(!value[2] || frame[2] === 0, 'lifecycle');
-    } else if (tag === 7) {
+    } else if (tag === 7 || tag === 11) {
       need(array(value, 7) && label(value[1]) && typeof value[2] === 'boolean' && typeof value[3] === 'boolean'
         && integer(value[4]) && Array.isArray(value[5]) && integer(value[6]));
       options += value[5].length; need(options <= 256, 'limit'); let previous = 0, selected = value[4] === 0;
-      for (const option of value[5]) { need(array(option, 2) && integer(option[0], previous + 1) && label(option[1]), 'binding'); previous = option[0]; selected ||= value[4] === option[0]; }
+      const optionIds = new Set();
+      for (const option of value[5]) {
+        need(array(option, 2) && integer(option[0], tag === 7 ? previous + 1 : 1), 'binding');
+        if (tag === 7) need(label(option[1]), 'binding');
+        else {
+          need(!optionIds.has(option[0]), 'binding');
+          const size = textBytes(option[1]); need(size > 0 && size <= 4096, 'limit');
+        }
+        optionIds.add(option[0]); previous = option[0]; selected ||= value[4] === option[0];
+      }
       need(selected, 'binding'); need(!value[2] || frame[2] === 0, 'lifecycle');
     } else if (tag === 8) {
       need(array(value, 6) && label(value[1]) && integer(value[2], 1) && typeof value[3] === 'boolean'
@@ -114,7 +129,7 @@ export function validatePresentation(frame) {
     let previous = 0;
     for (const id of value[5]) {
       need(integer(id, previous + 1, nodes.length), 'binding'); previous = id;
-      const field = nodes[id - 1]; need(field[0] === parent && [5, 6, 7, 10].includes(field[1][0]), 'binding');
+      const field = nodes[id - 1]; need(field[0] === parent && [5, 6, 7, 10, 11].includes(field[1][0]), 'binding');
       need(!value[3] || field[1][2], 'binding');
     }
   }
@@ -147,7 +162,7 @@ export function validateIntent(frame, intent) {
   for (let i = 0; i < action[5].length; i++) {
     const [id, value] = intent[3][i]; need(id === action[5][i], 'binding');
     const field = frame[6][id - 1][1]; need(field[2], 'binding');
-    if (field[0] === 7) {
+    if (field[0] === 7 || field[0] === 11) {
       need(integer(value) && (value === 0 || field[5].some(option => option[0] === value)), 'binding');
       need(!field[3] || value !== 0, 'required');
     } else { need(typeof value === 'string' && textBytes(value) <= field[4], 'limit'); need(!field[3] || value.length !== 0, 'required'); }

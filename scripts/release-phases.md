@@ -40,7 +40,14 @@ Retaining these records does not authenticate their claims or issue SDK acceptan
 
 New publications upload into a draft, download and compare every asset, then
 publish. Both clean OCI rebuilds must equal the shipped platform digest with
-the same labels, epoch and media types. Equal but unshipped builds fail.
+the same labels, epoch and media types. Every declared layer in both layouts
+is freshly streamed through EOF and checked against its exact size and digest.
+Metadata is bounded to 16 MiB; each layer to 32 GiB, with at most 4,096 layers
+and 128 GiB of declared layer bytes per layout. Files must be independent,
+regular and unaliased. File and directory identities are checked during reads
+and again before layout acceptance. This observes custody; it does not claim
+atomic filesystem isolation. Missing or damaged layers and equal but unshipped
+builds fail.
 Buildx 0.28.0 uses digest-pinned BuildKit 0.26.2 and its `docker-container`
 driver; the default Docker driver does not support digest-only exports.
 

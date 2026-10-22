@@ -9,6 +9,57 @@ use std::path::Path;
 const ACCEPTANCE: &str = "LibraryProbe.Probe.acceptance";
 const IDENTITY: &str = "LibraryProbe.Probe.identity";
 
+pub(super) fn runtime_rejection(error: &prismpm::PrismError, root: &str) -> bool {
+    let main_panic = || {
+        let Some((_, suffix)) = error.message.split_once("\\nthread 'main' ") else {
+            return false;
+        };
+        let suffix = if let Some(pid) = suffix.strip_prefix('(') {
+            let Some((pid, rest)) = pid.split_once(") ") else {
+                return false;
+            };
+            if pid.is_empty() || !pid.bytes().all(|byte| byte.is_ascii_digit()) {
+                return false;
+            }
+            rest
+        } else {
+            suffix
+        };
+        let Some((location, body)) = suffix
+            .strip_prefix("panicked at src/main.rs:")
+            .and_then(|rest| rest.split_once("\\n"))
+        else {
+            return false;
+        };
+        let Some((row, column)) = location
+            .strip_suffix(':')
+            .and_then(|position| position.split_once(':'))
+        else {
+            return false;
+        };
+        let positive = |value: &str| {
+            value.starts_with(|first: char| ('1'..='9').contains(&first))
+                && value.bytes().all(|byte| byte.is_ascii_digit())
+        };
+        positive(row) && positive(column) && body.split("\\n").next() == Some(root)
+    };
+    !root.is_empty()
+        && error.code == "PP5006"
+        && error.primary.is_none()
+        && error.labels.is_empty()
+        && error.notes.is_empty()
+        && error.help.is_empty()
+        && error.causes.is_empty()
+        && error
+            .message
+            .starts_with("native-library-std-acceptance exited 101: stdout=\"\"; stderr=\"")
+        && error.message.ends_with('"')
+        && error.message.matches("\\nthread 'main' ").count() == 1
+        && main_panic()
+        && !error.message.contains("could not compile")
+        && !error.message.contains("error[E")
+}
+
 fn fixture(root: &Path) -> tempfile::TempDir {
     let project = tempfile::Builder::new()
         .prefix("prismpm-native-conformance-")
@@ -100,14 +151,14 @@ fn roots<'a>(module: &'a mut Value, name: &str) -> &'a mut Value {
         .expect("modeled root field")["value"]
 }
 
-fn accepted(project: &Path, verified: &prismpm::controller::VerifyResult) {
+fn accepted(root: &Path, project: &Path, verified: &prismpm::controller::VerifyResult) {
     let output = project.join(&verified.verified_root);
     let manifest = super::json(&output.join("manifest.json"));
     let acceptance_bytes = std::fs::read(output.join("library-acceptance.json")).unwrap();
     let acceptance: Value = serde_json::from_slice(&acceptance_bytes).unwrap();
     assert_eq!(
         manifest["schema"],
-        "prismpm/library-verification-manifest/1"
+        "prismpm/library-verification-manifest/2"
     );
     assert_eq!(manifest["scope"], "native-library-only");
     assert_eq!(manifest["build_id"], verified.build_id);
@@ -141,8 +192,114 @@ fn accepted(project: &Path, verified: &prismpm::controller::VerifyResult) {
         ])
     );
     let processes = manifest["processes"].as_array().unwrap();
+    let owner = &manifest["exporter_owner"];
+    assert_eq!(owner["schema"], "prismpm/verification-exporter-owner/1");
+    let phases = owner["phases"].as_array().unwrap();
+    assert_eq!(phases.len(), 2);
+    for (index, phase) in phases.iter().enumerate() {
+        assert_eq!(phase["phase"], ["controller-build", "replay"][index]);
+        assert_eq!(phase["role"], "library");
+        assert_eq!(phase["model_sha256"], manifest["model_sha256"]);
+        assert_eq!(phase["artifacts"], manifest["artifacts"]);
+        assert_eq!(phase["processes"].as_array().unwrap().len(), 4);
+        assert_eq!(
+            phase["processes"][0]["argv"],
+            json!(["build", "PrismGenerated"])
+        );
+        assert_eq!(
+            phase["processes"][1]["argv"],
+            json!(["build", "prod-export"])
+        );
+    }
+    assert_eq!(
+        phases[0]["processes"][2]["exporter"],
+        phases[1]["processes"][2]["exporter"]
+    );
+    assert_eq!(phases[1]["processes"], json!(&processes[5..9]));
+    prismpm::contracts::CanonicalDocument::from_value(
+        "prismpm/library-verification-manifest/2",
+        manifest.clone(),
+    )
+    .unwrap();
+    for (pointer, replacement) in [
+        ("/exporter_owner/phases/0/role", json!("application")),
+        (
+            "/exporter_owner/phases/0/model_sha256",
+            json!("f".repeat(64)),
+        ),
+        (
+            "/exporter_owner/phases/0/artifacts/0/sha256",
+            json!("f".repeat(64)),
+        ),
+        (
+            "/exporter_owner/phases/0/processes/2/exporter/source_archive_sha256",
+            json!("f".repeat(64)),
+        ),
+        (
+            "/exporter_owner/phases/0/processes/0/executable_sha256",
+            json!("f".repeat(64)),
+        ),
+        (
+            "/exporter_owner/phases/1/processes/2/argv",
+            json!(["exe", "prod-export", "--undeclared"]),
+        ),
+    ] {
+        let mut changed = manifest.clone();
+        *changed.pointer_mut(pointer).unwrap() = replacement;
+        assert!(
+            prismpm::contracts::CanonicalDocument::from_value(
+                "prismpm/library-verification-manifest/2",
+                changed,
+            )
+            .is_err(),
+            "accepted owner mutation {pointer}"
+        );
+    }
     assert!(!processes.is_empty());
     assert!(processes.iter().all(|row| row["exit_code"] == 0));
+    assert_eq!(
+        processes
+            .iter()
+            .map(|row| row["tool"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "lean-version",
+            "lake-version",
+            "rustfmt-version",
+            "rustc-version",
+            "timeout-version",
+            "lake-build-generated",
+            "lean4-prod-build",
+            "prod-export",
+            "native-library-package",
+            "native-library-std-lock",
+            "native-library-std-acceptance",
+            "native-library-no_std-lock",
+            "native-library-no_std-acceptance",
+        ],
+        "all thirteen original actual commands remain mandatory"
+    );
+    for process in processes {
+        let mut expected = vec![
+            "argv",
+            "executable_sha256",
+            "exit_code",
+            "stderr",
+            "stdout",
+            "tool",
+        ];
+        if process["tool"] == "prod-export" {
+            expected.insert(3, "exporter");
+        }
+        assert_eq!(process.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(), expected,
+            "manifest/2 retains the six original fields and only its authenticated exporter extension");
+    }
+    assert_eq!(processes[5]["argv"], json!(["build", "PrismGenerated"]));
+    assert_eq!(processes[6]["argv"], json!(["build", "prod-export"]));
+    assert_eq!(
+        processes[8]["argv"],
+        json!(["package", "--locked", "--offline", "--allow-dirty"])
+    );
     for mode in ["std", "no_std"] {
         let tool = format!("native-library-{mode}-acceptance");
         let rows = processes
@@ -163,6 +320,30 @@ fn accepted(project: &Path, verified: &prismpm::controller::VerifyResult) {
             "manifest.json".to_owned(),
         ])
     );
+    let reader = std::process::Command::new("timeout")
+        .args(["--kill-after=5s", "60s", "node"])
+        .arg(root.join("scripts/library-owner-reader-replay.mjs"))
+        .arg(project)
+        .arg(serde_json::to_string(verified).unwrap())
+        .arg(content_id(include_bytes!(
+            "../../../prismpm/vendor/lean4-prod/lean.tar"
+        )))
+        .arg(include_str!("../../../../lean-toolchain").trim())
+        .output()
+        .expect("actual shipped native-library reader execution");
+    assert!(
+        reader.status.success(),
+        "reader rejected actual compiler output: {}{}",
+        String::from_utf8_lossy(&reader.stdout),
+        String::from_utf8_lossy(&reader.stderr)
+    );
+    assert_eq!(
+        serde_json::from_slice::<Value>(&reader.stdout).unwrap(),
+        json!({
+            "schema":"prismpm/native-library-reader-regression/1","real_baseline":"passed",
+            "mutations_rejected":7,"restored_baseline":"passed"
+        })
+    );
 }
 
 pub(super) fn verify(root: &Path) {
@@ -176,7 +357,7 @@ pub(super) fn verify(root: &Path) {
     let verified = controller
         .verify(VerifyRequest { config_path: None })
         .unwrap();
-    accepted(first.path(), &verified);
+    accepted(root, first.path(), &verified);
     let build = first.path().join(".prism/build").join(&verified.build_id);
     let document = super::json(&build.join("model.prism.json"));
     assert_eq!(document["schema"], "prismpm/model-document/3");
@@ -353,9 +534,8 @@ pub(super) fn verify(root: &Path) {
     let error = controller
         .verify(VerifyRequest { config_path: None })
         .unwrap_err();
-    assert_eq!(
-        error.code.as_str(),
-        "PP5006",
+    assert!(
+        runtime_rejection(&error, ACCEPTANCE),
         "the generated oracle must reject identity(42) = 43: {error:#?}"
     );
     no_verification(mutant.path());
@@ -364,5 +544,5 @@ pub(super) fn verify(root: &Path) {
         .verify(VerifyRequest { config_path: None })
         .unwrap();
     assert_eq!(restored.build_id, verified.build_id);
-    accepted(mutant.path(), &restored);
+    accepted(root, mutant.path(), &restored);
 }

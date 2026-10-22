@@ -1,7 +1,7 @@
 //! Development-only packaging of the freshly verified standard-library export.
 
 use crate::Fail;
-use prismpm::controller::{BuildRequest, BuildResult, VerifyRequest, VerifyResult};
+use prismpm::controller::{BuildResult, VerifyRequest, VerifyResult};
 use prod_codegen::{CargoPackageSpec, GeneratedPackage};
 use sha2::{Digest, Sha256};
 use std::path::{Component, Path};
@@ -262,15 +262,13 @@ fn update_package(root: &Path, package: &GeneratedPackage, write: bool) -> Resul
 fn verify_current(root: &Path) -> Result<(BuildResult, VerifyResult), Fail> {
     let controller =
         prismpm::Controller::load(root).map_err(|error| crate::diagnostic_failure(&error))?;
-    let before = controller
-        .build(BuildRequest { config_path: None })
-        .map_err(|error| crate::diagnostic_failure(&error))?;
+    let before =
+        crate::build_on_worker(&controller).map_err(|error| crate::diagnostic_failure(&error))?;
     let verified = controller
         .verify(VerifyRequest { config_path: None })
         .map_err(|error| crate::diagnostic_failure(&error))?;
-    let after = controller
-        .build(BuildRequest { config_path: None })
-        .map_err(|error| crate::diagnostic_failure(&error))?;
+    let after =
+        crate::build_on_worker(&controller).map_err(|error| crate::diagnostic_failure(&error))?;
     current_results(&before, &verified, after)
 }
 
@@ -324,7 +322,7 @@ pub fn check_acceptance(root: &Path) -> Result<(), Fail> {
     crate::audit::audit_dependencies(root)?;
     let before = crate::build_once(root)?;
     let verified = crate::verify_once(root)?;
-    let current = prismpm::Controller::load(root)?.build(BuildRequest { config_path: None })?;
+    let current = crate::build_on_worker(&prismpm::Controller::load(root)?)?;
     let (build, verified) = current_results(before, verified, current)?;
     run_verified(root, false, || Ok((build.clone(), verified)))?;
     check_release_binding(root, &build)
@@ -373,16 +371,21 @@ mod tests {
 
     const IR: &[u8] = b"(module PrismPM (def identity ((value Bool)) Bool value))\n";
 
-    #[test]
-    fn stdlib_package_preserves_real_nested_build_diagnostics() {
-        let temporary = tempfile::tempdir().unwrap();
-        let source =
-            repo_model::repo_root().join("tests/fixtures/holo/ho-10-minimal-model/project");
-        for entry in walkdir::WalkDir::new(&source) {
+    fn copy_fixture_source(source: &Path, destination: &Path) {
+        // Earlier gates may have built this fixture. Do not import compiler
+        // scratch state into a test that deliberately constructs its own lock.
+        for entry in walkdir::WalkDir::new(source)
+            .into_iter()
+            .filter_entry(|entry| {
+                entry.depth() != 1
+                    || !matches!(
+                        entry.file_name().to_str(),
+                        Some(".lexlean" | ".prism" | ".lake")
+                    )
+            })
+        {
             let entry = entry.unwrap();
-            let destination = temporary
-                .path()
-                .join(entry.path().strip_prefix(&source).unwrap());
+            let destination = destination.join(entry.path().strip_prefix(source).unwrap());
             if entry.file_type().is_dir() {
                 std::fs::create_dir_all(destination).unwrap();
             } else {
@@ -390,6 +393,40 @@ mod tests {
                 std::fs::copy(entry.path(), destination).unwrap();
             }
         }
+    }
+
+    #[test]
+    fn stdlib_fixture_copy_excludes_only_root_scratch() {
+        let source = tempfile::tempdir().unwrap();
+        let destination = tempfile::tempdir().unwrap();
+        for name in [".lexlean", ".prism", ".lake"] {
+            std::fs::create_dir(source.path().join(name)).unwrap();
+            std::fs::write(source.path().join(name).join(".lock"), b"stale").unwrap();
+            let nested = source.path().join("nested").join(name);
+            std::fs::create_dir_all(&nested).unwrap();
+            std::fs::write(nested.join("source"), b"authored").unwrap();
+        }
+        std::fs::write(source.path().join("lexlean.lock"), b"authored lock").unwrap();
+        copy_fixture_source(source.path(), destination.path());
+        for name in [".lexlean", ".prism", ".lake"] {
+            assert!(!destination.path().join(name).exists());
+            assert_eq!(
+                std::fs::read(destination.path().join("nested").join(name).join("source")).unwrap(),
+                b"authored"
+            );
+        }
+        assert_eq!(
+            std::fs::read(destination.path().join("lexlean.lock")).unwrap(),
+            b"authored lock"
+        );
+    }
+
+    #[test]
+    fn stdlib_package_preserves_real_nested_build_diagnostics() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source =
+            repo_model::repo_root().join("tests/fixtures/holo/ho-10-minimal-model/project");
+        copy_fixture_source(&source, temporary.path());
         // A directory cannot be the compiler's lock file. This exercises a
         // real nested build failure without relying on UID-specific permissions.
         std::fs::create_dir_all(temporary.path().join(".lexlean/.lock")).unwrap();

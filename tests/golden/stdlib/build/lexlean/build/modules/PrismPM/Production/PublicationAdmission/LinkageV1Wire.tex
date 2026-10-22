@@ -1,0 +1,553 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\begin{document}
+\section*{Semantic declarations}
+\subsection*{\texttt{publicationLinkageWireAppendReady}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(if allowed then Except.ok ((LexLeanRuntime.append (left) (right) : ByteArray)) else Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageWireAppend}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireAppendReady ((Nat.ble (((LexLeanRuntime.length (left) : Nat) + (LexLeanRuntime.length (right) : Nat))) (67108864))) (left) (right)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageWireJoin}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireOutput (left) with | PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireOutput.mk <U+00AB>prefix<U+00BB> leftCause => (match leftCause with | Option.some cause => Except.error (cause) | Option.none => (match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireOutput (right) with | PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireOutput.mk suffix rightCause => (match rightCause with | Option.some cause => Except.error (cause) | Option.none => publicationLinkageWireAppend (<U+00AB>prefix<U+00BB>) (suffix)))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageWireLimits}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborLimits}.\par
+\noindent Definition: \texttt{(\{ maximumInput := 67108864, maximumOutput := 67108864, maximumBytes := 67108864, maximumText := 2048, maximumArrayItems := 65536 \} : PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborLimits)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationMember}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationMember}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationMember)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (2)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((field0).cursor) with | Except.error cause => Except.error (cause) | Except.ok field1 => Except.ok ((\{ value := (\{ module := (field0).value, name := (field1).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationMember), cursor := (field1).cursor \} : PublicationLinkageReadPublicationMember))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkagePayloadHead}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match (Nat.ble (size) (maximum)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => (match (Nat.ble ((size + PrismPM.Foundation.Codec.Cbor.V1.Primitive.cborHeadWidth (size))) ((publicationLinkageWireLimits).maximumOutput)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => (match PrismPM.Foundation.Codec.Cbor.V1.Primitive.cborWriteHead (size) (major) (publicationLinkageWireLimits) with | Except.error cause => Except.error (cause) | Except.ok headBytes => Except.ok (headBytes))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePayloadInto}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (acc) (publicationLinkagePayloadHead ((LexLeanRuntime.length (payload) : Nat)) (major) (maximum))) (Except.ok (payload))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageWriteText}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{PrismPM.Foundation.Codec.Cbor.V1.Primitive.cborWritePayload ((LexLeanRuntime.utf8Encode (text) : ByteArray)) (3) (2048) (publicationLinkageWireLimits)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationMember}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) (publicationLinkageWriteText ((value).module))) (publicationLinkageWriteText ((value).name))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationService}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationIds}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageGroupsPublicationIds}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageBatchPublicationIds}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationIdsBatchAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageBatchPublicationIds}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (\{ items := items, cursor := cursor, cause := Option.none \} : PublicationLinkageBatchPublicationIds) | Nat.succ rest => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) (cursor) with | Except.error failure => (\{ items := items, cursor := cursor, cause := Option.some (failure) \} : PublicationLinkageBatchPublicationIds) | Except.ok first => readPublicationLinkagePublicationIdsBatchAcc (input) ((first).cursor) ((LexLeanRuntime.append (items) (((first).value :: ([] : List (String)))) : List (String))) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationIdsBatch}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageBatchPublicationIds}.\par
+\noindent Definition: \texttt{readPublicationLinkagePublicationIdsBatchAcc (input) (cursor) (([] : List (String))) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationIdsGroups}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageGroupsPublicationIds}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationIdsChunk)), cursor := cursor, cause := (match (Nat.beq (remaining) (0)) with | Bool.false => Option.some (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => Option.none) \} : PublicationLinkageGroupsPublicationIds) | Nat.succ rest => (match (Nat.beq (remaining) (0)) with | Bool.false => (match readPublicationLinkagePublicationIdsBatch (input) (cursor) ((match (Nat.ble (remaining) (256)) with | Bool.false => 256 | Bool.true => remaining)) with | PublicationLinkageBatchPublicationIds.mk items next cause => (match cause with | Option.some failure => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationIdsChunk)), cursor := next, cause := Option.some (failure) \} : PublicationLinkageGroupsPublicationIds) | Option.none => (match readPublicationLinkagePublicationIdsGroups (input) (next) ((LexLeanRuntime.subtract (remaining) ((match (Nat.ble (remaining) (256)) with | Bool.false => 256 | Bool.true => remaining)) : Nat)) (rest) with | PublicationLinkageGroupsPublicationIds.mk tail <U+00AB>end<U+00BB> failure => (\{ chunks := ((\{ entries := items \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationIdsChunk) :: tail), cursor := <U+00AB>end<U+00BB>, cause := failure \} : PublicationLinkageGroupsPublicationIds)))) | Bool.true => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationIdsChunk)), cursor := cursor, cause := Option.none \} : PublicationLinkageGroupsPublicationIds)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationIds}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationIds)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match readPublicationLinkagePublicationIdsGroups (input) ((array).cursor) ((array).count) (256) with | PublicationLinkageGroupsPublicationIds.mk chunks <U+00AB>end<U+00BB> cause => (match cause with | Option.some failure => Except.error (failure) | Option.none => Except.ok ((\{ value := (\{ chunks := chunks \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationIds), cursor := <U+00AB>end<U+00BB> \} : PublicationLinkageReadPublicationIds)))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationService}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationService)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (2)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match readPublicationLinkagePublicationIds (input) ((field0).cursor) with | Except.error cause => Except.error (cause) | Except.ok field1 => Except.ok ((\{ value := (\{ id := (field0).value, components := (field1).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationService), cursor := (field1).cursor \} : PublicationLinkageReadPublicationService))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationIdsRowsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match items with | List.nil => acc | List.cons \_ \_ => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))) | Nat.succ rest => (match items with | List.nil => acc | List.cons head tail => writePublicationLinkagePublicationIdsRowsAcc (tail) (publicationLinkageWireJoin (acc) (publicationLinkageWriteText (head))) (rest)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationIdsRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationIdsRowsAcc (items) (Except.ok (ByteArray.mk \#[])) (fuel)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationIdsGroupsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match items with | List.nil => acc | List.cons \_ \_ => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))) | Nat.succ rest => (match items with | List.nil => acc | List.cons head tail => writePublicationLinkagePublicationIdsGroupsAcc (tail) (writePublicationLinkagePublicationIdsRowsAcc ((head).entries) (acc) (256)) (rest)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationIdsGroups}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationIdsGroupsAcc (items) (Except.ok (ByteArray.mk \#[])) (fuel)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationIds}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationIdsCanonical (value) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => writePublicationLinkagePublicationIdsGroupsAcc ((value).chunks) (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationIdsCount (value)) (publicationLinkageWireLimits))) (256))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationIdsInto}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationIdsCanonical (value) with | Bool.false => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit)) | Bool.true => writePublicationLinkagePublicationIdsGroupsAcc ((value).chunks) (publicationLinkageWireJoin (acc) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationIdsCount (value)) (publicationLinkageWireLimits))) (256))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationService}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationIdsInto ((value).components) (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) (publicationLinkageWriteText ((value).id)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{PublicationLinkageReadProofRequirement}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkageProofRequirement}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadProofRequirement)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (1)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match readPublicationLinkagePublicationMember (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => Except.ok ((\{ value := (\{ <U+00AB>theorem<U+00BB> := (field0).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.ProofRequirement), cursor := (field0).cursor \} : PublicationLinkageReadProofRequirement)))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkageProofRequirement}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (1) (publicationLinkageWireLimits))) (writePublicationLinkagePublicationMember ((value).<U+00AB>theorem<U+00BB>))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationInputSelector}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationInputSelector}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationInputSelector)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireNat (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok tag => (match ((Nat.beq ((tag).value) (0)) \&\& (Nat.beq ((array).count) (2))) with | Bool.false => (match ((Nat.beq ((tag).value) (1)) \&\& (Nat.beq ((array).count) (2))) with | Bool.false => (match ((Nat.beq ((tag).value) (2)) \&\& (Nat.beq ((array).count) (1))) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => Except.ok ((\{ value := PrismPM.Production.PublicationAdmission.LinkageV1.PublicationInputSelector.Target, cursor := (tag).cursor \} : PublicationLinkageReadPublicationInputSelector))) | Bool.true => (match readPublicationLinkagePublicationMember (input) ((tag).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => Except.ok ((\{ value := PrismPM.Production.PublicationAdmission.LinkageV1.PublicationInputSelector.SourceMember ((field0).value), cursor := (field0).cursor \} : PublicationLinkageReadPublicationInputSelector)))) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((tag).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => Except.ok ((\{ value := PrismPM.Production.PublicationAdmission.LinkageV1.PublicationInputSelector.BuildFile ((field0).value), cursor := (field0).cursor \} : PublicationLinkageReadPublicationInputSelector))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationInputSelector}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match value with | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationInputSelector.BuildFile p0 => publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (0))) (publicationLinkageWriteText (p0)) | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationInputSelector.SourceMember p0 => publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (1))) (writePublicationLinkagePublicationMember (p0)) | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationInputSelector.Target => publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (1) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (2)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadExecutionRequirement}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkageExecutionRequirement}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadExecutionRequirement)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (3)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match readPublicationLinkagePublicationInputSelector (input) ((field0).cursor) with | Except.error cause => Except.error (cause) | Except.ok field1 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field1).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field2 => Except.ok ((\{ value := (\{ oracle := (field0).value, input := (field1).value, suite := (field2).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.ExecutionRequirement), cursor := (field2).cursor \} : PublicationLinkageReadExecutionRequirement)))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkageExecutionRequirement}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (3) (publicationLinkageWireLimits))) (publicationLinkageWriteText ((value).oracle))) (writePublicationLinkagePublicationInputSelector ((value).input))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).suite))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadAssessmentRequirement}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkageAssessmentRequirement}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadAssessmentRequirement)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (2)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((field0).cursor) with | Except.error cause => Except.error (cause) | Except.ok field1 => Except.ok ((\{ value := (\{ criterion := (field0).value, subject := (field1).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.AssessmentRequirement), cursor := (field1).cursor \} : PublicationLinkageReadAssessmentRequirement))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkageAssessmentRequirement}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) (publicationLinkageWriteText ((value).criterion))) (publicationLinkageWriteText ((value).subject))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationRequirementValue}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRequirementValue}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationRequirementValue)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireNat (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok tag => (match ((Nat.beq ((tag).value) (0)) \&\& (Nat.beq ((array).count) (2))) with | Bool.false => (match ((Nat.beq ((tag).value) (1)) \&\& (Nat.beq ((array).count) (4))) with | Bool.false => (match ((Nat.beq ((tag).value) (2)) \&\& (Nat.beq ((array).count) (3))) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((tag).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((field0).cursor) with | Except.error cause => Except.error (cause) | Except.ok field1 => Except.ok ((\{ value := PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirementValue.Assessment ((\{ criterion := (field0).value, subject := (field1).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.AssessmentRequirement)), cursor := (field1).cursor \} : PublicationLinkageReadPublicationRequirementValue))))) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((tag).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match readPublicationLinkagePublicationInputSelector (input) ((field0).cursor) with | Except.error cause => Except.error (cause) | Except.ok field1 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field1).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field2 => Except.ok ((\{ value := PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirementValue.Execution ((\{ oracle := (field0).value, input := (field1).value, suite := (field2).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.ExecutionRequirement)), cursor := (field2).cursor \} : PublicationLinkageReadPublicationRequirementValue)))))) | Bool.true => (match readPublicationLinkagePublicationMember (input) ((tag).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => Except.ok ((\{ value := PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirementValue.Proof ((\{ <U+00AB>theorem<U+00BB> := (field0).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.ProofRequirement)), cursor := (field0).cursor \} : PublicationLinkageReadPublicationRequirementValue))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRequirementValue}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match value with | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirementValue.Proof p0 => publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (0))) (writePublicationLinkagePublicationMember ((p0).<U+00AB>theorem<U+00BB>)) | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirementValue.Execution p0 => publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (4) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (1))) (publicationLinkageWriteText ((p0).oracle))) (writePublicationLinkagePublicationInputSelector ((p0).input))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((p0).suite)) | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirementValue.Assessment p0 => publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (3) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (2))) (publicationLinkageWriteText ((p0).criterion))) (publicationLinkageWriteText ((p0).subject)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationRequirement}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRequirement}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationRequirement)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (3)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireNat (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match readPublicationLinkagePublicationMember (input) ((field0).cursor) with | Except.error cause => Except.error (cause) | Except.ok field1 => (match readPublicationLinkagePublicationRequirementValue (input) ((field1).cursor) with | Except.error cause => Except.error (cause) | Except.ok field2 => Except.ok ((\{ value := (\{ obligation := (field0).value, member := (field1).value, requirement := (field2).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirement), cursor := (field2).cursor \} : PublicationLinkageReadPublicationRequirement)))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRequirement}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (3) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat ((value).obligation))) (writePublicationLinkagePublicationMember ((value).member))) (writePublicationLinkagePublicationRequirementValue ((value).requirement))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationClosure}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationServices}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageGroupsPublicationServices}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageBatchPublicationServices}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationServicesBatchAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageBatchPublicationServices}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (\{ items := items, cursor := cursor, cause := Option.none \} : PublicationLinkageBatchPublicationServices) | Nat.succ rest => (match readPublicationLinkagePublicationService (input) (cursor) with | Except.error failure => (\{ items := items, cursor := cursor, cause := Option.some (failure) \} : PublicationLinkageBatchPublicationServices) | Except.ok first => readPublicationLinkagePublicationServicesBatchAcc (input) ((first).cursor) ((LexLeanRuntime.append (items) (((first).value :: ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationService)))) : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationService))) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationServicesBatch}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageBatchPublicationServices}.\par
+\noindent Definition: \texttt{readPublicationLinkagePublicationServicesBatchAcc (input) (cursor) (([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationService))) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationServicesGroups}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageGroupsPublicationServices}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationServicesChunk)), cursor := cursor, cause := (match (Nat.beq (remaining) (0)) with | Bool.false => Option.some (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => Option.none) \} : PublicationLinkageGroupsPublicationServices) | Nat.succ rest => (match (Nat.beq (remaining) (0)) with | Bool.false => (match readPublicationLinkagePublicationServicesBatch (input) (cursor) ((match (Nat.ble (remaining) (256)) with | Bool.false => 256 | Bool.true => remaining)) with | PublicationLinkageBatchPublicationServices.mk items next cause => (match cause with | Option.some failure => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationServicesChunk)), cursor := next, cause := Option.some (failure) \} : PublicationLinkageGroupsPublicationServices) | Option.none => (match readPublicationLinkagePublicationServicesGroups (input) (next) ((LexLeanRuntime.subtract (remaining) ((match (Nat.ble (remaining) (256)) with | Bool.false => 256 | Bool.true => remaining)) : Nat)) (rest) with | PublicationLinkageGroupsPublicationServices.mk tail <U+00AB>end<U+00BB> failure => (\{ chunks := ((\{ entries := items \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationServicesChunk) :: tail), cursor := <U+00AB>end<U+00BB>, cause := failure \} : PublicationLinkageGroupsPublicationServices)))) | Bool.true => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationServicesChunk)), cursor := cursor, cause := Option.none \} : PublicationLinkageGroupsPublicationServices)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationServices}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationServices)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match readPublicationLinkagePublicationServicesGroups (input) ((array).cursor) ((array).count) (256) with | PublicationLinkageGroupsPublicationServices.mk chunks <U+00AB>end<U+00BB> cause => (match cause with | Option.some failure => Except.error (failure) | Option.none => Except.ok ((\{ value := (\{ chunks := chunks \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationServices), cursor := <U+00AB>end<U+00BB> \} : PublicationLinkageReadPublicationServices)))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationRequirements}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageGroupsPublicationRequirements}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageBatchPublicationRequirements}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRequirementsBatchAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageBatchPublicationRequirements}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (\{ items := items, cursor := cursor, cause := Option.none \} : PublicationLinkageBatchPublicationRequirements) | Nat.succ rest => (match readPublicationLinkagePublicationRequirement (input) (cursor) with | Except.error failure => (\{ items := items, cursor := cursor, cause := Option.some (failure) \} : PublicationLinkageBatchPublicationRequirements) | Except.ok first => readPublicationLinkagePublicationRequirementsBatchAcc (input) ((first).cursor) ((LexLeanRuntime.append (items) (((first).value :: ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirement)))) : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirement))) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRequirementsBatch}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageBatchPublicationRequirements}.\par
+\noindent Definition: \texttt{readPublicationLinkagePublicationRequirementsBatchAcc (input) (cursor) (([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirement))) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRequirementsGroups}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageGroupsPublicationRequirements}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirementsChunk)), cursor := cursor, cause := (match (Nat.beq (remaining) (0)) with | Bool.false => Option.some (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => Option.none) \} : PublicationLinkageGroupsPublicationRequirements) | Nat.succ rest => (match (Nat.beq (remaining) (0)) with | Bool.false => (match readPublicationLinkagePublicationRequirementsBatch (input) (cursor) ((match (Nat.ble (remaining) (64)) with | Bool.false => 64 | Bool.true => remaining)) with | PublicationLinkageBatchPublicationRequirements.mk items next cause => (match cause with | Option.some failure => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirementsChunk)), cursor := next, cause := Option.some (failure) \} : PublicationLinkageGroupsPublicationRequirements) | Option.none => (match readPublicationLinkagePublicationRequirementsGroups (input) (next) ((LexLeanRuntime.subtract (remaining) ((match (Nat.ble (remaining) (64)) with | Bool.false => 64 | Bool.true => remaining)) : Nat)) (rest) with | PublicationLinkageGroupsPublicationRequirements.mk tail <U+00AB>end<U+00BB> failure => (\{ chunks := ((\{ entries := items \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirementsChunk) :: tail), cursor := <U+00AB>end<U+00BB>, cause := failure \} : PublicationLinkageGroupsPublicationRequirements)))) | Bool.true => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirementsChunk)), cursor := cursor, cause := Option.none \} : PublicationLinkageGroupsPublicationRequirements)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRequirements}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationRequirements)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (4096) with | Except.error cause => Except.error (cause) | Except.ok array => (match readPublicationLinkagePublicationRequirementsGroups (input) ((array).cursor) ((array).count) (64) with | PublicationLinkageGroupsPublicationRequirements.mk chunks <U+00AB>end<U+00BB> cause => (match cause with | Option.some failure => Except.error (failure) | Option.none => Except.ok ((\{ value := (\{ chunks := chunks \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRequirements), cursor := <U+00AB>end<U+00BB> \} : PublicationLinkageReadPublicationRequirements)))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationClosure}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationClosure)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (6)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match readPublicationLinkagePublicationMember (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((field0).cursor) with | Except.error cause => Except.error (cause) | Except.ok field1 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWirePublicationDeclaration (input) ((field1).cursor) with | Except.error cause => Except.error (cause) | Except.ok field2 => (match readPublicationLinkagePublicationServices (input) ((field2).cursor) with | Except.error cause => Except.error (cause) | Except.ok field3 => (match readPublicationLinkagePublicationIds (input) ((field3).cursor) with | Except.error cause => Except.error (cause) | Except.ok field4 => (match readPublicationLinkagePublicationRequirements (input) ((field4).cursor) with | Except.error cause => Except.error (cause) | Except.ok field5 => Except.ok ((\{ value := (\{ system := (field0).value, target := (field1).value, declaration := (field2).value, services := (field3).value, controls := (field4).value, requirements := (field5).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationClosure), cursor := (field5).cursor \} : PublicationLinkageReadPublicationClosure))))))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationServicesRowsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match items with | List.nil => acc | List.cons \_ \_ => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))) | Nat.succ rest => (match items with | List.nil => acc | List.cons head tail => writePublicationLinkagePublicationServicesRowsAcc (tail) (writePublicationLinkagePublicationIdsInto ((head).components) (publicationLinkageWireJoin (publicationLinkageWireJoin (acc) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) (publicationLinkageWriteText ((head).id)))) (rest)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationServicesRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationServicesRowsAcc (items) (Except.ok (ByteArray.mk \#[])) (fuel)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationServicesGroupsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match items with | List.nil => acc | List.cons \_ \_ => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))) | Nat.succ rest => (match items with | List.nil => acc | List.cons head tail => writePublicationLinkagePublicationServicesGroupsAcc (tail) (writePublicationLinkagePublicationServicesRowsAcc ((head).entries) (acc) (256)) (rest)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationServicesGroups}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationServicesGroupsAcc (items) (Except.ok (ByteArray.mk \#[])) (fuel)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationServices}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationServicesCanonical (value) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => writePublicationLinkagePublicationServicesGroupsAcc ((value).chunks) (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationServicesCount (value)) (publicationLinkageWireLimits))) (256))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRequirementsRowsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match items with | List.nil => acc | List.cons \_ \_ => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))) | Nat.succ rest => (match items with | List.nil => acc | List.cons head tail => writePublicationLinkagePublicationRequirementsRowsAcc (tail) (publicationLinkageWireJoin (acc) (writePublicationLinkagePublicationRequirement (head))) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRequirementsRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationRequirementsRowsAcc (items) (Except.ok (ByteArray.mk \#[])) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRequirementsGroupsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match items with | List.nil => acc | List.cons \_ \_ => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))) | Nat.succ rest => (match items with | List.nil => acc | List.cons head tail => writePublicationLinkagePublicationRequirementsGroupsAcc (tail) (writePublicationLinkagePublicationRequirementsRowsAcc ((head).entries) (acc) (64)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRequirementsGroups}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationRequirementsGroupsAcc (items) (Except.ok (ByteArray.mk \#[])) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRequirements}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationRequirementsCanonical (value) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => writePublicationLinkagePublicationRequirementsGroupsAcc ((value).chunks) (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationRequirementsCount (value)) (publicationLinkageWireLimits))) (64))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationServicesInto}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationServicesCanonical (value) with | Bool.false => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit)) | Bool.true => writePublicationLinkagePublicationServicesGroupsAcc ((value).chunks) (publicationLinkageWireJoin (acc) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationServicesCount (value)) (publicationLinkageWireLimits))) (256))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationClosure}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (writePublicationLinkagePublicationIdsInto ((value).controls) (writePublicationLinkagePublicationServicesInto ((value).services) (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (6) (publicationLinkageWireLimits))) (writePublicationLinkagePublicationMember ((value).system))) (publicationLinkageWriteText ((value).target))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWirePublicationDeclaration ((value).declaration))))) (writePublicationLinkagePublicationRequirements ((value).requirements))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationRecord}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRecord}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationRecord)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (2)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field0).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field1 => Except.ok ((\{ value := (\{ id := (field0).value, digest := (field1).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRecord), cursor := (field1).cursor \} : PublicationLinkageReadPublicationRecord))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRecord}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) (publicationLinkageWriteText ((value).id))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).digest))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationFile}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationFile}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationFile)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (2)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field0).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field1 => Except.ok ((\{ value := (\{ path := (field0).value, digest := (field1).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationFile), cursor := (field1).cursor \} : PublicationLinkageReadPublicationFile))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationFile}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkagePayloadInto (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) ((LexLeanRuntime.utf8Encode ((value).path) : ByteArray)) (3) (2048)) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).digest))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationSourceLink}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationSourceLink}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationSourceLink)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (9)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((array).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field0).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field1 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field1).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field2 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field2).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field3 => (match readPublicationLinkagePublicationMember (input) ((field3).cursor) with | Except.error cause => Except.error (cause) | Except.ok field4 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field4).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field5 => (match readPublicationLinkagePublicationMember (input) ((field5).cursor) with | Except.error cause => Except.error (cause) | Except.ok field6 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field6).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field7 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((field7).cursor) with | Except.error cause => Except.error (cause) | Except.ok field8 => Except.ok ((\{ value := (\{ snapshot := (field0).value, source := (field1).value, semantic := (field2).value, compiler := (field3).value, closureMember := (field4).value, moduleSource := (field5).value, systemMember := (field6).value, system := (field7).value, target := (field8).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationSourceLink), cursor := (field8).cursor \} : PublicationLinkageReadPublicationSourceLink)))))))))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationSourceLink}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (9) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).snapshot))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).source))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).semantic))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).compiler))) (writePublicationLinkagePublicationMember ((value).closureMember))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).moduleSource))) (writePublicationLinkagePublicationMember ((value).systemMember))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).system))) (publicationLinkageWriteText ((value).target))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationCapture}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationRecords}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageGroupsPublicationRecords}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageBatchPublicationRecords}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRecordsBatchAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageBatchPublicationRecords}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (\{ items := items, cursor := cursor, cause := Option.none \} : PublicationLinkageBatchPublicationRecords) | Nat.succ rest => (match readPublicationLinkagePublicationRecord (input) (cursor) with | Except.error failure => (\{ items := items, cursor := cursor, cause := Option.some (failure) \} : PublicationLinkageBatchPublicationRecords) | Except.ok first => readPublicationLinkagePublicationRecordsBatchAcc (input) ((first).cursor) ((LexLeanRuntime.append (items) (((first).value :: ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRecord)))) : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRecord))) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRecordsBatch}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageBatchPublicationRecords}.\par
+\noindent Definition: \texttt{readPublicationLinkagePublicationRecordsBatchAcc (input) (cursor) (([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRecord))) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRecordsGroups}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageGroupsPublicationRecords}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRecordsChunk)), cursor := cursor, cause := (match (Nat.beq (remaining) (0)) with | Bool.false => Option.some (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => Option.none) \} : PublicationLinkageGroupsPublicationRecords) | Nat.succ rest => (match (Nat.beq (remaining) (0)) with | Bool.false => (match readPublicationLinkagePublicationRecordsBatch (input) (cursor) ((match (Nat.ble (remaining) (256)) with | Bool.false => 256 | Bool.true => remaining)) with | PublicationLinkageBatchPublicationRecords.mk items next cause => (match cause with | Option.some failure => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRecordsChunk)), cursor := next, cause := Option.some (failure) \} : PublicationLinkageGroupsPublicationRecords) | Option.none => (match readPublicationLinkagePublicationRecordsGroups (input) (next) ((LexLeanRuntime.subtract (remaining) ((match (Nat.ble (remaining) (256)) with | Bool.false => 256 | Bool.true => remaining)) : Nat)) (rest) with | PublicationLinkageGroupsPublicationRecords.mk tail <U+00AB>end<U+00BB> failure => (\{ chunks := ((\{ entries := items \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRecordsChunk) :: tail), cursor := <U+00AB>end<U+00BB>, cause := failure \} : PublicationLinkageGroupsPublicationRecords)))) | Bool.true => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRecordsChunk)), cursor := cursor, cause := Option.none \} : PublicationLinkageGroupsPublicationRecords)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationRecords}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationRecords)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match readPublicationLinkagePublicationRecordsGroups (input) ((array).cursor) ((array).count) (256) with | PublicationLinkageGroupsPublicationRecords.mk chunks <U+00AB>end<U+00BB> cause => (match cause with | Option.some failure => Except.error (failure) | Option.none => Except.ok ((\{ value := (\{ chunks := chunks \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationRecords), cursor := <U+00AB>end<U+00BB> \} : PublicationLinkageReadPublicationRecords)))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationFiles}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageGroupsPublicationFiles}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageBatchPublicationFiles}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationFilesBatchAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageBatchPublicationFiles}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (\{ items := items, cursor := cursor, cause := Option.none \} : PublicationLinkageBatchPublicationFiles) | Nat.succ rest => (match readPublicationLinkagePublicationFile (input) (cursor) with | Except.error failure => (\{ items := items, cursor := cursor, cause := Option.some (failure) \} : PublicationLinkageBatchPublicationFiles) | Except.ok first => readPublicationLinkagePublicationFilesBatchAcc (input) ((first).cursor) ((LexLeanRuntime.append (items) (((first).value :: ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationFile)))) : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationFile))) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationFilesBatch}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageBatchPublicationFiles}.\par
+\noindent Definition: \texttt{readPublicationLinkagePublicationFilesBatchAcc (input) (cursor) (([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationFile))) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationFilesGroups}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationLinkageGroupsPublicationFiles}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationFilesChunk)), cursor := cursor, cause := (match (Nat.beq (remaining) (0)) with | Bool.false => Option.some (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => Option.none) \} : PublicationLinkageGroupsPublicationFiles) | Nat.succ rest => (match (Nat.beq (remaining) (0)) with | Bool.false => (match readPublicationLinkagePublicationFilesBatch (input) (cursor) ((match (Nat.ble (remaining) (256)) with | Bool.false => 256 | Bool.true => remaining)) with | PublicationLinkageBatchPublicationFiles.mk items next cause => (match cause with | Option.some failure => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationFilesChunk)), cursor := next, cause := Option.some (failure) \} : PublicationLinkageGroupsPublicationFiles) | Option.none => (match readPublicationLinkagePublicationFilesGroups (input) (next) ((LexLeanRuntime.subtract (remaining) ((match (Nat.ble (remaining) (256)) with | Bool.false => 256 | Bool.true => remaining)) : Nat)) (rest) with | PublicationLinkageGroupsPublicationFiles.mk tail <U+00AB>end<U+00BB> failure => (\{ chunks := ((\{ entries := items \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationFilesChunk) :: tail), cursor := <U+00AB>end<U+00BB>, cause := failure \} : PublicationLinkageGroupsPublicationFiles)))) | Bool.true => (\{ chunks := ([] : List (PrismPM.Production.PublicationAdmission.LinkageV1.PublicationFilesChunk)), cursor := cursor, cause := Option.none \} : PublicationLinkageGroupsPublicationFiles)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationFiles}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationFiles)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match readPublicationLinkagePublicationFilesGroups (input) ((array).cursor) ((array).count) (256) with | PublicationLinkageGroupsPublicationFiles.mk chunks <U+00AB>end<U+00BB> cause => (match cause with | Option.some failure => Except.error (failure) | Option.none => Except.ok ((\{ value := (\{ chunks := chunks \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationFiles), cursor := <U+00AB>end<U+00BB> \} : PublicationLinkageReadPublicationFiles)))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationCapture}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationCapture)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (15)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match readPublicationLinkagePublicationSourceLink (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match readPublicationLinkagePublicationRecords (input) ((field0).cursor) with | Except.error cause => Except.error (cause) | Except.ok field1 => (match readPublicationLinkagePublicationRecords (input) ((field1).cursor) with | Except.error cause => Except.error (cause) | Except.ok field2 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field2).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field3 => (match readPublicationLinkagePublicationRecords (input) ((field3).cursor) with | Except.error cause => Except.error (cause) | Except.ok field4 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field4).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field5 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field5).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field6 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field6).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field7 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field7).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field8 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field8).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field9 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field9).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field10 => (match readPublicationLinkagePublicationFiles (input) ((field10).cursor) with | Except.error cause => Except.error (cause) | Except.ok field11 => (match readPublicationLinkagePublicationFiles (input) ((field11).cursor) with | Except.error cause => Except.error (cause) | Except.ok field12 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field12).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field13 => (match readPublicationLinkagePublicationFiles (input) ((field13).cursor) with | Except.error cause => Except.error (cause) | Except.ok field14 => Except.ok ((\{ value := (\{ sourceLink := (field0).value, components := (field1).value, controls := (field2).value, provenance := (field3).value, dependencies := (field4).value, sdkLock := (field5).value, standardsLock := (field6).value, lexleanBuildManifest := (field7).value, lexleanAttestation := (field8).value, buildManifest := (field9).value, verificationManifest := (field10).value, verificationFiles := (field11).value, browserFiles := (field12).value, releaseValidation := (field13).value, oracleAttestations := (field14).value \} : PrismPM.Production.PublicationAdmission.LinkageV1.PublicationCapture), cursor := (field14).cursor \} : PublicationLinkageReadPublicationCapture)))))))))))))))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRecordsRowsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match items with | List.nil => acc | List.cons \_ \_ => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))) | Nat.succ rest => (match items with | List.nil => acc | List.cons head tail => writePublicationLinkagePublicationRecordsRowsAcc (tail) (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (acc) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) (publicationLinkageWriteText ((head).id))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((head).digest))) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRecordsRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationRecordsRowsAcc (items) (Except.ok (ByteArray.mk \#[])) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRecordsGroupsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match items with | List.nil => acc | List.cons \_ \_ => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))) | Nat.succ rest => (match items with | List.nil => acc | List.cons head tail => writePublicationLinkagePublicationRecordsGroupsAcc (tail) (writePublicationLinkagePublicationRecordsRowsAcc ((head).entries) (acc) (256)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRecordsGroups}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationRecordsGroupsAcc (items) (Except.ok (ByteArray.mk \#[])) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRecords}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationRecordsCanonical (value) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => writePublicationLinkagePublicationRecordsGroupsAcc ((value).chunks) (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationRecordsCount (value)) (publicationLinkageWireLimits))) (256))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationFilesRowsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match items with | List.nil => acc | List.cons \_ \_ => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))) | Nat.succ rest => (match items with | List.nil => acc | List.cons head tail => writePublicationLinkagePublicationFilesRowsAcc (tail) (publicationLinkageWireJoin (publicationLinkagePayloadInto (publicationLinkageWireJoin (acc) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) ((LexLeanRuntime.utf8Encode ((head).path) : ByteArray)) (3) (2048)) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((head).digest))) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationFilesRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationFilesRowsAcc (items) (Except.ok (ByteArray.mk \#[])) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationFilesGroupsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match items with | List.nil => acc | List.cons \_ \_ => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit))) | Nat.succ rest => (match items with | List.nil => acc | List.cons head tail => writePublicationLinkagePublicationFilesGroupsAcc (tail) (writePublicationLinkagePublicationFilesRowsAcc ((head).entries) (acc) (256)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationFilesGroups}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationFilesGroupsAcc (items) (Except.ok (ByteArray.mk \#[])) (fuel)}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationFilesInto}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationFilesCanonical (value) with | Bool.false => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit)) | Bool.true => writePublicationLinkagePublicationFilesGroupsAcc ((value).chunks) (publicationLinkageWireJoin (acc) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationFilesCount (value)) (publicationLinkageWireLimits))) (256))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationFiles}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationFilesCanonical (value) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit) | Bool.true => writePublicationLinkagePublicationFilesGroupsAcc ((value).chunks) (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationFilesCount (value)) (publicationLinkageWireLimits))) (256))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationRecordsInto}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationRecordsCanonical (value) with | Bool.false => publicationLinkageWireJoin (acc) (Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.ValueLimit)) | Bool.true => writePublicationLinkagePublicationRecordsGroupsAcc ((value).chunks) (publicationLinkageWireJoin (acc) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkagePublicationRecordsCount (value)) (publicationLinkageWireLimits))) (256))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationCapture}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (writePublicationLinkagePublicationRecordsInto ((value).dependencies) (publicationLinkageWireJoin (writePublicationLinkagePublicationRecordsInto ((value).controls) (writePublicationLinkagePublicationRecordsInto ((value).components) (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (15) (publicationLinkageWireLimits))) (writePublicationLinkagePublicationSourceLink ((value).sourceLink))))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).provenance)))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).sdkLock))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).standardsLock))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).lexleanBuildManifest))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).lexleanAttestation))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).buildManifest))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).verificationManifest))) (writePublicationLinkagePublicationFiles ((value).verificationFiles))) (writePublicationLinkagePublicationFiles ((value).browserFiles))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((value).releaseValidation))) (writePublicationLinkagePublicationFiles ((value).oracleAttestations))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationLinkageReadPublicationLinkageError}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationLinkagePublicationLinkageError}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadPublicationLinkageError)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (65536) with | Except.error cause => Except.error (cause) | Except.ok array => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireNat (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok tag => (match ((Nat.beq ((tag).value) (0)) \&\& (Nat.beq ((array).count) (1))) with | Bool.false => (match ((Nat.beq ((tag).value) (1)) \&\& (Nat.beq ((array).count) (1))) with | Bool.false => (match ((Nat.beq ((tag).value) (2)) \&\& (Nat.beq ((array).count) (1))) with | Bool.false => (match ((Nat.beq ((tag).value) (3)) \&\& (Nat.beq ((array).count) (1))) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => Except.ok ((\{ value := PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.RequirementMismatch, cursor := (tag).cursor \} : PublicationLinkageReadPublicationLinkageError))) | Bool.true => Except.ok ((\{ value := PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.InventoryMismatch, cursor := (tag).cursor \} : PublicationLinkageReadPublicationLinkageError))) | Bool.true => Except.ok ((\{ value := PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.SourceMismatch, cursor := (tag).cursor \} : PublicationLinkageReadPublicationLinkageError))) | Bool.true => Except.ok ((\{ value := PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.InvalidMetadata, cursor := (tag).cursor \} : PublicationLinkageReadPublicationLinkageError)))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{writePublicationLinkagePublicationLinkageError}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match value with | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.InvalidMetadata => publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (1) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (0)) | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.SourceMismatch => publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (1) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (1)) | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.InventoryMismatch => publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (1) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (2)) | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.RequirementMismatch => publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (1) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (3)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageservicesPreimage}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationRecordsInto ((capture).components) (writePublicationLinkagePublicationServicesInto ((closure).services) (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (Except.ok (ByteArray.mk \#[112, 114, 105, 115, 109, 112, 109, 47, 112, 117, 98, 108, 105, 99, 97, 116, 105, 111, 110, 45, 115, 101, 114, 118, 105, 99, 101, 115, 45, 99, 108, 111, 115, 117, 114, 101, 47, 49, 0]))) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (3) (publicationLinkageWireLimits))) (writePublicationLinkagePublicationSourceLink ((capture).sourceLink))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkagecontrolsPreimage}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (writePublicationLinkagePublicationRecordsInto ((capture).controls) (writePublicationLinkagePublicationIdsInto ((closure).controls) (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (Except.ok (ByteArray.mk \#[112, 114, 105, 115, 109, 112, 109, 47, 112, 117, 98, 108, 105, 99, 97, 116, 105, 111, 110, 45, 99, 111, 110, 116, 114, 111, 108, 115, 45, 99, 108, 111, 115, 117, 114, 101, 47, 49, 0]))) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (5) (publicationLinkageWireLimits))) (writePublicationLinkagePublicationSourceLink ((capture).sourceLink))))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).standardsLock))) (writePublicationLinkagePublicationRequirements ((closure).requirements))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkagedependenciesPreimage}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationRecordsInto ((capture).dependencies) (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (Except.ok (ByteArray.mk \#[112, 114, 105, 115, 109, 112, 109, 47, 112, 117, 98, 108, 105, 99, 97, 116, 105, 111, 110, 45, 100, 101, 112, 101, 110, 100, 101, 110, 99, 105, 101, 115, 45, 99, 108, 111, 115, 117, 114, 101, 47, 49, 0]))) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (2) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).provenance)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkagecompilerPreimage}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (Except.ok (ByteArray.mk \#[112, 114, 105, 115, 109, 112, 109, 47, 112, 117, 98, 108, 105, 99, 97, 116, 105, 111, 110, 45, 99, 111, 109, 112, 105, 108, 101, 114, 45, 99, 108, 111, 115, 117, 114, 101, 47, 49, 0]))) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (5) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).sdkLock))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).lexleanBuildManifest))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).lexleanAttestation))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).buildManifest))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).verificationManifest))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageruntimePreimage}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationFilesInto ((capture).browserFiles) (writePublicationLinkagePublicationFilesInto ((capture).verificationFiles) (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (Except.ok (ByteArray.mk \#[112, 114, 105, 115, 109, 112, 109, 47, 112, 117, 98, 108, 105, 99, 97, 116, 105, 111, 110, 45, 114, 117, 110, 116, 105, 109, 101, 45, 99, 108, 111, 115, 117, 114, 101, 47, 49, 0]))) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (3) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).verificationManifest))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageoraclesPreimage}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{writePublicationLinkagePublicationFilesInto ((capture).oracleAttestations) (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (Except.ok (ByteArray.mk \#[112, 114, 105, 115, 109, 112, 109, 47, 112, 117, 98, 108, 105, 99, 97, 116, 105, 111, 110, 45, 111, 114, 97, 99, 108, 101, 115, 45, 99, 108, 111, 115, 117, 114, 101, 47, 49, 0]))) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (6) (publicationLinkageWireLimits))) (writePublicationLinkagePublicationSourceLink ((capture).sourceLink))) (writePublicationLinkagePublicationRequirements ((closure).requirements))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).standardsLock))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).sdkLock))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireBytes ((capture).releaseValidation)))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageResponse}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.LinkageV1.publicationLinkageValidate (closure) (capture) with | Option.none => (match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireOutput (PrismPM.Production.PublicationAdmission.V1Wire.publicationDeclarationPreimage ((closure).declaration)) with | PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireOutput.mk declaration declarationCause => (match declarationCause with | Option.some cause => Except.error (cause) | Option.none => (match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireOutput (publicationLinkageservicesPreimage (closure) (capture)) with | PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireOutput.mk services servicesCause => (match servicesCause with | Option.some cause => Except.error (cause) | Option.none => (match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireOutput (publicationLinkagecontrolsPreimage (closure) (capture)) with | PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireOutput.mk controls controlsCause => (match controlsCause with | Option.some cause => Except.error (cause) | Option.none => (match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireOutput (publicationLinkagedependenciesPreimage (capture)) with | PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireOutput.mk dependencies dependenciesCause => (match dependenciesCause with | Option.some cause => Except.error (cause) | Option.none => (match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireOutput (publicationLinkagecompilerPreimage (capture)) with | PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireOutput.mk compiler compilerCause => (match compilerCause with | Option.some cause => Except.error (cause) | Option.none => (match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireOutput (publicationLinkageruntimePreimage (capture)) with | PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireOutput.mk runtime runtimeCause => (match runtimeCause with | Option.some cause => Except.error (cause) | Option.none => (match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireOutput (publicationLinkageoraclesPreimage (closure) (capture)) with | PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireOutput.mk oracles oraclesCause => (match oraclesCause with | Option.some cause => Except.error (cause) | Option.none => publicationLinkagePayloadInto (publicationLinkagePayloadInto (publicationLinkagePayloadInto (publicationLinkagePayloadInto (publicationLinkagePayloadInto (publicationLinkagePayloadInto (publicationLinkagePayloadInto (publicationLinkageWireJoin (publicationLinkageWireJoin (publicationLinkageWireJoin (Except.ok (ByteArray.mk \#[])) (PrismPM.Foundation.Codec.Cbor.V1.Primitive.writeCborArrayHead (9) (publicationLinkageWireLimits))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (1))) (PrismPM.Production.PublicationAdmission.V1Wire.writePublicationWireNat (0))) (declaration) (2) (67108864)) (services) (2) (67108864)) (controls) (2) (67108864)) (dependencies) (2) (67108864)) (compiler) (2) (67108864)) (runtime) (2) (67108864)) (oracles) (2) (67108864))))))))))))))) | Option.some cause => (match cause with | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.InvalidMetadata => Except.ok (ByteArray.mk \#[131, 1, 1, 0]) | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.SourceMismatch => Except.ok (ByteArray.mk \#[131, 1, 1, 1]) | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.InventoryMismatch => Except.ok (ByteArray.mk \#[131, 1, 1, 2]) | PrismPM.Production.PublicationAdmission.LinkageV1.PublicationLinkageError.RequirementMismatch => Except.ok (ByteArray.mk \#[131, 1, 1, 3])))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageFinish}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (Bool)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireWindow (input) (cursor) with | Except.error cause => Except.error (cause) | Except.ok window => PrismPM.Foundation.Codec.Cbor.V1.Primitive.finishCborCursor ((\{ bytes := window, offset := 0, limit := (LexLeanRuntime.length (window) : Nat) \} : PrismPM.Foundation.Codec.BoundedCursor)) (publicationLinkageWireLimits))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{dispatchPublicationLinkage}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (0) (4) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (4)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireNat (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok version => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireNat (input) ((version).cursor) with | Except.error cause => Except.error (cause) | Except.ok operation => (match ((Nat.beq ((version).value) (1)) \&\& (Nat.beq ((operation).value) (0))) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match readPublicationLinkagePublicationClosure (input) ((operation).cursor) with | Except.error cause => Except.error (cause) | Except.ok closureRead => (match readPublicationLinkagePublicationCapture (input) ((closureRead).cursor) with | Except.error cause => Except.error (cause) | Except.ok captureRead => (match publicationLinkageFinish (input) ((captureRead).cursor) with | Except.error cause => Except.error (cause) | Except.ok \_ => publicationLinkageResponse ((closureRead).value) ((captureRead).value)))))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageWireBytes}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{ByteArray}.\par
+\noindent Definition: \texttt{(match (Nat.ble ((LexLeanRuntime.length (input) : Nat)) (67108864)) with | Bool.false => ByteArray.mk \#[131, 1, 2, 6] | Bool.true => (match dispatchPublicationLinkage ((\{ bytes := input \} : PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireInput)) with | Except.error cause => PrismPM.Production.PublicationAdmission.V1Wire.publicationWireErrorBytes (cause) | Except.ok response => response))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{PublicationContextFields}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageReadContextFields}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{readPublicationContextFields}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (PublicationLinkageReadContextFields)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (cursor) (6) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (6)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWirePublicationDeclaration (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok field0 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field0).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field1 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWirePublicationSubject (input) ((field1).cursor) with | Except.error cause => Except.error (cause) | Except.ok field2 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field2).cursor) (32) with | Except.error cause => Except.error (cause) | Except.ok field3 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireBytes (input) ((field3).cursor) (20) with | Except.error cause => Except.error (cause) | Except.ok field4 => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireText (input) ((field4).cursor) with | Except.error cause => Except.error (cause) | Except.ok field5 => Except.ok ((\{ value := (\{ declaration := (field0).value, declarationIdentity := (field1).value, subject := (field2).value, <U+00AB>instance<U+00BB> := (field3).value, publisherRevision := (field4).value, publisherRef := (field5).value \} : PublicationContextFields), cursor := (field5).cursor \} : PublicationLinkageReadContextFields))))))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{dispatchPublicationContextFields}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Except (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError) (ByteArray)}.\par
+\noindent Definition: \texttt{(match PrismPM.Production.PublicationAdmission.V1Wire.publicationWireReadArray (input) (0) (3) with | Except.error cause => Except.error (cause) | Except.ok array => (match (Nat.beq ((array).count) (3)) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireNat (input) ((array).cursor) with | Except.error cause => Except.error (cause) | Except.ok version => (match PrismPM.Production.PublicationAdmission.V1Wire.readPublicationWireNat (input) ((version).cursor) with | Except.error cause => Except.error (cause) | Except.ok operation => (match ((Nat.beq ((version).value) (1)) \&\& (Nat.beq ((operation).value) (0))) with | Bool.false => Except.error (PrismPM.Foundation.Codec.Cbor.V1.Primitive.CborError.WrongType) | Bool.true => (match readPublicationContextFields (input) ((operation).cursor) with | Except.error cause => Except.error (cause) | Except.ok fields => (match publicationLinkageFinish (input) ((fields).cursor) with | Except.error cause => Except.error (cause) | Except.ok \_ => PrismPM.Production.PublicationAdmission.V1Wire.publicationWirePreimageResult (PrismPM.Production.PublicationAdmission.V1Wire.publicationContextFieldsPreimage (((fields).value).declaration) (((fields).value).declarationIdentity) (((fields).value).subject) (((fields).value).<U+00AB>instance<U+00BB>) (((fields).value).publisherRevision) (((fields).value).publisherRef)))))))))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationContextFieldsWireBytes}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{ByteArray}.\par
+\noindent Definition: \texttt{(match (Nat.ble ((LexLeanRuntime.length (input) : Nat)) (67108864)) with | Bool.false => ByteArray.mk \#[131, 1, 2, 6] | Bool.true => (match dispatchPublicationContextFields ((\{ bytes := input \} : PrismPM.Production.PublicationAdmission.V1Wire.PublicationWireInput)) with | Except.error cause => PrismPM.Production.PublicationAdmission.V1Wire.publicationWireErrorBytes (cause) | Except.ok response => response))}.\par
+\noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
+\end{document}

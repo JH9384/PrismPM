@@ -8,10 +8,8 @@ use prod_codegen::{generate_cargo_package, CargoPackageSpec};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Cursor;
 use std::path::{Component, Path};
 
-const LEAN4_PROD_ARCHIVE: &[u8] = include_bytes!("../vendor/lean4-prod/lean.tar");
 // The pinned generator escapes type/field names but emits function names
 // literally. Reject unsupported target spellings instead of guessing an alias.
 const FUNCTION_KEYWORDS: &[&str] = &[
@@ -27,6 +25,18 @@ pub(crate) type LibraryArtifact = (String, Vec<u8>);
 pub(crate) struct GeneratedLibrary {
     pub(crate) artifacts: Vec<LibraryArtifact>,
     pub(crate) processes: Vec<ProcessRecord>,
+}
+
+impl crate::exporter::ProductEvidence for GeneratedLibrary {
+    fn role(&self) -> &'static str {
+        "library"
+    }
+    fn artifacts(&self) -> &[(String, Vec<u8>)] {
+        &self.artifacts
+    }
+    fn processes(&self) -> &[ProcessRecord] {
+        &self.processes
+    }
 }
 
 pub(crate) fn sha256(bytes: &[u8]) -> String {
@@ -157,6 +167,28 @@ pub(crate) fn validate_export_identity(
 }
 
 /// Generate unaccepted native artifacts; verification owns acceptance evidence.
+pub(crate) fn export_arguments(
+    modules: &BTreeSet<String>,
+    library: &crate::holo::model_document::ModelLibrary,
+    export: &Path,
+) -> Vec<String> {
+    let mut arguments = vec!["exe".to_owned(), "prod-export".to_owned()];
+    for module in modules {
+        arguments.extend(["--module".to_owned(), module.clone()]);
+    }
+    for root in &library.export_roots {
+        arguments.extend(["--root".to_owned(), root.clone()]);
+    }
+    arguments.extend([
+        "--ir-module".to_owned(),
+        library.cargo_name.replace('-', "_"),
+        "--out".to_owned(),
+        export.to_string_lossy().into_owned(),
+    ]);
+    arguments
+}
+
+/// Generate unaccepted native artifacts; verification owns acceptance evidence.
 pub(crate) fn generate(
     repository_root: &Path,
     model: &ModelDocument,
@@ -181,21 +213,76 @@ pub(crate) fn generate_recorded(
     lex_root: &Path,
     lex_manifest_bytes: &[u8],
 ) -> Result<GeneratedLibrary, PrismError> {
+    generate_in(
+        repository_root,
+        model,
+        model_bytes,
+        lex_root,
+        lex_manifest_bytes,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn generate_owned(
+    repository_root: &Path,
+    model: &ModelDocument,
+    model_bytes: &[u8],
+    lex_root: &Path,
+    lex_manifest_bytes: &[u8],
+    owner: &mut crate::exporter::VerifyExporterOwner,
+    phase: crate::exporter::Phase,
+) -> Result<GeneratedLibrary, PrismError> {
+    owner.generate_library(
+        repository_root,
+        phase,
+        model_bytes,
+        lex_manifest_bytes,
+        |package, acquisition| {
+            generate_in(
+                repository_root,
+                model,
+                model_bytes,
+                lex_root,
+                lex_manifest_bytes,
+                Some((package, acquisition)),
+            )
+        },
+    )
+}
+
+fn generate_in(
+    repository_root: &Path,
+    model: &ModelDocument,
+    model_bytes: &[u8],
+    lex_root: &Path,
+    lex_manifest_bytes: &[u8],
+    owned: Option<(&Path, &crate::exporter::GenerationContext<'_>)>,
+) -> Result<GeneratedLibrary, PrismError> {
     let library = model
         .library
         .as_ref()
         .ok_or_else(|| PrismError::new("PP9001", "native generation requires a library profile"))?;
-    let work = tempfile::Builder::new()
-        .prefix("prismpm-native-library-")
-        .tempdir()
-        .map_err(|error| PrismError::new("PP4002", error.to_string()))?;
-    let workspace = work.path();
-    let lean_package = workspace.join("lean4-prod");
-    std::fs::create_dir(&lean_package)
-        .map_err(|error| PrismError::new("PP4002", error.to_string()))?;
-    tar::Archive::new(Cursor::new(LEAN4_PROD_ARCHIVE))
-        .unpack(&lean_package)
-        .map_err(|error| PrismError::new("PP5008", format!("pinned lean4-prod: {error}")))?;
+    let mut work = crate::exporter::directory::Directory::temporary(
+        "prismpm-native-library-",
+        None,
+        Default::default(),
+    )?;
+    let workspace_path = work.path().to_owned();
+    let workspace = workspace_path.as_path();
+    let first_build = owned.is_none();
+    let mut seed_custody = None;
+    let (lean_package, exporter_acquisition) = match owned {
+        Some((package, acquisition)) => (package.to_owned(), acquisition.receipt().clone()),
+        None => {
+            let package = workspace.join("lean4-prod");
+            let acquisition =
+                crate::exporter::acquire_for_owned(repository_root, &package, work.scope())?;
+            work.protect_package(&package, &acquisition.snapshot)?;
+            seed_custody = Some(acquisition.snapshot);
+            (package, acquisition.receipt)
+        }
+    };
 
     let manifest: Value = serde_json::from_slice(lex_manifest_bytes)
         .map_err(|error| PrismError::new("PP4004", format!("LexLean manifest: {error}")))?;
@@ -247,17 +334,22 @@ pub(crate) fn generate_recorded(
     }
     write(
         &workspace.join("lakefile.toml"),
-        format!(
-            "name = \"prismpm_native_library\"\nversion = \"0.1.0\"\n\n[[lean_lib]]\nname = \"PrismGenerated\"\nroots = [{}]\n",
-            modules.iter().map(|module| serde_json::to_string(module).expect("module string")).collect::<Vec<_>>().join(", ")
-        ).as_bytes(),
+        crate::lean_project::configuration(
+            "prismpm_native_library",
+            &modules.iter().cloned().collect::<Vec<_>>(),
+        )
+        .as_bytes(),
     )?;
     write(
         &workspace.join("lean-toolchain"),
         b"leanprover/lean4:v4.32.1\n",
     )?;
     let lake = executable("lake")?;
-    let replacements = [(workspace, "$LIBRARY_WORK"), (repository_root, "$PROJECT")];
+    let replacements = [
+        (lean_package.as_path(), "$LEAN4_PROD"),
+        (workspace, "$LIBRARY_WORK"),
+        (repository_root, "$PROJECT"),
+    ];
     let no_env = BTreeMap::new();
     let mut processes = Vec::new();
     for (tool, directory, args) in [
@@ -272,30 +364,51 @@ pub(crate) fn generate_recorded(
             vec!["build".to_owned(), "prod-export".to_owned()],
         ),
     ] {
-        processes.push(run_process(
-            tool,
-            &lake,
-            &args,
-            directory,
-            &no_env,
-            &replacements,
-            "PP5004",
-        )?);
+        if tool == "lean4-prod-build" {
+            if let Some((_, context)) = owned {
+                context.before_build(repository_root, &lean_package)?;
+            } else if first_build {
+                crate::exporter::before_first_build(
+                    repository_root,
+                    &lean_package,
+                    &exporter_acquisition,
+                    seed_custody
+                        .as_ref()
+                        .expect("first build retains original custody"),
+                )?;
+            }
+        }
+        processes.push(match owned {
+            Some((_, context)) => context.run_library(
+                tool,
+                &lake,
+                &args,
+                directory,
+                &no_env,
+                &replacements,
+                "PP5004",
+            ),
+            None => run_process(
+                tool,
+                &lake,
+                &args,
+                directory,
+                &no_env,
+                &replacements,
+                "PP5004",
+            ),
+        }?);
     }
     let export = workspace.join("export");
-    let mut arguments = vec!["exe".to_owned(), "prod-export".to_owned()];
-    for module in &modules {
-        arguments.extend(["--module".to_owned(), module.clone()]);
-    }
-    for root in &library.export_roots {
-        arguments.extend(["--root".to_owned(), root.clone()]);
-    }
-    arguments.extend([
-        "--ir-module".to_owned(),
-        library.cargo_name.replace('-', "_"),
-        "--out".to_owned(),
-        export.to_string_lossy().into_owned(),
-    ]);
+    let export_custody = match owned {
+        Some((_, context)) => context.after_build(&lean_package)?,
+        None => crate::exporter::after_build(
+            &lean_package,
+            &exporter_acquisition,
+            seed_custody.as_ref().expect("original unowned custody"),
+        )?,
+    };
+    let arguments = export_arguments(&modules, library, &export);
     let export_env = BTreeMap::from([(
         "LEAN_PATH".to_owned(),
         workspace
@@ -303,15 +416,28 @@ pub(crate) fn generate_recorded(
             .to_string_lossy()
             .into_owned(),
     )]);
-    processes.push(run_process(
-        "prod-export",
-        &lake,
-        &arguments,
-        &lean_package,
-        &export_env,
-        &replacements,
-        "PP5004",
-    )?);
+    processes.push(match owned {
+        Some((_, context)) => context.run_library(
+            "prod-export",
+            &lake,
+            &arguments,
+            &lean_package,
+            &export_env,
+            &replacements,
+            "PP5004",
+        ),
+        None => crate::exporter::run_export_with_custody(
+            "prod-export",
+            &lake,
+            &arguments,
+            &lean_package,
+            &export_env,
+            &replacements,
+            "PP5004",
+            &exporter_acquisition,
+            &export_custody,
+        ),
+    }?);
     let mut artifacts = Vec::new();
     for name in ["coverage.json", "kernel.ir", "roots.json"] {
         let bytes = std::fs::read(export.join(name))
@@ -375,15 +501,29 @@ pub(crate) fn generate_recorded(
         ),
         ("CARGO_NET_OFFLINE".to_owned(), "true".to_owned()),
     ]);
-    processes.push(run_process(
-        "native-library-package",
-        &executable("cargo")?,
-        &["package", "--locked", "--offline", "--allow-dirty"].map(str::to_owned),
-        &package_root,
-        &cargo_env,
-        &replacements,
-        "PP4102",
-    )?);
+    let cargo = executable("cargo")?;
+    let package_arguments =
+        ["package", "--locked", "--offline", "--allow-dirty"].map(str::to_owned);
+    processes.push(match owned {
+        Some((_, context)) => context.run_library(
+            "native-library-package",
+            &cargo,
+            &package_arguments,
+            &package_root,
+            &cargo_env,
+            &replacements,
+            "PP4102",
+        ),
+        None => run_process(
+            "native-library-package",
+            &cargo,
+            &package_arguments,
+            &package_root,
+            &cargo_env,
+            &replacements,
+            "PP4102",
+        ),
+    }?);
     let archive_name = format!("{}-{}.crate", library.cargo_name, library.cargo_version);
     let crate_bytes = std::fs::read(package_root.join("target/package").join(&archive_name))
         .map_err(|error| PrismError::new("PP4102", format!("native library archive: {error}")))?;
@@ -402,6 +542,10 @@ pub(crate) fn generate_recorded(
         .to_vec(),
     ));
     artifacts.sort_by(|left, right| left.0.cmp(&right.0));
+    if seed_custody.is_some() {
+        work.protect_verified_package(&lean_package, &export_custody)?;
+    }
+    work.close()?;
     Ok(GeneratedLibrary {
         artifacts,
         processes,
@@ -487,7 +631,7 @@ mod tests {
         let (coverage, roots_document, module, roots) = fixture(&["Owner.match"]);
         assert!(prod_codegen::generate_module(&module)
             .unwrap()
-            .contains("pub fn match("));
+            .contains("pub fn r#match("));
         assert_eq!(
             validate_export_identity(&coverage, &roots_document, &module, &roots, &roots)
                 .unwrap_err()

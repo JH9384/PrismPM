@@ -42,3 +42,39 @@ test('primitive implementation is authored LexLean, with typed cursor results', 
   assert.match(source, /\\importmodule\{Foundation\.Codec\}/);
   assert.match(source, /\\importmodule\{Foundation\.Bytes\}/);
 });
+
+test('octet oracle independently covers every byte and rejected upper boundaries', () => {
+  const source = readFileSync(new URL(
+    'stdlib/src/Foundation/Codec/Cbor/V1/PrimitiveCorpus.lex.tex', root), 'utf8');
+  const model = JSON.parse(source.split('\n').find(line => line.startsWith('\\semanticdata{')).slice(14, -1));
+  const declarations = new Map(model.declarations.map(row => [row.name, row]));
+  const actual = [];
+  function leaves(expression) {
+    if (expression.kind === 'and') { leaves(expression.left); leaves(expression.right); return; }
+    assert.equal(expression.kind, 'primitive'); assert.equal(expression.operation, 'equal');
+    const [call, expected] = expression.arguments;
+    assert.deepEqual(call.function, {module:'Foundation.Codec.Cbor.V1.Primitive', name:'cborOctetBytes'});
+    assert.equal(call.arguments.length, 1); assert.equal(call.arguments[0].kind, 'nat');
+    assert.equal(expected.kind, 'bytes');
+    actual.push([call.arguments[0].value, expected.hex]);
+  }
+  for (let group = 0; group < 16; group++) leaves(declarations.get('octetLookupChunk' + group).body);
+  leaves(declarations.get('octetLookupAbove').body);
+  assert.deepEqual(actual, [
+    ...Array.from({length:256}, (_, value) => [String(value), value.toString(16).padStart(2, '0')]),
+    ...['256','257','511','512','65535','65536','4294967295','4294967296','18446744073709551615'].map(value => [value, '']),
+  ]);
+  const reached = [];
+  function calls(expression) {
+    if (expression.kind === 'and') { calls(expression.left); calls(expression.right); return; }
+    assert.equal(expression.kind, 'call'); assert.deepEqual(expression.arguments, []);
+    reached.push(expression.function.name);
+  }
+  calls(declarations.get('probeOctetLookup').body);
+  assert.deepEqual(reached, [...Array.from({length:16}, (_, i) => 'octetLookupChunk' + i), 'octetLookupAbove']);
+  const index = JSON.parse(readFileSync(new URL('stdlib/src/Foundation/Codec/Cbor/V1/primitive-corpus.json', root)));
+  const rows = index.cases.filter(row => row.id === 'OctetLookup');
+  assert.equal(rows.length, 1); assert.equal(rows[0].count, 256);
+  assert.equal(rows[0].root, 'LibraryProbe.Foundation.Codec.Cbor.V1.PrimitiveCorpus.probeOctetLookup');
+  assert.equal(index.roots.filter(name => name === rows[0].root).length, 1);
+});

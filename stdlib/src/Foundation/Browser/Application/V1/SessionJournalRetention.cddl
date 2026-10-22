@@ -1,0 +1,26 @@
+; Private DK-30 retention protocol; canonical definite CBOR, all input consumed.
+uint32 = 0..4294967295
+reference = bstr .size 32
+references = [*4096 reference]
+root = [name: tstr, head: reference, closure: [1*4096 reference]]
+; Names use existing store grammar, 1..128 ASCII bytes. Roots sorted by name.
+; Every reference list is strictly byte-lexicographically sorted/unique.
+; Closure includes its head and every reference exists in snapshot.objects.
+snapshot = [1, revision: uint32, objects: references, roots: [*64 root]]
+expected-head = [0] / [1, reference]
+replacement = [0] / [1, [name: tstr, expected-head, head: reference,
+  closure: [1*4096 reference]]]
+request = [1, 0, snapshot, replacement, additions: [*16 reference], retire: references]
+        / [1, 1, snapshot]
+response = [1, 0, (snapshot / bool)]
+         / [1, 1, retention-error: 0..11]
+         / [1, 2, cbor-error: 0..8]
+; Retention errors: BadSnapshot0, BadReplacement1, BadAdditions2,
+; BadRetirement3, ExpectedHeadMismatch4, MissingRetirement5,
+; AdditionRetirementOverlap6, ProtectedOrMissingObject7, ObjectLimit8,
+; RootLimit9, RevisionExhausted10, InternalBudget11.
+; New set=(old union additions) minus retire; final count <=4096.
+; Retire IDs exist before and are disjoint from additions; every resulting
+; root closure remains present. Selected root creation/update is conditional.
+; Hashing bytes, actual object immutability and atomic exact full-frontier
+; comparison/commit acknowledgement are mandatory host obligations.

@@ -1,0 +1,532 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\begin{document}
+\section*{Semantic declarations}
+\subsection*{\texttt{PublicationMember}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationIdsChunk}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationIds}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationService}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationServicesChunk}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationServices}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{ProofRequirement}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationInputSelector}}
+\noindent Kind: \texttt{inductive}.\par
+\subsection*{\texttt{ExecutionRequirement}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{AssessmentRequirement}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationRequirementValue}}
+\noindent Kind: \texttt{inductive}.\par
+\subsection*{\texttt{PublicationRequirement}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationRequirementsChunk}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationRequirements}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationClosure}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationRecord}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationRecordsChunk}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationRecords}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationFile}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationFilesChunk}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationFiles}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationSourceLink}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationCapture}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{PublicationLinkageError}}
+\noindent Kind: \texttt{inductive}.\par
+\subsection*{\texttt{PublicationPreimages}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{publicationLinkageTextLengthValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{((Nat.blt (0) (length)) \&\& (Nat.ble (length) (maximum)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageTextValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{publicationLinkageTextLengthValid ((LexLeanRuntime.length ((LexLeanRuntime.utf8Encode (value) : ByteArray)) : Nat)) (maximum)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageDigestValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(LexLeanRuntime.equal ((LexLeanRuntime.length (value) : Nat)) (32) : Bool)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageMemberValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(publicationLinkageTextValid ((value).module) (2048) \&\& (publicationLinkageTextValid ((value).name) (2048) \&\& true))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageMemberEqual}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{((LexLeanRuntime.equal ((left).module) ((right).module) : Bool) \&\& ((LexLeanRuntime.equal ((left).name) ((right).name) : Bool) \&\& true))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationIdsShape}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (LexLeanRuntime.equal ((LexLeanRuntime.length (chunks) : Nat)) (0) : Bool) | Nat.succ rest => (match chunks with | List.nil => true | List.cons head tail => ((Nat.blt (0) ((LexLeanRuntime.length ((head).entries) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length ((head).entries) : Nat)) (256)) \&\& ((match (LexLeanRuntime.equal ((LexLeanRuntime.length (tail) : Nat)) (0) : Bool) with | Bool.false => (LexLeanRuntime.equal ((LexLeanRuntime.length ((head).entries) : Nat)) (256) : Bool) | Bool.true => true) \&\& (publicationLinkagePublicationIdsShape (tail) (rest) \&\& true))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationIdsCanonical}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationIdsShape ((items).chunks) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationIdsCountChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => 0 | Nat.succ rest => (match chunks with | List.nil => 0 | List.cons head tail => ((LexLeanRuntime.length ((head).entries) : Nat) + publicationLinkagePublicationIdsCountChunks (tail) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationIdsCount}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationIdsCountChunks ((items).chunks) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationIdsAtChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (String)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => Option.none | Nat.succ rest => (match chunks with | List.nil => Option.none | List.cons head tail => (if (Nat.blt (offset) (256)) then (LexLeanRuntime.index ((head).entries) (offset) : Option (String)) else publicationLinkagePublicationIdsAtChunks (tail) ((LexLeanRuntime.subtract (offset) (256) : Nat)) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationIdsAt}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (String)}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationIdsAtChunks ((items).chunks) (offset) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationServicesShape}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (LexLeanRuntime.equal ((LexLeanRuntime.length (chunks) : Nat)) (0) : Bool) | Nat.succ rest => (match chunks with | List.nil => true | List.cons head tail => ((Nat.blt (0) ((LexLeanRuntime.length ((head).entries) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length ((head).entries) : Nat)) (256)) \&\& ((match (LexLeanRuntime.equal ((LexLeanRuntime.length (tail) : Nat)) (0) : Bool) with | Bool.false => (LexLeanRuntime.equal ((LexLeanRuntime.length ((head).entries) : Nat)) (256) : Bool) | Bool.true => true) \&\& (publicationLinkagePublicationServicesShape (tail) (rest) \&\& true))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationServicesCanonical}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationServicesShape ((items).chunks) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationServicesCountChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => 0 | Nat.succ rest => (match chunks with | List.nil => 0 | List.cons head tail => ((LexLeanRuntime.length ((head).entries) : Nat) + publicationLinkagePublicationServicesCountChunks (tail) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationServicesCount}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationServicesCountChunks ((items).chunks) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationServicesAtChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationService)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => Option.none | Nat.succ rest => (match chunks with | List.nil => Option.none | List.cons head tail => (if (Nat.blt (offset) (256)) then (LexLeanRuntime.index ((head).entries) (offset) : Option (PublicationService)) else publicationLinkagePublicationServicesAtChunks (tail) ((LexLeanRuntime.subtract (offset) (256) : Nat)) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationServicesAt}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationService)}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationServicesAtChunks ((items).chunks) (offset) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRequirementsShape}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (LexLeanRuntime.equal ((LexLeanRuntime.length (chunks) : Nat)) (0) : Bool) | Nat.succ rest => (match chunks with | List.nil => true | List.cons head tail => ((Nat.blt (0) ((LexLeanRuntime.length ((head).entries) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length ((head).entries) : Nat)) (64)) \&\& ((match (LexLeanRuntime.equal ((LexLeanRuntime.length (tail) : Nat)) (0) : Bool) with | Bool.false => (LexLeanRuntime.equal ((LexLeanRuntime.length ((head).entries) : Nat)) (64) : Bool) | Bool.true => true) \&\& (publicationLinkagePublicationRequirementsShape (tail) (rest) \&\& true))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRequirementsCanonical}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationRequirementsShape ((items).chunks) (64)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRequirementsCountChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => 0 | Nat.succ rest => (match chunks with | List.nil => 0 | List.cons head tail => ((LexLeanRuntime.length ((head).entries) : Nat) + publicationLinkagePublicationRequirementsCountChunks (tail) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRequirementsCount}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationRequirementsCountChunks ((items).chunks) (64)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRequirementsAtChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationRequirement)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => Option.none | Nat.succ rest => (match chunks with | List.nil => Option.none | List.cons head tail => (if (Nat.blt (offset) (64)) then (LexLeanRuntime.index ((head).entries) (offset) : Option (PublicationRequirement)) else publicationLinkagePublicationRequirementsAtChunks (tail) ((LexLeanRuntime.subtract (offset) (64) : Nat)) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRequirementsAt}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationRequirement)}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationRequirementsAtChunks ((items).chunks) (offset) (64)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRecordsShape}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (LexLeanRuntime.equal ((LexLeanRuntime.length (chunks) : Nat)) (0) : Bool) | Nat.succ rest => (match chunks with | List.nil => true | List.cons head tail => ((Nat.blt (0) ((LexLeanRuntime.length ((head).entries) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length ((head).entries) : Nat)) (256)) \&\& ((match (LexLeanRuntime.equal ((LexLeanRuntime.length (tail) : Nat)) (0) : Bool) with | Bool.false => (LexLeanRuntime.equal ((LexLeanRuntime.length ((head).entries) : Nat)) (256) : Bool) | Bool.true => true) \&\& (publicationLinkagePublicationRecordsShape (tail) (rest) \&\& true))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRecordsCanonical}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationRecordsShape ((items).chunks) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRecordsCountChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => 0 | Nat.succ rest => (match chunks with | List.nil => 0 | List.cons head tail => ((LexLeanRuntime.length ((head).entries) : Nat) + publicationLinkagePublicationRecordsCountChunks (tail) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRecordsCount}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationRecordsCountChunks ((items).chunks) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRecordsAtChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationRecord)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => Option.none | Nat.succ rest => (match chunks with | List.nil => Option.none | List.cons head tail => (if (Nat.blt (offset) (256)) then (LexLeanRuntime.index ((head).entries) (offset) : Option (PublicationRecord)) else publicationLinkagePublicationRecordsAtChunks (tail) ((LexLeanRuntime.subtract (offset) (256) : Nat)) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationRecordsAt}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationRecord)}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationRecordsAtChunks ((items).chunks) (offset) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationFilesShape}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (LexLeanRuntime.equal ((LexLeanRuntime.length (chunks) : Nat)) (0) : Bool) | Nat.succ rest => (match chunks with | List.nil => true | List.cons head tail => ((Nat.blt (0) ((LexLeanRuntime.length ((head).entries) : Nat))) \&\& ((Nat.ble ((LexLeanRuntime.length ((head).entries) : Nat)) (256)) \&\& ((match (LexLeanRuntime.equal ((LexLeanRuntime.length (tail) : Nat)) (0) : Bool) with | Bool.false => (LexLeanRuntime.equal ((LexLeanRuntime.length ((head).entries) : Nat)) (256) : Bool) | Bool.true => true) \&\& (publicationLinkagePublicationFilesShape (tail) (rest) \&\& true))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationFilesCanonical}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationFilesShape ((items).chunks) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationFilesCountChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => 0 | Nat.succ rest => (match chunks with | List.nil => 0 | List.cons head tail => ((LexLeanRuntime.length ((head).entries) : Nat) + publicationLinkagePublicationFilesCountChunks (tail) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationFilesCount}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationFilesCountChunks ((items).chunks) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationFilesAtChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationFile)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => Option.none | Nat.succ rest => (match chunks with | List.nil => Option.none | List.cons head tail => (if (Nat.blt (offset) (256)) then (LexLeanRuntime.index ((head).entries) (offset) : Option (PublicationFile)) else publicationLinkagePublicationFilesAtChunks (tail) ((LexLeanRuntime.subtract (offset) (256) : Nat)) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkagePublicationFilesAt}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationFile)}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationFilesAtChunks ((items).chunks) (offset) (256)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageTextLess}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(LexLeanRuntime.equal ((LexLeanRuntime.compareBytes ((LexLeanRuntime.utf8Encode (left) : ByteArray)) ((LexLeanRuntime.utf8Encode (right) : ByteArray)) : Ordering)) ((LexLeanRuntime.compareBytes (ByteArray.mk \#[0]) (ByteArray.mk \#[1]) : Ordering)) : Bool)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{PublicationScan}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{publicationLinkagePublicationIdsScanRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (items) : Nat)) (0) : Bool) with | Bool.false => (\{ valid := false, previous := "", count := 0 \} : PublicationScan) | Bool.true => state) | Nat.succ rest => (match items with | List.nil => state | List.cons head tail => publicationLinkagePublicationIdsScanRows (tail) ((\{ valid := ((state).valid \&\& (publicationLinkageTextValid (head) (128) \&\& (publicationLinkageTextLess ((state).previous) (head) \&\& (true \&\& ((Nat.ble (((state).count + 1)) (65536)) \&\& true))))), previous := head, count := ((state).count + 1) \} : PublicationScan)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationIdsScanChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (chunks) : Nat)) (0) : Bool) with | Bool.false => (\{ valid := false, previous := "", count := 0 \} : PublicationScan) | Bool.true => state) | Nat.succ rest => (match chunks with | List.nil => state | List.cons head tail => publicationLinkagePublicationIdsScanChunks (tail) (publicationLinkagePublicationIdsScanRows ((head).entries) (state) (256)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationIdsScan}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationIdsScanChunks ((items).chunks) ((\{ valid := true, previous := "", count := 0 \} : PublicationScan)) (256)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationIdsValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(publicationLinkagePublicationIdsCanonical (items) \&\& ((publicationLinkagePublicationIdsScan (items)).valid \&\& true))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationRecordsScanRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (items) : Nat)) (0) : Bool) with | Bool.false => (\{ valid := false, previous := "", count := 0 \} : PublicationScan) | Bool.true => state) | Nat.succ rest => (match items with | List.nil => state | List.cons head tail => publicationLinkagePublicationRecordsScanRows (tail) ((\{ valid := ((state).valid \&\& (publicationLinkageTextValid ((head).id) (2048) \&\& (publicationLinkageTextLess ((state).previous) ((head).id) \&\& (publicationLinkageDigestValid ((head).digest) \&\& ((Nat.ble (((state).count + 1)) (65536)) \&\& true))))), previous := (head).id, count := ((state).count + 1) \} : PublicationScan)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationRecordsScanChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (chunks) : Nat)) (0) : Bool) with | Bool.false => (\{ valid := false, previous := "", count := 0 \} : PublicationScan) | Bool.true => state) | Nat.succ rest => (match chunks with | List.nil => state | List.cons head tail => publicationLinkagePublicationRecordsScanChunks (tail) (publicationLinkagePublicationRecordsScanRows ((head).entries) (state) (256)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationRecordsScan}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationRecordsScanChunks ((items).chunks) ((\{ valid := true, previous := "", count := 0 \} : PublicationScan)) (256)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationRecordsValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(publicationLinkagePublicationRecordsCanonical (items) \&\& ((publicationLinkagePublicationRecordsScan (items)).valid \&\& true))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationFilesScanRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (items) : Nat)) (0) : Bool) with | Bool.false => (\{ valid := false, previous := "", count := 0 \} : PublicationScan) | Bool.true => state) | Nat.succ rest => (match items with | List.nil => state | List.cons head tail => publicationLinkagePublicationFilesScanRows (tail) ((\{ valid := ((state).valid \&\& (publicationLinkageTextValid ((head).path) (2048) \&\& (publicationLinkageTextLess ((state).previous) ((head).path) \&\& (publicationLinkageDigestValid ((head).digest) \&\& ((Nat.ble (((state).count + 1)) (65536)) \&\& true))))), previous := (head).path, count := ((state).count + 1) \} : PublicationScan)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationFilesScanChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (chunks) : Nat)) (0) : Bool) with | Bool.false => (\{ valid := false, previous := "", count := 0 \} : PublicationScan) | Bool.true => state) | Nat.succ rest => (match chunks with | List.nil => state | List.cons head tail => publicationLinkagePublicationFilesScanChunks (tail) (publicationLinkagePublicationFilesScanRows ((head).entries) (state) (256)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationFilesScan}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationFilesScanChunks ((items).chunks) ((\{ valid := true, previous := "", count := 0 \} : PublicationScan)) (256)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationFilesValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(publicationLinkagePublicationFilesCanonical (items) \&\& ((publicationLinkagePublicationFilesScan (items)).valid \&\& true))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationServicesScanRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (items) : Nat)) (0) : Bool) with | Bool.false => (\{ valid := false, previous := "", count := 0 \} : PublicationScan) | Bool.true => state) | Nat.succ rest => (match items with | List.nil => state | List.cons head tail => publicationLinkagePublicationServicesScanRows (tail) ((\{ valid := ((state).valid \&\& (publicationLinkageTextValid ((head).id) (128) \&\& (publicationLinkageTextLess ((state).previous) ((head).id) \&\& ((publicationLinkagePublicationIdsValid ((head).components) \&\& ((Nat.blt (0) (publicationLinkagePublicationIdsCount ((head).components))) \&\& true)) \&\& ((Nat.ble (((state).count + publicationLinkagePublicationIdsCount ((head).components))) (65536)) \&\& true))))), previous := (head).id, count := ((state).count + publicationLinkagePublicationIdsCount ((head).components)) \} : PublicationScan)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationServicesScanChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (chunks) : Nat)) (0) : Bool) with | Bool.false => (\{ valid := false, previous := "", count := 0 \} : PublicationScan) | Bool.true => state) | Nat.succ rest => (match chunks with | List.nil => state | List.cons head tail => publicationLinkagePublicationServicesScanChunks (tail) (publicationLinkagePublicationServicesScanRows ((head).entries) (state) (256)) (rest)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationServicesScan}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationScan}.\par
+\noindent Definition: \texttt{publicationLinkagePublicationServicesScanChunks ((items).chunks) ((\{ valid := true, previous := "", count := 0 \} : PublicationScan)) (256)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkagePublicationServicesValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(publicationLinkagePublicationServicesCanonical (items) \&\& ((publicationLinkagePublicationServicesScan (items)).valid \&\& true))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageSelectorValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match selector with | PublicationInputSelector.BuildFile path => publicationLinkageTextValid (path) (2048) | PublicationInputSelector.SourceMember member => publicationLinkageMemberValid (member) | PublicationInputSelector.Target => true)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageRequirementValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{((Nat.blt (0) ((requirement).obligation)) \&\& ((Nat.ble ((requirement).obligation) (4294967295)) \&\& (publicationLinkageMemberValid ((requirement).member) \&\& ((match (requirement).requirement with | PublicationRequirementValue.Proof proof => publicationLinkageMemberValid ((proof).<U+00AB>theorem<U+00BB>) | PublicationRequirementValue.Execution execution => (publicationLinkageTextValid ((execution).oracle) (128) \&\& (publicationLinkageSelectorValid ((execution).input) \&\& (publicationLinkageDigestValid ((execution).suite) \&\& true))) | PublicationRequirementValue.Assessment assessment => (publicationLinkageTextValid ((assessment).criterion) (2048) \&\& (publicationLinkageTextValid ((assessment).subject) (2048) \&\& true))) \&\& true))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageRequirementsScan}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => true | Nat.succ rest => (match publicationLinkagePublicationRequirementsAt (items) ((LexLeanRuntime.subtract (4095) (rest) : Nat)) with | Option.none => true | Option.some item => (publicationLinkageRequirementValid (item) \&\& ((Nat.blt (previous) ((item).obligation)) \&\& (publicationLinkageRequirementsScan (items) ((item).obligation) (rest) \&\& true)))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageRequirementsValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(publicationLinkagePublicationRequirementsCanonical (items) \&\& ((Nat.ble (2) (publicationLinkagePublicationRequirementsCount (items))) \&\& (publicationLinkageRequirementsScan (items) (0) (4096) \&\& true)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageSourceValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(publicationLinkageDigestValid ((link).snapshot) \&\& (publicationLinkageDigestValid ((link).source) \&\& (publicationLinkageDigestValid ((link).semantic) \&\& (publicationLinkageDigestValid ((link).compiler) \&\& (publicationLinkageDigestValid ((link).moduleSource) \&\& (publicationLinkageDigestValid ((link).system) \&\& (publicationLinkageMemberValid ((link).closureMember) \&\& (publicationLinkageMemberValid ((link).systemMember) \&\& (publicationLinkageTextValid ((link).target) (128) \&\& true)))))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageSmallRecordRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (LexLeanRuntime.equal ((LexLeanRuntime.length (items) : Nat)) (0) : Bool) | Nat.succ rest => (match items with | List.nil => true | List.cons head tail => (publicationLinkageTextValid ((head).id) (128) \&\& (publicationLinkageSmallRecordRows (tail) (rest) \&\& true))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageSmallRecordChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (LexLeanRuntime.equal ((LexLeanRuntime.length (chunks) : Nat)) (0) : Bool) | Nat.succ rest => (match chunks with | List.nil => true | List.cons head tail => (publicationLinkageSmallRecordRows ((head).entries) (256) \&\& (publicationLinkageSmallRecordChunks (tail) (rest) \&\& true))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageMetadataValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(publicationLinkageMemberValid ((closure).system) \&\& (publicationLinkageTextValid ((closure).target) (128) \&\& (PrismPM.Production.PublicationAdmission.V1.publicationDeclarationValid ((closure).declaration) \&\& (publicationLinkagePublicationServicesValid ((closure).services) \&\& ((Nat.blt (0) (publicationLinkagePublicationServicesCount ((closure).services))) \&\& (publicationLinkagePublicationIdsValid ((closure).controls) \&\& (publicationLinkageRequirementsValid ((closure).requirements) \&\& (publicationLinkageSourceValid ((capture).sourceLink) \&\& (publicationLinkagePublicationRecordsValid ((capture).components) \&\& (publicationLinkagePublicationRecordsValid ((capture).controls) \&\& (publicationLinkagePublicationRecordsValid ((capture).dependencies) \&\& (publicationLinkageSmallRecordChunks (((capture).components).chunks) (256) \&\& (publicationLinkageSmallRecordChunks (((capture).controls).chunks) (256) \&\& (publicationLinkagePublicationFilesValid ((capture).verificationFiles) \&\& (publicationLinkagePublicationFilesValid ((capture).browserFiles) \&\& (publicationLinkagePublicationFilesValid ((capture).oracleAttestations) \&\& (publicationLinkageDigestValid ((capture).provenance) \&\& (publicationLinkageDigestValid ((capture).sdkLock) \&\& (publicationLinkageDigestValid ((capture).standardsLock) \&\& (publicationLinkageDigestValid ((capture).lexleanBuildManifest) \&\& (publicationLinkageDigestValid ((capture).lexleanAttestation) \&\& (publicationLinkageDigestValid ((capture).buildManifest) \&\& (publicationLinkageDigestValid ((capture).verificationManifest) \&\& (publicationLinkageDigestValid ((capture).releaseValidation) \&\& true))))))))))))))))))))))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageRecordCompareRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (Nat)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => Option.none | Nat.succ rest => (match rows with | List.nil => Option.none | List.cons head tail => (match (Nat.beq (index) (0)) with | Bool.false => publicationLinkageRecordCompareRows (tail) (id) ((LexLeanRuntime.subtract (index) (1) : Nat)) (rest) | Bool.true => Option.some ((match publicationLinkageTextLess (id) ((head).id) with | Bool.false => (match publicationLinkageTextLess ((head).id) (id) with | Bool.false => 1 | Bool.true => 2) | Bool.true => 0)))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageRecordCompareChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (Nat)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => Option.none | Nat.succ rest => (match chunks with | List.nil => Option.none | List.cons head tail => (match (Nat.blt (index) (256)) with | Bool.false => publicationLinkageRecordCompareChunks (tail) (id) ((LexLeanRuntime.subtract (index) (256) : Nat)) (rest) | Bool.true => publicationLinkageRecordCompareRows ((head).entries) (id) (index) (256))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageRecordCompareAt}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (Nat)}.\par
+\noindent Definition: \texttt{publicationLinkageRecordCompareChunks ((records).chunks) (id) (index) (256)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageRecordIndex}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (Nat)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => Option.none | Nat.succ rest => (match (Nat.blt (lower) (upper)) with | Bool.false => Option.none | Bool.true => (match publicationLinkageRecordCompareAt (records) (id) ((LexLeanRuntime.quotient ((lower + upper)) (2) (0) : Nat)) with | Option.none => Option.none | Option.some order => (match (Nat.beq (order) (0)) with | Bool.false => (match (Nat.beq (order) (1)) with | Bool.false => publicationLinkageRecordIndex (records) (id) (((LexLeanRuntime.quotient ((lower + upper)) (2) (0) : Nat) + 1)) (upper) (rest) | Bool.true => Option.some ((LexLeanRuntime.quotient ((lower + upper)) (2) (0) : Nat))) | Bool.true => publicationLinkageRecordIndex (records) (id) (lower) ((LexLeanRuntime.quotient ((lower + upper)) (2) (0) : Nat)) (rest)))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageZeroMarks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{ByteArray}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => ByteArray.mk \#[0] | Nat.succ rest => (LexLeanRuntime.append (publicationLinkageZeroMarks (rest)) (publicationLinkageZeroMarks (rest)) : ByteArray))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageMark}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(match (LexLeanRuntime.slice (marks) (offset) (1) : Option (ByteArray)) with | Option.none => Option.none | Option.some item => (match (LexLeanRuntime.equal (item) (ByteArray.mk \#[0]) : Bool) with | Bool.false => Option.none | Bool.true => (match (LexLeanRuntime.slice (marks) (0) (offset) : Option (ByteArray)) with | Option.none => Option.none | Option.some before => (match (LexLeanRuntime.slice (marks) ((offset + 1)) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (marks) : Nat)) ((offset + 1)) : Nat)) : Option (ByteArray)) with | Option.none => Option.none | Option.some after => Option.some ((LexLeanRuntime.append ((LexLeanRuntime.append (before) (ByteArray.mk \#[1]) : ByteArray)) (after) : ByteArray))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{PublicationIndexBatch}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{publicationLinkageCollectRowsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationIndexBatch}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (items) : Nat)) (offset) : Bool) with | Bool.false => (\{ indices := ([] : List (Nat)), valid := false \} : PublicationIndexBatch) | Bool.true => (\{ indices := indices, valid := true \} : PublicationIndexBatch)) | Nat.succ rest => (match (LexLeanRuntime.index (items) (offset) : Option (String)) with | Option.none => (\{ indices := indices, valid := true \} : PublicationIndexBatch) | Option.some head => (match publicationLinkageRecordIndex (records) (head) (0) (publicationLinkagePublicationRecordsCount (records)) (17) with | Option.none => (\{ indices := ([] : List (Nat)), valid := false \} : PublicationIndexBatch) | Option.some index => publicationLinkageCollectRowsAcc (items) (records) ((offset + 1)) ((LexLeanRuntime.append (indices) ((index :: ([] : List (Nat)))) : List (Nat))) (rest))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageCollectIdChunksAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationIndexBatch}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (items) : Nat)) (offset) : Bool) with | Bool.false => (\{ indices := ([] : List (Nat)), valid := false \} : PublicationIndexBatch) | Bool.true => (\{ indices := indices, valid := true \} : PublicationIndexBatch)) | Nat.succ rest => (match (LexLeanRuntime.index (items) (offset) : Option (PublicationIdsChunk)) with | Option.none => (\{ indices := indices, valid := true \} : PublicationIndexBatch) | Option.some head => (match publicationLinkageCollectRowsAcc ((head).entries) (records) (0) (([] : List (Nat))) (256) with | PublicationIndexBatch.mk following valid => (match valid with | Bool.false => (\{ indices := ([] : List (Nat)), valid := false \} : PublicationIndexBatch) | Bool.true => publicationLinkageCollectIdChunksAcc (items) (records) ((offset + 1)) ((LexLeanRuntime.append (indices) (following) : List (Nat))) (rest)))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageCollectServiceRowsAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationIndexBatch}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (items) : Nat)) (offset) : Bool) with | Bool.false => (\{ indices := ([] : List (Nat)), valid := false \} : PublicationIndexBatch) | Bool.true => (\{ indices := indices, valid := true \} : PublicationIndexBatch)) | Nat.succ rest => (match (LexLeanRuntime.index (items) (offset) : Option (PublicationService)) with | Option.none => (\{ indices := indices, valid := true \} : PublicationIndexBatch) | Option.some head => (match publicationLinkageCollectIdChunksAcc (((head).components).chunks) (records) (0) (([] : List (Nat))) (256) with | PublicationIndexBatch.mk following valid => (match valid with | Bool.false => (\{ indices := ([] : List (Nat)), valid := false \} : PublicationIndexBatch) | Bool.true => publicationLinkageCollectServiceRowsAcc (items) (records) ((offset + 1)) ((LexLeanRuntime.append (indices) (following) : List (Nat))) (rest)))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageCollectServiceChunksAcc}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{PublicationIndexBatch}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal ((LexLeanRuntime.length (items) : Nat)) (offset) : Bool) with | Bool.false => (\{ indices := ([] : List (Nat)), valid := false \} : PublicationIndexBatch) | Bool.true => (\{ indices := indices, valid := true \} : PublicationIndexBatch)) | Nat.succ rest => (match (LexLeanRuntime.index (items) (offset) : Option (PublicationServicesChunk)) with | Option.none => (\{ indices := indices, valid := true \} : PublicationIndexBatch) | Option.some head => (match publicationLinkageCollectServiceRowsAcc ((head).entries) (records) (0) (([] : List (Nat))) (256) with | PublicationIndexBatch.mk following valid => (match valid with | Bool.false => (\{ indices := ([] : List (Nat)), valid := false \} : PublicationIndexBatch) | Bool.true => publicationLinkageCollectServiceChunksAcc (items) (records) ((offset + 1)) ((LexLeanRuntime.append (indices) (following) : List (Nat))) (rest)))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageCollectRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (List (Nat))}.\par
+\noindent Definition: \texttt{(match publicationLinkageCollectRowsAcc (items) (records) (0) (([] : List (Nat))) (fuel) with | PublicationIndexBatch.mk indices valid => (match valid with | Bool.false => Option.none | Bool.true => Option.some (indices)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageCollectIdChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (List (Nat))}.\par
+\noindent Definition: \texttt{(match publicationLinkageCollectIdChunksAcc (items) (records) (0) (([] : List (Nat))) (fuel) with | PublicationIndexBatch.mk indices valid => (match valid with | Bool.false => Option.none | Bool.true => Option.some (indices)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageCollectServiceRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (List (Nat))}.\par
+\noindent Definition: \texttt{(match publicationLinkageCollectServiceRowsAcc (items) (records) (0) (([] : List (Nat))) (fuel) with | PublicationIndexBatch.mk indices valid => (match valid with | Bool.false => Option.none | Bool.true => Option.some (indices)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageCollectServiceChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (List (Nat))}.\par
+\noindent Definition: \texttt{(match publicationLinkageCollectServiceChunksAcc (items) (records) (0) (([] : List (Nat))) (fuel) with | PublicationIndexBatch.mk indices valid => (match valid with | Bool.false => Option.none | Bool.true => Option.some (indices)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{publicationLinkageBucketRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => Option.some (marks) | Nat.succ rest => (match (LexLeanRuntime.index (indices) (offset) : Option (Nat)) with | Option.none => Option.some (marks) | Option.some index => (if ((Nat.ble (lower) (index)) \&\& (Nat.blt (index) ((lower + 256)))) then (match publicationLinkageMark (marks) ((LexLeanRuntime.subtract (index) (lower) : Nat)) with | Option.none => Option.none | Option.some next => publicationLinkageBucketRows (indices) ((offset + 1)) (lower) (next) (rest)) else publicationLinkageBucketRows (indices) ((offset + 1)) (lower) (marks) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageBucketChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (if (Nat.ble ((LexLeanRuntime.length (indices) : Nat)) (offset)) then Option.some (marks) else Option.none) | Nat.succ rest => (if (Nat.ble ((LexLeanRuntime.length (indices) : Nat)) (offset)) then Option.some (marks) else (match publicationLinkageBucketRows (indices) (offset) (lower) (marks) (256) with | Option.none => Option.none | Option.some next => publicationLinkageBucketChunks (indices) ((offset + 256)) (lower) (next) (rest))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageBuckets}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (Nat.ble (upper) (lower)) | Nat.succ rest => (if (Nat.ble (upper) (lower)) then true else (match publicationLinkageBucketChunks (indices) (0) (lower) (publicationLinkageZeroMarks (8)) (256) with | Option.none => false | Option.some marks => ((LexLeanRuntime.equal ((LexLeanRuntime.length (marks) : Nat)) (256) : Bool) \&\& publicationLinkageBuckets (indices) ((lower + 256)) (upper) (rest)))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{PublicationBitMarks}}
+\noindent Kind: \texttt{structure}.\par
+\subsection*{\texttt{publicationLinkageBitMaskLoop}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (UInt64)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (match (LexLeanRuntime.equal (remaining) (0) : Bool) with | Bool.false => Option.none | Bool.true => Option.some (mask)) | Nat.succ rest => (match remaining with | Nat.zero => Option.some (mask) | Nat.succ next => (match (LexLeanRuntime.shiftLeft (mask) ((1 : UInt32)) : Option (UInt64)) with | Option.none => Option.none | Option.some shifted => publicationLinkageBitMaskLoop (next) (shifted) (rest))))}.\par
+\noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageBitMark}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationBitMarks)}.\par
+\noindent Definition: \texttt{(match (Nat.blt (offset) (256)) with | Bool.false => Option.none | Bool.true => (match publicationLinkageBitMaskLoop ((LexLeanRuntime.remainder (offset) (64) (0) : Nat)) ((1 : UInt64)) (63) with | Option.none => Option.none | Option.some mask => (match (Nat.blt (offset) (64)) with | Bool.false => (match (Nat.blt (offset) (128)) with | Bool.false => (match (Nat.blt (offset) (192)) with | Bool.false => (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd ((marks).word3) (mask) : UInt64)) ((0 : UInt64)) : Bool) with | Bool.false => Option.none | Bool.true => Option.some ((\{ word0 := (marks).word0, word1 := (marks).word1, word2 := (marks).word2, word3 := (LexLeanRuntime.bitOr ((marks).word3) (mask) : UInt64) \} : PublicationBitMarks))) | Bool.true => (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd ((marks).word2) (mask) : UInt64)) ((0 : UInt64)) : Bool) with | Bool.false => Option.none | Bool.true => Option.some ((\{ word0 := (marks).word0, word1 := (marks).word1, word2 := (LexLeanRuntime.bitOr ((marks).word2) (mask) : UInt64), word3 := (marks).word3 \} : PublicationBitMarks)))) | Bool.true => (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd ((marks).word1) (mask) : UInt64)) ((0 : UInt64)) : Bool) with | Bool.false => Option.none | Bool.true => Option.some ((\{ word0 := (marks).word0, word1 := (LexLeanRuntime.bitOr ((marks).word1) (mask) : UInt64), word2 := (marks).word2, word3 := (marks).word3 \} : PublicationBitMarks)))) | Bool.true => (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd ((marks).word0) (mask) : UInt64)) ((0 : UInt64)) : Bool) with | Bool.false => Option.none | Bool.true => Option.some ((\{ word0 := (LexLeanRuntime.bitOr ((marks).word0) (mask) : UInt64), word1 := (marks).word1, word2 := (marks).word2, word3 := (marks).word3 \} : PublicationBitMarks))))))}.\par
+\noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageBitWordCovered}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match (Nat.ble (64) (width)) with | Bool.false => (match publicationLinkageBitMaskLoop (width) ((1 : UInt64)) (63) with | Option.none => false | Option.some mask => (match (LexLeanRuntime.checkedSubtract (mask) ((1 : UInt64)) : Option (UInt64)) with | Option.none => false | Option.some expected => (LexLeanRuntime.equal (word) (expected) : Bool))) | Bool.true => (LexLeanRuntime.equal (word) ((18446744073709551615 : UInt64)) : Bool))}.\par
+\noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageBitMarksCovered}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(publicationLinkageBitWordCovered ((marks).word0) ((LexLeanRuntime.subtract (width) (0) : Nat)) \&\& (publicationLinkageBitWordCovered ((marks).word1) ((LexLeanRuntime.subtract (width) (64) : Nat)) \&\& (publicationLinkageBitWordCovered ((marks).word2) ((LexLeanRuntime.subtract (width) (128) : Nat)) \&\& (publicationLinkageBitWordCovered ((marks).word3) ((LexLeanRuntime.subtract (width) (192) : Nat)) \&\& true))))}.\par
+\noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageBitRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationBitMarks)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => Option.some (marks) | Nat.succ rest => (match (LexLeanRuntime.index (indices) (offset) : Option (Nat)) with | Option.none => Option.some (marks) | Option.some index => (if ((Nat.ble (lower) (index)) \&\& (Nat.blt (index) ((lower + 256)))) then (match publicationLinkageBitMark (marks) ((LexLeanRuntime.subtract (index) (lower) : Nat)) with | Option.none => Option.none | Option.some next => publicationLinkageBitRows (indices) ((offset + 1)) (lower) (next) (rest)) else publicationLinkageBitRows (indices) ((offset + 1)) (lower) (marks) (rest))))}.\par
+\noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageBitChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationBitMarks)}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (if (Nat.ble ((LexLeanRuntime.length (indices) : Nat)) (offset)) then Option.some (marks) else Option.none) | Nat.succ rest => (if (Nat.ble ((LexLeanRuntime.length (indices) : Nat)) (offset)) then Option.some (marks) else (match publicationLinkageBitRows (indices) (offset) (lower) (marks) (256) with | Option.none => Option.none | Option.some next => publicationLinkageBitChunks (indices) ((offset + 256)) (lower) (next) (rest))))}.\par
+\noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageBitBuckets}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (Nat.ble (upper) (lower)) | Nat.succ rest => (if (Nat.ble (upper) (lower)) then true else (match publicationLinkageBitChunks (indices) (0) (lower) ((\{ word0 := (0 : UInt64), word1 := (0 : UInt64), word2 := (0 : UInt64), word3 := (0 : UInt64) \} : PublicationBitMarks)) (256) with | Option.none => false | Option.some \_ => publicationLinkageBitBuckets (indices) ((lower + 256)) (upper) (rest))))}.\par
+\noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageServicesPartition}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{((LexLeanRuntime.equal ((publicationLinkagePublicationServicesScan (services)).count) (publicationLinkagePublicationRecordsCount (records)) : Bool) \&\& (match publicationLinkageCollectServiceChunks ((services).chunks) (records) (256) with | Option.none => false | Option.some indices => publicationLinkageBitBuckets (indices) (0) (publicationLinkagePublicationRecordsCount (records)) (256)))}.\par
+\noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
+\subsection*{\texttt{publicationLinkageControlsScan}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => true | Nat.succ rest => (match publicationLinkagePublicationIdsAt (ids) ((LexLeanRuntime.subtract (65535) (rest) : Nat)) with | Option.none => true | Option.some control => (match publicationLinkagePublicationRecordsAt (records) ((LexLeanRuntime.subtract (65535) (rest) : Nat)) with | Option.none => false | Option.some row => ((LexLeanRuntime.equal (control) ((row).id) : Bool) \&\& (publicationLinkageControlsScan (ids) (records) (rest) \&\& true)))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageControlsPartition}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{((LexLeanRuntime.equal (publicationLinkagePublicationIdsCount (ids)) (publicationLinkagePublicationRecordsCount (records)) : Bool) \&\& (publicationLinkageControlsScan (ids) (records) (65536) \&\& true))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageManifestScan}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => false | Nat.succ rest => (match publicationLinkagePublicationFilesAt (files) ((LexLeanRuntime.subtract (65535) (rest) : Nat)) with | Option.none => false | Option.some item => (match (LexLeanRuntime.equal ((item).path) ("manifest.json") : Bool) with | Bool.false => publicationLinkageManifestScan (files) (manifest) (rest) | Bool.true => (LexLeanRuntime.equal ((item).digest) (manifest) : Bool))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageRequirementPrefixRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (LexLeanRuntime.equal (remaining) (0) : Bool) | Nat.succ rest => (if (LexLeanRuntime.equal (remaining) (0) : Bool) then true else (match items with | List.nil => false | List.cons head tail => ((!publicationLinkageMemberEqual (member) ((head).member)) \&\& publicationLinkageRequirementPrefixRows (tail) (member) ((LexLeanRuntime.subtract (remaining) (1) : Nat)) (rest)))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageRequirementPrefixChunks}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (LexLeanRuntime.equal (remaining) (0) : Bool) | Nat.succ rest => (if (LexLeanRuntime.equal (remaining) (0) : Bool) then true else (match items with | List.nil => false | List.cons head tail => (if (Nat.ble (remaining) (64)) then publicationLinkageRequirementPrefixRows ((head).entries) (member) (remaining) (64) else (publicationLinkageRequirementPrefixRows ((head).entries) (member) (64) (64) \&\& publicationLinkageRequirementPrefixChunks (tail) (member) ((LexLeanRuntime.subtract (remaining) (64) : Nat)) (rest))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageRequirementMemberAbsent}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{publicationLinkageRequirementPrefixChunks ((requirements).chunks) (member) (fuel) (64)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageRequirementKind}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match value with | PublicationRequirementValue.Proof \_ => PrismPM.Production.PublicationAdmission.V1.publicationPublicationAssuranceEqual (assurance) (PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.SourceProof) | PublicationRequirementValue.Execution \_ => (!(match assurance with | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.SourceProof => true | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.HumanAssessment => true | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.OperationalAssessment => true | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.Oracle => false | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.ReproducibleBuild => false | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.BrowserJourney => false | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.FaultRecovery => false | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.LiveJourney => false)) | PublicationRequirementValue.Assessment \_ => (match assurance with | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.HumanAssessment => true | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.OperationalAssessment => true | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.SourceProof => false | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.Oracle => false | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.ReproducibleBuild => false | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.BrowserJourney => false | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.FaultRecovery => false | PrismPM.Production.PublicationAdmission.V1.PublicationAssurance.LiveJourney => false))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageRequirementsMatch}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => true | Nat.succ rest => (match publicationLinkagePublicationRequirementsAt (requirements) ((LexLeanRuntime.subtract (4095) (rest) : Nat)) with | Option.none => (!PrismPM.Production.PublicationAdmission.V1.publicationPublicationObligationsHas (obligations) ((LexLeanRuntime.subtract (4095) (rest) : Nat))) | Option.some requirement => (match PrismPM.Production.PublicationAdmission.V1.publicationPublicationObligationsAt (obligations) ((LexLeanRuntime.subtract (4095) (rest) : Nat)) with | Option.none => false | Option.some obligation => ((LexLeanRuntime.equal ((requirement).obligation) ((obligation).id) : Bool) \&\& (publicationLinkageRequirementMemberAbsent (requirements) ((requirement).member) ((LexLeanRuntime.subtract (4095) (rest) : Nat)) \&\& (publicationLinkageRequirementKind ((requirement).requirement) ((obligation).assurance) \&\& (publicationLinkageRequirementsMatch (requirements) (obligations) (rest) \&\& true)))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{publicationLinkageValidate}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Option (PublicationLinkageError)}.\par
+\noindent Definition: \texttt{(match publicationLinkageMetadataValid (closure) (capture) with | Bool.false => Option.some (PublicationLinkageError.InvalidMetadata) | Bool.true => (match (publicationLinkageMemberEqual ((closure).system) (((capture).sourceLink).systemMember) \&\& ((LexLeanRuntime.equal ((closure).target) (((capture).sourceLink).target) : Bool) \&\& true)) with | Bool.false => Option.some (PublicationLinkageError.SourceMismatch) | Bool.true => (match (publicationLinkageServicesPartition ((closure).services) ((capture).components) \&\& (publicationLinkageControlsPartition ((closure).controls) ((capture).controls) \&\& (publicationLinkageManifestScan ((capture).verificationFiles) ((capture).verificationManifest) (65536) \&\& true))) with | Bool.false => Option.some (PublicationLinkageError.InventoryMismatch) | Bool.true => (match publicationLinkageRequirementsMatch ((closure).requirements) (((closure).declaration).obligations) (4096) with | Bool.false => Option.some (PublicationLinkageError.RequirementMismatch) | Bool.true => Option.none))))}.\par
+\noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
+\end{document}

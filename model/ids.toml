@@ -211,6 +211,18 @@ level = "build"
 statement = "The modeled browser-surface wire codec preserves legacy bytes, reproduces pinned upstream framing in generated std and no_std code, and rejects malformed or mixed profiles without granting browser authority."
 
 [[id]]
+id = "HO-14"
+suite = "holo"
+level = "build"
+statement = "Pinned BLAKE3 vectors qualify every imported digest mode, streaming partition and content-identity result without claiming cryptographic proof or durable native storage."
+
+[[id]]
+id = "HO-15"
+suite = "holo"
+level = "build"
+statement = "The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application."
+
+[[id]]
 id = "CT-01"
 suite = "controller"
 level = "build"
@@ -371,6 +383,12 @@ id = "ST-16"
 suite = "stdlib"
 level = "build"
 statement = "The internal bounded CBOR primitive profile preserves deterministic encoding, typed cursor limits and strict UTF-8 through generated native and bounded Wasm execution."
+
+[[id]]
+id = "ST-17"
+suite = "stdlib"
+level = "build"
+statement = "The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox."
 
 [[id]]
 id = "AR-01"
@@ -649,6 +667,12 @@ level = "build"
 statement = "Official positive and negative corpora plus Prism mutations detect stale, bypassed, changed, or always-passing oracles."
 
 [[id]]
+id = "AU-07"
+suite = "authorities"
+level = "build"
+statement = "The imported OSCAL JSON structural oracle executes complete pinned schema corpora and bounded subject-capture adversaries without claiming implemented controls or whole-standard acceptance."
+
+[[id]]
 id = "SY-01"
 suite = "system"
 level = "build"
@@ -847,6 +871,12 @@ level = "build"
 statement = "Private modeled credential custody binds immutable application policy, complete logical key slots and exact signing resources to atomic nonextractable browser key creation and validated reopening without key export, silent replacement or account authority."
 
 [[id]]
+id = "DK-26"
+suite = "sdk"
+level = "build"
+statement = "The private generated session kernel binds visible ordinary intents, admitted authority facts and exact effect continuations while separating durable application state from volatile presentation and retaining uncertain or closed pending work without claiming host durability or public runtime acceptance."
+
+[[id]]
 id = "DK-27"
 suite = "sdk"
 level = "build"
@@ -857,6 +887,60 @@ id = "DK-28"
 suite = "sdk"
 level = "build"
 statement = "SDK lock acquisition validates exact OCI metadata graphs and a closed terminal filesystem layer under explicit resource and credential bounds without full-image fallback or implying executable or release acceptance."
+
+[[id]]
+id = "DK-29"
+suite = "sdk"
+level = "build"
+statement = "Native exporter acquisition binds bounded fresh compiler seeds to independent SDK inventory authority and actual child measurements without replacing cold construction, actual exports or application acceptance."
+
+[[id]]
+id = "DK-30"
+suite = "sdk"
+level = "build"
+statement = "The internal native-lane reducer preserves exact operation identity, finite sequencing and conditional cleanup transitions in generated std/no_std execution and import-free Wasm corpus probes without granting OS authority or claiming native application acceptance."
+
+[[id]]
+id = "DK-31"
+suite = "sdk"
+level = "build"
+statement = "Private source-owned dynamic choice names preserve bounded plain text, unique stable option identifiers, source order and exact selection through generated native/Wasm and browser execution without changing catalogue-based choices or granting authority."
+
+[[id]]
+id = "DK-32"
+suite = "sdk"
+level = "build"
+statement = "Private source-owned signed contexts bind exact expected statements and keys to actual cryptographic verification and opaque captured evidence through complete generated and browser oracles without granting account, mailbox, organization or freshness authority."
+
+[[id]]
+id = "DK-33"
+suite = "sdk"
+level = "build"
+statement = "Private source-owned account genesis preserves an immutable namespace, nonce and initial key in canonical domain-separated identity bytes without conflating account identity with signatures, current credentials, deployment revisions or authority."
+
+[[id]]
+id = "DK-34"
+suite = "sdk"
+level = "build"
+statement = "Private source-owned P-256 public-key validation checks complete uncompressed SEC1 points with bounded generated field arithmetic and authoritative key-validation vectors before account or signature admission without claiming possession, authority or cryptographic certification."
+
+[[id]]
+id = "DK-37"
+suite = "sdk"
+level = "build"
+statement = "Private contextual effect staging preserves exact source-generated requests, copied execution observations and one-shot actual completions without caller-selected execution identity, premature effects or public application acceptance."
+
+[[id]]
+id = "DK-38"
+suite = "sdk"
+level = "build"
+statement = "Private source-owned semantic presentation binds exact input purposes, descriptions, errors, landmarks and bounded design catalogues to complete generated native/Wasm and rendered browser oracle checks without changing DK-23 bytes or granting application acceptance."
+
+[[id]]
+id = "DK-35"
+suite = "sdk"
+level = "build"
+statement = "Private operation capture derives immutable predecessor, successor, observations and content descriptors from exact captured operation bytes through generated source kernels, with factory-owned revocable handles and complete native/Wasm/browser bounds, without authenticating current history, releasing effects or accepting a public application."
 
 [[id]]
 id = "OC-01"
@@ -911,6 +995,12 @@ id = "OC-09"
 suite = "oci"
 level = "build"
 statement = "A private source-modeled publication reducer binds complete stage obligations, immutable subjects, scoped authorization and distinct deployment evidence without treating conditional facts as authentication or enabling public deployment."
+
+[[id]]
+id = "OC-10"
+suite = "oci"
+level = "build"
+statement = "Private publication context linkage projects a unique source-owned declaration and binds generated canonical preimages to the complete captured release and tool closure without inventing absent identities, authenticating caller facts, or authorizing deployment."
 
 [[id]]
 id = "LC-01"

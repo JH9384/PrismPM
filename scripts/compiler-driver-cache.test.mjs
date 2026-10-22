@@ -30,6 +30,8 @@ function exporterFixture(t) {
   // Adversarial fixture, never an accepted exporter or simulated build result.
   writeFileSync(executable, '#!/bin/sh\nprintf planted > "' + marker + '"\nexit 0\n');
   chmodSync(executable, 0o700);
+  mkdirSync(join(cache, 'Prod'));
+  writeFileSync(join(cache, 'Prod/Emit.lean'), 'untrusted cached source\n');
   return {repo, cache, executable, marker};
 }
 
@@ -46,6 +48,7 @@ for (const linked of [false, true]) {
     assert.notEqual(probe.status, 0);
     assert.match(probe.stderr, /prod-export: unknown or incomplete named-export argument `--module`/);
     assert.deepEqual(readFileSync(f.executable), bytes, 'unowned shared cache remains untouched');
+    assert.equal(readFileSync(join(f.cache, 'Prod/Emit.lean'), 'utf8'), 'untrusted cached source\n');
   });
 }
 
@@ -114,9 +117,14 @@ test('exporter refuses a private directory belonging to another user', t => {
 function fixture(t, prefix = 'prismpm-publication-', owner = 'publication') {
   const work = mkdtempSync(join(tmpdir(), prefix));
   t.after(() => rmSync(work, {recursive:true, force:true}));
-  const directory = {publication:'publication-admission', effects:'browser-effects', custody:'browser-custody'}[owner];
+  const directory = {publication:'publication-admission', effects:'browser-effects', custody:'browser-custody',
+    'session-payloads':'browser-session-payloads',
+    'operation-journal':'browser-operation-journal', presentation:'browser-presentation',
+    'semantic-presentation':'browser-semantic-presentation',
+    'dynamic-choice':'browser-dynamic-choice',
+    view:'browser-view', journal:'browser-journal', query:'browser-query', command:'browser-command'}[owner];
   assert.ok(directory);
-  const executable = directory + '-driver';
+  const executable = (['view','journal','query','command'].includes(owner) ? 'browser-workspace-' + owner : directory) + '-driver';
   const manifest = join(work, 'tests', directory, 'driver/Cargo.toml');
   mkdirSync(join(dirname(manifest), 'src'), {recursive:true});
   writeFileSync(manifest, '[package]\nname="' + executable + '"\nversion="0.1.0"\nedition="2021"\npublish=false\n[workspace]\n');
@@ -154,10 +162,21 @@ test('actual Cargo initializes the private cache and never adopts a previous exe
   const f = fixture(t);
   assert.match(readFileSync(join(f.target, 'CACHEDIR.TAG'), 'utf8'), /^Signature: 8a477f597d28d172789f06886806bc55/);
   const original = readFileSync(join(f.target, 'debug', f.executable));
-  writeFileSync(join(f.target, 'debug', f.executable), 'planted stale compiler');
+  const poison = '#!/bin/sh\nprintf planted-driver\n';
+  writeFileSync(join(f.target, 'debug', f.executable), poison);
+  const build = ['build','--locked','--offline','--jobs','1','--config','profile.dev.debug=0','--config','build.incremental=false','--manifest-path',f.manifest];
+  run('cargo', build, f.work, {CARGO_TARGET_DIR:f.target});
+  assert.equal(run(join(f.target, 'debug', f.executable), [], f.work), 'planted-driver',
+    'Cargo freshness alone does not authenticate an existing executable');
   assert.throws(() => createPrivateDriverTarget(f.work), /already exists/);
-  assert.equal(readFileSync(join(f.target, 'debug', f.executable), 'utf8'), 'planted stale compiler');
+  assert.equal(readFileSync(join(f.target, 'debug', f.executable), 'utf8'), poison);
   assert(original.length > 0);
+  const fresh = mkdtempSync(join(tmpdir(), 'prismpm-driver-fresh-'));
+  t.after(() => rmSync(fresh, {recursive:true, force:true}));
+  const target = createPrivateDriverTarget(fresh);
+  run('cargo', build, f.work, {CARGO_TARGET_DIR:target});
+  assert.equal(run(join(target, 'debug', f.executable), [], f.work), '');
+  assert.throws(() => createPrivateDriverTarget(fresh), /already exists/);
 });
 
 test('all private driver callers retain locked offline builds and bounded resource options', () => {
@@ -165,10 +184,21 @@ test('all private driver callers retain locked offline builds and bounded resour
   // component run. Mutations demonstrate that dropping any option is detected.
   const callers = ['view', 'command', 'query', 'journal', 'custody', 'effects', 'presentation', 'operation-journal']
     .map(name => `tests/browser-${name}/compile.mjs`)
-    .concat(['sdk/browser/workspace-model-test.mjs', 'sdk/browser/envelope-model-test.mjs']);
-  const check = source => {
-    assert.match(source, /const driverTarget\s*=\s*createPrivateDriverTarget\(work\)/);
-    const calls = [...source.matchAll(/run\('cargo',\s*\[([^;]*?)\],\s*(?:repository|work),\s*\{CARGO_TARGET_DIR:\s*driverTarget\}\)/g)];
+    .concat(['sdk/browser/workspace-model-test.mjs', 'sdk/browser/envelope-model-test.mjs',
+      'tests/browser-session/compile.mjs','tests/publication-admission/compile.mjs']);
+  const sharedFamilies = new Map(['presentation', 'session']
+    .map(name => [`tests/browser-${name}/compile.mjs`, name])
+    .concat([['tests/publication-admission/compile.mjs','publication']]));
+  const registration = family => family === 'publication'
+    ? {directory:'publication-admission',executable:'publication-admission-driver'}
+    : {directory:'browser-'+family,executable:'browser-'+family+'-driver'};
+  const shared = readFileSync(join(repository, 'tests/browser-view/compiler-owner.mjs'), 'utf8');
+  const optimized = new Set(['view','command','query'].map(name=>`tests/browser-${name}/compile.mjs`));
+  const check = (source, target = 'driverTarget', hashOptimized = false) => {
+    assert.ok(['driverTarget', 'target'].includes(target));
+    assert.match(source, new RegExp(`const ${target}\\s*=\\s*createPrivateDriverTarget\\(work\\)`));
+    const calls = [...source.matchAll(new RegExp(
+      `run\\('cargo',\\s*\\[([^;]*?)\\],\\s*(?:repository|work),\\s*\\{CARGO_TARGET_DIR:\\s*${target}\\}\\)`, 'g'))];
     assert.equal(calls.length, 1, 'one actual driver build call');
     const args = calls[0][1];
     assert.match(args, /^'build'/);
@@ -176,18 +206,121 @@ test('all private driver callers retain locked offline builds and bounded resour
     for (const [option, value] of [['--jobs', '1'], ['--config', 'profile.dev.debug=0'], ['--config', 'build.incremental=false']]) {
       assert(new RegExp(`'${option}',\\s*'${value.replaceAll('.', '\\.')}'`).test(args), value);
     }
+    if(hashOptimized){
+      const setting="'--config','profile.dev.package.sha2.opt-level=3'";
+      assert.equal(args.split(setting).length,2,'one fixed SHA-256 package override');
+      assert.doesNotMatch(args,/profile\.(?:dev|test)\.opt-level/,'no broad optimization override');
+    }
+  };
+  const delegation = family => new RegExp(
+    `createCompilerOwner\\(\\s*'${family}'\\s*,\\s*captureCompilerInputs\\(\\s*'${family}'\\s*\\)\\s*\\)`);
+  const checkShared = (source, owner, family) => {
+    assert.match(source, /from '\.\.\/browser-view\/compiler-owner\.mjs'/);
+    assert.doesNotMatch(source, /\b(?:createPrivateDriverTarget|ensureProdExport)\s*\(/,
+      'shared callers cannot construct additional compiler tools');
+    const builds = [...source.matchAll(/run\('cargo',\s*\[([^;]*?)\],\s*[^;]*?\{CARGO_TARGET_DIR:\s*[^}]+\}\)/g)];
+    assert.equal(builds.length, (source.match(/\brun\('cargo'/g) ?? []).length,
+      'every direct Cargo invocation must be a generated product build');
+    for (const [, args] of builds) {
+      assert.match(args, /'--release'/, 'shared callers retain only generated product builds');
+      assert.doesNotMatch(args, /driver/, 'a release flag cannot disguise a direct compiler-driver build');
+    }
+    assert.match(source, delegation(family), 'exact family and complete captured input delegation');
+    assert.match(source, new RegExp(`requireCompilerOwner\\(\\s*compilerOwner\\s*,\\s*'${family}'\\s*\\)`),
+      'borrowed owners require the same admitted family');
+    const selected=registration(family);
+    assert.match(owner, new RegExp(`${family}:\\s*Object\\.freeze\\(\\{\\s*directory:\\s*'${selected.directory}',\\s*executable:\\s*'${selected.executable}'\\s*\\}\\)`),
+      'registered family binds its exact driver directory and executable');
+    check(owner, 'target');
   };
   for (const caller of callers) {
-    const source = readFileSync(join(repository, caller), 'utf8'); check(source);
+    const source = readFileSync(join(repository, caller), 'utf8'), family = sharedFamilies.get(caller);
+    if (family === undefined) check(source,'driverTarget',optimized.has(caller)); else checkShared(source, shared, family);
     for (const text of ['--locked', '--offline', '--jobs', 'profile.dev.debug=0', 'build.incremental=false']) {
-      const changed = source.replace(text, 'REMOVED'); assert.notEqual(changed, source);
-      assert.throws(() => check(changed), caller + ': ' + text);
+      const owningSource = family === undefined ? source : shared;
+      const changed = owningSource.replace(text, 'REMOVED'); assert.notEqual(changed, owningSource);
+      assert.throws(() => family === undefined ? check(changed,'driverTarget',optimized.has(caller)) : checkShared(source, changed, family),
+        caller + ': ' + text);
     }
+    if(optimized.has(caller)){
+      for(const replacement of ['REMOVED','profile.dev.package.sha2.opt-level=2','profile.dev.opt-level=3']){
+        const changed=source.replace('profile.dev.package.sha2.opt-level=3',replacement);
+        assert.notEqual(changed,source);
+        assert.throws(()=>check(changed,'driverTarget',true),caller+': '+replacement);
+      }
+    }
+    if (family !== undefined) {
+      const call = delegation(family).exec(source)[0];
+      for (const changedCall of [call.replace('createCompilerOwner', 'REMOVED'),
+        call.replace('captureCompilerInputs', 'REMOVED'), call.replace(`'${family}'`, "'wrong-family'")]) {
+        const changed = source.replace(call, changedCall); assert.notEqual(changed, source);
+        assert.throws(() => checkShared(changed, shared, family), caller + ': owner delegation');
+      }
+      const missingTarget = shared.replace('createPrivateDriverTarget(work)', 'REMOVED(work)');
+      assert.notEqual(missingTarget, shared);
+      assert.throws(() => checkShared(source, missingTarget, family), caller + ': private target');
+      const wrongBorrowedFamily = source.replace(new RegExp(
+        `requireCompilerOwner\\(\\s*compilerOwner\\s*,\\s*'${family}'\\s*\\)`), "requireCompilerOwner(compilerOwner,'wrong-family')");
+      assert.notEqual(wrongBorrowedFamily, source);
+      assert.throws(() => checkShared(wrongBorrowedFamily, shared, family), caller + ': borrowed family');
+      for (const additional of ['createPrivateDriverTarget(work)', 'ensureProdExport(repository, work)',
+        `run('cargo', ['build', '--locked', '--offline', '--manifest-path', join(repository, 'tests/browser-${family}/driver/Cargo.toml')], work, {CARGO_TARGET_DIR: driverTarget})`,
+        `run('cargo', ['build', '--locked', '--offline', '--release', '--manifest-path', join(repository, 'tests/browser-${family}/driver/Cargo.toml')], work, {CARGO_TARGET_DIR: driverTarget})`]) {
+        assert.throws(() => checkShared(source + '\n' + additional + ';\n', shared, family),
+          caller + ': additional direct compiler construction');
+      }
+      for (const field of [`'${registration(family).directory}'`, `'${registration(family).executable}'`]) {
+        const changed = shared.replace(field, "'wrong-family'"); assert.notEqual(changed, shared);
+        assert.throws(() => checkShared(source, changed, family), caller + ': registered ' + field);
+      }
+    }
+  }
+  // Supplemental source guards only: the complete real OC09 owner and actual
+  // private-copy cleanup-interference controls establish runtime behavior.
+  // In particular, checking inputs before close does not cover cleanup itself.
+  const publication = readFileSync(join(repository, 'tests/publication-admission/compile.mjs'), 'utf8');
+  const publicationOwner = readFileSync(join(repository, 'tests/publication-admission/owner.test.mjs'), 'utf8');
+  const coldRetirement = "    const cacheRetirement = ownsCompiler ? compiler.close() : null;";
+  const coldInputs = "    assert.deepEqual(frozenInputs(), inputs, 'complete publication inputs changed during compiler retirement');";
+  const coldModels = "    for (const [module, bytes] of originals) assert.deepEqual(readFileSync(sourcePath(module)), bytes, 'post-retirement source ' + module);";
+  const coldManifest = "    assert.deepEqual(readFileSync(join(verified.root, 'build-manifest.json')), manifestBytes);";
+  const coldAttestation = "    assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);";
+  const sharedRetirement = " retirementAttempted=true;const cacheRetirement=compiler.close();retired=true;";
+  const sharedInputs = " assert.deepEqual(frozenInputs(),inputs,'complete publication inputs changed during final compiler retirement');";
+  const checkRetirement = (source, owner) => {
+    const coldStart = source.indexOf(coldRetirement);
+    const coldEnd = source.indexOf('    completed = true;', coldStart);
+    assert(coldStart >= 0 && coldEnd > coldStart, 'cold cleanup precedes completed return');
+    const postClose = source.slice(coldStart, coldEnd);
+    for (const guard of [coldInputs, coldModels, coldManifest, coldAttestation]) {
+      assert(postClose.includes(guard), 'cold post-retirement source/proof check: ' + guard);
+    }
+    const sharedStart = owner.indexOf(sharedRetirement);
+    const sharedEnd = owner.indexOf(' const evidence=', sharedStart);
+    assert(sharedStart >= 0 && sharedEnd > sharedStart, 'shared cleanup precedes acceptance evidence');
+    assert(owner.slice(sharedStart, sharedEnd).includes(sharedInputs), 'shared complete inputs rechecked after cleanup');
+  };
+  checkRetirement(publication, publicationOwner);
+  for (const guard of [coldInputs, coldModels, coldManifest, coldAttestation]) {
+    // Manifest and attestation checks also exist before retirement. Removing
+    // or moving just the final one must refuse, not accept the earlier check.
+    const start = publication.indexOf(coldRetirement);
+    const prefix = publication.slice(0, start), suffix = publication.slice(start);
+    assert(suffix.includes(guard));
+    for (const changed of [prefix + suffix.replace(guard, ''), prefix + guard + '\n' + suffix.replace(guard, '')]) {
+      assert.notEqual(changed, publication);
+      assert.throws(() => checkRetirement(changed, publicationOwner), 'removed or pre-close cold guard');
+    }
+  }
+  for (const changed of [publicationOwner.replace(sharedInputs, ''),
+    publicationOwner.replace(sharedRetirement, sharedInputs + '\n' + sharedRetirement).replace(sharedRetirement + '\n' + sharedInputs, sharedRetirement)]) {
+    assert.notEqual(changed, publicationOwner);
+    assert.throws(() => checkRetirement(publication, changed), 'removed or pre-close shared guard');
   }
 });
 
-test('completed effects and custody tool caches retire under their exact owning paths', t => {
-  for (const owner of ['effects', 'custody']) {
+test('completed effects, custody and session-payload tool caches retire under their exact owning paths', t => {
+  for (const owner of ['effects', 'custody', 'session-payloads']) {
     const f = fixture(t, 'prismpm-' + owner + '-', owner);
     const path = join(f.target, 'debug', f.executable), bytes = readFileSync(path);
     const receipt = retireCompletedCompilerCaches(f.work, owner);
@@ -198,6 +331,226 @@ test('completed effects and custody tool caches retire under their exact owning 
     assert(existsSync(f.manifest));
     for (const [name, preserved] of f.preserved) assert.deepEqual(readFileSync(join(f.work, name)), preserved);
     assert.throws(() => retireCompletedCompilerCaches(f.work, owner));
+  }
+});
+
+test('all remaining retained browser fixtures retire only their exact tool caches', t => {
+  for (const owner of ['operation-journal','presentation','semantic-presentation','dynamic-choice','view','journal','query','command']) {
+    const f = fixture(t, 'prismpm-' + owner + '-', owner);
+    const source = join(repository, 'tests/browser-' + owner + '/driver/Cargo.toml');
+    const original = readFileSync(source);
+    const binary = readFileSync(join(f.target, 'debug', f.executable));
+    const result = retireCompletedCompilerCaches(f.work, owner);
+    assert.equal(result.owner, owner);
+    const external = ['view','journal','query','command'].includes(owner);
+    assert.deepEqual(result.records[0], {path:external ? 'repository/tests/browser-' + owner + '/driver/Cargo.toml'
+      : 'tests/browser-' + owner + '/driver/Cargo.toml',
+    byte_length:external ? original.length : readFileSync(f.manifest).length,
+    sha256:sha(external ? original : readFileSync(f.manifest))});
+    assert.deepEqual(result.records[1], {path:'driver-target/debug/' + f.executable,
+      byte_length:binary.length, sha256:sha(binary)});
+    assert.deepEqual(readFileSync(source), original, 'source manifest must never be modified by retirement');
+    assert(!existsSync(join(f.target, 'debug', f.executable)) && !existsSync(join(f.exporter, '.lake/build')));
+    for (const [name, bytes] of f.preserved) assert.deepEqual(readFileSync(join(f.work, name)), bytes);
+    assert.throws(() => retireCompletedCompilerCaches(f.work, owner), /overwrite/);
+  }
+});
+
+test('all twelve private compiler constructions optimize only the fixed SHA-2 package', () => {
+  const callers = [
+    ...['view', 'command', 'query', 'journal'].map(name => [
+      `tests/browser-${name}/compile.mjs`, "join(draft,'driver/Cargo.toml')", 'repository']),
+    ...['custody', 'effects', 'presentation', 'operation-journal', 'budget'].map(name => [
+      `tests/browser-${name}/compile.mjs`, 'compiler.manifest', 'work']),
+    ['tests/publication-admission/compile.mjs', 'compiler.manifest', 'work'],
+    ['sdk/browser/workspace-model-test.mjs', "join(repository,'tests/browser-workspace/Cargo.toml')", 'repository'],
+    ['sdk/browser/envelope-model-test.mjs', "join(fixture,'driver/Cargo.toml')", 'repository'],
+  ];
+  const optimization = "'--config','profile.dev.package.sha2.opt-level=3',";
+  const check = (source, manifest, cwd, shared = false) => {
+    const calls = [...source.matchAll(/run\('cargo',\s*\[([^;]*?)\],\s*(repository|work),\s*\{CARGO_TARGET_DIR:\s*(?:driverTarget|target)\}\)/g)];
+    assert.equal(calls.length, 1, 'one exact private driver construction');
+    const args = calls[0][1].replace(/\s+/g, '');
+    assert.equal(args, "'build','--locked','--offline','--jobs','1','--config','profile.dev.debug=0'," +
+      "'--config','build.incremental=false'," + optimization + "'--manifest-path'," + manifest,
+      'only the fixed SHA-2 optimization may extend the original argv');
+    assert.equal(calls[0][2], cwd, 'original construction working directory');
+    const context = {
+      draft: '/private/draft', fixture: '/private/fixture', repository: '/source',
+      work: '/private/work', compiler: {manifest: '/private/compiler/Cargo.toml'},
+      driverTarget: '/private/fresh-driver-target', target: '/private/fresh-driver-target', manifest: 'driver/Cargo.toml',
+    };
+    const names = Object.keys(context), values = Object.values(context), recorded = [];
+    // Execute the extracted real expression with an inert argument recorder.
+    // This checks construction argv, not simulated compiler acceptance.
+    Function('run', 'join', ...names, 'return '+calls[0][0])(
+      (program, argv, directory, environment) => recorded.push({program, argv, directory, environment}),
+      join, ...values);
+    const actualManifest = Function('join', ...names, 'return '+manifest)(join, ...values);
+    assert.deepEqual(recorded, [{program: 'cargo', argv: [
+      'build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0',
+      '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3',
+      '--manifest-path', actualManifest,
+    ], directory: context[cwd], environment: {CARGO_TARGET_DIR: shared ? context.target : context.driverTarget}}],
+    'exact original program, arguments, directory and private target');
+    return calls[0][0];
+  };
+  for (const [caller, manifest, cwd] of callers) {
+    const actual = readFileSync(join(repository, caller), 'utf8');
+    const shared = ['tests/browser-presentation/compile.mjs','tests/publication-admission/compile.mjs'].includes(caller);
+    const source = shared ? readFileSync(join(repository, 'tests/browser-view/compiler-owner.mjs'), 'utf8') : actual;
+    const selectedManifest = shared ? 'join(work,manifest)' : manifest;
+    const selectedCwd = shared ? 'work' : cwd;
+    const call = check(source, selectedManifest, selectedCwd, shared), compact = call.replace(/\s+/g, '');
+    const changedCalls = [
+      compact.replace("'--locked',", ''), compact.replace("'--offline',", ''),
+      compact.replace("'--jobs','1'", "'--jobs','2'"),
+      compact.replace('profile.dev.debug=0', 'profile.dev.debug=1'),
+      compact.replace('build.incremental=false', 'build.incremental=true'),
+      compact.replace(optimization, ''),
+      compact.replace('profile.dev.package.sha2.opt-level=3', 'profile.dev.package.sha2.opt-level=2'),
+      compact.replace('profile.dev.package.sha2.opt-level=3', 'profile.dev.opt-level=3'),
+      compact.replace('profile.dev.package.sha2.opt-level=3', 'profile.test.package.sha2.opt-level=3'),
+      compact.replace(optimization, optimization + optimization),
+      compact.replace(optimization, optimization + "'--config','profile.dev.package.sha2.opt-level=0',"),
+      compact.replace(selectedManifest, 'wrongManifest'),
+      compact.replace('],'+selectedCwd+',', '],'+(selectedCwd === 'work' ? 'repository' : 'work')+','),
+      compact.replace('CARGO_TARGET_DIR:'+(shared?'target':'driverTarget'), 'CARGO_TARGET_DIR:sharedTarget'),
+      compact.replace("run('cargo'", "run('rustc'"),
+    ];
+    for (const changedCall of changedCalls) {
+      assert.notEqual(changedCall, compact, 'mutation must change the real construction: '+caller);
+      assert.throws(() => check(source.replace(call, changedCall), selectedManifest, selectedCwd, shared),
+        'actual source construction mutation must be rejected: '+caller);
+    }
+    const target = shared ? /const target\s*=\s*createPrivateDriverTarget\(work\)/
+      : caller === 'tests/browser-budget/compile.mjs'
+      ? /const driverTarget\s*=\s*join\(work,\s*'driver-target'\)/
+      : /const driverTarget\s*=\s*createPrivateDriverTarget\(work\)/;
+    assert.match(source, target, 'original private target constructor: '+caller);
+    const declaration = target.exec(source)[0];
+    assert.throws(() => assert.match(source.replace(declaration, 'const driverTarget = sharedTarget'), target),
+      'substituted shared target constructor must be rejected: '+caller);
+  }
+});
+
+test('serial View and Custody owners preserve fresh tools and every product verification', () => {
+  // Supplemental source/argument controls. Genuine owners still execute every
+  // original model, kernel, native, Wasm, browser and planted defect assertion.
+  const owner = readFileSync(join(repository, 'tests/browser-view/compiler-owner.mjs'), 'utf8');
+  const check = source => {
+    const call = /run\('cargo',\s*\['build',[\s\S]*?\], work, \{CARGO_TARGET_DIR: target\}\)/.exec(source);
+    assert.ok(call, 'one fresh owner construction');
+    const recorded = [];
+    Function('run', 'join', 'work', 'manifest', 'target', call[0])(
+      (...args) => recorded.push(args), join, '/private/owner', 'driver/Cargo.toml', '/private/owner/driver-target');
+    assert.deepEqual(recorded, [['cargo', ['build', '--locked', '--offline', '--jobs', '1',
+      '--config', 'profile.dev.debug=0', '--config', 'build.incremental=false',
+      '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', '/private/owner/driver/Cargo.toml'],
+      '/private/owner', {CARGO_TARGET_DIR: '/private/owner/driver-target'}]]);
+    assert.match(source, /const target = createPrivateDriverTarget\(work\)/);
+    assert.match(source, /exporter = ensureProdExport\(repository, work\)/);
+    return call[0];
+  };
+  const call = check(owner);
+  for (const [before, after] of [["'--locked'", "'REMOVED'"], ["'--offline'", "'REMOVED'"],
+    ["'--jobs', '1'", "'--jobs', '2'"], ['profile.dev.debug=0', 'profile.dev.debug=2'],
+    ['build.incremental=false', 'build.incremental=true'],
+    ['profile.dev.package.sha2.opt-level=3', 'profile.dev.opt-level=3']]) {
+    assert.ok(call.includes(before));
+    assert.throws(() => check(owner.replace(call, call.replace(before, after))), before);
+  }
+  for (const family of ['view', 'custody']) {
+    const compile = readFileSync(join(repository, 'tests/browser-' + family + '/compile.mjs'), 'utf8');
+    assert.match(compile, new RegExp("requireCompilerOwner\\(compilerOwner,\\s*'" + family + "'\\)"));
+    assert.match(compile, /shared\.runDriver\(/);
+    assert.match(compile, /shared\.runExporter\(/);
+    assert.match(compile, /if\s*\(shared\)\s*shared\.verify\(\)/);
+    const testPath = family === 'view' ? 'sdk/browser/view-model-test.mjs' : 'sdk/browser/credential-custody-test.mjs';
+    const testSource = readFileSync(join(repository, testPath), 'utf8');
+    assert.match(testSource, new RegExp("createCompilerOwner\\('" + family + "'\\)"));
+    assert.match(testSource, /verifyModelMutation\(kind,\s*owner\)/);
+    assert.match(testSource, /owner\.close\(\)/);
+    assert.match(testSource, /verifyCompilerOwnerSubstitutions\(owner\)/);
+    assert.match(testSource, /timeout:\s*3500000/);
+  }
+});
+
+test('additional serial compiler owners preserve all independent models, mutations and post-retirement evidence', () => {
+  const families = [
+    {name:'effects', caller:'sdk/browser/effects-test.mjs',
+      mutants:"['binding', 'trailing', 'unknown']", invocation:'verifyModelMutation(kind, owner)'},
+    {name:'budget', caller:'sdk/browser/budget-model-test.mjs',
+      mutants:"['identity', 'policy', 'manifest', 'request', 'coverage', 'order', 'limit']",
+      invocation:'verifyModelMutation(kind,inputs,owner,'},
+    {name:'operation-journal', caller:'tests/browser-operation-journal/checks.mjs',
+      mutants:"['binding', 'trailing', 'reservation', 'payload', 'partition']",
+      invocation:'verifyModelMutation(kind, owner)'},
+    {name:'presentation', caller:'sdk/browser/presentation.test.mjs',
+      mutants:"['binding', 'trailing', 'secretbound', 'secretroute', 'progress']",
+      invocation:'verifyModelMutation(kind, build)'},
+    {name:'publication', directory:'publication-admission', caller:'tests/publication-admission/owner.test.mjs',
+      mutants:"['binding','coverage','timeline','trailing','preimage','partition']",
+      invocation:'verifyModelMutation(kind,inputs,compiler)'},
+  ];
+  for (const family of families) {
+    const directory = family.directory ?? 'browser-' + family.name;
+    const compile = readFileSync(join(repository, 'tests/' + directory + '/compile.mjs'), 'utf8');
+    const caller = readFileSync(join(repository, family.caller), 'utf8');
+    const checks = readFileSync(join(repository, 'tests/' + directory + '/checks.mjs'), 'utf8');
+    const ownedSource = family.name === 'presentation' ? caller+'\n'+checks : caller;
+    const central = ['presentation', 'publication'].includes(family.name);
+    const compilerName = central ? 'compiler' : 'owner';
+    const driverName = central ? 'compiler' : 'shared';
+    const closeAnchor = family.name === 'publication'
+      ? 'retirementAttempted=true;const cacheRetirement=compiler.close();retired=true;'
+      : family.name === 'budget' ? 'const retirement=owner.close();' : 'const retirement = owner.close();';
+    const creation = family.name === 'publication'
+      ? "createCompilerOwner('publication',captureCompilerInputs('publication'))"
+      : "createCompilerOwner('" + family.name + "')";
+    const check = (compiled, owned, oracle) => {
+      for (const anchor of ["requireCompilerOwner(compilerOwner, '" + family.name + "')",
+        driverName+'.runDriver(', driverName+'.runExporter(',
+        central ? (family.name === 'publication' ? 'compiler.verify()' : "requireCompilerOwner(compiler, 'presentation')") : 'if (shared) shared.verify()',
+        "run('lake', ['build', 'PrismGenerated'], lean)", 'verifyEvidence',
+        "readFileSync(join(verified.root, 'build-manifest.json'))",
+        "readFileSync(join(verified.root, 'attestation.json'))"])
+        assert(compiled.includes(anchor), 'retained fresh model/tool/proof boundary: ' + anchor);
+      for (const anchor of [creation,
+        'verifyCompilerOwnerSubstitutions('+compilerName+')', family.mutants, family.invocation,
+        closeAnchor, 'build.verifyEvidence()', 'compiler owner closed'])
+        assert(owned.includes(anchor), 'complete actual serial owner: ' + anchor);
+      assert(oracle.includes('executeWasm('), 'every generated Wasm execution remains');
+      assert(oracle.includes('native output mismatch'), 'actual generated native mutants remain');
+      assert(oracle.includes('generated Wasm output mismatch'), 'actual generated Wasm mutants remain');
+      const close = owned.indexOf(closeAnchor);
+      assert(close >= 0 && owned.indexOf('build.verifyEvidence()', close + closeAnchor.length) > close,
+        'proof/source checks follow actual compiler retirement');
+      const productChecks = [...owned.matchAll(/captureVerificationProducts\(build\.work/g)].map(row => row.index);
+      assert.equal(productChecks.length, 2);
+      assert(productChecks[0] < close && productChecks[1] > close,
+        'actual complete product snapshots surround compiler retirement');
+    };
+    check(compile, ownedSource, checks);
+    for (const anchor of [driverName+'.runDriver(', driverName+'.runExporter(', 'verifyEvidence']) {
+      assert.throws(() => check(compile.replaceAll(anchor, 'REMOVED'), ownedSource, checks), anchor);
+    }
+    for (const anchor of [family.mutants, family.invocation, closeAnchor, 'build.verifyEvidence()']) {
+      assert.throws(() => check(compile, ownedSource.replaceAll(anchor, 'REMOVED'), checks), anchor);
+    }
+    for (const anchor of ['native output mismatch', 'generated Wasm output mismatch'])
+      assert.throws(() => check(compile, ownedSource, checks.replaceAll(anchor, 'REMOVED')), anchor);
+    // Mutation owners may also verify their own products earlier. Target the
+    // serial owner's actual post-retirement barrier, not the first call.
+    const barrier = 'build.verifyEvidence();';
+    const postClose = ownedSource.indexOf(barrier, ownedSource.indexOf(closeAnchor) + closeAnchor.length);
+    assert(postClose >= 0, 'actual post-retirement proof barrier exists');
+    const removed = ownedSource.slice(0, postClose) + ownedSource.slice(postClose + barrier.length);
+    assert.throws(() => check(compile, removed, checks), 'missing post-retirement proof checks');
+    const moved = removed
+      .replace(closeAnchor, 'build.verifyEvidence();\n'+closeAnchor);
+    assert.notEqual(moved, ownedSource);
+    assert.throws(() => check(compile, moved, checks), 'pre-retirement-only proof checks');
   }
 });
 

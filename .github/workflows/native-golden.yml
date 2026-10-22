@@ -80,7 +80,7 @@ jobs:
           name: native-golden-review-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/native-golden/
           if-no-files-found: error
-          compression-level: 0
+          compression-level: 6
           retention-days: 14
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

@@ -1,7 +1,8 @@
 //! Read-only uses of an owned local must not clone its allocation.
 
 use prod_codegen::{
-    generate_cargo_package, generate_core_wasm_package, CargoPackageSpec, CoreWasmSpec,
+    generate_cargo_package, generate_core_wasm_package, generate_module, CargoPackageSpec,
+    CoreWasmSpec,
 };
 use prod_ir::parser::parse_module;
 use sha2::{Digest, Sha256};
@@ -84,6 +85,19 @@ const IR: &str = r#"(module BorrowedOperands
       (cases result
         (alt "Option.some" (result) (ctor "Option.some" result))
         (alt "Option.none" () result))))
+  (def none_return_shadow_reuse ((input Bytes) (present Bool)) (Option Bytes)
+    (let result (call maybe_bytes input present)
+      (cases result
+        (alt "Option.none" () result)
+        (alt "Option.some" (result)
+          (ctor "Option.some" (append (call own_bytes result) result))))))
+  (def none_return_shadow_join ((input Bytes) (present Bool)) (Option Bytes)
+    (let result (call maybe_bytes input present)
+      (cases result
+        (alt "Option.none" () result)
+        (alt "Option.some" (result)
+          (let continuation (jp copy () result)
+            (ctor "Option.some" (append (jmp copy) (jmp copy))))))))
   (def none_return_keeps_owner ((input Bytes) (present Bool)) (Option Bytes)
     (let result (call maybe_bytes input present)
       (cases result
@@ -128,6 +142,57 @@ const IR: &str = r#"(module BorrowedOperands
     (if (call accepts input) (ctor "Option.some" input) (ctor "Option.none")))
   (def own_bytes ((input Bytes)) Bytes input)
   (def own_text ((input String)) String input)
+  (def utf8_byte_length ((text String)) Nat
+    (let encoded (utf8-encode text) (length encoded)))
+  (def utf8_order ((left String) (right String)) Ordering
+    (let first (utf8-encode left)
+      (let second (utf8-encode right) (compare-bytes first second))))
+  (def utf8_repeated_read ((text String)) Bool
+    (let encoded (utf8-encode text)
+      (if (eq (length encoded) 0)
+        (eq (compare-bytes encoded (bytes)) (compare-bytes (bytes) (bytes)))
+        (eq (length encoded) (length encoded)))))
+  (def utf8_literal () Nat
+    (let text (string "λ") (let encoded (utf8-encode text) (length encoded))))
+  (def utf8_field ((input (named "Fields"))) Nat
+    (let text (proj "Fields" "text" input)
+      (let encoded (utf8-encode text) (length encoded))))
+  (def utf8_shadow ((text String)) Nat
+    (let encoded (utf8-encode text)
+      (let text (bytes 1 2) (add (length encoded) (length text)))))
+  (def utf8_eager_error ((text String) (maximum Nat)) Nat
+    (let encoded (utf8-encode text)
+      (let unused (add maximum 1) (length encoded))))
+  (def utf8_owned_result ((text String)) Bytes (utf8-encode text))
+  (def utf8_read_then_return ((text String)) Bytes
+    (let encoded (utf8-encode text)
+      (if (eq (length encoded) 0) encoded encoded)))
+  (def utf8_read_then_consume ((text String)) Bytes
+    (let encoded (utf8-encode text)
+      (let count (length encoded) (call own_bytes encoded))))
+  (def utf8_owned_string_reused ((text String)) (named "Pair")
+    (let local (call own_text text)
+      (let encoded (utf8-encode local)
+        (let first (utf8-encode local)
+          (if (eq (length encoded) 0)
+            (ctor "Pair.mk" first (utf8-encode local))
+            (ctor "Pair.mk" first (utf8-encode local)))))))
+  (def utf8_borrow_across_consume ((text String)) Nat
+    (let local (call own_text text)
+      (let encoded (utf8-encode local)
+        (let consumed (call own_text local)
+          (add (length encoded) (length consumed))))))
+  (def utf8_captured_join ((text String) (choose Bool)) Nat
+    (let encoded (utf8-encode text)
+      (let finish (jp finish () (length encoded))
+        (if choose (jmp finish) (add (jmp finish) (jmp finish))))))
+  (def utf8_read_entry ((input Bytes)) Bytes
+    (cases (utf8-decode input)
+      (alt "Option.none" () (bytes 255))
+      (alt "Option.some" (text)
+        (if (eq (call utf8_byte_length text) (length input))
+          (if (eq (call utf8_order text text) (compare-bytes (bytes) (bytes)))
+            (utf8-encode text) (bytes 254)) (bytes 253)))))
   (def branch_parameter ((input Bytes) (choose Bool)) Bytes
     (if choose input input))
   (def branch_alias ((input Bytes) (choose Bool)) Bytes
@@ -190,6 +255,69 @@ const IR: &str = r#"(module BorrowedOperands
         (let after (length input) (ctor "Parcel.mk" moved after)))))
   (def length_entry ((input Bytes)) Bytes
     (let width (length input) (if (eq width 0) input input)))
+  (def branch_length_guarded ((input Bytes) (suffix Bytes)) Bytes
+    (let first (length input)
+      (if (le first 1048576)
+        (let second (length suffix)
+          (if (le second 1048576)
+            (let third (length input)
+              (let fourth (length suffix)
+                (if (le (add third fourth) 2097152)
+                  (append input suffix) (bytes))))
+            (bytes)))
+        (bytes))))
+  (def branch_length_match ((input Bytes) (tag (named "CopyTag"))) Bytes
+    (cases tag
+      (alt "CopyTag.first" ()
+        (let width (length input) (if (eq width 0) input input)))
+      (default
+        (let width (length input) (if (eq width 0) input input)))))
+  (def branch_length_local ((input Bytes) (choose Bool)) Bytes
+    (let local (call own_bytes input)
+      (if choose (let width (length local) (if (eq width 0) local local))
+        (let width (length local) local))))
+  (def branch_scalar_length ((input String) (choose Bool)) String
+    (if choose (let width (string-length input) (if (eq width 0) input input))
+      (let width (string-length input) input)))
+  (def branch_length_entry ((input Bytes)) Bytes
+    (call branch_length_guarded input (bytes)))
+  (def branch_move_then_read ((input Bytes) (choose Bool)) (named "Parcel")
+    (if choose
+      (let before (length input)
+        (let moved (call own_bytes input)
+          (let after (length input) (ctor "Parcel.mk" moved after))))
+      (let moved (call own_bytes input)
+        (let after (length input) (ctor "Parcel.mk" moved after)))))
+  (def branch_then_outer_read ((input Bytes) (choose Bool)) (named "Parcel")
+    (let moved
+      (if choose (let width (length input) input)
+        (let width (length input) input))
+      (ctor "Parcel.mk" moved (length input))))
+  (def branch_retained_length_alias ((input Bytes) (choose Bool)) (named "Pair")
+    (if choose
+      (let alias input
+        (let width (length input) (ctor "Pair.mk" alias input)))
+      (let width (length input) (ctor "Pair.mk" input input))))
+  (def consuming_predicate ((input Bytes)) Bool
+    (let moved (call own_bytes input) (eq (length moved) 0)))
+  (def branch_consuming_condition ((input Bytes)) Bytes
+    (if (call consuming_predicate input)
+      (let width (length input) input)
+      (let width (length input) input)))
+  (def branch_consuming_scrutinee ((input Bytes)) Bytes
+    (cases (call own_bytes input)
+      (default (let width (length input) input))))
+  (def branch_unknown_call ((input Bytes) (choose Bool)) Bytes
+    (if choose
+      (let observed (call consuming_predicate input)
+        (let width (length input) input))
+      (let width (length input) input)))
+  (def branch_retained_projection ((input (named "Parcel")) (choose Bool)) (named "Pair")
+    (if choose
+      (let alias (proj "Parcel" "bytes" input)
+        (let width (length alias)
+          (ctor "Pair.mk" alias (proj "Parcel" "bytes" input))))
+      (ctor "Pair.mk" (proj "Parcel" "bytes" input) (proj "Parcel" "bytes" input))))
   (def self_append_retained ((input Bytes)) (named "Pair")
     (let twice (append input input) (ctor "Pair.mk" twice input)))
   (def self_append_borrowed ((input (named "Parcel"))) Bytes
@@ -300,7 +428,95 @@ fn measured<T>(action: impl FnOnce() -> T) -> (T, usize) {
 }
 
 fn main() {
+    for text in ["", "a", "λ", "é", "\0", "𐀀", "a\u{301}"] {
+        let owned = text.to_owned();
+        let (length, count) = measured(|| utf8_byte_length(owned));
+        assert_eq!(length, text.len() as u64);
+        assert_eq!(count, 0, "UTF-8 byte length must borrow");
+        let (valid, count) = measured(|| utf8_repeated_read(text));
+        assert!(valid);
+        assert_eq!(count, 0, "repeated read-only byte consumers must borrow");
+        for other in ["", "z", "λ", "é", "\0", "𐀀"] {
+            let (left, right) = (text.to_owned(), other.to_owned());
+            let (order, count) = measured(|| utf8_order(left, right));
+            assert_eq!(order, text.as_bytes().cmp(other.as_bytes()));
+            assert_eq!(count, 0, "UTF-8 ordering must borrow both sides");
+        }
+        assert_eq!(utf8_literal(), 2);
+        assert_eq!(utf8_shadow(text.to_owned()).unwrap(), text.len() as u64 + 2);
+        assert_eq!(utf8_eager_error(text.to_owned(), u64::MAX), Err(ComputeError::AddOverflow));
+        assert_eq!(utf8_eager_error(text.to_owned(), 0).unwrap(), text.len() as u64);
+        assert_eq!(utf8_owned_result(text.to_owned()), text.as_bytes());
+        assert_eq!(utf8_read_then_return(text.to_owned()), text.as_bytes());
+        assert_eq!(utf8_read_then_consume(text.to_owned()), text.as_bytes());
+        let pair = utf8_owned_string_reused(text.to_owned());
+        assert_eq!(pair.first, text.as_bytes());
+        assert_eq!(pair.second, text.as_bytes());
+        assert_eq!(utf8_borrow_across_consume(text.to_owned()).unwrap(), (text.len() * 2) as u64);
+        for choose in [true, false] {
+            assert_eq!(utf8_captured_join(text.to_owned(), choose).unwrap(),
+                (text.len() * if choose {1} else {2}) as u64);
+        }
+        let row = Fields {bytes: vec![], text: text.into(), words: vec![], offset: 0};
+        let (length, count) = measured(|| utf8_field(&row));
+        assert_eq!(length, text.len() as u64);
+        assert_eq!(count, 0, "borrowed record text must not be copied");
+    }
+    let large = "λ".repeat(524_288);
+    let (length, count) = measured(|| utf8_byte_length(large));
+    assert_eq!(length, 1_048_576);
+    assert_eq!(count, 0);
     for size in [0, 1, 32, 8192, 1_048_576] {
+        let mut input = Vec::with_capacity(size + 1);
+        input.resize(size, 17);
+        let pointer = input.as_ptr();
+        let suffix = vec![9];
+        let (output, count) = measured(|| branch_length_guarded(input, suffix).unwrap());
+        assert_eq!(count, 0, "branch-local scalar guards must not clone an owned append operand");
+        assert_eq!(output.as_ptr(), pointer);
+        assert_eq!(&output[..size], vec![17; size]);
+        assert_eq!(output[size], 9);
+        for choose in [false, true] {
+            let input = vec![17; size];
+            let pointer = input.as_ptr();
+            let tag = if choose { CopyTag::first } else { CopyTag::second };
+            let (output, count) = measured(|| branch_length_match(input, tag));
+            assert_eq!(count, 0, "scalar reads in exclusive match branches retain no owner");
+            assert_eq!(output.as_ptr(), pointer);
+            assert_eq!(output, vec![17; size]);
+            let input = vec![17; size];
+            let pointer = input.as_ptr();
+            let (output, count) = measured(|| branch_length_local(input, choose));
+            assert_eq!(count, 0, "branch-local scalar reads of a local retain no owner");
+            assert_eq!(output.as_ptr(), pointer);
+            assert_eq!(output, vec![17; size]);
+            let input = "é".repeat(size);
+            let pointer = input.as_ptr();
+            let (output, count) = measured(|| branch_scalar_length(input, choose));
+            assert_eq!(count, 0, "branch-local scalar-count reads retain no owner");
+            assert_eq!(output.as_ptr(), pointer);
+            assert_eq!(output, "é".repeat(size));
+            for action in [branch_move_then_read, branch_then_outer_read] {
+                let output = action(vec![17; size], choose);
+                assert_eq!(output.bytes, vec![17; size]);
+                assert_eq!(output.offset, size as u64, "a branch cannot hide a post-transfer read");
+            }
+            let mut output = branch_retained_length_alias(vec![17; size], choose);
+            assert_eq!(output.first, vec![17; size]);
+            assert_eq!(output.second, vec![17; size]);
+            output.first.push(9);
+            assert_eq!(output.second.len(), size, "a retained alias needs an independent owner");
+            let original = Parcel { bytes: vec![17; size], offset: 7 };
+            let mut output = branch_retained_projection(&original, choose);
+            assert_eq!(output.first, original.bytes);
+            assert_eq!(output.second, original.bytes);
+            output.first.push(9);
+            assert_eq!(output.second.len(), size);
+            assert_eq!(original.bytes.len(), size, "borrowed projections retain their owner");
+            assert_eq!(branch_unknown_call(vec![17; size], choose), vec![17; size]);
+        }
+        assert_eq!(branch_consuming_condition(vec![17; size]), vec![17; size]);
+        assert_eq!(branch_consuming_scrutinee(vec![17; size]), vec![17; size]);
         let input = vec![17; size];
         let pointer = input.as_ptr();
         let (output, count) = measured(|| length_then_move(input));
@@ -567,6 +783,25 @@ fn main() {
             assert_eq!(output.as_deref(), present.then_some(vec![0x5a; size].as_slice()));
 
             let input = vec![0x5a; size];
+            let (output, count) = measured(|| none_return_shadow_reuse(input, present));
+            // Keep the old name-based protection for a shadowed payload that
+            // is consumed by a call, then read again to append its bytes.
+            assert_eq!(count, 3 * usize::from(present && size != 0), "shadowed payload reuse, size={size}, present={present}");
+            assert_eq!(output.as_deref(), present.then_some(vec![0x5a; size * 2].as_slice()));
+
+            let input = vec![0x5a; size];
+            let (output, count) = measured(|| none_return_shadow_join(input, present));
+            // fefc4ce's conservative owner analysis keeps the outer
+            // `match result.clone()` (+1 allocation), while HEAD's in-place
+            // self append moves the captured payload and extends it with
+            // `extend_from_within` instead of cloning it first (one fewer
+            // allocation than the pre-perf 3..=4 shape). The remaining
+            // allocation is the extend's growth realloc.
+            assert_eq!(count, 2 * usize::from(present && size != 0),
+                    "captured shadowed payload reuse: allocations={count}, size={size}, present={present}");
+            assert_eq!(output.as_deref(), present.then_some(vec![0x5a; size * 2].as_slice()));
+
+            let input = vec![0x5a; size];
             let (output, count) = measured(|| none_return_keeps_owner(input, present));
             // A real owner use in the Some branch still needs the scrutinee
             // preserved; this conservative pass must not remove that clone.
@@ -773,6 +1008,50 @@ fn read_only_owned_operands_do_not_allocate_in_std_and_no_std() {
 }
 
 #[test]
+fn utf8_owned_alias_and_temporary_paths_stay_owned() {
+    for (result, body) in [
+        ("Bytes", "(let encoded (utf8-encode text) encoded)"),
+        (
+            "Nat",
+            "(let encoded (utf8-encode text) (let alias encoded (length alias)))",
+        ),
+        (
+            "Bytes",
+            "(let encoded (utf8-encode text) (call own_bytes encoded))",
+        ),
+        (
+            "Nat",
+            "(let encoded (utf8-encode (call own_text text)) (length encoded))",
+        ),
+    ] {
+        let ir = format!(
+            r#"(module Guard
+          (def own_bytes ((value Bytes)) Bytes value)
+          (def own_text ((value String)) String value)
+          (def check ((text String)) {result} {body}))"#
+        );
+        let (remaining, module) = parse_module(&ir).unwrap();
+        assert!(remaining.is_empty());
+        let generated = generate_module(&module).unwrap();
+        assert!(generated.contains(".into_bytes()"), "{body}\n{generated}");
+        assert!(!generated.contains(".as_bytes()"), "{body}\n{generated}");
+    }
+}
+
+#[test]
+fn utf8_parameter_indexes_are_resolved_before_borrowing() {
+    let ir = r#"(module Resolved
+      (def check ((text String)) Nat
+        (let encoded (utf8-encode (param 0))
+          (add (length encoded) (length (param 0))))))"#;
+    let (remaining, module) = parse_module(ir).unwrap();
+    assert!(remaining.is_empty());
+    let generated = generate_module(&module).unwrap();
+    assert!(generated.contains("(text).as_bytes()"), "{generated}");
+    assert!(!generated.contains(".into_bytes()"), "{generated}");
+}
+
+#[test]
 fn read_only_owned_operands_fit_actual_wasm_memory_bound() {
     actual_wasm(
         "entry",
@@ -781,6 +1060,20 @@ fn read_only_owned_operands_fit_actual_wasm_memory_bound() {
         80,
         "borrowed_operands_wasm_test.mjs",
     );
+}
+
+#[test]
+fn utf8_read_consumers_fit_actual_wasm_memory_bound() {
+    for release in [false, true] {
+        actual_wasm_profile(
+            "utf8_read_entry",
+            1_048_576,
+            1_048_576,
+            96,
+            "borrowed_utf8_consumers_wasm_test.mjs",
+            release,
+        );
+    }
 }
 
 #[test]
@@ -863,6 +1156,20 @@ fn leading_length_reads_move_within_actual_wasm_memory_bound() {
     for release in [false, true] {
         actual_wasm_profile(
             "length_entry",
+            1_048_576,
+            1_048_576,
+            50,
+            "borrowed_operands_wasm_test.mjs",
+            release,
+        );
+    }
+}
+
+#[test]
+fn branch_local_length_reads_move_within_actual_wasm_memory_bound() {
+    for release in [false, true] {
+        actual_wasm_profile(
+            "branch_length_entry",
             1_048_576,
             1_048_576,
             50,

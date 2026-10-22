@@ -17,9 +17,57 @@ use std::cell::Cell;
 use std::collections::BTreeSet;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
+use std::marker::PhantomData;
 use std::path::{Component, Path, PathBuf};
+use std::rc::Rc;
 
-const VERIFY_WORKER_STACK_BYTES: usize = 16 * 1024 * 1024;
+mod config_witness;
+mod model_worker;
+
+fn library_generator_identity() -> String {
+    let mut source = b"prismpm/library-generator/2\0".to_vec();
+    for (path, bytes) in [
+        (
+            "library_build.rs",
+            include_bytes!("../library_build.rs").as_slice(),
+        ),
+        (
+            "lean_project.rs",
+            include_bytes!("../lean_project.rs").as_slice(),
+        ),
+        ("exporter.rs", include_bytes!("../exporter.rs").as_slice()),
+        (
+            "exporter/owner.rs",
+            include_bytes!("../exporter/owner.rs").as_slice(),
+        ),
+        (
+            "exporter/custody.rs",
+            include_bytes!("../exporter/custody.rs").as_slice(),
+        ),
+        (
+            "exporter/directory.rs",
+            include_bytes!("../exporter/directory.rs").as_slice(),
+        ),
+        (
+            "sdk/exporter-seed-admission.mjs",
+            include_bytes!("../../sdk/exporter-seed-admission.mjs").as_slice(),
+        ),
+        (
+            "sdk/exporter-seed.mjs",
+            include_bytes!("../../sdk/exporter-seed.mjs").as_slice(),
+        ),
+        (
+            "sdk/inventory-metadata.mjs",
+            include_bytes!("../../sdk/inventory-metadata.mjs").as_slice(),
+        ),
+    ] {
+        source.extend_from_slice(path.as_bytes());
+        source.push(0);
+        source.extend_from_slice(&(bytes.len() as u64).to_be_bytes());
+        source.extend_from_slice(bytes);
+    }
+    content_id(&source)
+}
 
 thread_local! {
     static VERIFY_WORKER_ACTIVE: Cell<bool> = const { Cell::new(false) };
@@ -199,7 +247,27 @@ struct Prepared {
     model: ModelDocument,
     model_bytes: Vec<u8>,
     system: Option<crate::contracts::CanonicalDocument>,
+    // Linked terms must be constructed, consumed and dropped on their worker.
+    // Neither Prepared nor a borrowed Prepared can cross a scoped thread join.
+    _worker_bound: PhantomData<Rc<()>>,
 }
+
+// Closed worker outputs never contain a linked compiler tree. System-domain
+// documents are validated against the registered finite-depth closed schemas.
+trait ModelWorkerOutput: Send {}
+impl ModelWorkerOutput for CheckResult {}
+impl ModelWorkerOutput for BuildResult {}
+impl ModelWorkerOutput for bool {}
+impl ModelWorkerOutput for Vec<crate::contracts::CanonicalDocument> {}
+
+#[cfg(test)]
+struct PreparedView {
+    model_bytes: Vec<u8>,
+    system: Option<crate::contracts::CanonicalDocument>,
+}
+
+#[cfg(test)]
+impl ModelWorkerOutput for PreparedView {}
 
 fn application_selection(
     snapshot: &lexlean::SemanticSnapshot,
@@ -428,14 +496,17 @@ impl Controller {
         Ok(Self { root })
     }
 
-    fn prepare_release(
+    fn prepare_release_in_worker(
         &self,
-        config_path: Option<&Path>,
+        plan: &model_worker::Plan,
         release: Option<&str>,
     ) -> Result<Prepared, PrismError> {
-        let (config, _) = ProjectConfig::load(&self.root, config_path)?;
-        let project_file = utf8(config.lexlean_path(&self.root)?)?;
-        let engine = Engine::load(&project_file).map_err(|error| {
+        model_worker::require_active(plan)?;
+        plan.observe()?;
+        let config = plan.config.clone();
+        let engine = Engine::load(&plan.project_file);
+        plan.observe()?;
+        let engine = engine.map_err(|error| {
             PrismError::from_lexlean(
                 "PP2001",
                 "LexLean project load failed",
@@ -443,6 +514,7 @@ impl Controller {
                 config.limits.max_diagnostics,
             )
         })?;
+        plan.observe()?;
         let snapshot = engine
             .snapshot(LexCheckRequest {
                 selection: Selection::Entrypoints,
@@ -455,6 +527,7 @@ impl Controller {
                     config.limits.max_diagnostics,
                 )
             })?;
+        plan.observe()?;
         crate::holo::projector::validate_snapshot_envelope(&snapshot.canonical_bytes())?;
         let system = crate::system::project(&snapshot, release)?;
         if release.is_some() && system.is_none() {
@@ -468,6 +541,7 @@ impl Controller {
             application_selection
                 .as_ref()
                 .map(|selection| {
+                    plan.observe()?;
                     engine
                         .snapshot(LexCheckRequest {
                             selection: selection.clone(),
@@ -485,6 +559,7 @@ impl Controller {
         } else {
             None
         };
+        plan.observe()?;
         let model_snapshot = application_snapshot.as_ref().unwrap_or(&snapshot);
         let application_model = crate::holo::application::project_application(model_snapshot)?;
         let library_model = crate::holo::library::project_library(&snapshot)?;
@@ -534,39 +609,71 @@ impl Controller {
             model,
             model_bytes,
             system,
+            _worker_bound: PhantomData,
         })
     }
 
-    fn prepare(&self, config_path: Option<&Path>) -> Result<Prepared, PrismError> {
+    fn with_prepared_release<T: ModelWorkerOutput>(
+        &self,
+        config_path: Option<&Path>,
+        release: Option<&str>,
+        operation: impl FnOnce(&Prepared) -> Result<T, PrismError> + Send,
+    ) -> Result<T, PrismError> {
+        let plan = model_worker::Plan::load(&self.root, config_path)?;
+        model_worker::run(&plan, model_worker::Kind::Model, || {
+            let prepared = self.prepare_release_in_worker(&plan, release)?;
+            operation(&prepared)
+            // Prepared drops here, on success, error and unwind, before join.
+        })
+    }
+
+    #[cfg(test)]
+    fn prepare_release(
+        &self,
+        config_path: Option<&Path>,
+        release: Option<&str>,
+    ) -> Result<PreparedView, PrismError> {
+        self.with_prepared_release(config_path, release, |prepared| {
+            Ok(PreparedView {
+                model_bytes: prepared.model_bytes.clone(),
+                system: prepared.system.clone(),
+            })
+        })
+    }
+
+    #[cfg(test)]
+    fn prepare(&self, config_path: Option<&Path>) -> Result<PreparedView, PrismError> {
         self.prepare_release(config_path, None)
     }
 
     pub(crate) fn production_systems(
         &self,
     ) -> Result<Vec<crate::contracts::CanonicalDocument>, PrismError> {
-        let prepared = self.prepare_release(None, None)?;
-        let systems = crate::system::project_all(&prepared.snapshot)?;
-        for system in &systems {
-            let expected = format!("sha256:{}", content_id(&prepared.model_bytes));
-            if system.value()["application_profile"]["application_model_digest"] != expected {
-                return Err(PrismError::new(
-                    "PP2101",
-                    "a named system release does not bind the selected application model",
-                ));
+        self.with_prepared_release(None, None, |prepared| {
+            let systems = crate::system::project_all(&prepared.snapshot)?;
+            for system in &systems {
+                let expected = format!("sha256:{}", content_id(&prepared.model_bytes));
+                if system.value()["application_profile"]["application_model_digest"] != expected {
+                    return Err(PrismError::new(
+                        "PP2101",
+                        "a named system release does not bind the selected application model",
+                    ));
+                }
             }
-        }
-        Ok(systems)
+            Ok(systems)
+        })
     }
 
     /// Check through LexLean snapshot, Holo projection, and validation in memory.
     pub fn check(&self, request: CheckRequest) -> Result<CheckResult, PrismError> {
-        let prepared = self.prepare(request.config_path.as_deref())?;
-        Ok(CheckResult {
-            schema: "prismpm/check-result/1".to_owned(),
-            semantic_id: prepared.snapshot.semantic_id().to_string(),
-            snapshot_id: prepared.snapshot.snapshot_id().to_string(),
-            model_id: content_id(&prepared.model_bytes),
-            entity_count: count_entities(&prepared.model)?,
+        self.with_prepared_release(request.config_path.as_deref(), None, |prepared| {
+            Ok(CheckResult {
+                schema: "prismpm/check-result/1".to_owned(),
+                semantic_id: prepared.snapshot.semantic_id().to_string(),
+                snapshot_id: prepared.snapshot.snapshot_id().to_string(),
+                model_id: content_id(&prepared.model_bytes),
+                entity_count: count_entities(&prepared.model)?,
+            })
         })
     }
 
@@ -600,7 +707,25 @@ impl Controller {
         request: BuildRequest,
         release: Option<&str>,
     ) -> Result<BuildResult, PrismError> {
-        let prepared = self.prepare_release(request.config_path.as_deref(), release)?;
+        self.build_release_with_owner(request, release, None)
+    }
+
+    pub(crate) fn build_release_with_owner(
+        &self,
+        request: BuildRequest,
+        release: Option<&str>,
+        exporter_owner: Option<&mut crate::exporter::VerifyExporterOwner>,
+    ) -> Result<BuildResult, PrismError> {
+        self.with_prepared_release(request.config_path.as_deref(), release, |prepared| {
+            self.build_prepared(prepared, exporter_owner)
+        })
+    }
+
+    fn build_prepared(
+        &self,
+        prepared: &Prepared,
+        mut exporter_owner: Option<&mut crate::exporter::VerifyExporterOwner>,
+    ) -> Result<BuildResult, PrismError> {
         if let Some(application) = &prepared.model.application {
             crate::holo::browser_application::require_runtime(application)?;
         }
@@ -748,13 +873,27 @@ impl Controller {
                         .map_err(|error| PrismError::new("PP4002", error.to_string()))?,
                 ));
             }
-            let application_artifacts = crate::application_build::generate(
-                &self.root,
-                &prepared.model,
-                &prepared.model_bytes,
-                &application_lex_root,
-                &application_lex_manifest,
-            )?;
+            let application_artifacts = match exporter_owner.as_deref_mut() {
+                Some(owner) => {
+                    crate::application_build::generate_owned(
+                        &self.root,
+                        &prepared.model,
+                        &prepared.model_bytes,
+                        &application_lex_root,
+                        &application_lex_manifest,
+                        owner,
+                        crate::exporter::Phase::ControllerBuild,
+                    )?
+                    .artifacts
+                }
+                None => crate::application_build::generate(
+                    &self.root,
+                    &prepared.model,
+                    &prepared.model_bytes,
+                    &application_lex_root,
+                    &application_lex_manifest,
+                )?,
+            };
             for (path, bytes) in &application_artifacts {
                 if path.ends_with(".holo") {
                     prepared.config.limits.check_holo_length(bytes.len())?;
@@ -763,13 +902,27 @@ impl Controller {
             artifacts.extend(application_artifacts);
         }
         if prepared.model.library.is_some() {
-            artifacts.extend(crate::library_build::generate(
-                &self.root,
-                &prepared.model,
-                &prepared.model_bytes,
-                &lex_root,
-                &lex_manifest_bytes,
-            )?);
+            artifacts.extend(match exporter_owner {
+                Some(owner) => {
+                    crate::library_build::generate_owned(
+                        &self.root,
+                        &prepared.model,
+                        &prepared.model_bytes,
+                        &lex_root,
+                        &lex_manifest_bytes,
+                        owner,
+                        crate::exporter::Phase::ControllerBuild,
+                    )?
+                    .artifacts
+                }
+                None => crate::library_build::generate(
+                    &self.root,
+                    &prepared.model,
+                    &prepared.model_bytes,
+                    &lex_root,
+                    &lex_manifest_bytes,
+                )?,
+            });
         }
         if let Some(system) = &prepared.system {
             artifacts.push(("system.prism.json".to_owned(), system.bytes().to_vec()));
@@ -789,6 +942,7 @@ impl Controller {
         let mut inputs = json!({
             "application_generator_sha256": format!("{:x}", Sha256::digest([
                 include_bytes!("../application_build.rs").as_slice(),
+                include_bytes!("../lean_project.rs").as_slice(),
                 include_bytes!("../holo/archive.rs").as_slice(),
                 include_bytes!("../embedded/lean4-prod-rust.MANIFEST.sha256").as_slice(),
                 b"prismpm/build-artifacts/2".as_slice()
@@ -821,8 +975,7 @@ impl Controller {
         }
         if prepared.model.library.is_some() {
             inputs["library_artifacts_sha256"] = json!(content_id(&encode_value(&json!(rows))?));
-            inputs["library_generator_sha256"] =
-                json!(content_id(include_bytes!("../library_build.rs")));
+            inputs["library_generator_sha256"] = json!(library_generator_identity());
             inputs["schema"] = json!("prismpm/build-inputs/3");
         }
         let build_id = content_id(&encode_value(&inputs)?);
@@ -900,6 +1053,13 @@ impl Controller {
         })
     }
 
+    pub(crate) fn check_model_configuration(
+        &self,
+        config_path: Option<&Path>,
+    ) -> Result<(), PrismError> {
+        model_worker::require_current_selection(&self.root, config_path)
+    }
+
     /// Verify the source/tool chain and assemble the accepted build as one OCI graph.
     pub fn product_build(
         &self,
@@ -911,12 +1071,11 @@ impl Controller {
                 "product release construction requires --locked",
             ));
         }
-        if self
-            .prepare_release(request.config_path.as_deref(), request.release.as_deref())?
-            .model
-            .library
-            .is_some()
-        {
+        if self.with_prepared_release(
+            request.config_path.as_deref(),
+            request.release.as_deref(),
+            |prepared| Ok(prepared.model.library.is_some()),
+        )? {
             return Err(PrismError::new(
                 "PP6101",
                 "native-library acceptance is not product-release or deployment acceptance",
@@ -938,11 +1097,11 @@ impl Controller {
             request.release.as_deref(),
         )?;
         require_verified_build(&verified, &selected)?;
-        let validations = if self
-            .prepare_release(config_path.as_deref(), request.release.as_deref())?
-            .system
-            .is_some()
-        {
+        let validations = if self.with_prepared_release(
+            config_path.as_deref(),
+            request.release.as_deref(),
+            |prepared| Ok(prepared.system.is_some()),
+        )? {
             crate::deployment::validate_build(&self.root, &selected.build_id)?
         } else {
             Vec::new()
@@ -988,20 +1147,10 @@ impl Controller {
         release: Option<&str>,
     ) -> Result<VerifyResult, PrismError> {
         ensure_verification_not_active()?;
-        std::thread::scope(|scope| {
-            let worker = std::thread::Builder::new()
-                .name("prismpm-verification".to_owned())
-                .stack_size(VERIFY_WORKER_STACK_BYTES)
-                .spawn_scoped(scope, move || {
-                    let _guard = VerifyWorkerGuard::enter()?;
-                    crate::verification::run(self, request, release)
-                })
-                .map_err(|error| {
-                    PrismError::new("PP5008", format!("start verification worker: {error}"))
-                })?;
-            worker.join().map_err(|_| {
-                PrismError::new("PP5008", "verification worker terminated unexpectedly")
-            })?
+        let plan = model_worker::Plan::load(&self.root, request.config_path.as_deref())?;
+        model_worker::run(&plan, model_worker::Kind::Verification, move || {
+            let _guard = VerifyWorkerGuard::enter()?;
+            crate::verification::run(self, request, release)
         })
     }
 }
@@ -1011,6 +1160,71 @@ mod release_tests;
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn library_generator_binds_each_actual_cold_owner_source_without_hash_overrides() {
+        let paths = [
+            "library_build.rs",
+            "lean_project.rs",
+            "exporter.rs",
+            "exporter/owner.rs",
+            "exporter/custody.rs",
+            "exporter/directory.rs",
+            "sdk/exporter-seed-admission.mjs",
+            "sdk/exporter-seed.mjs",
+            "sdk/inventory-metadata.mjs",
+        ];
+        let parts = [
+            include_bytes!("../library_build.rs").as_slice(),
+            include_bytes!("../lean_project.rs").as_slice(),
+            include_bytes!("../exporter.rs").as_slice(),
+            include_bytes!("../exporter/owner.rs").as_slice(),
+            include_bytes!("../exporter/custody.rs").as_slice(),
+            include_bytes!("../exporter/directory.rs").as_slice(),
+            include_bytes!("../../sdk/exporter-seed-admission.mjs").as_slice(),
+            include_bytes!("../../sdk/exporter-seed.mjs").as_slice(),
+            include_bytes!("../../sdk/inventory-metadata.mjs").as_slice(),
+        ];
+        let encode = |parts: &[Vec<u8>], paths: &[&str]| {
+            let mut bytes = b"prismpm/library-generator/2\0".to_vec();
+            for (path, part) in paths.iter().zip(parts) {
+                bytes.extend_from_slice(path.as_bytes());
+                bytes.push(0);
+                bytes.extend_from_slice(&(part.len() as u64).to_be_bytes());
+                bytes.extend_from_slice(part);
+            }
+            super::content_id(&bytes)
+        };
+        let originals = parts.map(<[u8]>::to_vec);
+        let actual = super::library_generator_identity();
+        assert_eq!(actual, encode(&originals, &paths));
+        for index in 0..parts.len() {
+            let mut changed = originals.clone();
+            changed[index].push(0);
+            assert_ne!(actual, encode(&changed, &paths));
+            let omitted = originals
+                .iter()
+                .enumerate()
+                .filter(|(at, _)| *at != index)
+                .map(|(_, part)| part.clone())
+                .collect::<Vec<_>>();
+            let omitted_paths = paths
+                .iter()
+                .enumerate()
+                .filter(|(at, _)| *at != index)
+                .map(|(_, path)| *path)
+                .collect::<Vec<_>>();
+            assert_ne!(actual, encode(&omitted, &omitted_paths));
+        }
+        let mut renamed = paths;
+        renamed[0] = "other-library-build.rs";
+        assert_ne!(actual, encode(&originals, &renamed));
+        let mut redistributed = originals.clone();
+        let byte = redistributed[0].pop().unwrap();
+        redistributed[1].insert(0, byte);
+        assert_eq!(originals.concat(), redistributed.concat());
+        assert_ne!(actual, encode(&redistributed, &paths));
+    }
+
     #[test]
     fn execution_boundary_rejects_wrong_native_inventory() {
         crate::sdk::execution_binding_regression(
@@ -1077,5 +1291,19 @@ mod tests {
             .join()
             .expect("independent worker did not panic");
         drop(guard);
+    }
+
+    #[test]
+    fn prepared_cannot_escape_or_be_shared_across_worker_join() {
+        // If either Prepared or &Prepared ever becomes Send, inference becomes
+        // ambiguous and this compile-time property test fails to compile.
+        trait AmbiguousIfSend<A> {
+            fn check() {}
+        }
+        impl<T: ?Sized> AmbiguousIfSend<()> for T {}
+        struct SendMarker;
+        impl<T: ?Sized + Send> AmbiguousIfSend<SendMarker> for T {}
+        let _ = <super::Prepared as AmbiguousIfSend<_>>::check;
+        let _ = <&super::Prepared as AmbiguousIfSend<_>>::check;
     }
 }

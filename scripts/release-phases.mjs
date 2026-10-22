@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { createReadStream, lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { constants, closeSync, createReadStream, fstatSync, lstatSync, mkdtempSync, openSync,
+  readFileSync, readSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -59,11 +60,70 @@ export function requirePrerequisites(phase, needs) {
   for (const name of expected) assert.equal(needs[name]?.result, 'success', `${name} did not succeed`);
 }
 
-function readBlob(directory, descriptor) {
+const metadataLimit = 16 * 1024 ** 2;
+const layerLimit = 32 * 1024 ** 3;
+const layoutLimit = 128 * 1024 ** 3;
+const identityFields = ['dev', 'ino', 'mode', 'nlink', 'size', 'mtimeNs', 'ctimeNs'];
+const layerTypes = new Set(['', '+gzip', '+zstd'].flatMap(compression =>
+  ['', '.nondistributable'].map(kind => `application/vnd.oci.image.layer${kind}.v1.tar${compression}`)));
+
+function sameIdentity(actual, expected) {
+  for (const key of identityFields) assert.equal(actual[key], expected[key], 'OCI input changed during read');
+}
+
+function verifyObservations(observations) {
+  for (const {path, identity} of observations) {
+    assert.equal(realpathSync(path), path, 'OCI input path changed during read');
+    sameIdentity(lstatSync(path, {bigint: true}), identity);
+  }
+}
+
+function descriptorSize(descriptor, maximum) {
   assert.match(descriptor.digest, /^sha256:[0-9a-f]{64}$/);
-  const path = join(directory, 'blobs/sha256', descriptor.digest.slice(7));
-  assert.ok(lstatSync(path).isFile(), 'OCI blob is not a regular file');
-  return parseBlob(readFileSync(path), descriptor);
+  assert.ok(Number.isSafeInteger(descriptor.size) && descriptor.size >= 0 && descriptor.size <= maximum,
+    'OCI descriptor exceeds its byte bound');
+}
+
+// Layer bodies are never buffered. Every invocation opens and reads every
+// declared byte through EOF; metadata and path identities are checked again
+// before closing. This is observed custody, not atomic filesystem isolation.
+function readLayoutFile(path, maximum, descriptor = null, retain = true, observations = []) {
+  assert.equal(realpathSync(path), path, 'OCI file path is aliased');
+  const before = lstatSync(path, {bigint: true});
+  assert.ok(before.isFile() && before.nlink === 1n && before.size <= BigInt(maximum),
+    'OCI input must be a bounded independent regular file');
+  if (descriptor) {
+    descriptorSize(descriptor, maximum);
+    assert.equal(before.size, BigInt(descriptor.size), 'OCI blob size differs from its descriptor');
+  }
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    sameIdentity(fstatSync(fd, {bigint: true}), before);
+    const hash = createHash('sha256'), buffer = Buffer.alloc(64 * 1024), chunks = [];
+    let length = 0;
+    for (;;) {
+      const count = readSync(fd, buffer, 0, buffer.length, null);
+      if (count === 0) break;
+      length += count;
+      assert.ok(length <= maximum && BigInt(length) <= before.size, 'OCI input grew during read');
+      hash.update(buffer.subarray(0, count));
+      if (retain) chunks.push(Buffer.from(buffer.subarray(0, count)));
+    }
+    assert.equal(BigInt(length), before.size, 'OCI input shortened during read');
+    sameIdentity(fstatSync(fd, {bigint: true}), before);
+    sameIdentity(lstatSync(path, {bigint: true}), before);
+    assert.equal(realpathSync(path), path, 'OCI file path changed during read');
+    const digest = `sha256:${hash.digest('hex')}`;
+    if (descriptor) assert.equal(digest, descriptor.digest, 'OCI blob digest differs from its descriptor');
+    observations.push({path, identity: before});
+    return retain ? Buffer.concat(chunks, length) : null;
+  } finally { closeSync(fd); }
+}
+
+function readBlob(directory, descriptor, observations, maximum = metadataLimit, retain = true) {
+  descriptorSize(descriptor, maximum);
+  const bytes = readLayoutFile(join(directory, 'blobs/sha256', descriptor.digest.slice(7)), maximum, descriptor, retain, observations);
+  return retain ? JSON.parse(bytes) : null;
 }
 
 function parseBlob(bytes, descriptor) {
@@ -73,16 +133,36 @@ function parseBlob(bytes, descriptor) {
 }
 
 function rebuiltManifest(directory, architecture, revision) {
-  const index = JSON.parse(readFileSync(join(directory, 'index.json')));
+  directory = resolve(directory);
+  const parents = [directory, join(directory, 'blobs'), join(directory, 'blobs/sha256')].map(path => {
+    assert.equal(realpathSync(path), path, 'OCI directory path is aliased');
+    const identity = lstatSync(path, {bigint: true});
+    assert.ok(identity.isDirectory() && !identity.isSymbolicLink(), 'OCI directory required');
+    return {path, identity};
+  });
+  const observations = [];
+  const index = JSON.parse(readLayoutFile(join(directory, 'index.json'), metadataLimit, null, true, observations));
   assert.equal(index.schemaVersion, 2);
   assert.equal(index.manifests.length, 1);
   const descriptor = index.manifests[0];
   assert.equal(descriptor.mediaType, 'application/vnd.oci.image.manifest.v1+json');
-  const manifest = readBlob(directory, descriptor);
+  const manifest = readBlob(directory, descriptor, observations);
   assert.equal(manifest.schemaVersion, 2);
   assert.equal(manifest.mediaType, descriptor.mediaType);
-  validateConfig(readBlob(directory, manifest.config), architecture, revision);
-  return descriptor;
+  assert.equal(manifest.config.mediaType, 'application/vnd.oci.image.config.v1+json');
+  validateConfig(readBlob(directory, manifest.config, observations), architecture, revision);
+  assert.ok(Array.isArray(manifest.layers) && manifest.layers.length <= 4096, 'bounded OCI layer inventory required');
+  let total = 0;
+  for (const layer of manifest.layers) {
+    assert.ok(layerTypes.has(layer.mediaType), 'OCI image layer media type required');
+    descriptorSize(layer, layerLimit);
+    total += layer.size;
+    assert.ok(total <= layoutLimit, 'OCI layer closure exceeds its byte bound');
+  }
+  for (const layer of manifest.layers) readBlob(directory, layer, observations, layerLimit, false);
+  const verify = () => verifyObservations([...parents, ...observations]);
+  verify();
+  return {descriptor, verify};
 }
 
 function publishedPlatform(image, indexBytes, architecture) {
@@ -108,11 +188,14 @@ function publishedPlatform(image, indexBytes, architecture) {
 export function verifyReproducibility(image, indexBytes, architecture, revision, first, second) {
   assert.match(revision, /^[0-9a-f]{40}$/);
   const published = publishedPlatform(image, indexBytes, architecture);
+  const owners = [];
   for (const directory of [first, second]) {
-    const rebuilt = rebuiltManifest(directory, architecture, revision);
+    const {descriptor: rebuilt, verify} = rebuiltManifest(directory, architecture, revision);
+    owners.push(verify);
     assert.equal(rebuilt.digest, published.digest, 'rebuilt bytes differ from the shipped platform manifest');
     assert.equal(rebuilt.size, published.size);
   }
+  for (const owner of owners) owner();
   return published.digest;
 }
 
@@ -198,10 +281,11 @@ export function publicationNotes(revision) {
 
 export function assetNames() {
   return [
-    'SHA256SUMS', 'source-vv.tar',
+    'SHA256SUMS', 'source-vv.tar', 'sdk-metadata-native-join.json',
     ...['amd64', 'arm64'].flatMap(architecture => [
       `sdk-${architecture}-full-sdk-vv.tar`, `sdk-${architecture}-product-cli.tar`,
       `sdk-${architecture}-native-equivalence.tar`,
+      `sdk-${architecture}-native-metadata.tar`,
       `sdk-${architecture}-browser-sdk.log`, `sdk-${architecture}-library-sdk.log`,
     ]),
     ...['x86_64', 'aarch64'].flatMap(architecture => [

@@ -6,8 +6,9 @@ import {chmodSync,mkdtempSync,mkdirSync,readFileSync,rmSync,symlinkSync,writeFil
 import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {test} from 'node:test';
-import {bytes,canonical,capture,cli,command,productResult,sha,sourceRoots,testOutput,validateScans,verifyResult,verifySource} from './product-sdk-check.mjs';
+import {bytes,canonical,capture,cli,command,productResult,sha,sourceRoots,testOutput,validateScans,validateSeededApplication,verifyResult,verifySource} from './product-sdk-check.mjs';
 import {sourceAliases} from './library-sdk-check.mjs';
+import {lockFixture,resultFixture,sourceAuthorityFixture,ownerFixture} from './library-sdk-fixture.mjs';
 
 const image='ghcr.io/uor-foundation/prismpm-sdk@sha256:'+'a'.repeat(64),revision='b'.repeat(40);
 const raw=value=>({status:0,signal:null,stdout:JSON.stringify(value),stderr:''});
@@ -53,10 +54,10 @@ test('captured evidence rejects symlinks, directories and over-bound bytes',t=>{
 });
 
 test('owning test runner rejects skipped, missing or failed successful-shell TAP',()=>{
- const tap=['TAP version 13',...Array.from({length:18},(_,index)=>`ok ${index+1} - case ${index+1}`),
-  '1..18','# tests 18','# suites 0','# pass 18','# fail 0','# cancelled 0','# skipped 0','# todo 0'].join('\n');
+ const tap=['TAP version 13',...Array.from({length:19},(_,index)=>`ok ${index+1} - case ${index+1}`),
+  '1..19','# tests 19','# suites 0','# pass 19','# fail 0','# cancelled 0','# skipped 0','# todo 0'].join('\n');
  testOutput({...raw({}),stdout:tap});
- for(const output of ['',tap.replace('# skipped 0','# skipped 1'),tap.replace('# tests 18','# tests 17'),tap.replace('ok 1 - case 1','ok 1 - case 1 # SKIP')])assert.throws(()=>testOutput({...raw({}),stdout:output}));
+ for(const output of ['',tap.replace('# skipped 0','# skipped 1'),tap.replace('# tests 19','# tests 18'),tap.replace('ok 1 - case 1','ok 1 - case 1 # SKIP')])assert.throws(()=>testOutput({...raw({}),stdout:output}));
  assert.throws(()=>testOutput({...raw({}),stdout:tap,status:1}));
 });
 
@@ -68,6 +69,52 @@ test('product invocation uses installed executable and exact locked release argu
  assert.equal(call[2].env.CARGO_NET_OFFLINE,'true');assert.equal(call[2].env.CARGO_TARGET_DIR,undefined);
  assert(call[2].timeout>0&&call[2].timeout<=1800000);assert(call[2].maxBuffer<=16*1024*1024);
  await cli('/tmp/owned-fixture',['fetch','--locked'],{},launch);assert.equal(call[2].env.CARGO_NET_OFFLINE,'false');
+});
+
+test('retained application regeneration requires source-bound native seed evidence, never cold fallback',()=>{
+ for(const architecture of ['amd64','arm64']){
+  const binding=lockFixture().binding(architecture),library=JSON.parse(resultFixture(binding).runs[2].manifest);
+  const exporter=library.processes[7];exporter.tool='application-export';
+  const generation=structuredClone(library.exporter_owner.phases[0].processes.slice(0,3));
+  generation[0].tool='application-lean';generation[1].tool='application-exporter';generation[2]=exporter;
+  const model=Buffer.from(canonical({application:{name:'Calculator',library_roots:['Probe.main']}}));
+  const lexlean_manifest=Buffer.from(canonical({outputs:[{kind:'lean',path:'modules/Probe.lean'}]}));
+  exporter.argv=['exe','prod-export','--module','Probe','--root','Probe.main','--ir-module','Calculator','--out','$APPLICATION_WORK/export'];
+  const manifest={schema:'prismpm/application-verification-manifest/2',build_id:'a'.repeat(64),model_sha256:sha(model).slice(7),
+   acceptance_sha256:'c'.repeat(64),lexlean_attestation_sha256:'d'.repeat(64),processes:[library.processes[1],...generation]};
+  manifest.exporter_owner=ownerFixture(manifest,'application',generation);
+  for(const phase of manifest.exporter_owner.phases)phase.lexlean_manifest_sha256=sha(lexlean_manifest).slice(7);
+  const buildEvidence={model,lexlean_manifest,artifacts:structuredClone(manifest.exporter_owner.phases[0].artifacts)};
+  const verify=value=>validateSeededApplication(Buffer.from(canonical(value)),manifest.build_id,'sha256:'+manifest.model_sha256,binding,sourceAuthorityFixture,buildEvidence);
+  const actual=verify(manifest);assert.equal(actual.manifest,canonical(manifest));assert.equal(actual.manifest_sha256,sha(canonical(manifest)));
+  for(const mutate of [v=>v.extra=true,v=>v.schema='prismpm/library-verification-manifest/1',v=>v.build_id='f'.repeat(64),
+   v=>v.model_sha256='f'.repeat(64),v=>v.processes=[],v=>v.processes.push(v.processes[3]),v=>v.processes[3].tool='prod-export',
+   v=>v.processes[3].argv=[],v=>v.processes[3].exit_code=1,v=>delete v.processes[3].exporter,
+   v=>v.processes[3].exporter.acquisition={schema:'prismpm/exporter-acquisition/1',mode:'cold'},
+   v=>v.processes[3].exporter.executable.sha256='f'.repeat(64),v=>v.processes[3].exporter.executable.mode=-1,
+   v=>v.processes[3].exporter.source_archive_sha256='f'.repeat(64),
+   ...['platform','inventory_sha256','manifest_sha256','archive_sha256','compiler_revision','toolchain','executable_sha256']
+    .map(field=>v=>{v.processes[3].exporter.acquisition[field]='changed';}),
+   v=>delete v.exporter_owner,v=>v.exporter_owner.phases.reverse(),v=>v.exporter_owner.phases.pop(),
+   v=>v.exporter_owner.phases[0].artifacts[0].sha256='f'.repeat(64),
+   v=>v.exporter_owner.phases[0].processes[2].exporter.source_archive_sha256='f'.repeat(64),
+   v=>v.exporter_owner.phases[0].processes[2].exporter.acquisition.platform='linux/invalid',
+   v=>v.exporter_owner.phases[0].processes[0].executable_sha256='f'.repeat(64),
+   v=>v.exporter_owner.phases[1].processes[2].argv.push('--undeclared'),
+   v=>{for(const phase of v.exporter_owner.phases)phase.processes[2].argv[5]='Foreign.main';v.processes[3].argv[5]='Foreign.main';},
+   v=>{for(const phase of v.exporter_owner.phases)phase.artifacts[0].sha256='f'.repeat(64);},
+   v=>{for(const phase of v.exporter_owner.phases)phase.lexlean_manifest_sha256='f'.repeat(64);},
+  ]){
+   const changed=structuredClone(manifest);mutate(changed);assert.throws(()=>verify(changed));
+  }
+  assert.throws(()=>validateSeededApplication(Buffer.from(canonical(manifest)+'\n'),manifest.build_id,'sha256:'+manifest.model_sha256,binding,sourceAuthorityFixture));
+  assert.throws(()=>validateSeededApplication(Buffer.from(canonical(manifest)),manifest.build_id,'sha256:'+manifest.model_sha256,binding));
+  assert.throws(()=>validateSeededApplication(Buffer.from(canonical(manifest)),manifest.build_id,'sha256:'+manifest.model_sha256,binding,sourceAuthorityFixture));
+  for(const evidence of [{...buildEvidence,model:Buffer.from('{}')},{...buildEvidence,lexlean_manifest:Buffer.from('{}')},
+   {...buildEvidence,artifacts:[]},{...buildEvidence,artifacts:[...buildEvidence.artifacts,{path:'extra',byte_length:0,sha256:'a'.repeat(64)}]}]){
+   assert.throws(()=>validateSeededApplication(Buffer.from(canonical(manifest)),manifest.build_id,'sha256:'+manifest.model_sha256,binding,sourceAuthorityFixture,evidence));
+  }
+ }
 });
 
 test('CLI boundaries require actual success or exact modeled failure and exit class',async()=>{
@@ -111,6 +158,7 @@ test('owning deadline test rejects direct-child-only termination mutant',t=>{
   .replace("'../sdk/platform-lock.mjs'",JSON.stringify(new URL('../sdk/platform-lock.mjs',import.meta.url).href));
  put(root,'product-sdk-check.mjs',module);
  put(root,'product-sdk-check.test.mjs',readFileSync(new URL('./product-sdk-check.test.mjs',import.meta.url),'utf8')
+  .replace("'./library-sdk-fixture.mjs'",JSON.stringify(new URL('./library-sdk-fixture.mjs',import.meta.url).href))
   .replace("'./library-sdk-check.mjs'",JSON.stringify(new URL('./library-sdk-check.mjs',import.meta.url).href)));
  const env={...process.env};delete env.NODE_TEST_CONTEXT;
  const child=spawnSync(process.execPath,['--test','--test-name-pattern=actual deadline kills descendant',join(root,'product-sdk-check.test.mjs')],{env,encoding:'utf8',timeout:10000,maxBuffer:1024*1024});
@@ -188,7 +236,8 @@ test('native release gate remains downstream of published images and mandatory a
  const source=readFileSync(new URL('../.github/workflows/release.yml',import.meta.url),'utf8');
  const job=source.split('\n  installed-sdk:\n')[1]?.split('\n  native:\n')[0];assert(job);
  assert(job.includes('needs: [gate, images]'));assert(job.includes('os: ubuntu-24.04-arm'));assert(job.includes('arch: amd64'));assert(job.includes('arch: arm64'));
- assert(job.indexOf('sdk-vv-check.mjs run')<job.indexOf('product-sdk-check.sh'));
+ const outer=job.indexOf('bash root-a/scripts/sdk-vv-outer.sh');
+ assert(outer>=0&&outer<job.indexOf('product-sdk-check.sh'));
  assert(job.includes('node root-a/scripts/product-sdk-check.mjs tests'));
  assert(job.includes('bash root-a/scripts/product-sdk-check.sh "$(cat .shipped-image/sdk-image.txt)"'));
  assert(!job.includes('continue-on-error'));assert(!job.includes('if: false'));
@@ -207,6 +256,7 @@ test('actual owning CLI boundary test rejects a removed exit-status guard',t=>{
   .replace("'../sdk/platform-lock.mjs'",JSON.stringify(new URL('../sdk/platform-lock.mjs',import.meta.url).href));
  put(root,'product-sdk-check.mjs',module);
  const testSource=readFileSync(new URL('./product-sdk-check.test.mjs',import.meta.url),'utf8')
+  .replace("'./library-sdk-fixture.mjs'",JSON.stringify(new URL('./library-sdk-fixture.mjs',import.meta.url).href))
   .replace("'./library-sdk-check.mjs'",JSON.stringify(new URL('./library-sdk-check.mjs',import.meta.url).href));
  put(root,'product-sdk-check.test.mjs',testSource);
  const env={...process.env};delete env.NODE_TEST_CONTEXT;

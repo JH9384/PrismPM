@@ -84,6 +84,80 @@ fn descriptor(value: &Value, bytes: Option<&[u8]>) -> Result<(), String> {
     Ok(())
 }
 
+fn exporter_role(process: &Value) -> Result<bool, String> {
+    let args = array(&process["argv"])?;
+    let invocation = args.first().and_then(Value::as_str) == Some("exe")
+        && args.get(1).and_then(Value::as_str) == Some("prod-export");
+    let role = process["tool"] == "prod-export";
+    ensure(
+        role == invocation,
+        "golden exporter role and invocation differ",
+    )?;
+    Ok(role)
+}
+
+fn exporter_record(value: &Value) -> Result<(), String> {
+    keys(
+        value,
+        &[
+            "schema",
+            "source_archive_sha256",
+            "executable",
+            "acquisition",
+        ],
+    )?;
+    ensure(
+        value["schema"] == "prismpm/exporter-execution/1",
+        "golden exporter schema differs",
+    )?;
+    ensure(
+        digest(&value["source_archive_sha256"])?
+            == content_id(include_bytes!("../../../vendor/lean4-prod/lean.tar")),
+        "golden exporter archive differs from compiled authority",
+    )?;
+    let executable = &value["executable"];
+    keys(executable, &["byte_length", "mode", "sha256"])?;
+    digest(&executable["sha256"])?;
+    ensure(
+        executable["byte_length"]
+            .as_u64()
+            .is_some_and(|length| (1..=256 * 1024 * 1024).contains(&length))
+            && executable["mode"]
+                .as_u64()
+                .is_some_and(|mode| mode & !0o777 == 0 && mode & 0o111 != 0),
+        "golden exporter executable measurement differs",
+    )?;
+    // These source-review trees have no independently retained SDK lock.
+    // Warm provenance cannot be admitted by merely accepting its hashes.
+    ensure(
+        value["acquisition"] == json!({"schema":"prismpm/exporter-acquisition/1","mode":"cold"}),
+        "golden exporter requires cold source acquisition",
+    )
+}
+
+fn current_exporters(manifest: &Value) -> Result<(), String> {
+    let mut count = 0;
+    let mut identity = None;
+    for process in array(&manifest["processes"])? {
+        if exporter_role(process)? {
+            exporter_record(&process["exporter"])?;
+            if let Some(first) = identity {
+                ensure(
+                    first == &process["exporter"],
+                    "golden exports disagree on measured compiler identity",
+                )?;
+            } else {
+                identity = Some(&process["exporter"]);
+            }
+            count += 1;
+        }
+    }
+    ensure(
+        count == 2,
+        "golden current evidence requires both measured exports",
+    )
+}
+
 fn file<'a>(files: &'a BTreeMap<&str, &[u8]>, path: &str) -> Result<&'a [u8], String> {
     files
         .get(path)
@@ -366,17 +440,23 @@ fn validate(files: &[(String, Vec<u8>)]) -> Result<(Value, Value, Value), String
         descriptor(&manifest["artifacts"][key], None)?;
     }
     for process in array(&manifest["processes"])? {
-        keys(
-            process,
-            &[
-                "argv",
-                "executable_sha256",
-                "exit_code",
-                "stderr",
-                "stdout",
-                "tool",
-            ],
-        )?;
+        let mut fields = vec![
+            "argv",
+            "executable_sha256",
+            "exit_code",
+            "stderr",
+            "stdout",
+            "tool",
+        ];
+        let exporter = exporter_role(process)?;
+        // Historical records remain inspectable, not current acceptance. Both
+        // current_caller and native_records require complete measurements.
+        if let Some(measurement) = process.get("exporter") {
+            ensure(exporter, "golden non-export process has exporter metadata")?;
+            exporter_record(measurement)?;
+            fields.push("exporter");
+        }
+        keys(process, &fields)?;
         digest(&process["executable_sha256"])?;
         ensure(
             process["exit_code"] == 0 && !text(&process["tool"])?.is_empty(),
@@ -446,7 +526,8 @@ pub fn compare(expected: &[(String, Vec<u8>)], actual: &[(String, Vec<u8>)]) -> 
 
 /// Check freshly produced evidence against the actual executing verifier bytes.
 pub fn current_caller(files: &[(String, Vec<u8>)], executable: &[u8]) -> Result<(), String> {
-    let (_, lex, _) = validate(files)?;
+    let (_, lex, manifest) = validate(files)?;
+    current_exporters(&manifest)?;
     ensure(
         lex["lexlean"]["executable_sha256"] == content_id(executable),
         "golden current verifier executable identity differs",
@@ -468,6 +549,8 @@ pub fn native_records(
 ) -> Result<GoldenFiles, String> {
     let (base_golden, base_lex, base_manifest) = validate(base)?;
     let (golden, lex, manifest) = validate(actual)?;
+    current_exporters(&base_manifest)?;
+    current_exporters(&manifest)?;
     ensure(
         lex["host"] == json!({"arch":platform.architecture(),"os":"linux"}),
         "golden raw host differs from selected process platform",
@@ -556,6 +639,19 @@ pub fn native_records(
                 ensure(
                     before[key] == after[key],
                     "native golden changes process invocation",
+                )?;
+            }
+            if let Some(exporter) = before.get("exporter") {
+                let actual = &after["exporter"];
+                for key in ["schema", "source_archive_sha256", "acquisition"] {
+                    ensure(
+                        exporter[key] == actual[key],
+                        "native golden changes exporter provenance",
+                    )?;
+                }
+                ensure(
+                    exporter["executable"]["mode"] == actual["executable"]["mode"],
+                    "native golden changes exporter executable mode",
                 )?;
             }
         }
@@ -692,6 +788,113 @@ mod tests {
     }
 
     #[test]
+    fn current_goldens_require_closed_actual_exporter_measurements() {
+        let original = fixture();
+        let manifest = value(&original, "verified/manifest.json");
+        current_exporters(&manifest).unwrap();
+        for mutation in [
+            "missing",
+            "null",
+            "unknown",
+            "schema",
+            "archive",
+            "acquisition",
+            "size",
+            "zero",
+            "mode",
+            "hash",
+            "role",
+            "argv",
+            "disagreement",
+        ] {
+            let mut changed = manifest.clone();
+            let rows = changed["processes"].as_array_mut().unwrap();
+            let index = rows
+                .iter()
+                .position(|row| row["tool"] == "prod-export")
+                .unwrap();
+            let row = &mut rows[index];
+            match mutation {
+                "missing" => {
+                    row.as_object_mut().unwrap().remove("exporter");
+                }
+                "null" => row["exporter"] = Value::Null,
+                "unknown" => row["exporter"]["extra"] = json!(true),
+                "schema" => row["exporter"]["schema"] = json!("other"),
+                "archive" => row["exporter"]["source_archive_sha256"] = json!("0".repeat(64)),
+                "acquisition" => row["exporter"]["acquisition"]["mode"] = json!("sdk-seed"),
+                "size" => row["exporter"]["executable"]["byte_length"] = json!(268435457_u64),
+                "zero" => row["exporter"]["executable"]["byte_length"] = json!(0),
+                "mode" => row["exporter"]["executable"]["mode"] = json!(0o4755),
+                "hash" => row["exporter"]["executable"]["sha256"] = json!("invalid"),
+                "role" => row["tool"] = json!("not-an-export"),
+                "argv" => row["argv"] = json!(["--version"]),
+                "disagreement" => row["exporter"]["executable"]["sha256"] = json!("0".repeat(64)),
+                _ => unreachable!(),
+            }
+            assert!(current_exporters(&changed).is_err(), "{mutation}");
+        }
+        for extra in [false, true] {
+            let mut changed = manifest.clone();
+            let rows = changed["processes"].as_array_mut().unwrap();
+            let index = rows
+                .iter()
+                .position(|row| row["tool"] == "prod-export")
+                .unwrap();
+            if extra {
+                rows.push(rows[index].clone());
+            } else {
+                rows.remove(index);
+            }
+            assert!(
+                current_exporters(&changed).is_err(),
+                "both and only both exports required"
+            );
+        }
+        let mut historical = original.clone();
+        let mut legacy = manifest.clone();
+        for row in legacy["processes"].as_array_mut().unwrap() {
+            row.as_object_mut().unwrap().remove("exporter");
+        }
+        replace(&mut historical, "verified/manifest.json", &legacy, false);
+        rebind(&mut historical);
+        comparison(&historical).unwrap(); // Inspection is not current admission.
+        assert!(current_caller(&historical, b"caller").is_err());
+        assert!(native_records(&historical, &original, platform::Platform::SdkAmd64).is_err());
+        assert!(native_records(&original, &historical, platform::Platform::SdkAmd64).is_err());
+
+        let mut changed = original.clone();
+        let mut native = manifest;
+        for row in native["processes"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .filter(|row| row["tool"] == "prod-export")
+        {
+            row["exporter"]["executable"]["sha256"] = json!("a".repeat(64));
+            row["exporter"]["executable"]["byte_length"] = json!(1234);
+        }
+        replace(&mut changed, "verified/manifest.json", &native, false);
+        rebind(&mut changed);
+        assert!(
+            compare(&original, &changed).is_err(),
+            "raw measured compiler changes require review"
+        );
+        native_records(&original, &changed, platform::Platform::SdkAmd64).unwrap();
+        for row in native["processes"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .filter(|row| row["tool"] == "prod-export")
+        {
+            row["exporter"]["executable"]["mode"] = json!(0o700);
+        }
+        replace(&mut changed, "verified/manifest.json", &native, false);
+        rebind(&mut changed);
+        assert!(native_records(&original, &changed, platform::Platform::SdkAmd64).is_err());
+    }
+
+    #[test]
     fn native_records_preserve_exact_bytes_and_reject_semantic_or_closure_changes() {
         let original = fixture();
         let selected = platform::Platform::SdkAmd64;
@@ -772,6 +975,20 @@ mod tests {
         );
         assert!(compare(&changed, &original).is_err());
         assert_eq!(fixture(), original);
+    }
+
+    #[test]
+    fn committed_native_profiles_preserve_the_shared_portable_outputs() {
+        // Inspect retained source-review records only. Reading another native
+        // profile does not execute that architecture or establish SDK acceptance.
+        let root = repo_model::repo_root();
+        let base = fixture();
+        for platform in [platform::Platform::SdkAmd64, platform::Platform::SdkArm64] {
+            let records = read(&root.join(platform.directory())).unwrap();
+            let composed = read_platform(&root, platform).unwrap();
+            assert_eq!(composed.len(), base.len());
+            assert_eq!(native_records(&base, &composed, platform).unwrap(), records);
+        }
     }
 
     #[test]

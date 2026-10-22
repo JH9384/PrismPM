@@ -1,0 +1,143 @@
+name: Shared Rust oracle tool construction
+
+on:
+  pull_request:
+    paths:
+      - '.devcontainer/Dockerfile'
+      - 'sdk/Dockerfile'
+      - 'scripts/sdk-image-inputs.test.mjs'
+      - 'scripts/sdk-image-inputs.mjs'
+      - 'scripts/sdk-vv-inputs.mjs'
+      - 'sdk/inventory-metadata.mjs'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/sdk-candidate.yml'
+      - 'scripts/vv.sh'
+      - 'scripts/rust-oracle-tools-inputs.mjs'
+      - 'scripts/rust-oracle-tools-inputs.test.mjs'
+      - '.github/workflows/rust-oracle-tools.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-oracle-tools-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tools:
+    name: Tool inputs and conditional construction (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - name: Compare complete tool and qualification inputs
+        id: inputs
+        env:
+          TOOL_BASE_REVISION: ${{ github.event.pull_request.base.sha || 'dispatch' }}
+        run: |
+          set -euo pipefail
+          node --test scripts/rust-oracle-tools-inputs.test.mjs
+          mkdir -p target/rust-oracle-tools
+          node scripts/rust-oracle-tools-inputs.mjs "$TOOL_BASE_REVISION" > target/rust-oracle-tools/inputs.json
+          node --input-type=module <<'JS'
+          import {readFileSync,appendFileSync} from 'node:fs';
+          const value=JSON.parse(readFileSync('target/rust-oracle-tools/inputs.json','utf8'));
+          if(typeof value.changed!=='boolean')throw new Error('missing exact input comparison');
+          appendFileSync(process.env.GITHUB_OUTPUT,`changed=${value.changed}\n`);
+          if(!value.changed){
+            const message='Exact tool stage and harness unchanged; native construction not run; no qualification established.';
+            console.log(message);appendFileSync(process.env.GITHUB_STEP_SUMMARY,message+'\n');
+          }
+          JS
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        if: steps.inputs.outputs.changed == 'true'
+        with:
+          version: v0.28.0
+          driver-opts: image=docker.io/moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - name: Validate source and acquisition boundary
+        run: node --test scripts/sdk-image-inputs.test.mjs
+      - name: Build both exact tool stages and verify real cache reuse
+        if: steps.inputs.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target/rust-oracle-tools
+          git rev-parse HEAD > target/rust-oracle-tools/source.txt
+          docker buildx build --load --progress plain --target rust_oracle_tools --no-cache-filter rust_oracle_tools \
+            --file .devcontainer/Dockerfile --tag prismpm-rust-tools:development . \
+            2>&1 | tee target/rust-oracle-tools/development.log
+          docker buildx build --load --progress plain --target rust_oracle_tools \
+            --file sdk/Dockerfile --tag prismpm-rust-tools:sdk . \
+            2>&1 | tee target/rust-oracle-tools/sdk.log
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          for (const [image, cached] of [['development', false], ['sdk', true]]) {
+            const lines = readFileSync(`target/rust-oracle-tools/${image}.log`, 'utf8').split('\n');
+            const steps = lines.map(line => /^(#\d+) \[rust_oracle_tools \d+\/\d+\] RUN (.*)$/.exec(line)).filter(Boolean);
+            assert.equal(steps.length, 1, 'one complete layer-local tool construction step required');
+            const [, id, command] = steps[0];
+            const tools = [['wasm-bindgen-cli', '0.2.122'], ['wasm-tools', '1.258.0'],
+              ['wasmtime-cli', '48.0.1'], ['cargo-local-registry', '0.2.12']];
+            assert.equal(command, ['test ! -e /opt/prismpm/rust-oracle-target',
+              'mkdir -p -m 0700 /opt/prismpm/rust-oracle-target', ...tools.map(([name, version]) =>
+                `cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target ${name} --version ${version}`),
+              'rm -rf /opt/prismpm/rust-oracle-target'].join(' && '));
+            assert.equal(lines.filter(line => line === `${id} CACHED`).length, cached ? 1 : 0,
+              `${image}: ${id} cache state must match fresh construction or within-job reuse`);
+            assert.equal(lines.filter(line => line.startsWith(`${id} DONE `)).length, cached ? 0 : 1,
+              `${id} must finish fresh construction exactly once`);
+            for (const [name, version] of tools) {
+              for (const prefix of [`Installing ${name} v${version}`, `Installed package \`${name} v${version}\` (`]) {
+                const records = lines.filter(line => {
+                  if (!line.startsWith(id + ' ')) return false;
+                  const body = line.slice(id.length + 1).replace(/^\d+(?:\.\d+)?\s+/u, '');
+                  return prefix.startsWith('Installing ') ? body === prefix || body.startsWith(prefix + ' ') : body.startsWith(prefix);
+                });
+                assert.equal(records.length, cached ? 0 : 1, `${image}: actual ${prefix} record required exactly once`);
+              }
+            }
+          }
+          JS
+          docker image inspect prismpm-rust-tools:development prismpm-rust-tools:sdk \
+            > target/rust-oracle-tools/images.json
+          test "$(docker image inspect --format '{{.Id}}' prismpm-rust-tools:development)" \
+            = "$(docker image inspect --format '{{.Id}}' prismpm-rust-tools:sdk)"
+          for image in development sdk; do
+            docker run --rm --network none --read-only --cap-drop ALL \
+              --security-opt no-new-privileges --user 65534:65534 \
+              --memory 512m --memory-swap 512m --pids-limit 64 \
+              --entrypoint /bin/sh "prismpm-rust-tools:$image" -eu -c '
+                cd /opt/prismpm/rust-oracle-tools/bin
+                test ! -e /opt/prismpm/rust-oracle-target
+                test "$(find . -mindepth 1 -maxdepth 1 -printf "%f %y\n" | LC_ALL=C sort)" \
+                  = "$(printf "%s f\n" cargo-local-registry wasm-bindgen wasm-bindgen-test-runner wasm-tools wasm2es6js wasmtime)"
+                test "$(./wasm-bindgen --version)" = "wasm-bindgen 0.2.122"
+                test "$(./wasm-bindgen-test-runner --version)" = "wasm-bindgen-test-runner 0.2.122"
+                test "$(./wasm2es6js --version)" = "wasm2es6js 0.2.122"
+                test "$(./wasm-tools --version)" = "wasm-tools 1.258.0"
+                test "$(./wasmtime --version)" = "wasmtime 48.0.1"
+                test "$(./cargo-local-registry --version)" = "cargo-local-registry 0.2.12"
+                sha256sum cargo-local-registry wasm-bindgen wasm-bindgen-test-runner wasm-tools wasm2es6js wasmtime
+              ' > "target/rust-oracle-tools/$image.sha256"
+          done
+          cmp target/rust-oracle-tools/development.sha256 target/rust-oracle-tools/sdk.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rust-oracle-tools-${{ matrix.os }}-${{ github.sha }}
+          path: target/rust-oracle-tools/
+          if-no-files-found: warn
+          retention-days: 7

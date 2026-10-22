@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync} from 'node:fs';
+import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {gzipSync} from 'node:zlib';
@@ -48,6 +49,75 @@ function stringField(bytes, offset, length, value) {
   bytes.fill(0, offset, offset + length); bytes.write(value, offset, 'ascii');
 }
 
+function manifestNumber(manifest, path, token) {
+  const value=structuredClone(manifest), marker='__exact_manifest_numeric_token__';
+  let parent=value;
+  for(const key of path.slice(0,-1)) parent=parent[key];
+  assert.equal(typeof parent[path.at(-1)],'number');
+  parent[path.at(-1)]=marker;
+  const encoded=JSON.stringify(value), quoted=JSON.stringify(marker);
+  assert.equal(encoded.split(quoted).length,2);
+  return Buffer.from(encoded.replace(quoted,token));
+}
+
+test('manifest numeric admission uses exact schema and descriptor tokens before rounding',()=>{
+  const g=graph(fixture().tar);
+  g.manifest.layers.unshift(describe(Buffer.from('opaque lower layer'),type+'layer.v1.tar'));
+  const paths=[['schemaVersion'],['config','size'],['layers',0,'size'],['layers',1,'size']];
+  for(const path of paths) {
+    const value=path.reduce((current,key)=>current[key],g.manifest);
+    const fractions=[`${value}.0000000000000000001`,`${value}.0000000000000000001e0`,`${BigInt(value)-1n}.9999999999999999999`,`${value}0000000000000000001e-19`];
+    for(const token of fractions) {
+      const bytes=manifestNumber(g.manifest,path,token);
+      assert.equal(path.reduce((current,key)=>current[key],JSON.parse(bytes)),value,'mutation must actually round to the admitted integer');
+      assert.throws(()=>parseManifest(bytes,describe(bytes,type+'manifest.v1+json')),/fractional|bound/);
+    }
+    for(const token of [String(value),`${value}.0`,`${value}.0000`,`${value}0e-1`,`${value}e+0`,`0.${value}e${String(value).length}`,`${value}000e-3`]) {
+      const bytes=manifestNumber(g.manifest,path,token);
+      assert.deepEqual(parseManifest(bytes,describe(bytes,type+'manifest.v1+json')),g.manifest);
+    }
+    for(const token of ['0','-0','-1','1e99999999','1e-99999999']) {
+      const bytes=manifestNumber(g.manifest,path,token);
+      assert.throws(()=>parseManifest(bytes,describe(bytes,type+'manifest.v1+json')));
+    }
+  }
+});
+
+test('exact manifest numbers retain existing config terminal and opaque-layer bounds',()=>{
+  const g=graph(fixture().tar);
+  const lower=describe(Buffer.from('opaque lower layer'),type+'layer.v1.tar');
+  lower.size=Number.MAX_SAFE_INTEGER;g.manifest.layers.unshift(lower);
+  for(const [path,maximum] of [[['config','size'],limits.document],[['layers',0,'size'],Number.MAX_SAFE_INTEGER],[['layers',1,'size'],limits.compressed]]) {
+    const accepted=structuredClone(g.manifest);
+    let parent=accepted;for(const key of path.slice(0,-1)) parent=parent[key];parent[path.at(-1)]=maximum;
+    for(const token of [String(maximum),`${maximum}.0`,`${maximum}0e-1`]) {
+      const bytes=manifestNumber(accepted,path,token);
+      assert.deepEqual(parseManifest(bytes,describe(bytes,type+'manifest.v1+json')),accepted);
+    }
+    for(const token of [String(BigInt(maximum)+1n),`${maximum}.0000000000000000001`]) {
+      const bytes=manifestNumber(accepted,path,token);
+      assert.throws(()=>parseManifest(bytes,describe(bytes,type+'manifest.v1+json')),/bound|fractional/);
+    }
+  }
+});
+
+test('manifest numeric checks are path-specific including escaped keys and opaque extensions',()=>{
+  const g=graph(fixture().tar);
+  g.manifest.extra={schemaVersion:-1.25,config:{size:0.5},layers:[{size:0.25}]};
+  g.manifest.config.extra={schemaVersion:-2.5,size:0.125};
+  g.manifest.layers[0].extra={schemaVersion:-3.5,size:0.0625};
+  const encoded=encode(g.manifest);
+  assert.deepEqual(parseManifest(encoded,describe(encoded,type+'manifest.v1+json')),g.manifest);
+  for(const [path,key] of [[['schemaVersion'],'schemaVersion'],[['config','size'],'size'],[['layers',0,'size'],'size']]) {
+    const value=path.reduce((current,name)=>current[name],g.manifest);
+    const raw=manifestNumber(g.manifest,path,`${value}.0000000000000000001`).toString();
+    const number=`${value}.0000000000000000001`;
+    const escaped=Buffer.from(raw.replace(JSON.stringify(key)+':'+number,'"\\u'+key.charCodeAt(0).toString(16).padStart(4,'0')+key.slice(1)+'":'+number));
+    assert.notEqual(escaped.toString(),raw);
+    assert.throws(()=>parseManifest(escaped,describe(escaped,type+'manifest.v1+json')),/fractional|bound/);
+  }
+});
+
 test('actual GNU ustar metadata preserves exact bytes on both native platform descriptors', () => {
   const f = fixture();
   for (const architecture of ['amd64', 'arm64']) for (const compressed of [false, true]) {
@@ -93,6 +163,37 @@ test('configuration refuses wrong platforms, mismatched DiffIDs, legacy images a
   const bytes = encode(config);
   assert.deepEqual(parseConfig(bytes, {...original.manifest, config:describe(bytes, type + 'config.v1+json')}, {os:'linux', architecture:'amd64'}), config);
   assert.throws(() => parseConfig(original.configBytes, original.manifest, {os:'windows', architecture:'amd64'}));
+});
+
+test('SDK volume admission matches the imported OCI null-or-object schema without hiding metadata', () => {
+  const require=createRequire('/opt/prismpm/oracles/package.json');
+  assert.equal(require('ajv/package.json').version,'8.20.0');
+  assert.equal(require('ajv-draft-04/package.json').version,'1.0.0');
+  const Ajv=require('ajv-draft-04'),ajv=new Ajv({strict:false,allErrors:true,validateFormats:false});
+  const directory=new URL('../standards/oracles/oci-image-1.1.1/schema/',import.meta.url);
+  ajv.addSchema(JSON.parse(readFileSync(new URL('defs.json',directory))),'https://opencontainers.org/schema/image/defs.json');
+  const validate=ajv.compile(JSON.parse(readFileSync(new URL('config-schema.json',directory))));
+  const original=graph(fixture().tar);
+  const admit=value=>{const bytes=encode(value);return parseConfig(bytes,
+    {...original.manifest,config:describe(bytes,type+'config.v1+json')},{os:'linux',architecture:'amd64'});};
+  for(const volumes of [undefined,null,{}, {'/workspace':{}}, {'/workspace':{description:'opaque object'}}]) {
+    const config=structuredClone(original.config);if(volumes!==undefined)config.config.Volumes=volumes;
+    assert.equal(validate(config),true,JSON.stringify(validate.errors));
+    assert.deepEqual(admit(config),config);
+  }
+  for(const volumes of [[],false,0,'',{'/workspace':null},{'/workspace':1},{'/workspace':[]}]) {
+    const config=structuredClone(original.config);config.config.Volumes=volumes;
+    assert.equal(validate(config),false,'independent OCI schema must reject invalid volume shape');
+    assert.throws(()=>admit(config));
+  }
+  // The OCI schema permits these maps; the stricter SDK metadata-custody
+  // profile must still refuse every intersecting mount and every case alias.
+  for(const path of ['/opt','/opt/prismpm/share/inventory.json']) {
+    const config=structuredClone(original.config);config.config.Volumes={[path]:{}};
+    assert.equal(validate(config),true);assert.throws(()=>admit(config),/intersects/);
+  }
+  const alias=structuredClone(original.config);alias.config.Volumes=null;alias.config.Volumeſ={'/opt':{}};
+  assert.throws(()=>admit(alias),/casing/);
 });
 
 test('coherently rehashed duplicate keys and field aliases cannot hide OCI volumes or layers', () => {

@@ -88,6 +88,71 @@ pub struct SnapshotDeclaration {
     /// references, terms, proofs, recursion, fields, constructors and
     /// instance metadata as applicable to the declaration kind.
     linked_ir: serde_json::Value,
+    /// Language 1.2: the alpha identity of a semantic definition (§17.12).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    alpha_id: Option<Sha256Digest>,
+    /// Language 1.2 (models): what linking elaborated the declaration to,
+    /// present for a model declaration and for a declaration whose checked
+    /// model applications were elaborated (§17.12).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    elaboration: Option<SnapshotElaboration>,
+}
+
+/// One declaration's elaboration: the ordinary declarations it means, its
+/// generated obligations, its Lean cross-checks, and, for a model, the runtime
+/// checks executable code applies.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SnapshotElaboration {
+    declarations: Vec<serde_json::Value>,
+    /// The alpha identity of every elaborated definition, by name, as for a
+    /// source definition (§17.12).
+    alpha_ids: std::collections::BTreeMap<String, Sha256Digest>,
+    obligations: Vec<serde_json::Value>,
+    cross_checks: Vec<serde_json::Value>,
+    required_checks: Vec<String>,
+    /// Language 1.2 (reasoning): every theorem the declaration generates,
+    /// with its statement and the name of the fixed template proving it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    theorems: Vec<serde_json::Value>,
+}
+
+impl SnapshotElaboration {
+    /// The elaborated declarations, as canonical semantic JSON values.
+    #[must_use]
+    pub fn declarations(&self) -> &[serde_json::Value] {
+        &self.declarations
+    }
+
+    /// The alpha identity of each elaborated definition, by name.
+    #[must_use]
+    pub const fn alpha_ids(&self) -> &std::collections::BTreeMap<String, Sha256Digest> {
+        &self.alpha_ids
+    }
+
+    /// The generated obligations.
+    #[must_use]
+    pub fn obligations(&self) -> &[serde_json::Value] {
+        &self.obligations
+    }
+
+    /// The Lean cross-checks.
+    #[must_use]
+    pub fn cross_checks(&self) -> &[serde_json::Value] {
+        &self.cross_checks
+    }
+
+    /// The runtime checks executable code applies to a model.
+    #[must_use]
+    pub fn required_checks(&self) -> &[String] {
+        &self.required_checks
+    }
+
+    /// The theorems a reasoning declaration generates.
+    #[must_use]
+    pub fn theorems(&self) -> &[serde_json::Value] {
+        &self.theorems
+    }
 }
 
 /// Closed declaration axiom policy.
@@ -98,12 +163,35 @@ pub struct SnapshotAxiomPolicy {
     axioms: Vec<String>,
 }
 
+/// The snapshot envelope a project language selects (§17.12). Languages 1.0
+/// and 1.1 keep the historical envelope byte for byte; language 1.2 carries
+/// `lexlean/semantic-module/2` values and so has its own closed schema.
+#[must_use]
+pub fn snapshot_spec(language: &str) -> &'static str {
+    if language == crate::LANGUAGE_1_2 {
+        "lexlean/semantic-snapshot/2"
+    } else {
+        "lexlean/semantic-snapshot/1"
+    }
+}
+
 fn range((start, end): (usize, usize)) -> SnapshotRange {
     SnapshotRange { start, end }
 }
 
 fn json_value(value: &Json) -> serde_json::Value {
     serde_json::from_str(&value.to_canonical_string()).expect("canonical linked IR is valid JSON")
+}
+
+/// One elaboration value as canonical JSON.
+fn canonical_value<T: Serialize>(item: &T) -> serde_json::Value {
+    let text = serde_json::to_string(item).expect("elaboration serializes");
+    serde_json::from_str(
+        &Json::parse(text.as_bytes())
+            .expect("serialized elaboration is JSON")
+            .to_canonical_string(),
+    )
+    .expect("canonical JSON is JSON")
 }
 
 fn core_kind(kind: CoreDeclKind, class: bool, instance: bool) -> &'static str {
@@ -155,6 +243,8 @@ impl SemanticSnapshot {
                     },
                     origin,
                     linked_ir: json_value(&declaration.to_json(&mut Renumber::default())),
+                    alpha_id: None,
+                    elaboration: None,
                 });
             }
             if let Some(core) = &module.document.core {
@@ -175,11 +265,64 @@ impl SemanticSnapshot {
                         origin: None,
                         linked_ir: serde_json::to_value(declaration)
                             .expect("core declarations serialize"),
+                        alpha_id: None,
+                        elaboration: None,
                     });
                 }
             }
             if let Some(semantic) = &module.document.semantic {
-                for declaration in &semantic.declarations {
+                for (index, declaration) in semantic.declarations.iter().enumerate() {
+                    let elaboration = semantic.elaborated(index).and_then(|lowered| {
+                        let model =
+                            crate::ir::semantic::model::elaborated_construct(declaration).is_some();
+                        (model || lowered != std::slice::from_ref(declaration)).then(|| {
+                            SnapshotElaboration {
+                                declarations: lowered.iter().map(canonical_value).collect(),
+                                alpha_ids: lowered
+                                    .iter()
+                                    .filter_map(|derived| {
+                                        derived
+                                            .alpha_identity()
+                                            .map(|id| (derived.name().to_owned(), id))
+                                    })
+                                    .collect(),
+                                obligations: semantic
+                                    .elaboration
+                                    .obligations(index)
+                                    .iter()
+                                    .map(canonical_value)
+                                    .collect(),
+                                cross_checks: semantic
+                                    .elaboration
+                                    .checks(index)
+                                    .iter()
+                                    .map(canonical_value)
+                                    .collect(),
+                                required_checks: semantic
+                                    .elaboration
+                                    .required(index)
+                                    .iter()
+                                    .map(|check| {
+                                        crate::ir::semantic::model::check_name_of(*check).to_owned()
+                                    })
+                                    .collect(),
+                                theorems: semantic
+                                    .elaboration
+                                    .theorems(index)
+                                    .iter()
+                                    .map(|theorem| {
+                                        canonical_value(&serde_json::json!({
+                                            "name": theorem.name,
+                                            "type_parameters": theorem.type_parameters,
+                                            "parameters": theorem.parameters,
+                                            "statement": theorem.statement,
+                                            "template": theorem.template(),
+                                        }))
+                                    })
+                                    .collect(),
+                            }
+                        })
+                    });
                     declarations.push(SnapshotDeclaration {
                         logical_id: declaration.name().to_owned(),
                         kind: declaration.kind().to_owned(),
@@ -191,6 +334,10 @@ impl SemanticSnapshot {
                         origin: None,
                         linked_ir: serde_json::to_value(declaration)
                             .expect("semantic declaration serializes"),
+                        alpha_id: (language == crate::LANGUAGE_1_2)
+                            .then(|| declaration.alpha_identity())
+                            .flatten(),
+                        elaboration,
                     });
                 }
             }
@@ -219,7 +366,7 @@ impl SemanticSnapshot {
         modules.sort_by(|left, right| left.name.as_bytes().cmp(right.name.as_bytes()));
         let closure = checked.closure.closure_json("", &checked.visible_union);
         Self {
-            spec: "lexlean/semantic-snapshot/1".to_owned(),
+            spec: snapshot_spec(language).to_owned(),
             source_id: checked.source_id,
             semantic_id: checked.semantic_id,
             compiler_semantics_id,
@@ -227,6 +374,22 @@ impl SemanticSnapshot {
             modules,
             lexicon_closure: json_value(&closure),
         }
+    }
+
+    /// Every definition's language-1.2 alpha identity as
+    /// `(module, declaration, alpha ID)`, in module and declaration order.
+    #[must_use]
+    pub fn alpha_ids(&self) -> Vec<(String, String, Sha256Digest)> {
+        self.modules
+            .iter()
+            .flat_map(|module| {
+                module.declarations.iter().filter_map(|declaration| {
+                    declaration
+                        .alpha_id
+                        .map(|alpha| (module.name.clone(), declaration.logical_id.clone(), alpha))
+                })
+            })
+            .collect()
     }
 
     /// Schema identifier.
@@ -378,6 +541,12 @@ impl SnapshotDeclaration {
     #[must_use]
     pub fn linked_ir(&self) -> &serde_json::Value {
         &self.linked_ir
+    }
+
+    /// Language 1.2 (models): what linking elaborated the declaration to.
+    #[must_use]
+    pub const fn elaboration(&self) -> Option<&SnapshotElaboration> {
+        self.elaboration.as_ref()
     }
 
     /// Normalized source origin, when the declaration was written through

@@ -1,0 +1,17 @@
+; DK-33 internal canonical definite CBOR; complete frame consumed to EOF.
+reference = bstr .size 32
+public-key = bstr .size 65 ; syntactic width only, not point admission
+; Semantic admission is generated Foundation.Crypto.P256.Model.p256PublicKeyValid:
+; prefix 04, coordinate bounds and the fixed secp256r1 curve equation.
+genesis = [1, namespace: reference, nonce: reference, initial-key: public-key]
+request = [1, 0, genesis]
+        / [1, 1, genesis]
+        / [1, 2, expected-namespace: reference, genesis]
+; 0 canonical roundtrip; 1 source-owned identity projection; 2 namespace match.
+projection = [namespace: reference, initial-key: public-key,
+  canonical-genesis: bstr .size 137, identity-material: bstr .size 163]
+response = [1, 0, (genesis / projection / bool)]
+         / [1, 1, genesis-error: 0..4]
+         / [1, 2, cbor-error: 0..8]
+; Genesis is exactly137 bytes. The25-byte ASCII domain plus NUL yields163.
+; Maximum valid request174 and response409 bytes; frame/output cap512 bytes.

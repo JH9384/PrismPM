@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { chmodSync, linkSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync,
+  symlinkSync, writeFileSync } from 'node:fs';
+import fs from 'node:fs';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -67,9 +69,12 @@ function validateWorkflow(value) {
   assert.equal(installed.if, undefined); assert.equal(installed['continue-on-error'], undefined);
   assert.equal(installed['runs-on'], '${{ matrix.os }}');
   assert.deepEqual(installed.strategy.matrix.include, [{os:'ubuntu-24.04',arch:'amd64'}, {os:'ubuntu-24.04-arm',arch:'arm64'}]);
-  const complete = installed.steps.find(step => step.run?.includes('sdk-vv-check.mjs run'));
+  const complete = installed.steps.find(step => step.run?.includes('sdk-vv-outer.sh'));
   assert(complete); assert.equal(complete.if, undefined); assert.equal(complete['continue-on-error'], undefined);
-  assert.match(complete.run, /sdk-vv-check\.mjs tests/);
+  assert.match(complete.run, /bash root-a\/scripts\/sdk-vv-outer\.sh/);
+  const outer = readFileSync(new URL('./sdk-vv-outer.sh', import.meta.url), 'utf8');
+  assert(outer.includes('node root-a/scripts/sdk-vv-check.mjs tests; node root-a/scripts/sdk-vv-check.mjs run'));
+  assert(outer.includes('--target registry_qualification_tools'));
   assert(installed.steps.some(step => step.with?.name === 'sdk-image' && step.with.path === '.shipped-image'));
   const retained = installed.steps.find(step => step.with?.name === 'full-sdk-vv-sdk-${{ matrix.arch }}');
   assert.equal(retained.if, 'always()'); assert.equal(retained.with['if-no-files-found'], 'error');
@@ -149,7 +154,7 @@ test('publication phases preserve all gates and decouple OCI/native from optiona
     value => { value.jobs['installed-sdk'].if = '${{ false }}'; },
     value => { value.jobs['installed-sdk'].strategy.matrix.include.pop(); },
     value => { value.jobs['installed-sdk'].strategy.matrix.include[1].os = 'ubuntu-24.04'; },
-    value => { value.jobs['installed-sdk'].steps.find(step => step.run?.includes('sdk-vv-check.mjs run')).if = '${{ false }}'; },
+    value => { value.jobs['installed-sdk'].steps.find(step => step.run?.includes('sdk-vv-outer.sh')).if = '${{ false }}'; },
     value => { value.jobs['oci-native'].if = '${{ always() }}'; },
     value => { value.jobs.release.if = '${{ always() }}'; },
     value => value.jobs.release.needs.pop(),
@@ -217,8 +222,10 @@ test('release crates use stage-owned targets despite an inherited Cargo target d
     assert.deepEqual(readdirSync(join(stage, 'packages')).sort(), archives.map(([name]) => name).sort());
     for (const [name, owner, reviewed] of archives) {
       const bytes = readFileSync(join(stage, 'packages', name));
-      assert.deepEqual(bytes, readFileSync(join(stage, owner, 'target/package', name)));
-      assert.deepEqual(bytes, readFileSync(new URL(`../${reviewed}/${name}`, import.meta.url)));
+      const produced = readFileSync(join(stage, owner, 'target/package', name));
+      const expected = readFileSync(new URL(`../${reviewed}/${name}`, import.meta.url));
+      assert.ok(bytes.equals(produced), `${name}: staged archive differs from Cargo output (${sha(bytes)} != ${sha(produced)})`);
+      assert.ok(bytes.equals(expected), `${name}: archive differs from reviewed bytes (${sha(bytes)} != ${sha(expected)})`);
     }
     assert.deepEqual(readdirSync(inherited), ['caller-owned']);
     assert.equal(readFileSync(join(inherited, 'caller-owned'), 'utf8'), 'preserve caller artifacts\n');
@@ -355,17 +362,20 @@ test('publication rejects missing, skipped, failed, cancelled or extraneous prer
 
 function layout(directory, architecture, marker = 'same') {
   mkdirSync(join(directory, 'blobs/sha256'), {recursive: true});
-  const put = value => {
-    const bytes = Buffer.from(JSON.stringify(value)); const digest = sha(bytes);
+  const putBytes = bytes => {
+    const digest = sha(bytes);
     writeFileSync(join(directory, 'blobs/sha256', digest.slice(7)), bytes);
     return {mediaType: 'application/vnd.oci.image.manifest.v1+json', digest, size: bytes.length};
   };
+  const put = value => putBytes(Buffer.from(JSON.stringify(value)));
   const config = {...put({architecture, os: 'linux', config: {Labels: {
     'org.opencontainers.image.created': '1970-01-01T00:00:00Z',
     'org.opencontainers.image.revision': revision,
     'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/PrismPM',
     'org.opencontainers.image.version': '0.3.0', marker}}}), mediaType: 'application/vnd.oci.image.config.v1+json'};
-  const manifest = put({schemaVersion: 2, mediaType: 'application/vnd.oci.image.manifest.v1+json', config, layers: []});
+  const layers = [Buffer.alloc(200_003, 97), Buffer.from('second layer\n')].map(bytes =>
+    ({...putBytes(bytes), mediaType: 'application/vnd.oci.image.layer.v1.tar'}));
+  const manifest = put({schemaVersion: 2, mediaType: 'application/vnd.oci.image.manifest.v1+json', config, layers});
   writeFileSync(join(directory, 'index.json'), JSON.stringify({schemaVersion: 2, manifests: [manifest]}));
   return {...manifest, platform: {os: 'linux', architecture}};
 }
@@ -391,6 +401,115 @@ test('two byte-equal rebuilds must also equal the shipped platform and source-la
     writeFileSync(join(a, 'blobs/sha256', first.digest.slice(7)), '{}');
     assert.throws(() => verify());
   } finally { rmSync(directory, {recursive: true, force: true}); }
+});
+
+test('reproducibility freshly verifies every layer and refuses damaged or aliased bytes in either layout', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'prismpm-release-layers-'));
+  try {
+    for (const side of ['a', 'b']) {
+      for (const damage of ['missing', 'changed', 'truncated', 'grown', 'symlink', 'hardlink', 'fifo', 'parent-alias']) {
+        const root = join(directory, `${side}-${damage}`), a = join(root, 'a'), b = join(root, 'b');
+        const first = layout(a, 'amd64'); layout(b, 'amd64');
+        const arm = {...first, platform: {os: 'linux', architecture: 'arm64'}};
+        const index = Buffer.from(JSON.stringify({schemaVersion: 2,
+          mediaType: 'application/vnd.oci.image.index.v1+json', manifests: [first, arm]}));
+        const verify = () => verifyReproducibility(`ghcr.io/uor-foundation/prismpm-sdk@${sha(index)}`,
+          index, 'amd64', revision, a, b);
+        assert.equal(verify(), first.digest);
+        const selected = join(root, side), manifest = JSON.parse(readFileSync(join(selected, 'blobs/sha256', first.digest.slice(7))));
+        // Damage the last layer as well as the multi-chunk first layer: neither
+        // the first descriptor nor a previous successful read is acceptance.
+        const layer = manifest.layers[damage === 'truncated' ? 0 : 1];
+        const path = join(selected, 'blobs/sha256', layer.digest.slice(7)), original = readFileSync(path);
+        if (damage === 'missing') rmSync(path);
+        else if (damage === 'changed') writeFileSync(path, Buffer.alloc(original.length, 98));
+        else if (damage === 'truncated') writeFileSync(path, original.subarray(0, -1));
+        else if (damage === 'grown') writeFileSync(path, Buffer.concat([original, Buffer.from('x')]));
+        else if (damage === 'parent-alias') {
+          const actual = join(selected, 'actual-blobs'); renameSync(join(selected, 'blobs'), actual);
+          symlinkSync(actual, join(selected, 'blobs'));
+        } else {
+          rmSync(path);
+          if (damage === 'fifo') execFileSync('mkfifo', [path]);
+          else {
+            const actual = join(root, 'external-layer'); writeFileSync(actual, original);
+            if (damage === 'symlink') symlinkSync(actual, path);
+            else linkSync(actual, path);
+          }
+        }
+        assert.throws(verify, undefined, `${side}: ${damage} layer must refuse`);
+      }
+    }
+  } finally { rmSync(directory, {recursive: true, force: true}); }
+});
+
+test('reproducibility rejects malformed or over-bound layer inventories', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'prismpm-release-layer-descriptors-'));
+  try {
+    const mutations = [
+      manifest => { delete manifest.layers; },
+      manifest => { manifest.layers = {}; },
+      manifest => { manifest.layers = Array(4097).fill(manifest.layers[0]); },
+      manifest => { manifest.layers = Array.from({length: 5}, () => ({...manifest.layers[0], size: 32 * 1024 ** 3})); },
+      ...[{digest: '../../escape'}, {digest: `sha256:${'B'.repeat(64)}`}, {size: -1}, {size: 1.5},
+        {size: '14'}, {size: 32 * 1024 ** 3 + 1}, {mediaType: 'application/json'}]
+        .map(change => manifest => { Object.assign(manifest.layers[0], change); }),
+    ];
+    for (const [number, mutate] of mutations.entries()) {
+      const root = join(directory, String(number)), child = layout(root, 'amd64');
+      const manifest = JSON.parse(readFileSync(join(root, 'blobs/sha256', child.digest.slice(7))));
+      mutate(manifest);
+      const bytes = Buffer.from(JSON.stringify(manifest)), descriptor = {...child, digest: sha(bytes), size: bytes.length};
+      writeFileSync(join(root, 'blobs/sha256', descriptor.digest.slice(7)), bytes);
+      writeFileSync(join(root, 'index.json'), JSON.stringify({schemaVersion: 2, manifests: [descriptor]}));
+      const index = Buffer.from(JSON.stringify({schemaVersion: 2, mediaType: 'application/vnd.oci.image.index.v1+json',
+        manifests: [descriptor, {...descriptor, platform: {os: 'linux', architecture: 'arm64'}}]}));
+      assert.throws(() => verifyReproducibility(`ghcr.io/uor-foundation/prismpm-sdk@${sha(index)}`,
+        index, 'amd64', revision, root, root), number === 3 ? /OCI layer closure exceeds its byte bound/ : undefined,
+      `descriptor mutation ${number} must refuse`);
+    }
+  } finally { rmSync(directory, {recursive: true, force: true}); }
+});
+
+test('both layout owners retain custody until the complete comparison finishes; removing the final sweep is killed', async () => {
+  const helper = new URL('./release-phases.mjs', import.meta.url), source = readFileSync(helper, 'utf8');
+  const withoutSweep = source.replace('  for (const owner of owners) owner();', '  // planted omitted final two-layout sweep');
+  assert.notEqual(source, withoutSweep);
+  const absoluteImports = withoutSweep.replace(/from '(\.\/[^']+)'/g, (_, path) => `from '${new URL(path, helper).href}'`);
+  const mutant = await import(`data:text/javascript;base64,${Buffer.from(absoluteImports).toString('base64')}`);
+  const check = (implementation, mutation) => {
+    const directory = mkdtempSync(join(tmpdir(), 'prismpm-release-during-read-'));
+    const originalRead = fs.readSync;
+    let changed = false;
+    try {
+      const a = join(directory, 'a'), b = join(directory, 'b'), first = layout(a, 'amd64'); layout(b, 'amd64');
+      const manifest = JSON.parse(readFileSync(join(a, 'blobs/sha256', first.digest.slice(7))));
+      const layer = manifest.layers[0].digest.slice(7), victim = join(a, 'blobs/sha256', layer), trigger = join(b, 'blobs/sha256', layer);
+      const index = Buffer.from(JSON.stringify({schemaVersion: 2, mediaType: 'application/vnd.oci.image.index.v1+json',
+        manifests: [first, {...first, platform: {os: 'linux', architecture: 'arm64'}}]}));
+      fs.readSync = (fd, ...args) => {
+        const count = originalRead(fd, ...args);
+        if (!changed && fs.readlinkSync(`/proc/self/fd/${fd}`) === trigger) {
+          changed = true;
+          if (mutation === 'inode') {
+            const bytes = readFileSync(victim); renameSync(victim, victim + '.retained'); writeFileSync(victim, bytes);
+          } else writeFileSync(victim, Buffer.alloc(manifest.layers[0].size, 98));
+        }
+        return count;
+      };
+      syncBuiltinESMExports();
+      assert.throws(() => implementation(`ghcr.io/uor-foundation/prismpm-sdk@${sha(index)}`,
+        index, 'amd64', revision, a, b), /OCI input changed during read/);
+      assert.equal(changed, true, 'actual second-layout layer read must trigger the substitution');
+    } finally {
+      fs.readSync = originalRead; syncBuiltinESMExports();
+      rmSync(directory, {recursive: true, force: true});
+    }
+  };
+  for (const mutation of ['content', 'inode']) {
+    check(verifyReproducibility, mutation);
+    assert.throws(() => check(mutant.verifyReproducibility, mutation), /Missing expected exception/);
+  }
 });
 
 test('existing source-addressed publication is reusable only with exact metadata and every byte', () => {
@@ -650,6 +769,26 @@ test('pinned Buildx pushes a genuine two-platform OCI index by digest without cr
       }
       verifyReproducibility(`ghcr.io/uor-foundation/prismpm-sdk@${digest}`, index, platform, revision,
         join(directory, `${platform}-a`), join(directory, `${platform}-b`));
+      for (const side of ['a', 'b']) {
+        const target = join(directory, `${platform}-${side}`), localIndex = JSON.parse(readFileSync(join(target, 'index.json')));
+        const manifest = JSON.parse(readFileSync(join(target, 'blobs/sha256', localIndex.manifests[0].digest.slice(7))));
+        assert.ok(manifest.layers.length > 0, 'genuine Buildx fixture must exercise actual layer verification');
+        const path = join(target, 'blobs/sha256', manifest.layers[0].digest.slice(7)), original = readFileSync(path);
+        for (const damage of ['missing', 'changed', 'truncated', 'alias']) {
+          if (damage === 'missing') rmSync(path);
+          else if (damage === 'changed') writeFileSync(path, Buffer.alloc(original.length, 0));
+          else if (damage === 'truncated') writeFileSync(path, original.subarray(0, -1));
+          else {
+            const actual = join(directory, 'external-buildx-layer'); writeFileSync(actual, original);
+            rmSync(path); symlinkSync(actual, path);
+          }
+          assert.throws(() => verifyReproducibility(`ghcr.io/uor-foundation/prismpm-sdk@${digest}`,
+            index, platform, revision, join(directory, `${platform}-a`), join(directory, `${platform}-b`)),
+          undefined, `actual ${platform}/${side} ${damage} must refuse`);
+          if (damage !== 'missing') rmSync(path);
+          writeFileSync(path, original);
+        }
+      }
     }
   } finally {
     try { if (builderCreated) docker(['buildx', 'rm', '--force', registry]); }

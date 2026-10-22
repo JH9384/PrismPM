@@ -176,6 +176,7 @@ pub fn load_bootstrap_for(language: &str) -> Result<Bootstrap, Diagnostic> {
     let path = match language {
         "1.0" => "language/bootstrap.toml",
         "1.1" => "language/bootstrap-1.1.toml",
+        "1.2" => "language/bootstrap-1.2.toml",
         other => {
             return Err(Diagnostic::new(
                 code!("LLC0103"),

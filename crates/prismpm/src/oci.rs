@@ -14,6 +14,8 @@ use std::path::{Component, Path, PathBuf};
 
 pub(crate) mod browser_export;
 mod browser_publication;
+#[cfg(test)]
+mod publication_context;
 mod verification_closure;
 
 /// OCI image-manifest media type adopted by Prism release graphs.
@@ -1424,6 +1426,13 @@ fn referrer_evidence(store: &Store, descriptor: &Descriptor) -> Result<Value, Pr
     if value["artifactType"] == PRISM_VERIFICATION {
         return Ok(verification_closure::read(store, descriptor)?.config);
     }
+    captured_referrer_evidence(store, &value).map(|(value, _)| value)
+}
+
+fn captured_referrer_evidence(
+    store: &Store,
+    value: &Value,
+) -> Result<(Value, Vec<u8>), PrismError> {
     let layers = value["layers"]
         .as_array()
         .ok_or_else(|| PrismError::new("PP6101", "OCI referrer layers are absent"))?;
@@ -1435,8 +1444,10 @@ fn referrer_evidence(store: &Store, descriptor: &Descriptor) -> Result<Value, Pr
     }
     let layer: Descriptor = serde_json::from_value(layers[0].clone())
         .map_err(|error| PrismError::new("PP6101", format!("OCI evidence: {error}")))?;
-    serde_json::from_slice(&store.read(&layer)?)
-        .map_err(|error| PrismError::new("PP6101", format!("OCI evidence JSON: {error}")))
+    let bytes = store.read(&layer)?;
+    let value = serde_json::from_slice(&bytes)
+        .map_err(|error| PrismError::new("PP6101", format!("OCI evidence JSON: {error}")))?;
+    Ok((value, bytes))
 }
 
 fn promotion_status(store: &Store, state: &VerifiedRoot) -> Result<&'static str, PrismError> {
@@ -1492,6 +1503,14 @@ struct VerifiedReleaseCapture {
     state: VerifiedRoot,
     build_manifest: Vec<u8>,
     build_files: BTreeMap<String, Vec<u8>>,
+    #[cfg(test)]
+    release: CanonicalDocument,
+    #[cfg(test)]
+    sdk_lock: CanonicalDocument,
+    #[cfg(test)]
+    standards_lock: CanonicalDocument,
+    #[cfg(test)]
+    verification: verification_closure::Replayed,
 }
 
 fn verified_release_capture(
@@ -1695,7 +1714,9 @@ fn verified_release_capture(
         ));
     }
     let build_manifest_bytes = store.read(build_manifest)?;
-    verification_closure::validate(
+    // Validation is mandatory in production too; only the extra OC-10
+    // retention is private to its source/capture qualification owner.
+    let _verification = verification_closure::validate(
         store,
         &root,
         release.value(),
@@ -1720,6 +1741,14 @@ fn verified_release_capture(
         state,
         build_manifest: build_manifest_bytes,
         build_files,
+        #[cfg(test)]
+        release,
+        #[cfg(test)]
+        sdk_lock,
+        #[cfg(test)]
+        standards_lock,
+        #[cfg(test)]
+        verification: _verification,
     })
 }
 
@@ -2806,6 +2835,7 @@ mod tests {
     use std::sync::OnceLock;
 
     struct FixtureEvidence {
+        measured_source: Option<(String, String)>,
         build_id: String,
         attestation_id: String,
         build_manifest: Vec<u8>,
@@ -2905,7 +2935,7 @@ mod tests {
 
     fn fixture_evidence() -> &'static FixtureEvidence {
         static EVIDENCE: OnceLock<FixtureEvidence> = OnceLock::new();
-        EVIDENCE.get_or_init(|| {
+        crate::test_compiler::initialize(&EVIDENCE, || {
             let root = Path::new(env!("CARGO_MANIFEST_DIR"))
                 .ancestors()
                 .nth(2)
@@ -2958,6 +2988,7 @@ mod tests {
             );
             let model = serde_json::from_slice(&build_files["model.prism.json"]).unwrap();
             FixtureEvidence {
+                measured_source: None,
                 build_id: build.build_id,
                 attestation_id: verified.attestation_id,
                 build_manifest,
@@ -2995,6 +3026,43 @@ mod tests {
         source: &Path,
         build: &crate::controller::BuildResult,
         verified: &crate::controller::VerifyResult,
+    ) -> (Store, Descriptor) {
+        application_fixture_source(project, reference, source, build, verified, None)
+    }
+
+    pub(super) fn measured_application_fixture(
+        project: &Path,
+        reference: &str,
+        source: &Path,
+        build: &crate::controller::BuildResult,
+        verified: &crate::controller::VerifyResult,
+        measured: &super::publication_context::fixture_source::MeasuredFixtureSource,
+    ) -> (Store, Descriptor) {
+        measured.assert_unchanged(source);
+        assert!(
+            crate::sdk::inventory_path().is_some(),
+            "full actual installed SDK inventory required"
+        );
+        std::env::var("PRISMPM_TEST_SDK_IMAGE").expect("actual immutable oracle SDK required");
+        let result = application_fixture_source(
+            project,
+            reference,
+            source,
+            build,
+            verified,
+            Some(measured.identity()),
+        );
+        measured.assert_unchanged(source);
+        result
+    }
+
+    fn application_fixture_source(
+        project: &Path,
+        reference: &str,
+        source: &Path,
+        build: &crate::controller::BuildResult,
+        verified: &crate::controller::VerifyResult,
+        measured_source: Option<(String, String)>,
     ) -> (Store, Descriptor) {
         assert_eq!(build.build_id, verified.build_id);
         let manifest_path = source.join(&build.manifest_path);
@@ -3035,6 +3103,7 @@ mod tests {
             })
             .collect::<BTreeMap<_, _>>();
         let mut evidence = FixtureEvidence {
+            measured_source,
             build_id: build.build_id.clone(),
             attestation_id: verified.attestation_id.clone(),
             model: serde_json::from_slice(&build_files["model.prism.json"]).unwrap(),
@@ -3224,8 +3293,14 @@ mod tests {
                     .unwrap()
                     .into(),
                 invocation_id: evidence.build_id.clone(),
-                source_uri: "https://github.com/UOR-Foundation/PrismPM".into(),
-                source_revision: super::source_revision(&evidence.model).unwrap(),
+                source_uri: evidence.measured_source.as_ref().map_or_else(
+                    || "https://github.com/UOR-Foundation/PrismPM".into(),
+                    |(uri, _)| uri.clone(),
+                ),
+                source_revision: evidence.measured_source.as_ref().map_or_else(
+                    || super::source_revision(&evidence.model).unwrap(),
+                    |(_, revision)| revision.clone(),
+                ),
                 external_parameters: json!({
                     "model_digest":model_digest,
                     "product_release":release_version,

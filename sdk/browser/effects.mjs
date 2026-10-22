@@ -177,16 +177,20 @@ class Effects {
       this.#terminate('host-unavailable');
     }
   }
-  #admit(value, staged) {
+  #admit(value, staged, exact = false) {
       if (this.#closed) throw fail('host-closed');
       if (this.#state[4]) throw fail('effect-outcome-unknown');
       let intent;
       try { intent = decodeEffectWire(value); } catch { throw fail('invalid-input'); }
-      if (!Array.isArray(intent) || intent.length !== 2 || typeof intent[0] !== 'string') throw fail('invalid-input');
-      const request = [this.#manifest[0], this.#manifest[1], this.#session, this.#state[2], intent[0], intent[1]];
-      if (staged && Array.isArray(intent[1]) && intent[1][0] === 3) {
-        const adapter = this.#resources.get(intent[0]);
-        if (adapter?.custody !== undefined) checkCredentialSigning(adapter.custody, intent[0], intent[1][1]);
+      if (!Array.isArray(intent) || intent.length !== (exact ? 6 : 2)
+        || typeof intent[exact ? 4 : 0] !== 'string') throw fail('invalid-input');
+      // The exact path never repairs caller bindings with the current host
+      // context. The generated admission owns all six original fields.
+      const request = exact ? intent
+        : [this.#manifest[0], this.#manifest[1], this.#session, this.#state[2], intent[0], intent[1]];
+      if (staged && Array.isArray(request[5]) && request[5][0] === 3) {
+        const adapter = this.#resources.get(request[4]);
+        if (adapter?.custody !== undefined) checkCredentialSigning(adapter.custody, request[4], request[5][1]);
       }
       this.#step([1, 1, this.#state, request], next => {
         const active = this.#pending.length === 0 ? [1, request] : this.#state[5];
@@ -219,22 +223,43 @@ class Effects {
     }
   }
   prepare(value) {
+    if (arguments.length !== 1) throw fail('invalid-input');
+    return this.#prepare(value, false);
+  }
+  prepareExact(value) {
+    if (arguments.length !== 1) throw fail('invalid-input');
+    return this.#prepare(value, true);
+  }
+  #prepare(value, exact) {
     try {
-      if (arguments.length !== 1) throw fail('invalid-input');
-      const item = this.#admit(value, true);
+      const item = this.#admit(value, true, exact);
       const request = encodeEffectWire(item.request);
       let released = false;
       return Object.freeze({request, release: (...arguments_) => {
         if (arguments_.length !== 0) return Promise.reject(fail('invalid-input'));
         if (released) return Promise.reject(fail('invalid-input'));
         released = true;
+        // Unknown settles every queued promise without closing this host.
+        // Exact contextual composition must retain that uncertainty even
+        // when its waiter is released only after the active result was lost.
+        if (exact && !this.#closed && this.#state[4]) return Promise.reject(fail('effect-outcome-unknown'));
         if (this.#closed || item.settled) return Promise.reject(fail('host-closed'));
         if (this.#state[4]) return Promise.reject(fail('effect-outcome-unknown'));
         item.released = true;
         if (this.#pending[0] === item) void this.#execute(item);
-        return item.promise;
+        // The request is the private captured value, not the mutable request
+        // copy returned above or a later caller-supplied completion label.
+        return exact ? item.promise.then(result => encodeEffectWire([item.request, decodeEffectWire(result)]))
+          : item.promise;
       }});
     } catch (error) { throw this.#admissionError(error); }
+  }
+  context() {
+    if (arguments.length !== 0) throw fail('invalid-input');
+    if (this.#closed) throw fail('host-closed');
+    if (this.#state[4]) throw fail('effect-outcome-unknown');
+    return Object.freeze({application: this.#manifest[0].slice(), manifest: this.#manifest[1].slice(),
+      session: this.#session.slice(), nextOperation: this.#state[2]});
   }
   close() {
     if (arguments.length !== 0) throw fail('invalid-input');
@@ -248,7 +273,7 @@ class Effects {
   }
 }
 
-async function openEffectsInternal(options, staged) {
+async function openEffectsInternal(options, staged, contextual = false) {
   const stores = [];
   try {
     if (!record(options, ['wire', 'wireDigest', 'manifest', 'guests', 'signers'])
@@ -318,6 +343,8 @@ async function openEffectsInternal(options, staged) {
       stores.push(store); resources.set(resource, {store});
     }
     const host = new Effects(call, state, resources, stores);
+    if (contextual) return Object.freeze({context: host.context.bind(host), prepareExact: host.prepareExact.bind(host),
+      close: host.close.bind(host), status: host.status.bind(host)});
     return Object.freeze({[staged ? 'prepare' : 'submit']: staged ? host.prepare.bind(host) : host.submit.bind(host),
       close: host.close.bind(host), status: host.status.bind(host)});
   } catch (error) {
@@ -337,4 +364,11 @@ export async function openEffects(options) {
 export async function openStagedEffects(options) {
   if (arguments.length !== 1) throw fail('invalid-input');
   return openEffectsInternal(options, true);
+}
+
+// SDK-private source-session/journal composition. The observation is not a
+// reservation or authority; only generated admission consumes its counter.
+export async function openContextualStagedEffects(options) {
+  if (arguments.length !== 1) throw fail('invalid-input');
+  return openEffectsInternal(options, true, true);
 }

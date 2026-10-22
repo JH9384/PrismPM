@@ -1,0 +1,30 @@
+{
+  "schema": "prismpm/portable-oracle-matrix/1",
+  "profiles": [
+    {
+      "name": "Calculator",
+      "profile": "legacy-numeric",
+      "project": "examples/Calculator",
+      "cargo_name": "prism-calculator",
+      "vector_indexes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "journeys": ["attachment-assets", "modeled-vectors", "input-validation-recovery", "transport-failure-recovery", "pre-init-privacy", "delayed-init", "intent-boundaries", "detached-session"]
+    },
+    {
+      "name": "Text Request",
+      "profile": "utf8-text",
+      "project": "tests/fixtures/holo/ho-11-text-application/project",
+      "cargo_name": "prism-text-request",
+      "vector_indexes": [0, 2, 3],
+      "journeys": ["attachment-assets", "modeled-vectors", "input-validation-recovery", "transport-failure-recovery", "pre-init-privacy", "delayed-init", "intent-boundaries", "text-response-bounds", "text-safe-rendering", "detached-session"]
+    }
+  ],
+  "triggers": ["click", "keyboard"],
+  "interaction_cases": [
+    "positive", "delayed-completion", "stuck-busy", "missing-control",
+    "body-unavailable", "method-rewrite", "wrong-response", "fill-failure", "private-method",
+    "body-plus-cleanup", "wrong-method", "wrong-payload", "duplicate",
+    "navigation", "trigger-failure", "delayed-duplicate",
+    "delayed-wrong-response", "delayed-stuck-busy"
+  ],
+  "infrastructure_cases": ["pretend-body-failure", "cleanup-failure", "setup-failure"]
+}

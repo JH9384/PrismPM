@@ -419,6 +419,7 @@ fn invalid_local_release_is_refused_before_any_https_request() {
 
 #[test]
 fn source_free_release_binds_complete_observation_and_rejects_graph_mutation() {
+    let _compiler = crate::test_compiler::acquire();
     let repository = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(2)

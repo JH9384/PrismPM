@@ -1,0 +1,11 @@
+\begin{lexlean}{Fixture}
+\useglossary{lexlean.std.bool@1.1.0}
+\importmodule{Foundation.Browser.Application.V1.OperationJournalWire}
+\importmodule{Foundation.Browser.Application.V1.SessionJournalObservation}
+\importmodule{Foundation.Browser.Application.V1.SessionJournalProjection}
+\importmodule{Foundation.Browser.Application.V1.SessionWire}
+\title{Boolean}
+\begin{semanticmodule}
+\semanticdata{{"declarations":[{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"input"}],"function":{"module":"Foundation.Browser.Application.V1.SessionJournalProjection","name":"sourceSessionPredecessorBytes"},"kind":"call"},"kind":"definition","name":"operationPredecessorBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"input"}],"function":{"module":"Foundation.Browser.Application.V1.SessionWire","name":"sourceSessionWireBytes"},"kind":"call"},"kind":"definition","name":"operationSessionBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"input"}],"function":{"module":"Foundation.Browser.Application.V1.SessionJournalObservation","name":"sourceSessionObservationBytes"},"kind":"call"},"kind":"definition","name":"operationObservationBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"input"}],"function":{"module":"Foundation.Browser.Application.V1.OperationJournalWire","name":"journalPartitionBytes"},"kind":"call"},"kind":"definition","name":"operationPartitionBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"input"}],"function":{"module":"Foundation.Browser.Application.V1.OperationJournalWire","name":"journalWireBytes"},"kind":"call"},"kind":"definition","name":"operationDescriptorBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}}],"spec":"lexlean/semantic-module/1"}}
+\end{semanticmodule}
+\end{lexlean}

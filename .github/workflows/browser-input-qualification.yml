@@ -1,0 +1,41 @@
+name: Qualify Debian browser inputs
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/browser-input-qualification.yml
+      - scripts/qualify-debian-browser-inputs.mjs
+      - scripts/qualify-debian-browser-inputs.test.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-inputs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - name: Check closed input and qualification rules
+        run: node --test scripts/qualify-debian-browser-inputs.test.mjs
+      - name: Acquire and inspect official archives without execution
+        run: node scripts/qualify-debian-browser-inputs.mjs "$RUNNER_TEMP/debian-browser-inputs"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: debian-browser-input-receipt-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/debian-browser-inputs/receipt.json
+            ${{ runner.temp }}/debian-browser-inputs/*-entries.txt
+          if-no-files-found: error
+          retention-days: 14

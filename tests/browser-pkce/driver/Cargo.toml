@@ -1,0 +1,15 @@
+[package]
+name = "browser-pkce-driver"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+camino = "=1.2.5"
+lexlean = { path = "../../../vendor/lexlean", version = "=0.3.0" }
+prod-codegen = { path = "../../../vendor/lean4-prod/rust/prod-codegen", version = "=0.1.0" }
+prod-ir = { path = "../../../vendor/lean4-prod/rust/prod-ir", version = "=0.1.0" }
+serde_json = "=1.0.151"
+sha2 = "=0.10.9"

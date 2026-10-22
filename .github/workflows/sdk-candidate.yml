@@ -9,18 +9,51 @@ on:
         required: true
         type: boolean
         default: false
+      construction_source_revision:
+        description: Exact workflow SHA for unpublished native construction only; leave development_only false
+        required: false
+        type: string
+        default: ""
+      construction_integrity:
+        description: Closed JSON selection for read-only original archive integrity (revision, run_id, run_attempt, artifact_ids amd64/arm64); not SDK acceptance
+        required: false
+        type: string
+        default: ""
 
 permissions: {}
-# Never cancel a candidate publication in flight.
 concurrency:
   group: sdk-candidate-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
+  input-policy:
+    if: github.repository == 'UOR-Foundation/PrismPM'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions: {}
+    steps:
+      - name: Reject ambiguous construction and publication requests
+        env:
+          SOURCE_REVISION: ${{ inputs.construction_source_revision }}
+          DEVELOPMENT_ONLY: ${{ inputs.development_only }}
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
+          INTEGRITY_SELECTION: ${{ inputs.construction_integrity }}
+        run: |
+          [[ "$DEVELOPMENT_ONLY" = true || "$DEVELOPMENT_ONLY" = false ]]
+          if test -n "$SOURCE_REVISION"; then
+            [[ "$SOURCE_REVISION" =~ ^[0-9a-f]{40}$ ]]
+            test "$DEVELOPMENT_ONLY" = false
+            test "$SOURCE_REVISION" = "$WORKFLOW_REVISION"
+          fi
+          if test -n "$INTEGRITY_SELECTION"; then
+            test "$DEVELOPMENT_ONLY" = false
+            test -z "$SOURCE_REVISION"
+          fi
   policy:
+    needs: input-policy
     if: github.repository == 'UOR-Foundation/PrismPM' && github.ref == 'refs/heads/main' && inputs.development_only
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
     permissions:
       contents: read
       actions: read
@@ -206,5 +239,118 @@ jobs:
           retention-days: 90
       - name: State the development-only boundary
         run: |
-          printf 'Development SDK only: `%s`.\n\nEach platform has a complete signed OCI SPDX artifact; index provenance is retained. This is not an inline SPDX attestation.\n\nNo production acceptance, public Cargo qualification, full VV, or release promotion is claimed.\n' \
+          printf 'Development SDK only: %s.\n\nEach platform has a complete signed OCI SPDX artifact; index provenance is retained. This is not an inline SPDX attestation.\n\nNo production acceptance, public Cargo qualification, full VV, or release promotion is claimed.\n' \
             "$(cat "$RUNNER_TEMP/sdk-candidate-image.txt")" >> "$GITHUB_STEP_SUMMARY"
+
+  unpublished-construction:
+    needs: input-policy
+    name: Unpublished native SDK construction (${{ matrix.architecture }})
+    if: github.repository == 'UOR-Foundation/PrismPM' && github.event_name == 'workflow_dispatch' && inputs.construction_source_revision != '' && !inputs.development_only
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            architecture: amd64
+          - runner: ubuntu-24.04-arm
+            architecture: arm64
+    permissions:
+      contents: read
+    steps:
+      - name: Validate immutable construction input
+        env:
+          SOURCE_REVISION: ${{ inputs.construction_source_revision }}
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
+        run: |
+          [[ "$SOURCE_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test "$SOURCE_REVISION" = "$WORKFLOW_REVISION"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.construction_source_revision }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=docker.io/moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - name: Install the exact OCI transport
+        run: |
+          bash scripts/sdk-candidate.sh install-oras "$RUNNER_TEMP/oras"
+          echo "$RUNNER_TEMP/oras" >> "$GITHUB_PATH"
+      - name: Construct the exact native SDK without publication
+        env:
+          SOURCE_REVISION: ${{ inputs.construction_source_revision }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+          test -z "$(git status --porcelain)"
+          case "$ARCHITECTURE" in
+            amd64) test "$(uname -m)" = x86_64 ;;
+            arm64) test "$(uname -m)" = aarch64 ;;
+            *) exit 64 ;;
+          esac
+          node --test scripts/sdk-image-inputs.test.mjs
+          mkdir -p "$RUNNER_TEMP/construction"
+          node scripts/sdk-image-inputs.mjs build . "$SOURCE_REVISION" runtime \
+            --platform "linux/$ARCHITECTURE" \
+            --output "type=oci,dest=$RUNNER_TEMP/construction/sdk.oci.tar,rewrite-timestamp=true" \
+            --provenance=false --sbom=false --build-arg SOURCE_DATE_EPOCH=0 \
+            --label org.opencontainers.image.created=1970-01-01T00:00:00Z \
+            --label "org.opencontainers.image.revision=$SOURCE_REVISION" \
+            --label org.opencontainers.image.source=https://github.com/UOR-Foundation/PrismPM \
+            --label org.opencontainers.image.version=0.3.0
+          node --test scripts/sdk-construction-record.test.mjs
+          node scripts/sdk-construction-record.mjs "$RUNNER_TEMP/construction"
+          test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+          test -z "$(git status --porcelain)"
+          printf '%s\n' 'Unpublished construction only: no full VV, installed dual-native qualification, release or product acceptance.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: unpublished-sdk-construction-${{ matrix.architecture }}-${{ inputs.construction_source_revision }}
+          path: ${{ runner.temp }}/construction/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  construction-integrity:
+    needs: input-policy
+    if: github.repository == 'UOR-Foundation/PrismPM' && github.event_name == 'workflow_dispatch' && inputs.construction_integrity != '' && !inputs.development_only && inputs.construction_source_revision == ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - name: Verify original artifact integrity without local archive storage
+        env:
+          INTEGRITY_SELECTION: ${{ inputs.construction_integrity }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          printf '%s' "$GH_TOKEN" | env -u GH_TOKEN node scripts/sdk-construction-observe.mjs \
+            "$INTEGRITY_SELECTION" "$GITHUB_SHA" "$RUNNER_TEMP/construction-integrity"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: original-sdk-integrity-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/construction-integrity/
+          if-no-files-found: error
+          compression-level: 6
+          retention-days: 14

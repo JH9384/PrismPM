@@ -143,6 +143,58 @@ pub fn verify(root: &Path) {
         serde_json::to_value(document.application.as_ref().unwrap()).unwrap(),
         expected
     );
+    for label in [
+        "Ready",
+        "Runtime unavailable",
+        "Verified production service",
+    ] {
+        let mut changed = expected.clone();
+        changed["view"]["labels"][0]["text"] = json!(label);
+        let browser = typed(changed);
+        prismpm::holo::browser_application::validate(&browser).unwrap();
+        let application = Application::Browser(Box::new(browser));
+        assert_eq!(
+            prismpm::holo::browser_application::require_runtime(&application)
+                .expect_err("display labels cannot confer runtime acceptance")
+                .code,
+            "PP2011"
+        );
+        assert_eq!(source.matches("\"Runtime unavailable\"").count(), 1);
+        let relabeled_source = source.replace(
+            "\"Runtime unavailable\"",
+            &serde_json::to_string(label).unwrap(),
+        );
+        let relabeled = fixture(root, &relabeled_source, &model);
+        assert_eq!(
+            project(relabeled.path()).unwrap().application,
+            Some(application),
+            "actual LexLean source projects the changed label"
+        );
+        let controller = prismpm::Controller::load(relabeled.path()).unwrap();
+        controller
+            .check(prismpm::controller::CheckRequest { config_path: None })
+            .unwrap();
+        assert_eq!(
+            controller
+                .build(prismpm::controller::BuildRequest { config_path: None })
+                .expect_err("a changed source label cannot enable public generation")
+                .code,
+            "PP2011"
+        );
+        assert_eq!(
+            controller
+                .verify(prismpm::controller::VerifyRequest { config_path: None })
+                .expect_err("a changed source label cannot enable public verification")
+                .code,
+            "PP2011"
+        );
+        for path in [".prism", ".lexlean/build"] {
+            assert!(
+                !relabeled.path().join(path).exists(),
+                "refused source label {label:?} must publish no {path}"
+            );
+        }
+    }
     let bytes = prismpm::holo::canonical::encode_canonical(&document).unwrap();
     assert_eq!(
         prismpm::holo::canonical::decode_canonical(&bytes).unwrap(),

@@ -1,3 +1,11 @@
+# syntax=docker/dockerfile:1.12@sha256:93bfd3b68c109427185cd78b4779fc82b484b0b7618e36d0f104d4d801e66d25
+# Keep this source-independent stage identical in both image recipes.
+FROM docker.io/library/rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97 AS rust_oracle_tools
+ENV SOURCE_DATE_EPOCH=0
+# One fresh layer-local target reuses only Cargo-validated dependencies between
+# four real installations. Same-layer cleanup keeps build products out of images.
+RUN test ! -e /opt/prismpm/rust-oracle-target && mkdir -p -m 0700 /opt/prismpm/rust-oracle-target && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target wasm-bindgen-cli --version 0.2.122 && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target wasm-tools --version 1.258.0 && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target wasmtime-cli --version 48.0.1 && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target cargo-local-registry --version 0.2.12 && rm -rf /opt/prismpm/rust-oracle-target
+
 FROM docker.io/library/docker:28.4.0-cli@sha256:6a73c9433f2ba4279815be1e60f5739288b939dda1e48151d8c393537802de37 AS docker_cli
 FROM mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e AS browser_oracle
 FROM docker.io/library/golang:1.19.7-alpine3.17@sha256:04065e607052705ede1ac6308ce56aec4715b0fafb1f0c2f4c2333aab9d84442 AS upstream_oracles
@@ -29,11 +37,13 @@ RUN cd /src/openid \
 RUN find /root/.m2/repository -type f \( -name '*.lastUpdated' -o -name '_remote.repositories' -o -name 'resolver-status.properties' -o -name 'maven-metadata-*.xml' -o -name 'maven-metadata-*.xml.sha1' \) -delete \
     && rm -f /src/openid/target/classes/META-INF/build-info.properties /src/openid/target/classes/git.properties \
     && find /root/.m2/repository /src/openid/target/classes /src/openid/target/test-classes -exec touch -h -d '@0' '{}' +
-FROM docker.io/library/debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171
+FROM docker.io/library/debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS browser_ready
 
 COPY --from=docker_cli /usr/local/bin/docker /usr/local/bin/docker
-COPY --from=browser_oracle /ms-playwright /ms-playwright
-RUN chmod -R a-w /ms-playwright
+# FFmpeg uses the shared Linux build. Firefox and WebKit below
+# must use Debian 12 builds; the Noble WebKit requires a newer glibc.
+COPY --from=browser_oracle /ms-playwright/chromium-1234 /ms-playwright/chromium-1234
+COPY --from=browser_oracle /ms-playwright/ffmpeg-1011 /ms-playwright/ffmpeg-1011
 
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
@@ -44,12 +54,14 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 RUN apt-get update \
     && apt-get install --no-install-recommends --yes \
         build-essential ca-certificates coreutils=9.1-1 curl git libgmp10 \
-        libssl-dev pkg-config python3=3.11.2-1+b1 ripgrep xz-utils \
-        libasound2 libatk-bridge2.0-0 libatk1.0-0 libatspi2.0-0 libcairo2 \
-        libcups2 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0 libnspr4 libnss3 \
-        libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 \
-        libxfixes3 libxkbcommon0 libxrandr2 fonts-liberation fonts-noto-color-emoji \
+        libssl-dev pkg-config python3=3.11.2-1+b1 ripgrep unzip xz-utils \
     && rm -rf /var/lib/apt/lists/*
+
+# The complete fixed Chromium input is independent of the unchanged driver,
+# Firefox, WebKit and base-image pins. Every byte is admitted before extraction.
+COPY sdk/browser-engine/ /opt/prismpm/browser-engine/
+RUN python3 -B /opt/prismpm/browser-engine/install_test.py \
+    && python3 -B /opt/prismpm/browser-engine/install.py --architecture amd64
 
 RUN curl --proto '=https' --tlsv1.2 -sSfL \
         https://static.rust-lang.org/rustup/archive/1.28.2/x86_64-unknown-linux-gnu/rustup-init \
@@ -77,17 +89,44 @@ COPY sdk/oracles/package.json sdk/oracles/package-lock.json /opt/prismpm/oracles
 RUN npm ci --ignore-scripts --omit=dev --prefix /opt/prismpm/oracles \
     && node -e 'if(require("/opt/prismpm/oracles/node_modules/playwright/package.json").version!=="1.62.1")process.exit(1)'
 
-RUN cargo install --locked wasm-bindgen-cli --version 0.2.122 \
-    && cargo install --locked wasm-tools --version 1.258.0 \
-    && cargo install --locked wasmtime-cli --version 48.0.1 \
-    && cargo install --locked cargo-local-registry --version 0.2.12
+RUN node /opt/prismpm/oracles/node_modules/playwright/cli.js install-deps chromium firefox webkit \
+    && rm -rf /var/lib/apt/lists/*
+
+# Qualified without execution by Actions run 36438500947 at 4427d7d06354eb97d30a92bd1befc6f5e76f34d9.
+# Full receipt SHA256: 2e3ffd63e28ff1c0c3df376256d90c03fef25155cfd364dfc9516e3df88310b5.
+RUN curl --disable --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --silent --show-error \
+      --connect-timeout 15 --max-time 180 --retry 2 --retry-max-time 420 --max-filesize 113411079 \
+      https://cdn.playwright.dev/builds/firefox/1538/firefox-debian-12.zip --output /tmp/firefox-debian-12.zip \
+    && echo '04b0d3d86f7472bbbebce1b7c536900d05e0eb63bcfdb22cd1da932b5ea297e7  /tmp/firefox-debian-12.zip' | sha256sum --check --strict \
+    && curl --disable --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --silent --show-error \
+      --connect-timeout 15 --max-time 180 --retry 2 --retry-max-time 420 --max-filesize 107153598 \
+      https://cdn.playwright.dev/builds/webkit/2336/webkit-debian-12.zip --output /tmp/webkit-debian-12.zip \
+    && echo '95d87eedf554620015e392805be5d71aedbbdbb65dfa6c62c94753cf8e34406e  /tmp/webkit-debian-12.zip' | sha256sum --check --strict \
+    && mkdir /ms-playwright/firefox-1538 /ms-playwright/webkit-2336 \
+    && unzip -q /tmp/firefox-debian-12.zip -d /ms-playwright/firefox-1538 \
+    && unzip -q /tmp/webkit-debian-12.zip -d /ms-playwright/webkit-2336 \
+    && rm /tmp/firefox-debian-12.zip /tmp/webkit-debian-12.zip \
+    && chmod -R a+rX,a-w /ms-playwright
+
+COPY scripts/browser-environment-preflight.sh scripts/browser-environment-preflight.mjs /opt/prismpm/browser-environment/scripts/
+COPY sdk/browser/browser-test-server.mjs /opt/prismpm/browser-environment/sdk/browser/
+RUN groupadd --gid 1000 vscode \
+    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash vscode \
+    && bash /opt/prismpm/browser-environment/scripts/browser-environment-preflight.sh \
+    && runuser -u vscode -- bash /opt/prismpm/browser-environment/scripts/browser-environment-preflight.sh
+
+# CI builds this same ancestor first; the final image cannot bypass its checks.
+FROM browser_ready AS development
+
+COPY --from=rust_oracle_tools /opt/prismpm/rust-oracle-tools/bin/ /usr/local/cargo/bin/
 
 RUN curl -sSfL https://github.com/leanprover/elan/releases/download/v4.2.3/elan-x86_64-unknown-linux-gnu.tar.gz -o elan.tar.gz \
     && echo "df0b2b3a439961ffcbb3985214365ffe40f49bc871df04dff268c7d8e21ca8b2  elan.tar.gz" | sha256sum -c - \
     && mkdir -p /tmp/elan-bin && tar -xzf elan.tar.gz -C /tmp/elan-bin \
     && /tmp/elan-bin/elan-init -y --no-modify-path --default-toolchain none \
     && rm -rf elan.tar.gz /tmp/elan-bin \
-    && elan toolchain install leanprover/lean4:v4.32.1
+    && elan toolchain install leanprover/lean4:v4.32.1 \
+    && chmod -R a+rX,go-w /usr/local/elan/toolchains/leanprover--lean4---v4.32.1
 
 RUN curl -sSfL https://github.com/casey/just/releases/download/1.57.0/just-1.57.0-x86_64-unknown-linux-musl.tar.gz -o just.tar.gz \
     && echo "45b548094283cb9739af8f13273b8cddeee869f5b4ef2bb631b1f311cb566155  just.tar.gz" | sha256sum -c - \
@@ -119,9 +158,7 @@ RUN git config --system --add safe.directory /workspaces/PrismPM
 COPY --chmod=0755 .devcontainer/docker-entrypoint.sh /usr/local/bin/prismpm-devcontainer-init
 COPY --chmod=0755 .devcontainer/docker-ready.sh /usr/local/bin/prismpm-devcontainer-exec
 
-RUN groupadd --gid 1000 vscode \
-    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash vscode \
-    && mkdir -p /home/vscode/.cargo/bin \
+RUN mkdir -p /home/vscode/.cargo/bin \
     && mkdir -p /home/vscode/.elan/tmp \
     && for binary in /usr/local/cargo/bin/*; do ln -s "$binary" "/home/vscode/.cargo/bin/$(basename "$binary")"; done \
     && ln -s /usr/local/elan/bin /home/vscode/.elan/bin \
@@ -130,6 +167,11 @@ RUN groupadd --gid 1000 vscode \
 
 ENV CARGO_HOME=/home/vscode/.cargo \
     ELAN_HOME=/home/vscode/.elan
+
+RUN bash /opt/prismpm/browser-environment/scripts/browser-environment-preflight.sh \
+    && runuser -u vscode -- bash /opt/prismpm/browser-environment/scripts/browser-environment-preflight.sh \
+    && runuser -u vscode -- env ELAN_TOOLCHAIN=leanprover/lean4:v4.32.1 lean --version \
+    && runuser -u vscode -- env ELAN_TOOLCHAIN=leanprover/lean4:v4.32.1 lake --version
 
 WORKDIR /work
 ENTRYPOINT ["/usr/local/bin/prismpm-devcontainer-init"]

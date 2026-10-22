@@ -1,0 +1,53 @@
+{
+  "schema": "prismpm/imported-corpus-source/1",
+  "repository": "https://github.com/BLAKE3-team/BLAKE3",
+  "revision": "81f772a4cd70dc0325047a6a737d2f6f4b92180e",
+  "edition": "1.5.5",
+  "edition_authority": "upstream-Cargo.toml at the exact source revision; no signed release claim",
+  "redistribution_license": "CC0-1.0",
+  "license_selection": "CC0-1.0 selected from the upstream package's CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception alternatives; all upstream license texts retained",
+  "files": [
+    {
+      "path": "LICENSE_A2",
+      "url": "https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/81f772a4cd70dc0325047a6a737d2f6f4b92180e/LICENSE_A2",
+      "byte_length": 11361,
+      "sha256": "00fcc7a934ddbc9ece2a7cc063ac788e284b703b1d705ccbba72d462aa97921e",
+      "license": "upstream-license-text"
+    },
+    {
+      "path": "LICENSE_A2LLVM",
+      "url": "https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/81f772a4cd70dc0325047a6a737d2f6f4b92180e/LICENSE_A2LLVM",
+      "byte_length": 12267,
+      "sha256": "a5695f57ea0c221e0e8b7d784ff774c35e88c3d3270353646a925880bb3492cc",
+      "license": "upstream-license-text"
+    },
+    {
+      "path": "LICENSE_CC0",
+      "url": "https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/81f772a4cd70dc0325047a6a737d2f6f4b92180e/LICENSE_CC0",
+      "byte_length": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "license": "upstream-license-text"
+    },
+    {
+      "path": "test_vectors/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/81f772a4cd70dc0325047a6a737d2f6f4b92180e/test_vectors/src/lib.rs",
+      "byte_length": 11433,
+      "sha256": "92ac641e0e47c11bfa0e68d6a815bef09d0c5a7c24845210cfa862ccceb35e84",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "test_vectors/test_vectors.json",
+      "url": "https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/81f772a4cd70dc0325047a6a737d2f6f4b92180e/test_vectors/test_vectors.json",
+      "byte_length": 31922,
+      "sha256": "dcb91ea8accc77e6d6e632af7cdc1a99a9f3ae78cf648da595c7d064db32f624",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "upstream-Cargo.toml",
+      "url": "https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/81f772a4cd70dc0325047a6a737d2f6f4b92180e/Cargo.toml",
+      "byte_length": 5854,
+      "sha256": "ac1f6e13a968d870fbff0fea501721920be97dffa515dca8f796c2ab97192376",
+      "license": "CC0-1.0"
+    }
+  ]
+}

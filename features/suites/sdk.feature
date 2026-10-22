@@ -1,11 +1,83 @@
 Feature: sdk
 
+  @DK-32 @build
+  Scenario: Private source-owned signed contexts bind exact expected statements and keys to actual cryptographic verification and opaque captured evidence through complete generated and browser oracles without granting account, mailbox, organization or freshness authority.
+    Given canonical source-owned envelopes and an exact independently selected expected context and public key
+    When complete native, no_std, Wasm, original cryptographic oracles and browser owners verify the captured bytes
+    Then only actual successful signature verification creates private instance-bound statement evidence
+    And context substitution, forged handles, asynchronous mutation and source or host guard defects fail their exact checks
+    And every signer and expected key passes the shared complete P-256 source predicate before provider import, with key-before-signature error precedence
+    And account identity, verified email, organization permissions, freshness and public application acceptance remain separate obligations
+
+  @DK-33 @build
+  Scenario: Private source-owned account genesis preserves an immutable namespace, nonce and initial key in canonical domain-separated identity bytes without conflating account identity with signatures, current credentials, deployment revisions or authority.
+    Given a source-owned immutable account genesis with a stable namespace and initial public key
+    When generated native, no_std and Wasm execution checks the complete canonical codec and digest projection
+    Then every malformed or substituted input rejects or changes its independently computed identifier and real source mutations fail
+    And actual browser hashing and curve validation establish only a content-addressed account declaration, not possession, mailbox verification, credential succession or organization permission
+
+  @DK-34 @build
+  Scenario: Private source-owned P-256 public-key validation checks complete uncompressed SEC1 points with bounded generated field arithmetic and authoritative key-validation vectors before account or signature admission without claiming possession, authority or cryptographic certification.
+    Given the exact SEC1 and SEC2 P-256 domain and complete imported authoritative P-256 public-key-validation sections
+    When generated native, no_std, Wasm and all pinned browser engines execute canonical decoding, field arithmetic and point validation
+    Then malformed encodings, out-of-range coordinates and off-curve points reject independently of provider import behavior
+    And actual arithmetic and source mutations plus altered browser transcripts fail without replacing signature, possession, currentness or account authorization checks
+
+  @DK-35 @build
+  Scenario: Private operation capture derives immutable predecessor, successor, observations and content descriptors from exact captured operation bytes through generated source kernels, with factory-owned revocable handles and complete native/Wasm/browser bounds, without authenticating current history, releasing effects or accepting a public application.
+    Given exact captured generated predecessor, session, observation, partition and descriptor artifacts
+    When fresh kernel, native, no_std, Wasm and every pinned browser execute complete independent operations and all existing combined maxima
+    Then source errors, substituted inputs or artifacts, fabricated or foreign handles and closed owners cannot yield successful captures
+    And actual source and host mutants fail while authenticated current history, signed durable publication and public runtime acceptance remain separate requirements
+  @DK-31 @build
+  Scenario: Private source-owned dynamic choice names preserve bounded plain text, unique stable option identifiers, source order and exact selection through generated native/Wasm and browser execution without changing catalogue-based choices or granting authority.
+    Given source-generated text choices alongside unchanged catalogue-based choices
+    When complete native, no_std, Wasm and browser owners exercise text and aggregate maxima, selection, reordering and semantic annotations
+    Then duplicate identifiers, missing selections, oversized names and stale contexts reject while hostile text remains plain text
+    And rebuilt source and renderer mutations fail without granting organization authority or public application acceptance
+
+  @DK-26 @build
+  Scenario: The private generated session kernel binds visible ordinary intents, admitted authority facts and exact effect continuations while separating durable application state from volatile presentation and retaining uncertain or closed pending work without claiming host durability or public runtime acceptance.
+    Given source-owned session wrappers and the complete bounded session protocol
+    When actual kernel, native, no_std and Wasm execution checks every transition and aggregate bound
+    Then substituted authority, intents, state, requests and continuations reject without losing custody of unresolved operations
+    And actual source guard mutations fail while durable orchestration and public acceptance remain separate requirements
+
+  @DK-30 @build
+  Scenario: The internal native-lane reducer preserves exact operation identity, finite sequencing and conditional cleanup transitions in generated std/no_std execution and import-free Wasm corpus probes without granting OS authority or claiming native application acceptance.
+    Given the complete explicit native lease corpus and host-only cleanup preconditions
+    When every modeled case executes in fresh generated standard and no_std Rust and import-free Wasm
+    Then cancellation, uncertainty, expiry, replay and exhaustion preserve the exact lane contract
+    And planted binding, sequencing and cleanup defects fail actual generated execution
+    And every Wasm selector maps exactly to its modeled probe and rejects invalid requests
+
+  @DK-29 @build
+  Scenario: Native exporter acquisition binds bounded fresh compiler seeds to independent SDK inventory authority and actual child measurements without replacing cold construction, actual exports or application acceptance.
+    Given pinned compiler sources and a complete independently locked native SDK seed manifest
+    When bounded exclusive staging checks every source, toolchain, runtime and seed file identity
+    Then changed, missing, aliased, oversized or coherently rehashed inputs fail closed
+    And the actual Lake build and exports remain required in each fresh application verification
+    And installed native release qualification independently reconstructs both seeds and retains all cold/relocated kernel checks and exports
+
   @DK-28 @build
   Scenario: SDK lock acquisition validates exact OCI metadata graphs and a closed terminal filesystem layer under explicit resource and credential bounds without full-image fallback or implying executable or release acceptance.
     Given digest-pinned platform manifests with exact configuration, terminal metadata and inventory bindings
     When bounded registry transport and verified credential helpers capture both native platform inventories
     Then malformed graphs, ambiguous metadata, unsafe authentication, changed helpers and exceeded resource limits fail closed
     And real registry and image materialization checks preserve exact bytes without manufacturing SDK qualification
+  @DK-37 @build
+  Scenario: Private contextual effect staging preserves exact source-generated requests, copied execution observations and one-shot actual completions without caller-selected execution identity, premature effects or public application acceptance.
+    Given independently bound generated effect artifacts and private credential custody
+    When exact source-generated requests pass the existing modeled admission and the private release is consumed once
+    Then stale contexts, substituted bindings, concurrent admissions and altered caller buffers cannot relabel or prematurely execute a primitive
+    And actual browser completions replay in native std and no_std while existing effect and journal owners remain mandatory
+
+  @DK-38 @build
+  Scenario: Private source-owned semantic presentation binds exact input purposes, descriptions, errors, landmarks and bounded design catalogues to complete generated native/Wasm and rendered browser oracle checks without changing DK-23 bytes or granting application acceptance.
+    Given immutable source-bound label and design catalogues and typed semantic presentations
+    When native, no_std, Wasm and actual browser oracles execute complete envelopes, limits and human-interface behavior
+    Then malformed, stale, substituted and inaccessible presentations reject and source or adapter mutants fail
+    And public application acceptance still requires complete independently verified product journeys
 
   @DK-27 @build
   Scenario: Private source-modeled effect budgets bind every admitted manifest resource and exact request to concrete per-resource maxima and immutable policy context without issuing grants or enabling public application builds.
@@ -38,13 +110,16 @@ Feature: sdk
     Given source-owned semantic presentation fixtures and the exact bounded wire grammar
     When fresh kernel, native, no_std, Core-Wasm and real browser journeys execute every declared maximum
     Then actual generated frames and browser transcripts agree without HTML injection or control authority
+    And Chromium, Firefox and WebKit preserve one connected atomic status region without duplicate announcements or implicit focus changes
     And actual model and adapter mutations fail their owning assertions
+    And one connected atomic status region precedes its messages and survives accepted updates without duplicate text writes or focus changes
 
   @DK-21 @build
   Scenario: The source-owned browser application declaration closes resource requests, generated entry points, safe presentation and durable replay metadata while refusing build before runtime acceptance.
     Given independently checked declarations in the exact standard-library namespace
     When source projections and schema mutations exercise every closed boundary
     Then declarations remain distinct from portable profiles and build refuses the unavailable runtime
+    And changing display labels never confers runtime acceptance
 
   @DK-20 @build
   Scenario: The internal bounded effect wire codec executes actual modeled transitions in generated native and Core-Wasm code, while a private browser host binds real guest, cryptography and storage effects without accepting caller completions or claiming application acceptance.

@@ -4,7 +4,7 @@ presentation = [1, revision: u32, phase: 0..3, status: label-or-none,
                 live: 0..2, focus: node-or-none, nodes: [*256 node]]
 node = [parent: node-or-none, content]
 content = section / navigation / form / heading / text / input / multiline /
-          choice / action / table / secret-input
+          choice / action / table / secret-input / text-choice
 section = [0, label]
 navigation = [1, label]
 form = [2, label]
@@ -14,6 +14,10 @@ input = [5, label, enabled: bool, required: bool, maximum: 1..67108864, tstr, dr
 multiline = [6, label, enabled: bool, required: bool, maximum: 1..67108864, tstr, draft-epoch: u32]
 choice = [7, label, enabled: bool, required: bool, selected: u32,
           options: [*256 [id: 1..4294967295, label]], draft-epoch: u32]
+; DK-31 names: strict UTF-8, 1..4096 bytes; source order, distinct IDs.
+; The aggregate option limit across choice and text-choice remains 256.
+text-choice = [11, label, enabled: bool, required: bool, selected: u32,
+               options: [*256 [id: 1..4294967295, tstr]], draft-epoch: u32]
 action = [8, label, id: 1..4294967295, enabled: bool, default: bool,
           fields: [*16 node-id]]
 table = [9, caption: label, columns: [1*16 label], rows: [*4096 [1*16 tstr]]]

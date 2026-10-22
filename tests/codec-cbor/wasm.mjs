@@ -9,7 +9,7 @@ const work = resolve(process.argv[2]);
 const index = JSON.parse(readFileSync(new URL(
   '../../stdlib/src/Foundation/Codec/Cbor/V1/primitive-corpus.json', import.meta.url)));
 assert.equal(index.schema, 'prismpm/cbor-primitive-corpus/1');
-assert.equal(index.roots.length, 193);
+assert.equal(index.roots.length, 194);
 assert.deepEqual(index.cases.map(row => row.root), index.roots);
 const maximumPages = 1024, maximumPayload = 4_202_612;
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');

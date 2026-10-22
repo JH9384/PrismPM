@@ -1,13 +1,15 @@
 // Internal image-input wiring checks. No test fixture is SDK acceptance.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
 import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { buildImage, captureImageInputs, dockerArguments, inputPolicy, prepareImageInputs, stageImageInputs } from './sdk-image-inputs.mjs';
+import { buildImage, buildImageWithInputs, captureImageInputs, dockerArguments, inputPolicy, prepareImageInputs, stageImageInputs } from './sdk-image-inputs.mjs';
 import { validateImageInputMetadata } from '../sdk/inventory-metadata.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -64,6 +66,13 @@ function fixture(t) {
 
 test('every source-derived image COPY consumes the verified committed source stage', () => {
   const recipe = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');
+  const checkLockAdmission = text => assert.match(text,
+    /RUN cargo build --locked --release --package prismpm \\\n    && target\/release\/prismpm --json --project \. authority resolve --locked \\\n    && cargo build --locked --release --package repo-conformance --bins/,
+    'actual newly built CLI must admit the shipped lock before further SDK compilation');
+  checkLockAdmission(recipe);
+  assert.throws(() => checkLockAdmission(recipe.replace('    && target/release/prismpm --json --project . authority resolve --locked \\\n', '')));
+  assert.throws(() => checkLockAdmission(recipe.replace('authority resolve --locked', 'authority resolve')));
+  assert.throws(() => checkLockAdmission(recipe.replace('--project . authority', '--project /tmp/unbound authority')));
   const unverified = recipe.split('\n').filter(line => line.startsWith('COPY ') && !line.includes('--from='));
   assert.deepEqual(unverified, [
     'COPY scripts/sdk-vv-inputs.mjs scripts/sdk-image-inputs.mjs /opt/input-policy/scripts/',
@@ -83,6 +92,343 @@ function imageStages(recipe) {
   }
   return stages;
 }
+
+const rustTools = [
+  ['wasm-bindgen-cli', '0.2.122'], ['wasm-tools', '1.258.0'],
+  ['wasmtime-cli', '48.0.1'], ['cargo-local-registry', '0.2.12'],
+];
+const rustToolTarget = '/opt/prismpm/rust-oracle-target';
+const rustToolInstalls = rustTools.map(([name, version]) =>
+  `cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir ${rustToolTarget} ${name} --version ${version}`);
+const rustToolInitialization = `test ! -e ${rustToolTarget} && mkdir -p -m 0700 ${rustToolTarget}`;
+const rustToolConstruction = `${rustToolInitialization} && ${rustToolInstalls.join(' && ')} && rm -rf ${rustToolTarget}`;
+
+function checkedRustToolConstruction(recipe) {
+  const instructions = recipe.replace(/[ \t]*\\\n[ \t]*/g, ' ').split('\n');
+  const installs = instructions.filter(line => line.includes('cargo install '));
+  assert.deepEqual(installs, [`RUN ${rustToolConstruction}`], 'all four real locked installations share one fresh same-layer target');
+  assert.equal(instructions.filter(line => line.includes(rustToolTarget)).length, 1, 'no retained or cross-layer target');
+  assert(!instructions.some(line => /^(ENV|ARG) .*CARGO_(?:BUILD_)?TARGET_DIR/.test(line)), 'no ambient target override');
+  return installs[0].slice(4);
+}
+
+test('both existing recipes keep four exact installations in one fresh layer-local target', () => {
+  for (const path of ['../.devcontainer/Dockerfile', '../sdk/Dockerfile']) {
+    const recipe = readFileSync(new URL(path, import.meta.url), 'utf8').replace(/[ \t]*\\\n[ \t]*/g, ' ');
+    checkedRustToolConstruction(recipe);
+    const mutants = [
+      recipe.replace(`${rustToolInitialization} && `, ''),
+      recipe.replace(`test ! -e ${rustToolTarget} && `, ''),
+      recipe.replace('mkdir -p -m 0700', 'mkdir -p -m 0777'),
+      recipe.replace('mkdir -p -m 0700', 'mkdir -m 0700'),
+      recipe.replace('--locked ', ''),
+      recipe.replace('wasm-bindgen-cli --version 0.2.122', 'wasm-bindgen-cli --version 0.2.121'),
+      recipe.replace('--root /opt/prismpm/rust-oracle-tools', '--root /tmp/foreign-install'),
+      recipe.replaceAll(`--target-dir ${rustToolTarget}`, '--target-dir /tmp/ambient-target'),
+      recipe.replace(`${rustToolInstalls[0]} && ${rustToolInstalls[1]}`, `${rustToolInstalls[1]} && ${rustToolInstalls[0]}`),
+      recipe.replace(rustToolInstalls[0], `${rustToolInstalls[0]} && ${rustToolInstalls[0]}`),
+      recipe + `\nRUN ${rustToolInstalls[0]}\n`,
+      recipe.replace(` && rm -rf ${rustToolTarget}`, ''),
+      recipe.replace(` && rm -rf ${rustToolTarget}`, `\nRUN rm -rf ${rustToolTarget}`),
+      recipe.replace(`RUN test ! -e ${rustToolTarget}`, `RUN --mount=type=cache,target=${rustToolTarget} test ! -e ${rustToolTarget}`),
+      recipe.replace('RUN test ! -e', 'RUN true || test ! -e'),
+      recipe.replace(rustToolInitialization, rustToolInitialization.replace(' && ', '; ')),
+      recipe + '\nENV CARGO_TARGET_DIR=/tmp/ambient-target\n',
+      recipe + '\nARG CARGO_BUILD_TARGET_DIR=/tmp/ambient-target\n',
+      recipe + `\nCOPY --from=input_tools ${rustToolTarget} ${rustToolTarget}\n`,
+      ...rustToolInstalls.map(command => recipe.replace(command, command.replace(`--target-dir ${rustToolTarget} `, ''))),
+    ];
+    for (const mutant of mutants) {
+      assert.notEqual(mutant, recipe, 'each planted mutation must alter the actual recipe');
+      assert.throws(() => checkedRustToolConstruction(mutant));
+    }
+  }
+});
+
+test('actual layer-local target initialization creates private parents and refuses every retained target', t => {
+  const root = mkdtempSync(join(tmpdir(), 'rust-tool-target-init-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  for (const [index, path] of ['../.devcontainer/Dockerfile', '../sdk/Dockerfile'].entries()) {
+    const recipe = readFileSync(new URL(path, import.meta.url), 'utf8');
+    const command = checkedRustToolConstruction(recipe);
+    const initialization = command.split(' && cargo install ')[0];
+    assert.equal(initialization, rustToolInitialization);
+    const run = (target, source = initialization) => {
+      const quoted = "'" + target.replaceAll("'", "'\\''") + "'";
+      return spawnSync('/bin/sh', ['-eu', '-c', source.replaceAll(rustToolTarget, quoted)], {
+        stdio: 'pipe', encoding: 'utf8', timeout: 5000, maxBuffer: 1024 * 1024,
+      });
+    };
+    const passed = result => {assert.equal(result.error, undefined); assert.equal(result.signal, null); assert.equal(result.status, 0, result.stderr);};
+    const refused = result => {assert.equal(result.error, undefined); assert.equal(result.signal, null); assert.notEqual(result.status, 0);};
+    for (const missingParents of [false, true]) {
+      const parent = join(root, String(index), String(missingParents), 'parent');
+      if (!missingParents) mkdirSync(parent, {recursive: true});
+      const target = join(parent, 'target');
+      if (missingParents) refused(run(target, initialization.replace('mkdir -p -m 0700', 'mkdir -m 0700')));
+      passed(run(target));
+      const before = lstatSync(target, {bigint: true});
+      assert(before.isDirectory() && !before.isSymbolicLink());
+      assert.equal(before.mode & 0o777n, 0o700n);
+      refused(run(target));
+      passed(run(target, initialization.replace(`test ! -e ${rustToolTarget} && `, '')));
+      const after = lstatSync(target, {bigint: true});
+      for (const key of ['dev', 'ino', 'mode', 'uid', 'gid', 'nlink', 'size', 'mtimeNs', 'ctimeNs']) assert.equal(after[key], before[key]);
+    }
+    const foreign = join(root, String(index), 'foreign');
+    mkdirSync(foreign);
+    writeFileSync(join(foreign, 'retained-bytes'), 'must remain unchanged\n');
+    const alias = join(root, String(index), 'alias'); symlinkSync(foreign, alias);
+    refused(run(alias));
+    assert.equal(readlinkSync(alias), foreign);
+    assert.equal(readFileSync(join(foreign, 'retained-bytes'), 'utf8'), 'must remain unchanged\n');
+    const absent = join(root, String(index), 'absent');
+    const dangling = join(root, String(index), 'dangling'); symlinkSync(absent, dangling);
+    refused(run(dangling));
+    assert.equal(readlinkSync(dangling), absent); assert(!existsSync(absent));
+    const regular = join(root, String(index), 'regular'); writeFileSync(regular, 'retained regular input\n');
+    refused(run(regular)); assert.equal(readFileSync(regular, 'utf8'), 'retained regular input\n');
+    const fifo = join(root, String(index), 'fifo'); execFileSync('mkfifo', [fifo]);
+    refused(run(fifo)); assert(lstatSync(fifo).isFIFO());
+  }
+});
+
+test('pinned runtime package acquisition is bounded and refuses incomplete indexes', () => {
+  const recipe = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');
+  const check = text => {
+    const commands = imageStages(text).get('runtime_base').instructions;
+    const acquisition = commands.filter(command => command.includes('apt-get '));
+    assert.equal(acquisition.length, 1, 'one signed snapshot acquisition owner');
+    const command = acquisition[0].replace(/\s+/g, ' ');
+    assert.equal(hash(command), 'b44daff2cec315e3672cfa332a5a50769910d35167f3444dfc23160cd518c3a7',
+      'the complete signed snapshot acquisition and cleanup instruction must remain unchanged');
+    const update = 'apt-get --error-on=any -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::http::Pipeline-Depth=0 -o Acquire::https::Pipeline-Depth=0 -o Acquire::CompressionTypes::Order=xz update';
+    const install = 'apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::http::Pipeline-Depth=0 -o Acquire::https::Pipeline-Depth=0 -o Acquire::CompressionTypes::Order=xz install --no-install-recommends --yes "build-essential=${build_essential}" "pkg-config=${pkg_config}"';
+    assert.deepEqual(command.split(' && ').filter(segment => segment.includes('apt-get')), [update, install],
+      'the exact update and install must execute unconditionally in that order without overrides');
+    assert(command.includes('test "$(find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name ubuntu.sources -print -quit)" = ""'));
+    const admission = phase => `/usr/bin/python3 -I -B /opt/prismpm/runtime-sources/configure.py ${phase} --architecture "$TARGETARCH" --snapshot "${'${snapshot}'}"`;
+    assert.equal(command.split(admission('prepare')).length, 2);
+    assert.equal(command.split(admission('verify')).length, 2);
+    assert(command.indexOf(admission('prepare')) < command.indexOf('rm /etc/apt/sources.list.d/nodesource.list'));
+    assert(command.indexOf('rm /etc/apt/sources.list.d/nodesource.list') < command.indexOf(admission('verify')));
+    assert(command.indexOf(admission('verify')) < command.indexOf(update), 'closed native sources must be verified before any acquisition');
+    assert(commands.includes('COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/runtime-sources/configure.py /opt/prismpm/runtime-sources/configure.py'));
+    assert(commands.includes('COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/runtime-sources/fixtures/amd64.nodesource.list /prepared/source/sdk/runtime-sources/fixtures/arm64.nodesource.list /opt/prismpm/runtime-sources/fixtures/'));
+    assert(!/allow-unauthenticated|allow-insecure|Check-Valid-Until|Check-Date|ignore-missing|fix-missing|trusted=yes|\|\| true/.test(command));
+  };
+  check(recipe);
+  for (const [from, to] of [
+    ['--error-on=any ', ''], ['Acquire::Retries=3', 'Acquire::Retries=0'],
+    ['Acquire::http::Timeout=30', 'Acquire::http::Timeout=0'],
+    ['Acquire::https::Timeout=30', 'Acquire::https::Timeout=0'],
+    ['Acquire::http::Pipeline-Depth=0', 'Acquire::http::Pipeline-Depth=1'],
+    ['Acquire::https::Pipeline-Depth=0', 'Acquire::https::Pipeline-Depth=1'],
+    ['Acquire::CompressionTypes::Order=xz', 'Acquire::CompressionTypes::Order=gz'],
+    ['-o Acquire::CompressionTypes::Order=xz ', ''],
+    ['Acquire::CompressionTypes::Order=xz', 'Acquire::CompressionTypes::Order::=xz'],
+    ['"build-essential=${build_essential}"', 'build-essential'],
+    ['"pkg-config=${pkg_config}"', 'pkg-config'],
+    [' install --no-install-recommends', ' install --allow-unauthenticated --no-install-recommends'],
+    ['&& apt-get --error-on=any', '&& true # apt-get --error-on=any'],
+    ['&& apt-get -o Acquire::Retries=3', '&& true # apt-get -o Acquire::Retries=3'],
+    ['Acquire::CompressionTypes::Order=xz update', 'Acquire::CompressionTypes::Order=xz -o Acquire::Retries=0 update'],
+    ['Acquire::CompressionTypes::Order=xz update', 'Acquire::CompressionTypes::Order=xz -o Acquire::CompressionTypes::Order=gz update'],
+    [' install --no-install-recommends', ' -o Acquire::Retries=0 install --no-install-recommends'],
+    [' update \\\n', ' update || true \\\n'],
+    [' install --no-install-recommends', ' install --ignore-missing --no-install-recommends'],
+    ['rm /etc/apt/sources.list.d/nodesource.list', 'true'],
+    ['--snapshot "${snapshot}"', '--snapshot "https://archive.ubuntu.com/ubuntu/"'],
+    ['configure.py prepare', 'configure.py verify'],
+    ['configure.py verify', 'configure.py prepare'],
+    ['configure.py prepare --architecture "$TARGETARCH"', 'configure.py prepare --architecture "amd64"'],
+    ['--error-on=any', '--error-on=any -o Acquire::Check-Valid-Until=false'],
+    ['--error-on=any', '--error-on=any -o Acquire::AllowInsecureRepositories=true'],
+  ]) {
+    assert(recipe.includes(from), `runtime mutation anchor missing: ${from}`);
+    assert.notEqual(from, to);
+    assert.throws(() => check(recipe.replace(from, to)), `runtime mutation must refuse: ${from}`);
+  }
+  const options = ['Acquire::Retries=3', 'Acquire::http::Timeout=30', 'Acquire::https::Timeout=30',
+    'Acquire::http::Pipeline-Depth=0', 'Acquire::https::Pipeline-Depth=0', 'Acquire::CompressionTypes::Order=xz'];
+  for (const option of options) {
+    const at = recipe.lastIndexOf(option);
+    assert(at > recipe.indexOf(option), 'both actual update and install must own the bound');
+    const changed = option.endsWith('=xz') ? option.replace(/=xz$/, '=gz')
+      : option.replace(/=\d+$/, option.endsWith('=0') ? '=1' : '=0');
+    assert.notEqual(changed, option);
+    assert.throws(() => check(recipe.slice(0, at) + changed + recipe.slice(at + option.length)));
+  }
+  for (const operation of ['update', 'install']) {
+    const expression = operation === 'update' ? /apt-get --error-on=any[^\n]+update/ : /apt-get -o[^\n]+install --no-install-recommends --yes/;
+    assert.throws(() => check(recipe.replace(expression, 'true')));
+  }
+  for (const phase of ['prepare', 'verify']) {
+    const invocation = `/usr/bin/python3 -I -B /opt/prismpm/runtime-sources/configure.py ${phase} --architecture "$TARGETARCH" --snapshot "${'${snapshot}'}"`;
+    assert(recipe.includes(invocation), 'both source-admission mutation anchors must exist');
+    for (const replacement of ['true', invocation.replace('--architecture "$TARGETARCH"', '--architecture "amd64"'),
+      invocation.replace('--snapshot "${snapshot}"', '--snapshot "https://archive.ubuntu.com/ubuntu/"')]) {
+      assert.notEqual(replacement, invocation);
+      assert.throws(() => check(recipe.replace(invocation, replacement)));
+    }
+  }
+  assert.equal(readFileSync(new URL('../sdk/runtime-os.lock', import.meta.url), 'utf8'),
+    '# Runtime packages added to the digest-pinned Playwright base image.\n'
+    + '# The snapshot URI makes transitive apt resolution immutable.\n'
+    + 'snapshot=https://snapshot.ubuntu.com/ubuntu/20260901T000000Z/\n'
+    + 'build-essential=12.10ubuntu1\n'
+    + 'pkg-config=1.8.1-2build1\n');
+  const configured = spawnSync('apt-config', options.flatMap(option => ['-o', option]).concat('dump'),
+    {encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024});
+  assert.equal(configured.error, undefined); assert.equal(configured.signal, null); assert.equal(configured.status, 0);
+  for (const option of options) {
+    const [key, value] = option.split('=');
+    assert(configured.stdout.split('\n').includes(`${key} "${value}";`), 'actual APT option must remain effective');
+  }
+});
+
+test('both native runtime source profiles and real filesystem refusals are executable', () => {
+  const result = spawnSync('/usr/bin/python3', ['-I', '-B',
+    new URL('../sdk/runtime-sources/configure_test.py', import.meta.url).pathname],
+  {encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024});
+  assert.equal(result.error, undefined); assert.equal(result.signal, null);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /Ran 14 tests/);
+});
+
+test('real APT refuses transient index failure before package installation', {timeout: 30000}, async t => {
+  const work = mkdtempSync(join(tmpdir(), 'prismpm-apt-index-owner-'));
+  t.after(() => rmSync(work, {recursive: true}));
+  let requests = 0;
+  const server = createServer((_request, response) => {
+    requests++; response.writeHead(503); response.end('transient index acquisition failure\n');
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(() => new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve())));
+  const source = join(work, 'sources.list');
+  writeFileSync(source, `deb http://127.0.0.1:${server.address().port}/ immutable main\n`);
+  const invoke = async strict => {
+    const root = join(work, strict ? 'strict' : 'counterfactual');
+    mkdirSync(join(root, 'state/lists/partial'), {recursive: true});
+    mkdirSync(join(root, 'cache'), {recursive: true});
+    const argv = ['-o', `Dir::State=${join(root, 'state')}`, '-o', `Dir::Cache=${join(root, 'cache')}`,
+      '-o', `Dir::Etc::sourcelist=${source}`, '-o', 'Dir::Etc::sourceparts=-',
+      '-o', 'Acquire::Retries=3', '-o', 'Acquire::http::Timeout=30', '-o', 'Acquire::https::Timeout=30',
+      '-o', 'Acquire::http::Pipeline-Depth=0', '-o', 'Acquire::https::Pipeline-Depth=0',
+      '-o', 'Acquire::CompressionTypes::Order=xz',
+      ...(strict ? ['--error-on=any'] : []), 'update'];
+    const child = spawn('apt-get', argv, {env: {...process.env, http_proxy: '', https_proxy: '',
+      HTTP_PROXY: '', HTTPS_PROXY: '', ALL_PROXY: '', no_proxy: '127.0.0.1'}});
+    let output = '';
+    for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => {
+      output += bytes; if (output.length > 65536) child.kill();
+    });
+    const [status, signal] = await once(child, 'close');
+    assert.equal(signal, null); assert.match(output, /503/);
+    return status;
+  };
+  assert.equal(await invoke(true), 100, 'the actual APT oracle must fail closed');
+  assert.equal(await invoke(false), 0, 'the former update semantics must reproduce the false-success defect');
+  assert(requests >= 2 && requests <= 8, 'both acquisitions must use finite retry counts');
+});
+
+test('real tool-target initialization creates absent parents and rejects retained targets', t => {
+  const root = mkdtempSync(join(tmpdir(), 'rust-tool-target-init-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  for (const path of ['../.devcontainer/Dockerfile', '../sdk/Dockerfile']) {
+    const recipe = readFileSync(new URL(path, import.meta.url), 'utf8');
+    const command = imageStages(recipe).get('rust_oracle_tools').instructions.find(line => line.startsWith('RUN '));
+    const initialization = command.slice(4).split(' && cargo install ')[0];
+    for (const missingParents of [false, true]) {
+      const target = join(root, path.includes('.devcontainer') ? 'dev' : 'sdk', String(missingParents), 'absent-parent', 'target');
+      const quoted = "'" + target.replaceAll("'", "'\\''") + "'";
+      const actual = initialization.replaceAll('/opt/prismpm/rust-oracle-target', quoted);
+      if (missingParents) {
+        assert.throws(() => execFileSync('/bin/sh', ['-eu', '-c', actual.replace('mkdir -p -m 0700', 'mkdir -m 0700')], {stdio: 'pipe', timeout: 5000}));
+      }
+      execFileSync('/bin/sh', ['-eu', '-c', actual], {stdio: 'pipe', timeout: 5000});
+      assert.equal(lstatSync(target).mode & 0o777, 0o700);
+      assert.throws(() => execFileSync('/bin/sh', ['-eu', '-c', actual], {stdio: 'pipe', timeout: 5000}));
+    }
+  }
+});
+
+test('development and SDK recipes share the exact isolated pinned Rust tool construction', () => {
+  const sdk = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');
+  const dev = readFileSync(new URL('../.devcontainer/Dockerfile', import.meta.url), 'utf8');
+  const builds = [
+    ['wasm-bindgen-cli', '0.2.122'], ['wasm-tools', '1.258.0'],
+    ['wasmtime-cli', '48.0.1'], ['cargo-local-registry', '0.2.12'],
+  ].map(([name, version]) => `cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target ${name} --version ${version}`);
+  const instructions = ['ENV SOURCE_DATE_EPOCH=0', 'RUN ' + [
+    'test ! -e /opt/prismpm/rust-oracle-target', 'mkdir -p -m 0700 /opt/prismpm/rust-oracle-target',
+    ...builds, 'rm -rf /opt/prismpm/rust-oracle-target',
+  ].join(' && ')];
+  const check = recipe => {
+    assert.equal(recipe.split('\n')[0], '# syntax=docker/dockerfile:1.12@sha256:93bfd3b68c109427185cd78b4779fc82b484b0b7618e36d0f104d4d801e66d25');
+    assert.deepEqual(imageStages(recipe).get('rust_oracle_tools'), {
+      base: 'docker.io/library/rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97',
+      instructions,
+    });
+    assert.equal((recipe.match(/cargo install /g) ?? []).length, 4, 'no duplicate tool construction');
+    assert.equal(recipe.split('\n').filter(line => line.includes('COPY --from=rust_oracle_tools')).join('\n'),
+      'COPY --from=rust_oracle_tools /opt/prismpm/rust-oracle-tools/bin/ /usr/local/cargo/bin/');
+  };
+  for (const recipe of [sdk, dev]) {
+    check(recipe);
+    for (const changed of [
+      recipe.replace('cargo install --locked', 'cargo install'),
+      recipe.replace('wasm-tools --version 1.258.0', 'wasm-tools --version 1.257.0'),
+      recipe.replace('ENV SOURCE_DATE_EPOCH=0', 'ENV SOURCE_DATE_EPOCH=0\nCOPY . /source'),
+      recipe.replace('/rust-oracle-tools/bin/ /usr/local/cargo/bin/', '/rust-oracle-tools/ /usr/local/cargo/bin/'),
+      recipe.replace('test ! -e /opt/prismpm/rust-oracle-target && ', ''),
+      recipe.replace('mkdir -p -m 0700 /opt/prismpm/rust-oracle-target', 'mkdir -p -m 0777 /opt/prismpm/rust-oracle-target'),
+      recipe.replace('mkdir -p -m 0700', 'mkdir -m 0700'),
+      recipe.replace('--target-dir /opt/prismpm/rust-oracle-target ', ''),
+      recipe.replaceAll('--target-dir /opt/prismpm/rust-oracle-target', '--target-dir /tmp/ambient-target'),
+      recipe.replace(' && rm -rf /opt/prismpm/rust-oracle-target', ''),
+      recipe.replace('ENV SOURCE_DATE_EPOCH=0', 'ENV SOURCE_DATE_EPOCH=0\nENV CARGO_TARGET_DIR=/tmp/global'),
+      recipe.replace('RUN test ! -e', 'RUN --mount=type=cache,target=/opt/prismpm/rust-oracle-target test ! -e'),
+    ]) assert.throws(() => check(changed));
+  }
+});
+
+test('both recipes normalize the complete pinned Lean toolchain before unprivileged use', () => {
+  const pin = 'leanprover/lean4:v4.32.1';
+  const root = '/usr/local/elan/toolchains/leanprover--lean4---v4.32.1';
+  const check = recipe => {
+    const commands = [...imageStages(recipe).values()].flatMap(stage => stage.instructions);
+    const installs = commands.filter(command => command.includes(`elan toolchain install ${pin}`));
+    assert.equal(installs.length, 1, 'exactly one pinned Lean construction');
+    assert.match(installs[0].replace(/\s+/g, ' '), new RegExp(`elan toolchain install ${pin.replaceAll('.', '\\.')} && chmod -R a\\+rX,go-w ${root.replaceAll('.', '\\.')}(?: &&|$)`),
+      'normalization must cover the entire pinned toolchain in its construction instruction');
+  };
+  for (const path of ['../sdk/Dockerfile', '../.devcontainer/Dockerfile']) {
+    const recipe = readFileSync(new URL(path, import.meta.url), 'utf8');
+    check(recipe);
+    for (const changed of [
+      recipe.replace(` && chmod -R a+rX,go-w ${root}`, ''),
+      recipe.replace(`    && chmod -R a+rX,go-w ${root}`, ''),
+      recipe.replace('chmod -R a+rX,go-w', 'chmod a+rX,go-w'),
+      recipe.replace('chmod -R a+rX,go-w', 'chmod -R a+rX'),
+      recipe.replace(`chmod -R a+rX,go-w ${root}`, `chmod -R a+rX,go-w ${root}/bin`),
+    ]) assert.throws(() => check(changed));
+  }
+  const checkDevelopmentShims = recipe => {
+    const commands = imageStages(recipe).get('development').instructions.map(command => command.replace(/\s+/g, ' '));
+    const environment = commands.indexOf('ENV CARGO_HOME=/home/vscode/.cargo ELAN_HOME=/home/vscode/.elan');
+    assert(environment >= 0, 'normal development home aliases must be configured');
+    for (const binary of ['lean', 'lake']) {
+      const probe = commands.findIndex(command => command.includes(
+        `runuser -u vscode -- env ELAN_TOOLCHAIN=${pin} ${binary} --version`));
+      assert(probe > environment, 'actual unprivileged shim probe must follow the final home configuration');
+    }
+  };
+  const development = readFileSync(new URL('../.devcontainer/Dockerfile', import.meta.url), 'utf8');
+  checkDevelopmentShims(development);
+  for (const binary of ['lean', 'lake']) assert.throws(() => checkDevelopmentShims(development.replace(
+    `runuser -u vscode -- env ELAN_TOOLCHAIN=${pin} ${binary} --version`, 'true')));
+});
 
 test('pinned tool layers exclude source inputs while the build retains both verified closure and policy', t => {
   const recipe = readFileSync(new URL('../sdk/Dockerfile', import.meta.url), 'utf8');
@@ -265,10 +611,10 @@ test('the actual Docker staging instruction executes and an omitted verifier fai
   assert(!existsSync(join(f.work, 'prepared')));
 });
 
-function recordingDocker(t, work) {
+function recordingDocker(t, work, action = '') {
   const bin = join(work, 'bin'); mkdirSync(bin);
   const record = join(work, 'docker.json');
-  writeFileSync(join(bin, 'docker'), `#!${process.execPath}\nconst fs=require('node:fs');const args=process.argv.slice(2);const value=args[args.indexOf('--build-context')+1];fs.appendFileSync(process.env.IMAGE_DOCKER_RECORD,JSON.stringify({args,files:fs.readdirSync(value.slice('vv-inputs='.length))})+'\\n');const at=args.indexOf('--metadata-file');if(at>=0)fs.writeFileSync(args[at+1],JSON.stringify({'containerimage.digest':'sha256:'+'a'.repeat(64)}));process.exit(Number(process.env.IMAGE_DOCKER_STATUS??0));\n`, { mode: 0o755 });
+  writeFileSync(join(bin, 'docker'), `#!${process.execPath}\nconst fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');const args=process.argv.slice(2);const value=args[args.indexOf('--build-context')+1];const recipe=args[args.indexOf('--file')+1];${action}\nconst files=['sdk/Dockerfile','sdk/vv-inputs.lock.json','tools.lock','scripts/sdk-vv-inputs.mjs','scripts/sdk-image-inputs.mjs'];const recipeInputs=Object.fromEntries(files.map(name=>[name,crypto.createHash('sha256').update(fs.readFileSync(path.join(args.at(-1),name))).digest('hex')]));fs.appendFileSync(process.env.IMAGE_DOCKER_RECORD,JSON.stringify({args,recipeInputs,files:fs.readdirSync(value.slice('vv-inputs='.length))})+'\\n');const at=args.indexOf('--metadata-file');if(at>=0)fs.writeFileSync(args[at+1],JSON.stringify({'containerimage.digest':'sha256:'+'a'.repeat(64)}));process.exit(Number(process.env.IMAGE_DOCKER_STATUS??0));\n`, { mode: 0o755 });
   const prior = { PATH: process.env.PATH, IMAGE_DOCKER_RECORD: process.env.IMAGE_DOCKER_RECORD, IMAGE_DOCKER_STATUS: process.env.IMAGE_DOCKER_STATUS };
   process.env.PATH = `${bin}:${process.env.PATH}`; process.env.IMAGE_DOCKER_RECORD = record;
   t.after(() => { for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
@@ -276,6 +622,47 @@ function recordingDocker(t, work) {
 }
 
 const records = path => readFileSync(path, 'utf8').trimEnd().split('\n').map(line => JSON.parse(line));
+
+test('source-CI construction retains actual complete verified inputs only after successful transport', t => {
+  const f = fixture(t), record = recordingDocker(t, f.work);
+  let captured;
+  const prepare = (source, revision, destination) => {
+    assert.equal(source, f.source); assert.equal(revision, f.revision);
+    const policy = f.capture(destination);
+    captured = {policy: Buffer.from(canonical(policy)), manifest: readFileSync(join(destination, 'manifest.json'))};
+    return policy;
+  };
+  const result = buildImageWithInputs(f.source, f.revision, [], prepare);
+  assert.deepEqual(Object.keys(result).sort(), ['input_manifest', 'input_policy', 'status']);
+  assert.equal(result.status, 0); assert.equal(records(record).length, 1);
+  const argv = records(record)[0].args;
+  assert.equal(argv.filter(value => value === '--target').length, 1);
+  assert.equal(argv[argv.indexOf('--target') + 1], 'runtime');
+  assert(result.input_policy.equals(captured.policy));
+  assert(result.input_manifest.equals(captured.manifest));
+  const manifest = JSON.parse(result.input_manifest);
+  assert.deepEqual(manifest.policy, JSON.parse(result.input_policy));
+  assert.equal(manifest.source.revision, f.revision);
+  assert.equal(manifest.source.tree, git(f.source, 'rev-parse', 'HEAD^{tree}'));
+  assert(manifest.source.files.length > 0 && manifest.source.object_count > 0);
+  assert.deepEqual(manifest.artifacts.map(row => row.path), ['advisory.pack', 'bootstrap.tar.gz', 'source.pack']);
+  process.env.IMAGE_DOCKER_STATUS = '23';
+  assert.throws(() => buildImageWithInputs(f.source, f.revision, [], prepare), /construction failed/);
+  assert.equal(records(record).length, 2); delete process.env.IMAGE_DOCKER_STATUS;
+  assert.throws(() => buildImageWithInputs(f.source, f.revision, [], () => inputPolicy(f.source, f.revision)));
+  assert.equal(records(record).length, 2, 'incomplete acquisition must never run Docker');
+});
+
+test('source-CI construction refuses post-build custody drift instead of publishing inputs', t => {
+  const f = fixture(t), record = recordingDocker(t, f.work,
+    "fs.chmodSync(recipe,0o600);fs.appendFileSync(recipe,'\\nchanged source-CI recipe\\n');");
+  for (const status of [0, 23]) {
+    process.env.IMAGE_DOCKER_STATUS = String(status);
+    assert.throws(() => buildImageWithInputs(f.source, f.revision, [], (_source, _revision, destination) => f.capture(destination)),
+      /recipe context custody changed/);
+  }
+  assert.equal(records(record).length, 2);
+});
 
 test('build wrapper prepares and verifies real inputs before invoking Docker exactly once and preserves failure', t => {
   const f = fixture(t), record = recordingDocker(t, f.work);
@@ -288,8 +675,12 @@ test('build wrapper prepares and verifies real inputs before invoking Docker exa
   const [observed] = records(record); assert.equal(records(record).length, 1); assert.equal(calls, 1);
   assert.deepEqual(observed.files.sort(), ['advisory.pack', 'bootstrap.tar.gz', 'manifest.json', 'source.pack']);
   const context = observed.args[observed.args.indexOf('--build-context') + 1].slice('vv-inputs='.length);
-  assert.deepEqual(observed.args, dockerArguments(f.source, f.revision, 'runtime', context, args));
+  const recipeContext = observed.args.at(-1);
+  assert.notEqual(recipeContext, f.source);
+  assert.deepEqual(observed.args, dockerArguments(recipeContext, f.revision, 'runtime', context, args));
+  for (const [path, digest] of Object.entries(observed.recipeInputs)) assert.equal(digest, hash(readFileSync(join(f.source, path))));
   assert(!existsSync(context), 'owned context is removed after Docker returns');
+  assert(!existsSync(recipeContext), 'owned recipe context is removed after Docker returns');
   process.env.IMAGE_DOCKER_STATUS = '23';
   assert.equal(buildImage(f.source, f.revision, 'runtime', args, prepare), 23);
   assert.equal(calls, 2); assert.equal(records(record).length, 2); delete process.env.IMAGE_DOCKER_STATUS;
@@ -298,11 +689,41 @@ test('build wrapper prepares and verifies real inputs before invoking Docker exa
   assert(!existsSync(record), 'omitted acquisition cannot reach Docker');
 });
 
+test('post-capture recipe/helper changes refuse before Docker; changing the original during consumption cannot replace captured bytes', t => {
+  const f = fixture(t), recipe = join(f.source, 'sdk/Dockerfile'), original = readFileSync(recipe);
+  const action = `const original=${JSON.stringify(recipe)},before=fs.readFileSync(original);fs.writeFileSync(original,'FROM scratch\\n');if(fs.readFileSync(recipe).toString()!==${JSON.stringify(original.toString())})process.exit(91);fs.writeFileSync(original,before);`;
+  const record = recordingDocker(t, f.work, action);
+  for (const path of ['sdk/Dockerfile', 'scripts/sdk-image-inputs.mjs', 'scripts/sdk-vv-inputs.mjs']) {
+    const selected = join(f.source, path), bytes = readFileSync(selected);
+    assert.throws(() => buildImage(f.source, f.revision, 'runtime', [], (_source, _revision, destination) => {
+      const policy = f.capture(destination); writeFileSync(selected, Buffer.concat([bytes, Buffer.from('\nchanged after capture\n')]));
+      return policy;
+    }), /image-input source differs|byte|length|Expected/);
+    assert(!existsSync(record), 'captured-source drift must not invoke Docker');
+    writeFileSync(selected, bytes);
+  }
+  assert.equal(buildImage(f.source, f.revision, 'runtime', [], (_source, _revision, destination) => f.capture(destination)), 0);
+  assert.equal(records(record).length, 1);
+  assert.equal(records(record)[0].recipeInputs['sdk/Dockerfile'], hash(original));
+  assert.deepEqual(readFileSync(recipe), original, 'transport mutation restored only its original checkout file');
+});
+
+test('private recipe-context drift refuses even when Docker succeeds or fails', t => {
+  const f = fixture(t), record = recordingDocker(t, f.work,
+    "fs.chmodSync(recipe,0o600);fs.appendFileSync(recipe,'\\nchanged private recipe\\n');");
+  for (const status of [0, 23]) {
+    process.env.IMAGE_DOCKER_STATUS = String(status);
+    assert.throws(() => buildImage(f.source, f.revision, 'runtime', [], (_source, _revision, destination) => f.capture(destination)),
+      /recipe context custody changed/);
+  }
+  assert.equal(records(record).length, 2, 'both real recording transports ran; neither grants acceptance');
+});
+
 test('a planted successful Docker omission is caught by the executable wrapper check', async t => {
   const f = fixture(t), record = recordingDocker(t, f.work), module = join(f.work, 'mutant.mjs');
   cpSync(new URL('./sdk-vv-inputs.mjs', import.meta.url), join(f.work, 'sdk-vv-inputs.mjs'));
   const source = readFileSync(new URL('./sdk-image-inputs.mjs', import.meta.url), 'utf8');
-  const mutant = source.replace("const result = spawnSync('docker', argv, { stdio: 'inherit' });", 'const result = { status: 0, signal: null };');
+  const mutant = source.replace("result = spawnSync('docker', argv, { stdio: 'inherit' });", 'result = { status: 0, signal: null };');
   assert.notEqual(mutant, source); writeFileSync(module, mutant);
   const changed = await import(pathToFileURL(module));
   const assertInvoked = implementation => {
@@ -432,7 +853,8 @@ test('each real SDK workflow/local caller executes the checked wrapper and prese
     const args = actual[0].args;
     assert.equal(args[args.indexOf('--target') + 1], target);
     assert.equal(args[args.indexOf('--build-arg') + 1], `SDK_SOURCE_REVISION=${f.revision}`);
-    assert.equal(args.at(-1), f.source);
+    assert.notEqual(args.at(-1), f.source, 'caller checkout must not be the Docker recipe context');
+    for (const [path, digest] of Object.entries(actual[0].recipeInputs)) assert.equal(digest, hash(readFileSync(join(f.source, path))));
     if (outputPrefix) assert(args[args.indexOf('--output') + 1].startsWith(outputPrefix));
     if (name === 'local-vv') {
       assert(args.includes('--load'));
@@ -466,6 +888,10 @@ test('each real SDK workflow/local caller executes the checked wrapper and prese
   cpSync(f.source, join(f.work, 'root-b'), { recursive: true, verbatimSymlinks: true });
   const result = transport.run(loop, f.work); assert.equal(result.status, 0, result.stderr);
   const actual = records(transport.record); assert.equal(actual.length, 2);
-  assert.deepEqual(actual.map(row => row.args.at(-1)), [join(f.work, 'root-a'), join(f.work, 'root-b')]);
+  assert.notEqual(actual[0].args.at(-1), actual[1].args.at(-1), 'two roots must retain separate private recipe contexts');
+  for (const [number, row] of actual.entries()) {
+    assert.notEqual(row.args.at(-1), join(f.work, number === 0 ? 'root-a' : 'root-b'));
+    for (const [path, digest] of Object.entries(row.recipeInputs)) assert.equal(digest, hash(readFileSync(join(f.source, path))));
+  }
   for (const row of actual) assert(row.args.includes('--no-cache') && row.args.includes('--provenance=false') && row.args.includes('--sbom=false'));
 });

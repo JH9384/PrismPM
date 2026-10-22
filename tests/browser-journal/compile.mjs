@@ -9,7 +9,8 @@ export const draft=dirname(fileURLToPath(import.meta.url));
 export const repository=resolve(draft,'../..');
 export const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 export {createPrivateDriverTarget, ensureProdExport} from '../browser-view/compile.mjs';
-import {createPrivateDriverTarget, ensureProdExport} from '../browser-view/compile.mjs';
+import {createPrivateDriverTarget, ensureProdExport, observeCompilerPhase} from '../browser-view/compile.mjs';
+import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 function verifyPins(){
   const artifacts=readFileSync(join(repository,'model/dependencies.toml'),'utf8').split('[[dependency.artifact]]').slice(1).map(section=>{
     const text=section.split('[[dependency]]')[0];return {path:/^path = "([^"]+)"$/m.exec(text)?.[1],hash:/^sha256 = "([0-9a-f]{64})"$/m.exec(text)?.[1],tree:/^tree_root = "([^"]+)"$/m.exec(text)?.[1]};
@@ -59,7 +60,7 @@ function compilerEnvironment(extra) {
       && !/[:\r\n\0]/.test(value), 'confined compiler path required: '+key);
   }
   return {...process.env, PATH:'/usr/local/elan/bin:/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin',
-    CARGO_NET_OFFLINE:'true', RUSTUP_TOOLCHAIN:rust+'-'+triple, ELAN_TOOLCHAIN:lean, ...extra};
+    CARGO_NET_OFFLINE:'true', RUSTUP_TOOLCHAIN:rust+'-'+triple, ELAN_TOOLCHAIN:lean, ...extra, LEAN_NUM_THREADS:'2'};
 }
 function terminateOwnedGroup(pid) {
   if (!Number.isSafeInteger(pid) || pid <= 1) return;
@@ -87,14 +88,19 @@ function execute(program,args,cwd,env={}) {
     'compiler command must be SDK-owned or an exact generated executable');
   if (Object.hasOwn(env,'LEAN_PATH')) assert.ok(executable.endsWith('/prod-export'),
     'LEAN_PATH belongs only to the exact generated exporter');
-  const result = spawnSync('/usr/bin/timeout',
-    ['--signal=TERM','--kill-after=5s','360s',executable,...args],
-    {cwd,detached:true,encoding:'utf8',timeout:370000,killSignal:'SIGKILL',
-      maxBuffer:32*1024*1024,env:childEnvironment});
-  terminateOwnedGroup(result.pid);
-  assert.ifError(result.error);
-  assert.equal(result.status,0,program+' '+args.join(' ')+'\n'+result.stdout+'\n'+result.stderr);
-  return result.stdout;
+  const started = performance.now(); let success = false;
+  try {
+    const result = spawnSync('/usr/bin/timeout',
+      ['--signal=TERM','--kill-after=5s','360s',executable,...args],
+      {cwd,detached:true,encoding:'utf8',timeout:370000,killSignal:'SIGKILL',
+        maxBuffer:32*1024*1024,env:childEnvironment});
+    terminateOwnedGroup(result.pid);
+    assert.ifError(result.error);
+    assert.equal(result.status,0,program+' '+args.join(' ')+'\n'+result.stdout+'\n'+result.stderr);
+    success = true; return result.stdout;
+  } finally {
+    observeCompilerPhase(program,args,started,success);
+  }
 }
 export function verifyCompilerTools() {
   const {rust, lean, triple} = toolchainPins();
@@ -140,7 +146,7 @@ export function prepare(){
   for(const file of ['lexlean.toml','lakefile.toml','lean-toolchain'])copyFileSync(join(draft,file),join(project,file));
   copyFileSync(join(repository,'rust-toolchain.toml'),join(work,'rust-toolchain.toml'));
   const driverTarget=createPrivateDriverTarget(work);
-  run('cargo',['build','--locked','--offline','--jobs','1','--config','profile.dev.debug=0','--config','build.incremental=false','--manifest-path',join(draft,'driver/Cargo.toml')],repository,{CARGO_TARGET_DIR:driverTarget});
+  run('cargo',['build','--locked','--offline','--jobs','1','--config','profile.dev.debug=0','--config','build.incremental=false','--config','profile.dev.package.sha2.opt-level=3','--manifest-path',join(draft,'driver/Cargo.toml')],repository,{CARGO_TARGET_DIR:driverTarget});
   const driver=join(driverTarget,'debug/browser-workspace-journal-driver');
   run('lake',['update'],project);
   const verified=JSON.parse(run(driver,['verify',join(project,'lexlean.toml')],repository));
@@ -160,7 +166,8 @@ export function prepare(){
   const guest=join(work,'guest');assert.deepEqual(JSON.parse(run(driver,['generate-wasm',join(exported,'kernel.ir'),guest,repository],repository)),generation);run('cargo',['build','--locked','--offline','--release'],guest,{CARGO_TARGET_DIR:join(guest,'target')});
   const wasmBytes=readFileSync(join(guest,'target/wasm32-unknown-unknown/release/browser_workspace_journal_wasm_probe.wasm'));
   verifyPins();assert.equal(generation.ir_sha256,sha(readFileSync(join(exported,'kernel.ir'))));
+  const cacheRetirement=retireCompletedCompilerCaches(work,'journal');
   completed=true;
-  return {work,sources,verified,generation,compileNative,runner,wasmBytes};
+  return {work,sources,verified,generation,compileNative,runner,cacheRetirement,wasmBytes};
   } finally { if(!completed)rmSync(work,{recursive:true,force:true}); }
 }

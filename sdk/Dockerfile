@@ -1,4 +1,11 @@
 # syntax=docker/dockerfile:1.12@sha256:93bfd3b68c109427185cd78b4779fc82b484b0b7618e36d0f104d4d801e66d25
+# Keep this source-independent stage identical in both image recipes.
+FROM docker.io/library/rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97 AS rust_oracle_tools
+ENV SOURCE_DATE_EPOCH=0
+# One fresh layer-local target reuses only Cargo-validated dependencies between
+# four real installations. Same-layer cleanup keeps build products out of images.
+RUN test ! -e /opt/prismpm/rust-oracle-target && mkdir -p -m 0700 /opt/prismpm/rust-oracle-target && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target wasm-bindgen-cli --version 0.2.122 && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target wasm-tools --version 1.258.0 && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target wasmtime-cli --version 48.0.1 && cargo install --locked --root /opt/prismpm/rust-oracle-tools --target-dir /opt/prismpm/rust-oracle-target cargo-local-registry --version 0.2.12 && rm -rf /opt/prismpm/rust-oracle-target
+
 FROM docker.io/library/rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97 AS input_tools
 ARG TARGETARCH
 RUN case "$TARGETARCH" in \
@@ -26,6 +33,26 @@ RUN node /opt/input-policy/scripts/sdk-image-inputs.mjs stage \
     && chmod 0444 /opt/prismpm/share/vv-input-policy.json
 
 FROM docker.io/library/docker:28.4.0-cli@sha256:6a73c9433f2ba4279815be1e60f5739288b939dda1e48151d8c393537802de37 AS docker_cli
+FROM input_tools AS registry_qualification_tools
+ARG TARGETARCH
+# The digest-pinned Bookworm base supplies this interpreter. Refuse missing or
+# different runtimes rather than falling back to Python installed on the host.
+RUN /usr/bin/python3 -I -B -c 'import sys; assert sys.version_info[:3] == (3, 11, 2)'
+COPY --from=docker_cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=docker_cli /usr/local/libexec/docker/cli-plugins/docker-buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
+RUN case "$TARGETARCH" in \
+      amd64) oras_arch=amd64; oras_sha=6cdc692f929100feb08aa8de584d02f7bcc30ec7d88bc2adc2054d782db57c64 ;; \
+      arm64) oras_arch=arm64; oras_sha=7649738b48fde10542bcc8b0e9b460ba83936c75fb5be01ee6d4443764a14352 ;; \
+      *) exit 64 ;; \
+    esac \
+    && curl --fail --location --silent --show-error "https://github.com/oras-project/oras/releases/download/v1.3.0/oras_1.3.0_linux_${oras_arch}.tar.gz" --output /tmp/oras.tar.gz \
+    && echo "${oras_sha}  /tmp/oras.tar.gz" | sha256sum --check --strict \
+    && tar --extract --gzip --file /tmp/oras.tar.gz --directory /usr/local/bin oras \
+    && rm /tmp/oras.tar.gz \
+    && openssl version \
+    && docker buildx version \
+    && test "$(node --version)" = v22.23.2
+
 FROM docker.io/library/golang:1.19.7-alpine3.17@sha256:04065e607052705ede1ac6308ce56aec4715b0fafb1f0c2f4c2333aab9d84442 AS upstream_oracles
 COPY --from=source_inputs /prepared/source/standards/oracles/oci-distribution-1.1.1 /src/distribution
 COPY --from=source_inputs /prepared/source/standards/oracles/oci-runtime-1.3.0 /src/runtime
@@ -89,14 +116,12 @@ RUN case "$TARGETARCH" in \
     && tar --extract --gzip --file /tmp/elan.tar.gz --directory /tmp/elan \
     && /tmp/elan/elan-init -y --no-modify-path --default-toolchain none \
     && elan toolchain install leanprover/lean4:v4.32.1 \
+    && chmod -R a+rX,go-w /usr/local/elan/toolchains/leanprover--lean4---v4.32.1 \
     && rm /tmp/elan.tar.gz \
     && rm /tmp/elan/elan-init \
     && rmdir /tmp/elan
 
-RUN cargo install --locked wasm-bindgen-cli --version 0.2.122
-RUN cargo install --locked wasm-tools --version 1.258.0
-RUN cargo install --locked wasmtime-cli --version 48.0.1
-RUN cargo install --locked cargo-local-registry --version 0.2.12
+COPY --from=rust_oracle_tools /opt/prismpm/rust-oracle-tools/bin/ /usr/local/cargo/bin/
 RUN rm -rf /usr/local/cargo/registry /usr/local/cargo/git
 
 RUN case "$TARGETARCH" in \
@@ -179,7 +204,7 @@ RUN npm ci --ignore-scripts --omit=dev --prefix /opt/prismpm/devcontainer-cli \
     && chmod 0755 /opt/prismpm/devcontainer-cli/node_modules/@devcontainers/cli/devcontainer.js
 
 COPY --from=source_inputs /prepared/source/sdk/runtime/package.json /prepared/source/sdk/runtime/package-lock.json /prepared/source/sdk/runtime/profile.mjs /prepared/source/sdk/runtime/runtime.mjs /opt/prismpm/runtime/
-COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/browser/identity.mjs /prepared/source/sdk/browser/store.mjs /prepared/source/sdk/browser/peer.mjs /prepared/source/sdk/browser/journal.mjs /prepared/source/sdk/browser/commands.mjs /prepared/source/sdk/browser/queries.mjs /prepared/source/sdk/browser/view-host.mjs /prepared/source/sdk/browser/view-dom.mjs /prepared/source/sdk/browser/view-error.mjs /prepared/source/sdk/browser/rs256.mjs /prepared/source/sdk/browser/effects.mjs /prepared/source/sdk/browser/effects-wire.mjs /prepared/source/sdk/browser/effects-module.mjs /prepared/source/sdk/browser/presentation-wire.mjs /prepared/source/sdk/browser/presentation-dom.mjs /prepared/source/sdk/browser/credential-custody.mjs /prepared/source/sdk/browser/operation-journal.mjs /opt/prismpm/browser/
+COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/browser/identity.mjs /prepared/source/sdk/browser/store.mjs /prepared/source/sdk/browser/peer.mjs /prepared/source/sdk/browser/journal.mjs /prepared/source/sdk/browser/commands.mjs /prepared/source/sdk/browser/queries.mjs /prepared/source/sdk/browser/view-host.mjs /prepared/source/sdk/browser/view-dom.mjs /prepared/source/sdk/browser/view-error.mjs /prepared/source/sdk/browser/rs256.mjs /prepared/source/sdk/browser/effects.mjs /prepared/source/sdk/browser/effects-wire.mjs /prepared/source/sdk/browser/effects-module.mjs /prepared/source/sdk/browser/presentation-wire.mjs /prepared/source/sdk/browser/presentation-dom.mjs /prepared/source/sdk/browser/semantic-presentation-wire.mjs /prepared/source/sdk/browser/semantic-presentation-style.mjs /prepared/source/sdk/browser/credential-custody.mjs /prepared/source/sdk/browser/operation-journal.mjs /prepared/source/sdk/browser/account-genesis.mjs /prepared/source/sdk/browser/account-genesis-binding.mjs /prepared/source/sdk/browser/signed-context.mjs /prepared/source/sdk/browser/session-retention-wire.mjs /prepared/source/sdk/browser/session-storage.mjs /prepared/source/sdk/browser/session-payloads.mjs /prepared/source/sdk/browser/session-operation-capture.mjs /prepared/source/sdk/browser/pkce.mjs /opt/prismpm/browser/
 RUN npm ci --ignore-scripts --omit=dev --prefix /opt/prismpm/runtime \
     && chmod 0444 /opt/prismpm/runtime/profile.mjs \
     && chmod 0555 /opt/prismpm/runtime/runtime.mjs
@@ -221,11 +246,14 @@ RUN mkdir -p /opt/prismpm/share/standards/oracles \
     && cp standards/oracles/kubernetes-1.36.4-swagger.json \
       /opt/prismpm/share/standards/oracles/kubernetes-1.36.4-swagger.json
 RUN cargo build --locked --release --package prismpm \
+    && target/release/prismpm --json --project . authority resolve --locked \
     && cargo build --locked --release --package repo-conformance --bins \
     && cargo build --locked --release --manifest-path vendor/lexlean/Cargo.toml --bin lexlean \
     && cargo fetch --locked \
     && cargo fetch --locked --manifest-path vendor/lexlean/Cargo.toml \
     && bash scripts/fetch-oracle-cargo.sh \
+    && mkdir -p /opt/prismpm/share \
+    && node sdk/generate-account-genesis.mjs install \
     && install -m 0755 target/release/prismpm /usr/local/bin/prismpm \
     && install -m 0755 target/release/prismpm-conformance /usr/local/bin/prismpm-conformance \
     && install -m 0755 target/release/prismpm-platform-equivalence /usr/local/bin/prismpm-platform-equivalence \
@@ -260,6 +288,7 @@ COPY --from=source_inputs --chmod=0755 /prepared/source/sdk/devcontainer-init.sh
 COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/profile.sh /etc/profile.d/prismpm-sdk.sh
 COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/generate-inventory.mjs /opt/prismpm/generate-inventory.mjs
 COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/inventory-metadata.mjs /opt/prismpm/inventory-metadata.mjs
+COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/exporter-seed.mjs /opt/prismpm/exporter-seed.mjs
 COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/platform-lock.mjs /opt/prismpm/platform-lock.mjs
 COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/metadata-cli.mjs /prepared/source/sdk/metadata-capture.mjs /prepared/source/sdk/metadata-layer.mjs /prepared/source/sdk/metadata-transport.mjs /prepared/source/sdk/metadata-credentials.mjs /prepared/source/sdk/metadata-helper.mjs /prepared/source/sdk/metadata-helper-supervisor.py /opt/prismpm/
 
@@ -298,10 +327,18 @@ FROM scratch AS cli-archive
 COPY --from=cli-archive-package /out/ /
 
 FROM mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e AS runtime_base
+RUN /usr/bin/python3 -I -B -c 'import sys; assert sys.version_info[:3] == (3, 12, 3)'
 RUN chmod -R a-w /ms-playwright
+
+ARG TARGETARCH
+COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/browser-engine/ /opt/prismpm/browser-engine/
+RUN python3 -B /opt/prismpm/browser-engine/install_test.py \
+    && python3 -B /opt/prismpm/browser-engine/install.py --architecture "$TARGETARCH"
 
 ARG SOURCE_DATE_EPOCH=0
 COPY --from=source_inputs /prepared/source/sdk/runtime-os.lock /tmp/prismpm-runtime-os.lock
+COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/runtime-sources/configure.py /opt/prismpm/runtime-sources/configure.py
+COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/runtime-sources/fixtures/amd64.nodesource.list /prepared/source/sdk/runtime-sources/fixtures/arm64.nodesource.list /opt/prismpm/runtime-sources/fixtures/
 
 # Downstream template gates compile their small repository-specific policy
 # crates inside the SDK. Resolve the native linker exclusively from one
@@ -312,13 +349,12 @@ RUN set -eu; \
     build_essential=$(sed -n 's/^build-essential=//p' /tmp/prismpm-runtime-os.lock); \
     pkg_config=$(sed -n 's/^pkg-config=//p' /tmp/prismpm-runtime-os.lock); \
     test -n "$snapshot"; test -n "$build_essential"; test -n "$pkg_config"; \
-    sed -i \
-      "s#http://azure.archive.ubuntu.com/ubuntu/#${snapshot}#; s#http://security.ubuntu.com/ubuntu/#${snapshot}#" \
-      /etc/apt/sources.list.d/ubuntu.sources \
+    /usr/bin/python3 -I -B /opt/prismpm/runtime-sources/configure.py prepare --architecture "$TARGETARCH" --snapshot "${snapshot}" \
     && rm /etc/apt/sources.list.d/nodesource.list \
     && test "$(find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name ubuntu.sources -print -quit)" = "" \
-    && apt-get update \
-    && apt-get install --no-install-recommends --yes \
+    && /usr/bin/python3 -I -B /opt/prismpm/runtime-sources/configure.py verify --architecture "$TARGETARCH" --snapshot "${snapshot}" \
+    && apt-get --error-on=any -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::http::Pipeline-Depth=0 -o Acquire::https::Pipeline-Depth=0 -o Acquire::CompressionTypes::Order=xz update \
+    && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::http::Pipeline-Depth=0 -o Acquire::https::Pipeline-Depth=0 -o Acquire::CompressionTypes::Order=xz install --no-install-recommends --yes \
       "build-essential=${build_essential}" \
       "pkg-config=${pkg_config}" \
     && dpkg-query -W -f='${binary:Package}\t${Version}\n' \
@@ -356,7 +392,9 @@ ENV CARGO_HOME=/home/vscode/.cargo \
     PRISMPM_SDK_INVENTORY=/opt/prismpm/share/inventory.json \
     PATH=/usr/local/elan/bin:/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin
 
-RUN PRISMPM_ARTIFACT_INVENTORY=/opt/prismpm/artifact-inventory.json \
+RUN --network=none --mount=type=tmpfs,target=/tmp,size=805306368 \
+    node /opt/prismpm/exporter-seed.mjs /opt/prismpm/share/conformance-root /opt/prismpm/share/exporter-seed \
+    && PRISMPM_ARTIFACT_INVENTORY=/opt/prismpm/artifact-inventory.json \
       node /opt/prismpm/generate-inventory.mjs /opt/prismpm/share/inventory.json \
     && sha256sum /opt/prismpm/share/inventory.json > /opt/prismpm/share/inventory.sha256 \
     && chmod 0444 /opt/prismpm/share/inventory.json /opt/prismpm/share/inventory.sha256 \

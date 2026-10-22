@@ -1,0 +1,15 @@
+[package]
+name = "prismpm-oscal-oracle"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[workspace]
+
+[dependencies]
+jsonschema = { version = "=0.58.2", default-features = false, features = ["arbitrary-precision"] }
+libc = "=0.2.189"
+serde = "=1.0.229"
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision", "raw_value"] }
+sha2 = "=0.10.9"

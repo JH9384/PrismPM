@@ -119,27 +119,33 @@ function verifyCompilerEnvironment(run,repository) {
       /unowned compiler override refused: RUSTC/);
     assert.throws(()=>run('node',['-e',''],repository,{LEAN_PATH:work}),
       /LEAN_PATH belongs only to the exact generated exporter/);
-    const priorRust=process.env.RUSTUP_TOOLCHAIN,priorLean=process.env.ELAN_TOOLCHAIN;
+    const priorRust=process.env.RUSTUP_TOOLCHAIN,priorLean=process.env.ELAN_TOOLCHAIN,priorThreads=process.env.LEAN_NUM_THREADS;
     const rust=/^channel = "(.+)"$/m.exec(readFileSync(join(repository,'rust-toolchain.toml'),'utf8'))[1];
     const lean=readFileSync(join(repository,'lean-toolchain'),'utf8').trim();
     const triple={x64:'x86_64-unknown-linux-gnu',arm64:'aarch64-unknown-linux-gnu'}[process.arch];
     try {
       process.env.ELAN_TOOLCHAIN=lean;
-      for(const value of [rust,rust+'-'+triple]){
+      for(const value of [rust,rust+'-'+triple])for(const threads of [undefined,'9999']){
         process.env.RUSTUP_TOOLCHAIN=value;
+        if(threads===undefined)delete process.env.LEAN_NUM_THREADS;else process.env.LEAN_NUM_THREADS=threads;
         const actual=JSON.parse(run('node',['-e',
-          'console.log(JSON.stringify([process.env.RUSTUP_TOOLCHAIN,process.env.ELAN_TOOLCHAIN,process.env.CARGO_NET_OFFLINE]))'],repository));
-        assert.deepEqual(actual,[rust+'-'+triple,lean,'true']);
+          'console.log(JSON.stringify([process.env.RUSTUP_TOOLCHAIN,process.env.ELAN_TOOLCHAIN,process.env.CARGO_NET_OFFLINE,process.env.LEAN_NUM_THREADS]))'],repository));
+        assert.deepEqual(actual,[rust+'-'+triple,lean,'true','2']);
       }
     } finally {
       if(priorRust===undefined)delete process.env.RUSTUP_TOOLCHAIN;else process.env.RUSTUP_TOOLCHAIN=priorRust;
       if(priorLean===undefined)delete process.env.ELAN_TOOLCHAIN;else process.env.ELAN_TOOLCHAIN=priorLean;
+      if(priorThreads===undefined)delete process.env.LEAN_NUM_THREADS;else process.env.LEAN_NUM_THREADS=priorThreads;
     }
   } finally {rmSync(work,{recursive:true,force:true});}
 }
 
 test('failed compiler command terminates only its isolated stubborn descendant process group',()=>verifyProcessCleanup(run));
-test('compiler environment rejects unowned overrides before executing children',()=>verifyCompilerEnvironment(run,repository));
+test('compiler environment rejects unowned overrides before executing children',async()=>{
+  verifyCompilerEnvironment(run,repository);
+  const view=await import('../../tests/browser-view/compile.mjs');
+  verifyCompilerEnvironment(view.run,view.repository);
+});
 test('fresh LexLean, normal Lean C, native/no_std and CoreWasm journal execution',{timeout:1200000},async t=>{
   const vectors=corpus();const build=prepare();t.after(()=>{rmSync(build.work,{recursive:true,force:true});});
   t.diagnostic('work '+build.work+'; source '+build.verified.source_id+'; attestation '+build.verified.attestation_id+'; LCNF '+build.generation.ir_sha256);

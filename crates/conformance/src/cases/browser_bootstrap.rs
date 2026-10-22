@@ -1,5 +1,6 @@
 //! Native-only finite oracle for the internal candidate bootstrap lifecycle.
 
+use super::native_library::runtime_rejection;
 use prismpm::controller::{CheckRequest, VerifyRequest};
 use prismpm::holo::canonical::{content_id, encode_value};
 use serde::Deserialize;
@@ -314,34 +315,6 @@ fn weakened_body(name: &str, body: &Value) -> Value {
     }
 }
 
-fn runtime_rejection(error: &prismpm::PrismError, root: &str) -> bool {
-    let main_panic = error
-        .message
-        .split_once("\\nthread 'main' ")
-        .is_some_and(|(_, suffix)| {
-            let suffix = if let Some(pid) = suffix.strip_prefix('(') {
-                let Some((pid, rest)) = pid.split_once(") ") else {
-                    return false;
-                };
-                if pid.is_empty() || !pid.bytes().all(|byte| byte.is_ascii_digit()) {
-                    return false;
-                }
-                rest
-            } else {
-                suffix
-            };
-            suffix.starts_with("panicked at src/main.rs:")
-        });
-    error.code == "PP5006"
-        && error
-            .message
-            .starts_with("native-library-std-acceptance exited 101: stdout=\"\"; stderr=\"")
-        && main_panic
-        && error.message.contains(&format!("\\n{root}\\n"))
-        && !error.message.contains("could not compile")
-        && !error.message.contains("error[E")
-}
-
 pub(super) fn verify(root: &Path) {
     let fixture = fixture(root);
     let controller = prismpm::Controller::load(fixture.project.path()).unwrap();
@@ -481,11 +454,21 @@ mod tests {
             &prismpm::PrismError::new("PP5006", &message),
             root
         ));
+        assert!(runtime_rejection(
+            &prismpm::PrismError::new("PP5006", message.replace(" (123)", "")),
+            root
+        ));
         for changed in [
             message.replace("exited 101", "exited 0"),
             message.replace("std-acceptance", "std-lock"),
             message.replace("(123)", "(not-a-pid)"),
             message.replace(root, "anotherRoot"),
+            message.replace(root, &format!("anotherRoot\\n{root}")),
+            message.replace("src/main.rs:12:1", "src/other.rs:12:1"),
+            message.replace("src/main.rs:12:1", "src/main.rs:x:1"),
+            message.replace("src/main.rs:12:1", "src/main.rs:0:1"),
+            "native modeled acceptance transcript differs".to_owned(),
+            "native-library-std-acceptance timed out".to_owned(),
             format!("{message} error[E0308]: could not compile"),
         ] {
             assert!(!runtime_rejection(

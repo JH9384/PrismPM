@@ -12,6 +12,39 @@ fn repository() -> PathBuf {
         .to_owned()
 }
 
+fn copy_fixture_file(source: impl AsRef<Path>, destination: impl AsRef<Path>) {
+    // The installed/captured SDK source is read-only. A fresh modeled fixture
+    // owns mutable input bytes, not the source file's permissions or inode.
+    std::fs::write(destination, std::fs::read(source).unwrap()).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn readonly_source_copy_is_mutable_only_in_the_private_fixture() {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("captured-source");
+    let destination = temporary.path().join("private-fixture");
+    std::fs::write(&source, b"exact captured source").unwrap();
+    std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o400)).unwrap();
+    let original = std::fs::metadata(&source).unwrap();
+    copy_fixture_file(&source, &destination);
+    assert_eq!(
+        std::fs::read(&destination).unwrap(),
+        b"exact captured source"
+    );
+    assert_ne!(
+        std::fs::metadata(&destination).unwrap().ino(),
+        original.ino()
+    );
+    std::fs::write(&destination, b"modeled fixture changes").unwrap();
+    assert_eq!(std::fs::read(&source).unwrap(), b"exact captured source");
+    let after = std::fs::metadata(&source).unwrap();
+    assert_eq!(after.ino(), original.ino());
+    assert_eq!(after.permissions().mode(), original.permissions().mode());
+}
+
 fn copy_tree(source: &Path, destination: &Path) {
     for entry in walkdir::WalkDir::new(source) {
         let entry = entry.unwrap();
@@ -20,12 +53,12 @@ fn copy_tree(source: &Path, destination: &Path) {
             std::fs::create_dir_all(path).unwrap();
         } else {
             assert!(entry.file_type().is_file());
-            std::fs::copy(entry.path(), path).unwrap();
+            copy_fixture_file(entry.path(), path);
         }
     }
 }
 
-fn calculator_project() -> tempfile::TempDir {
+pub(super) fn calculator_project() -> tempfile::TempDir {
     let temporary = tempfile::tempdir().unwrap();
     let example = repository().join("examples/Calculator");
     copy_tree(&example.join("src"), &temporary.path().join("src"));
@@ -36,7 +69,7 @@ fn calculator_project() -> tempfile::TempDir {
         "lake-manifest.json",
         "lean-toolchain",
     ] {
-        std::fs::copy(example.join(path), temporary.path().join(path)).unwrap();
+        copy_fixture_file(example.join(path), temporary.path().join(path));
     }
     relock(temporary.path());
     temporary
@@ -60,20 +93,98 @@ fn browser_system_project() -> tempfile::TempDir {
     let fixture = repository().join("tests/browser-system");
     std::fs::create_dir(root.join("src/Production")).unwrap();
     for name in ["Core", "BrowserSystem"] {
-        std::fs::copy(
+        copy_fixture_file(
             repository().join(format!("stdlib/src/Production/{name}.lex.tex")),
             root.join(format!("src/Production/{name}.lex.tex")),
-        )
-        .unwrap();
+        );
     }
-    std::fs::copy(
+    copy_fixture_file(
         fixture.join("Release.lex.tex"),
         root.join("src/Release.lex.tex"),
-    )
-    .unwrap();
-    std::fs::copy(fixture.join("lexlean.toml"), root.join("lexlean.toml")).unwrap();
+    );
+    copy_fixture_file(fixture.join("lexlean.toml"), root.join("lexlean.toml"));
     relock(root);
     temporary
+}
+
+impl Controller {
+    /// Fresh modeled publication fixture; caller must build and verify it.
+    pub(crate) fn publication_linkage_project() -> tempfile::TempDir {
+        let temporary = browser_system_project();
+        let root = temporary.path();
+        for namespace in ["Foundation", "Production"] {
+            copy_tree(
+                &repository().join("stdlib/src").join(namespace),
+                &root.join("src").join(namespace),
+            );
+        }
+        copy_fixture_file(
+            repository().join("tests/publication-context-linkage/src/Publication.lex.tex"),
+            root.join("src/Publication.lex.tex"),
+        );
+        let config = std::fs::read_to_string(root.join("lexlean.toml")).unwrap();
+        assert!(config.contains("entrypoints = [\"src/Release.lex.tex\"]"));
+        std::fs::write(
+            root.join("lexlean.toml"),
+            config.replace(
+                "entrypoints = [\"src/Release.lex.tex\"]",
+                "entrypoints = [\"src/Publication.lex.tex\"]",
+            ),
+        )
+        .unwrap();
+        relock(root);
+        let snapshot = Engine::load(&utf8(root.join("lexlean.toml")).unwrap())
+            .unwrap()
+            .snapshot(LexCheckRequest {
+                selection: Selection::Files([Utf8PathBuf::from("src/Calculator.lex.tex")].into()),
+            })
+            .unwrap();
+        let application = crate::holo::application::project_application(&snapshot)
+            .unwrap()
+            .unwrap();
+        let digest = format!(
+            "sha256:{}",
+            content_id(&encode_canonical(&application).unwrap())
+        );
+        let path = root.join("src/Release.lex.tex");
+        let source = std::fs::read_to_string(&path).unwrap();
+        let mut semantic = semantic_data(&source);
+        fn bind(value: &mut Value, digest: &str) -> usize {
+            if value["field"] == "applicationModelDigest" {
+                assert_eq!(value["value"]["kind"], "string");
+                value["value"]["value"] = json!(digest);
+                return 1;
+            }
+            match value {
+                Value::Object(fields) => fields.values_mut().map(|value| bind(value, digest)).sum(),
+                Value::Array(values) => values.iter_mut().map(|value| bind(value, digest)).sum(),
+                _ => 0,
+            }
+        }
+        assert_eq!(
+            bind(&mut semantic, &digest),
+            4,
+            "both source models and manifests bind the final application"
+        );
+        let lines = source
+            .lines()
+            .filter(|line| line.starts_with("\\semanticdata{"))
+            .collect::<Vec<_>>();
+        assert_eq!(lines.len(), 1);
+        std::fs::write(
+            &path,
+            source.replace(
+                lines[0],
+                &format!(
+                    "\\semanticdata{{{}}}",
+                    serde_json::to_string(&semantic).unwrap()
+                ),
+            ),
+        )
+        .unwrap();
+        relock(root);
+        temporary
+    }
 }
 
 #[test]
@@ -223,6 +334,7 @@ fn browser_system_source_selection_and_requirements_fail_closed() {
 
 #[test]
 fn browser_system_named_release_proves_artifacts_oracles_and_source_free_export() {
+    let _compiler = crate::test_compiler::acquire();
     let temporary = browser_system_project();
     let root = temporary.path();
     let controller = Controller::load(root).unwrap();
@@ -342,6 +454,7 @@ fn browser_system_named_release_proves_artifacts_oracles_and_source_free_export(
 
 #[test]
 fn application_build_identity_binds_closed_artifacts_and_rejects_tampering() {
+    let _compiler = crate::test_compiler::acquire();
     let temporary = calculator_project();
     let root = temporary.path();
     let controller = Controller::load(root).unwrap();
@@ -386,6 +499,7 @@ fn application_build_identity_binds_closed_artifacts_and_rejects_tampering() {
 
 #[test]
 fn physical_archive_limit_rejects_before_publishing_any_build() {
+    let _compiler = crate::test_compiler::acquire();
     let temporary = calculator_project();
     let root = temporary.path();
     let controller = Controller::load(root).unwrap();
@@ -597,6 +711,148 @@ fn named_releases() -> tempfile::TempDir {
     std::fs::write(root.join("src/Release.lex.tex"), source).unwrap();
     relock(root);
     temporary
+}
+
+#[test]
+fn complete_named_release_projection_is_safe_on_a_small_caller_stack() {
+    // This is the same complete 108-element certificate fixture used by the
+    // original release build/verification case, not a shortened model.
+    let temporary = named_releases();
+    let controller = Controller::load(temporary.path()).unwrap();
+    std::thread::Builder::new()
+        .name("small-model-caller".to_owned())
+        .stack_size(2 * 1024 * 1024)
+        .spawn(move || {
+            let _temporary = temporary;
+            let checked = controller
+                .check(CheckRequest { config_path: None })
+                .unwrap();
+            assert_eq!(checked.schema, "prismpm/check-result/1");
+            assert_eq!(checked.entity_count, 0);
+            for digest in [checked.semantic_id, checked.snapshot_id, checked.model_id] {
+                assert_eq!(digest.len(), 64);
+                assert!(digest.bytes().all(|byte| byte.is_ascii_hexdigit()));
+            }
+            let systems = controller.production_systems().unwrap();
+            assert_eq!(systems.len(), 2);
+            assert_eq!(systems[0].value()["product"]["version"], "A");
+            assert_eq!(systems[1].value()["product"]["version"], "B");
+            // Closed system-domain JSON may cross the boundary. Its existing
+            // public consumer also clones and drops it on the caller stack.
+            for system in &systems {
+                let value = system.value().clone();
+                assert_eq!(value, *system.value());
+                drop(value);
+            }
+            drop(systems);
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn prepared_work_preserves_the_verification_reentrancy_scope() {
+    let temporary = calculator_project();
+    let controller = Controller::load(temporary.path()).unwrap();
+    let plan = model_worker::Plan::load(temporary.path(), None).unwrap();
+    model_worker::run(&plan, model_worker::Kind::Verification, || {
+        let _guard = VerifyWorkerGuard::enter()?;
+        let thread = std::thread::current().id();
+        controller.with_prepared_release(None, None, |_| {
+            assert_eq!(std::thread::current().id(), thread);
+            assert_eq!(ensure_verification_not_active().unwrap_err().code, "PP5008");
+            assert_eq!(
+                controller
+                    .verify(VerifyRequest { config_path: None })
+                    .unwrap_err()
+                    .code,
+                "PP5008"
+            );
+            Ok(true)
+        })?;
+        Ok(())
+    })
+    .unwrap();
+    ensure_verification_not_active().unwrap();
+}
+
+#[test]
+fn actual_prepared_snapshot_unwinds_inside_its_model_worker() {
+    let temporary = calculator_project();
+    let controller = Controller::load(temporary.path()).unwrap();
+    let error = controller
+        .with_prepared_release::<bool>(None, None, |_| {
+            panic!("unwind after the actual selected compiler snapshot was prepared");
+        })
+        .unwrap_err();
+    assert_eq!(error.code, "PP9001");
+    controller
+        .check(CheckRequest { config_path: None })
+        .unwrap();
+    ensure_verification_not_active().unwrap();
+}
+
+#[test]
+fn changed_model_budget_is_refused_before_loading_the_engine() {
+    let temporary = calculator_project();
+    let controller = Controller::load(temporary.path()).unwrap();
+    let plan = model_worker::Plan::load(temporary.path(), None).unwrap();
+    let path = temporary.path().join("lexlean.toml");
+    let original = std::fs::read_to_string(&path).unwrap();
+    let changed = original.replace("max_scope_depth = 1024", "max_scope_depth = 2048");
+    assert_ne!(original, changed, "the actual selected budget must change");
+    let error = model_worker::run(&plan, model_worker::Kind::Model, || {
+        std::fs::write(&path, changed).unwrap();
+        let _prepared = controller.prepare_release_in_worker(&plan, None)?;
+        Ok(())
+    })
+    .unwrap_err();
+    assert_eq!(error.code, "PP9001");
+    assert!(error.message.contains("configuration changed"));
+    assert!(!temporary.path().join(".prism/build").exists());
+}
+
+#[test]
+fn verification_selection_reload_cannot_change_its_worker_binding() {
+    let temporary = calculator_project();
+    let controller = Controller::load(temporary.path()).unwrap();
+    let plan = model_worker::Plan::load(temporary.path(), None).unwrap();
+    let path = temporary.path().join("prismpm.toml");
+    let original = std::fs::read_to_string(&path).unwrap();
+    let changed = original.replace("lexlean.toml", "another.toml");
+    assert_ne!(original, changed);
+    let error = model_worker::run(&plan, model_worker::Kind::Verification, || {
+        let _guard = VerifyWorkerGuard::enter()?;
+        std::fs::write(&path, changed).unwrap();
+        controller.check_model_configuration(None)
+    })
+    .unwrap_err();
+    assert_eq!(error.code, "PP9001");
+    assert!(error.message.contains("configuration changed"));
+    assert!(!temporary.path().join(".prism/build").exists());
+    ensure_verification_not_active().unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn existing_selected_configuration_hardlink_is_accepted() {
+    let temporary = calculator_project();
+    let original = temporary.path().join("lexlean.toml");
+    let alias = temporary.path().join("chosen.toml");
+    std::fs::hard_link(original, &alias).unwrap();
+    let path = temporary.path().join("prismpm.toml");
+    let selected = std::fs::read_to_string(&path)
+        .unwrap()
+        .replace("lexlean.toml", "chosen.toml");
+    std::fs::write(path, selected).unwrap();
+    let plan = model_worker::Plan::load(temporary.path(), None).unwrap();
+    assert_eq!(plan.project_file.as_std_path(), alias);
+    plan.observe().unwrap();
+    model_worker::run(&plan, model_worker::Kind::Model, || {
+        model_worker::require_current_selection(temporary.path(), None)
+    })
+    .unwrap();
 }
 
 fn assert_receipt(root: &Path, receipt: &VerifyResult, build: &BuildResult) {
@@ -1042,6 +1298,7 @@ fn explicit_release_requires_a_system_graph() {
 
 #[test]
 fn modeled_system_projections_pass_all_seven_locked_oracles() {
+    let _compiler = crate::test_compiler::acquire();
     let temporary = named_releases();
     let root = temporary.path();
     let controller = Controller::load(root).unwrap();
@@ -1077,6 +1334,7 @@ fn modeled_system_projections_pass_all_seven_locked_oracles() {
 
 #[test]
 fn alternate_release_verification_is_bound_to_the_selected_build() {
+    let _compiler = crate::test_compiler::acquire();
     let temporary = named_releases();
     let root = temporary.path();
     let controller = Controller::load(root).unwrap();

@@ -108,3 +108,11 @@ Feature: stdlib
     And actual maximum-size primitive inputs preserve their bytes and excess inputs fail before unbounded allocation
     And nonminimal-header, payload-limit and UTF-8 admission defects fail their owning runtime assertions
     And an array head is never evidence that its body or a complete application message has been decoded
+
+  @ST-17 @build
+  Scenario: The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox.
+    Given the pinned RFC 7636 example and complete verifier alphabet and length boundaries
+    When actual generated source kernels and native std and no_std and bounded Wasm execute
+    Then all three browser engines derive the exact S256 challenge through their cryptographic provider
+    And real source and host defects fail their owning assertions without accepting skipped checks
+    And no provider registration or authenticated enrollment is inferred from PKCE material

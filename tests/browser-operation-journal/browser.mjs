@@ -108,7 +108,7 @@ export async function verifyHostMutations(t, build, custody) {
     ['application-signing-domain-alias', 'operation-journal.mjs',
       replace(journal, "throw fail('signing-alias');", 'void 0;'), /expected journal signing-alias, got undefined/],
     ['captured-custody-preauthorization', 'effects.mjs',
-      replace(effects, 'checkCredentialSigning(adapter.custody, intent[0], intent[1][1]);', 'void 0;'),
+      replace(effects, 'checkCredentialSigning(adapter.custody, request[4], request[5][1]);', 'void 0;'),
       /source-bound signing limit rejects before Prepared or effect execution/],
     ['combined-artifact-precopy-budget', 'operation-journal.mjs',
       replace(journal, "if (total + bytesLength(journalWire, FRAME) + bytesLength(partition, FRAME) > EFFECT_ARTIFACTS_MAXIMUM) throw fail('invalid-input');", 'void total;'),

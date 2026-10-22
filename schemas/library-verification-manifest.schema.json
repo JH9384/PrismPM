@@ -68,6 +68,45 @@
             "type": "string",
             "pattern": "^[0-9a-f]{64}$"
           },
+          "exporter": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schema": { "const": "prismpm/exporter-execution/1" },
+              "source_archive_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "acquisition": {
+                "oneOf": [
+                  { "type": "object", "additionalProperties": false,
+                    "properties": { "schema": { "const": "prismpm/exporter-acquisition/1" }, "mode": { "const": "cold" } },
+                    "required": ["schema", "mode"] },
+                  { "type": "object", "additionalProperties": false,
+                    "properties": {
+                      "schema": { "const": "prismpm/exporter-acquisition/1" }, "mode": { "const": "sdk-seed" },
+                      "inventory_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+                      "manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+                      "executable_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+                      "archive_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+                      "compiler_revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+                      "platform": { "enum": ["linux/amd64", "linux/arm64"] },
+                      "toolchain": { "type": "string", "pattern": "^leanprover/lean4:v[0-9]+\\.[0-9]+\\.[0-9]+$" }
+                    },
+                    "required": ["schema", "mode", "inventory_sha256", "manifest_sha256", "executable_sha256", "archive_sha256", "compiler_revision", "platform", "toolchain"] }
+                ]
+              },
+              "executable": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "byte_length": { "type": "integer", "minimum": 1, "maximum": 268435456 },
+                  "mode": { "type": "integer", "minimum": 1, "maximum": 511,
+                    "not": { "enum": [0,2,4,6,16,18,20,22,32,34,36,38,48,50,52,54,128,130,132,134,144,146,148,150,160,162,164,166,176,178,180,182,256,258,260,262,272,274,276,278,288,290,292,294,304,306,308,310,384,386,388,390,400,402,404,406,416,418,420,422,432,434,436,438] } },
+                  "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+                },
+                "required": ["byte_length", "mode", "sha256"]
+              }
+            },
+            "required": ["schema", "source_archive_sha256", "executable", "acquisition"]
+          },
           "exit_code": {
             "const": 0
           },
@@ -78,6 +117,13 @@
             "type": "string"
           }
         },
+        "allOf": [{
+          "if": { "properties": { "tool": { "const": "prod-export" } }, "required": ["tool"] },
+          "then": { "required": ["exporter"], "properties": {
+            "argv": { "minItems": 2, "prefixItems": [{ "const": "exe" }, { "const": "prod-export" }] }
+          } },
+          "else": { "not": { "required": ["exporter"] } }
+        }],
         "required": [
           "tool",
           "argv",

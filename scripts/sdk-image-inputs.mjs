@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { constants, closeSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync,
-  readSync, rmSync, writeFileSync } from 'node:fs';
+  readSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildClosure, materializeClosure, verifyClosure } from './sdk-vv-inputs.mjs';
 
@@ -24,11 +24,12 @@ function removeOwned(path, identity) {
 }
 
 function read(path, limit = 1024 * 1024) {
+  assert.equal(realpathSync(path), resolve(path), 'input path must not be aliased');
   assert(lstatSync(path).isFile(), 'bounded regular input required');
   const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
     const before = fstatSync(fd, { bigint: true });
-    assert(before.isFile() && before.size <= BigInt(limit), 'bounded regular input required');
+    assert(before.isFile() && before.nlink === 1n && before.size <= BigInt(limit), 'bounded regular input required');
     const bytes = Buffer.alloc(Number(before.size));
     for (let offset = 0; offset < bytes.length;) {
       const count = readSync(fd, bytes, offset, bytes.length - offset, null);
@@ -37,6 +38,9 @@ function read(path, limit = 1024 * 1024) {
     assert.equal(readSync(fd, Buffer.alloc(1), 0, 1, null), 0, 'input grew');
     const after = fstatSync(fd, { bigint: true });
     for (const key of ['dev', 'ino', 'size', 'mode', 'nlink', 'mtimeNs', 'ctimeNs']) assert.equal(after[key], before[key], 'input changed');
+    const current = lstatSync(path, {bigint: true});
+    for (const key of ['dev', 'ino', 'size', 'mode', 'nlink', 'mtimeNs', 'ctimeNs']) assert.equal(current[key], before[key], 'input path changed');
+    assert.equal(realpathSync(path), resolve(path), 'input path changed');
     return bytes;
   } finally { closeSync(fd); }
 }
@@ -156,20 +160,68 @@ export function dockerArguments(source, revision, target, closure, args) {
 
 // Dependency injection is confined to unit transport tests, which execute a
 // recording Docker executable. The CLI always performs real acquisition.
-export function buildImage(source, revision, target, args, prepare = prepareImageInputs) {
+function constructImage(source, revision, target, args, prepare) {
   const work = mkdtempSync(join(tmpdir(), 'prismpm-sdk-image-'));
   const identity = lstatSync(work);
   try {
     const closure = join(work, 'inputs');
-    const argv = dockerArguments(source, revision, target, closure, args);
+    // Validate caller options before acquisition; only the later private
+    // recipe context is ever handed to Docker.
+    dockerArguments(source, revision, target, closure, args);
     const policy = prepare(source, revision, closure);
     assert.deepEqual(policy, inputPolicy(source, revision), 'independent source policy differs');
-    verifyClosure(closure, policy);
-    const result = spawnSync('docker', argv, { stdio: 'inherit' });
+    const materialized = join(work, 'materialized');
+    const manifest = materializeClosure(closure, policy, materialized);
+    boundInputs(source, manifest);
+    const context = join(work, 'recipe'); mkdirSync(context, {mode: 0o700});
+    for (const path of SOURCE_INPUTS) {
+      const destination = join(context, path);
+      mkdirSync(dirname(destination), {recursive: true, mode: 0o700});
+      writeFileSync(destination, read(join(materialized, 'source', path)), {flag: 'wx', mode: 0o400});
+    }
+    boundInputs(context, manifest);
+    // The verified full checkout is not a Docker context. Only the five
+    // independently bound bootstrap files cross the raw recipe boundary.
+    removeOwned(materialized, lstatSync(materialized));
+    const nodes = [context, join(context, 'sdk'), join(context, 'scripts'), ...SOURCE_INPUTS.map(path => join(context, path))]
+      .map(path => ({path, identity: lstatSync(path, {bigint: true})}));
+    const verify = () => {
+      for (const {path, identity} of nodes) {
+        assert.equal(realpathSync(path), path, 'recipe context path changed');
+        const current = lstatSync(path, {bigint: true});
+        for (const key of ['dev', 'ino', 'size', 'mode', 'nlink', 'mtimeNs', 'ctimeNs'])
+          assert.equal(current[key], identity[key], 'recipe context custody changed');
+      }
+      assert.deepEqual(readdirSync(context).sort(), ['scripts', 'sdk', 'tools.lock']);
+      assert.deepEqual(readdirSync(join(context, 'sdk')).sort(), ['Dockerfile', 'vv-inputs.lock.json']);
+      assert.deepEqual(readdirSync(join(context, 'scripts')).sort(), ['sdk-image-inputs.mjs', 'sdk-vv-inputs.mjs']);
+      boundInputs(context, manifest);
+      assert.deepEqual(verifyClosure(closure, policy), manifest, 'image input closure changed');
+    };
+    verify();
+    const argv = dockerArguments(context, revision, target, closure, args);
+    let result;
+    try { result = spawnSync('docker', argv, { stdio: 'inherit' }); }
+    finally { verify(); }
     if (result.error) throw result.error;
     assert.equal(result.signal, null, 'SDK image construction interrupted');
-    return result.status;
+    return {status: result.status,
+      input_policy: Buffer.from(canonical(policy)),
+      input_manifest: Buffer.from(canonical(manifest))};
   } finally { removeOwned(work, identity); }
+}
+
+export function buildImage(source, revision, target, args, prepare = prepareImageInputs) {
+  return constructImage(source, revision, target, args, prepare).status;
+}
+
+// A separate source-CI constructor exposes only the actual complete verified
+// inputs of this construction. No caller-provided receipt can replace them.
+// It does not qualify the built SDK or any consuming gate.
+export function buildImageWithInputs(source, revision, args, prepare = prepareImageInputs) {
+  const result = constructImage(source, revision, 'runtime', args, prepare);
+  assert.equal(result.status, 0, 'source-CI SDK input construction failed');
+  return result;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

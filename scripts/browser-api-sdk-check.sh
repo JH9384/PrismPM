@@ -35,6 +35,9 @@ done < <(node "$helper" roots)
 node "$helper" verify "$sdk_work/source" "$sdk_work/source.json"
 docker container cp "$container:/opt/prismpm/browser/." "$sdk_work/browser"
 node "$helper" modules "$root" "$sdk_work/browser"
+mkdir -p "$sdk_work/share/account-genesis"
+docker container cp "$container:/opt/prismpm/share/account-genesis/." "$sdk_work/share/account-genesis"
+node "$helper" account-construction "$sdk_work" "$sdk_work/source.json"
 docker container cp "$container:/usr/local/bin/prismpm-devcontainer-init" "$sdk_work/entrypoint.sh"
 cmp "$root/sdk/devcontainer-init.sh" "$sdk_work/entrypoint.sh"
 docker container rm "$container" >/dev/null

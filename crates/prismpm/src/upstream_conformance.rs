@@ -1,5 +1,13 @@
 //! Execution of exact, imported upstream standards conformance assets.
 
+mod blake3_corpus;
+
+/// Execute the complete pinned BLAKE3 vector corpus and its mutation controls.
+/// This finite adapter qualification is not cryptographic proof or storage acceptance.
+pub fn verify_blake3_corpus(corpus: &std::path::Path) -> Result<CorpusEvidence, crate::PrismError> {
+    blake3_corpus::verify(corpus)
+}
+
 /// Validate complete Hologram and actual portable-browser execution evidence.
 ///
 /// This is the same fail-closed PP5301 check used by application verification;
@@ -566,12 +574,15 @@ fn docker(
 fn sdk_image() -> Result<String, PrismError> {
     let image = std::env::var("PRISMPM_TEST_SDK_IMAGE")
         .map_err(|_| unavailable("PRISMPM_TEST_SDK_IMAGE is required by upstream conformance"))?;
-    if !image.contains("@sha256:") {
-        return Err(unavailable(
-            "upstream conformance requires a digest-qualified SDK image",
-        ));
-    }
+    validate_sdk_image(&image)?;
     Ok(image)
+}
+
+fn validate_sdk_image(image: &str) -> Result<(), PrismError> {
+    crate::oci::validate_reference(image, true).map_err(|_| {
+        unavailable("upstream conformance requires a valid immutable OCI SDK reference")
+    })?;
+    Ok(())
 }
 
 fn go_test_passes(output: &[u8]) -> u64 {
@@ -2255,6 +2266,51 @@ pub fn verify(root: &Path) -> Result<UpstreamConformanceEvidence, PrismError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sdk_oracle_reference_requires_complete_immutable_oci_identity() {
+        let digest = "a".repeat(64);
+        for reference in [
+            format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}"),
+            format!("ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:{digest}"),
+            format!("127.0.0.1:43567/prismpm-vv-sdk@sha256:{digest}"),
+        ] {
+            validate_sdk_image(&reference).unwrap();
+        }
+        for reference in [
+            String::new(),
+            "ghcr.io/uor-foundation/prismpm-sdk:latest".into(),
+            "ghcr.io/uor-foundation/prismpm-sdk@sha256:".into(),
+            format!(
+                "ghcr.io/uor-foundation/prismpm-sdk@sha256:{}",
+                "a".repeat(63)
+            ),
+            format!(
+                "ghcr.io/uor-foundation/prismpm-sdk@sha256:{}",
+                "a".repeat(65)
+            ),
+            format!(
+                "ghcr.io/uor-foundation/prismpm-sdk@sha256:{}",
+                "A".repeat(64)
+            ),
+            format!(
+                "ghcr.io/uor-foundation/prismpm-sdk@sha256:{}",
+                "z".repeat(64)
+            ),
+            format!("ghcr.io/uor-foundation/prismpm-sdk:latest@sha256:{digest}"),
+            format!("https://ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}"),
+            format!("ghcr.io/uor-foundation/../prismpm-sdk@sha256:{digest}"),
+            format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}\n"),
+            format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}@sha256:{digest}"),
+            format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}?other=1"),
+            format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}#fragment"),
+            format!("@sha256:{digest}"),
+        ] {
+            let error = validate_sdk_image(&reference)
+                .expect_err("malformed oracle reference must fail before Docker execution");
+            assert_eq!(error.code.as_str(), "PP5403");
+        }
+    }
 
     struct ReportVolume(String);
 

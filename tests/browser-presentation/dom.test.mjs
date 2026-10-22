@@ -21,6 +21,12 @@ test('actual Chromium executes all private DOM component journeys', async () => 
   assert.deepEqual(result.calls, [], 'component evidence never fabricates source execution');
 });
 
+for (const engine of ['firefox', 'webkit']) test(engine + ' executes every private DOM component journey', async () => {
+  const result = await journey(null, {}, engine);
+  assert.equal(result.modelChecked, false);
+  assert.deepEqual(result.calls, [], 'component evidence never fabricates source execution');
+});
+
 test('actual Chromium kills focused DOM implementation mutants', async t => {
   await verifyMutants(t, null);
 });

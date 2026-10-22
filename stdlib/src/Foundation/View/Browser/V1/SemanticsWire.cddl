@@ -1,0 +1,11 @@
+; Private semantic presentation envelope; nested DK-23 grammar is unchanged.
+; Canonical definite-length RFC 8949, shortest uint32 heads, 64 MiB aggregate.
+semantic-presentation = [1, presentation, design-index: 0..15,
+                        appearance: 0..2, skip-label: 0..256,
+                        annotations: [*256 annotation]]
+annotation = [node: 1..256, purpose: 0..8, helper: 0..256,
+              error: 0..256, landmark: 0..4, layout: 0..5]
+; purpose: none/plain/name/organization/email/username/current/new/one-time-code
+; landmark: none/main/banner/complementary/contentinfo
+; layout: none/stack/sidebar/two-columns/three-columns/four-columns
+; presentation is the unchanged imported DK-23 Wire.cddl production.

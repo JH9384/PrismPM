@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 const DIRECTORY: &str = "stdlib/src/Foundation/Codec/Cbor/V1";
-const ROOT_COUNT: usize = 193;
+const ROOT_COUNT: usize = 194;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -370,6 +370,20 @@ fn accepted(fixture: &Fixture, verified: &prismpm::controller::VerifyResult) {
 }
 
 fn weakened_body(name: &str, body: &Value) -> Value {
+    if matches!(name, "cborOctetBytes" | "cborOctetBytesAbove") {
+        let input = if name == "cborOctetBytes" {
+            "234"
+        } else {
+            "256"
+        };
+        return json!({"kind":"match","scrutinee":{"kind":"beq",
+        "left":{"kind":"var","name":"value"},
+        "right":{"kind":"nat","value":input}},
+        "branches":[
+            {"constructor":{"name":"Bool.false"},"binders":[],"body":body},
+            {"constructor":{"name":"Bool.true"},"binders":[],"body":{"kind":"bytes","hex":"00"}}
+        ]});
+    }
     fn true_after(condition: Value) -> Value {
         json!({"kind":"match","scrutinee":condition,"branches":[
             {"constructor":{"name":"Bool.false"},"binders":[],"body":{"kind":"bool","value":true}},
@@ -548,7 +562,7 @@ pub(super) fn verify(root: &Path) {
         root,
         "ST-16-source",
         &["tests/codec-cbor/source.test.mjs"],
-        2,
+        3,
         "10000",
     );
     let fixture = fixture(root);
@@ -578,6 +592,8 @@ pub(super) fn verify(root: &Path) {
         ("cborReadHeadArgument", "probeArrayRejected9800"),
         ("cborReadPayload", "probeLimitBytes"),
         ("cborReadString", "probeUtf8Invalid80"),
+        ("cborOctetBytes", "probeOctetLookup"),
+        ("cborOctetBytesAbove", "probeOctetLookup"),
     ] {
         let rejected = format!("LibraryProbe.Foundation.Codec.Cbor.V1.PrimitiveCorpus.{rejected}");
         assert!(fixture.roots.contains(&rejected));
@@ -586,7 +602,7 @@ pub(super) fn verify(root: &Path) {
             .as_array_mut()
             .unwrap()
             .iter_mut()
-            .find(|row| row["name"] == name)
+            .find(|row| row["name"] == name.strip_suffix("Above").unwrap_or(name))
             .unwrap();
         declaration["body"] = weakened_body(name, &declaration["body"]);
         std::fs::write(&path, rewrite(&source, &mutant)).unwrap();
@@ -617,14 +633,14 @@ mod tests {
     #[test]
     fn cbor_primitive_wasm_receipt_rejects_incomplete_execution() {
         let modules = json!({"primitive":"a".repeat(64),"corpus":"b".repeat(64)});
-        let receipt = json!({"schema":"prismpm/cbor-primitive-wasm/1", "typed_roots":193,
-            "byte_vectors":71, "invocations":273, "maximum_payload":4_202_612,
+        let receipt = json!({"schema":"prismpm/cbor-primitive-wasm/1", "typed_roots":194,
+            "byte_vectors":71, "invocations":274, "maximum_payload":4_202_612,
             "maximum_pages":1024, "observed_pages":964, "modules":modules, "status":"passed"});
         assert!(valid_wasm_receipt(&receipt, &modules));
         for (field, value) in [
             ("byte_vectors", json!(70)),
-            ("invocations", json!(272)),
-            ("typed_roots", json!(192)),
+            ("invocations", json!(273)),
+            ("typed_roots", json!(193)),
             ("maximum_payload", json!(4_202_611)),
             ("maximum_pages", json!(2048)),
             ("observed_pages", json!(0)),

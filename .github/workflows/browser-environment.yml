@@ -1,0 +1,64 @@
+name: Verify Debian browser environment
+
+on:
+  pull_request:
+    paths:
+      - .devcontainer/Dockerfile
+      - .devcontainer/devcontainer.json
+      - .github/workflows/browser-environment.yml
+      - scripts/browser-environment-preflight.*
+      - sdk/browser/browser-test-server.mjs
+      - tests/browser-cross-engine/server.test.mjs
+      - sdk/oracles/package.json
+      - sdk/oracles/package-lock.json
+      - sdk/browser-engine/**
+      - scripts/browser-engine-input.test.mjs
+      - sdk/Dockerfile
+      - sdk/generate-inventory.mjs
+      - tools.lock
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-environment-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-environment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=docker.io/moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - name: Build the actual devcontainer ancestor with both-user browser checks
+        run: |
+          docker buildx build --platform linux/amd64 --target browser_ready \
+            --file .devcontainer/Dockerfile --load --tag prismpm-browser-environment .
+      - name: Recheck all engines offline as root and vscode
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/browser-environment"
+          for actor in root vscode; do
+            docker run --rm --init --network none --user "$actor" \
+              --entrypoint bash prismpm-browser-environment \
+              /opt/prismpm/browser-environment/scripts/browser-environment-preflight.sh \
+              > "$RUNNER_TEMP/browser-environment/$actor.json"
+          done
+          docker run --rm --init --network none --user vscode \
+            --volume "$GITHUB_WORKSPACE:/workspace:ro" --workdir /workspace \
+            --entrypoint node prismpm-browser-environment \
+            --test scripts/browser-engine-input.test.mjs scripts/browser-environment-preflight.test.mjs scripts/qualify-debian-browser-inputs.test.mjs tests/browser-cross-engine/server.test.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: browser-environment-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/browser-environment/
+          if-no-files-found: error
+          retention-days: 14

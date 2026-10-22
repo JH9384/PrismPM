@@ -1,10 +1,11 @@
 // Runtime preservation and malformed transport tests, not full SDK acceptance.
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
+import {execFileSync,spawn} from 'node:child_process';
 import {createRequire} from 'node:module';
 import {chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {once} from 'node:events';
 import test from 'node:test';
 import {bootstrapFixture} from './sdk-bootstrap-retention-fixture.mjs';
 import {bootstrapNames, canonical, hash, readOriginal, validateBootstrapRetention} from './sdk-bootstrap-retention.mjs';
@@ -22,7 +23,7 @@ const rawVv = () => Buffer.from(canonical({schema: 'prismpm/vv-evidence/1', comm
 function commandFixture(root, prefix, command, args, status, stdout = 'unit-only output\n', stderr = '') {
   const out = Buffer.from(stdout), err = Buffer.from(stderr);
   put(root, `${prefix}.stdout`, out); put(root, `${prefix}.stderr`, err);
-  put(root, `${prefix}.json`, {command, arguments: args, status, signal: null, orphaned: false, overflow: false, interrupted: null,
+  put(root, `${prefix}.json`, {command, arguments: args, status, signal: null, descendants_reaped:true, capture_failed:false, orphaned: false, overflow: false, interrupted: null,
     stdout: descriptor(`${prefix}.stdout`, out), stderr: descriptor(`${prefix}.stderr`, err)});
 }
 function sourceFixture(root) {
@@ -51,6 +52,12 @@ test('actual child execution preserves exact binary stdout, stderr and nonzero s
   assert.equal(readFileSync(join(root, 'actual.stderr'), 'utf8'), 'original error\n');
   const files = new Map(readdirSync(root).map(name => [name, readFileSync(join(root, name))]));
   validateCommand(files, 'actual', process.execPath, args, 7);
+  for(const value of [false,undefined,'true']) {
+    const changed={...row,descendants_reaped:value};
+    files.set('actual.json',Buffer.from(canonical(changed)));
+    assert.throws(()=>validateCommand(files,'actual',process.execPath,args,7));
+  }
+  files.set('actual.json',Buffer.from(canonical(row)));
   assert.throws(() => validateCommand(files, 'actual', process.execPath, args, 0));
   files.set('actual.stdout', Buffer.from('substituted'));
   assert.throws(() => validateCommand(files, 'actual', process.execPath, args, 7));
@@ -93,6 +100,20 @@ test('actual interruption retains the failed command and terminates its resistan
   assert.equal(row.interrupted, 'SIGTERM'); assert.equal(row.signal, 'SIGKILL'); assert.equal(row.status, null);
   const pid = Number(readFileSync(ready, 'utf8'));
   assert.throws(() => process.kill(pid, 0), error => error.code === 'ESRCH');
+});
+
+test('cancellation preserves TERM delivery to deeper original-session descendants before escalation', {timeout:12000},t=>{
+  const root=temporary(t),ready=join(root,'deep-ready'),termed=join(root,'deep-term');
+  const leaf=`process.on('SIGTERM',()=>require('node:fs').writeFileSync(${JSON.stringify(termed)},'actual TERM'));require('node:fs').writeFileSync(${JSON.stringify(ready)},String(process.pid));setInterval(()=>{},1000)`;
+  const leader=`process.on('SIGTERM',()=>{});require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(leaf)}],{stdio:['ignore',1,2]});setInterval(()=>{},1000)`;
+  const wrapper=`import assert from 'node:assert/strict';import {existsSync} from 'node:fs';
+    import {captureCommand} from ${JSON.stringify(new URL('./release-gate-evidence.mjs',import.meta.url).href)};
+    const timer=setInterval(()=>{if(existsSync(${JSON.stringify(ready)})){clearInterval(timer);process.kill(process.pid,'SIGTERM');}},5);
+    try{await assert.rejects(captureCommand(${JSON.stringify(root)},'deep',process.execPath,['-e',${JSON.stringify(leader)}],${JSON.stringify(root)}),/gate interrupted/);}finally{clearInterval(timer);}`;
+  execFileSync(process.execPath,['--input-type=module','-e',wrapper],{timeout:10000});
+  assert.equal(readFileSync(termed,'utf8'),'actual TERM');
+  const pid=Number(readFileSync(ready,'utf8'));assert.throws(()=>process.kill(pid,0),{code:'ESRCH'});
+  assert.equal(JSON.parse(readFileSync(join(root,'deep.json'))).descendants_reaped,true);
 });
 
 function backgroundCommand(root, resistant) {
@@ -141,6 +162,155 @@ test('ordinary exit drains short-lived descendants but rejects orphaned pipe hol
     assert.throws(() => validateCommand(files, 'orphan', process.execPath, ['-e', backgroundCommand(root, true)], 0));
     await noExecutingProcess(join(root, 'grandchild'));
   } finally {clearTimeout(watchdog); killOwnedLeader(root);}
+});
+
+test('pipe closure by a TERM-resistant descendant cannot cancel owned escalation or kill another group', {timeout:17000},async t=>{
+  const root=temporary(t),closed=join(root,'pipes-closed');
+  const unrelated=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});
+  const unrelatedClosed=once(unrelated,'close');await once(unrelated,'spawn');
+  const grandchild=`process.on('SIGTERM',()=>{require('node:fs').writeFileSync(${JSON.stringify(closed)},'actual handler');require('node:fs').closeSync(1);require('node:fs').closeSync(2);});require('node:fs').writeFileSync(${JSON.stringify(join(root,'grandchild'))},String(process.pid));setInterval(()=>{},1000)`;
+  const leader=`const child=require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(grandchild)}],{stdio:['ignore',1,2]});child.unref();require('node:fs').writeFileSync(${JSON.stringify(join(root,'leader'))},String(process.pid));process.exit(0)`;
+  let forced=false;const watchdog=setTimeout(()=>{forced=true;killOwnedLeader(root);},14000);
+  try {
+    await assert.rejects(captureCommand(root,'closed-pipes',process.execPath,['-e',leader],root),/orphaned output pipes/);
+    assert.equal(forced,false,'the actual owner must retire its descendants');
+    assert.equal(readFileSync(closed,'utf8'),'actual handler','genuine TERM handler closed both inherited descriptors');
+    await noExecutingProcess(join(root,'grandchild'));
+    assert.equal(JSON.parse(readFileSync(join(root,'closed-pipes.json'))).descendants_reaped,true);
+    assert.equal(process.kill(unrelated.pid,0),true,'unrelated private process group remains alive');
+  } finally {
+    clearTimeout(watchdog);killOwnedLeader(root);
+    try {process.kill(-unrelated.pid,'SIGKILL');} catch(error) {if(error.code!=='ESRCH')throw error;}
+    await unrelatedClosed;
+  }
+});
+
+test('successful leader and closed pipes do not accept a still-executing silent descendant', {timeout:17000},async t=>{
+  const root=temporary(t);
+  const grandchild=`process.on('SIGTERM',()=>{});require('node:fs').writeFileSync(${JSON.stringify(join(root,'grandchild'))},String(process.pid));require('node:fs').closeSync(1);require('node:fs').closeSync(2);setInterval(()=>{},1000)`;
+  const leader=`const child=require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(grandchild)}],{stdio:['ignore',1,2]});child.unref();require('node:fs').writeFileSync(${JSON.stringify(join(root,'leader'))},String(process.pid));process.exit(0)`;
+  let forced=false;const watchdog=setTimeout(()=>{forced=true;killOwnedLeader(root);},14000);
+  try {
+    await assert.rejects(captureCommand(root,'silent',process.execPath,['-e',leader],root),/orphaned output pipes/);
+    assert.equal(forced,false);await noExecutingProcess(join(root,'grandchild'));
+    const record=JSON.parse(readFileSync(join(root,'silent.json')));
+    assert.equal(record.status,0);assert.equal(record.signal,null);assert.equal(record.orphaned,true);
+    assert.equal(record.descendants_reaped,true);
+    const files=new Map(['json','stdout','stderr'].map(suffix=>['silent.'+suffix,readFileSync(join(root,'silent.'+suffix))]));
+    assert.throws(()=>validateCommand(files,'silent',process.execPath,['-e',leader],0));
+  } finally {clearTimeout(watchdog);killOwnedLeader(root);}
+});
+
+test('forking into a new session during TERM cannot escape adoption and reaping', {timeout:17000},async t=>{
+  const root=temporary(t),escaped=join(root,'escaped');
+  const final=`process.on('SIGTERM',()=>{});require('node:fs').writeFileSync(${JSON.stringify(escaped+'-identity')},require('node:fs').readFileSync('/proc/self/stat'));require('node:fs').writeFileSync(${JSON.stringify(escaped)},String(process.pid));setInterval(()=>{},1000)`;
+  const grandchild=`process.on('SIGTERM',()=>{const child=require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(final)}],{detached:true,stdio:'ignore'});child.unref();const ready=setInterval(()=>{if(require('node:fs').existsSync(${JSON.stringify(escaped)})){clearInterval(ready);process.exit(0);}},5);});require('node:fs').writeFileSync(${JSON.stringify(join(root,'grandchild'))},String(process.pid));setInterval(()=>{},1000)`;
+  const leader=`const child=require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(grandchild)}],{stdio:['ignore',1,2]});child.unref();require('node:fs').writeFileSync(${JSON.stringify(join(root,'leader'))},String(process.pid));process.exit(0)`;
+  try {
+    await assert.rejects(captureCommand(root,'forked',process.execPath,['-e',leader],root),/orphaned output pipes/);
+    for(const name of ['leader','grandchild','escaped']) {
+      const pid=Number(readFileSync(join(root,name),'utf8'));
+      assert.throws(()=>process.kill(pid,0),{code:'ESRCH'},'each actual adopted process is reaped before rejection');
+    }
+    assert.equal(JSON.parse(readFileSync(join(root,'forked.json'))).descendants_reaped,true);
+  } finally {
+    killOwnedLeader(root);
+    if(existsSync(escaped)) {
+      const pid=Number(readFileSync(escaped,'utf8'));
+      try {
+        const fields=bytes=>bytes.slice(bytes.lastIndexOf(')')+2).trim().split(' ');
+        const original=fields(readFileSync(escaped+'-identity','utf8')),current=fields(readFileSync(`/proc/${pid}/stat`,'utf8'));
+        assert.equal(current[19],original[19],'cleanup cannot signal a replacement identity');
+        assert.equal(Number(current[2]),pid);assert.equal(Number(current[3]),pid);
+        process.kill(-pid,'SIGKILL');
+      } catch(error) {if(error.code!=='ENOENT'&&error.code!=='ESRCH')throw error;}
+    }
+  }
+});
+
+function ownerFault(root,point,replacement,body) {
+  const source=readFileSync(new URL('./release-command-owner.py',import.meta.url),'utf8');
+  assert.equal(source.split(point).length,2,'unique actual owner mutation');
+  const path=join(root,'owner.py');writeFileSync(path,source.replace(point,replacement),{flag:'wx',mode:0o600});
+  return `import assert from 'node:assert/strict';
+    import cp from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';
+    import {existsSync,readFileSync,writeFileSync} from 'node:fs';
+    import {captureCommand} from ${JSON.stringify(new URL('./release-gate-evidence.mjs',import.meta.url).href)};
+    const actual=cp.spawn;let calls=0;
+    cp.spawn=(command,args,options)=>{assert.equal(command,'/usr/bin/python3');assert.equal(args[2],${JSON.stringify(new URL('./release-command-owner.py',import.meta.url).pathname)});calls++;return actual(command,[...args.slice(0,2),${JSON.stringify(path)},...args.slice(3)],options);};
+    syncBuiltinESMExports();
+    ${body}
+    assert.equal(calls,1);`;
+}
+
+test('actual kernel owner-admission refusal cannot start or accept the command', {timeout:12000},t=>{
+  const root=temporary(t),marker=join(root,'must-not-start');
+  const command=`require('node:fs').writeFileSync(${JSON.stringify(marker)},'started');setInterval(()=>{},1000)`;
+  const wrapper=ownerFault(root,'prctl(36, 1, 0, 0, 0)','prctl(-1, 1, 0, 0, 0)',
+    `await assert.rejects(captureCommand(${JSON.stringify(root)},'admission',process.execPath,['-e',${JSON.stringify(command)}],${JSON.stringify(root)}));assert(!existsSync(${JSON.stringify(marker)}));`);
+  execFileSync(process.execPath,['--input-type=module','-e',wrapper],{timeout:10000});
+  assert.equal(JSON.parse(readFileSync(join(root,'admission.json'))).descendants_reaped,false);
+});
+
+test('actual ownership observation failure cannot suppress already-owned escalation or grant acceptance', {timeout:12000},t=>{
+  const root=temporary(t),ready=join(root,'ready');
+  const command=`process.on('SIGTERM',()=>{});require('node:fs').writeFileSync(${JSON.stringify(ready)},String(process.pid));setInterval(()=>{},1000)`;
+  const point='emit({"event": "started", "pid": self.process.pid})';
+  const wrapper=ownerFault(root,point,point+'\n            self.child_path += "-missing"',
+    `const timer=setInterval(()=>{if(existsSync(${JSON.stringify(ready)})){clearInterval(timer);process.kill(process.pid,'SIGTERM');}},5);
+    try{await assert.rejects(captureCommand(${JSON.stringify(root)},'observation',process.execPath,['-e',${JSON.stringify(command)}],${JSON.stringify(root)}),/gate interrupted/);}finally{clearInterval(timer);}
+    const pid=Number(readFileSync(${JSON.stringify(ready)},'utf8'));assert.throws(()=>process.kill(pid,0),{code:'ESRCH'});`);
+  execFileSync(process.execPath,['--input-type=module','-e',wrapper],{timeout:10000});
+  const row=JSON.parse(readFileSync(join(root,'observation.json')));
+  assert.equal(row.signal,'SIGKILL');assert.equal(row.interrupted,'SIGTERM');assert.equal(row.descendants_reaped,false);
+});
+
+test('the actual command cannot inherit the private owner-protocol descriptor',async t=>{
+  const root=temporary(t),program='import errno,os\ntry: os.fstat(3)\nexcept OSError as e:\n assert e.errno==errno.EBADF\n print("private-owner-channel-not-inherited")\nelse: raise RuntimeError("inherited owner channel")';
+  const row=await captureCommand(root,'private-channel','/usr/bin/python3',['-I','-B','-c',program],root);
+  assert.equal(row.status,0);assert.equal(row.descendants_reaped,true);
+  assert.equal(readFileSync(join(root,'private-channel.stdout'),'utf8'),'private-owner-channel-not-inherited\n');
+});
+
+test('bounded reap passes cannot mistake remaining actual children for completion', {timeout:12000},t=>{
+  const root=temporary(t),program='import subprocess\nfor _ in range(8):\n p=subprocess.Popen(["/usr/bin/python3","-I","-B","-c","import time;time.sleep(60)"],start_new_session=True)\n print(p.pid,flush=True)';
+  const point='for _ in range(4096):';
+  const wrapper=ownerFault(root,point,'for _ in range(1):',
+    `await assert.rejects(captureCommand(${JSON.stringify(root)},'reap-budget','/usr/bin/python3',['-I','-B','-c',${JSON.stringify(program)}],${JSON.stringify(root)}),/orphaned output pipes/);
+    const pids=readFileSync(${JSON.stringify(join(root,'reap-budget.stdout'))},'utf8').trim().split('\\n').map(Number);assert.equal(pids.length,8);
+    for(const pid of pids)assert.throws(()=>process.kill(pid,0),{code:'ESRCH'});`);
+  execFileSync(process.execPath,['--input-type=module','-e',wrapper],{timeout:10000});
+  assert.equal(JSON.parse(readFileSync(join(root,'reap-budget.json'))).descendants_reaped,true);
+});
+
+test('loss of private reporting after spawn still retires the actual resistant command', {timeout:12000},t=>{
+  const root=temporary(t),ready=join(root,'ready');
+  const command=`process.on('SIGTERM',()=>{});require('node:fs').writeFileSync(${JSON.stringify(ready)},String(process.pid));setInterval(()=>{},1000)`;
+  const point='emit({"event": "started", "pid": self.process.pid})';
+  const replacement=`while not os.path.exists(${JSON.stringify(ready)}):\n                time.sleep(0.005)\n            os.close(3)\n            ${point}`;
+  const wrapper=ownerFault(root,point,replacement,
+    `await assert.rejects(captureCommand(${JSON.stringify(root)},'reporting-loss',process.execPath,['-e',${JSON.stringify(command)}],${JSON.stringify(root)}));
+    const pid=Number(readFileSync(${JSON.stringify(ready)},'utf8'));assert.throws(()=>process.kill(pid,0),{code:'ESRCH'});`);
+  execFileSync(process.execPath,['--input-type=module','-e',wrapper],{timeout:10000});
+  const row=JSON.parse(readFileSync(join(root,'reporting-loss.json')));
+  assert.equal(row.descendants_reaped,false);assert.equal(row.capture_failed,true);
+  assert.equal(readFileSync(join(root,'reporting-loss.stderr'),'utf8'),'','supervisor traceback must not contaminate original stderr');
+});
+
+test('extra and duplicate private completion messages cannot leave an acceptable failed record', {timeout:12000},t=>{
+  for(const extra of ['duplicate','unknown']) {
+    const root=temporary(t),point='return 0 if self.cleaned and self.error is None else 125';
+    const event=extra==='duplicate'
+      ? 'emit({"event": "completed", "status": status, "signal": signame, "orphaned": self.orphaned, "cleanup_verified": self.cleaned, "error": self.error})'
+      : 'emit({"event": "unknown"})';
+    const wrapper=ownerFault(root,point,event+'\n        '+point,
+      `await assert.rejects(captureCommand(${JSON.stringify(root)},'extra',process.execPath,['-e','process.stdout.write("original")'],${JSON.stringify(root)}));`);
+    execFileSync(process.execPath,['--input-type=module','-e',wrapper],{timeout:10000});
+    const row=JSON.parse(readFileSync(join(root,'extra.json')));
+    assert.equal(row.status,0);assert.equal(row.signal,null);assert.equal(row.descendants_reaped,false);assert.equal(row.capture_failed,true);
+    const files=new Map(['json','stdout','stderr'].map(suffix=>['extra.'+suffix,readFileSync(join(root,'extra.'+suffix))]));
+    assert.throws(()=>validateCommand(files,'extra',process.execPath,['-e','process.stdout.write("original")'],0));
+  }
 });
 
 test('cancellation after the leader exits terminates its resistant pipe-holding grandchild', {timeout: 12000}, async t => {

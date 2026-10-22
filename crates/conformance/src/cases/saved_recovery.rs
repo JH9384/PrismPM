@@ -125,7 +125,7 @@ fn acceptance(project: &Path, verified: &prismpm::controller::VerifyResult) {
     let evidence: Value = serde_json::from_slice(&acceptance_bytes).unwrap();
     assert_eq!(
         manifest["schema"],
-        "prismpm/library-verification-manifest/1"
+        "prismpm/library-verification-manifest/2"
     );
     assert_eq!(manifest["scope"], "native-library-only");
     assert_eq!(manifest["build_id"], verified.build_id);

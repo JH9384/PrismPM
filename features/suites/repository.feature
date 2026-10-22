@@ -35,6 +35,8 @@ Feature: repository
     Given the Justfile at repository root
     When recipe vv is executed
     Then it orchestrates the full acceptance pipeline
+    And pull requests and main changes execute both complete passes in the same checkout
+    And diagnostic workflow slices never replace the complete acceptance gate
 
   @RP-07 @build
   Scenario: The SPEC.md capability table and model/ids.toml are bijective and consistent.

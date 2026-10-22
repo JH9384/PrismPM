@@ -65,7 +65,7 @@ fn test_hologram_oracle_pinned_source_identities() {
     );
     assert_eq!(
         sha256_file(&r.join("crates/prismpm/src/embedded/hologram-oracle.browser.mjs")),
-        "0a240e26f32c3236bea618de84e26a84dfd18dd42caad24f79576d7528e842d8",
+        "268cd1d4904839dfd8cbd64a150305fe58d314f378d480c4c1eacd6ebf88429e",
         "hologram-oracle browser.mjs checksum changed"
     );
 
@@ -93,9 +93,23 @@ fn test_hologram_oracle_pinned_source_identities() {
 
 static HOLOGRAM_ORACLE_SERIAL_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-#[test]
-fn test_calculator_hologram_oracle_interoperability_acceptance() {
-    let _serial_guard = HOLOGRAM_ORACLE_SERIAL_MUTEX.lock().unwrap();
+struct VerifiedSubject {
+    artifacts: PathBuf,
+    binding: Value,
+    _guards: [CleanupGuard; 2],
+}
+
+fn subject_binding(artifacts: &Path, verified: &Path, name: &str, cargo_name: &str) -> Value {
+    json!({
+        "verification_manifest": verified.join("manifest.json"),
+        "verification_sha256": sha256_file(&verified.join("manifest.json")),
+        "model_sha256": sha256_file(&artifacts.join("model.prism.json")),
+        "archive_sha256": sha256_file(&artifacts.join(format!("{name}.holo"))),
+        "wasm_sha256": sha256_file(&artifacts.join("core-wasm").join(format!("{}_core_wasm.wasm", cargo_name.replace('-', "_")))),
+    })
+}
+
+fn calculator_hologram_oracle_interoperability_acceptance() -> VerifiedSubject {
     let r = root();
     let app_root = r.join("examples/Calculator");
     let _ = std::fs::remove_dir_all(app_root.join(".prism"));
@@ -200,11 +214,19 @@ fn test_calculator_hologram_oracle_interoperability_acceptance() {
     // Verify report passes the owning validator
     validate_hologram_oracle_report(&report, app, &identities)
         .expect("Calculator report must validate cleanly");
+    VerifiedSubject {
+        binding: subject_binding(
+            &app_root.join(".prism/build").join(&build.build_id),
+            &verified_dir,
+            "Calculator",
+            "prism-calculator",
+        ),
+        artifacts: app_root.join(".prism/build").join(&build.build_id),
+        _guards: [_guard, _lexlean_guard],
+    }
 }
 
-#[test]
-fn test_text_application_hologram_oracle_interoperability_acceptance() {
-    let _serial_guard = HOLOGRAM_ORACLE_SERIAL_MUTEX.lock().unwrap();
+fn text_application_hologram_oracle_interoperability_acceptance() -> VerifiedSubject {
     let r = root();
     let app_root = r.join("tests/fixtures/holo/ho-11-text-application/project");
     let _ = std::fs::remove_dir_all(app_root.join(".prism"));
@@ -306,6 +328,39 @@ fn test_text_application_hologram_oracle_interoperability_acceptance() {
     // Verify report passes the owning validator
     validate_hologram_oracle_report(&report, app, &identities)
         .expect("Text report must validate cleanly");
+    VerifiedSubject {
+        binding: subject_binding(
+            &app_root.join(".prism/build").join(&build.build_id),
+            &verified_dir,
+            "Text Request",
+            "prism-text-request",
+        ),
+        artifacts: app_root.join(".prism/build").join(&build.build_id),
+        _guards: [_guard, _lexlean_guard],
+    }
+}
+
+#[test]
+fn test_portable_view_profiles_and_owned_failure_matrix() {
+    let _serial_guard = HOLOGRAM_ORACLE_SERIAL_MUTEX.lock().unwrap();
+    // Preserve both complete acceptance bodies and keep their exact artifacts
+    // alive until the single fresh matrix compiler owner has finished.
+    let calculator = calculator_hologram_oracle_interoperability_acceptance();
+    let text = text_application_hologram_oracle_interoperability_acceptance();
+    let status = std::process::Command::new("timeout")
+        .args(["--signal=TERM", "--kill-after=15s", "1800s", "node"])
+        .arg(root().join("scripts/portable-oracle-matrix.mjs"))
+        .arg(&calculator.artifacts)
+        .arg(&text.artifacts)
+        .arg(calculator.binding.to_string())
+        .arg(text.binding.to_string())
+        .current_dir(root())
+        .status()
+        .expect("start bounded source-owned portable View matrix");
+    assert!(
+        status.success(),
+        "complete portable View matrix failed: {status}"
+    );
 }
 
 #[test]
@@ -353,7 +408,7 @@ fn test_hologram_oracle_negative_probes_reject_wrong_subject_edition_and_mutatio
         "guest_allocation_boundary": "verified",
         "intent_vectors": 5,
         "portable_browser": {
-            "browser_version": "151.0.7922.34",
+            "browser_version": "157.0.8099.0",
             "cases": cases,
             "engine": "chromium",
             "playwright": "1.62.1",

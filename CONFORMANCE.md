@@ -40,6 +40,7 @@ The three honesty levels:
 | `AU-04` | `build` | Authority and oracle verification reproduces from a populated cache with network access disabled. |
 | `AU-05` | `build` | Oracle runners are digest-bound, resource-bounded, networkless, and report exact covered and uncovered requirements. |
 | `AU-06` | `build` | Official positive and negative corpora plus Prism mutations detect stale, bypassed, changed, or always-passing oracles. |
+| `AU-07` | `build` | The imported OSCAL JSON structural oracle executes complete pinned schema corpora and bounded subject-capture adversaries without claiming implemented controls or whole-standard acceptance. |
 
 ## controller
 
@@ -115,6 +116,8 @@ The three honesty levels:
 | `HO-11` | `build` | The explicit text application profile projects to closed model-document/2, retaining legacy model-document/1 and rejecting invalid UTF-8 response, field, root, and byte-bound declarations. |
 | `HO-12` | `build` | Application verification executes the exact portable View in Chromium through the authoritative Hologram intent and Core-Wasm session, rejecting incomplete browser evidence. |
 | `HO-13` | `build` | The modeled browser-surface wire codec preserves legacy bytes, reproduces pinned upstream framing in generated std and no_std code, and rejects malformed or mixed profiles without granting browser authority. |
+| `HO-14` | `build` | Pinned BLAKE3 vectors qualify every imported digest mode, streaming partition and content-identity result without claiming cryptographic proof or durable native storage. |
+| `HO-15` | `build` | The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application. |
 
 ## lifecycle
 
@@ -140,6 +143,7 @@ The three honesty levels:
 | `OC-07` | `build` | Browser export replays the immutable release closure without source or execution and atomically copies only its exact browser artifacts without granting publication authority. |
 | `OC-08` | `build` | Browser publication integrity replays the source-free release and compares its complete browser closure at one explicit canonical HTTPS base, rejecting redirects and bounded transport failures without claiming deployment authorization or product acceptance. |
 | `OC-09` | `build` | A private source-modeled publication reducer binds complete stage obligations, immutable subjects, scoped authorization and distinct deployment evidence without treating conditional facts as authentication or enabling public deployment. |
+| `OC-10` | `build` | Private publication context linkage projects a unique source-owned declaration and binds generated canonical preimages to the complete captured release and tool closure without inventing absent identities, authenticating caller facts, or authorizing deployment. |
 
 ## operations
 
@@ -198,8 +202,18 @@ The three honesty levels:
 | `DK-23` | `build` | A source-owned bounded presentation codec and private closed DOM adapter preserve semantic labels, actions, lifecycle and plain text through actual generated execution without granting authority or accepting a public application. |
 | `DK-24` | `build` | The private generated operation journal persists exact admitted effect bindings before execution and authenticates durable terminal receipts on replay, retaining unresolved outcomes without retry or application acceptance. |
 | `DK-25` | `build` | Private modeled credential custody binds immutable application policy, complete logical key slots and exact signing resources to atomic nonextractable browser key creation and validated reopening without key export, silent replacement or account authority. |
+| `DK-26` | `build` | The private generated session kernel binds visible ordinary intents, admitted authority facts and exact effect continuations while separating durable application state from volatile presentation and retaining uncertain or closed pending work without claiming host durability or public runtime acceptance. |
 | `DK-27` | `build` | Private source-modeled effect budgets bind every admitted manifest resource and exact request to concrete per-resource maxima and immutable policy context without issuing grants or enabling public application builds. |
 | `DK-28` | `build` | SDK lock acquisition validates exact OCI metadata graphs and a closed terminal filesystem layer under explicit resource and credential bounds without full-image fallback or implying executable or release acceptance. |
+| `DK-29` | `build` | Native exporter acquisition binds bounded fresh compiler seeds to independent SDK inventory authority and actual child measurements without replacing cold construction, actual exports or application acceptance. |
+| `DK-30` | `build` | The internal native-lane reducer preserves exact operation identity, finite sequencing and conditional cleanup transitions in generated std/no_std execution and import-free Wasm corpus probes without granting OS authority or claiming native application acceptance. |
+| `DK-31` | `build` | Private source-owned dynamic choice names preserve bounded plain text, unique stable option identifiers, source order and exact selection through generated native/Wasm and browser execution without changing catalogue-based choices or granting authority. |
+| `DK-32` | `build` | Private source-owned signed contexts bind exact expected statements and keys to actual cryptographic verification and opaque captured evidence through complete generated and browser oracles without granting account, mailbox, organization or freshness authority. |
+| `DK-33` | `build` | Private source-owned account genesis preserves an immutable namespace, nonce and initial key in canonical domain-separated identity bytes without conflating account identity with signatures, current credentials, deployment revisions or authority. |
+| `DK-34` | `build` | Private source-owned P-256 public-key validation checks complete uncompressed SEC1 points with bounded generated field arithmetic and authoritative key-validation vectors before account or signature admission without claiming possession, authority or cryptographic certification. |
+| `DK-37` | `build` | Private contextual effect staging preserves exact source-generated requests, copied execution observations and one-shot actual completions without caller-selected execution identity, premature effects or public application acceptance. |
+| `DK-38` | `build` | Private source-owned semantic presentation binds exact input purposes, descriptions, errors, landmarks and bounded design catalogues to complete generated native/Wasm and rendered browser oracle checks without changing DK-23 bytes or granting application acceptance. |
+| `DK-35` | `build` | Private operation capture derives immutable predecessor, successor, observations and content descriptors from exact captured operation bytes through generated source kernels, with factory-owned revocable handles and complete native/Wasm/browser bounds, without authenticating current history, releasing effects or accepting a public application. |
 
 ## security
 
@@ -234,6 +248,7 @@ The three honesty levels:
 | `ST-14` | `build` | The internal candidate browser-bootstrap kernel binds admitted peer sessions to explicit public-operator policy, consent, bounded reservations and fail-closed channel lifecycle in generated native execution. |
 | `ST-15` | `build` | The internal organization lifecycle creates isolated provisional organizations without name privileges and composes scoped administration for revision-bound activation and founding-grant handover. |
 | `ST-16` | `build` | The internal bounded CBOR primitive profile preserves deterministic encoding, typed cursor limits and strict UTF-8 through generated native and bounded Wasm execution. |
+| `ST-17` | `build` | The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox. |
 
 ## supply-chain
 
@@ -291,6 +306,8 @@ The three honesty levels:
 
 | Authority | Edition | Immutable source | Acquired SHA-256 | Evidence here |
 | --- | --- | --- | --- | --- |
+| `BLAKE3-VECTORS-1-5-5` | `1.5.5` | https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/81f772a4cd70dc0325047a6a737d2f6f4b92180e/test_vectors/test_vectors.json | `dcb91ea8accc77e6d6e632af7cdc1a99a9f3ae78cf648da595c7d064db32f624` | `HO-14` |
+| `IETF-RFC-7636` | `September 2015` | https://www.rfc-editor.org/rfc/rfc7636.txt | `1972e5d81cbaba7066cfd46374207bc2b4546b085ed5dd9b034e79e023e0ca31` | `ST-17` |
 | `LEAN-REL-4-32-1` | `4.32.1` | https://codeload.github.com/leanprover/lean4/tar.gz/f054605aea4b840552cca2e725580bffd1e1b704 | `6dec8667fbf57ba480a18a8b0c353b2ee157346b2630b211ccbefeedf20545f8` | `VR-01`, `VR-02` |
 | `LAKE-4-32-1` | `4.32.1` | https://codeload.github.com/leanprover/lean4/tar.gz/f054605aea4b840552cca2e725580bffd1e1b704 | `6dec8667fbf57ba480a18a8b0c353b2ee157346b2630b211ccbefeedf20545f8` | `VR-03` |
 | `LEANCHECKER-4-32-1` | `4.32.1` | https://codeload.github.com/leanprover/lean4/tar.gz/f054605aea4b840552cca2e725580bffd1e1b704 | `6dec8667fbf57ba480a18a8b0c353b2ee157346b2630b211ccbefeedf20545f8` | `VR-04` |
@@ -311,11 +328,11 @@ The three honesty levels:
 | `SPDX-SCHEMA-3-0-1` | `3.0.1` | https://spdx.org/schema/3.0.1/spdx-json-schema.json | `582c64e809d5b3ef9bd0c4de13a32391b47b0284a3e8d199569fb96f649234b1` | `AU-06`, `SC-01` |
 | `SIGSTORE-COSIGN-3-1-3` | `3.1.3` | https://codeload.github.com/sigstore/cosign/tar.gz/11926fa5bbbbde47e88fc006b625a17769b743b2 | `3a718446bac51466efff6853639e1ca108b456ecbf07cd92938f548715d22d6b` | `AU-05`, `SC-03` |
 | `OSV-SCHEMA-B388` | `b388a18021a3` | https://codeload.github.com/ossf/osv-schema/tar.gz/b388a18021a32b55da40c31eaef9fd4ce780447d | `02fe51837bbb67fcd250151332ad1abc078f789e6d396585a4ae933e0c61c0e7` | `AU-05`, `SC-04` |
-| `OSV-CRATES-DB-G1791016356716892` | `gcs-generation-1791016356716892` | https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip?generation=1791016356716892 | `f0ceccc2365efb94eaba8c8408b8fc71f4b3ab4a63989dc8d9bcb7a97cdcba7b` | `AU-05`, `SC-04` |
-| `OSV-DEBIAN-DB-G1791021748693294` | `gcs-generation-1791021748693294` | https://osv-vulnerabilities.storage.googleapis.com/Debian/all.zip?generation=1791021748693294 | `b49ac72948636982c083903523475f9f42ccc6161c1a9abfd90eaa91ef8173f4` | `AU-05`, `SC-04` |
-| `OSV-GO-DB-G1791024451949238` | `gcs-generation-1791024451949238` | https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip?generation=1791024451949238 | `3af974072be912a3b660553658e09077014026b91e0ae0668cfbb5da3fd9da4a` | `AU-05`, `SC-04` |
-| `OSV-NPM-DB-G1791008266630460` | `gcs-generation-1791008266630460` | https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1791008266630460 | `a3e624ef9bac73b88eee9f745abb260d16ddbc531295d683f75ba59df85a83e8` | `AU-05`, `SC-04` |
-| `OSV-UBUNTU-DB-G1790980378457307` | `gcs-generation-1790980378457307` | https://osv-vulnerabilities.storage.googleapis.com/Ubuntu/all.zip?generation=1790980378457307 | `481a6953ebcc750220f78eef6b1c2c82af90ef7b74fbaaaf1467213c53c82514` | `AU-05`, `SC-04` |
+| `OSV-CRATES-DB-G1791549169090036` | `gcs-generation-1791549169090036` | https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip?generation=1791549169090036 | `b24f179d0985a66f5f7f425afda26f31dd89ed5f2768323b3ae6e71257c63308` | `AU-05`, `SC-04` |
+| `OSV-DEBIAN-DB-G1791731006592942` | `gcs-generation-1791731006592942` | https://osv-vulnerabilities.storage.googleapis.com/Debian/all.zip?generation=1791731006592942 | `5a6e92e44da92e0ae1a682e435dcb5205a818690b3feec0b1a3c79092b542862` | `AU-05`, `SC-04` |
+| `OSV-GO-DB-G1791633771842263` | `gcs-generation-1791633771842263` | https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip?generation=1791633771842263 | `dfe6c3aecd51e8d513c8c4bec54f9fbd4e2aee14b399e02c3af8c0038fe5edc8` | `AU-05`, `SC-04` |
+| `OSV-NPM-DB-G1791729183675786` | `gcs-generation-1791729183675786` | https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1791729183675786 | `6c73181a426017ba218cad317bbfa571d71b25d33a57e5d84326b8e74cc7d8bb` | `AU-05`, `SC-04` |
+| `OSV-UBUNTU-DB-G1791674281007622` | `gcs-generation-1791674281007622` | https://osv-vulnerabilities.storage.googleapis.com/Ubuntu/all.zip?generation=1791674281007622 | `c45c2791452b55990d08ae1ba4962a712081d6e0134bc5c5c6707d09adf50aba` | `AU-05`, `SC-04` |
 | `OTEL-SPEC-1-60-0` | `1.60.0` | https://codeload.github.com/open-telemetry/opentelemetry-specification/tar.gz/29ae8c7710d2ea52e21a5ff81fb1cd657bcd3306 | `92eb9f83837e0c28909b0bc1fc128001e263be0b8f0317e31323073d957aebe7` | `AU-01`, `OP-01` |
 | `OTEL-SEMCONV-1-37-0` | `1.37.0` | https://codeload.github.com/open-telemetry/semantic-conventions/tar.gz/aec6e9d3e86754683dab7c707655d69d953b2768 | `ff1e16f3cbf9f23a40b917bc15593cb542434412552d27a0fc1bbbd833cfe60e` | `AU-01`, `OP-01` |
 | `OTEL-COLLECTOR-0-136-0` | `0.136.0` | https://codeload.github.com/open-telemetry/opentelemetry-collector-releases/tar.gz/ff8d64f8bbdb45270cde7289bf39218514bbfd2d | `b844833e8c72e2661275c911d79885a49a3171be9563a7c8b4827b202582b207` | `AU-05`, `OP-01` |

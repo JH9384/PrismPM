@@ -1,0 +1,158 @@
+{
+  "scope": "Authenticated pinned-base source fixtures; not package, image-construction or SDK qualification.",
+  "image": "mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e",
+  "acquisition_receipt": {
+    "name": "pinned-runtime-base-apt-files-v2-20261014/receipt.json",
+    "sha256": "b144888df75f8704bb4867424360e9b0a12eb8386bebd73130db288561c40692"
+  },
+  "legacy_fixture_receipt": {
+    "name": "pinned-runtime-base-legacy-source-bytes-20261014/receipt.json",
+    "sha256": "bc436c23b9ea589cac1733b061714acad03276585b316e73df5211da5219ef43"
+  },
+  "architectures": [
+    {
+      "architecture": "amd64",
+      "manifest": "sha256:c091b21d9fae78c76e85cd4356431e9b018402f172a214fc7d7a5e9a7e29d8ac",
+      "config": "sha256:fee853fafa59550d162cef52bca02d907694b44ebf6ef9fb075bcc0c65d8dedb",
+      "layers": [
+        {
+          "digest": "sha256:ca2678b20700c15185707964d9211b1a6406196114bf675f568b6025d37b3888",
+          "bytes": 29735601,
+          "diff_id": "sha256:f103cd120fdd6cbc7f3d0e1d5bfb3e16290c32ead7b822d15c34460ecdf64b29"
+        },
+        {
+          "digest": "sha256:43f9c849a2a2ed077cd3cb38f656ad9f09487ee778fab00f6e14f28be3ff5276",
+          "bytes": 106888259,
+          "diff_id": "sha256:7977f86a68e25bf507c4e3faaedcba1ff90e851bf51e0dabc001bd862c207b89"
+        },
+        {
+          "digest": "sha256:dad65d3622fa1ce56a7f39dc0f4409caa5ec3f586892e61acea68b77306bd3c0",
+          "bytes": 3064292,
+          "diff_id": "sha256:5fef904f76c944dd8d1b43166f655548956154190c608e1c2aaf2ee8cd0e7c7b"
+        },
+        {
+          "digest": "sha256:00d16ab601f62bc6b0009d5f5cceeaa5ca6e4e9c1bb085a65f6fc41dca98a897",
+          "bytes": 287087840,
+          "diff_id": "sha256:9b7d8f2ce511d137301694fa020ceff796023cadef15c57367f2bad256391293"
+        },
+        {
+          "digest": "sha256:4d796d6a81781a9c3c9bbaa6e641a37b96cab44f1854681bb160a619373e1697",
+          "bytes": 296229610,
+          "diff_id": "sha256:8f5233eb992fd10952c1b59538c63cea539156a06280947046bbd9d572b3dd31"
+        },
+        {
+          "digest": "sha256:64112f4c67a22e08d1cb58235f61f32090e71513735bc1d9d8eb943ef08fd22c",
+          "bytes": 116164404,
+          "diff_id": "sha256:04fb1229b6ff4c5ee1d9e490ff9c504413e3f6df17899de6f944a52517256a27"
+        },
+        {
+          "digest": "sha256:782c0a3f363f1fe1bfe2815ccea30eabeb14192d8736420971909a2b587fc0e5",
+          "bytes": 110241108,
+          "diff_id": "sha256:41509d6f4662d20641f4830fe3e2d6947ac95f28b8aec746049eef4f9d33cfa4"
+        }
+      ],
+      "files": [
+        {
+          "path": "etc/apt/sources.list",
+          "bytes": 270,
+          "sha256": "8ce6407d5487bed332b5fcb4aab26dacf3f516d811c26792efb0c67f06f1958b",
+          "layer": "sha256:43f9c849a2a2ed077cd3cb38f656ad9f09487ee778fab00f6e14f28be3ff5276",
+          "fixture": "base.sources.list"
+        },
+        {
+          "path": "etc/apt/sources.list.d/ubuntu.sources",
+          "bytes": 2558,
+          "sha256": "0af89eff53f98803ea0d7088c5a1dd39a606c5e892e732ce60d6512e4e99a420",
+          "layer": "sha256:43f9c849a2a2ed077cd3cb38f656ad9f09487ee778fab00f6e14f28be3ff5276",
+          "fixture": "amd64.ubuntu.sources"
+        },
+        {
+          "path": "usr/share/keyrings/ubuntu-archive-keyring.gpg",
+          "bytes": 3607,
+          "sha256": "80a36b0a6de2f69f49d2df75ef473ccde121e9e190b9ea01d20a4f63778d5c31",
+          "layer": "sha256:ca2678b20700c15185707964d9211b1a6406196114bf675f568b6025d37b3888",
+          "fixture": null
+        },
+        {
+          "path": "etc/apt/sources.list.d/nodesource.list",
+          "bytes": 100,
+          "sha256": "c1884b585d63761c5493e22bd5eb7e9912c6f9f1adda4b18be64506aaa8482cd",
+          "layer": "sha256:43f9c849a2a2ed077cd3cb38f656ad9f09487ee778fab00f6e14f28be3ff5276",
+          "fixture": "amd64.nodesource.list"
+        }
+      ]
+    },
+    {
+      "architecture": "arm64",
+      "manifest": "sha256:941cc91e5022880ac1d14ae90b476b624deb6399dbbc28d612d5d5bd7928fcbd",
+      "config": "sha256:caa6083aa787e4cfcaa661c73dd6244e4fa38d754dab0cc3b472156b277b0394",
+      "layers": [
+        {
+          "digest": "sha256:4b987da45db4d6278590ab89840c7167ea397df222f3ee4cdb77c3e15694b1a9",
+          "bytes": 28884180,
+          "diff_id": "sha256:2c042ab36ee22da5e09730c3dce27e9d84ff1cc8af8e5a8ed2275c05f0133445"
+        },
+        {
+          "digest": "sha256:3b4108e039057bbe22b6f887041bca981d5504f96595e0d3fa966fb14f36f3b9",
+          "bytes": 106615622,
+          "diff_id": "sha256:76ad670264fabe9fb2602fe3e18524d4c0eb5baad8137dd327f9583977afc83f"
+        },
+        {
+          "digest": "sha256:ef25911c554ec6d3535ad1dd8f10f58d8d1899c183307993eec71fd6283ce63a",
+          "bytes": 3064293,
+          "diff_id": "sha256:5d31e3415fbf2ace8186495818788cafbab593f03de9bf7c8fe25126fcfd024e"
+        },
+        {
+          "digest": "sha256:14416b103b982bc9909ed63429377136f9a3d140047258745701d3cb81b8bcd0",
+          "bytes": 274546798,
+          "diff_id": "sha256:265b12ab6514d10bae8a2b1303339cb787e0a834414d78c56ce2f4dd15119965"
+        },
+        {
+          "digest": "sha256:196afb75b8e512124a49e0fc74e2a268d8c2ffbddeb63776c559420726de822e",
+          "bytes": 333133137,
+          "diff_id": "sha256:ac250c9dbef8b377b0b4adb6a96fc30f02d0626b71f7dd05ed8a11167c994d2a"
+        },
+        {
+          "digest": "sha256:23c61d9da6d37e2685534be050b5842f9618e0cb6817fd413fc8e748f6721f2a",
+          "bytes": 108064382,
+          "diff_id": "sha256:b905f8de532f40f8146e87570672ff918246b4cdccbc5286e314e4a2e816ee2e"
+        },
+        {
+          "digest": "sha256:343bd5029fffebe3c9abfe3ab0639f5c4b3bb652c2a16be01f2c58d4e3842de4",
+          "bytes": 105384778,
+          "diff_id": "sha256:f2e82d610c03274c57c070bd0393fa8cabc1f6418b96faf6044ee48b45661b62"
+        }
+      ],
+      "files": [
+        {
+          "path": "etc/apt/sources.list",
+          "bytes": 270,
+          "sha256": "8ce6407d5487bed332b5fcb4aab26dacf3f516d811c26792efb0c67f06f1958b",
+          "layer": "sha256:3b4108e039057bbe22b6f887041bca981d5504f96595e0d3fa966fb14f36f3b9",
+          "fixture": "base.sources.list"
+        },
+        {
+          "path": "etc/apt/sources.list.d/ubuntu.sources",
+          "bytes": 2571,
+          "sha256": "a5c1330cb0dae4b62b9bf954fa1507e8c0bd4642dc398c60ac13a7539b4ef0f1",
+          "layer": "sha256:3b4108e039057bbe22b6f887041bca981d5504f96595e0d3fa966fb14f36f3b9",
+          "fixture": "arm64.ubuntu.sources"
+        },
+        {
+          "path": "usr/share/keyrings/ubuntu-archive-keyring.gpg",
+          "bytes": 3607,
+          "sha256": "80a36b0a6de2f69f49d2df75ef473ccde121e9e190b9ea01d20a4f63778d5c31",
+          "layer": "sha256:4b987da45db4d6278590ab89840c7167ea397df222f3ee4cdb77c3e15694b1a9",
+          "fixture": null
+        },
+        {
+          "path": "etc/apt/sources.list.d/nodesource.list",
+          "bytes": 100,
+          "sha256": "c1884b585d63761c5493e22bd5eb7e9912c6f9f1adda4b18be64506aaa8482cd",
+          "layer": "sha256:3b4108e039057bbe22b6f887041bca981d5504f96595e0d3fa966fb14f36f3b9",
+          "fixture": "arm64.nodesource.list"
+        }
+      ]
+    }
+  ]
+}

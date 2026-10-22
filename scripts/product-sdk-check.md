@@ -14,6 +14,10 @@ image-owned registry, not a handwritten package or crates.io qualification.
 A fresh offline receiver receives only the OCI graph and checks source-free
 replay/export, missing/changed proof rejection and restored export. Inventory,
 locks, advisory results, generated SPDX and exact identities remain evidence.
+Every A/B proof in both producer roots must retain the original application
+regeneration manifest with authenticated native exporter-seed acquisition.
+The source-free receiver rechecks that same manifest against its independently
+installed inventory and source archive/toolchain; cold fallback is rejected.
 This gate grants neither SDK release acceptance nor deployment authorization.
 Unit boundary fixtures do not count as installed-image execution.
 

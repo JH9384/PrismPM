@@ -114,21 +114,21 @@ fn lean4_prod_dependency_record_and_checksums_are_valid() {
 
     assert_eq!(record.id, "lean4-prod");
     assert_eq!(record.lean_version.as_deref(), Some("4.32.1"));
-    assert_eq!(record.revision, "6272da01ea2045906f5f844988b6265d6c867f39");
+    assert_eq!(record.revision, "991956fe427bb646498fd0912c89b71be71e7beb");
     assert_eq!(record.source, "vendored");
 
     let expected_artifacts: HashMap<&str, (&str, Option<&str>)> = HashMap::from([
         (
             "vendor/lean4-prod/lean.tar",
             (
-                "ce6c258440eda742df7162bdd4228b2ed4aae5416730cd770a98ecfc4185bf69",
+                "7a1a716a57040ea2307f7a34e895a75ebdca7438cf9d5d0364007acb594366bf",
                 None,
             ),
         ),
         (
             "vendor/lean4-prod/rust/MANIFEST.sha256",
             (
-                "5d10d5fd7a2298a6bcb7484c36f0f91f953a60b4784815227ae7c7cad32e7cf6",
+                "15675cbaf5df13a032f29eab947dd34b7fcf9c52f7d9f9f08bed8718d7a01d42",
                 Some("vendor/lean4-prod/rust"),
             ),
         ),
@@ -142,7 +142,7 @@ fn lean4_prod_dependency_record_and_checksums_are_valid() {
         (
             "vendor/lean4-prod/crates/prod-codegen-0.1.0.crate",
             (
-                "48d1407dbb7ad7776dd8e2a61ca5620b60b948ace3276c52bf45493730d162e4",
+                "6bd6690fef4a453ad58ee8e8ea1378f53a151aeb2c3aa00b092b582fe89e07fc",
                 None,
             ),
         ),
@@ -309,17 +309,17 @@ spec = "prismpm/dependencies/1"
 [[dependency]]
 id = "lean4-prod"
 lean_version = "4.32.1"
-revision = "6272da01ea2045906f5f844988b6265d6c867f39"
+revision = "991956fe427bb646498fd0912c89b71be71e7beb"
 source = "vendored"
 
 [[dependency.artifact]]
 kind = "file"
 path = "vendor/lean4-prod/lean.tar"
-sha256 = "ce6c258440eda742df7162bdd4228b2ed4aae5416730cd770a98ecfc4185bf69"
+sha256 = "7a1a716a57040ea2307f7a34e895a75ebdca7438cf9d5d0364007acb594366bf"
 "#;
 
     let parsed = parse_lean4_prod_dependency(valid_toml).expect("valid parse");
-    assert_eq!(parsed.revision, "6272da01ea2045906f5f844988b6265d6c867f39");
+    assert_eq!(parsed.revision, "991956fe427bb646498fd0912c89b71be71e7beb");
 
     // Probe 1: Missing lean4-prod section
     let missing_toml = r#"

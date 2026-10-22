@@ -3,8 +3,12 @@ import {bytesCopy} from './identity.mjs';
 import {decodePresentation, encodeIntent, validateIntent, presentationRequiresSecret,
   intentRequiresSecret, progressFits, PresentationError,
   PRESENTATION_MAXIMUM} from './presentation-wire.mjs';
+import {decodeSemanticPresentation, semanticCatalogueFits, semanticMainNode,
+  captureDesignCatalogue} from './semantic-presentation-wire.mjs';
+import {semanticStyle} from './semantic-presentation-style.mjs';
 
 const roots = new WeakMap(), presentations = new WeakMap(), progressTokens = new WeakMap(), encoder = new TextEncoder();
+let semanticSequence = 0;
 const fail = code => { throw new PresentationError(code); };
 const errorText = 'Unable to submit this request.';
 const exact = (value, keys) => {
@@ -43,13 +47,26 @@ export function progressPresentation(view, token, bytes) {
 
 export function openPresentation(options) {
   if (arguments.length !== 1) fail('options');
-  let root, labels, dispatch, secretDispatch, maximum, requestMaximum;
+  return open(options, false);
+}
+
+// Private envelope entry. The original DK-23 Presentation/Intent wire and API
+// stay unchanged; only this entry admits source-owned semantic annotations.
+export function openSemanticPresentation(options) {
+  if (arguments.length !== 1) fail('options');
+  return open(options, true);
+}
+
+function open(options, semantic) {
+  let root, labels, designs, dispatch, secretDispatch, maximum, requestMaximum;
   try {
     const keys = ['root', 'labels', 'dispatch', 'maximum', 'requestMaximum'];
+    if (semantic) keys.push('designs');
     const hasSecretSink = Object.hasOwn(options, 'secretDispatch');
     if (hasSecretSink) keys.push('secretDispatch');
-    ({root, labels, dispatch, secretDispatch, maximum, requestMaximum} = exact(options, keys));
+    ({root, labels, designs, dispatch, secretDispatch, maximum, requestMaximum} = exact(options, keys));
     labels = catalogue(labels);
+    if (semantic) designs = captureDesignCatalogue(designs);
     for (const bound of [maximum, requestMaximum]) {
       if (!Number.isInteger(bound) || bound < 1 || bound > PRESENTATION_MAXIMUM) fail('limit');
     }
@@ -62,8 +79,13 @@ export function openPresentation(options) {
     fail('options');
   }
   const document = root.ownerDocument;
+  let scope;
+  if (semantic) {
+    do { scope = 'prismpm-semantic-' + ++semanticSequence; }
+    while (document.querySelector(`[id^="${scope}-"],[data-semantic-presentation="${scope}"]`));
+  }
   let closed = false, frame, captured, nodes = new Map(), forms = new Map();
-  let actionNodes = new Map(), active = null, diagnostic, context = {};
+  let actionNodes = new Map(), active = null, diagnostic, status, context = {};
   const ownership = {};
   roots.set(root, ownership);
   const element = (tag, text) => {
@@ -88,12 +110,15 @@ export function openPresentation(options) {
     root.removeEventListener('input', onEdit);
     root.removeEventListener('change', onEdit);
     if (roots.get(root) === ownership) {
-      if (clear) { roots.delete(root); root.replaceChildren(); root.removeAttribute('aria-busy'); }
+      if (clear) {
+        roots.delete(root); root.replaceChildren(); root.removeAttribute('aria-busy');
+        if (semantic) root.removeAttribute('data-semantic-presentation');
+      }
     }
   };
   function onEdit(event) {
     for (const record of nodes.values()) {
-      if (record.control === event.target && [5, 6, 7].includes(record.tag)) record.edited = true;
+      if (record.control === event.target && [5, 6, 7, 11].includes(record.tag)) record.edited = true;
     }
   }
   // Deliberately outside the raw request capture scope. Retained handlers own
@@ -116,7 +141,7 @@ export function openPresentation(options) {
     const fields = action[5].map(id => {
       const record = nodes.get(id), control = record.control;
       let value = control.value;
-      if (record.tag === 7) value = value === '' ? 0 : Number(value);
+      if (record.tag === 7 || record.tag === 11) value = value === '' ? 0 : Number(value);
       else if (record.tag !== 10 && !record.edited && value === record.nativeDefault) value = record.defaultValue;
       return [id, value];
     });
@@ -186,7 +211,10 @@ export function openPresentation(options) {
     let bytes;
     try { bytes = bytesCopy(value, maximum); } catch { fail('bytes'); }
     if (!progress && captured && same(bytes, captured)) { if (!record) { context = {}; revoke(active); } return; }
-    const next = decodePresentation(bytes, maximum);
+    const envelope = semantic ? decodeSemanticPresentation(bytes, maximum) : undefined;
+    const next = semantic ? envelope[1] : decodePresentation(bytes, maximum);
+    if (semantic && !semanticCatalogueFits(envelope, labels.length, designs.length)) fail('labels');
+    const annotations = new Map(envelope?.[5].map(annotation => [annotation[0], annotation]) ?? []);
     if (frame && next[1] <= frame[1]) fail('stale');
     if (!secretDispatch && presentationRequiresSecret(next)) fail('binding');
     const label = index => {
@@ -214,16 +242,32 @@ export function openPresentation(options) {
     const fragment = document.createDocumentFragment(), nextNodes = new Map(), nextForms = new Map();
     const nextActions = new Map();
     try {
+      // The connected atomic region survives accepted revisions. Initial
+      // text is inserted only after its live-region semantics are mounted.
+      if (!status) {
+        status = element('p');
+        status.setAttribute('role', 'status'); status.setAttribute('aria-atomic', 'true');
+        status.dataset.presentationStatus = '';
+      }
       // Clear even detached/replaced controls retained by other DOM references.
       // A ready same-context revision may retain only its live password value.
       for (const record of nodes.values()) if (record.tag === 10) {
         const replacement = next[6][record.id - 1];
         if (frame[2] !== 0 || next[2] !== 0 || !replacement || replacement[0] !== record.parent
-          || replacement[1][0] !== 10 || !same(replacement[1], record.secretShape)) record.control.value = '';
+          || replacement[1][0] !== 10 || !same(replacement[1], record.secretShape)
+          || (semantic && !same(annotations.get(record.id) ?? [], record.annotation ?? []))) record.control.value = '';
       }
-      const status = element('p', next[3] ? label(next[3] - 1) : '');
-      status.setAttribute('role', 'status'); status.setAttribute('aria-live', ['off', 'polite', 'assertive'][next[4]]);
-      status.dataset.presentationStatus = ''; fragment.append(status);
+      if (semantic) {
+        const style = element('style', semanticStyle(scope, designs[envelope[2]], envelope[3]));
+        style.dataset.presentationStyle = ''; fragment.append(style);
+        if (envelope[4]) {
+          const skip = element('a', label(envelope[4] - 1));
+          skip.href = `#${scope}-node-${semanticMainNode(envelope)}`;
+          skip.dataset.presentationSkip = ''; fragment.append(skip);
+        }
+      }
+      const statusPosition = document.createComment('presentation status');
+      fragment.append(statusPosition);
       for (let index = 0; index < next[6].length; index++) {
         const id = index + 1, [parent, content] = next[6][index], tag = content[0];
         const previous = nodes.get(id), retained = previous?.tag === tag ? previous : undefined;
@@ -232,24 +276,26 @@ export function openPresentation(options) {
           record = retained ?? {element: element('label'), control: element('input')};
           const control = record.control;
           record.preservedDraft = Boolean(retained && frame[2] === 0 && next[2] === 0
-            && record.parent === parent && same(content, record.secretShape));
+            && record.parent === parent && same(content, record.secretShape)
+            && (!semantic || same(annotations.get(id) ?? [], record.annotation ?? [])));
           if (!record.preservedDraft) control.value = '';
           control.type = 'password'; control.autocomplete = 'off'; control.spellcheck = false;
           control.disabled = !content[2]; control.required = content[3]; control.maxLength = content[4];
           record.secretShape = content; record.draftEpoch = content[5];
           record.element.replaceChildren(element('span', label(content[1])), control);
-        } else if ([5, 6, 7].includes(tag)) {
+        } else if ([5, 6, 7, 11].includes(tag)) {
           record = retained ?? {element: element('label'), control: element(tag === 5 ? 'input' : tag === 6 ? 'textarea' : 'select')};
-          const control = record.control, defaultValue = tag === 7 ? content[4] : content[5];
-          const preserve = retained && record.defaultValue === defaultValue && record.draftEpoch === content[6];
+          const control = record.control, defaultValue = tag === 7 || tag === 11 ? content[4] : content[5];
+          const preserve = retained && record.defaultValue === defaultValue && record.draftEpoch === content[6]
+            && (!semantic || (annotations.get(id)?.[1] ?? 0) === (record.annotation?.[1] ?? 0));
           record.preservedDraft = Boolean(preserve);
           const current = control.value;
           if (tag === 5) control.type = 'text';
           control.autocomplete = 'off'; control.disabled = !content[2]; control.required = content[3];
-          if (tag === 7) {
+          if (tag === 7 || tag === 11) {
             const options = [element('option', '')]; options[0].value = '';
             for (const [optionId, title] of content[5]) {
-              const option = element('option', label(title)); option.value = String(optionId); options.push(option);
+              const option = element('option', tag === 11 ? title : label(title)); option.value = String(optionId); options.push(option);
             }
             control.replaceChildren(...options);
             control.value = preserve && (current === '' || content[5].some(option => String(option[0]) === current))
@@ -282,12 +328,59 @@ export function openPresentation(options) {
           }
         }
         Object.assign(record, {id, tag, parent}); record.element.tabIndex = -1;
+        if (semantic) {
+          const annotation = annotations.get(id) ?? [id, 0, 0, 0, 0, 0];
+          const [, purpose, helper, error, landmark, layout] = annotation;
+          record.annotation = annotations.get(id) ?? [];
+          record.element.id = `${scope}-node-${id}`;
+          if (landmark) record.element.setAttribute('role', ['', 'main', 'banner', 'complementary', 'contentinfo'][landmark]);
+          if (layout) record.element.dataset.presentationLayout = String(layout);
+          if ([5, 6, 7, 10, 11].includes(tag)) {
+            const control = record.control, caption = record.element.firstChild;
+            caption.id = `${scope}-label-${id}`;
+            control.setAttribute('aria-labelledby', caption.id);
+            control.removeAttribute('inputmode');
+            control.autocomplete = ['off', 'off', 'name', 'organization', 'email', 'username',
+              'current-password', 'new-password', 'one-time-code'][purpose];
+            // type=email trims input and would alter DK-23 byte semantics.
+            if (purpose === 4) control.inputMode = 'email';
+            const descriptions = [];
+            for (const [name, index] of [['helper', helper], ['error', error]]) if (index) {
+              const description = element('span', label(index - 1));
+              description.id = `${scope}-${name}-${id}`;
+              description.dataset[name === 'error' ? 'presentationError' : 'presentationHelper'] = '';
+              record.element.append(description); descriptions.push(description.id);
+            }
+            if (descriptions.length) control.setAttribute('aria-describedby', descriptions.join(' '));
+            else control.removeAttribute('aria-describedby');
+            if (error) {
+              control.setAttribute('aria-invalid', 'true');
+              control.setAttribute('aria-errormessage', `${scope}-error-${id}`);
+            } else {
+              control.removeAttribute('aria-invalid'); control.removeAttribute('aria-errormessage');
+            }
+          }
+        }
         record.element.dataset.presentationNode = String(id); nextNodes.set(id, record);
         (parent ? nextNodes.get(parent).element : fragment).append(record.element);
       }
       diagnostic = element('p'); diagnostic.setAttribute('role', 'alert');
       diagnostic.dataset.presentationDiagnostic = ''; fragment.append(diagnostic);
-      root.replaceChildren(fragment); root.setAttribute('aria-busy', String(next[2] === 1));
+      if (semantic) root.dataset.semanticPresentation = scope;
+      if (status.parentNode === root) {
+        for (const child of [...root.childNodes]) if (child !== status) child.remove();
+        let afterStatus = false;
+        for (const child of [...fragment.childNodes]) {
+          if (child === statusPosition) { afterStatus = true; continue; }
+          if (afterStatus) root.append(child); else root.insertBefore(child, status);
+        }
+      } else {
+        root.replaceChildren(fragment); statusPosition.replaceWith(status);
+      }
+      root.setAttribute('aria-busy', String(next[2] === 1));
+      status.setAttribute('aria-live', ['off', 'polite', 'assertive'][next[4]]);
+      const message = next[3] ? label(next[3] - 1) : '';
+      if (status.textContent !== message) status.textContent = message;
       frame = next; captured = bytes; nodes = nextNodes; forms = nextForms; actionNodes = nextActions; context = {};
       if (record && record.live) { record.frame = next; record.context = context; }
       const surviving = focused && nodes.get(focused.id);

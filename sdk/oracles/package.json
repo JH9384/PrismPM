@@ -7,6 +7,7 @@
     "@asyncapi/parser": "3.6.3",
     "ajv": "8.20.0",
     "ajv-draft-04": "1.0.0",
+    "axe-core": "4.13.0",
     "js-yaml": "4.3.2",
     "jsonc-parser": "2.2.1",
     "playwright": "1.62.1"

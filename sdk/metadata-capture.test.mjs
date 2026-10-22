@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {readFileSync} from 'node:fs';
 import {captureMetadataLock} from './metadata-capture.mjs';
 import {sha} from './metadata-layer.mjs';
 import {fixture, encode} from './metadata-test-fixture.mjs';
@@ -14,6 +15,18 @@ test('bounded capture returns the ordinary complete lock from exact raw graph by
     const inventory = f.inventories.get(row.platform.split('/')[1]);
     assert.equal(row.inventory_document, inventory.toString()); assert.equal(row.inventory_digest, sha(inventory));
     assert.deepEqual(row.inventory, JSON.parse(inventory).artifacts);
+  }
+  for (const row of JSON.parse(readFileSync(new URL('./sdk-index-extensions.json', import.meta.url), 'utf8'))) {
+    const original = f.index.toString();
+    const raw = row.location === 'root' ? '{' + row.member + ',' + original.slice(1)
+      : row.location === 'descriptor' ? original.replace('"manifests":[{', '"manifests":[{' + row.member + ',')
+      : original.replace('"platform":{', '"platform":{' + row.member + ',');
+    assert.notEqual(raw, original, row.id);
+    const bytes = Buffer.from(raw), reference = f.reference.split('@')[0] + '@' + sha(bytes);
+    const capture = () => captureMetadataLock(reference, sha(f.standards), request =>
+      request.reference === reference ? Promise.resolve(bytes) : f.transport(request));
+    if (row.accepted) assert.equal((await capture()).sdk_index, raw, row.id);
+    else await assert.rejects(capture(), undefined, row.id);
   }
 });
 
@@ -66,5 +79,33 @@ test('invalid repository paths and ports are refused before any acquisition', as
     let fetched = false;
     await assert.rejects(captureMetadataLock(repository + '@' + sha('test'), sha('standards'), async () => {fetched = true;}));
     assert.equal(fetched, false);
+  }
+});
+
+test('coherently digest-bound manifest numeric tokens cannot round into capture authority',async t=>{
+  const paths=[['schemaVersion'],['config','size'],['layers',0,'size'],['layers',1,'size']];
+  for(const path of paths) for(const fractional of [false,true]) {
+    const f=fixture(t),index=JSON.parse(f.index),descriptor=index.manifests[0];
+    const manifest=JSON.parse(f.blobs.get(descriptor.digest));
+    let parent=manifest;for(const key of path.slice(0,-1)) parent=parent[key];
+    const value=parent[path.at(-1)],marker='__exact_capture_numeric_token__';
+    assert.equal(typeof value,'number');parent[path.at(-1)]=marker;
+    const token=fractional?`${value}.0000000000000000001`:`${value}0e-1`;
+    const encoded=JSON.stringify(manifest),quoted=JSON.stringify(marker);
+    assert.equal(encoded.split(quoted).length,2);
+    const bytes=Buffer.from(encoded.replace(quoted,token));
+    assert.equal(path.reduce((current,key)=>current[key],JSON.parse(bytes)),value);
+    descriptor.digest=sha(bytes);descriptor.size=bytes.length;f.blobs.set(descriptor.digest,bytes);
+    const indexBytes=encode(index),reference=f.reference.split('@')[0]+'@'+sha(indexBytes);
+    f.blobs.set(sha(indexBytes),indexBytes);
+    const capture=()=>captureMetadataLock(reference,sha(f.standards),f.transport);
+    if(fractional) {
+      await assert.rejects(capture(),/fractional|bound/);
+      assert.deepEqual(f.calls.map(call=>call.kind),['manifest','manifest'],'invalid original manifest bytes must prevent config/layer acquisition');
+    } else {
+      const lock=await capture();
+      assert.equal(lock.sdk_image,reference);assert.equal(lock.sdk_index,indexBytes.toString());
+      assert.equal(f.calls.length,7);assert.equal(lock.platforms[0].manifest_digest,sha(bytes));
+    }
   }
 });

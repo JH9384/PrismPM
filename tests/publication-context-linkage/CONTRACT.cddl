@@ -1,0 +1,74 @@
+; OC-10 construction proposal, not an enabled public format.
+; Existing declaration/context refer to unchanged OC-09 V1.cddl definitions.
+digest = bstr .size 32
+text = tstr .size (1..2048)
+id = tstr .size (1..128)
+member = [module: text, name: text]
+service = [id, components: [1*65536 id]]
+proof-requirement = [0, audited-member: member]
+input-selector = [0, retained-build-path: text] / [1, source-member: member] / [2]
+; tag2 selects the complete source declaration target, never a caller URL.
+execution-requirement = [1, oracle: id, input-selector, suite: digest]
+assessment-requirement = [2, criterion: text, subject: text]
+requirement-value = proof-requirement / execution-requirement / assessment-requirement
+requirement = [obligation: 1..4294967295, source-member: member, requirement-value]
+; Lists are sorted/unique. Component count is aggregate, not per-service.
+; Requirement list exactly covers the existing declaration obligation list.
+closure = [system: member, target: id, declaration,
+ services: [1*65536 service], controls: [*65536 id],
+ requirements: [2*4096 requirement]]
+
+; Captured file rows contain hashes computed over actual immutable input bytes.
+; Byte lengths remain enforced by the existing OCI capture; the hash binds them.
+file = [path: text, digest]
+files = [*65536 file]
+source-link = [snapshot: digest, source: digest, semantic: digest, compiler: digest,
+ closure-member: member, module-source: digest, system-member: member,
+ system: digest, target: id]
+; Every selected canonical record is from an independently replayed source/OCI
+; artifact, not a second caller-owned JSON or CBOR serialization.
+id-record = [id, canonical-record-sha256: digest]
+records = [*65536 id-record]
+dependency-record = [captured-uri: text, canonical-record-sha256: digest]
+dependencies = [*65536 dependency-record]
+services-body = [source-link, services: [1*65536 service], components: records]
+controls-body = [source-link, controls: [*65536 id], control-records: records,
+ standards-lock: digest, requirements: [2*4096 requirement]]
+dependencies-body = [provenance: digest, complete-dependencies: dependencies]
+compiler-body = [sdk-lock: digest, lexlean-build-manifest: digest,
+ lexlean-attestation: digest, build-manifest: digest, verification-manifest: digest]
+runtime-body = [verification-manifest: digest, verification-files: files,
+ browser-files: files]
+; verification-files must include manifest.json with that same digest. Its
+; complete process inventory is replayed; no command-name subset is selected.
+oracles-body = [source-link, requirements: [2*4096 requirement],
+ standards-lock: digest, sdk-lock: digest, release-validation: digest,
+ oracle-attestations: files]
+; Each body has a separate UTF8 prismpm/publication-<name>-closure/1 + NUL domain.
+; Generated codec emits those exact bytes; host SHA-256 produces subject fields.
+; Whole metadata frame/result <= 64 MiB; source inventories preserve all entries.
+; No operation in this proposal admits trust/readiness or changes OC-09 state.
+
+; One closed capture carries each shared value once. The generated source checks
+; that body partitions/references agree before emitting any aggregate preimage.
+capture = [source-link, components: records, control-records: records,
+ provenance: digest, dependencies, sdk-lock: digest,
+ standards-lock: digest, lexlean-build-manifest: digest,
+ lexlean-attestation: digest, build-manifest: digest,
+ verification-manifest: digest, verification-files: files,
+ browser-files: files, release-validation: digest, oracle-attestations: files]
+request = [1, 0, closure, capture]
+preimage = bstr .size (1..67108864)
+response = [1, 0, declaration: preimage, services: preimage, controls: preimage,
+ dependencies: preimage, compiler: preimage, runtime: preimage, oracles: preimage]
+ / [1, 1, linkage-error: 0..3] / [1, 2, cbor-error: 0..8]
+; linkage error order: 0 invalid typed metadata/bounds, 1 source/reference
+; mismatch, 2 non-exact inventory partition, 3 requirement mapping mismatch.
+; Whole response (not each individual field alone) remains <=64 MiB.
+; A private byte projection invokes the canonical typed six-field helper.
+; It never consumes an incomplete context or invented self-digest.
+context-fields = [declaration, declaration-identity: digest, subject,
+ instance: digest, publisher-revision: bstr .size 20, publisher-ref: text]
+context-fields-request = [1, 0, context-fields]
+context-fields-response = [1, 3, preimage] / [1, 2, cbor-error: 0..8]
+; Existing V1Wire operation4 delegates to that same helper, unchanged.

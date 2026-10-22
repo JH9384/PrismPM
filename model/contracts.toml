@@ -51,6 +51,16 @@ extension_policy = "closed"
 compatibility = "exact-major"
 
 [[contract]]
+schema = "prismpm/library-verification-manifest/2"
+path = "schemas/library-verification-manifest-v2.schema.json"
+media_type = "application/vnd.prismpm.library-verification.v2+json"
+identity = "sha256-canonical-json"
+maximum_bytes = 16777216
+maximum_items = 65536
+extension_policy = "closed"
+compatibility = "exact-major"
+
+[[contract]]
 schema = "prismpm/model-document/3"
 path = "schemas/model-document-v3.schema.json"
 media_type = "application/vnd.prismpm.model-document.v3+json"

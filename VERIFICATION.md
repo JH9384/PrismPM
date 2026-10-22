@@ -1,5 +1,573 @@
 # PrismPM falsifiability and verification record
 
+## Unaccepted integration checkpoint (2026-10-14)
+
+The production-component/compiler reconciliation is preparation only. Current
+generated stdlib, both native records, installed SDK, downstream/security checks
+and both complete consecutive 15-gate VV passes still require fresh qualification.
+Records below retain their historical revisions and do not qualify this checkpoint.
+
+## Integrated source release binding (2026-10-08)
+
+The current 117-root generated package binds IR
+`66b27a91e72cf6d82a5991149c85f5038773e79ef0203e7b086fb988857b5163`.
+Normal offline Cargo packaging and verification produce archive
+`31795eac06fbf1d64c77ffe66b5492964c069e1f2fea41efbf6a17054cf369d7`,
+sealed to semantic identity
+`fcc30c57c1c30e8024afb6d73a6d72caa7de7f4b909670c6a484304560a962b1`.
+Native run `37716977593` at `ee207ff1` passes both architectures, including
+38 exporter-seed controls and separate 411-file golden comparisons. Six
+original native records and the Cargo archive/seal were independently reviewed
+before import. These are source-generation and packaging results, not installed
+SDK, full V&V or release acceptance. Earlier sections retain historical runs;
+their identities do not describe this integration.
+
+Control integration mapping: incoming contextual-effects DK-28 is DK-37;
+incoming semantic-presentation DK-29 is DK-38. Existing SDK acquisition DK-28
+and exporter-seed DK-29 are unchanged. Historical receipts retain their original
+IDs and revisions; they are not qualification of the combined implementation.
+
+## Semantic-presentation artifact custody correction
+
+The DK-38 input map includes eight previously omitted static dependencies.
+Its existing closure test parses all three original group entry graphs and rejects each
+omitted helper and substituted helper hash. It does not execute imported code
+or treat browser-context dynamic imports as static imports.
+
+Actual generated Wasm owners bind each original Cargo artifact, its private
+copy and execution bytes. Compiled selections and guard methods are immutable;
+only the existing evidence/progress fields remain mutable. The original owner
+adds 28 real selection, artifact and byte substitution controls before its
+unchanged corpus, maximum, three-engine journey and mutation checks. Retained
+archives include the original artifacts and their custody evidence.
+
+Fresh complete DK-38 execution, current source checks, both native CI lanes and
+independent review are required; this source correction is not acceptance of
+DK-38, an installed SDK, full V&V or any public application.
+
+## Session and installed source closure correction
+
+Session group custody includes the helper imported by its provenance test via
+the SDK checker. Its existing wire test parses all three registered entry
+graphs and rejects a missing helper or substituted expected hash. Installed SDK
+source roots retain the presentation owner's mandatory SDK-checker test input.
+The existing installed-input regression now covers presentation, session and
+semantic-presentation maps as well as its original seven maps. No original
+owner, input, test count, deadline or installed-SDK qualification is removed.
+Fresh complete affected owners, source/native checks and independent review
+remain required; these source corrections do not qualify an installed SDK.
+
+## Native golden source preflight
+
+Native SDK platforms now reject stale shared source paths, bytes or descriptors
+before proof generation. The normative development writer still regenerates the
+baseline; complete generation, native-record validation and comparison remain
+mandatory. This changes refusal timing, not golden acceptance.
+
+On the original PR #55 branch, all 41 xtask unit tests and three integration tests passed in the pinned
+development container, including five new preflight tests. Reversing the actual
+platform condition failed four of those tests. All-target/all-feature Clippy
+and formatting passed. The actual CLI on Ubuntu 24.04 rejected a renamed-source
+fixture in 4.95 ms without writing or starting generation.
+
+Restored test log SHA-256:
+`fb4bd566b96b9c672e8e8b38ee63506622a1eef05a85de6f1316c61a3f043987`.
+Negative CLI receipt `target/preflight-cli-evidence.json`, SHA-256:
+`93996d62b42ee5c6bb3353d9f6336c8f52db5552de526a6f79f3a8eeb303b837`.
+This is a historical preflight checkpoint, not qualification of the current
+integrated source, full V&V, SDK or Foundry acceptance. Fresh integrated
+verification remains required.
+
+Integrated preflight `v2` compiled fresh in the pinned devcontainer: 32/38 xtask
+tests passed, including all five preflight tests. The whole owner failed on
+stale retained native records, unavailable absolute Git metadata and inherited
+build-profile overrides in a compiler-boundary control. The failed run is
+retained at `target/hologram-oracle-response-worktree/target/integrated-golden-preflight-v2/`;
+it is not a passing qualification. Authentic record import and the corrected
+test environment require a fresh complete owner run.
+
+After importing the independently reviewed raw AMD64/ARM64 records from run
+`37412263195` at `81884410`, complete integrated xtask tests passed (38/38,
+61.20 seconds) and strict all-target Clippy passed. Inverting the actual native
+platform guard failed four original preflight controls; restored source again
+passed all 38 tests (61.68 seconds), formatting and strict Clippy. The compiled
+Rust DK-28 owner also passed, enforcing all 60 original/additive Node checks
+with unchanged file deadlines. This is scoped source evidence, not full
+conformance, current installed SDK execution or closure of issues #66/#69.
+
+| Evidence under `target/hologram-oracle-response-worktree/target/` | SHA-256 |
+| --- | --- |
+| `integrated-golden-preflight-v3/gate.log` | `f6efd3effda9d7cce95b6d34ac42a975d81efac51b319a0dccc989b26d5f5f25` |
+| `golden-preflight-guard-mutant-v1/gate.log` | `98d25eabd20e4f2edf35e1504bd866967530402bb60c0903eb56fdb9a5cdc5e6` |
+| `integrated-golden-preflight-v4/gate.log` | `8275d09caf4ba247aaf6a6415f0aa7d5b0295681276100219db6d35cf7125a9f` |
+| `integrated-metadata-owner-v1/gate.log` | `e05f1e8717d446d4ddd78b3c8391e258dc370de5c665627590c17fd7bcc8b96e` |
+
+## Historical migration input custody
+
+The new source-proof test first failed on the missing verifier. Restored source
+passes all 24 owning SDK-driver tests without skips, retaining the original
+individual and aggregate deadlines. Corrupted commit/tree/blob bindings,
+missing witnesses and legacy-record downgrade fail closed. Seven independent
+Git object commands reproduce the captured upstream commit, root tree and lock
+blob; reviewed SHA-256 bindings supplement Git's object identities.
+
+Retained evidence under `target/hologram-oracle-response-worktree/target/`:
+
+| Evidence | SHA-256 |
+| --- | --- |
+| `migration-authority-red-v1/gate.log` | `f028150e812fc8e1c75d0f0c58d30c8749dfe6feabff797ec63a45971b44371d` |
+| `migration-authority-owning-v2/gate.log` | `be9de669bbdb818da0d80329681416f7b68781c62357b8dfe4fa8fa507126517` |
+| `migration-authority-git-oracle-v1.json` | `d8e2480fbaf3548b22b55490a9cd62ea9d2d4721e66780aa191d0066c1f4d51c` |
+
+This is immutable historical-input provenance, not signed publisher
+authentication. Historical private `/1` records remain readable; the active
+installed gate requires `/2` custody. These component checks do not establish
+current immutable SDK qualification, full V&V or hologram-live adoption for
+issues #63 and #66.
+
+## Independent Rust exporter source bounds
+
+Source custody charges declared bytes before body access: 4,096 entries and
+16 MiB, independently of the full 512-MiB build allowance. Nine custody tests
+pass, including directory/truncation/overflow refusals and actual full-size
+build capture beside the pinned source. Five production-guard mutants fail
+their intended witnesses; restored source passes all nine tests without skips.
+Mutation log SHA-256:
+`acff3d71d437456d07a2b60b894d58f0b100850b483808070e22a165cf227f40`.
+All 311 source-audit tests and strict workspace Clippy pass in the pinned
+devcontainer. Independent adversarial review is clear. These are component
+checks, not full V&V, immutable SDK or consumer acceptance for issue #69.
+
+## Bounded private exporter runtime capture
+
+Runtime traversal streams one directory iterator and hashes at most 64 KiB
+at a time. Source/build allowances remain independent, with an additional
+captured archive. Eight actual-filesystem tests pass at complete entry/byte
+limits, deep trees, deferred/final custody drift, growth and alias boundaries.
+Five planted production-guard defects fail their intended behavioral witnesses.
+All 13 tests pass without skips; log SHA-256 is
+`2cfac65bad12d9dbe2baa7b9943d081d6f7998ea5f0b390f8a42167ca5e7d1cf`.
+Independent adversarial source review is clear. All 311 infrastructure/source
+audit tests pass without skips, and strict workspace/all-target/all-feature
+Clippy passes in the pinned devcontainer. Full six-family qualification remains
+a separate required check; this is not SDK acceptance.
+
+## Exact private compiler metadata custody
+
+Permission-only changes now invalidate the original/private executable and
+exporter runtime identities. Actual successful and failed child executions
+must detect mode drift; same-byte inode substitution preserves the original
+mode so it cannot borrow that rejection. A guard mutant must fail the isolated
+permission witness. Retained executables are checked through bounded descriptor
+reads after cache retirement. The regression first failed on the old code;
+all 298 source-audit tests pass (274.28 seconds, no skips). Independent source
+review is clear. Full six-family owner qualification is pending; the initial
+root-user run was unaccepted because tar preserved group-writable source modes.
+The configured non-root devcontainer user retains the original custody policy.
+These checks do not establish SDK acceptance or completion of issue #69.
+
+## Bounded SDK seed publication
+
+Production and admission now share exclusive, manifest-driven copying instead
+of recursive publication. Source growth, undeclared additions and injected
+failure after a real write remain bounded, publish no destination, and clean
+owned pre-publication staging. Declared modes survive restrictive umasks; an
+actual UID-1000 process reads the installed seed and manifest. All 22 tests and
+DK-29 pass (8.07 seconds); strict Clippy and all 296 source-audit tests pass
+(259.77 seconds, no skips). Independent adversarial review is clear.
+
+The real-construction recursive-copy control fails before the change and passes
+afterward. Two fresh constructions preserve manifest
+`55b6dac643975f541e1c4cf7e089c4d25737c47928b7d9e44d1faeb6e099f899`.
+Actual cold/relocated exports agree across two roots and both replays, with no
+relocated build-file changes or trace rewriting. Measured compiler builds take
+15.34/15.61 seconds cold and 0.47/0.45 seconds relocated. These component results
+are not end-to-end speedup, atomic isolation, post-rename rollback, SDK release,
+consumer acceptance or completion of issue #69.
+
+## Bounded SDK seed enumeration
+
+Tree snapshots stream entries with one live iterator, bound rows before retaining
+them, and check deferred and previously visited directory identities. Source
+construction uses a separate 4,096-entry/16-MiB allowance from the full seed
+4,096-entry/512-MiB allowance. A real-filesystem instrumentation regression fails
+on the prior eager enumeration and passes afterward. All 20 SDK seed tests pass,
+including full source/seed limits, 32,768 toolchain entries, deep trees, closed
+iterators and child-only custody mutations. DK-29 passes in 8.03 seconds; strict
+Clippy and all 294 source-audit tests pass (276.26 seconds, no skips).
+
+Two fresh constructions and two baseline constructions at `bdb9f1f0` produce
+the same 176-entry manifest
+`55b6dac643975f541e1c4cf7e089c4d25737c47928b7d9e44d1faeb6e099f899`.
+Failed empty-archive construction cleans up without publishing. Initial local
+`noexec` tmpfs failures are unaccepted; corrected runs retain an executable,
+1-GiB-bounded tmpfs. Independent adversarial review is clear. This does not
+qualify recursive publication copying, immutable SDK adoption or issue #69.
+
+## Complete exporter package custody
+
+Every exporter invocation now checks exact pinned source/configuration and the
+complete private build tree before and after execution, including failed children.
+Streaming enumeration preserves the full seed allowance separately from source
+members; aliases, hard links, special files and same-byte replacements fail.
+The real-child regression rejected a previously accepted toolchain mutation.
+All 11 exporter tests and strict all-target/all-feature Clippy pass. Complete
+DK-30 passes in 488.53 seconds with attestation
+`48dc299e9f77bc75adbdcc19e0214fdc3ade84e791cc92a1542642564293d527`;
+all 290 source-audit tests pass in 262.92 seconds without skips. Independent
+adversarial review is clear after enumeration and seed-accounting corrections.
+Superseded runs are not final-code evidence. This is before/after custody
+detection, not atomic isolation, cache provenance, compiler reuse, SDK acceptance
+or completion of issue #69.
+
+## Failed portable-response client state
+
+Failure-only browser diagnostics now record bounded, closed client-state
+booleans and page close/crash events without returning application content.
+Observation preparation, page loss and its 250 ms deadline preserve the original
+failure. No retries, response fallback or acceptance relaxation are introduced.
+All 16 driver tests pass; all three interoperability owners pass in 1440.97
+seconds, including 78 matrix cases and four required negative controls. The
+source audit passes all 290 tests in 260.46 seconds without skips. Independent
+adversarial review is clear. Hosted run 37237466412 remains failed: its aborted
+response body is not explained or repaired by this diagnostic change. Full
+V&V, SDK and issue #67 acceptance remain outstanding.
+
+## Imported BLAKE3 corpus qualification
+
+HO-14 executes all 35 upstream 1.5.5 vectors in three digest modes and nine
+streaming partitions, checking 131 XOF bytes, default 32-byte results and the
+actual archive content-identity adapter. Five planted defects must fail. The
+seven-member imported closure is
+`f8ffc0176af3fed9ce66b92f60c424d96f413fa044d7b341fc63b896428037c9`;
+the standards lock separately binds the upstream vector JSON authority.
+Unmodified upstream licenses retain their original whitespace.
+
+An isolated fresh Cargo target passes all three library owners, HO-14 and all
+33 xtask tests (48.29 seconds). The package owner creates an actual Cargo source
+archive, extracts its corpus and reruns the verifier plus a removed-license
+control. Its `--no-verify --exclude-lockfile` scope is source packaging only;
+dependency resolution, package builds and release acceptance are not claimed.
+Strict all-target/all-feature Clippy and all 289 source-audit tests pass
+(255.58 seconds for the audit). Independent adversarial review is clear.
+Earlier shared-target stale-library and unpublished-dependency failures remain
+unaccepted. This finite qualification does not complete native effects, SDK
+qualification, cryptographic proof, or issue #62.
+
+## Exporter custody after process failure
+
+Executable byte/mode and inode/ctime checks now run after unsuccessful children
+as well as successful ones. Unchanged failures retain their original diagnostic;
+custody drift reports PP5008 and cannot produce a success receipt. The real-child
+regression fails before the fix and passes afterward for content changes,
+same-byte replacement, removal and permission changes at exits zero and seven.
+All eight exporter tests and strict all-target/all-feature Clippy pass.
+The source audit passes all 289 tests in 279.98 seconds; complete DK-30 passes
+in 484.98 seconds with attestation
+`68392f4a689af473af3481aafb39ef87fe5d012635e5d9847be980836f5382af`.
+Independent adversarial review is clear. This closes a process custody gap,
+not full V&V, SDK release or native-effect acceptance.
+
+## Native lease compiled Wasm agreement
+
+DK-30 now compiles the manifest-bound kernel IR into an import-free Core Wasm
+package and executes all 93 closed corpus probes in V8. Exact one-byte selectors
+are independently mapped to the modeled probes; 279 routing/result mutants and
+missing/reordered groups are rejected. Three invalid selectors and a real
+wrong-expected-output execution retain their required negative outcomes.
+Original std/no_std package execution and model mutants remain mandatory.
+
+The complete owner passes in 442.26 seconds with attestation
+`18bb95e59fe1471f04ea03f4814c22e4aaa8166d888660e3a812ab9082c73ab5`.
+All 51 conformance-library tests pass in 56.34 seconds; the source audit passes
+all 289 tests in 267.61 seconds without skips. Scoped formatting and Clippy pass;
+independent adversarial review is clear. Earlier forward-reference, lint-placement
+and scenario/register failures are retained but are not acceptance evidence.
+This proves compiled closed-probe agreement, not general runtime-input semantics,
+OS effects, complete native application acceptance, SDK qualification or full V&V.
+
+## Mainline integration repair
+
+Mainline `09f8b916` contained committed conflict markers in 13 files. Integration
+retains the verified feature stack, canonical golden/standards bytes and reviewed
+oracle source members. Already-present OSV and migration tests are retained once,
+not duplicated. Independent review confirms no lost native/exporter, migration,
+source-custody or CI controls. The integrated tree passes all eight platform-lock
+tests, 32 xtask tests (46.09 seconds), 50 conformance-library tests (55.84 seconds)
+and 289 source-audit tests (257.27 seconds), without skips. This is merge-resolution
+evidence, not complete V&V, SDK publication or native-effect acceptance.
+
+## Early retained-native consistency admission
+
+The source audit now rejects inconsistent retained AMD64/ARM64 records before
+expensive suites. It reuses the later golden composition rules; it neither
+executes native verification nor accepts coherently stale retained trees as
+current-source evidence. Both full V&V passes and all later gates remain.
+The actual removed-call mutant fails at the expected missing-record case.
+Genuine records pass; missing, extra, changed, platform-swapped and shared-byte
+mutants fail. All 32 xtask tests pass in 47.96 seconds; the complete source audit
+passes all 289 tests without skips in 271.27 seconds. Scoped formatting and
+all-target/all-feature Clippy pass. Independent adversarial review is clear.
+
+An earlier local run omitted the Git mount and failed four formatting tests.
+It also exposed copied ignored compiler state in the nested diagnostic fixture.
+That fixture now excludes only root scratch; a deterministic regression retains
+authored lock bytes and nested same-name directories. The actual compiler still
+produces the required PP4002/LLV7010 failure. Neither earlier failure is accepted.
+
+## Generated native lease package integration
+
+The generated package now exports nine pure lease functions, bringing its closed
+API register to 63 entries without changing the 51 validator roots or 597 + 54
+runtime cases. Independent review confirms that removing the nine new function
+and four type blocks leaves the old generated library byte-for-byte unchanged.
+All prior proof policies remain unchanged; the 13 new declarations have empty
+axiom policies. These functions confer no OS authority.
+
+The final expanded DK-30 owner passes in 521.55 seconds, attestation
+`a447fb838cfce1a6e841e7d46ddb8e4e902d7a4ec8b27a013ac53ddbc546b364`.
+It executes all 93 explicit cases against the generated public package in both
+std and no_std, checks all nine ABI signatures, rejects a deliberately wrong
+expected result at runtime, and retains all four actual model mutants. The
+consumer passes with a fixed SDK tool environment, temporary HOME
+and fresh Cargo directories; ambient compiler and loader overrides are excluded.
+Direct verifier tests reject signature and declaration substitutions for every
+one of the 63 exports, in addition to the exact source-register checks.
+
+The genuine package writer binds IR
+`319450103aa7624be1d2b16963204573f9a291f641ed16f278df74431aa15dc1`
+and semantic identity
+`fd0e491bae411108ccdc0225d7a99735695e439ec2ed7b730a09c76a98f0e7cb`.
+Two independently staged Cargo packaging/verification runs produce identical
+archives. The stdlib archive SHA-256 is
+`2ee7180bcfbffad8f1f3ac410d5a0268290414b0430c7f419098017a3b2cf887`;
+both compiler archives remain unchanged. The release seal binds the new archive
+and semantic identity. All 289 source-audit tests pass without skips; model/spec
+registration, scoped formatting and all-target/all-feature Clippy pass. The
+final-verifier golden writer produces 364 files. Its manifest SHA-256 is
+`4126c774b0df49d27e4036a83179a926f8df5b04121e7542b040407e0382c3d2`.
+The earlier writer passed, but its old-binary readback was stopped after the ABI
+fix and is not acceptance. A separate final-verifier golden readback matches all
+364 files; fresh package readback passes against verification manifest
+`cfdbdc2ce49713942918e4218dee3f3367c20fa507330e1746852a6b7247ae6a`.
+All three actual browser-system owners pass in 519.66 seconds, retaining the
+locked external oracle, source-free export and negative checks. Hosted native
+run `37233362723` at `cbbdecc7049e3d12b356cd18cea6b74115587b2e` passes on
+AMD64 and ARM64. Separate reviewers rehash both 364-file compositions, all
+114 roots, 6,815 declaration policies, 231 verification processes, exact source
+and image bindings, and all 28 driver commands per platform. Both genuine
+writer/readback sequences pass; only their six reviewed records are imported,
+without rewriting evidence. The complete 50-test conformance library then passes
+in 34.22 seconds with no skips, including native-profile consistency. Hosted
+V&V and installed-SDK qualification remain required. Component
+evidence does not qualify native effects or complete issue #62.
+
+Hosted V&V `37225580559` at earlier head `9ae4414` passes all 253 Prism library
+tests and all three interoperability tests (78 View cases and four negative
+controls; 1,519.63 seconds). It then rejects stale native records before their
+subsequent import: 49 conformance-library tests pass, one reports a non-exact
+golden tree. Neither full V&V pass is accepted. The current export integration
+likewise rejects its old native records at the exact descriptor/byte boundary;
+the first local diagnostic expected the earlier closure message and is not
+acceptance. Native consistency must pass before launching the next full run.
+
+## Prior conditional native operation lease qualification
+
+The DK-30 owner passes all 93 explicit cases in generated std and no_std Rust,
+with byte-identical regeneration and complete empty-axiom declaration audits.
+Its four actual model mutants fail at the expected generated probes: binding
+041, state 077, cancellation 026 and uncertainty 042. The complete owner takes
+457.55 seconds; attestation
+`87f9eb3a21c38ef7d7d690d8eaa3111dabe0ec393d2f3ee79e4dc2b60a26730f`.
+The canonical JSON/LexLean linkage also rejects changed and missing cases.
+Independent review required the exact predecessor invariant and explicit host
+clock/cleanup custody preconditions; both are now part of the contract.
+
+Earlier authoring checks rejected invalid phrase/primitive/canonical source,
+unordered fixture roots and a mutant's unused parameters. A subsequent owner
+rejected an incorrectly identified first failing probe. None is acceptance.
+The ordinary golden writer first required its explicit rewrite reason; a
+4-GiB retry then failed during WorkspaceQueryCorpus compilation with a Docker
+OOM event. Those failures are retained. A separate 6-GiB writer passes all
+359 golden files. Independent review rehashes the complete tree: exactly two
+captured source additions, unchanged generated modules, roots, declaration
+policies and runtime artifacts. The lease's execution acceptance belongs to
+DK-30, not the unchanged default kernel. A separate fresh readback matches all
+359 files. The full source audit passes 284 tests after removing an obsolete
+compiler build cache; the preceding run rejected three tests at its unchanged
+12-GiB disk reserve. Fresh ordinary package readback passes with attestation
+`6869577dc9a3a290b68bf6a81c4af6ed8ee4697e79ca099e4cbf910117e7751f`;
+generated package bytes, crate archive and release metadata are unchanged.
+Hosted run `37225492341` at `9ae4414066ccc908865aeb5da3942690e858aa5a`
+passes on AMD64 and ARM64. Independent review checks both complete 359-file
+compositions, exact source/image binding, unchanged roots and policies, all
+227 compiler-verification process records and 28 successful driver commands.
+The six genuine native records are imported unchanged. These source records
+capture the lease files; the separate DK-30 owner verifies their semantics.
+Full V&V and installed SDK qualification remain required.
+This internal reducer proves no OS fact and
+does not complete native effects, an application, an SDK release or issue #62.
+
+## Imported compiler hosted acceptance
+
+LexLean run `37207135528` passes its normative `just vv` and all four other
+native-platform jobs at exact imported source
+`ff92e75ed0e7e8d6bdd53fc717db6f8ede8e1b49`. Prism's complete two-pass V&V at
+`6f58f34e78d52189282ed87eb65630a8b4fe782a` fails in run `37218166204`: 251
+library tests pass and two browser-system owners reject a stale Calculator
+application-model binding with PP2101. The committed fixture still binds
+`2c1adf65faae1f1a417a25b756c7d520c6d4fc55b4973cdb7947bae8d0538e00`;
+the actual imported model is
+`1e9f66ae5672bdf3743f1b7b48e81564fea407e3f36f0a500d57f1272103f746`.
+Neither full V&V pass is accepted. That revision does not include the new
+native-lane component.
+
+After independent review, exactly four explicit source bindings are refreshed.
+All three actual browser-system owning tests pass in 575.39 seconds, including
+named A/B build/proof verification, the pinned SPDX oracle, source-free export,
+and stale/tampered rejection paths. The owning execution has no build-only
+debug or incremental overrides. Expected planted LLT4001 failures are retained.
+This component result does not establish full V&V or installed-SDK acceptance.
+
+## Shared-octet native source records
+
+Hosted run `37214575335` at `5566e29ee6c66c5ea8ae8cce40a5ff40d18468fa`
+passes on AMD64 and ARM64. Independent review checked both artifact digests,
+complete source and generated inventories, all process outcomes, unchanged
+declaration policies and execution cases, and exact pinned native environments.
+Each genuine writer changes three platform records; each separate readback
+checks 357 files. Only these six reviewed records are imported byte-for-byte.
+The native executable identities remain unchanged. These source-review records
+do not qualify an SDK release, installed consumer or complete product.
+
+## Portable request failure context
+
+Hosted V&V `37205262762` fails in the complete portable View matrix: a text
+keyboard delayed-completion case observes its exact POST, HTTP 200, then a
+failed request and unavailable body. This does not establish a timeout, cleanup
+fault or successful submission. Its transport cause remains unproven.
+
+The browser diagnostic now includes the code-owned journey, modeled-vector
+index, request completion observation and a closed failure-reason category.
+Raw error text is never forwarded. The formatter test fails without the helper
+and against an actual raw-return mutant; the restored 15-test custody suite
+passes non-root. Independent review finds no changed acceptance, retry or
+deadline rule. The reviewed driver hash is
+`067bae66336173d12aae091236ae3f0d22a3e794ec73e6f182a0188acb74e201`.
+The first local integration attempt rejected its stale previous checksum and
+was stopped; it is not acceptance. The fresh complete integration run passes
+all three tests in 1,373.80 seconds, including all 78 matrix cases and four
+negative controls, without retries or filtered owners. Hosted V&V remains
+required. Diagnostic improvements alone do not fix the observed transport fault.
+The complete source audit passes all 281 tests without skips; model/spec checks,
+scoped formatting and all-target/all-feature workspace Clippy pass. An earlier
+local source audit failed five tests with host space near the mandatory reserve;
+it is not acceptance. The retained rerun follows removal of an owned incremental
+compiler cache and preserves every guard and test.
+
+## Shared-octet compiler integration candidate
+
+LexLean `ff92e75ed0e7e8d6bdd53fc717db6f8ede8e1b49` shares repeated closed
+byte-literal octets and root-qualifies their Lean constants. Its Cargo archive
+was assembled from the clean committed source; packaging without verification
+is not package acceptance. All 887 package members and the archive are bound
+by the imported tree manifest. No literal bytes, model declarations, child
+deadlines or oracle inventories are reduced.
+
+The upstream complete SM-19 component check and six-example golden readback
+pass. A fresh 53-module Lean compilation diagnostic passed in 228.591 seconds;
+this is not exporter/native/Wasm/SDK acceptance.
+
+The downstream golden writer and a separate fresh readback pass for build
+`efacd8c2fc893c1ad64aaffdc9baddc5c21246f930c3c4420ad24ef2a2e492b6`.
+Independent review retains all 357 files, 80 modeled sources, 105 export roots,
+54 package roots, 51 runtime roots, 6,802 declaration/axiom records and the
+597 execution cases plus 54 control-coverage cases. IR and generated Rust
+change; the native validator bytes are identical. These runs establish fresh
+Lean/kernel replay, export and native validation, not no_std/Wasm or installed
+SDK acceptance.
+
+The ordinary stdlib writer passed with attestation
+`973591dc0730b98a933980471f3e95876b390ee7f105adcb95895526828d897c`.
+Two fresh isolated Cargo packaging and verification runs reproduced the compiler
+archives unchanged and the stdlib archive
+`88d148875957863092d5dfbe26ed9a6f9f61d5bd095c7887280ecab21bdc135c`.
+Its separate no_std compilation passed. The first packaging attempt failed
+because its staging directory inherited the enclosing workspace; its failed
+record is retained and is not acceptance. A separate verified package readback
+reproduces the same attestation, and all 19 unchanged fixture expectations pass.
+The complete source/model/spec audit (280 Node tests), authored formatting and
+all-target/all-feature workspace Clippy pass. Its first local audit attempt
+failed the real disk reserve, Git-index access and Docker-access prerequisites;
+the rerun preserved those guards and supplied adequate space and required mounts.
+Full upstream hosted CI, both complete V&V passes and installed consumer
+qualification remain required.
+
+## Typed-byte compiler integration candidate
+
+LexLean `d2c2aa184f9941598e713b0fcde4b60e42eea57d` is an integration
+backport, not a completed upstream release. Its independently reviewed Cargo
+archive and all 887 members match the imported bytes; the tree manifest also
+binds the archive. This import includes intervening language-1.2, CLI, linker,
+and lock-v2 support, not only the byte-rendering optimization. The stdlib
+project remains language 1.1 and was explicitly relocked.
+
+Model and specification audits pass (183 capabilities, 86 diagnostics).
+The targeted compiler tests and a fresh 53-module compilation diagnostic do
+not establish complete SDK, stdlib, native, Wasm, or release acceptance.
+Fresh stdlib generation and complete integration verification remain required.
+
+## Merged upstream compiler qualification (in progress)
+
+Compiler source is imported from auser/lean4-prod main commit
+`991956fe427bb646498fd0912c89b71be71e7beb`, including merged PRs #77–#91.
+Independent review matched all 86 Rust package files and all 59 Lean archive
+members to that commit. The existing normalized Rust workspace is retained;
+the root lock update adds only required compiler dependencies.
+
+The Lean archive is reproducible with
+`git archive --mtime=@1790795771 991956fe427bb646498fd0912c89b71be71e7beb:lean`;
+the timestamp is the upstream commit time. Compiler crates are actual Cargo
+package outputs, not hand-edited archives. Artifact pins are in
+`model/dependencies.toml`.
+
+This import is not accepted compiler, SDK or product qualification. Fresh
+upstream regressions, stdlib generation/readback, owning consumer gates,
+native architecture review and both complete V&V passes remain required.
+Earlier records below retain their original compiler identities.
+## Recovered private session kernel (DK-26)
+
+The complete registered owner passed in the pinned development container:
+34 underlying tests, 895 protocol cases, seven source-wrapper cases, 686 writer
+parity cases, 18 session/9 effect-domain/18 writer maxima, and 21 genuine source
+mutants in generated native std/no_std and Wasm execution. The 2,543.38-second
+run retained every maximum and mutation; all 825 source/tool input hashes still
+match after the non-kernel CI/golden-base fast-forward to `c6faf97`.
+
+`target/dk26-integration/registered-owner.log` SHA-256:
+`d012e3490167ac419f0dcadbbe9ff73b6ff7a9f3b8fc171413fe432f48419621`.
+The actual `session-acceptance.json` receipt SHA-256 is
+`b3cbaca6933aadef39d82770b6c43e7940d46e2a23865888db6de7c190055dea`.
+Complete supporting runs passed: 24 SDK/acquisition boundary tests, 57
+conformance/model library tests, 30 xtask tests, 191 source-audit checks and
+scoped all-target/all-feature Clippy. An earlier isolated-container audit failed
+for lack of its Docker socket; the complete Docker-enabled rerun passed.
+After the base fast-forward, the complete source audit passed all 192 checks
+in 86.46 seconds, including the full CI-policy regression.
+
+The normal golden writer and non-writing readback passed all 359 files for
+build `c61f76a5280d23d717d738d10ae2e7965f4dc938caf8674ed16b84b12628e81c`
+(`DevelopmentAmd64`). Only two exact authored-source copies and three linked
+metadata/manifests changed; generated Lean/native behavior bytes are unchanged.
+Writer/readback log SHA-256:
+`e9b87737a4777e313659c17265fe868e740c23b8dd11fdc6ab087c137b36c09e` /
+`2c4d895c93c1e8bdffc87f82add7d97800e44bca6d01238b526cceadce25b761`.
+
+This establishes the private pure kernel only, not durability, authenticated
+authority, a SessionJournal, public Browser admission, an installed SDK or
+Foundry acceptance. Integrating changed compiler helpers requires fresh
+combined owner/SDK evidence; this receipt cannot cover new inputs.
+
 ## Integrated emitter source binding
 
 The complete audit rejected the stale emitter digest after metadata-alias
@@ -1552,6 +2120,30 @@ The remaining 80 synthetic probes are not counted as owner-boundary acceptance.
 
 ### Non-root oracle execution
 
+The portable View matrix originally failed before compiler construction in
+hosted run `37173071955`: archive comparison required root-owned metadata
+after non-root extraction. Running the original commands as UID 1000
+reproduced `Mode differs`, `Uid differs`, and `Gid differs`. The corrected
+comparison authenticates the pinned archive and all 454 non-root entries,
+including exact membership, types, modes, sizes and bytes; extraction assigns
+local ownership inside the private root. Descriptor-bound reads and traversal
+reject file/directory aliases and observed replacement.
+
+All 12 custody tests pass as UID 1000. Actual archive extraction under umasks
+0022 and 0077 passes; changed/missing/extra content, mode changes, source and
+archive aliases, hard links, changed archive identity and a non-private root
+fail their intended checks. Removing the actual comparison invocation makes
+the corruption test fail (`0 !== 1`); restoring it retains the complete checks.
+The fresh compiler, 78 browser cases and four
+negative controls remain mandatory; these source tests are not their acceptance.
+
+Oracle child failures now emit independently bounded, credential-redacted
+stdout and stderr into the existing V&V observer log. A real failing child
+tests credential redaction across the truncation boundary; a second process
+test runs the actual observer, checks its retained `gate.log`, and preserves
+exit 19 in both the process and `gate-result.json`. All 14 custody tests pass
+non-root. These diagnostic receipts cannot substitute for acceptance evidence.
+
 The OCI corruption fixture now makes only its disposable blob writable;
 OpenID makes only copied scratch directories writable. Distribution provisions
 six confined report directories before running every oracle as UID 1000 with
@@ -1642,8 +2234,9 @@ pass. These are targeted checks, not complete SDK or Foundry acceptance.
 - `target/build-identity-clippy.log`: `d3caf52295c1fad315ea4daa0b86b36ff6a673ce642d6278b0089867f4546934`.
 ## Release status closure steps 1-6
 
-Execution and closure of `RELEASE-STATUS.md` steps 1-6 are unified and validated
-under `validate_release_status_closure`, producing `prismpm/release-status-closure-receipt/1`:
+The synthetic declaration tests exercise `validate_release_status_closure`
+and its `prismpm/release-status-closure-receipt/1` output fields. These fields
+describe the following required obligations, not proof of their execution:
 - Step 1: Modeled archive codec and dependency closure (`prismpm/dependency-closure-receipt/1`),
   Holo oracle interop, and compiler dependencies.
 - Step 2: Full reproducibility (324 golden files, regressions, and integrity checks).
@@ -1655,7 +2248,9 @@ under `validate_release_status_closure`, producing `prismpm/release-status-closu
 - Step 6: Canonical `prismpm/ecosystem-release/2` manifest with complete planted-defect falsification coverage
   across all 14 defect classes (`prismpm/ecosystem-release-receipt/2`).
 
-All nine integration tests in `crates/prismpm/tests/release_status_closure.rs` pass cleanly.
+The recorded nine integration tests in `crates/prismpm/tests/release_status_closure.rs`
+use synthetic hashes, counts and success assertions. Passing them does not
+establish dual-platform VV, SDK publication or any downstream adoption.
 
 ## Configuration diagnostic boundaries
 
@@ -1751,8 +2346,9 @@ asserts full coverage of Task 10 requirements:
 
 ## SDK security and advisory disposition (Issue #15)
 
-Full SDK security and advisory disposition (`prismpm/sdk-security-disposition/1`) is verified
-against shipped SDK release identities and locked advisory databases under production release policy:
+The declaration validator for `prismpm/sdk-security-disposition/1` checks the
+following supplied fields and policy constraints. Its synthetic tests do not
+establish actual shipped-image scans, installed graphs or approved disposition:
 
 - **Source Locks**: Immutable source locks `standards.lock` and `prismpm.lock` are bound by exact `sha256:` digest.
 - **Installed Dependency Graph**: Installed dependency lockfile (`package-lock.json`) and canonical installed tree digest are bound.
@@ -1762,7 +2358,10 @@ against shipped SDK release identities and locked advisory databases under produ
 - **Freshness Policy**: Enforces 7-day maximum age (604,800s), verifies database expiration time, rejects future-dated or stale scans, and verifies zero rejected findings (`PP7801`).
 - **Anti-Substitution**: Component-only advisory scan evidence is strictly rejected when full shipped SDK disposition is required.
 
-Verification suite: `cargo test --test sdk_security_advisory_disposition` (6/6 tests pass).
+The recorded `sdk_security_advisory_disposition` suite passes six declaration
+tests using synthetic SDK identities and scan results. Actual pinned scanner
+execution, raw database identity/freshness, installed dependency coverage and
+approved findings disposition remain required for both immutable native images.
 
 ## Upstream generic compiler dependency closure (lean4-prod)
 
@@ -2003,6 +2602,40 @@ Owning log: `target/cbor-integrated-complete-owning.log`, SHA-256
 `aff16105e8ab5bd81eab5e3be20fc42cab9159840163702884a72099e8f96832`.
 This verifies the finite primitive profile, not a browser application,
 installed SDK release, complete CBOR/CDDL implementation or deployment.
+
+### Bounded octet lookup candidate
+
+The clean candidate based on reviewed infrastructure `6848308` passed the
+complete ST-16 gate in 855.01 seconds: 194 roots in generated std/no_std,
+342 exact declaration audits, and 274 invocations across the two actual Wasm
+modules, including all 71 independent byte vectors. Maximum observed memory
+was 963 pages under the unchanged 1,024-page cap; maximum payload was
+4,202,612 bytes. All five source mutants failed their expected runtime
+roots and every restoration reproduced the original identities. The new
+lookup oracle covers all 256 octets and nine above-bound values.
+
+| Identity | SHA-256 |
+| --- | --- |
+| Primitive source | `5ef08de8a662fe90ea43b360f89f4fd3bf071bf799bf8652414bd2a8036d4bd5` |
+| Corpus source | `4d96b97be51aa4206bab09e5179ea796a84e73111867fb675022c3c26d69fa2f` |
+| Build | `8228897ed5452e20f0a05b4b9188712a5b1b7d79ebfce2755279cfa843356e3a` |
+| Attestation | `a305e1a154249a135cdd4ea73cdeedd1a0af460ecbda15ef77b1ad54e512d74b` |
+| Regenerated source archive | `6d52ea3f1a45c85033ce3c8dd0d53d3617d901ddb55a06f65eb63348164d7195` |
+
+Independent readback matched all 143 archive entries against source;
+only the primitive, corpus and corpus inventory changed. Five receipt/guard
+tests, three source tests, pinned formatting and model validation passed
+(181 IDs, 86 codes). This is codec evidence, not acceptance of an installed
+SDK, application or deployment; the separate publication worktree is not
+part of this candidate.
+
+Current-infrastructure integration (2026-10-03) passed complete ST-16 in
+991.54 seconds with the same counts, bounds, five rejected mutants and all
+restorations. Build `a2b69f4aac9fbeb2d94102538ceadc96a86aa79e08dffe44cb7fadfc45f6a4bc`;
+attestation `63fac26a24b85e281d2c6116cb1becbae951cdb649fe8510ea97c13e6bb0d24f`.
+Original execution and resource records: `target/pr51-current-st16-diagnostics/`.
+Historical golden records were not adopted: current exporter measurements
+require fresh generation with the integrated compiler.
 
 ### Earlier diagnostic checkpoint
 
@@ -2307,6 +2940,14 @@ baseline nor the source audit establishes a current installed SDK or deployment.
 
 ## Original release-gate retention
 
+Native records were subsequently adopted byte-for-byte from run `37120266595`
+at source `8bb318c565dc6144d620aeb319338a0de2e374c7`. Both native lanes
+generated and replayed all 357 files. Independent review checked the artifact
+digests, original process receipts, exporter measurements and all 356 composed
+file descriptors against the portable tree. Local golden composition tests
+passed 8/8 after adoption. This is reviewed source evidence at that commit,
+not current-HEAD execution, installed-SDK acceptance or hardware attestation.
+
 Source VV now retains both original runs, separate stdout/stderr and status,
 VV receipts and fresh bootstrap outputs. Installed SDK execution retains each
 run's four original bootstrap files. Native/SDK comparisons retain all four
@@ -2381,6 +3022,85 @@ Receipt `/tmp/prismpm-publication-RI5Ngo/publication-acceptance.json`, SHA-256
 `0514ce3653fb7b0993e36bf3f0c8215ecca9cd2dd45d362434c119e90a144f07`.
 This verifies conditional source admission only, not SDK or deployment acceptance.
 
+## Browser-runtime admission regression — 27 September 2026
+
+The actual private oracle invocation initially returned `Ok([])` for a browser
+declaration labeled `Ready`. Its new owning regression failed on that result.
+Restoring unconditional `PP2011` for the unsupported browser profile makes the
+regression pass for `Ready`, `Runtime unavailable` and `Verified production
+service`; display text is not execution evidence. Successful oracle invocation
+now has exactly three process records by type, produced only after pinned Node
+identity, Hologram Live build/execution and complete report validation.
+
+The registered DK-21 owner reprojects all three changed LexLean declarations,
+then exercises public check/build/verify and requires no generated output.
+Its source/projection owner and public integration test pass. All four private
+oracle guards, upstream source-pin and report-mutation tests, the complete
+189-test infrastructure audit, model/spec accounting (181 IDs, 86 codes),
+five authored-formatting tests and scoped warnings-denied Clippy pass in the
+devcontainer. Original logs remain in `target/audit-27sep26/`; the complete
+DK-21 log is SHA-256
+`e068a4917a3ae25673a2c6f992cb3e7256a090b866dbe504de2b2eba83873084`,
+and the audit log is
+`1d2b800c39d2b30560d9e58d80309f3400ae321f1109c83efbf4776970dadda1`.
+
+The selected Calculator fixture's actual source projection reported its new
+model digest, `sha256:b9c4dda152fea5e238249c1e460c1ba2c0436ef62bb29f0bf6de92dfbddcfd42`.
+All four modeled references were updated through the documented source-review
+procedure; the complete source-selection/negative owner passes. This restores
+an existing refusal boundary, not the missing browser runtime, public Foundry
+service, SDK release or deployment.
+
+The complete DK-22 compiler owner also passes. Normal golden regeneration and
+fresh readback verify all 357 files for build
+`c61f76a5280d23d717d738d10ae2e7965f4dc938caf8674ed16b84b12628e81c`.
+The five changed JSON files contain only emitter/model/build provenance,
+the actual verifier executable/attestation identities and the review reason;
+generated Lean, runtime artifacts and execution evidence are unchanged.
+Log SHA-256 values in `target/audit-27sep26/`:
+
+| Log | SHA-256 |
+| --- | --- |
+| `dk22-compiler-owner.log` | `16c443c6d622b3f153a1a47b00198a2cf38dde317f56ca595fe20e2561ec2393` |
+| `golden-write-stable.log` | `9cf24b9cc0a27edccd78bc3d2bacddbeed77dc672c06c05b3d28e372b6975a84` |
+| `golden-readback.log` | `69fcac92c78c90c0d9a58d077d2ff5e37f2dfdb9ab1bd440bfeaf15871794766` |
+
+An earlier write failed when another build replaced its running verifier
+executable; it produced no reviewed golden update. The successful write and
+readback above used the same stable executable. This development-platform
+evidence does not establish full V&V, installed-SDK or other-platform acceptance.
+
+## Automatic full CI ownership — 27 September 2026
+
+The workflow-policy regression first failed because pull requests omitted the
+normative gate. Both PR and main events now execute the unchanged two complete
+`just vv` passes in one checkout. Duplicate partial/bootstrap/honesty/repro
+workflows remain manual diagnostics; native amd64/arm64 review is unchanged.
+The complete 21-case observer suite passes, including actual first/second
+command failures and mutants for omitted/filtered triggers, skipped/weakened
+gates, duplicate automatic owners and cancellation of non-PR verification.
+Actionlint 1.7.8 accepts every workflow after removing decorative backticks from
+the candidate summary's literal format string (SC2016); no lint is suppressed.
+Full `cargo xtask validate` also passes all 190 infrastructure cases. These
+infrastructure tests do not establish successful execution of the two full V&V
+passes or publication.
+
+## Native source dependency acquisition — 3 October 2026
+
+Native source review retains its exact development image and two offline golden
+passes. A separate read-only-source, resource-bounded container acquires locked
+Cargo registry data and is destroyed before the verifier starts. The handoff
+contains no downloaded source trees, executables, configuration or build output.
+Archive bytes are independently checked against the committed lock; sparse-index
+metadata is trusted Cargo HTTPS acquisition data, with locked identities checked
+and exact bytes retained in the preparation receipt. Workspace inheritance,
+path dependencies, configuration and toolchain selection are captured.
+
+Seventeen real-file tests reject corruption, aliases, extra files, source drift,
+cache conflicts and excessive index sizes. The twelve orchestration tests retain
+both offline passes and test failed acquisition, omitted tests and cleanup.
+These checks qualify source-review infrastructure, not SDK or release acceptance.
+
 ## Release criterion
 
 Only a clean, annotated `v0.3.0` tag whose exact commit has produced
@@ -2390,12 +3110,425 @@ runtime, adapter, and oracle image are built twice and must be identical;
 their checksums, SPDX SBOMs, provenance attestations, and signatures are
 produced only for those accepted bytes.
 
+## Metadata/native evidence correspondence — 6 October 2026
+
+The private gate retains all seven bounded OCI input objects and joins them to
+the original independently materialized inventory and standards bytes from both
+native library lanes. It reuses the original metadata decoder, migration,
+compiler, library-result and custody readers. No acquisition deadline, raw-byte
+limit, installed execution, source comparison or release prerequisite is removed.
+The private 288 MiB retention bound includes the additional raw-object encoding;
+it does not increase the 69 MiB network acquisition budget.
+
+Pinned devcontainer `f061023ac557b763aaddcd9ee3fd769a558b43e519c0f272377a429709fd3267`
+passes all 29 owning tests in 102.628 seconds with the original 150-second suite
+and 120-second file bounds. All seven original capture/CLI tests pass; all 22
+release-evidence tests pass, including real three-crate Cargo verification and
+the pinned BuildKit two-platform OCI export. No tests are skipped or cancelled;
+each container exits zero without OOM. Independent read-only adversarial review
+checked source closure, exact release assets, timeout binding and both native
+byte-correspondence paths. The direct reader/packer tests use explicitly synthetic
+SDK records; they do not establish native SDK execution or issue #66 completion.
+
+Logs under `target/hologram-oracle-response-worktree/target/`:
+
+| Log | SHA-256 |
+| --- | --- |
+| `metadata-join-red-v1/gate.log` | `f82edad4f127ed24d48b75f47fd9f9b0c244da3ec755733aaea9fd92b4fb71ee` |
+| `metadata-join-owning-v3/gate.log` | `956ce16c4a1467a317c09627ca7b4ff0e4307fc1e0cbd2beafc7b915d9ad7389` |
+| `metadata-capture-clock-v1/gate.log` | `0a368862e00333715c35b17f193bf2bc06c5454f12803dde3972d6d3c474cbdd` |
+| `metadata-release-fixtures-v2/gate.log` | `fc5b50da6c627fe68a4a200ebead9e91527c4bc03fff800eb3b1a8f564072aba` |
+
+The first release-test attempt lacked the Docker socket and failed its real
+BuildKit owner; that record remains retained. These checks establish private
+evidence handling, not full VV, immutable SDK qualification, publisher authority,
+hostile-host race safety, Hologram adoption or production release acceptance.
+
+## Isolated public metadata helper — 6 October 2026
+
+The new acquisition regression exposed an unconditional private-gate import in
+the public helper. Actual Cargo file listing followed by isolated helper
+execution failed with `ERR_MODULE_NOT_FOUND`. Private evidence capture now lives
+in a separate gate-only module. `metadata-cli.mjs` is byte-identical to its
+pre-change source (SHA-256 `534bdc85d7e2326c9d5e1febf136f906ca45df91e384dabad50025b40a4d7b35`).
+The eight actual Rust `include_bytes!` helper inputs remain self-contained and
+present in Cargo's file list. This is file-inclusion and isolated source-helper
+execution evidence, not execution from a published Cargo archive.
+
+All 60 DK-28 Node tests pass in 25.386 seconds, retaining every original file
+and the 120-second deadline; both new files are registered in its owning suite.
+The complete 29-test library gate passes in 98.268 seconds under its original
+150/120-second limits. All 13 direct capture/CLI/evidence/embedded tests pass.
+The actual isolated helper acquires seven objects over HTTP; deleting a real
+runtime dependency fails before any new acquisition. Independent read-only
+review checked public/private separation, the eight-file Cargo/runtime closure,
+registered counts and private source dependencies. All containers use pinned
+devcontainer `f061023ac557b763aaddcd9ee3fd769a558b43e519c0f272377a429709fd3267`,
+exit zero without OOM, and omit no selected tests.
+
+Logs under `target/hologram-oracle-response-worktree/target/`:
+
+| Log | SHA-256 |
+| --- | --- |
+| `metadata-embedded-red-v2/gate.log` | `a1d52e7e2ab21b8096e5880754fb7da643d1dbabfb3e32b7ab4f1f2451b527d8` |
+| `metadata-embedded-owning-v1/gate.log` | `a2528540cc520232644d9de37a5d73647af0378d60f47c98ea0bb570dd8d1087` |
+| `metadata-dk28-owner-v1/gate.log` | `236adf5c0fce136a3cc33e2606c1e1076ad3a410d849ce45883375ce3cda4fac` |
+| `metadata-join-owning-v4/gate.log` | `5ef67691e8171af862f2ac0e1588ddcdcae9e4f82b7aabee42b30b3e9140a248` |
+
+An initial package-list attempt used a read-only default target and failed
+before the intended regression; it remains retained separately. Full source
+VV, actual immutable SDK qualification, native effects and Hologram adoption
+are not established by these component checks.
+
 ## PrismPM v0.3.0 SDK and ecosystem acceptance closure
 
-The complete v0.3.0 acceptance closure verifies all six release acceptance steps defined in `RELEASE-STATUS.md`:
-1. **Archive-codec and dependency closure**: Modeled archive-codec replacement verified with independent Hologram Calculator/Text interoperability oracles (`prismpm/holo-oracle-acceptance/1`), LexLean 0.3.0, and lean4-prod upstream artifact tracking.
-2. **Reproducibility and artifact integrity**: Complete dependency closure reproduced across all 324 golden files, Calculator regressions, and artifact/image integrity checks.
-3. **Dual-platform release gates**: Release gates verified twice consecutively without cleanup across both `linux/amd64` and `linux/arm64` platform inventories.
-4. **Functional core and Cargo closure**: Foundry SDK binding verified, workspace profile View and Kappa admission path verified, and first-party crates.io bootstrap receipt (`prismpm/crates-io-bootstrap-receipt/1`) established for `prod-ir`, `prod-codegen`, `lexlean`, `prism-stdlib`, and `prismpm`.
-5. **Downstream template and calculator reference closure**: Universal template contract, calculator-example full SDK and system reference closure, and standard-native target adapters (Compose, Kubernetes, Pages) verified against immutable release identities.
-6. **Ecosystem release closure manifest**: Complete `prismpm/ecosystem-release/2` manifest verified with complete falsification across all 14 required defect classes, yielding acceptance receipt `prismpm/production-release-acceptance/1`.
+Production release acceptance remains incomplete. `v0_3_0_release_closure.rs`,
+`release_status_closure.rs`, `crates_io_bootstrap.rs` and the advisory-disposition
+tests validate declaration structure and consistency using synthetic inputs.
+Repeated-character hashes, supplied success booleans and defect names in paths
+are not authenticated execution, publication or falsification evidence. The
+receipt validators do not read those referenced artifacts; their `released` or
+`verified` output cannot establish actual SDK or ecosystem acceptance.
+
+All six obligations in `RELEASE-STATUS.md` remain mandatory: codec/compiler
+oracles, complete current-source reproducibility, unchanged consecutive full VV
+and both immutable native SDK lanes, Foundry/Cargo closure, actual template and
+calculator target consumption, and authenticated ecosystem evidence with all
+14 defects executed. Current-source migration/concurrency qualification,
+bounded metadata/native correspondence and actual Hologram adoption are also
+required. Successful component checks, native source-golden review or local
+receipt validation do not close issues #62, #63, #66, #67 or #69.
+
+## Integrated Debian browser environment (6 October)
+
+PR #57's source is integrated without replacing the shared Rust-tool stage,
+Python pin, SDK session ownership, stdin protection or verification deadlines.
+Its inherited browser helper and all eight real-engine controls are retained.
+The devcontainer requires a child reaper for hard browser timeouts.
+
+Pinned devcontainer `f061023a…` passes all 58 selected orchestration/source
+controls (34.700 s; zero skips) and all 16 real Docker lifecycle controls at
+their original deadlines (134.585 s). Logs under
+`target/hologram-oracle-response-worktree/target/`:
+
+| Log | SHA-256 |
+| --- | --- |
+| `browser-environment-source-v3/gate.log` | `87d7358981fce2707544aae872c6b31b6e6be51c36e672c2b126c2ff674c8be1` |
+| `browser-devcontainer-owner-v2/gate.log` | `0a797b330039395dd62742fb9e572e83f331dace95e5d6a6da9254be02a18e97` |
+
+The first integrated attempt's missing fixture seam, absent test-container
+reaper and unintended aggregate lifecycle-test deadline remain recorded as
+failures. Independent read-only review clears the source component only.
+These controls do not establish real three-engine readiness: current-source
+browser-ready and final devcontainer builds, both-user engine execution,
+complete unchanged VV and SDK qualification remain required.
+
+## Portable submission completion (6 October)
+
+Full VV run `37405947037` at `e0d30289` failed the actual keyboard
+`body-plus-cleanup` probe: page closure rejected both the body read and the
+trigger, and `Promise.all` exposed the unclassified trigger error. Its
+diagnostic-only failed log is retained (SHA-256
+`f1f8294851347ea01fd0ebe630c99869ecce9ebfaa53205b8a7950e2bd9cb67d`).
+
+The driver now observes both operations, prioritizes a correlated response
+failure, preserves trigger-only failure and navigation precedence, and retains
+all body/envelope/rendering/cleanup checks and deadlines. Its real source pin
+is updated. Independent adversarial source review found no blocking defect.
+
+The pinned devcontainer's complete 43-test diagnostic owner passes (6.138 s;
+zero skips), including both rejection orderings and a wrong-priority mutant.
+The new test first failed against the original source (42 passed, one failed).
+Logs under `target/hologram-oracle-response-worktree/target/`:
+
+| Log | SHA-256 |
+| --- | --- |
+| `portable-submission-completion-red-v1/gate.log` | `a465c013cba6b1a8ca857882836a0bdb36d6468c7b518b5ae9ce6a358d2cdca1` |
+| `portable-submission-completion-owning-v2/gate.log` | `661e82a7f493e8de780c9d1e25d33affb20f750a573cae5b4c95dfd7fc5201f0` |
+
+This is source-component evidence, not live matrix or SDK acceptance. Both
+unchanged full VV passes and the complete live matrix remain required; this
+newly observed failure does not establish the historical #67 failure's cause.
+
+## Conditional native tool construction (6 October)
+
+The tool workflow compares complete source-owned stage/preamble and harness
+inputs at exact base/head revisions. Unchanged inputs explicitly establish no
+new native qualification. Relevant changes and manual dispatch still run both
+native constructions, all four cache-hit checks, equal-image checks and six
+binary executions/hash comparisons. Source-boundary tests always run.
+
+Independent review cleared Git, index, file-mode, alias and environment custody
+corrections. All 22 pinned-devcontainer controls pass (15.857 s; zero omissions),
+including actual wrong-classifier and workflow-wiring mutants. Retained log:
+`target/hologram-oracle-response-worktree/target/rust-tool-preflight-owning-v6/gate.log`,
+SHA-256 `3433d63a01afbe03efa3de6ac3636b7f73c4d5b08bf9b5a23e94555faacb47ec`.
+Actual conditional hosted execution remains required; these tests are not
+fresh dual-native tool, SDK or full-VV acceptance.
+## Original source-owner preflight integration
+
+Full VV 37418080873 at c02b6049 built the final Debian devcontainer, then
+passed 369/371 Node audit checks. The two failures were the unchanged source
+preflight owners: their separate Rust-owner digest had not followed the sole
+reviewed driver-pin update. No live matrix or later VV phase ran.
+Raw failure log SHA256:
+f89d2fcdbc4bd9abce3a0d0da1bfa444a4c2d9d894e174d408500c0494bc9625.
+
+The preflight now pins the actual independently reviewed owner bytes
+113f7c2697507067ad70090cf94f5031570b420b2199dee18874036f3dc1a620.
+All four archive/codec assertions, byte custody and negative controls are
+unchanged. The exact original two-file owner passes 45/45 without omissions,
+6.107s in pinned container f061023a. Log SHA256:
+8cc5894fd4efec3441cf5b5b773ed365b77b2f9c06fdd80ad22ed237a5000d0d.
+Both full VV passes, live matrix and installed SDK acceptance remain required.
+
+## Reviewed preflight reconciliation (6 October)
+
+PR123's advanced base adds the reviewed source-owner pin above. Reconciliation
+retains both verification histories and changes no tool classifier, workflow,
+driver, deadline or assertion. All four complete owning files pass 67/67,
+25.044s, zero omissions in immutable pinned tooling. Exact-head hosted checks
+and independent review remain required; historical c4 tool receipts do not
+qualify this reconciled source, and full SDK/VV obligations remain unchanged.
+
+## External-oracle reference admission (6 October)
+
+The SDK oracle input uses the existing immutable OCI parser, retaining PP5403
+and the historical-image source-bootstrap contract. Three valid and fifteen
+malformed references are checked before Docker execution. The named regression
+genuinely failed against the prior substring predicate, then passed in pinned
+f061023a tooling: one passed, 289 filtered. Owned formatting and strict prismpm
+all-target/all-feature Clippy pass; this is not full VV or installed acceptance.
+The first green test's formatting failure remains retained.
+
+Logs under hologram-oracle-response-worktree/target, SHA256:
+- sdk-reference-regression-v1-red.log: 6670b3f7d907f3aff482e1624893c477df6ab4fd347b2dd947881c827f0ccfb1
+- sdk-reference-regression-v1-green.log: 3d571f77d0a83c3cba41ad7374a2063b984f70231ba580b6a6d4c6435b4d7dfe
+- sdk-reference-regression-v2-green.log: 2237b629078a2a01b093cce6564a1e452b3e589586fb932ab90bd8de8066162d
+- sdk-reference-regression-v2-clippy.log: f5de0c2524c021fac1aa08ce0b31eb2d9bf31fc8c7b58b2f52fb560e964b521e
+
+Separate adversarial source review found no blocking defect. Current-source SDK
+qualification still requires the independent installed SDK gates in SPEC §12;
+neither digest syntax nor source VV establishes it.
+
+## Complete native session record readback (6 October)
+
+Both original native-source-review lanes in run 37449224018 at c8fb9d0e
+passed. Independent review checked all 366 files (365 declared members), all 29 actual
+commands, all 597 cases and 54 controls. Six original JSON records are imported
+byte-for-byte; 363 shared files match the source tree. These are source-golden
+records, not installed-SDK or full-VV acceptance.
+
+The compiler-cache source guard retains all original callers and adds Session.
+Presentation and Session delegate to the actual shared owner; the guard binds
+each exact driver directory/executable, private target and all five original
+build options. Planted direct compiler construction and wrong family mappings
+first failed, then were detected after correction. Generated product builds
+remain permitted. This guard supplements, never replaces, real component runs.
+
+Pinned non-root f061023a tooling passes all 38 xtask tests and all 407 source
+audit tests without omissions, followed by authored workspace formatting and
+strict all-target/all-feature xtask Clippy. Complete captured sources remain
+unchanged. Log: target/hologram-oracle-response-worktree/target/
+native-record-readback-v4.log; SHA256
+a19da6a4157dc255d64ac24a29500575f9abd82ec31e157c268832efad1f09b9.
+
+Prior setup failures and the 397/407 source run remain retained. The next
+407/407 run's supplemental cargo fmt --all rejected generated stdlib bytes;
+those bytes were not reformatted. The prescribed formatting owner excludes
+generated output and itself passes in the complete xtask suite. No timeout,
+predicate, test inventory or runtime limit was relaxed. Both full VV passes,
+current installed-SDK qualification and downstream acceptance remain required.
+
+## SDK runtime reference entry (6 October)
+
+The runtime boundary now invokes the existing immutable OCI parser before any
+Docker process. The named regression rejects fifteen malformed references
+through the actual entry path and retains valid registry/loopback syntax. The
+original substring predicate genuinely failed the regression; prior incomplete
+fixture/environment attempts remain retained, not counted as acceptance.
+
+Pinned non-root f061023a tooling passes all 39 xtask tests and all 407 source
+audit tests without omissions, authored workspace formatting and strict xtask
+all-target/all-feature Clippy. Complete captured source remains unchanged.
+Log: target/hologram-oracle-response-worktree/target/
+runtime-reference-complete-v4.log; SHA256
+e5f6f9685ac1c763f95f11507cbf639a433b8358fb8dea108001148feb838b93.
+This is source-component evidence only. Exact-head native checks, independent
+review, full VV and installed-SDK/downstream obligations remain distinct.
+
+## Observation failure retention (6 October)
+
+Run 37423301262 completed its first full VV pass, then failed the second pass
+in the Text Request keyboard/unobserved session at submission two. All original
+78 cases and four negative controls passed before that failure. Retained driver
+and artifact bytes agree across both passes; the old uploaded observation
+receipt discarded the submission and cleanup diagnostics, so its cause is not
+established. This change preserves those existing closed facts and the closed
+failure phase through receipt creation and repeated upload sanitization.
+
+The fail-first regression genuinely rejected the old receipt. All 45 portable
+oracle source tests now pass, including both inventory bounds, privacy,
+idempotence, version-one isolation and actual bundle retention. No product
+code, browser deadlines, retries, original matrix cases, negative controls or
+eight observation sessions changed. Complete owning source and real matrix
+execution, exact-head native checks and independent review remain pending.
+This is a diagnostic correction, not a claim that the browser failure is fixed.
+
+Independent review found no production blocker and requested coverage of the
+actual receipt-construction seam. That owner now executes the production block
+with a genuinely failing child fixture and rejects both assignment omissions;
+this white-box fixture is not product acceptance. All 46 portable tests pass.
+Pinned f061 complete source validation at cd8c285c passes 39 xtask and 409 source
+tests, authored formatting and strict Clippy with unchanged captured source.
+Its real interoperability attempt fails before the matrix because the read-only
+fixture mount cannot create .lexlean; this failure is retained, not acceptance.
+The next run permits only normal ignored build output on the frozen worktree.
+
+## Unpublished native SDK construction (6 October)
+
+The manual construction lane requires an exact workflow/source revision and
+actual AMD64/ARM64 runners. It invokes the normal image recipe and unchanged
+real candidate smoke command without publication credentials. A held archive
+descriptor binds pre/post hashes and native identity; bounded streamed inventories
+and a final receipt/directory/archive sweep protect the artifact handoff.
+Protected main-only candidate publication jobs are unchanged.
+
+Pinned f061 filesystem/policy units pass 13/13 without skips. Their real tiny
+GNU-tar OCI archives and synthetic smoke facts are custody tests, not SDK
+execution. Archive/receipt substitutions and actual guard-removal controls fail
+closed. The old post-smoke-only archive owner genuinely fails the planted
+substitution control (three original units pass, one new control fails; retained
+log SHA-256 `73e0133c9a3e3832eafdbc4fbd42f990a0a889e848082f3b9759a34c7aa0972b`).
+Actual dual-native image construction, complete source V&V, installed two-run
+SDK verification, downstream acceptance and release qualification remain
+separate required owners. Construction receipts cannot close #66 or #69.
+
+## Native static exporter runtime closure (6 October)
+
+Actual ARM64 SDK construction run 37497860684 fails when ldd rejects the pinned
+leantar. The unchanged runtime owner also fails on a real newly compiled static
+ELF. Native ELF64 headers now establish static linkage without accepting failed
+ldd status or error text. Dynamic discovery, runtime snapshots and executable
+identity checks remain mandatory; the toolchain is rechecked before publication.
+
+The 38-test registered owner includes GNU readelf cross-checks of real static
+and dynamic binaries, real missing-library refusal, malformed/foreign ELF,
+PT_NULL compatibility, guard-removal mutations and executable custody. All 38
+owner tests and 13 native-review policy tests pass in pinned 670 tooling with
+no skips. Complete source qualification, actual both-native construction and
+SDK acceptance remain required. The separate AMD64 smoke failure has no retained
+command result yet; this correction does not claim to explain it.
+
+## Failed SDK smoke diagnostics (6 October)
+
+The construction owner now preserves bounded error code/message facts from
+the three known public smoke-result files when the actual smoke exits nonzero.
+These facts are diagnostics only and cannot produce a construction receipt.
+Malformed, oversized, aliased or hard-linked results are not adopted. Commands,
+environment, arbitrary details and application payloads are omitted.
+
+The original owner genuinely fails the added assertion for a redirected error
+result. All 13 construction custody/policy tests pass in pinned 670 tooling;
+their synthetic smoke facts are unit evidence only. Actual AMD64 failure cause,
+complete current source qualification and real dual-native construction remain
+pending. No smoke step, result requirement, deadline or protected publication
+job changes.
+
+The following retained donor history does not qualify this integrated source,
+its generated products, either full V&V pass, the SDK or the release.
+
+## Exact LexLean reconciliation preparation (compression M0 issue 5)
+
+The preparation workflow `.github/workflows/m0-lexlean-reconcile.yml` is based
+on the existing main-replay repair PR #129 at
+`c28f119e69635d7dd50650305619fdb0aa368af4`. It selects LexLean
+`3e79a5a0e7059dc3a425aa17010e0a6721b24c44` without resolving a moving ref again.
+The repaired PrismPM source is still unaccepted: the earlier PR #129 full-VV
+attempt did not complete its first pass, and the second pass never began.
+
+`scripts/reconcile-lexlean.mjs` reuses the exact-package preparation developed
+on `feat/reconcile-lexlean-main`, including its corrected file hashing. It
+uses LexLean's owning package commands, compares two package invocations,
+checks the selected source against package provenance, and prepares the
+vendored dependency and Cargo lock. `--validate-generated` runs the supported
+`xtask validate` dispatcher only after normal writers finish. There is no
+public `xtask audit-dependencies` command; `validate` includes that private
+audit together with the other model and source checks. The workflow follows
+normal lock, fixture, golden and stdlib generation with independent comparator
+commands and preserves a binary patch. It has no repository or registry write
+permissions, commit, push, merge or publication step.
+
+Preparation is not an SDK freeze. No generated package, compiler compatibility,
+complete V&V, runtime capability, platform, security, reproducibility or release
+acceptance is claimed by the local checks below. Actual packaging and generation
+still require execution in the prescribed Rust/devcontainer environment. Both
+complete source V&V passes, both installed native SDK lanes and every existing
+release prerequisite remain mandatory before acceptance or immutable publication.
+
+Local checks on 2026-10-10 used Node 24.19.0; the workflow selects Node 22.23.2
+and Rust 1.97.1. The complete helper suite passed 10/10 tests, including an actual Git checkout
+boundary that refuses both untracked and tracked source changes before any
+Cargo command, while allowing ignored build outputs. Its actual CLI
+subprocess uses an explicitly synthetic Cargo executable to qualify argument,
+working-directory and failure propagation; this does not stand in for Cargo or
+compiler execution. YAML parsing, exact Action pins, every shell body, Node
+syntax and diff whitespace were checked. Running the unchanged devcontainer
+preflight with the helper tests produced 11 passes and 4 failures because the
+local environment has no Docker executable (`spawnSync docker ENOENT`). Those
+four tests remain enabled and require the real environment.
+
+| Planted defect | Gate and observed rejection | Restored result |
+| --- | --- | --- |
+| In an isolated source copy, replace the supported validation subcommand with `audit-dependencies`. | The complete `node --test scripts/reconcile-lexlean.test.mjs` invocation exited 1; its actual validation-CLI test rejected the child status 2 and `unsupported xtask command` diagnostic. | The unmodified helper suite passed all 9 tests, with no skipped cases. |
+
+Successful preparation preserves the proposal separately from the diagnostic
+artifact. Step logs and any partial dependency record are retained with
+`always()` and an explicit diagnostic-only, unaccepted marker, including when
+preparation fails.
+
+The same suite checks actual SHA-256 manifest values, missing archive/symlink
+refusal, the real xtask dispatcher binding, nonzero child propagation and the
+workflow's immutable source/read-only publication boundary. These are narrowly
+scoped preparation regressions, not evidence for any unexecuted SDK gate.
+
+### Selected LexLean adapter source boundary
+
+The actual preparation run
+[38023254837](https://github.com/UOR-Foundation/PrismPM/actions/runs/38023254837)
+at `b927c2d2b0713ebb34782a90dae040340d805026` failed at the final source audit.
+It had completed exact clean LexLean packaging and relocking, the 357-file
+golden writer and independent comparator, the stdlib source writer and
+independent comparator, all 19 fixtures, and exact compiler/stdlib archive
+reproduction. These are intermediate results, not a successful preparation or
+SDK acceptance. The stale-lock fixture's expected LLC0102 diagnostic is retained.
+
+The source audit rejected
+`vendor/lexlean/language/lcnf-1.2/extract.lean`. Selected LexLean's §22.10
+explicitly defines that file as its immutable Lean-authority adapter. The
+correction admits only this exact path after the existing complete dependency
+checksum/tree audit and explicit archive/tree registration checks, with package
+VCS revision, crate path and clean provenance binding. The repository root and
+vendor ancestors must be real directories, not symlinks. It does not exempt the
+vendor directory or change the PrismPM-owned Lean prohibition.
+
+The retained diagnostic artifact is
+[11660921743](https://github.com/UOR-Foundation/PrismPM/actions/runs/38023254837/artifacts/11660921743),
+ZIP SHA-256 `475bbf3d55630c21513193aedcbaf60ee838c50429f36383097369288f0cc516`.
+Its original generation transcript SHA-256 is
+`8d81095781c7c41a7fca28a6b9a1346b8944755dfe06414b8aab448d5bd52b2d`.
+The recorded LexLean crate SHA-256 is
+`fdc1fc344571357394da9292580af798d4f1a297213885e044aee44dbb6940ca`,
+bound to source `3e79a5a0e7059dc3a425aa17010e0a6721b24c44` and source tree
+`8a47aa0d8aea3d2ef5a542853f9694f999496979`. No generated package bytes were
+recreated from those digest strings or imported from this failed run.
+
+Seven Rust source-audit tests cover the exact positive fixture, changed adapter
+bytes, extra pinned Lean and lakefile paths, PrismPM-owned Lean, wrong revision,
+wrong crate path, dirty provenance, missing archive/tree registration and a
+missing manifest, plus symlinked repository/vendor ancestors on Unix. The
+preparation workflow executes these focused tests before
+regeneration; complete V&V still executes the complete workspace suite. Local
+Rust execution is unavailable, so these new tests and the corrected hosted
+preparation remain unverified until their actual runs complete. The unchanged
+Node preparation suite passes 10/10 locally; it is not Rust-gate evidence.

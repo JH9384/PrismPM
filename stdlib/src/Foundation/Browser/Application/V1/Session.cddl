@@ -1,0 +1,63 @@
+; DK-26 private pure-kernel ABI, not a public application or authority service.
+; Canonical definite CBOR; exact arity, shortest uint32 heads, all input consumed.
+; Whole encoded request/reply <=67108864 bytes, including every wrapper.
+u32 = 0..4294967295
+reference = bstr .size 32
+payload = bstr .size (0..67108864)
+limits = [application:1..67108864, selector:1..67108864,
+          continuation:1..67108864, evidence:1..67108864,
+          intent:1..67108864, maximum-steps:1..512, presentation:1..67108864]
+binding = [application:reference, manifest:reference, artifacts:reference,
+           requested-policy:reference, effective-policy:reference, custody:reference]
+authority = [principal:reference, scope:reference, epoch:u32, evidence:payload]
+; Authority values are independently admitted source facts, not authenticated
+; by this ABI. Source application wrappers, never host flags, select decisions.
+; ref<T> is [0] for the ONE predecessor fixed by the field below, or [1,T]
+; for a different explicit value. Explicit-equal is NonCanonical. No numeric
+; indices, forward references, cross-field references or absent-context [0].
+ref<T> = [0] / [1,T]
+command = [execution:reference, sequence:u32, authority:ref<authority>, intent:payload]
+; command.authority refers to the containing state's durable.authority.
+; intent is exact DK23 canonical Intent bytes. Ordinary secret actions reject.
+source-completion = [ref<binding>, instance:ref<reference>, ref<command>, step:u32,
+                     continuation:ref<payload>, [request:ref<payload>, result:payload]]
+; binding/instance refer to state; command/continuation/request refer to pending.
+; Result is an exact canonical DK20 EffectResult, independently parsed to EOF.
+predecessor = [0] / [1, [previous-continuation:ref<payload>, ref<source-completion>]]
+; predecessor refs select old pending.continuation and the operation's completion.
+plan = [ref<command>, before:ref<state>, predecessor, effect-request:payload, continuation:payload]
+; Plan refs select the operation's command (or pending.command for Continue)
+; and current state. An explicit State is self-contained: only its own pending
+; command.authority has a reference, so explicit State cannot recursively nest.
+; before must equal the complete current typed state. effect-request is exact
+; DK18/DK20 canonical EffectRequest bound to current application/manifest/session.
+; Begin requires [0]; Continue requires exact pending continuation and completion.
+pending = [command, step:u32, effect-request:payload, continuation:payload]
+optional-pending = [0] / [1,pending]
+durable = [instance:reference, next-command:u32, application:payload,
+           authority, optional-pending]
+volatile = [execution:reference, next-effect:u32, revision:u32, selector:payload,
+            presentation:payload, phase:0..3]
+; Presentation is exact DK23 bytes, never HTML. Its phase/revision agree here.
+state = [binding, limits, effect-manifest:payload, durable, volatile]
+; Current wire contains model observations only. No host/caller can issue a
+; durable receipt, approve a policy, possess a key or claim a role with these bytes.
+operation = [0,binding,limits,effect-manifest:payload,instance:reference,
+                execution:reference,application:payload,authority,
+                selector:payload,presentation:payload]
+          / [1,state,command,selector:payload,presentation:payload]
+          / [2,state,command,plan,presentation:payload]
+          / [3,state,source-completion,application:payload,
+                selector:payload,presentation:payload]
+          / [4,state,source-completion,application:payload,plan,
+                presentation:payload]
+          / [5,state,source-completion,presentation:payload]
+          / [6,state,presentation:payload]
+          / [7,state,execution:reference,selector:payload,presentation:payload]
+          / [8,state,before:ref<state>,command,plan,presentation:payload]
+; 0 Initialize; 1 ReadOnly; 2 Begin; 3 Terminal/settle; 4 Terminal/continue;
+; 5 Unknown; 6 Close; 7 Rebind logical replay result; 8 Context check.
+; Terminal envelopes bind the full pending context and exact primitive result.
+; Equality is not authentication: a future journal must authenticate the envelope.
+request = [1,operation]
+response = [1,0,state] / [1,1,session-error:0..19] / [1,2,cbor-error:0..8]

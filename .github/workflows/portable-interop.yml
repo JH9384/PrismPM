@@ -1,0 +1,93 @@
+name: Portable interoperability component qualification
+
+# The complete original component owners, not whole-release qualification.
+on:
+  pull_request:
+    branches: [fix/sdk-qualification-component-union]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portable-interop-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  interoperability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify complete component owners in the pinned devcontainer
+        uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6
+        env:
+          SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        with:
+          push: never
+          env: SOURCE_REVISION
+          runCmd: |
+            set -euo pipefail
+            test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+            git diff HEAD --exit-code
+            mkdir -p target/ci-diagnostics/portable-interop
+            git rev-parse HEAD > target/ci-diagnostics/portable-interop/source.txt
+            node --test --test-concurrency=1 --test-reporter=./scripts/owning-node-reporter.mjs scripts/portable-oracle-matrix.test.mjs 2>&1 | tee target/ci-diagnostics/portable-interop/node.log
+            cargo test --locked --offline --package prismpm --test hologram_interop -- --test-threads=1 --nocapture 2>&1 | tee target/ci-diagnostics/portable-interop/interop.log
+            node --input-type=module <<'VERIFY_COMPONENT'
+            import assert from 'node:assert/strict';
+            import {createHash} from 'node:crypto';
+            import {readdirSync,readFileSync} from 'node:fs';
+            import {join,resolve} from 'node:path';
+            import {verifyTap,verifyFileCompletions} from './scripts/browser-api-sdk-check.mjs';
+            import {diagnosticLimits,readDiagnosticFile} from './scripts/portable-oracle-diagnostics.mjs';
+            const node=readFileSync('target/ci-diagnostics/portable-interop/node.log','utf8');
+            const total=verifyTap(node,57);
+            verifyFileCompletions(node,[resolve('scripts/portable-oracle-matrix.test.mjs')],total);
+            const rust=readFileSync('target/ci-diagnostics/portable-interop/interop.log','utf8');
+            assert.equal((rust.match(/^test result: ok\. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;/gm)||[]).length,1);
+            for(const name of ['test_hologram_oracle_pinned_source_identities','test_portable_view_profiles_and_owned_failure_matrix','test_hologram_oracle_negative_probes_reject_wrong_subject_edition_and_mutations'])
+              assert.equal((rust.match(new RegExp('^test '+name+' \\.\\.\\.(?: |$)','gm'))||[]).length,1);
+            const bundles=readdirSync('target/ci-diagnostics').filter(name=>name.startsWith('portable-oracle-'));
+            assert.equal(bundles.length,1,'one fresh complete interoperability diagnostic bundle');
+            const root=resolve('target/ci-diagnostics',bundles[0]);
+            const index=JSON.parse(readDiagnosticFile(join(root,'index.json'),diagnosticLimits.indexBytes));
+            assert.equal(index.schema,'prismpm/portable-oracle-diagnostic-bundle/1');
+            assert.equal(index.scope,'diagnostics-only-not-acceptance');
+            assert.equal(index.state,'completed');
+            assert.deepEqual(Object.keys(index).sort(),['files','schema','scope','state','total_bytes']);
+            assert.ok(Number.isSafeInteger(index.total_bytes)&&index.total_bytes>=0&&index.total_bytes<=diagnosticLimits.totalBytes-2*diagnosticLimits.indexBytes);
+            assert.equal(index.files.length,282,'retain all original and additive case/observation/retirement records');
+            assert.equal(new Set(index.files.map(row=>row.path)).size,index.files.length);
+            let bytes=0;
+            for(const row of index.files){
+              assert.deepEqual(Object.keys(row).sort(),['byte_length','path','sha256']);
+              assert.ok(typeof row.path==='string'&&row.path.length<=160&&row.path.split('/').length<=4&&/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(row.path)&&row.path.split('/').every(part=>part!==''&&part!=='.'&&part!=='..'));
+              assert.ok(Number.isSafeInteger(row.byte_length)&&row.byte_length>=0&&row.byte_length<=diagnosticLimits.fileBytes);
+              assert.match(row.sha256,/^[a-f0-9]{64}$/);
+              assert.ok(bytes+row.byte_length<=diagnosticLimits.totalBytes-2*diagnosticLimits.indexBytes);
+              const data=readDiagnosticFile(join(root,row.path));
+              assert.equal(data.length,row.byte_length);
+              assert.equal(createHash('sha256').update(data).digest('hex'),row.sha256);
+              bytes+=data.length;
+            }
+            assert.equal(bytes,index.total_bytes);
+            const outcomes=JSON.parse(readDiagnosticFile(join(root,'outcomes.json')));
+            for(const [name,count,status] of [['cases',78,'passed'],['negative_controls',12,'refused-as-required'],['retirement_controls',34,'passed']]){
+              assert.equal(outcomes[name].length,count);
+              assert.ok(outcomes[name].every(row=>row.status===status));
+            }
+            VERIFY_COMPONENT
+            git diff HEAD --exit-code
+      - name: Retain original execution logs and complete diagnostic bundle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: portable-interop-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/ci-diagnostics/
+          if-no-files-found: error
+          retention-days: 14

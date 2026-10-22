@@ -316,13 +316,21 @@ pub fn check(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         "stale-lock" => {
+            // A pre-existing lock failure would conceal whether this mutation
+            // exercises the checksum boundary at all.
+            controller.check(prismpm::controller::CheckRequest { config_path: None })?;
             let lock = temp_dir.path().join("lexlean.lock");
             let mut text = std::fs::read_to_string(&lock)?;
             let position = text
                 .find("sha256 = \"")
                 .map(|position| position + "sha256 = \"".len())
                 .ok_or("fixture lock has no checksum")?;
-            text.replace_range(position..=position, "0");
+            let replacement = if text.as_bytes()[position] == b'0' {
+                "1"
+            } else {
+                "0"
+            };
+            text.replace_range(position..=position, replacement);
             std::fs::write(lock, text)?;
             controller
                 .check(prismpm::controller::CheckRequest { config_path: None })
@@ -611,6 +619,24 @@ mod tests {
     use super::copy_dir_recursive;
 
     const GENERATED_ROOTS: [&str; 5] = ["target", ".prism", ".lexlean", ".lake", ".git"];
+
+    #[test]
+    fn stale_lock_fixture_requires_a_valid_unmutated_control() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let fixture = root.join("tests/negative/lock/stale");
+        super::check(&fixture).expect("valid baseline must reject the planted checksum");
+        let copy = tempfile::tempdir().unwrap();
+        copy_dir_recursive(&fixture, copy.path()).unwrap();
+        let lock = copy.path().join("project/lexlean.lock");
+        let text = std::fs::read_to_string(&lock).unwrap();
+        let mut document: toml::Value = toml::from_str(&text).unwrap();
+        document["compiler_semantics"] = toml::Value::String("0".repeat(64));
+        std::fs::write(lock, toml::to_string(&document).unwrap()).unwrap();
+        assert!(
+            super::check(copy.path()).is_err(),
+            "an invalid control must not qualify the mutation"
+        );
+    }
 
     #[test]
     fn fixture_copy_preserves_sources_and_prunes_only_generated_roots() {

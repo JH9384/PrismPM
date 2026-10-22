@@ -1,0 +1,57 @@
+{
+  "schema": "prismpm/upstream-oracle-source/1",
+  "repository": "https://github.com/web-platform-tests/wpt",
+  "revision": "37260931105fff57b17bbb80d15fd44b1eb3b930",
+  "license": "BSD-3-Clause",
+  "entry": "WebCryptoAPI/sign_verify/ecdsa.https.any.js",
+  "globals": [
+    "window",
+    "dedicatedworker"
+  ],
+  "scope": "Complete original ECDSA sign_verify entry and all META scripts at the pinned revision. This is not the complete Web Cryptography standard, identity, mailbox or authorization conformance.",
+  "acceptance": false,
+  "files": [
+    {
+      "path": "LICENSE.md",
+      "bytes": 1500,
+      "sha256": "5fac07febb0e2a97fb0d7b0def149ec08b642e1ba4b9c345283ab1cbd2af6570",
+      "gitBlob": "39c46d03ac2988226f949ee7ab3c7347d5481bd8"
+    },
+    {
+      "path": "WebCryptoAPI/sign_verify/ecdsa.https.any.js",
+      "bytes": 218,
+      "sha256": "e69ac315ff8f73aba02b1c4a48d31d6a987423d543f577599083ed79a025aa46",
+      "gitBlob": "2af5e05048e4445bd29aaf1cf2b2e78d3b598683"
+    },
+    {
+      "path": "WebCryptoAPI/sign_verify/ecdsa.js",
+      "bytes": 2473,
+      "sha256": "c688814e87d92289d34ad374decc29f65434f1e14cf7e36222a107f94200e744",
+      "gitBlob": "a1a744aaa8244b16c80756d30be152c5ed75df06"
+    },
+    {
+      "path": "WebCryptoAPI/sign_verify/ecdsa_vectors.js",
+      "bytes": 15273,
+      "sha256": "67e47c27b1aada50ceb62689b149bc7aa0dfa273f3dd122f91fd6eb5daa78426",
+      "gitBlob": "aa9b81ba8a4bd11a5a27adab005aaf5727be18d1"
+    },
+    {
+      "path": "WebCryptoAPI/sign_verify/signature.js",
+      "bytes": 12017,
+      "sha256": "a1b7c28f7a9330e2114e0d556de8cde448696bf278b401a5ca5c320fe67129eb",
+      "gitBlob": "1c6efa0bd2230cb3998ec18fca4ebcce85d58673"
+    },
+    {
+      "path": "WebCryptoAPI/util/helpers.js",
+      "bytes": 13922,
+      "sha256": "9dfd282f2bb5255ece417b7815a36ad4b16a91c67bc194a052ae58756843d11a",
+      "gitBlob": "86a4a79f0b9d42ba48cba399de05c87940d0f5a3"
+    },
+    {
+      "path": "resources/testharness.js",
+      "bytes": 198420,
+      "sha256": "7a108d7cfa98ac413ddb38f82fd509fb2037dfcc25ccf466567520cbb6bdf1fa",
+      "gitBlob": "dd841a084662637b32b7f064b1816ab0b35f89d1"
+    }
+  ]
+}

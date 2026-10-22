@@ -16,7 +16,7 @@ const object = value => value !== null && typeof value === 'object' && !Array.is
 
 // JSON.parse alone discards duplicate keys. OCI consumers must not observe a
 // different effective configuration through duplicate objects or case aliases.
-export function parseJson(bytes) {
+export function parseJson(bytes, numberToken = () => {}) {
   assert(Buffer.isBuffer(bytes) && bytes.length <= limits.document, 'bounded OCI JSON required');
   const text = new TextDecoder('utf-8', {fatal:true}).decode(bytes);
   let at = 0;
@@ -30,28 +30,51 @@ export function parseJson(bytes) {
     }
     assert.fail('unterminated JSON string');
   };
-  const value = depth => {
+  const value = (depth, path) => {
     assert(depth <= 64, 'OCI JSON nesting exceeds bound'); white();
     const char = text[at];
     if (char === '"') {string(); return;}
     if (char === '{' || char === '[') {
       at++; white(); const end = char === '{' ? '}' : ']', seen = new Set();
       if (text[at] === end) {at++; return;}
+      let index = 0;
       for (;;) {
+        let key = index++;
         if (char === '{') {
-          white(); const key = string(); assert(!seen.has(key), 'duplicate OCI JSON key'); seen.add(key);
+          white(); key = string(); assert(!seen.has(key), 'duplicate OCI JSON key'); seen.add(key);
           white(); assert.equal(text[at++], ':');
         }
-        value(depth + 1); white();
+        value(depth + 1, [...path, key]); white();
         if (text[at] === end) {at++; return;}
         assert.equal(text[at++], ',', 'JSON delimiter required');
       }
     }
     const token = /^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)/.exec(text.slice(at));
     assert(token, 'JSON value required'); at += token[0].length;
+    if (/^[-0-9]/.test(token[0])) numberToken(token[0], path);
   };
-  value(0); white(); assert.equal(at, text.length, 'trailing OCI JSON data');
+  value(0, []); white(); assert.equal(at, text.length, 'trailing OCI JSON data');
   return JSON.parse(text);
+}
+
+// Check the decimal token before JSON.parse can round fractions to integers.
+// Exponents and output allocation stay bounded by the document/maximum width.
+export function boundedPositiveInteger(token, maximum) {
+  const match = /^(0|[1-9][0-9]*)(?:\.([0-9]+))?(?:[eE]([+-]?[0-9]+))?$/.exec(token);
+  assert(match, 'positive integral OCI number required');
+  let digits = (match[1] + (match[2] ?? '')).replace(/^0+/, '');
+  assert(digits.length > 0, 'positive integral OCI number required');
+  const exponent = match[3] ?? '0';
+  assert(exponent.replace(/^[+-]?0*/, '').length <= 7, 'OCI exponent exceeds bound');
+  let end = digits.length;
+  while (digits[end - 1] === '0') end--;
+  const significant = digits.slice(0, end);
+  const scale = Number(exponent) - (match[2]?.length ?? 0) + digits.length - significant.length;
+  digits = significant;
+  assert(scale >= 0 && digits.length + scale <= String(maximum).length, 'OCI integer exceeds bound or is fractional');
+  const exact = digits + '0'.repeat(scale);
+  assert(exact.length < String(maximum).length || exact <= String(maximum), 'OCI integer exceeds bound');
+  return Number(exact);
 }
 
 export function caseKeys(value, names) {
@@ -81,7 +104,17 @@ export function verifyBlob(bytes, expected, maximum) {
 
 export function parseManifest(bytes, expected) {
   descriptor(expected, limits.document, media + 'manifest.v1+json');
-  const value = parseJson(verifyBlob(bytes, expected, limits.document));
+  const value = parseJson(verifyBlob(bytes, expected, limits.document), (token, path) => {
+    // Descriptor and schema numbers are admitted from their original decimal
+    // tokens before binary64 rounding can turn a fraction into an integer.
+    // Opaque extension fields retain the ordinary JSON numeric domain.
+    if (path.length === 1 && path[0] === 'schemaVersion')
+      assert.equal(boundedPositiveInteger(token, 2), 2, 'OCI schema version differs');
+    if (path.length === 2 && path[0] === 'config' && path[1] === 'size')
+      boundedPositiveInteger(token, limits.document);
+    if (path.length === 3 && path[0] === 'layers' && Number.isInteger(path[1]) && path[2] === 'size')
+      boundedPositiveInteger(token, Number.MAX_SAFE_INTEGER);
+  });
   caseKeys(value, ['schemaVersion', 'mediaType', 'config', 'layers', 'subject', 'annotations', 'artifactType']);
   assert.equal(value.schemaVersion, 2);
   assert.equal(value.mediaType, media + 'manifest.v1+json');
@@ -124,9 +157,10 @@ export function parseConfig(bytes, manifest, platform) {
   assert.equal(config.config?.Labels?.[label], profile, 'SDK has no bounded metadata profile; no full-image fallback');
   caseKeys(config.config, ['User', 'ExposedPorts', 'Env', 'Entrypoint', 'Cmd', 'Volumes', 'WorkingDir', 'Labels',
     'StopSignal', 'ArgsEscaped', 'Memory', 'MemorySwap', 'CpuShares', 'Healthcheck', 'OnBuild', 'Shell']);
-  if (config.config.Volumes !== undefined) {
+  if (config.config.Volumes !== undefined && config.config.Volumes !== null) {
     assert(object(config.config.Volumes), 'OCI volumes must be an object');
-    for (const volume of Object.keys(config.config.Volumes)) {
+    for (const [volume, declaration] of Object.entries(config.config.Volumes)) {
+      assert(object(declaration), 'OCI volume declarations must be objects');
       assert(volume.startsWith('/') && !volume.slice(1).split('/').some(part => !part || part === '.' || part === '..'),
         'noncanonical OCI volume path');
       for (const name of Object.values(paths)) {

@@ -1,0 +1,16 @@
+{
+  "schema": "prismpm/imported-json-schema-engine/1",
+  "name": "jsonschema",
+  "version": "0.58.2",
+  "release": "https://github.com/Stranger6667/jsonschema/releases/tag/rust-v0.58.2",
+  "revision": "3d48b9026c6518e7f3a2ecc6c9c94a9f77f6083c",
+  "crate_url": "https://static.crates.io/crates/jsonschema/jsonschema-0.58.2.crate",
+  "crate_sha256": "657c6a38b0e00dda091d9c006cc1741957ba2377f00dccfd6e79df4c95619bb1",
+  "crate_bytes": 711880,
+  "crate_cargo_lock_sha256": "3ba1564e3566a3700a29eb2d6b6dd6fc7f170c1edc2b459f732b0ac28e619edd",
+  "license": "MIT",
+  "license_sha256": "117829c3ca21efb132d81a44b55363d395ab8eea18526873bc828da4c0e5f038",
+  "adapter_cargo_lock_sha256": "1e33bbf4be333f4f745e976f7b8529c559aea7b7dcc5b7905ca75ce416d5d2e1",
+  "scope": "json-structural-validation-only",
+  "complete_standard_acceptance": false
+}

@@ -1,0 +1,21 @@
+; DK-32 internal canonical definite CBOR; every input consumed to EOF.
+reference = bstr .size 32
+binding = [reference, reference, reference, reference, reference, reference]
+context = [binding, origin: reference, purpose: 0..3, subject: reference,
+  scope: reference, state: reference, request: reference,
+  credential-epoch: 0..4294967295, challenge: reference]
+public-key = bstr .size 65 ; raw uncompressed P-256, prefix 04; generated DK-34 validates point before provider import
+signature = bstr .size 64 ; P1363; host performs actual verification
+unsigned = [1, context, public-key]
+envelope = [1, context, public-key, signature]
+; Purpose maps to the fixed signing context in SignedContext.md.
+request = [1, 0, envelope]
+        / [1, 1, envelope]
+        / [1, 2, expected: context, expected-key: public-key, envelope]
+; 0 canonical roundtrip; 1 verification projection; 2 exact expected binding.
+projection = [public-key, signing-context: tstr, unsigned: bstr, signature]
+response = [1, 0, (envelope / projection / bool)]
+         / [1, 1, context-error: 0..5]
+         / [1, 2, cbor-error: 0..8]
+; Source validity and exact matching are not authentication.
+; Frame/output maximum 2048 bytes; actual maximum match request is 1037 bytes.

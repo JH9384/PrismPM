@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 camino = { workspace = true }
+flate2 = { workspace = true }
 prismpm = { workspace = true }
 prod-codegen = { workspace = true }
 prod-ir = { workspace = true }

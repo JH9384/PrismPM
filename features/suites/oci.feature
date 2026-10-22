@@ -53,3 +53,9 @@ Feature: oci
     Given the locked PrismPM production fixture
     When the OC-09 contract is exercised
     Then its positive evidence passes and its planted defect is rejected
+
+  @OC-10 @build
+  Scenario: Private publication context linkage projects a unique source-owned declaration and binds generated canonical preimages to the complete captured release and tool closure without inventing absent identities, authenticating caller facts, or authorizing deployment.
+    Given the locked PrismPM production fixture
+    When the OC-10 contract is exercised
+    Then its positive evidence passes and its planted defect is rejected

@@ -14,6 +14,7 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `prismpm/library-build-binding/1` | `schemas/library-build-binding.schema.json` | `application/vnd.prismpm.library-build-binding.v1+json` | 4194304 bytes / 4096 items | `closed`; `exact-major` |
 | `prismpm/library-acceptance/1` | `schemas/library-acceptance.schema.json` | `application/vnd.prismpm.library-acceptance.v1+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/library-verification-manifest/1` | `schemas/library-verification-manifest.schema.json` | `application/vnd.prismpm.library-verification.v1+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
+| `prismpm/library-verification-manifest/2` | `schemas/library-verification-manifest-v2.schema.json` | `application/vnd.prismpm.library-verification.v2+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/model-document/3` | `schemas/model-document-v3.schema.json` | `application/vnd.prismpm.model-document.v3+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/browser-export/1` | `schemas/browser-export.schema.json` | `application/vnd.prismpm.browser-export.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
 | `prismpm/workspace-view-labels/1` | `schemas/workspace-view-labels.schema.json` | `application/vnd.prismpm.workspace-view-labels.v1+json` | 8192 bytes / 78 items | `closed`; `exact-major` |
@@ -84,10 +85,10 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `fetch` | `immutable-cache` | `false` | `prismpm/fetch-result/1` |
 | `finalize-contract` | `authorized-target-data-contract` | `true` | `prismpm/deployment-evidence/1` |
 | `inspect` | `never` | `true` | `prismpm/inspect-result/1` |
-| `lock` | `docker-image-cache-only` | `false` | `prismpm/sdk-lock-update/2` |
-| `lock check` | `docker-image-cache-only` | `false` | `prismpm/sdk-lock/1`, `prismpm/sdk-lock/2` |
-| `lock migrate` | `docker-image-cache-only` | `false` | `prismpm/sdk-lock-migration/1` |
-| `lock update` | `docker-image-cache-only` | `false` | `prismpm/sdk-lock-update/1`, `prismpm/sdk-lock-update/2` |
+| `lock` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock-update/2` |
+| `lock check` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock/1`, `prismpm/sdk-lock/2` |
+| `lock migrate` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock-migration/1` |
+| `lock update` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock-update/1`, `prismpm/sdk-lock-update/2` |
 | `plan` | `local-evidence` | `true` | `prismpm/deployment-plan/1` |
 | `prepare-promotion` | `owned-local-policy` | `true` | `prismpm/promotion-policy/1` |
 | `promote` | `signed-local-evidence` | `true` | `prismpm/promotion-result/1` |

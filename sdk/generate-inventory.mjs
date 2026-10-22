@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { access, readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { compilerRevision, encodeInventory, validateAuthorityMetadata, validateImageInputMetadata } from './inventory-metadata.mjs';
+import { compilerRevision, encodeInventory, exporterArtifactBindings, validateAuthorityMetadata, validateImageInputMetadata } from './inventory-metadata.mjs';
+import { readSmall, snapshotFile } from './exporter-seed.mjs';
 
 const output = process.argv[2];
 if (!output) throw new Error('inventory output path is required');
@@ -58,6 +59,7 @@ async function treeDigest(root) {
 }
 
 const definitions = [
+  ['sdk-exporter-seed-producer', 'schema', '1', '/opt/prismpm/exporter-seed.mjs'],
   ['sdk-platform-lock', 'schema', '2', '/opt/prismpm/platform-lock.mjs'],
   ['sdk-metadata-cli', 'schema', '1', '/opt/prismpm/metadata-cli.mjs'],
   ['sdk-metadata-capture', 'schema', '1', '/opt/prismpm/metadata-capture.mjs'],
@@ -80,6 +82,9 @@ const definitions = [
   ['asyncapi-website-adeo-schemas', 'test-corpus', '20a31a0396b41dd24b1bac877ab7ce3f58037c28', 'standards/oracles/asyncapi-website-20a31a03', 'tree'],
   ['build-base', 'base-image', 'rust-1.97.1-bookworm', null, 'sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97'],
   ['browser-host-primitives', 'adapter', '1', '/opt/prismpm/browser', 'tree'],
+  ['browser-account-genesis-construction', 'adapter', '1', '/opt/prismpm/share/account-genesis', 'tree'],
+  ['chromium-input-authority', 'dependency-lock', '157.0.8099.0', 'sdk/browser-engine/authority.json'],
+  ['chromium-input-installer', 'oracle', '1', 'sdk/browser-engine/install.py'],
   ['bootstrap-historical-runtime', 'binary', '0.2.0-runner/1', '/opt/prismpm/bootstrap-0.2.0', 'tree'],
   ['bootstrap-historical-runner', 'binary', '0.2.0-runner/1', 'sdk/bootstrap/runner.mjs'],
   ['conformance-corpus', 'test-corpus', 'prismpm/ids/1', '/opt/prismpm/share/conformance-root', 'tree'],
@@ -151,9 +156,17 @@ if (process.env.PRISMPM_ARTIFACT_INVENTORY) {
   const inventory = JSON.parse(await readFile(process.env.PRISMPM_ARTIFACT_INVENTORY, 'utf8'));
   if (!Array.isArray(inventory.artifacts)) throw new Error('artifact inventory is malformed');
   artifacts = inventory.artifacts;
+  if (artifacts.some(row => ['lean4-prod-exporter', 'lean4-prod-exporter-seed'].includes(row.id))) {
+    throw new Error('exporter seed must be measured from the final native runtime');
+  }
+  const exporterManifest = Buffer.from(readSmall('/opt/prismpm/share/exporter-seed/manifest.json', 8 * 1024 * 1024));
+  const nativeExporter = snapshotFile('/opt/prismpm/share/exporter-seed/.lake/build/bin/prod-export', 256 * 1024 * 1024);
+  const exporterBindings = exporterArtifactBindings(exporterManifest, revision,
+    `linux/${{x64: 'amd64', arm64: 'arm64'}[process.arch]}`, nativeExporter);
+  artifacts.push(...exporterBindings);
   if (artifacts.some(row => row.id === 'playwright-headless-shell')) throw new Error('browser artifact must be measured from the final runtime');
-  artifacts.push({id: 'playwright-headless-shell', kind: 'oracle', version: '1.62.1',
-    digest: await treeDigest('/ms-playwright/chromium_headless_shell-1234')});
+  artifacts.push({id: 'playwright-headless-shell', kind: 'oracle', version: '157.0.8099.0',
+    digest: await treeDigest('/ms-playwright/chromium_headless_shell-cft-157.0.8099.0')});
   artifacts.sort((left, right) => Buffer.from(left.id).compare(Buffer.from(right.id)));
 } else {
   artifacts = [];

@@ -1,0 +1,9 @@
+\begin{lexlean}{Fixture}
+\useglossary{lexlean.std.bool@1.1.0}
+\importmodule{Foundation.Browser.Application.V1.OperationJournalWire}
+\importmodule{Foundation.Browser.Application.V1.SessionJournalRetentionWire}
+\title{Boolean}
+\begin{semanticmodule}
+\semanticdata{{"declarations":[{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"input"}],"function":{"module":"Foundation.Browser.Application.V1.OperationJournalWire","name":"journalWireBytes"},"kind":"call"},"kind":"definition","name":"payloadJournalBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"input"}],"function":{"module":"Foundation.Browser.Application.V1.OperationJournalWire","name":"journalPartitionBytes"},"kind":"call"},"kind":"definition","name":"payloadPartitionBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"input"}],"function":{"module":"Foundation.Browser.Application.V1.SessionJournalRetentionWire","name":"sessionRetentionWireBytes"},"kind":"call"},"kind":"definition","name":"payloadRetentionBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}}],"spec":"lexlean/semantic-module/1"}}
+\end{semanticmodule}
+\end{lexlean}

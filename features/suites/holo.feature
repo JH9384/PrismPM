@@ -1,5 +1,18 @@
 Feature: holo
 
+  @HO-14 @build
+  Scenario: Pinned BLAKE3 vectors qualify every imported digest mode, streaming partition and content-identity result without claiming cryptographic proof or durable native storage.
+    Given all 35 immutable upstream vectors and their complete licensed source closure
+    When the pinned adapter executes every mode and declared input partition
+    Then full extended outputs and content identities match imported expectations
+    And changed expectations, lengths, pattern, key and context are rejected
+
+  @HO-15 @build
+  Scenario: The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application.
+    Given current verified component source and its complete generated artifact closure
+    When the exact modeled archive executes binary vectors and maxima in native Wasm and pinned Live
+    Then malformed substituted and incomplete evidence is refused without changing public application admission
+
   @HO-13 @build
   Scenario: The modeled browser-surface wire codec preserves legacy bytes, reproduces pinned upstream framing in generated std and no_std code, and rejects malformed or mixed profiles without granting browser authority.
     Given current verified modeled source and independently produced wire vectors
@@ -11,6 +24,7 @@ Feature: holo
     Given a composed application with its exact portable attachment assets
     When Chromium exercises modeled requests, transport failures, privacy, and lifecycle
     Then actual rendered results and complete profile-specific evidence are required
+    And the workspace interoperability owner qualifies both profiles and both triggers with the complete 78-case boundary inventory
 
   @HO-11 @build
   Scenario: The explicit text application profile projects to closed model-document/2, retaining legacy model-document/1 and rejecting invalid UTF-8 response, field, root, and byte-bound declarations.

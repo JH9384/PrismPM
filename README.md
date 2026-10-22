@@ -7,16 +7,17 @@ verified roots, and generic generators produce Cargo, Core-Wasm, View, browser,
 and Hologram artifacts. Prism application behavior is never supplied by
 handwritten Lean or target-specific application code.
 
-The historical `v0.1.0` release is a systems-modeling prototype and `v0.2.0`
-is the completed portable-application line. The production-system SDK is
+The historical `v0.1.0` release is a systems-modeling prototype; `v0.2.0`
+introduced portable applications. The production-system SDK candidate is
 `v0.3.0`, and it is releasable only when the generated
 `prism-stdlib` and `prism-calculator` crates, `Calculator.holo`, the independent
 Hologram execution evidence, and the public `calculator-example` Pages
 application and complete CalculatorSystem reference all pass the atomic release
 contract in [SPEC.md](SPEC.md).
 
-Version 0.3.0 is the accepted production-system release. [Release status](RELEASE-STATUS.md) records
-the completed public dependency and acceptance closure across all six release steps.
+Version 0.3.0 is not an accepted production-system release. Component tests,
+contract fixtures and a successful Pages upload do not establish that acceptance.
+[Release status](RELEASE-STATUS.md) records the remaining release boundaries.
 
 ## Artifact model
 
@@ -31,7 +32,9 @@ authoritative .lex.tex + lock
              `-- binary Hologram v4 ApplicationName.holo
 ```
 
-Holo/1 is the Prism profile defined by `prism-stdlib`; its physical container
+[`hologram-live`](https://github.com/Hologram-Technologies/hologram-live)
+is the `.holo` format authority. Holo/1 is the Prism profile defined by
+`prism-stdlib`; its physical container
 is Hologram archive version 4. Every `.holo` begins with `HOLO\x04\x00`.
 `model.prism.json` is the separate canonical Prism model document. JSON is
 never accepted as a `.holo` archive.
@@ -89,33 +92,17 @@ assert_eq!(calculate(Operation::Add, 20, 22), Ok(42));
 
 The public reference application is
 [`UOR-Foundation/calculator-example`](https://github.com/UOR-Foundation/calculator-example).
-It mirrors the exact content-addressed model, reruns PrismPM acceptance, imports
-the registry crate, and deploys only the generated six-file browser closure.
+Its publication contract requires the exact content-addressed model, repeated
+PrismPM acceptance, the published registry crate and only the generated six-file
+browser closure. Registry publication remains deferred as recorded in release status.
 
-## Verified Acceptance Capabilities (v0.3.0)
+## Verification scope
 
-The following acceptance tasks are complete and verified:
-
-| Task | Description | Verification |
-|------|-------------|--------------|
-| **Gate 15** | Full `cargo xtask package-api` pass with `prism-stdlib`, `prod-ir`, `prod-codegen` | `target/vv-evidence.json` |
-| **Independent Hologram Oracle** | Calculator (8 legacy numeric + 10 UTF-8 text cases) and Text interoperability under `prismpm/hologram-oracle/2` | `prismpm/holo-oracle-acceptance/1` |
-| **Reproducible SDK** | Multi-platform `linux/amd64` + `linux/arm64` with canonical inventories, lockfiles, bootstrap verification | `prismpm/bootstrap-evidence/2` |
-| **OCI Product-Release Graph** | Complete SBOM, provenance, signatures, vulnerability, license, deployment referrers; attestation-gated promotion | `prismpm/sdk-security-disposition/1` |
-| **Supply Chain & Recovery** | SPDX 3.0.1 graph closure, SLSA provenance, Sigstore verification, OSV advisory scans, OTEL redaction, disaster recovery lifecycle | `tests/supply_chain_operations_recovery.rs` |
-| **Controller & CLI Lifecycle** | 26 model-defined commands verified; foreground/detach, destroy auth, completions, JSON output, exit code mapping | `tests/controller_cli_lifecycle.rs` |
-| **Standard-Native Adapters** | Compose + Kubernetes with fail-closed validation, read-only roots, security profiles, two-stage deployment | `tests/standard_native_target_adapters.rs` |
-| **Universal SDK Entrypoint** | Template contract R1-R6, anti-vacuity, pinned commits, reviewable updates, policy tree SHA-256 | `tests/universal_template_entrypoint.rs` |
-| **Calculator Reference Closure** | Full SDK + system reference across Compose, Kubernetes, Pages; distinct Release A/B digests | `tests/calculator_reference_closure.rs` |
-| **Lean4-Prod Dependency Closure** | 15 compiler contributions tracked via upstream issues/PRs; vendored artifacts with SHA-256 | `tests/lean4_prod_dependency.rs` |
-| **Crates.io Bootstrap** | 5 first-party crates in dependency order; trusted publishing readiness; downstream lock bindings | `tests/crates_io_bootstrap.rs` |
-| **Ecosystem Release Closure** | 5 repos, 3 packages, calculator baseline, dual-platform SDK, 14 falsification classes | `tests/ecosystem_release_closure.rs` |
-| **Workspace Functional Core** | Signed envelopes, authenticated browser journal, View/Kappa admission (DK-07..DK-16) | `tests/workspace_functional_core.rs` |
-| **Production Contracts** | System schemas and conformance model | `tests/production_contracts.rs` |
-| **Authority Imports** | Immutable authority, locked drift rejection, oracle verification | `tests/authority_imports.rs` |
-| **Production System Model** | Complete system model validation | `tests/production_system_model.rs` |
-| **Release Status Closure** | 6-step canonical validation with receipts | `tests/release_status_closure.rs` |
-| **Diagnostic Boundaries** | PP1001–PP1003 actual loader execution | `fix/issue-14-diagnostic-boundary-coverage` |
+[CONFORMANCE.md](CONFORMANCE.md) is the generated capability/test inventory.
+[VERIFICATION.md](VERIFICATION.md) records revision-specific component evidence;
+it is not a substitute for current complete SDK, downstream and live acceptance.
+The `Browser` application profile remains refused with `PP2011` until its generated runtime,
+authenticated effects, durable recovery and full owning verification are complete.
 
 ## Development and acceptance
 
@@ -147,7 +134,7 @@ product acceptance; a publisher must verify those separately before deployment.
 
 ## Key Documents
 
-- [RELEASE-STATUS.md](RELEASE-STATUS.md) — Complete release acceptance closure across all 6 steps
+- [RELEASE-STATUS.md](RELEASE-STATUS.md) — Current release status and required acceptance
 - [VERIFICATION.md](VERIFICATION.md) — Detailed verification evidence, digests, and test descriptions
 - [SPEC.md](SPEC.md) — Atomic release contract specification
 - [CONFORMANCE.md](CONFORMANCE.md) — Conformance requirements

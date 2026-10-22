@@ -63,6 +63,15 @@ function product(root) {
 }
 
 function validateWorkflow(workflow) {
+  const upload = workflow.jobs.reproducibility.steps.filter(step => step.with?.name === 'library-sdk-${{ matrix.name }}');
+  assert.equal(upload.length, 1);
+  assert.equal(upload[0].uses, 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02');
+  assert.equal(upload[0].if, "always() && matrix.image == 'sdk'");
+  assert.equal(upload[0]['continue-on-error'], undefined);
+  assert.deepEqual(upload[0].with, {name: 'library-sdk-${{ matrix.name }}',
+    path: '${{ matrix.name }}-library-sdk.log\nroot-a/target/library-sdk-evidence/\n',
+    'if-no-files-found': 'error', 'retention-days': 30});
+  assert(assetNames().includes('sdk-metadata-native-join.json'));
   const steps = workflow.jobs['oci-native'].steps;
   const pack = steps.find(step => step.run?.includes('scripts/sdk-release-evidence.mjs'));
   assert(pack && pack.if === undefined && pack['continue-on-error'] === undefined);
@@ -81,17 +90,27 @@ function validateWorkflow(workflow) {
       download(name, `.sdk-gate-evidence/${name}`);
       assert(assetNames().includes(`sdk-${arch}-${suffix}.tar`));
     }
-    for (const kind of ['browser', 'library']) {
-      download(`${kind}-sdk-sdk-${arch}`, 'release');
-      assert(assetNames().includes(`sdk-${arch}-${kind}-sdk.log`));
-    }
+    download(`browser-sdk-sdk-${arch}`, 'release');
+    download(`library-sdk-sdk-${arch}`, `.sdk-gate-evidence/library-sdk-sdk-${arch}`);
+    for (const kind of ['browser', 'library']) assert(assetNames().includes(`sdk-${arch}-${kind}-sdk.log`));
+    assert(assetNames().includes(`sdk-${arch}-native-metadata.tar`));
   }
   assert.equal(pack.shell, 'bash');
   assert.equal(pack.run, [
     'set -euo pipefail', 'image=$(cat release/sdk-image.txt)',
+    'node scripts/library-sdk-metadata-evidence.mjs join \\',
+    '  .sdk-gate-evidence/library-sdk-sdk-amd64/root-a/target/library-sdk-evidence/linux-amd64 \\',
+    '  .sdk-gate-evidence/library-sdk-sdk-arm64/root-a/target/library-sdk-evidence/linux-arm64 \\',
+    '  . "$image" "$GITHUB_SHA" > release/sdk-metadata-native-join.json',
+    'cp .sdk-gate-evidence/library-sdk-sdk-amd64/sdk-amd64-library-sdk.log release/',
+    'cp .sdk-gate-evidence/library-sdk-sdk-arm64/sdk-arm64-library-sdk.log release/',
     'node scripts/sdk-release-evidence.mjs source-vv .sdk-gate-evidence/source-vv \\',
     '  release/source-vv.tar - "$GITHUB_SHA" amd64 "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"',
-    'for architecture in amd64 arm64; do', '  for kind in full-sdk-vv product-cli; do',
+    'for architecture in amd64 arm64; do',
+    '  node scripts/library-sdk-metadata-evidence.mjs pack \\',
+    '    ".sdk-gate-evidence/library-sdk-sdk-$architecture/root-a/target/library-sdk-evidence/linux-$architecture" \\',
+    '    "release/sdk-$architecture-native-metadata.tar" . "$image" "$GITHUB_SHA" "$architecture"',
+    '  for kind in full-sdk-vv product-cli; do',
     '    node scripts/sdk-release-evidence.mjs "$kind" \\',
     '      ".sdk-gate-evidence/$kind-sdk-$architecture" "release/sdk-$architecture-$kind.tar" \\',
     '      "$image" "$GITHUB_SHA" "$architecture"', '  done',
@@ -125,6 +144,11 @@ test('OCI publication retains both native gate closures without granting SDK acc
     value => {pack(value)['continue-on-error'] = true;},
     value => {pack(value).run = pack(value).run.replace('set -euo pipefail', 'set -uo pipefail');},
     value => {pack(value).run = pack(value).run.replace('amd64 arm64', 'amd64');},
+    value => {pack(value).run = pack(value).run.replace('library-sdk-metadata-evidence.mjs join', 'library-sdk-metadata-evidence.mjs omitted');},
+    value => {pack(value).run = pack(value).run.replace('library-sdk-metadata-evidence.mjs pack', 'library-sdk-metadata-evidence.mjs omitted');},
+    value => {value.jobs.reproducibility.steps.find(step => step.with?.name === 'library-sdk-${{ matrix.name }}').with.path = '${{ matrix.name }}-library-sdk.log';},
+    value => {value.jobs.reproducibility.steps.find(step => step.with?.name === 'library-sdk-${{ matrix.name }}').with.path = 'root-a/target/library-sdk-evidence/';},
+    value => {value.jobs.reproducibility.steps.find(step => step.with?.name === 'library-sdk-${{ matrix.name }}').with['if-no-files-found'] = 'ignore';},
     value => {pack(value).run = pack(value).run.replace('"$GITHUB_SHA"', '"stale"');},
     value => {pack(value).run = pack(value).run.replace('"$architecture"', '"$architecture" || true');},
     value => {const record = pack(value); steps(value).splice(steps(value).indexOf(record), 1); steps(value).push(record);},

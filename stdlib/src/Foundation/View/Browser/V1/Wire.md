@@ -24,8 +24,8 @@ strings are strict UTF-8 text, preserving BOM and Unicode without normalization.
 
 There are at most 256 nodes, 64 actions, 16 field bindings per action, 256 choice
 options across the frame, 4096 body table cells across the frame and 16 columns
-per table. Each table row exactly matches its columns. Option identifiers are
-strictly increasing and nonzero; selection is zero (none) or an existing option.
+per table. Each table row exactly matches its columns. Catalogue-choice (tag 7)
+identifiers are strictly increasing and nonzero; selection is zero (none) or an existing option.
 Action identifiers are unique and nonzero; bindings are strictly increasing
 field node identifiers in the same form. At most one action per form is marked
 default. An enabled action binds only enabled fields. Only Ready permits enabled
@@ -75,6 +75,14 @@ cannot reopen a closed view. Intent fields are captured in the exact modeled
 order; revision is a stale-event guard, not principal/session authority. The
 private dispatcher must independently authenticate and authorize commands.
 The existence or enabled state of a control grants no effect or role.
+
+The adapter connects an empty `role=status`, `aria-atomic=true` region before
+inserting a message and retains that same connected element across revisions.
+Only changed text is written; identical-frame replay is silent. Modeled live
+mode still applies, and a status update does not itself request focus. These
+DOM obligations follow [W3C ARIA22](https://www.w3.org/WAI/WCAG22/Techniques/aria/ARIA22).
+DOM observation does not prove screen-reader speech, announcement timing or
+complete WCAG conformance; assistive-technology assessment remains required.
 
 Each private dispatch callback receives `(intentBytes, token)` and returns one
 final frame or Promise. `progressPresentation(view, token, bytes)` admits
@@ -127,3 +135,21 @@ it cannot prevent a trusted callback from persisting/echoing its input. It makes
 no JavaScript-memory-erasure, password-manager, malicious same-origin-code or
 device-compromise guarantee. Oracle transcripts use synthetic test secrets,
 never a production submission recorder. `PP2011` remains unchanged.
+
+DK-31 adds text-choice tag 11:
+`[11,label,enabled,required,selected,[[id,text],...],draftEpoch]`.
+Each option has a unique nonzero uint32 identifier and 1–4096 strict UTF-8 bytes
+of plain text. Source order is display order; duplicate names are permitted.
+Tag 7 bytes, sorted identifiers and catalogue references remain unchanged.
+Both kinds share the existing aggregate 256-option limit and 64 MiB frame cap.
+The field label and DK-29 helper/error references still use the source catalogue;
+option names neither extend nor mutate it. The renderer uses native options and
+`textContent`, never markup, names as identities, positions or URL attributes.
+
+Selection intents contain stable identifiers only. Surviving edited selections
+retain those identifiers across reorder; a filtered-out selection falls back to
+the source default. Changed kind, default or draft epoch resets the draft.
+Source session sizing includes exact dynamic UTF-8 bytes and canonical framing.
+Applications independently authorize the selected object and provide meaningful
+names/disambiguation. Nonempty names and automated accessibility checks cannot
+establish usability or complete accessibility conformance.

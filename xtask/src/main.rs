@@ -13,6 +13,9 @@ mod audit;
 mod codegen;
 mod formatting;
 mod gate_driver;
+mod gate_root;
+mod golden_preflight;
+mod source_copy;
 mod spec_links;
 mod stdlib;
 
@@ -30,12 +33,31 @@ fn diagnostic_failure(error: &prismpm::PrismError) -> Fail {
         .into()
 }
 
+// A source build returns only owned identifiers. Join its temporary worker
+// before verification so the allocator can reuse its arenas for verification,
+// rather than retaining a separate main-thread arena for decoded build graphs.
+fn join_build_worker<T: Send>(build: impl FnOnce() -> T + Send) -> T {
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .name("prismpm-gate-build".to_owned())
+            .stack_size(16 * 1024 * 1024)
+            .spawn_scoped(scope, build)
+            .expect("start private gate build worker")
+            .join()
+            .expect("private gate build worker terminated unexpectedly")
+    })
+}
+
+fn build_on_worker(
+    controller: &prismpm::Controller,
+) -> Result<prismpm::controller::BuildResult, prismpm::PrismError> {
+    join_build_worker(|| controller.build(prismpm::controller::BuildRequest { config_path: None }))
+}
+
 fn build_once(root: &Path) -> Result<&'static prismpm::controller::BuildResult, Fail> {
     BUILD
         .get_or_init(|| {
-            prismpm::Controller::load(root).and_then(|controller| {
-                controller.build(prismpm::controller::BuildRequest { config_path: None })
-            })
+            prismpm::Controller::load(root).and_then(|controller| build_on_worker(&controller))
         })
         .as_ref()
         .map_err(diagnostic_failure)
@@ -52,10 +74,67 @@ fn verify_once(root: &Path) -> Result<&'static prismpm::controller::VerifyResult
         .map_err(diagnostic_failure)
 }
 
+#[cfg(test)]
+mod build_worker_tests {
+    #[test]
+    fn owned_build_worker_finishes_before_results_escape() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        struct Finished<'a>(&'a AtomicBool);
+        impl Drop for Finished<'_> {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+        let finished = AtomicBool::new(false);
+        let caller = std::thread::current().id();
+        let borrowed = String::from("owned build identifiers");
+        let result = super::join_build_worker(|| {
+            assert_ne!(std::thread::current().id(), caller);
+            let _finished = Finished(&finished);
+            borrowed.clone()
+        });
+        assert!(finished.load(Ordering::SeqCst));
+        assert_eq!(result, borrowed);
+    }
+
+    #[test]
+    fn owned_build_worker_preserves_structured_failures() {
+        let error = prismpm::PrismError::new("PP5007", "original build refusal");
+        let result = super::join_build_worker(|| Err::<(), _>(error.clone()));
+        assert_eq!(result.unwrap_err(), error);
+    }
+
+    #[test]
+    fn owned_build_worker_panics_cannot_initialize_success_cache() {
+        let cache = std::sync::OnceLock::<Result<(), prismpm::PrismError>>::new();
+        assert!(std::panic::catch_unwind(|| {
+            cache.get_or_init(|| super::join_build_worker(|| panic!("infrastructure failure")));
+        })
+        .is_err());
+        assert!(cache.get().is_none());
+    }
+}
+
 fn main() -> ExitCode {
     let task = std::env::args().nth(1).unwrap_or_else(|| "help".to_owned());
     let write = std::env::args().any(|arg| arg == "--write");
-    let root = repo_model::repo_root();
+    let root = match std::env::current_dir()
+        .map_err(|error| error.to_string())
+        .and_then(|invocation| {
+            gate_root::checked_root(
+                &repo_model::repo_root(),
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .parent()
+                    .expect("xtask is directly beneath the repository root"),
+                &invocation,
+            )
+        }) {
+        Ok(root) => root,
+        Err(error) => {
+            eprintln!("gate failed: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
 
     let result = match task.as_str() {
         "validate-model" => codegen::check_model(&root, write),
@@ -150,7 +229,18 @@ fn run_conformance(root: &Path, args: &[String]) -> Result<(), Fail> {
 
     println!("Running conformance suite: {category}");
     command(root, "cargo", &cargo_args)?;
+    if matches!(category, "all" | "desktop-browser") {
+        verify_standalone_browser_owners(root)?;
+    }
     Ok(())
+}
+
+fn verify_standalone_browser_owners(root: &Path) -> Result<(), Fail> {
+    command(
+        root,
+        "node",
+        &["scripts/browser-api-sdk-check.mjs", "standalone"],
+    )
 }
 
 fn run_unit_tests(root: &Path) -> Result<(), Fail> {
@@ -171,6 +261,22 @@ fn run_unit_tests(root: &Path) -> Result<(), Fail> {
             "--offline",
         ],
     )?;
+    // The separately owned integration suite must not run twice. Its library
+    // and binary regressions still belong to the complete workspace unit gate.
+    command(
+        root,
+        "cargo",
+        &[
+            "test",
+            "--package",
+            "repo-conformance",
+            "--lib",
+            "--bins",
+            "--all-features",
+            "--locked",
+            "--offline",
+        ],
+    )?;
     Ok(())
 }
 
@@ -181,29 +287,78 @@ fn validate_all(root: &Path, write: bool) -> Result<(), Fail> {
 }
 
 fn audit_all(root: &Path) -> Result<(), Fail> {
+    audit::audit_retained_native_profiles(root)?;
+    audit::audit_shipped_standards_lock(root)?;
     command(
         root,
         "node",
         &[
             "--test",
             "scripts/oracle-source-closure.test.mjs",
+            "scripts/hologram-source-pins.test.mjs",
             "scripts/fetch-oracle-cargo.test.mjs",
             "scripts/browser-api-sdk-check.test.mjs",
+            "scripts/product-sdk-check.test.mjs",
             "scripts/library-sdk-check.test.mjs",
             "scripts/library-sdk-check-shell.test.mjs",
+            "scripts/installed-exporter-concurrency.test.mjs",
+            "sdk/migration-qualification.test.mjs",
             "scripts/sdk-vv-inputs.test.mjs",
             "scripts/sdk-vv-run.test.mjs",
             "scripts/sdk-image-inputs.test.mjs",
+            "scripts/sdk-construction-workflow.test.mjs",
+            "scripts/sdk-construction-record.test.mjs",
+            "scripts/sdk-construction-handoff.test.mjs",
+            "scripts/sdk-construction-archive.test.mjs",
+            "scripts/sdk-construction-stage.test.mjs",
+            "scripts/sdk-construction-metadata.test.mjs",
+            "scripts/sdk-construction-provider.test.mjs",
+            "scripts/sdk-construction-acquire.test.mjs",
+            "scripts/sdk-construction-observe.test.mjs",
+            "scripts/sdk-construction-acquisition-workflow.test.mjs",
             "scripts/sdk-vv-check.test.mjs",
+            "scripts/sdk-command-owner.test.mjs",
+            "scripts/sdk-registry-reader.test.mjs",
+            "scripts/sdk-registry-qualification.test.mjs",
             "scripts/native-golden.test.mjs",
             "scripts/browser-prerequisites.test.mjs",
+            "scripts/browser-environment-preflight.test.mjs",
+            "scripts/browser-engine-input.test.mjs",
+            "scripts/chromium-interop-reader.test.mjs",
+            "scripts/rust-oracle-tools-inputs.test.mjs",
+            "scripts/qualify-debian-browser-inputs.test.mjs",
             "scripts/compiler-driver-cache.test.mjs",
+            "scripts/compiler-phase-observation.test.mjs",
+            "scripts/compiler-phase-transport.test.mjs",
+            "tests/browser-view/compiler-artifact.test.mjs",
+            "tests/browser-view/generated-package.test.mjs",
+            "tests/browser-view/file-custody.test.mjs",
+            "tests/browser-view/workspace-products.test.mjs",
+            "tests/browser-session-payloads/transcript-retention.test.mjs",
+            "tests/browser-view/generated-wasm.test.mjs",
+            "tests/browser-presentation/provenance.test.mjs",
+            "tests/browser-presentation/replay.test.mjs",
+            "tests/browser-view/compiler-artifact-mutations.test.mjs",
+            "tests/browser-view/compiler-owner.test.mjs",
+            "tests/browser-view/compiler-component-binding.test.mjs",
+            "tests/browser-view/compiler-runtime.test.mjs",
+            "tests/browser-view/compiler-runtime-mutations.test.mjs",
+            "scripts/portable-oracle-matrix.test.mjs",
+            "tests/native-lease/corpus.test.mjs",
+            "tests/native-lease/rust-corpus.test.mjs",
+            "sdk/exporter-seed.test.mjs",
+            "sdk/exporter-qualification.test.mjs",
+            "tests/browser-view/generated-wasm-mutations.test.mjs",
+            "tests/browser-session-journal/wasm-artifact-checks.test.mjs",
             "scripts/release-phases.test.mjs",
             "scripts/sdk-release-evidence.test.mjs",
             "scripts/release-gate-evidence.test.mjs",
             "scripts/refresh-osv.test.mjs",
+            "scripts/qualify-osv.test.mjs",
             "scripts/ci-observe.test.mjs",
+            "scripts/ci-capacity.test.mjs",
             "scripts/vv-sdk-session.test.mjs",
+            "scripts/reconcile-lexlean.test.mjs",
             "sdk/bootstrap/runner.test.mjs",
         ],
     )?;
@@ -397,12 +552,20 @@ fn mutated_sdk_command(
     Ok(output?)
 }
 
+fn validate_sdk_runtime_reference(image: &str) -> Result<(), Fail> {
+    prismpm::oci::validate_reference(image, true)
+        .map_err(|_| "SDK runtime boundary requires a valid immutable OCI SDK reference")?;
+    Ok(())
+}
+
 fn check_sdk_runtime_boundary() -> Result<(), Fail> {
     let image = std::env::var("PRISMPM_TEST_SDK_IMAGE")
         .map_err(|_| "PRISMPM_TEST_SDK_IMAGE is required for the SDK runtime boundary gate")?;
-    if !image.contains("@sha256:") {
-        return Err("SDK runtime boundary requires a digest-qualified image".into());
-    }
+    check_sdk_runtime_boundary_for_image(&image)
+}
+
+fn check_sdk_runtime_boundary_for_image(image: &str) -> Result<(), Fail> {
+    validate_sdk_runtime_reference(image)?;
 
     let infrastructure_tests = Command::new("docker")
         .args([
@@ -420,7 +583,7 @@ fn check_sdk_runtime_boundary() -> Result<(), Fail> {
             "/opt/prismpm/share/conformance-root",
             "--entrypoint",
             "node",
-            &image,
+            image,
             "--test",
             "scripts/sdk-candidate.test.mjs",
             "sdk/platform-lock.test.mjs",
@@ -430,7 +593,7 @@ fn check_sdk_runtime_boundary() -> Result<(), Fail> {
         return Err("SDK candidate transport or platform-lock negative tests failed".into());
     }
 
-    let baseline = docker_sdk_command(&image, &[])?;
+    let baseline = docker_sdk_command(image, &[])?;
     if !baseline.status.success()
         || !String::from_utf8_lossy(&baseline.stdout)
             .contains("\"schema\":\"prismpm/completion-result/1\"")
@@ -445,7 +608,7 @@ fn check_sdk_runtime_boundary() -> Result<(), Fail> {
     }
 
     let override_attempt = docker_sdk_command(
-        &image,
+        image,
         &[
             "--env",
             "PRISMPM_SDK_INVENTORY=/tmp/attacker-inventory.json",
@@ -470,7 +633,7 @@ fn check_sdk_runtime_boundary() -> Result<(), Fail> {
         std::fs::set_permissions(&planted_command, std::fs::Permissions::from_mode(0o755))?;
     }
     let injected = mutated_sdk_command(
-        &image,
+        image,
         Some("PATH=/planted:/usr/local/elan/bin:/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin"),
         planted.path(),
         "/planted",
@@ -484,7 +647,7 @@ fn check_sdk_runtime_boundary() -> Result<(), Fail> {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(tampered.path(), std::fs::Permissions::from_mode(0o755))?;
     }
-    let changed = mutated_sdk_command(&image, None, tampered.path(), "/usr/local/bin/just")?;
+    let changed = mutated_sdk_command(image, None, tampered.path(), "/usr/local/bin/just")?;
     assert_sdk_inventory_rejection(&changed, "a changed declared executable")?;
 
     println!(
@@ -584,6 +747,10 @@ fn run_vv(root: &Path) -> Result<(), Fail> {
             "--offline",
         ],
     )?;
+
+    // Separate original standalone pairs are not implied by registered DK
+    // execution or by including their source files in an SDK inventory.
+    verify_standalone_browser_owners(root)?;
 
     println!("VV gate 7/15: feature, conformance, and negative fixtures");
     check_fixtures(root, false)?;
@@ -897,7 +1064,8 @@ fn check_golden(root: &Path, write: bool) -> Result<(), Fail> {
     if review_reason.trim().is_empty() {
         return Err("golden review reason may not be empty".into());
     }
-    let expected = golden_files(root, &review_reason)?;
+    let expected =
+        golden_preflight::generate(root, platform, || golden_files(root, &review_reason))?;
     if write {
         let expected = if platform == Platform::DevelopmentAmd64 {
             golden::native_records(&expected, &expected, platform)?;
@@ -1006,6 +1174,23 @@ fn check_verified_evidence(root: &Path) -> Result<(), Fail> {
     Ok(())
 }
 
+fn verify_packaged_blake3_corpus(packaged: &Path) -> Result<(), Fail> {
+    let evidence = prismpm::upstream_conformance::verify_blake3_corpus(
+        &packaged.join("standards/corpora/blake3-1.5.5"),
+    )?;
+    if evidence.corpus_sha256
+        != "sha256:f8ffc0176af3fed9ce66b92f60c424d96f413fa044d7b341fc63b896428037c9"
+        || (
+            evidence.positive,
+            evidence.negative,
+            evidence.planted_rejections,
+        ) != (35, 0, 5)
+    {
+        return Err("packaged BLAKE3 corpus qualification differs".into());
+    }
+    Ok(())
+}
+
 fn package_api_check(root: &Path) -> Result<(), Fail> {
     stdlib::check_acceptance(root)?;
     let selection = Command::new("cargo")
@@ -1074,6 +1259,7 @@ fn package_api_check(root: &Path) -> Result<(), Fail> {
         "sdk/browser/journal.mjs",
         "sdk/browser/commands.mjs",
         "sdk/browser/queries.mjs",
+        "sdk/sdk-index-extensions.json",
         "sdk/browser/view-host.mjs",
         "sdk/browser/view-dom.mjs",
         "sdk/browser/view-error.mjs",
@@ -1091,6 +1277,7 @@ fn package_api_check(root: &Path) -> Result<(), Fail> {
         "sdk/asyncapi-runtime/launcher.sh",
         "sdk/asyncapi-runtime/launcher.test.mjs",
         "sdk/oracles/kubernetes-validator.mjs",
+        "adapters/ingress-nginx-kind-v1.15.1.yaml",
         "src/prod_alloc_counter.rs.inc",
         "standards.lock",
         "stdlib/src/Foundation/Holo.lex.tex",
@@ -1108,6 +1295,7 @@ fn package_api_check(root: &Path) -> Result<(), Fail> {
             return Err(format!("packaged crate omits {required}").into());
         }
     }
+    verify_packaged_blake3_corpus(&packaged)?;
     for entry in walkdir::WalkDir::new(&packaged) {
         let entry = entry?;
         let relative = entry.path().strip_prefix(&packaged)?.to_string_lossy();
@@ -1557,22 +1745,7 @@ fn release_check(root: &Path) -> Result<(), Fail> {
 }
 
 fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), std::io::Error> {
-    if !from.exists() {
-        return Ok(());
-    }
-    for entry in walkdir::WalkDir::new(from).into_iter().flatten() {
-        let rel = entry.path().strip_prefix(from).unwrap();
-        let target = to.join(rel);
-        if entry.file_type().is_dir() {
-            std::fs::create_dir_all(&target)?;
-        } else if entry.file_type().is_file() {
-            if let Some(parent) = target.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            std::fs::copy(entry.path(), &target)?;
-        }
-    }
-    Ok(())
+    source_copy::copy_tree(from, to)
 }
 
 #[cfg(test)]
@@ -1632,6 +1805,58 @@ mod golden_tests {
 #[cfg(test)]
 mod command_tests {
     #[test]
+    fn sdk_runtime_reference_rejects_malformed_digest_before_execution() {
+        let digest = "a".repeat(64);
+        for reference in [
+            format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}"),
+            format!("127.0.0.1:5000/sdk@sha256:{digest}"),
+        ] {
+            super::validate_sdk_runtime_reference(&reference).unwrap();
+        }
+        for reference in [
+            String::new(),
+            "ghcr.io/uor-foundation/prismpm-sdk:latest".to_owned(),
+            "ghcr.io/uor-foundation/prismpm-sdk@sha256:".to_owned(),
+            format!(
+                "ghcr.io/uor-foundation/prismpm-sdk@sha256:{}",
+                "a".repeat(63)
+            ),
+            format!(
+                "ghcr.io/uor-foundation/prismpm-sdk@sha256:{}",
+                "a".repeat(65)
+            ),
+            format!(
+                "ghcr.io/uor-foundation/prismpm-sdk@sha256:{}",
+                "A".repeat(64)
+            ),
+            format!(
+                "ghcr.io/uor-foundation/prismpm-sdk@sha256:{}",
+                "g".repeat(64)
+            ),
+            format!("ghcr.io/uor-foundation/prismpm-sdk:tag@sha256:{digest}"),
+            format!("https://ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}"),
+            format!("ghcr.io/../prismpm-sdk@sha256:{digest}"),
+            format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}\n"),
+            format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}@sha256:{digest}"),
+            format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}?secret=x"),
+            format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{digest}#fragment"),
+            format!("@sha256:{digest}"),
+        ] {
+            assert!(
+                super::validate_sdk_runtime_reference(&reference).is_err(),
+                "malformed SDK runtime reference must fail before Docker execution"
+            );
+            let error = super::check_sdk_runtime_boundary_for_image(&reference)
+                .expect_err("the actual runtime boundary must reject the same malformed input");
+            assert_eq!(
+                error.to_string(),
+                "SDK runtime boundary requires a valid immutable OCI SDK reference",
+                "the actual entry path must refuse before invoking Docker"
+            );
+        }
+    }
+
+    #[test]
     fn node_gate_does_not_inherit_cargo_loader_state() {
         super::command(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")),
@@ -1644,6 +1869,68 @@ mod command_tests {
 
 #[cfg(test)]
 mod package_tests {
+    #[test]
+    fn cargo_source_archive_contains_complete_executable_blake3_corpus() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let stage = tempfile::tempdir().unwrap();
+        // Source-archive qualification only. Dependency resolution and package
+        // builds remain owned by package-api and full release verification.
+        let selected = std::process::Command::new("cargo")
+            .args([
+                "package",
+                "--package",
+                "prismpm",
+                "--allow-dirty",
+                "--offline",
+                "--no-verify",
+                "--exclude-lockfile",
+                "--target-dir",
+            ])
+            .arg(stage.path())
+            .current_dir(root)
+            .env("CARGO_NET_OFFLINE", "true")
+            .output()
+            .unwrap();
+        assert!(
+            selected.status.success(),
+            "{}",
+            String::from_utf8_lossy(&selected.stderr)
+        );
+        let extracted = tempfile::tempdir().unwrap();
+        let package = format!("prismpm-{}", env!("CARGO_PKG_VERSION"));
+        let unpacked = std::process::Command::new("tar")
+            .args(["--extract", "--gzip", "--file"])
+            .arg(
+                stage
+                    .path()
+                    .join("package")
+                    .join(format!("{package}.crate")),
+            )
+            .arg("--directory")
+            .arg(extracted.path())
+            .arg("--")
+            .arg(format!("{package}/standards/corpora/blake3-1.5.5"))
+            .arg(format!("{package}/sdk/sdk-index-extensions.json"))
+            .output()
+            .unwrap();
+        assert!(
+            unpacked.status.success(),
+            "{}",
+            String::from_utf8_lossy(&unpacked.stderr)
+        );
+        let packaged = extracted.path().join(package);
+        assert_eq!(
+            std::fs::read(packaged.join("sdk/sdk-index-extensions.json")).unwrap(),
+            std::fs::read(root.join("sdk/sdk-index-extensions.json")).unwrap(),
+            "actual Cargo archive must retain the exact runtime admission corpus"
+        );
+        super::verify_packaged_blake3_corpus(&packaged).unwrap();
+        std::fs::remove_file(packaged.join("standards/corpora/blake3-1.5.5/LICENSE_CC0")).unwrap();
+        assert!(super::verify_packaged_blake3_corpus(&packaged).is_err());
+    }
+
     #[test]
     fn package_manifest_follows_workspace_dependencies_and_rejects_unpublishable_paths() {
         let source = r#"

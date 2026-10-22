@@ -72,6 +72,7 @@
     "LibraryProbe.Foundation.Codec.Cbor.V1.PrimitiveCorpus.probeNonminimalU16",
     "LibraryProbe.Foundation.Codec.Cbor.V1.PrimitiveCorpus.probeNonminimalU32",
     "LibraryProbe.Foundation.Codec.Cbor.V1.PrimitiveCorpus.probeNonminimalU8",
+    "LibraryProbe.Foundation.Codec.Cbor.V1.PrimitiveCorpus.probeOctetLookup",
     "LibraryProbe.Foundation.Codec.Cbor.V1.PrimitiveCorpus.probeOversizeBytes",
     "LibraryProbe.Foundation.Codec.Cbor.V1.PrimitiveCorpus.probeOversizeText",
     "LibraryProbe.Foundation.Codec.Cbor.V1.PrimitiveCorpus.probeRfcAscii",
@@ -703,6 +704,12 @@
       "source": "RFC8949-4.2.1",
       "hex": "1800",
       "error": "NonCanonical"
+    },
+    {
+      "root": "LibraryProbe.Foundation.Codec.Cbor.V1.PrimitiveCorpus.probeOctetLookup",
+      "id": "OctetLookup",
+      "kind": "exhaustive-octet-lookup",
+      "count": 256
     },
     {
       "id": "OversizeBytes",

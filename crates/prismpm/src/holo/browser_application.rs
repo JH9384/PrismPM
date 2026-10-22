@@ -24,15 +24,8 @@ fn invalid(message: &str) -> PrismError {
 
 /// Fail closed until generated orchestration, custody and recovery are available.
 pub fn require_runtime(application: &super::model_document::Application) -> Result<(), PrismError> {
-    if let super::model_document::Application::Browser(browser) = application {
-        if browser
-            .view
-            .labels
-            .iter()
-            .any(|label| label.text == "Runtime unavailable")
-        {
-            return Err(PrismError::new("PP2011", "browser application runtime, effective-grant admission, credential custody and durable uncertain-operation recovery are not implemented"));
-        }
+    if matches!(application, super::model_document::Application::Browser(_)) {
+        return Err(PrismError::new("PP2011", "browser application runtime, effective-grant admission, credential custody and durable uncertain-operation recovery are not implemented"));
     }
     Ok(())
 }

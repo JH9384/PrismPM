@@ -23,6 +23,7 @@ pub(crate) struct LibraryVerification<'a> {
     pub(crate) lex_attestation_id: String,
     pub(crate) lex_snapshot: Value,
     pub(crate) processes: Vec<ProcessRecord>,
+    pub(crate) exporter_owner: crate::exporter::VerifyExporterOwner,
 }
 
 /// Audit every selected source declaration, including imported namespaces.
@@ -191,12 +192,14 @@ pub(crate) fn run(mut context: LibraryVerification<'_>) -> Result<VerifyResult, 
         .map_err(|error| PrismError::new("PP4002", error.to_string()))?;
     // The controller build is export A. This independently exports and packages
     // the attested Lean closure as export B; both complete byte sets must agree.
-    let replay = crate::library_build::generate_recorded(
+    let replay = crate::library_build::generate_owned(
         context.repository_root,
         &context.model,
         &context.model_bytes,
         &lex_root,
         &lex_manifest,
+        &mut context.exporter_owner,
+        crate::exporter::Phase::Replay,
     )?;
     let expected_paths = context.build_manifest["files"]
         .as_array()
@@ -328,17 +331,54 @@ pub(crate) fn run(mut context: LibraryVerification<'_>) -> Result<VerifyResult, 
     .bytes()
     .to_vec();
     let manifest = crate::contracts::CanonicalDocument::from_value(
-        "prismpm/library-verification-manifest/1",
-        json!({
-            "acceptance_sha256":sha256(&acceptance),
-            "artifacts":bindings,
-            "build_id":context.build.build_id,
-            "lexlean_attestation_sha256":sha256(&context.lex_attestation),
-            "model_sha256":sha256(&context.model_bytes),
-            "processes":context.processes,
-            "schema":"prismpm/library-verification-manifest/1",
-            "scope":"native-library-only"
-        }),
+        "prismpm/library-verification-manifest/2",
+        {
+            let owner = context.exporter_owner.finish()?;
+            let lex: Value = serde_json::from_slice(&lex_manifest)
+                .map_err(|error| PrismError::new("PP4004", error.to_string()))?;
+            let modules = lex["outputs"]
+                .as_array()
+                .expect("generated manifest outputs")
+                .iter()
+                .filter(|row| row["kind"] == "lean")
+                .map(|row| {
+                    row["path"]
+                        .as_str()
+                        .expect("generated Lean path")
+                        .strip_prefix("modules/")
+                        .expect("generated modules root")
+                        .strip_suffix(".lean")
+                        .expect("generated Lean extension")
+                        .replace('/', ".")
+                })
+                .collect::<BTreeSet<_>>();
+            let processes = serde_json::to_value(&context.processes)
+                .map_err(|error| PrismError::new("PP4004", error.to_string()))?;
+            crate::exporter::validate_owner_binding(
+                &owner,
+                &sha256(&context.model_bytes),
+                "library",
+                &lex_manifest,
+                &json!(bindings),
+                processes.as_array().expect("serialized process array"),
+                &crate::library_build::export_arguments(
+                    &modules,
+                    library,
+                    Path::new("$LIBRARY_WORK/export"),
+                ),
+            )?;
+            json!({
+                "acceptance_sha256":sha256(&acceptance),
+                "artifacts":bindings,
+                "build_id":context.build.build_id,
+                "exporter_owner":owner,
+                "lexlean_attestation_sha256":sha256(&context.lex_attestation),
+                "model_sha256":sha256(&context.model_bytes),
+                "processes":context.processes,
+                "schema":"prismpm/library-verification-manifest/2",
+                "scope":"native-library-only"
+            })
+        },
     )?
     .bytes()
     .to_vec();

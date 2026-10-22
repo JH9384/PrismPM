@@ -1,7 +1,7 @@
 Feature: supply-chain
 
   @SC-01 @build
-  Scenario: SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure.
+  Scenario: SPDX 3.0.1 BOMs close over SDK, build, oracle, adapter, application, and runtime dependencies and match OCI closure; local Cargo package checksums resolve normalized project manifests without weakening path confinement.
     Given the locked PrismPM production fixture
     When the SC-01 contract is exercised
     Then its positive evidence passes and its planted defect is rejected
@@ -19,7 +19,7 @@ Feature: supply-chain
     Then its positive evidence passes and its planted defect is rejected
 
   @SC-04 @build
-  Scenario: Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage and stale evidence cannot satisfy current policy.
+  Scenario: Vulnerability and license results bind immutable inputs and freshness; offline scans use private workspace-owned storage, Docker image children preserve separate credential and builder configuration, and stale evidence cannot satisfy current policy.
     Given the locked PrismPM production fixture
     When the SC-04 contract is exercised
     Then its positive evidence passes and its planted defect is rejected

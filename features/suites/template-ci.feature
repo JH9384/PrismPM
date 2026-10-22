@@ -13,7 +13,7 @@ Feature: template-ci
     Then its positive evidence passes and its planted defect is rejected
 
   @TM-03 @build
-  Scenario: Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI and return declared release, plan, and evidence digests.
+  Scenario: Full-SHA-pinned actions and reusable workflows invoke the same SDK digest and CLI, isolate private builder state from read-only registry credentials, and return declared release, plan, and evidence digests.
     Given the locked PrismPM production fixture
     When the TM-03 contract is exercised
     Then its positive evidence passes and its planted defect is rejected

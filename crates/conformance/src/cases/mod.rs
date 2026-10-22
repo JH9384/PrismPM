@@ -2600,6 +2600,46 @@ fn verify_supply_chain(id: &str) {
             assert!(evidence.spdx.positive >= 2);
             assert!(evidence.spdx.negative > 0);
             assert!(evidence.spdx.planted_rejections > 0);
+            let root = repo_root();
+            let output = Command::new("cargo")
+                .args([
+                    "test",
+                    "--locked",
+                    "--offline",
+                    "-p",
+                    "prismpm",
+                    "--lib",
+                    "cargo_inventory_",
+                    "--",
+                    "--nocapture",
+                ])
+                .env(
+                    "CARGO_TARGET_DIR",
+                    root.join("target/conformance-cargo-inventory"),
+                )
+                .current_dir(root)
+                .output()
+                .expect("SC-01 executes actual Cargo inventory regressions");
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(
+                output.status.success(),
+                "SC-01 Cargo inventory: {stdout}\n{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let summaries = stdout
+                .lines()
+                .filter(|line| line.starts_with("test result: ok. "))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                summaries.len(),
+                1,
+                "SC-01 requires one complete Cargo inventory summary: {stdout}"
+            );
+            assert!(
+                summaries[0]
+                    .starts_with("test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; "),
+                "SC-01 requires every Cargo inventory regression without omissions: {stdout}"
+            );
         }
         "SC-02" => {
             let evidence = upstream(&repo_root());
@@ -2679,9 +2719,9 @@ fn verify_supply_chain(id: &str) {
                 .split_once(" passed; ")
                 .and_then(|(passed, _)| passed.parse::<usize>().ok());
             assert!(
-                passed.is_some_and(|passed| passed > 0)
+                passed == Some(6)
                     && summaries[0].contains("; 0 failed; 0 ignored; 0 measured;"),
-                "SC-04 requires nonempty executed storage tests without omissions: {stdout}"
+                "SC-04 requires all six executed storage and Docker configuration tests without omissions: {stdout}"
             );
         }
         "SC-05" => {

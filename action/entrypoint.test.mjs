@@ -75,7 +75,8 @@ function verifyExportInvocation(result, f, ref = reference, destination = 'publi
   assert.equal(args[cli - 1], sdk);
   assert.deepEqual(args.slice(0, cli - 1), ['run', '--rm', '--user', `${process.getuid()}:${process.getgid()}`,
     '--env', 'HOME=/tmp/prismpm-home', '--env', 'PRISMPM_EPHEMERAL_HOME=1',
-    '--tmpfs', '/tmp:rw,exec,nosuid,size=1g', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+    '--env', 'BUILDX_CONFIG=/tmp/prismpm-buildx',
+    '--tmpfs', '/tmp:rw,exec,nosuid,size=2g', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
     '--network', 'none', '--volume', `${f.workspace}:${f.workspace}`,
     '--env', `PRISMPM_SOURCE_REVISION=${revision}`]);
   for (const projection of result.calls.slice(1)) {
@@ -102,7 +103,8 @@ function verifyPublicationInvocation(result, f, ref = reference, url = publicati
   assert.equal(args[cli - 1], sdk);
   assert.deepEqual(args.slice(0, cli - 1), ['run', '--rm', '--user', `${process.getuid()}:${process.getgid()}`,
     '--env', 'HOME=/tmp/prismpm-home', '--env', 'PRISMPM_EPHEMERAL_HOME=1',
-    '--tmpfs', '/tmp:rw,exec,nosuid,size=1g', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+    '--env', 'BUILDX_CONFIG=/tmp/prismpm-buildx',
+    '--tmpfs', '/tmp:rw,exec,nosuid,size=2g', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
     '--volume', `${f.workspace}:${f.workspace}`,
     '--env', `PRISMPM_SOURCE_REVISION=${revision}`]);
   for (const projection of result.calls.slice(1)) {
@@ -203,14 +205,31 @@ test('project context remains confined before Docker invocation', t => {
   }
 });
 
-test('existing check and immutable inspect commands retain their argument boundaries', t => {
+test('existing commands retain SDK operands and private builder state beside read-only credentials', t => {
   const f = fixture(t);
-  for (const command of ['check', 'inspect']) {
-    const result = invoke(f, {PRISMPM_ACTION_COMMAND: command});
+  const credentials = join(f.root, 'registry credentials');
+  mkdirSync(credentials);
+  for (const command of ['check', 'inspect', 'fetch', 'push', 'pull']) {
+    const result = invoke(f, {PRISMPM_ACTION_COMMAND: command, DOCKER_CONFIG: credentials});
     assert.equal(result.status, 0, result.stderr);
     const args = result.calls[0];
     assert.deepEqual(args.slice(args.indexOf('prismpm')), ['prismpm', '--project',
-      join(f.workspace, 'project with spaces'), '--json', command, ...(command === 'inspect' ? [reference] : [])]);
+      join(f.workspace, 'project with spaces'), '--json', command,
+      ...(command === 'fetch' ? ['--locked'] : command === 'check' ? [] : [reference])]);
+    assert.equal(args.filter(value => value.startsWith('BUILDX_CONFIG=')).length, 1);
+    assert.ok(args.includes('BUILDX_CONFIG=/tmp/prismpm-buildx'));
+    assert.equal(args[args.indexOf('--tmpfs') + 1], '/tmp:rw,exec,nosuid,size=2g');
+    if (['push', 'pull'].includes(command)) {
+      assert.ok(args.includes('DOCKER_CONFIG=/home/vscode/.docker'));
+      assert.ok(args.includes(`${credentials}:/home/vscode/.docker:ro`));
+    } else {
+      assert.ok(!args.some(value => value.startsWith('DOCKER_CONFIG=')));
+    }
+    for (const projection of result.calls.slice(1)) {
+      assert.ok(!projection.some(value => value.startsWith('BUILDX_CONFIG=')));
+      assert.ok(!projection.includes('--volume'));
+      assert.equal(projection[projection.indexOf('--tmpfs') + 1], '/tmp:rw,exec,nosuid,size=64m');
+    }
   }
 });
 
@@ -220,6 +239,9 @@ test('owning adapter assertions reject real argument and host-isolation defects'
     ['args+=(export-browser "$reference" --output "$export_output")',
       'args+=(export-browser "$reference" --output "$project/$export_output")'],
     ['network_args=(--network none)', 'network_args=(--network host)'],
+    ['--tmpfs /tmp:rw,exec,nosuid,size=2g', '--tmpfs /tmp:rw,exec,nosuid,size=1g'],
+    ['--env BUILDX_CONFIG=/tmp/prismpm-buildx', ''],
+    ['--env BUILDX_CONFIG=/tmp/prismpm-buildx', '--env BUILDX_CONFIG=/home/vscode/.docker/buildx'],
   ]) {
     assert.equal(source.split(before).length, 2, 'mutation must change exactly one owning statement');
     const path = join(f.root, 'mutant.sh'); writeFileSync(path, source.replace(before, after));

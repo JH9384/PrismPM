@@ -653,12 +653,17 @@ fn selected_application_snapshot(
             && snapshot["compiler_semantics_id"] == p.compiler_semantics_id,
         "application selected snapshot identity differs",
     )?;
-    let projected = crate::holo::application::project_application(&typed).map_err(|error| {
-        invalid(format!(
-            "application snapshot projection: {}",
-            error.message
-        ))
-    })?;
+    // Facet records are projected from the full snapshot, which carries every
+    // entrypoint, exactly as the build projected them.
+    let full: lexlean::SemanticSnapshot = serde_json::from_value(full_snapshot.clone())
+        .map_err(|error| invalid(format!("full snapshot: {error}")))?;
+    let projected = crate::holo::application::project_application_with_facets(&typed, &full)
+        .map_err(|error| {
+            invalid(format!(
+                "application snapshot projection: {}",
+                error.message
+            ))
+        })?;
     ensure(
         projected.as_ref() == Some(model),
         "application model is not the exact selected snapshot projection",

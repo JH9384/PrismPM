@@ -113,7 +113,22 @@ document. `ComponentKind` states `service`, `database` and `externalSystem`
 together with the delivery kinds `cliAdapter`, `staticSite` and `releaseBinary`.
 `StandardReference` names the standard it cites: `standardIndex` is the
 position of `standardId` in the exact standards profile, and `editionIndex`
-the position of `edition` among the editions the document cites for it.
+the position of `edition` among the editions the document cites for it. The
+profile cites one edition of each standard, so `editionIndex` is 0 and
+`edition` is the final segment of `standardId`. `StandardReference` has an
+entity row in `model/projection.toml` that validates and does not project: it
+contributes no document array, and a `standardId` outside the profile, a
+`standardIndex` that is not its position, a wrong `edition` or a nonzero
+`editionIndex` is refused with PP4004.
+
+A model document carries the facet records of every entrypoint of the checked
+project, not only the entrypoints under the application roots. When a source
+graph selects an application, the application is projected from the
+application-root snapshot and its Foundation.Arch, Foundation.Sec and
+Foundation.Qual records from the whole entrypoint snapshot, so an architecture
+entrypoint declared apart from the application roots reaches the document.
+Release verification replays the same projection from the archived full
+snapshot.
 
 The fixed runtime root set and sorted Lean names are in
 `model/runtime-roots.toml`. Runtime validity is separate from any erased `Prop`

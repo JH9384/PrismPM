@@ -323,7 +323,7 @@ test('owning CLI test kills a removed process-exit guard',t=>{
  const guard='assert.equal(output.status,expected.code ? exits[expected.code] : 0, "CLI exit class");';assert.equal(module.split(guard).length,2);
  put(root,'scripts/library-sdk-check.mjs',module.replace(guard,''));put(root,'scripts/browser-api-sdk-check.mjs',readFileSync(new URL('./browser-api-sdk-check.mjs',import.meta.url)));put(root,'scripts/library-sdk-check.test.mjs',readFileSync(new URL('./library-sdk-check.test.mjs',import.meta.url)));
  put(root,'scripts/library-sdk-fixture.mjs',readFileSync(new URL('./library-sdk-fixture.mjs',import.meta.url)));
- for(const name of ['sdk-command-owner.mjs','sdk-command-owner.py'])
+ for(const name of ['sdk-command-owner.mjs','sdk-command-owner.py','semantic-source.mjs'])
   put(root,'scripts/'+name,readFileSync(new URL('./'+name,import.meta.url)));
  put(root,'scripts/installed-exporter-concurrency.mjs',readFileSync(new URL('./installed-exporter-concurrency.mjs',import.meta.url)));
  cpSync(new URL('../sdk',import.meta.url),join(root,'sdk'),{recursive:true});

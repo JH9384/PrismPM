@@ -3,6 +3,7 @@ public import Init
 set_option autoImplicit false
 set_option maxRecDepth 100000
 set_option maxHeartbeats 1000000000
+set_option linter.constructorNameAsVariable false
 namespace PrismPM.Foundation.Arch
 
 public structure StandardReference where
@@ -79,6 +80,99 @@ public instance (priority := 1000) canonicalView : ViewClass where
 @[expose] public def viewpointOperations : Viewpoint := ({ index := 0, stakeholderIndex := 0, concernIndex := 0, modelKindIndex := 0 } : Viewpoint)
 
 @[expose] public def viewPrimary : View := ({ index := 0, viewpointIndex := 0, modelKindIndex := 0 } : View)
+
+public inductive DesignDiagram where
+  | opmObjectProcess
+  | umlComponent
+  | umlSequence
+  | umlStateMachine
+
+public inductive OpmThingKind where
+  | object
+  | process
+
+public inductive OpmLinkKind where
+  | agent
+  | instrument
+  | consumption
+  | result
+  | effect
+  | invocation
+  | aggregation
+  | exhibition
+  | generalization
+  | classification
+
+public inductive UmlMessageKind where
+  | synchronous
+  | asynchronous
+  | reply
+
+public structure SystemProcess where
+  owner : String
+
+public structure SystemState where
+  owner : String
+
+public structure DesignView where
+  title : String
+  viewpoint : String
+  diagram : DesignDiagram
+
+public structure OpmThing where
+  view : String
+  kind : OpmThingKind
+  subject : String
+
+public structure OpmState where
+  view : String
+  thing : String
+  state : String
+
+public structure OpmLink where
+  view : String
+  kind : OpmLinkKind
+  source : String
+  target : String
+
+public structure OpmZoom where
+  view : String
+  process : String
+  subprocess : String
+  order : Nat
+
+public structure UmlComponent where
+  view : String
+  component : String
+
+public structure UmlConnector where
+  view : String
+  edge : String
+
+public structure UmlLifeline where
+  view : String
+  component : String
+  order : Nat
+
+public structure UmlMessage where
+  view : String
+  kind : UmlMessageKind
+  order : Nat
+  source : String
+  target : String
+  process : String
+
+public structure UmlState where
+  view : String
+  state : String
+  initial : Bool
+
+public structure UmlTransition where
+  view : String
+  order : Nat
+  source : String
+  target : String
+  trigger : String
 
 public theorem componentIdentityUnique (value : Component) : (value = value) := by
   rfl

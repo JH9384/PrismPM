@@ -5,81 +5,97 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{wireSlice}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (start : Nat) (count : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (LexLeanRuntime.slice (value) (start) (count) : Option (ByteArray)) with | Option.none => ByteArray.mk \#[] | Option.some part => part)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{wireBytesEqual}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(left : ByteArray) (right : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.equal ((LexLeanRuntime.compareBytes (left) (right) : Ordering)) ((LexLeanRuntime.compareBytes (ByteArray.mk \#[0]) (ByteArray.mk \#[0]) : Ordering)) : Bool)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireBytesLess}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(left : ByteArray) (right : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.equal ((LexLeanRuntime.compareBytes (left) (right) : Ordering)) ((LexLeanRuntime.compareBytes (ByteArray.mk \#[0]) (ByteArray.mk \#[1]) : Ordering)) : Bool)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireWindowEquals}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (start : Nat) (count : Nat) (expected : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match (LexLeanRuntime.slice (value) (start) (count) : Option (ByteArray)) with | Option.none => false | Option.some part => wireBytesEqual (part) (expected))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireEncodeOctet}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(if (Nat.blt (value) (256)) then (if (Nat.blt (value) (128)) then (if (Nat.blt (value) (64)) then (if (Nat.blt (value) (32)) then (if (Nat.blt (value) (16)) then wireSlice (ByteArray.mk \#[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]) ((LexLeanRuntime.subtract (value) (0) : Nat)) (1) else wireSlice (ByteArray.mk \#[16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]) ((LexLeanRuntime.subtract (value) (16) : Nat)) (1)) else (if (Nat.blt (value) (48)) then wireSlice (ByteArray.mk \#[32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]) ((LexLeanRuntime.subtract (value) (32) : Nat)) (1) else wireSlice (ByteArray.mk \#[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]) ((LexLeanRuntime.subtract (value) (48) : Nat)) (1))) else (if (Nat.blt (value) (96)) then (if (Nat.blt (value) (80)) then wireSlice (ByteArray.mk \#[64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79]) ((LexLeanRuntime.subtract (value) (64) : Nat)) (1) else wireSlice (ByteArray.mk \#[80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95]) ((LexLeanRuntime.subtract (value) (80) : Nat)) (1)) else (if (Nat.blt (value) (112)) then wireSlice (ByteArray.mk \#[96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111]) ((LexLeanRuntime.subtract (value) (96) : Nat)) (1) else wireSlice (ByteArray.mk \#[112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127]) ((LexLeanRuntime.subtract (value) (112) : Nat)) (1)))) else (if (Nat.blt (value) (192)) then (if (Nat.blt (value) (160)) then (if (Nat.blt (value) (144)) then wireSlice (ByteArray.mk \#[128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143]) ((LexLeanRuntime.subtract (value) (128) : Nat)) (1) else wireSlice (ByteArray.mk \#[144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159]) ((LexLeanRuntime.subtract (value) (144) : Nat)) (1)) else (if (Nat.blt (value) (176)) then wireSlice (ByteArray.mk \#[160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175]) ((LexLeanRuntime.subtract (value) (160) : Nat)) (1) else wireSlice (ByteArray.mk \#[176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191]) ((LexLeanRuntime.subtract (value) (176) : Nat)) (1))) else (if (Nat.blt (value) (224)) then (if (Nat.blt (value) (208)) then wireSlice (ByteArray.mk \#[192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207]) ((LexLeanRuntime.subtract (value) (192) : Nat)) (1) else wireSlice (ByteArray.mk \#[208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223]) ((LexLeanRuntime.subtract (value) (208) : Nat)) (1)) else (if (Nat.blt (value) (240)) then wireSlice (ByteArray.mk \#[224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239]) ((LexLeanRuntime.subtract (value) (224) : Nat)) (1) else wireSlice (ByteArray.mk \#[240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255]) ((LexLeanRuntime.subtract (value) (240) : Nat)) (1))))) else ByteArray.mk \#[])}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{wireDecodeOctetSearch}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (count : Nat)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{(match count with | Nat.zero => 0 | Nat.succ rest => (if wireBytesEqual (value) (wireEncodeOctet (rest)) then rest else wireDecodeOctetSearch (value) (rest)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireDecodeOctet}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{wireDecodeOctetSearch (value) (256)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireEncodeLe16}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(if (Nat.ble (value) (65535)) then (LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (1) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (256) (0) : Nat)) (256) (0) : Nat))) : ByteArray) else ByteArray.mk \#[])}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{wireDecodeLe16}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{((0 + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (0) (1))) (1) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (1) (1))) (256) : Nat))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireEncodeLe32}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(if (Nat.ble (value) (4294967295)) then (LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (1) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (256) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (65536) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (16777216) (0) : Nat)) (256) (0) : Nat))) : ByteArray) else ByteArray.mk \#[])}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{wireDecodeLe32}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{((((0 + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (0) (1))) (1) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (1) (1))) (256) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (2) (1))) (65536) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (3) (1))) (16777216) : Nat))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireEncodeLe64}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(if (Nat.ble (value) (18446744073709551615)) then (LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (1) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (256) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (65536) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (16777216) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (4294967296) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (1099511627776) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (281474976710656) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (wireEncodeOctet ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (72057594037927936) (0) : Nat)) (256) (0) : Nat))) : ByteArray) else ByteArray.mk \#[])}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{wireDecodeLe64}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{((((((((0 + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (0) (1))) (1) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (1) (1))) (256) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (2) (1))) (65536) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (3) (1))) (16777216) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (4) (1))) (4294967296) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (5) (1))) (1099511627776) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (6) (1))) (281474976710656) : Nat)) + (LexLeanRuntime.multiply (wireDecodeOctet (wireSlice (value) (7) (1))) (72057594037927936) : Nat))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireHexOctetValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(wireBytesEqual (value) (ByteArray.mk \#[48]) || (wireBytesEqual (value) (ByteArray.mk \#[49]) || (wireBytesEqual (value) (ByteArray.mk \#[50]) || (wireBytesEqual (value) (ByteArray.mk \#[51]) || (wireBytesEqual (value) (ByteArray.mk \#[52]) || (wireBytesEqual (value) (ByteArray.mk \#[53]) || (wireBytesEqual (value) (ByteArray.mk \#[54]) || (wireBytesEqual (value) (ByteArray.mk \#[55]) || (wireBytesEqual (value) (ByteArray.mk \#[56]) || (wireBytesEqual (value) (ByteArray.mk \#[57]) || (wireBytesEqual (value) (ByteArray.mk \#[97]) || (wireBytesEqual (value) (ByteArray.mk \#[98]) || (wireBytesEqual (value) (ByteArray.mk \#[99]) || (wireBytesEqual (value) (ByteArray.mk \#[100]) || (wireBytesEqual (value) (ByteArray.mk \#[101]) || (wireBytesEqual (value) (ByteArray.mk \#[102]) || false))))))))))))))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireHexBytesValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (count : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match count with | Nat.zero => true | Nat.succ rest => (wireHexOctetValid (wireSlice (value) (rest) (1)) \&\& (wireHexBytesValid (value) (rest) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireKappaLabelValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.beq ((LexLeanRuntime.length (value) : Nat)) (71)) \&\& (wireWindowEquals (value) (0) (7) (ByteArray.mk \#[98, 108, 97, 107, 101, 51, 58]) \&\& (wireHexBytesValid (wireSlice (value) (7) (64)) (64) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
@@ -100,16 +116,19 @@
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{appManifest}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(requires : ByteArray) (guest : ByteArray) (view : ByteArray)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if (wireKappaLabelValid (requires) \&\& (wireKappaLabelValid (guest) \&\& (wireKappaLabelValid (view) \&\& true))) then Option.some ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireManifestPrefix) : ByteArray)) (requires) : ByteArray)) (guest) : ByteArray)) (view) : ByteArray)) (wireManifestSuffix) : ByteArray)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{validAppManifest}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.beq ((LexLeanRuntime.length (value) : Nat)) (356)) \&\& (wireWindowEquals (value) (0) (57) (wireManifestPrefix) \&\& (wireWindowEquals (value) (270) (86) (wireManifestSuffix) \&\& (wireKappaLabelValid (wireSlice (value) (57) (71)) \&\& (wireKappaLabelValid (wireSlice (value) (128) (71)) \&\& (wireKappaLabelValid (wireSlice (value) (199) (71)) \&\& true))))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{manifestReference}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (index : Nat)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if (validAppManifest (value) \&\& ((Nat.blt (index) (3)) \&\& true)) then Option.some (wireSlice (value) ((57 + (LexLeanRuntime.multiply (index) (71) : Nat))) (71)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
@@ -125,131 +144,157 @@
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{wireSectionKind}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(index : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(if (Nat.blt (index) (8)) then (if (Nat.beq (index) (0)) then ByteArray.mk \#[15] else (if (Nat.beq (index) (1)) then ByteArray.mk \#[8] else (if (Nat.blt (index) (4)) then ByteArray.mk \#[14] else ByteArray.mk \#[16]))) else ByteArray.mk \#[])}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{wireTableRow}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(index : Nat) (offset : Nat) (length : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireSectionKind (index)) : ByteArray)) (ByteArray.mk \#[0, 0, 0, 0, 0, 0, 0]) : ByteArray)) (wireEncodeLe64 (offset)) : ByteArray)) (wireEncodeLe64 (length)) : ByteArray)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{wireRowOffset}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray) (index : Nat)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{(match (LexLeanRuntime.slice (body) ((18 + (LexLeanRuntime.multiply (index) (24) : Nat))) (8) : Option (ByteArray)) with | Option.none => 0 | Option.some part => wireDecodeLe64 (part))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireRowLength}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray) (index : Nat)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{(match (LexLeanRuntime.slice (body) ((26 + (LexLeanRuntime.multiply (index) (24) : Nat))) (8) : Option (ByteArray)) with | Option.none => 0 | Option.some part => wireDecodeLe64 (part))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireSectionBytesUnchecked}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray) (index : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{wireSlice (body) (wireRowOffset (body) (index)) (wireRowLength (body) (index))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireRowsValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray) (index : Nat) (offset : Nat) (remaining : Nat)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match remaining with | Nat.zero => (Nat.beq (offset) ((LexLeanRuntime.length (body) : Nat))) | Nat.succ rest => (if ((Nat.blt (index) (8)) \&\& ((Nat.ble (offset) ((LexLeanRuntime.length (body) : Nat))) \&\& true)) then (if (wireWindowEquals (body) ((10 + (LexLeanRuntime.multiply (index) (24) : Nat))) (1) (wireSectionKind (index)) \&\& (wireWindowEquals (body) ((11 + (LexLeanRuntime.multiply (index) (24) : Nat))) (7) (ByteArray.mk \#[0, 0, 0, 0, 0, 0, 0]) \&\& ((Nat.beq (wireRowOffset (body) (index)) (offset)) \&\& ((Nat.ble (wireRowLength (body) (index)) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (body) : Nat)) (offset) : Nat))) \&\& true)))) then wireRowsValid (body) ((index + 1)) ((offset + wireRowLength (body) (index))) (rest) else false) else false))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireBlobLabel}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{wireSlice (value) (0) (71)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{wireBlobContent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{wireSlice (value) (71) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (value) : Nat)) (71) : Nat))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{wireBlobValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.ble (71) ((LexLeanRuntime.length (value) : Nat))) \&\& (wireKappaLabelValid (wireBlobLabel (value)) \&\& true))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireBlobsValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(blob0 : ByteArray) (blob1 : ByteArray) (blob2 : ByteArray) (blob3 : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(wireBlobValid (blob0) \&\& (wireBlobValid (blob1) \&\& (wireBlobValid (blob2) \&\& (wireBlobValid (blob3) \&\& (wireBytesLess (wireBlobLabel (blob0)) (wireBlobLabel (blob1)) \&\& (wireBytesLess (wireBlobLabel (blob1)) (wireBlobLabel (blob2)) \&\& (wireBytesLess (wireBlobLabel (blob2)) (wireBlobLabel (blob3)) \&\& true)))))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireReferencePresent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(label : ByteArray) (blob0 : ByteArray) (blob1 : ByteArray) (blob2 : ByteArray) (blob3 : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(wireBytesEqual (label) (wireBlobLabel (blob0)) || (wireBytesEqual (label) (wireBlobLabel (blob1)) || (wireBytesEqual (label) (wireBlobLabel (blob2)) || (wireBytesEqual (label) (wireBlobLabel (blob3)) || false))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireCapabilitiesPresent}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(label : ByteArray) (blob0 : ByteArray) (blob1 : ByteArray) (blob2 : ByteArray) (blob3 : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((wireBytesEqual (label) (wireBlobLabel (blob0)) \&\& (wireBytesEqual (wireBlobContent (blob0)) (emptyCapabilities) \&\& true)) || ((wireBytesEqual (label) (wireBlobLabel (blob1)) \&\& (wireBytesEqual (wireBlobContent (blob1)) (emptyCapabilities) \&\& true)) || ((wireBytesEqual (label) (wireBlobLabel (blob2)) \&\& (wireBytesEqual (wireBlobContent (blob2)) (emptyCapabilities) \&\& true)) || ((wireBytesEqual (label) (wireBlobLabel (blob3)) \&\& (wireBytesEqual (wireBlobContent (blob3)) (emptyCapabilities) \&\& true)) || false))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wirePayloadsValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : ByteArray) (blob0 : ByteArray) (blob1 : ByteArray) (blob2 : ByteArray) (blob3 : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(validAppManifest (manifest) \&\& (wireBlobsValid (blob0) (blob1) (blob2) (blob3) \&\& (wireCapabilitiesPresent (wireSlice (manifest) (57) (71)) (blob0) (blob1) (blob2) (blob3) \&\& (wireReferencePresent (wireSlice (manifest) (128) (71)) (blob0) (blob1) (blob2) (blob3) \&\& (wireReferencePresent (wireSlice (manifest) (199) (71)) (blob0) (blob1) (blob2) (blob3) \&\& true)))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireBodyPayloadsValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(wireWindowEquals (wireSectionBytesUnchecked (body) (2)) (0) ((LexLeanRuntime.length (wireDirectoryPrefix) : Nat)) (wireDirectoryPrefix) \&\& (wireWindowEquals (wireSectionBytesUnchecked (body) (3)) (0) ((LexLeanRuntime.length (wireProvenancePrefix) : Nat)) (wireProvenancePrefix) \&\& (wirePayloadsValid (wireSectionBytesUnchecked (body) (0)) (wireSectionBytesUnchecked (body) (4)) (wireSectionBytesUnchecked (body) (5)) (wireSectionBytesUnchecked (body) (6)) (wireSectionBytesUnchecked (body) (7)) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{validArchiveBody}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(if ((Nat.ble (202) ((LexLeanRuntime.length (body) : Nat))) \&\& (wireWindowEquals (body) (0) (10) (ByteArray.mk \#[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]) \&\& true)) then (if wireRowsValid (body) (0) (202) (8) then wireBodyPayloadsValid (body) else false) else false)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireComposeBodyUnchecked}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : ByteArray) (metadata : ByteArray) (directory : ByteArray) (provenance : ByteArray) (blob0 : ByteArray) (blob1 : ByteArray) (blob2 : ByteArray) (blob3 : ByteArray)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]) : ByteArray)) (wireTableRow (0) (202) ((LexLeanRuntime.length (manifest) : Nat))) : ByteArray)) (wireTableRow (1) ((202 + (LexLeanRuntime.length (manifest) : Nat))) ((LexLeanRuntime.length (metadata) : Nat))) : ByteArray)) (wireTableRow (2) (((202 + (LexLeanRuntime.length (manifest) : Nat)) + (LexLeanRuntime.length (metadata) : Nat))) ((LexLeanRuntime.length (directory) : Nat))) : ByteArray)) (wireTableRow (3) ((((202 + (LexLeanRuntime.length (manifest) : Nat)) + (LexLeanRuntime.length (metadata) : Nat)) + (LexLeanRuntime.length (directory) : Nat))) ((LexLeanRuntime.length (provenance) : Nat))) : ByteArray)) (wireTableRow (4) (((((202 + (LexLeanRuntime.length (manifest) : Nat)) + (LexLeanRuntime.length (metadata) : Nat)) + (LexLeanRuntime.length (directory) : Nat)) + (LexLeanRuntime.length (provenance) : Nat))) ((LexLeanRuntime.length (blob0) : Nat))) : ByteArray)) (wireTableRow (5) ((((((202 + (LexLeanRuntime.length (manifest) : Nat)) + (LexLeanRuntime.length (metadata) : Nat)) + (LexLeanRuntime.length (directory) : Nat)) + (LexLeanRuntime.length (provenance) : Nat)) + (LexLeanRuntime.length (blob0) : Nat))) ((LexLeanRuntime.length (blob1) : Nat))) : ByteArray)) (wireTableRow (6) (((((((202 + (LexLeanRuntime.length (manifest) : Nat)) + (LexLeanRuntime.length (metadata) : Nat)) + (LexLeanRuntime.length (directory) : Nat)) + (LexLeanRuntime.length (provenance) : Nat)) + (LexLeanRuntime.length (blob0) : Nat)) + (LexLeanRuntime.length (blob1) : Nat))) ((LexLeanRuntime.length (blob2) : Nat))) : ByteArray)) (wireTableRow (7) ((((((((202 + (LexLeanRuntime.length (manifest) : Nat)) + (LexLeanRuntime.length (metadata) : Nat)) + (LexLeanRuntime.length (directory) : Nat)) + (LexLeanRuntime.length (provenance) : Nat)) + (LexLeanRuntime.length (blob0) : Nat)) + (LexLeanRuntime.length (blob1) : Nat)) + (LexLeanRuntime.length (blob2) : Nat))) ((LexLeanRuntime.length (blob3) : Nat))) : ByteArray)) (manifest) : ByteArray)) (metadata) : ByteArray)) (directory) : ByteArray)) (provenance) : ByteArray)) (blob0) : ByteArray)) (blob1) : ByteArray)) (blob2) : ByteArray)) (blob3) : ByteArray)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{archiveBody}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : ByteArray) (metadata : ByteArray) (directory : ByteArray) (provenance : ByteArray) (blob0 : ByteArray) (blob1 : ByteArray) (blob2 : ByteArray) (blob3 : ByteArray)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if wirePayloadsValid (manifest) (blob0) (blob1) (blob2) (blob3) then Option.some (wireComposeBodyUnchecked (manifest) (metadata) ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireDirectoryPrefix) : ByteArray)) (directory) : ByteArray)) ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireProvenancePrefix) : ByteArray)) (provenance) : ByteArray)) (blob0) (blob1) (blob2) (blob3)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{frameArchive}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray) (footer : ByteArray)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if (validArchiveBody (body) \&\& ((Nat.beq ((LexLeanRuntime.length (footer) : Nat)) (32)) \&\& true)) then Option.some ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (body) : ByteArray)) (footer) : ByteArray)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{validArchiveFrame}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(if (Nat.ble (234) ((LexLeanRuntime.length (value) : Nat))) then validArchiveBody (wireSlice (value) (0) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (value) : Nat)) (32) : Nat))) else false)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{archiveBodyBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if validArchiveFrame (value) then Option.some (wireSlice (value) (0) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (value) : Nat)) (32) : Nat))) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{archiveFooter}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if validArchiveFrame (value) then Option.some (wireSlice (value) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (value) : Nat)) (32) : Nat)) (32)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{archiveSection}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (index : Nat)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if (validArchiveFrame (value) \&\& ((Nat.blt (index) (8)) \&\& true)) then Option.some (wireSectionBytesUnchecked (value) (index)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{archiveExtension}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (index : Nat)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if (validArchiveFrame (value) \&\& ((Nat.blt (index) (2)) \&\& true)) then (if (Nat.beq (index) (0)) then Option.some (wireSlice (wireSectionBytesUnchecked (value) ((index + 2))) ((LexLeanRuntime.length (wireDirectoryPrefix) : Nat)) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (wireSectionBytesUnchecked (value) ((index + 2))) : Nat)) ((LexLeanRuntime.length (wireDirectoryPrefix) : Nat)) : Nat))) else Option.some (wireSlice (wireSectionBytesUnchecked (value) ((index + 2))) ((LexLeanRuntime.length (wireProvenancePrefix) : Nat)) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (wireSectionBytesUnchecked (value) ((index + 2))) : Nat)) ((LexLeanRuntime.length (wireProvenancePrefix) : Nat)) : Nat)))) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{contentBlob}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(label : ByteArray) (content : ByteArray)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if wireKappaLabelValid (label) then Option.some ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (label) : ByteArray)) (content) : ByteArray)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{contentBlobLabel}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if wireBlobValid (value) then Option.some (wireBlobLabel (value)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{contentBlobBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(if wireBlobValid (value) then Option.some (wireBlobContent (value)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par

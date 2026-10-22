@@ -5,14 +5,31 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{Action}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Submit}: \texttt{()}.\par
+\noindent Constructor \texttt{Enter}: \texttt{()}.\par
 \subsection*{\texttt{FocusBehavior}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{RetainFocus}: \texttt{()}.\par
+\noindent Constructor \texttt{MoveFocusToResult}: \texttt{()}.\par
 \subsection*{\texttt{LiveMode}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Off}: \texttt{()}.\par
+\noindent Constructor \texttt{Polite}: \texttt{()}.\par
+\noindent Constructor \texttt{Assertive}: \texttt{()}.\par
 \subsection*{\texttt{ResultKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Calculation}: \texttt{()}.\par
+\noindent Constructor \texttt{InputError}: \texttt{()}.\par
+\noindent Constructor \texttt{DomainError}: \texttt{()}.\par
 \subsection*{\texttt{ActionBinding}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{action}: \texttt{Action}.\par
+\noindent Field \texttt{intent}: \texttt{String}.\par
+\noindent Field \texttt{requestBinding}: \texttt{String}.\par
 \subsection*{\texttt{ResultBinding}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{kind}: \texttt{ResultKind}.\par
+\noindent Field \texttt{message}: \texttt{String}.\par
+\noindent Field \texttt{focus}: \texttt{FocusBehavior}.\par
+\noindent Field \texttt{live}: \texttt{LiveMode}.\par
 \end{document}

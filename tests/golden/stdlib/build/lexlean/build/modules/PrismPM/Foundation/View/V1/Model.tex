@@ -5,14 +5,46 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{NodeKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Document}: \texttt{()}.\par
+\noindent Constructor \texttt{Main}: \texttt{()}.\par
+\noindent Constructor \texttt{Heading}: \texttt{()}.\par
+\noindent Constructor \texttt{Text}: \texttt{()}.\par
+\noindent Constructor \texttt{Form}: \texttt{()}.\par
+\noindent Constructor \texttt{SignedInt64Input}: \texttt{()}.\par
+\noindent Constructor \texttt{OperationSelect}: \texttt{()}.\par
+\noindent Constructor \texttt{SubmitButton}: \texttt{()}.\par
+\noindent Constructor \texttt{LiveOutput}: \texttt{()}.\par
 \subsection*{\texttt{InputGrammar}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{AsciiSignedInt64}: \texttt{()}.\par
 \subsection*{\texttt{StyleToken}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Compact}: \texttt{()}.\par
+\noindent Constructor \texttt{HighContrast}: \texttt{()}.\par
+\noindent Constructor \texttt{SystemSans}: \texttt{()}.\par
 \subsection*{\texttt{SelectOption}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{value}: \texttt{UInt8}.\par
+\noindent Field \texttt{label}: \texttt{String}.\par
+\noindent Field \texttt{requestName}: \texttt{String}.\par
 \subsection*{\texttt{Node}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{kind}: \texttt{NodeKind}.\par
+\noindent Field \texttt{identifier}: \texttt{String}.\par
+\noindent Field \texttt{label}: \texttt{String}.\par
+\noindent Field \texttt{grammar}: \texttt{Option (InputGrammar)}.\par
+\noindent Field \texttt{children}: \texttt{List (String)}.\par
 \subsection*{\texttt{View}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{title}: \texttt{String}.\par
+\noindent Field \texttt{language}: \texttt{String}.\par
+\noindent Field \texttt{heading}: \texttt{String}.\par
+\noindent Field \texttt{nodes}: \texttt{List (Node)}.\par
+\noindent Field \texttt{options}: \texttt{List (SelectOption)}.\par
+\noindent Field \texttt{inputError}: \texttt{String}.\par
+\noindent Field \texttt{divisionError}: \texttt{String}.\par
+\noindent Field \texttt{overflowError}: \texttt{String}.\par
+\noindent Field \texttt{layout}: \texttt{StyleToken}.\par
+\noindent Field \texttt{color}: \texttt{StyleToken}.\par
+\noindent Field \texttt{typography}: \texttt{StyleToken}.\par
 \end{document}

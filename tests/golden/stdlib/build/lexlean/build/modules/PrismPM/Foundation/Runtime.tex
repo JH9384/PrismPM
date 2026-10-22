@@ -5,12 +5,25 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{CryptoPrimitive}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Blake3}: \texttt{()}.\par
+\noindent Constructor \texttt{Sha256}: \texttt{()}.\par
 \subsection*{\texttt{GuestMemory}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{maximumBytes}: \texttt{UInt32}.\par
+\noindent Field \texttt{maximumPages}: \texttt{UInt32}.\par
+\noindent Field \texttt{alignment}: \texttt{UInt8}.\par
+\noindent Field \texttt{monotonic}: \texttt{Bool}.\par
+\noindent Field \texttt{freshInstance}: \texttt{Bool}.\par
 \subsection*{\texttt{HashRequest}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{primitive}: \texttt{CryptoPrimitive}.\par
+\noindent Field \texttt{role}: \texttt{String}.\par
+\noindent Field \texttt{preimage}: \texttt{ByteArray}.\par
+\noindent Field \texttt{expectedBytes}: \texttt{UInt8}.\par
 \subsection*{\texttt{HashResult}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{role}: \texttt{String}.\par
+\noindent Field \texttt{digest}: \texttt{ByteArray}.\par
 \subsection*{\texttt{coreWasmMemory}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{GuestMemory}.\par

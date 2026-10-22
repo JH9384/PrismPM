@@ -1,8 +1,69 @@
 \begin{lexlean}{Foundation.Holo.V1.Identity}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"Blake3"},{"fields":[],"name":"Sha256"}],"kind":"inductive","name":"HashAlgorithm","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"Leaf"},{"fields":[],"name":"Application"},{"fields":[],"name":"Physical"}],"kind":"inductive","name":"HashPhase","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"ContentKappa"},{"fields":[],"name":"CapabilityKappa"},{"fields":[],"name":"ModelKappa"},{"fields":[],"name":"ApplicationKappa"},{"fields":[],"name":"ArchiveFingerprint"},{"fields":[],"name":"ArchiveKappa"},{"fields":[],"name":"PackageSha256"},{"fields":[],"name":"BrowserSha256"}],"kind":"inductive","name":"IdentityRole","parameters":[],"type_parameters":[]},{"fields":[{"name":"algorithm","type":{"arguments":[],"kind":"named","member":{"name":"HashAlgorithm"}}},{"name":"bytes","type":{"kind":"bytes"}}],"kind":"structure","name":"Digest","parameters":[],"type_parameters":[]},{"fields":[{"name":"phase","type":{"arguments":[],"kind":"named","member":{"name":"HashPhase"}}},{"name":"role","type":{"arguments":[],"kind":"named","member":{"name":"IdentityRole"}}},{"name":"preimage","type":{"kind":"bytes"}}],"kind":"structure","name":"HashRequest","parameters":[],"type_parameters":[]},{"fields":[{"name":"phase","type":{"arguments":[],"kind":"named","member":{"name":"HashPhase"}}},{"name":"role","type":{"arguments":[],"kind":"named","member":{"name":"IdentityRole"}}},{"name":"digest","type":{"arguments":[],"kind":"named","member":{"name":"Digest"}}}],"kind":"structure","name":"HashResult","parameters":[],"type_parameters":[]}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: HashAlgorithm,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Blake3, fields: []}, {name: Sha256, fields: []}]
+}
+
+inductive{
+  name: HashPhase,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Leaf, fields: []},
+    {name: Application, fields: []},
+    {name: Physical, fields: []}
+  ]
+}
+
+inductive{
+  name: IdentityRole,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: ContentKappa, fields: []},
+    {name: CapabilityKappa, fields: []},
+    {name: ModelKappa, fields: []},
+    {name: ApplicationKappa, fields: []},
+    {name: ArchiveFingerprint, fields: []},
+    {name: ArchiveKappa, fields: []},
+    {name: PackageSha256, fields: []},
+    {name: BrowserSha256, fields: []}
+  ]
+}
+
+structure{
+  name: Digest,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: algorithm, type: HashAlgorithm}, {name: bytes, type: Bytes}]
+}
+
+structure{
+  name: HashRequest,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: phase, type: HashPhase},
+    {name: role, type: IdentityRole},
+    {name: preimage, type: Bytes}
+  ]
+}
+
+structure{
+  name: HashResult,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: phase, type: HashPhase},
+    {name: role, type: IdentityRole},
+    {name: digest, type: Digest}
+  ]
+}
 \end{semanticmodule}
 \end{lexlean}

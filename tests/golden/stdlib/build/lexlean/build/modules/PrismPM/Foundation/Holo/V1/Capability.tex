@@ -5,8 +5,19 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{CapabilityRequest}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{storageRoots}: \texttt{List (String)}.\par
+\noindent Field \texttt{storageQuotaBytes}: \texttt{UInt64}.\par
+\noindent Field \texttt{networkFetchEndpoints}: \texttt{List (String)}.\par
+\noindent Field \texttt{networkAnnounceEndpoints}: \texttt{List (String)}.\par
+\noindent Field \texttt{publishChannels}: \texttt{List (String)}.\par
+\noindent Field \texttt{subscribeChannels}: \texttt{List (String)}.\par
+\noindent Field \texttt{memoryMaximumBytes}: \texttt{UInt64}.\par
+\noindent Field \texttt{cpuMillisecondsPerEvent}: \texttt{UInt64}.\par
+\noindent Field \texttt{priorityWeight}: \texttt{UInt32}.\par
 \subsection*{\texttt{ChildDelegation}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{applicationKappa}: \texttt{ByteArray}.\par
+\noindent Field \texttt{capabilitiesKappa}: \texttt{ByteArray}.\par
 \subsection*{\texttt{emptyRequest}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{CapabilityRequest}.\par

@@ -104,6 +104,17 @@ through qualified LexLean document denotations, never external Lean names.
 catalog/entity arrays. An unmapped declaration is valid LexLean content but is
 not silently projected.
 
+`Component`, `Stakeholder` and `Concern` each declare a `name` and a `text`
+String beside their index, and projected architecture records carry them as
+`name` and `text`. A name has no control character and at most 256 characters;
+a text has none but line feed and at most 4096. A record from a source that
+predates these fields projects them as the empty string and omits them from the
+document. `ComponentKind` states `service`, `database` and `externalSystem`
+together with the delivery kinds `cliAdapter`, `staticSite` and `releaseBinary`.
+`StandardReference` names the standard it cites: `standardIndex` is the
+position of `standardId` in the exact standards profile, and `editionIndex`
+the position of `edition` among the editions the document cites for it.
+
 The fixed runtime root set and sorted Lean names are in
 `model/runtime-roots.toml`. Runtime validity is separate from any erased `Prop`
 field. Generated validators operate on monomorphic `Nat`, Boolean, enum,
@@ -230,7 +241,11 @@ the Holo/1 physical archive or the legacy numeric View representation.
 
 The separate `Foundation.View.Text.V3.Model.TextApplication` declares
 `prismpm/text-application/3` in closed `prismpm/model-document/6`. It retains
-every V2 field and resource rule and adds one required closed `cli` record, so
+every V2 field and resource rule, except that `coreMemoryPages` and
+`coreStackBytes` are `(Option UInt32)`: `Option.none` or an absent JSON member is
+the V1 implicit budget of 32 pages and 65536 stack bytes, which projection
+states explicitly, so both spellings give one document. Explicit values keep
+every V2 range rule. V3 also adds one required closed `cli` record, so
 the command-line surface is source-owned data and not generator input. HO-17
 owns this profile. The record holds the subcommand `command` (a lowercase token
 other than `examples`), a purpose paragraph `description`, `usageCode` and
@@ -1353,7 +1368,14 @@ other requirements are rejected, not recorded as unused metadata.
 An authored `SystemManifest` and its empty-axiom, generated
 `validateManifest model manifest = true` theorem bind the exact selected
 model, manifest, product/release, application digest, component, artifact,
-target and mandatory control list. The mandatory controls are
+target and mandatory control list. The first component, artifact and target are
+the browser application the manifest binds; a system may add further
+components, artifacts and targets, such as a `cli` component with a
+`release-binary` artifact and a `release-binary` target of API version
+`github-release-asset@v1`. Every entry is checked, every artifact is referenced
+by a component, a component references an artifact whose role matches its kind,
+and all graph identities are distinct. The `prismpm/system-model/2` JSON
+projection and its release pipeline still admit one entry of each. The mandatory controls are
 `application-acceptance`, `artifact-closure`, `source-proof` and `spdx`;
 they cannot be omitted or replaced by submitted optional claims.
 Presence of ownership text does not authenticate an owner.

@@ -248,6 +248,14 @@ digests, and source-free verification replays it exactly. The program for a
 target other than the host architecture is built, validated and digested but
 not executed.
 
+The V&V gate exercises this path on an in-tree project: `cargo xtask
+verify-examples` builds and verifies the `ho-17-text-cli` fixture, a text/3
+application whose acceptance vectors lie within and beyond its request
+maximum. Its verified build must publish both programs under the digests its
+`command_line` record names, `cli/sbom.spdx.json`, and the expected counts of
+vectors, within-maximum vectors, oversized vectors and examples. The
+Calculator and text/1 examples must publish no command line.
+
 The V1 model defines the header and section table; `AppManifest`, Metadata,
 Extension, and ContentBlob sections; canonical capability requests and child
 delegations; application directory; footer; physical archive; Core-Wasm

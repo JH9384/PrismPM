@@ -555,6 +555,7 @@ pub extern "C" fn holo_run(at: usize, len: usize) -> i64 {
     let report: &[u8] = match first {
         b'a' => b"accepted\n",
         b'r' => b"rejected\n",
+        b'u' => b"{\"ui\":1}\n",
         _ => b"error: bad request\n",
     };
     let out = holo_alloc(report.len());
@@ -572,6 +573,20 @@ fn acceptance_runs_every_vector_through_core_wasm_and_the_program() {
         .push(crate::holo::model_document::ApplicationAcceptanceVector {
             request: vec![b'a'; 17],
             response: b"accepted\n".to_vec(),
+        });
+    // A workbench frame: the guest answers outside the command-line protocol and
+    // the program must refuse it as `ReportUnclassified` on every transport.
+    let document: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../../../tests/data/workbench-model-document.json"
+    ))
+    .unwrap();
+    application.workbench =
+        Some(serde_json::from_value(document["application"]["workbench"].clone()).unwrap());
+    application
+        .acceptance_vectors
+        .push(crate::holo::model_document::ApplicationAcceptanceVector {
+            request: b"ui-raw-v1\x1fq".to_vec(),
+            response: b"{\"ui\":1}\n".to_vec(),
         });
     let directory = tempfile::tempdir().unwrap();
     let source = directory.path().join("guest.rs");
@@ -625,9 +640,9 @@ fn acceptance_runs_every_vector_through_core_wasm_and_the_program() {
         .collect();
     let evidence =
         super::acceptance::evidence(&application, std::env::consts::ARCH, &digests).unwrap();
-    assert_eq!(evidence["vectors"], 4);
+    assert_eq!(evidence["vectors"], 5);
     assert_eq!(evidence["oversized_vectors"], 1);
-    assert_eq!(evidence["within_request_maximum"], 3);
+    assert_eq!(evidence["within_request_maximum"], 4);
     assert_eq!(evidence["executed_target"], host);
     // A program whose behavior differs from the guest is not accepted.
     std::fs::write(
@@ -654,4 +669,56 @@ fn acceptance_runs_every_vector_through_core_wasm_and_the_program() {
         super::acceptance::execute(&application, &wrong, &program, directory.path(), &node, &[])
             .unwrap_err();
     assert_eq!(error.code, "PP6003");
+}
+
+#[test]
+fn acceptance_plan_expects_framed_workbench_vectors_to_be_refused() {
+    use crate::holo::model_document::{Application, ModelDocument};
+    let mut document: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../../../tests/data/workbench-model-document.json"
+    ))
+    .unwrap();
+    *document.pointer_mut("/application/cli/outcomes").unwrap() = json!([
+        {"name": "ok", "prefix": "ok ", "exit_code": 0},
+        {"name": "error", "prefix": "error ", "exit_code": 2}
+    ]);
+    let vectors = document
+        .pointer_mut("/application/acceptance_vectors")
+        .unwrap()
+        .as_array_mut()
+        .unwrap();
+    for vector in vectors.iter_mut() {
+        if vector["request"][0] != json!(b'u') {
+            vector["response"] = json!(b"error boundary".to_vec());
+        }
+    }
+    vectors.push(json!({"request": b"plain".to_vec(), "response": b"ok plain".to_vec()}));
+    let document: ModelDocument = serde_json::from_value(document).unwrap();
+    let Some(Application::Text(mut application)) = document.application else {
+        panic!("the workbench fixture is a text application");
+    };
+    let cli = application.cli.clone().unwrap();
+    let plan = super::acceptance::plan(&application, &cli).unwrap();
+    let planned = plan["vectors"].as_array().unwrap();
+    assert_eq!(planned.len(), application.acceptance_vectors.len());
+    for (vector, entry) in application.acceptance_vectors.iter().zip(planned) {
+        if vector.request.starts_with(b"ui-") {
+            assert_eq!(entry["refusal"], "ReportUnclassified");
+            assert_eq!(entry["code"], cli.fault_code());
+        } else {
+            assert_eq!(entry.get("refusal"), None);
+            assert_eq!(
+                entry["code"],
+                cli.classify(&vector.response).unwrap().exit_code
+            );
+        }
+    }
+    // Without the workbench a framed JSON result has no modeled outcome.
+    application.workbench = None;
+    assert_eq!(
+        super::acceptance::plan(&application, &cli)
+            .unwrap_err()
+            .code,
+        "PP6003"
+    );
 }

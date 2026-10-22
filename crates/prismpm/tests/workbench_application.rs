@@ -302,3 +302,56 @@ fn workbench_is_text3_only_and_shares_the_command_line_purpose() {
         "PP2009"
     );
 }
+
+/// The fixture with a command line that speaks its own text protocol: text
+/// outcome prefixes, a text response for every unframed vector, and one more
+/// plain text vector. The
+/// framed `ui-…-v1 U+001F …` vectors keep their JSON workbench results.
+fn text_command_line_beside_workbench() -> Value {
+    let mut value = fixture();
+    *value.pointer_mut("/application/cli/outcomes").unwrap() = json!([
+        {"name": "ok", "prefix": "ok ", "exit_code": 0},
+        {"name": "error", "prefix": "error ", "exit_code": 2}
+    ]);
+    let vectors = value
+        .pointer_mut("/application/acceptance_vectors")
+        .unwrap()
+        .as_array_mut()
+        .unwrap();
+    for vector in vectors.iter_mut() {
+        if vector["request"][0] != json!(b'u') {
+            vector["response"] = json!(b"error boundary".to_vec());
+        }
+    }
+    vectors.push(json!({"request": b"plain".to_vec(), "response": b"ok plain".to_vec()}));
+    value
+}
+#[test]
+fn workbench_framed_vectors_are_not_command_line_reports() {
+    let mixed: ModelDocument =
+        serde_json::from_value(text_command_line_beside_workbench()).unwrap();
+    prismpm::holo::validate::validate(&mixed).unwrap();
+    // Without a workbench the same corpus is not a command-line corpus.
+    let mut bare = text_command_line_beside_workbench();
+    bare["application"]
+        .as_object_mut()
+        .unwrap()
+        .remove("workbench");
+    let bare: ModelDocument = serde_json::from_value(bare).unwrap();
+    assert_eq!(
+        prismpm::holo::validate::validate(&bare).unwrap_err().code,
+        "PP2009"
+    );
+    // A workbench exempts only its own framing: an unframed report that no
+    // command-line outcome classifies is still refused.
+    let mut stray = text_command_line_beside_workbench();
+    stray["application"]["acceptance_vectors"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"request": b"other".to_vec(), "response": b"{}".to_vec()}));
+    let stray: ModelDocument = serde_json::from_value(stray).unwrap();
+    assert_eq!(
+        prismpm::holo::validate::validate(&stray).unwrap_err().code,
+        "PP2009"
+    );
+}

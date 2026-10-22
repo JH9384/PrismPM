@@ -398,6 +398,25 @@ pub struct WorkbenchApplication {
     pub view: WorkbenchView,
 }
 
+impl WorkbenchView {
+    /// Whether a request carries this workbench's framing: a modeled guided or
+    /// raw request prefix followed by U+001F. Framed requests are answered in
+    /// the closed JSON result protocol, not in a command-line report.
+    pub fn frames(&self, request: &[u8]) -> bool {
+        std::iter::once(&self.raw.request_prefix)
+            .chain(
+                self.operations
+                    .iter()
+                    .map(|operation| &operation.request_prefix),
+            )
+            .any(|prefix| {
+                request
+                    .strip_prefix(prefix.as_bytes())
+                    .is_some_and(|rest| rest.first() == Some(&0x1f))
+            })
+    }
+}
+
 impl WorkbenchApplication {
     /// Existing Text/2 byte and resource contract, without changing its validation.
     pub(super) fn byte_contract(&self) -> TextApplicationModel {

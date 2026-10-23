@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-workspace-query"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.V1.WorkspaceQuery"
+component = "WorkspaceQueryError"
+
+[[form]]
+id = "prism-browser-workspace-query"
+channel = "text"
+surface = "Browser workspace query"
+canonical_source = true
+features = ["sentence-case", "singular"]

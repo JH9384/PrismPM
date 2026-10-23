@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-view-design-catalogue"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.View.Browser.V1.Design"
+component = "DesignTokens"
+
+[[form]]
+id = "prism-browser-view-design-catalogue"
+channel = "text"
+surface = "Browser view design catalogue"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-container-format"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.Format"
+component = "Header"
+
+[[form]]
+id = "prism-hologram-container-format"
+channel = "text"
+surface = "Hologram container format"
+canonical_source = true
+features = ["sentence-case", "singular"]

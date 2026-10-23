@@ -160,9 +160,19 @@ fn browser_system_project() -> tempfile::TempDir {
         root.join("src/Release.lex.tex"),
     );
     copy_fixture_file(fixture.join("lexlean.toml"), root.join("lexlean.toml"));
+    copy_stdlib_lexicon(root);
     relock(root);
     bind_application_digest(root);
     temporary
+}
+
+/// The stdlib modules title themselves from `prism.arch`, so a project that
+/// vendors them carries that lexicon beside its sources, as the SDK ships it.
+fn copy_stdlib_lexicon(root: &Path) {
+    copy_tree(
+        &repository().join("language/prism.arch"),
+        &root.join("language/prism.arch"),
+    );
 }
 
 impl Controller {
@@ -1007,6 +1017,7 @@ fn named_releases() -> tempfile::TempDir {
         root.join("src/Calculator.lex.tex"),
     );
     copy_fixture_file(fixture_root.join("lexlean.toml"), root.join("lexlean.toml"));
+    copy_stdlib_lexicon(root);
     // Calculator production scenario from calculator-example@5051dc6adb18e9ca2b6ae4ca7090e638329831ef,
     // with its complete certificate regenerated against the current stdlib.
     // B differs only in release identity; no application dependencies are removed.

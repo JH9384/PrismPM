@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-content-identity"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.Identity"
+component = "Digest"
+
+[[form]]
+id = "prism-hologram-content-identity"
+channel = "text"
+surface = "Hologram content identity"
+canonical_source = true
+features = ["sentence-case", "singular"]

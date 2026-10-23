@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-source-manifest"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.SourceManifest"
+component = "SourceManifest"
+
+[[form]]
+id = "prism-hologram-source-manifest"
+channel = "text"
+surface = "Hologram source manifest"
+canonical_source = true
+features = ["sentence-case", "singular"]

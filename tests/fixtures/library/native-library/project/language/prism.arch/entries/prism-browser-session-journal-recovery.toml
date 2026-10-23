@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-session-journal-recovery"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.SessionJournalRecovery"
+component = "recoverQuiescentSourceSession"
+
+[[form]]
+id = "prism-browser-session-journal-recovery"
+channel = "text"
+surface = "Browser session journal recovery"
+canonical_source = true
+features = ["sentence-case", "singular"]

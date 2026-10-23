@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-application-manifest"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.Manifest"
+component = "AppManifest"
+
+[[form]]
+id = "prism-hologram-application-manifest"
+channel = "text"
+surface = "Hologram application manifest"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-portable-view-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.View.V1.Model"
+component = "View"
+
+[[form]]
+id = "prism-portable-view-model"
+channel = "text"
+surface = "Portable view model"
+canonical_source = true
+features = ["sentence-case", "singular"]

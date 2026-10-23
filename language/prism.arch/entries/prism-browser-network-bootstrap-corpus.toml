@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-network-bootstrap-corpus"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Network.V1.Corpus"
+component = "directPolicy"
+
+[[form]]
+id = "prism-browser-network-bootstrap-corpus"
+channel = "text"
+surface = "Browser network bootstrap corpus"
+canonical_source = true
+features = ["sentence-case", "singular"]

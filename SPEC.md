@@ -1766,6 +1766,17 @@ permits initial unbound loading; dangling links, links outside the project,
 directories and other inspection failures are rejected with PP5401.
 Ordinary commands never update locks. `lock update --sdk-image <digest-ref>
 --standards-lock <digest>` produces a reviewable proposal, never adopts it.
+`prismpm/sdk-lock/3` is a platform lock plus one closed `inputs` object that
+pins the toolchain versions inside the SDK image, the model document digests
+(BLAKE3 and SHA-256), a BLAKE3 spec digest over the authored sources, the guest
+WIT world digests and the generator identities (docs/proposals/264-input-lock.md).
+Every SDK reader receives its exact `/2` projection, which must itself be
+admitted. `build` and `verify` recompute `inputs` before compiling and reject a
+disagreeing `/3` lock with PP5401, naming the changed fields. Only the explicit
+`build --update`, never with `-t` or `--locked`, rewrites `inputs` (and upgrades
+a `/2` lock to `/3`); it never changes an SDK field. Absent, `/1` and `/2` locks
+build as before. The product-release provenance names the complete lock bytes
+as `urn:prismpm:sdk-lock`.
 For a platform lock, `DK-28` acquires the exact pinned OCI index, its two child
 manifests, configurations and terminal metadata layers. It never pulls ordinary
 filesystem layers, synthesizes Docker inspection results, or starts target code.

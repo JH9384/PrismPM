@@ -26,6 +26,7 @@ const COPIES = {
   'schemas/documents/model-document-v6.schema.json': 'model-document-v6.schema.json',
   'schemas/documents/sdk-lock-v1.schema.json': 'sdk-lock.schema.json',
   'schemas/documents/sdk-lock-v2.schema.json': 'sdk-lock-v2.schema.json',
+  'schemas/documents/sdk-lock-v3.schema.json': 'sdk-lock-v3.schema.json',
 };
 
 test('every schema is draft 2020-12, uses only supported keywords and has a unique $id', () => {

@@ -24,6 +24,24 @@ use std::rc::Rc;
 mod config_witness;
 mod model_worker;
 
+/// The application generator identity recorded as `application_generator_sha256`
+/// in build inputs and pinned in a `prismpm/sdk-lock/3` input lock.
+fn application_generator_identity() -> String {
+    format!(
+        "{:x}",
+        Sha256::digest(
+            [
+                include_bytes!("../application_build.rs").as_slice(),
+                include_bytes!("../lean_project.rs").as_slice(),
+                include_bytes!("../holo/archive.rs").as_slice(),
+                include_bytes!("../embedded/lean4-prod-rust.MANIFEST.sha256").as_slice(),
+                b"prismpm/build-artifacts/2".as_slice(),
+            ]
+            .concat()
+        )
+    )
+}
+
 fn library_generator_identity() -> String {
     let mut source = b"prismpm/library-generator/2\0".to_vec();
     for (path, bytes) in [
@@ -726,14 +744,36 @@ impl Controller {
         self.build_release_with_owner(request, release, None)
     }
 
+    /// Build one named system release after reconciling the committed input
+    /// lock: a stale `prismpm/sdk-lock/3` is refused unless `update` is set,
+    /// in which case only its pinned `inputs` are rewritten.
+    pub fn build_release_updating_lock(
+        &self,
+        request: BuildRequest,
+        release: Option<&str>,
+        update: bool,
+    ) -> Result<BuildResult, PrismError> {
+        self.build_release_in(request, release, None, update)
+    }
+
     pub(crate) fn build_release_with_owner(
         &self,
         request: BuildRequest,
         release: Option<&str>,
         exporter_owner: Option<&mut crate::exporter::VerifyExporterOwner>,
     ) -> Result<BuildResult, PrismError> {
+        self.build_release_in(request, release, exporter_owner, false)
+    }
+
+    fn build_release_in(
+        &self,
+        request: BuildRequest,
+        release: Option<&str>,
+        exporter_owner: Option<&mut crate::exporter::VerifyExporterOwner>,
+        update: bool,
+    ) -> Result<BuildResult, PrismError> {
         self.with_prepared_release(request.config_path.as_deref(), release, |prepared| {
-            self.build_prepared(prepared, exporter_owner)
+            self.build_prepared(prepared, exporter_owner, update)
         })
     }
 
@@ -741,7 +781,23 @@ impl Controller {
         &self,
         prepared: &Prepared,
         mut exporter_owner: Option<&mut crate::exporter::VerifyExporterOwner>,
+        update_lock: bool,
     ) -> Result<BuildResult, PrismError> {
+        // Before any compilation: a stale input lock fails fast and writes nothing.
+        crate::input_lock::enforce(&self.root, update_lock, || {
+            crate::input_lock::compute(&crate::input_lock::InputSources {
+                root: &self.root,
+                lexlean_project: &prepared.config.lexlean_project,
+                model_bytes: &prepared.model_bytes,
+                core_contract: prepared
+                    .model
+                    .application
+                    .as_ref()
+                    .map(|application| application.core_contract.as_str()),
+                application_generator_sha256: application_generator_identity(),
+                library_generator_sha256: library_generator_identity(),
+            })
+        })?;
         if let Some(application) = &prepared.model.application {
             crate::holo::browser_application::require_runtime(application)?;
         }
@@ -957,13 +1013,7 @@ impl Controller {
             Sha256::digest(include_bytes!("../../model/dependencies.toml"))
         );
         let mut inputs = json!({
-            "application_generator_sha256": format!("{:x}", Sha256::digest([
-                include_bytes!("../application_build.rs").as_slice(),
-                include_bytes!("../lean_project.rs").as_slice(),
-                include_bytes!("../holo/archive.rs").as_slice(),
-                include_bytes!("../embedded/lean4-prod-rust.MANIFEST.sha256").as_slice(),
-                b"prismpm/build-artifacts/2".as_slice()
-            ].concat())),
+            "application_generator_sha256": application_generator_identity(),
             "dependency_register_sha256": dependency_digest,
             "emitter_semantics_id": prepared.model.provenance.emitter_semantics_id,
             "model_id": model_id,

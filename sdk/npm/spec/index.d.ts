@@ -11,7 +11,7 @@ import type {
   SectionKind,
   SectionKindCode,
 } from './types/holo.js';
-import type { ModelDocumentV1, ModelDocumentV2, ModelDocumentV3, ModelDocumentV4, ModelDocumentV5, ModelDocumentV6, SdkLockV1, SdkLockV2 } from './types/documents.js';
+import type { ModelDocumentV1, ModelDocumentV2, ModelDocumentV3, ModelDocumentV4, ModelDocumentV5, ModelDocumentV6, SdkLockV1, SdkLockV2, SdkLockV3 } from './types/documents.js';
 
 export type * from './types/holo.js';
 export type * from './types/documents.js';
@@ -23,7 +23,7 @@ export type { ReplayPredicateV1 } from './predicates/replay-v1.js';
 /** Any model document, discriminated by `schema`. */
 export type ModelDocument = ModelDocumentV1 | ModelDocumentV2 | ModelDocumentV3 | ModelDocumentV4 | ModelDocumentV5 | ModelDocumentV6;
 /** `prismpm.lock`, discriminated by `schema`. */
-export type SdkLock = SdkLockV1 | SdkLockV2;
+export type SdkLock = SdkLockV1 | SdkLockV2 | SdkLockV3;
 
 export declare const FORMAT_REVISION: '2026-10-23';
 export declare const FORMAT_REVISIONS: Readonly<Record<FormatRevision, Readonly<FormatRevisionIdentifiers>>>;
@@ -81,6 +81,7 @@ export declare const SCHEMAS: Readonly<Record<
   | 'prismpm/model-document/6'
   | 'prismpm/sdk-lock/1'
   | 'prismpm/sdk-lock/2'
+  | 'prismpm/sdk-lock/3'
   | 'prismpm/model-provenance/1'
   | 'prismpm/build-manifest/1'
   | 'prismpm/browser-provenance/1',

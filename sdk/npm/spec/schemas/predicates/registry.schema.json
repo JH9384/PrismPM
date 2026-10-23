@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/predicate-registry/1",
+  "title": "PredicateRegistry",
+  "description": "predicates/registry.json: every predicate type the Prism tools emit or accept.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "predicates"
+  ],
+  "properties": {
+    "schema": {
+      "const": "prism/predicate-registry/1"
+    },
+    "predicates": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "predicateType",
+          "status",
+          "owner",
+          "schema",
+          "description"
+        ],
+        "properties": {
+          "predicateType": {
+            "type": "string",
+            "pattern": "^https://uor\\.foundation/prism/[a-z][a-z0-9-]*/v[0-9]+$"
+          },
+          "status": {
+            "enum": [
+              "placeholder",
+              "experimental",
+              "beta",
+              "stable",
+              "deprecated"
+            ]
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "issue"
+                ],
+                "properties": {
+                  "issue": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "milestone"
+                ],
+                "properties": {
+                  "milestone": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            ]
+          },
+          "schema": {
+            "description": "Package-relative path of the predicate schema, or null while the row is a placeholder.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "pattern": "^schemas/predicates/[a-z][a-z0-9-]*-v[0-9]+\\.schema\\.json$"
+              }
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      }
+    }
+  }
+}

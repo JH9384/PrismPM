@@ -1,0 +1,19 @@
+{
+  "schema": "prism/predicate-registry/1",
+  "predicates": [
+    {
+      "predicateType": "https://uor.foundation/prism/proof/v1",
+      "status": "placeholder",
+      "owner": { "issue": 266 },
+      "schema": null,
+      "description": "Lean proof evidence for a holo, with a named trusted computing base."
+    },
+    {
+      "predicateType": "https://uor.foundation/prism/replay/v1",
+      "status": "placeholder",
+      "owner": { "milestone": "M3 v0.6 Replay, capabilities, conformance" },
+      "schema": null,
+      "description": "Recorded dispatches that replay against a holo."
+    }
+  ]
+}

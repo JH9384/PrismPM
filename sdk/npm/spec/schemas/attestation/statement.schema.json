@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/attestation/statement/1",
+  "title": "InTotoStatement",
+  "description": "An in-toto Statement v1. Unknown members are allowed, because the in-toto framework tells consumers to ignore them.",
+  "type": "object",
+  "required": [
+    "_type",
+    "subject",
+    "predicateType",
+    "predicate"
+  ],
+  "properties": {
+    "_type": {
+      "const": "https://in-toto.io/Statement/v1"
+    },
+    "subject": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/ResourceDescriptor"
+      }
+    },
+    "predicateType": {
+      "type": "string",
+      "minLength": 1,
+      "format": "uri"
+    },
+    "predicate": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "DigestSet": {
+      "description": "Algorithm name to lowercase hex digest. Holds blake3 and sha256 together; issue #274 decides which bytes each covers. blake3 omits the blake3: label prefix.",
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "blake3": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "ResourceDescriptor": {
+      "type": "object",
+      "required": [
+        "name",
+        "digest"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "$ref": "#/$defs/DigestSet"
+        },
+        "uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "downloadLocation": {
+          "type": "string",
+          "format": "uri"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

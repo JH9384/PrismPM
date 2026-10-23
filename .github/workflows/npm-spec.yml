@@ -1,0 +1,78 @@
+name: npm spec
+
+# The format package in sdk/npm/spec. Short, path-filtered and outside the
+# devcontainer, like npm-prism-code.yml. It also runs when prism-code's reader,
+# its fixtures or the repository schemas it copies change, because its tests
+# check agreement with them. There is no publish job.
+
+on:
+  pull_request:
+    paths:
+      - sdk/npm/spec/**
+      - sdk/npm/prism-code/src/**
+      - sdk/npm/prism-code/fixtures/**
+      - sdk/npm/prism-code/test/fixtures/calculator-closure/provenance.json
+      - schemas/model-document*.schema.json
+      - schemas/sdk-lock*.schema.json
+      - .github/workflows/npm-spec.yml
+  push:
+    branches: [main]
+    paths:
+      - sdk/npm/spec/**
+      - sdk/npm/prism-code/src/**
+      - sdk/npm/prism-code/fixtures/**
+      - sdk/npm/prism-code/test/fixtures/calculator-closure/provenance.json
+      - schemas/model-document*.schema.json
+      - schemas/sdk-lock*.schema.json
+      - .github/workflows/npm-spec.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-spec-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: sdk/npm/spec
+
+jobs:
+  test:
+    name: node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Unit tests
+        run: node --test "test/*.test.mjs"
+      - name: Generated types are current
+        run: node scripts/generate-types.mjs --check
+      - name: Package size and contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm pack --dry-run --json > pack.json
+          node -e '
+            const pack = JSON.parse(require("fs").readFileSync("pack.json", "utf8"))[0];
+            console.log(`unpacked size: ${pack.unpackedSize} bytes, ${pack.entryCount} files`);
+            if (pack.unpackedSize > 262144) throw new Error("package exceeds 256 KiB");
+            const stray = pack.files.map((f) => f.path).filter((p) => /^(test|scripts)\//.test(p));
+            if (stray.length) throw new Error(`tests or scripts in the package: ${stray}`);
+          '
+          rm pack.json
+      - name: The entry point imports cleanly
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module -e "import('./index.mjs').then(m => { if (m.FORMAT_REVISION !== '2026-10-23') throw new Error('revision') })"

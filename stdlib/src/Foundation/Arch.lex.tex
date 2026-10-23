@@ -379,6 +379,24 @@ structure{
   ]
 }
 
+structure{
+  name: Feature,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: statement, type: String},
+    {name: calls, type: (List String)},
+    {name: acceptance, type: (List String)}
+  ]
+}
+
+structure{
+  name: Journey,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: actor, type: String}, {name: steps, type: (List String)}]
+}
+
 theorem{
   name: componentIdentityUnique,
   parameters: [value : Component],

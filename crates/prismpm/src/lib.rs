@@ -22,6 +22,7 @@ mod design;
 pub mod diagnostics;
 pub mod error;
 mod exporter;
+mod features;
 pub mod holo;
 mod lean_project;
 mod library_build;

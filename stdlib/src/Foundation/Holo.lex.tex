@@ -328,6 +328,190 @@ theorem{
   }
 }
 
+structure{
+  name: NormalizedFeatures,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: stakeholderCount, type: Nat},
+    {name: featureCount, type: Nat},
+    {name: callCounts, type: (List Nat)},
+    {name: acceptanceCounts, type: (List Nat)},
+    {name: journeyActors, type: (List Nat)},
+    {name: journeySteps, type: (List Nat)}
+  ]
+}
+
+definition{
+  name: natListLength,
+  parameters: [values : (List Nat)],
+  result: Nat,
+  body: (match values | List.nil => 0 | List.cons value rest => ((natListLength rest) + 1)),
+  recursive_argument: values
+}
+
+definition{
+  name: allPositive,
+  parameters: [values : (List Nat)],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons value rest => ((0 <? value) && (allPositive rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: validateFeatureCalls,
+  parameters: [callCounts : (List Nat)],
+  result: Bool,
+  body: (allPositive callCounts)
+}
+
+definition{
+  name: validateFeatureAcceptance,
+  parameters: [acceptanceCounts : (List Nat)],
+  result: Bool,
+  body: (allPositive acceptanceCounts)
+}
+
+definition{
+  name: validateJourneyActors,
+  parameters: [stakeholderCount : Nat, actors : (List Nat)],
+  result: Bool,
+  body: (allBelow stakeholderCount actors)
+}
+
+definition{
+  name: validateJourneySteps,
+  parameters: [featureCount : Nat, steps : (List Nat)],
+  result: Bool,
+  body: (allBelow featureCount steps)
+}
+
+definition{
+  name: validateNormalizedFeatures,
+  parameters: [model : NormalizedFeatures],
+  result: Bool,
+  body: (((natListLength (project model callCounts)) =? (project model featureCount)) && (((natListLength (project model acceptanceCounts)) =? (project model featureCount)) && ((validateFeatureCalls (project model callCounts)) && ((validateFeatureAcceptance (project model acceptanceCounts)) && ((validateJourneyActors (project model stakeholderCount) (project model journeyActors)) && (validateJourneySteps (project model featureCount) (project model journeySteps)))))))
+}
+
+definition{
+  name: featureCallsValid,
+  parameters: [callCounts : (List Nat)],
+  result: Prop,
+  body: ((validateFeatureCalls callCounts) = true)
+}
+
+definition{
+  name: featureAcceptanceValid,
+  parameters: [acceptanceCounts : (List Nat)],
+  result: Prop,
+  body: ((validateFeatureAcceptance acceptanceCounts) = true)
+}
+
+definition{
+  name: journeyActorsValid,
+  parameters: [stakeholderCount : Nat, actors : (List Nat)],
+  result: Prop,
+  body: (allBelowProp stakeholderCount actors)
+}
+
+definition{
+  name: journeyStepsValid,
+  parameters: [featureCount : Nat, steps : (List Nat)],
+  result: Prop,
+  body: (allBelowProp featureCount steps)
+}
+
+definition{
+  name: normalizedFeaturesValid,
+  parameters: [model : NormalizedFeatures],
+  result: Prop,
+  body: ((validateNormalizedFeatures model) = true)
+}
+
+theorem{
+  name: featureCalls_sound_complete,
+  parameters: [callCounts : (List Nat)],
+  statement: (((validateFeatureCalls callCounts) = true) <-> (featureCallsValid callCounts)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: featureAcceptance_sound_complete,
+  parameters: [acceptanceCounts : (List Nat)],
+  statement: (((validateFeatureAcceptance acceptanceCounts) = true) <-> (featureAcceptanceValid acceptanceCounts)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: journeyActors_sound_complete,
+  parameters: [stakeholderCount : Nat, actors : (List Nat)],
+  statement: (((validateJourneyActors stakeholderCount actors) = true) <-> (journeyActorsValid stakeholderCount actors)),
+  proof: apply{arguments: [stakeholderCount, actors], theorem: allBelow_sound_complete}
+}
+
+theorem{
+  name: journeySteps_sound_complete,
+  parameters: [featureCount : Nat, steps : (List Nat)],
+  statement: (((validateJourneySteps featureCount steps) = true) <-> (journeyStepsValid featureCount steps)),
+  proof: apply{arguments: [featureCount, steps], theorem: allBelow_sound_complete}
+}
+
+theorem{
+  name: normalizedFeatures_sound_complete,
+  parameters: [model : NormalizedFeatures],
+  statement: (((validateNormalizedFeatures model) = true) <-> (normalizedFeaturesValid model)),
+  proof: reflexivity{}
+}
+
+definition{
+  name: featureVector,
+  parameters: [
+    callCounts : (List Nat),
+    acceptanceCounts : (List Nat),
+    actors : (List Nat),
+    steps : (List Nat)
+  ],
+  result: NormalizedFeatures,
+  body: (record NormalizedFeatures {stakeholderCount := 2, featureCount := 2, callCounts := callCounts, acceptanceCounts := acceptanceCounts, journeyActors := actors, journeySteps := steps})
+}
+
+theorem{
+  name: featureVectorAccepted,
+  parameters: [],
+  statement: ((validateNormalizedFeatures (featureVector (cons 1 (cons 2 (nil Nat))) (cons 1 (cons 1 (nil Nat))) (cons 0 (cons 1 (nil Nat))) (cons 0 (cons 1 (cons 1 (nil Nat)))))) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: featureWithoutCallRefused,
+  parameters: [],
+  statement: ((validateNormalizedFeatures (featureVector (cons 1 (cons 0 (nil Nat))) (cons 1 (cons 1 (nil Nat))) (cons 0 (cons 1 (nil Nat))) (cons 0 (cons 1 (cons 1 (nil Nat)))))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: featureWithoutAcceptanceRefused,
+  parameters: [],
+  statement: ((validateNormalizedFeatures (featureVector (cons 1 (cons 2 (nil Nat))) (cons 0 (cons 1 (nil Nat))) (cons 0 (cons 1 (nil Nat))) (cons 0 (cons 1 (cons 1 (nil Nat)))))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: journeyStepUndeclaredFeatureRefused,
+  parameters: [],
+  statement: ((validateNormalizedFeatures (featureVector (cons 1 (cons 2 (nil Nat))) (cons 1 (cons 1 (nil Nat))) (cons 0 (cons 1 (nil Nat))) (cons 0 (cons 2 (nil Nat))))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: journeyActorNotStakeholderRefused,
+  parameters: [],
+  statement: ((validateNormalizedFeatures (featureVector (cons 1 (cons 2 (nil Nat))) (cons 1 (cons 1 (nil Nat))) (cons 0 (cons 2 (nil Nat))) (cons 0 (cons 1 (cons 1 (nil Nat)))))) = false),
+  proof: decide{}
+}
+
 definition{
   name: canonicalIndexes,
   parameters: [expected : Nat, count : Nat],

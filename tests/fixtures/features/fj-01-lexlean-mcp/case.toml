@@ -1,0 +1,7 @@
+spec = "prismpm/test-case/1"
+command = "check"
+expected_exit = 0
+normalization = "canonical-json"
+capabilities = ["FT-12", "FT-13", "ST-19"]
+expected_artifacts = []
+expected_diagnostics = []

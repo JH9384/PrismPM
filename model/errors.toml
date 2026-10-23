@@ -106,6 +106,41 @@ exit = 1
 statement = "An OPM or UML design view names a component, edge, process, state or viewpoint the system model does not declare, or violates the structure its notation allows."
 
 [[error]]
+code = "PP2014"
+title = "Feature without a call"
+class = "semantic"
+exit = 1
+statement = "A feature is realized by no interface call."
+
+[[error]]
+code = "PP2015"
+title = "Feature without acceptance"
+class = "semantic"
+exit = 1
+statement = "A feature is accepted by no acceptance row."
+
+[[error]]
+code = "PP2016"
+title = "Journey step names an undeclared feature"
+class = "semantic"
+exit = 1
+statement = "A step of a user journey names a declaration that is not a declared feature."
+
+[[error]]
+code = "PP2017"
+title = "Journey actor is not a stakeholder"
+class = "semantic"
+exit = 1
+statement = "The actor of a user journey is not a declared stakeholder."
+
+[[error]]
+code = "PP2018"
+title = "Invalid feature or journey declaration"
+class = "semantic"
+exit = 1
+statement = "A feature or journey is not a closed literal record, a feature statement is out of bounds, or a call or acceptance row of a feature names no declaration."
+
+[[error]]
 code = "PP3001"
 title = "Malformed Hologram archive header or version"
 class = "holo"

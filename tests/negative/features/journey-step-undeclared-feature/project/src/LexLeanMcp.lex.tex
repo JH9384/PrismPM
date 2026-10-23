@@ -1,0 +1,93 @@
+\begin{lexlean}{LexLeanMcp}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Foundation.Arch}
+\title{feature}
+\begin{semanticmodule}
+definition{
+  name: stakeholderAuthorAgent,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 0, name := "Author agent", text := "The LLM that writes, checks, repairs and verifies LexLean modules."})
+}
+
+definition{
+  name: stakeholderLexLeanMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 1, name := "LexLean maintainers", text := "Maintain LexLean, the engine the tool layer links."})
+}
+
+definition{
+  name: stakeholderLexiconMaintainer,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 2, name := "Lexicon maintainer", text := "Maintains the vocabulary packages a profile uses."})
+}
+
+definition{
+  name: stakeholderMcpMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 3, name := "MCP maintainers", text := "Maintain the protocol core the tool layer extends."})
+}
+
+definition{
+  name: stakeholderOperator,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 4, name := "Operator", text := "Provisions profiles, runs the service and upgrades it."})
+}
+
+definition{
+  name: stakeholderPrismPMMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 5, name := "PrismPM maintainers", text := "Maintain the SDK that checks this model."})
+}
+
+definition{
+  name: stakeholderReader,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 6, name := "Reader", text := "Checks a document and its attestation without trusting the author."})
+}
+
+definition{
+  name: stakeholderRequester,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 7, name := "Requester", text := "Asks for a document and receives it as an attested rendering."})
+}
+
+definition{name: callOne, parameters: [], result: String, body: "first call"}
+
+definition{name: callTwo, parameters: [], result: String, body: "second call"}
+
+definition{name: acOne, parameters: [], result: String, body: "first acceptance row"}
+
+definition{name: acTwo, parameters: [], result: String, body: "second acceptance row"}
+
+definition{
+  name: featureA,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "A feature that is realized and accepted.", calls := (cons "LexLeanMcp::callOne" (nil String)), acceptance := (cons "LexLeanMcp::acOne" (nil String))})
+}
+
+definition{
+  name: featureB,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "Another feature that is realized and accepted.", calls := (cons "LexLeanMcp::callTwo" (nil String)), acceptance := (cons "LexLeanMcp::acTwo" (nil String))})
+}
+
+definition{
+  name: journeyMain,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "LexLeanMcp::stakeholderReader", steps := (cons "LexLeanMcp::featureA" (cons "LexLeanMcp::featureC" (nil String)))})
+}
+\end{semanticmodule}
+\end{lexlean}

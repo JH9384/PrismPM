@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-account-genesis"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.AccountGenesis"
+component = "AccountGenesis"
+
+[[form]]
+id = "prism-browser-account-genesis"
+channel = "text"
+surface = "Browser account genesis"
+canonical_source = true
+features = ["sentence-case", "singular"]

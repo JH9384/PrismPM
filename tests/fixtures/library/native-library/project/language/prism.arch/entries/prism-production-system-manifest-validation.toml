@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-production-system-manifest-validation"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Production.System"
+component = "SystemManifest"
+
+[[form]]
+id = "prism-production-system-manifest-validation"
+channel = "text"
+surface = "Production system manifest validation"
+canonical_source = true
+features = ["sentence-case", "singular"]

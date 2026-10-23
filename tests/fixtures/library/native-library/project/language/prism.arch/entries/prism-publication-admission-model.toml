@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-publication-admission-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Production.PublicationAdmission.V1"
+component = "PublicationDeclaration"
+
+[[form]]
+id = "prism-publication-admission-model"
+channel = "text"
+surface = "Publication admission model"
+canonical_source = true
+features = ["sentence-case", "singular"]

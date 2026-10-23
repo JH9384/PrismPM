@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/holo/archive/1",
+  "title": "HoloArchive",
+  "description": "The decoded header, section table and footer of a holo, format revision 2026-10-23 (Foundation.Holo.V1.Wire). Sections are contiguous from offset 202 and end 32 bytes before the end of the file; JSON Schema cannot state that, so readers check it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "magic",
+    "version",
+    "flags",
+    "sections",
+    "footer"
+  ],
+  "properties": {
+    "magic": {
+      "const": "HOLO"
+    },
+    "version": {
+      "const": 4
+    },
+    "flags": {
+      "const": 0
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "offset",
+            "length"
+          ],
+          "properties": {
+            "kind": {
+              "const": 15
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "const": 202
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "const": 356
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "offset",
+            "length"
+          ],
+          "properties": {
+            "kind": {
+              "const": 8
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "offset",
+            "length"
+          ],
+          "properties": {
+            "kind": {
+              "const": 14
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "offset",
+            "length"
+          ],
+          "properties": {
+            "kind": {
+              "const": 14
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "offset",
+            "length"
+          ],
+          "properties": {
+            "kind": {
+              "const": 16
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 71,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "offset",
+            "length"
+          ],
+          "properties": {
+            "kind": {
+              "const": 16
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 71,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "offset",
+            "length"
+          ],
+          "properties": {
+            "kind": {
+              "const": 16
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 71,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "offset",
+            "length"
+          ],
+          "properties": {
+            "kind": {
+              "const": 16
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 71,
+              "maximum": 9007199254740991
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "footer": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "The 32-byte BLAKE3 footer as lowercase hex: the archive fingerprint."
+    }
+  }
+}

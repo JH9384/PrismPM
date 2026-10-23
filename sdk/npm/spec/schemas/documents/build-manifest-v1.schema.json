@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prismpm/build-manifest/1",
+  "title": "BuildManifest",
+  "description": "manifest.json at the root of a build tree, <build_root>/build/<prism-build-id>/ (SPEC section 6). Rows are sorted by path, bytewise, and exclude manifest.json itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "files",
+    "inputs",
+    "schema"
+  ],
+  "properties": {
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "byte_length",
+          "kind",
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "byte_length": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "kind": {
+            "enum": [
+              "artifact",
+              "coverage",
+              "executable",
+              "latex",
+              "lean",
+              "lexicon-closure",
+              "lexlean-manifest",
+              "sbom",
+              "semantic-snapshot",
+              "source-map"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*/\\.{1,2}(?:/|$))[^/\\\\]+(?:/[^/\\\\]+)*$",
+            "description": "A confined slash-separated relative path with no empty, dot or dot-dot component."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "inputs": {
+      "description": "The canonical build inputs. The Prism build ID is the SHA-256 of their canonical bytes. system_id is optional because older writers omit it.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "application_generator_sha256",
+            "dependency_register_sha256",
+            "emitter_semantics_id",
+            "lexlean_build_id",
+            "lexlean_semantic_id",
+            "lexlean_source_id",
+            "model_id",
+            "schema"
+          ],
+          "properties": {
+            "application_generator_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "dependency_register_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "emitter_semantics_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lexlean_build_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lexlean_semantic_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lexlean_source_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "model_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "system_id": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "schema": {
+              "const": "prismpm/build-inputs/1"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "application_generator_sha256",
+            "dependency_register_sha256",
+            "emitter_semantics_id",
+            "lexlean_build_id",
+            "lexlean_semantic_id",
+            "lexlean_source_id",
+            "model_id",
+            "application_artifacts_sha256",
+            "schema"
+          ],
+          "properties": {
+            "application_generator_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "dependency_register_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "emitter_semantics_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lexlean_build_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lexlean_semantic_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lexlean_source_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "model_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "application_artifacts_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "system_id": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "schema": {
+              "const": "prismpm/build-inputs/2"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "application_generator_sha256",
+            "dependency_register_sha256",
+            "emitter_semantics_id",
+            "lexlean_build_id",
+            "lexlean_semantic_id",
+            "lexlean_source_id",
+            "model_id",
+            "library_artifacts_sha256",
+            "library_generator_sha256",
+            "schema"
+          ],
+          "properties": {
+            "application_generator_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "dependency_register_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "emitter_semantics_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lexlean_build_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lexlean_semantic_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lexlean_source_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "model_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "library_artifacts_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "library_generator_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "system_id": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "schema": {
+              "const": "prismpm/build-inputs/3"
+            }
+          }
+        }
+      ]
+    },
+    "schema": {
+      "const": "prismpm/build-manifest/1"
+    }
+  }
+}

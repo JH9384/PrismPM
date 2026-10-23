@@ -1,0 +1,17 @@
+{
+  "name": "@prism-code/docs-generator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generates the Prism Reference and API docs from @prism-code/spec, the CLI description and executed prism-code examples. No dependencies: the runtime and the spec are read from this repository.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "generate": "node generate.mjs",
+    "check": "node generate.mjs --check",
+    "lint": "node lint.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}

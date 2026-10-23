@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-session-recovery-frame-layout"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.SessionRecoveryFrames"
+component = "RecoveryFrameLayout"
+
+[[form]]
+id = "prism-browser-session-recovery-frame-layout"
+channel = "text"
+surface = "Browser session recovery frame layout"
+canonical_source = true
+features = ["sentence-case", "singular"]

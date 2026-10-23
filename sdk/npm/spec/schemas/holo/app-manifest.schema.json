@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/holo/app-manifest/1",
+  "title": "HoloAppManifest",
+  "description": "The decoded 356-byte application manifest, section kind 15 (Foundation.Holo.V1.Wire.validAppManifest).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "uri",
+    "labels",
+    "suffix"
+  ],
+  "properties": {
+    "uri": {
+      "const": "https://hologram.foundation/realization/app-manifest"
+    },
+    "labels": {
+      "description": "The capability set, the Core-Wasm guest and the HOLOVIEW bundle, in that order.",
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {
+          "type": "string",
+          "pattern": "^blake3:[0-9a-f]{64}$"
+        },
+        {
+          "type": "string",
+          "pattern": "^blake3:[0-9a-f]{64}$"
+        },
+        {
+          "type": "string",
+          "pattern": "^blake3:[0-9a-f]{64}$"
+        }
+      ],
+      "items": false
+    },
+    "suffix": {
+      "description": "The fixed 86-byte layer suffix as lowercase hex (wireManifestSuffix).",
+      "const": "5200000000000000020000000008000000686f6c6f5f72756e1a000000686f6c6f6772616d3a67756573742f636f72652d7761736d4031030a000000696e6465782e68746d6c08000000706f727461626c6500000000"
+    }
+  }
+}

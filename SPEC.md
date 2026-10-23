@@ -264,11 +264,14 @@ every V2 range rule. V3 also adds one required closed `cli` record, so
 the command-line surface is source-owned data and not generator input. HO-17
 owns this profile. The record holds the subcommand `command` (a lowercase token
 other than `examples`), a purpose paragraph `description`, `usageCode` and
-`ioCode`, the ordered exit-code map `outcomes`, optional help `sections` and
-named `examples`. Each outcome has a unique lowercase `name`, a nonempty
-`prefix` and a unique `exitCode`; prefixes must not begin one another, every
-code is at most 125, usage and I/O codes differ from each other and from every
-outcome, and an outcome named `error` is required. Every acceptance response
+`ioCode`, the optional `limitCode`, the ordered exit-code map `outcomes`,
+optional help `sections` and named `examples`. Each outcome has a unique
+lowercase `name`, a nonempty `prefix` and a unique `exitCode`; prefixes must not
+begin one another, every code is at most 125, usage and I/O codes differ from
+each other and from every outcome, and an outcome named `error` is required.
+`limitCode` is `(Option UInt8)`: `Option.none` (absent `limit_code` in the
+document) gives an oversized request the code of the `error` outcome, and
+`Option.some` gives it its own code, which must differ from every other code. Every acceptance response
 must begin with exactly one declared prefix. Missing, null, mistyped or
 undeclared fields, a `cli` under another profile or schema and a foreign type
 owner are rejected with PP2009 or PP2001.
@@ -289,8 +292,8 @@ whose prefix begins it. `--help` is rendered from the model: purpose, usage,
 the request bound, modeled sections, examples and the complete exit-code table.
 `--version` prints `{cargo_name} {cargo_version}`. Failures are the closed
 `TextCliFailure` vocabulary registered in `model/text-cli-diagnostics.toml`;
-each exits with `usageCode`, `ioCode` or the code of the `error` outcome by its
-class and prints `{binary}: {Failure}[: detail]` on standard error. A closed or
+each exits with `usageCode`, `ioCode`, the limit code (`InputLimit` only) or
+the code of the `error` outcome by its class and prints `{binary}: {Failure}[: detail]` on standard error. A closed or
 full standard output is `OutputWrite`; a standard stream closed before exec is
 reopened by the standard library on `/dev/null` and cannot be observed as a
 write failure.
@@ -309,12 +312,20 @@ entry and through the program for the host architecture over standard input, a
 file and `-`. A vector within the request maximum must produce the identical
 report bytes, the modeled exit code and an empty standard error. A vector over
 the modeled maximum cannot reach the guest through the program; it must exit
-with the fault code, empty standard output and `InputLimit`, and its guest
+with the limit code, empty standard output and `InputLimit`, and its guest
 response is compared only with the model. The retained
 `application-acceptance.json` carries the `command_line` record with program
 digests, and source-free verification replays it exactly. The program for a
 target other than the host architecture is built, validated and digested but
 not executed.
+
+The V&V gate exercises this path on an in-tree project: `cargo xtask
+verify-examples` builds and verifies the `ho-17-text-cli` fixture, a text/3
+application whose acceptance vectors lie within and beyond its request
+maximum. Its verified build must publish both programs under the digests its
+`command_line` record names, `cli/sbom.spdx.json`, and the expected counts of
+vectors, within-maximum vectors, oversized vectors and examples. The
+Calculator and text/1 examples must publish no command line.
 
 The V1 model defines the header and section table; `AppManifest`, Metadata,
 Extension, and ContentBlob sections; canonical capability requests and child
@@ -3587,6 +3598,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `HO-16` | `holo` | The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults. | §3 |
 | `HO-17` | `holo` | The explicit text/3 profile models its command-line surface in source and generates static musl programs whose bounded raw input, model-owned help and version, declared exit-code map and registered usage, I/O and fault diagnostics are accepted against the Core-Wasm entry for every vector, without handwritten product code or any claim about targets not executed. | §3 |
 | `HO-18` | `holo` | The SDK checks OPM and UML design views against the system model, refuses an unknown component, edge, process, state or viewpoint with PP2012, and emits OPL text and PlantUML source as build artifacts. | §3 |
+| `HO-20` | `holo` | The JavaScript runtime in sdk/npm/prism-code opens a composed .holo archive and an exported browser closure without the Rust SDK, verifies the footer, every content-blob label and the manifest cross-references with its own BLAKE3, decodes and re-encodes the HOLOVIEW bundle byte for byte, dispatches requests through the Core-Wasm guest on fresh instances, and replays every modeled acceptance vector byte-identically, so a change to the archive, bundle or model-document layout fails this case in the same change. | §3 |
 | `CT-01` | `controller` | The Controller API exposes owned request and result types for load, check, and build. | §4 |
 | `CT-02` | `controller` | The Controller encapsulates LexLean Engine operations without exposing internal compiler types. | §4 |
 | `CT-03` | `controller` | prismpm check validates models in memory without modifying the filesystem. | §4 |

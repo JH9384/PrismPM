@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/holo/source-manifest/4",
+  "title": "HoloSourceManifest",
+  "description": "The metadata section, kind 8: canonical JSON naming the proof and build inputs by SHA-256 (source_manifest in crates/prismpm/src/application_build.rs).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "files",
+    "semantic_id",
+    "source_id",
+    "version"
+  ],
+  "properties": {
+    "files": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "sha256"
+          ],
+          "properties": {
+            "kind": {
+              "const": "lexlean-build-manifest"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "sha256"
+          ],
+          "properties": {
+            "kind": {
+              "const": "lean4-prod-coverage"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "sha256"
+          ],
+          "properties": {
+            "kind": {
+              "const": "lean4-prod-kernel-ir"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "sha256"
+          ],
+          "properties": {
+            "kind": {
+              "const": "model-document"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "semantic_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "version": {
+      "const": 4
+    }
+  }
+}

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-production-interface-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Production.Interface"
+component = "Interface"
+
+[[form]]
+id = "prism-production-interface-model"
+channel = "text"
+surface = "Production interface model"
+canonical_source = true
+features = ["sentence-case", "singular"]

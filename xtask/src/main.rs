@@ -303,6 +303,16 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "scripts/library-sdk-check-shell.test.mjs",
             "scripts/installed-exporter-concurrency.test.mjs",
             "sdk/migration-qualification.test.mjs",
+            "sdk/npm/prism-code/test/archive.test.mjs",
+            "sdk/npm/prism-code/test/blake3.test.mjs",
+            "sdk/npm/prism-code/test/canonical.test.mjs",
+            "sdk/npm/prism-code/test/cli.test.mjs",
+            "sdk/npm/prism-code/test/closure.test.mjs",
+            "sdk/npm/prism-code/test/node.test.mjs",
+            "sdk/npm/spec/test/agreement.test.mjs",
+            "sdk/npm/spec/test/package.test.mjs",
+            "sdk/npm/spec/test/reference.test.mjs",
+            "sdk/npm/spec/test/schemas.test.mjs",
             "scripts/sdk-vv-inputs.test.mjs",
             "scripts/sdk-vv-run.test.mjs",
             "scripts/sdk-image-inputs.test.mjs",
@@ -354,6 +364,7 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "tests/browser-view/generated-wasm-mutations.test.mjs",
             "tests/browser-session-journal/wasm-artifact-checks.test.mjs",
             "scripts/release-phases.test.mjs",
+            "scripts/crate-readiness.test.mjs",
             "scripts/sdk-release-evidence.test.mjs",
             "scripts/release-gate-evidence.test.mjs",
             "scripts/refresh-osv.test.mjs",
@@ -880,14 +891,9 @@ fn verify_examples(root: &Path, _write: bool) -> Result<(), Fail> {
         verify_res.attestation_id
     );
 
-    for (name, relative) in [
-        ("Calculator", "examples/Calculator"),
-        (
-            "Text Request",
-            "tests/fixtures/holo/ho-11-text-application/project",
-        ),
-    ] {
-        let application_root = root.join(relative);
+    for example in &EXAMPLES {
+        let name = example.name;
+        let application_root = root.join(example.project);
         let application = prismpm::Controller::load(&application_root)?;
         let check = application.check(prismpm::controller::CheckRequest { config_path: None })?;
         let first = application.build(prismpm::controller::BuildRequest { config_path: None })?;
@@ -904,10 +910,161 @@ fn verify_examples(root: &Path, _write: bool) -> Result<(), Fail> {
                 format!("{name} verification identity changed between consecutive runs").into(),
             );
         }
+        let verified_root = application_root.join(&first_verify.verified_root);
+        let acceptance: serde_json::Value = serde_json::from_slice(&std::fs::read(
+            verified_root.join("application-acceptance.json"),
+        )?)?;
+        let build_root = verified_root
+            .parent()
+            .and_then(Path::parent)
+            .ok_or("verified root has no build root")?
+            .join("build")
+            .join(&first_verify.build_id);
+        check_command_line(example, &build_root, &acceptance)?;
         println!(
-            "verify-examples: {name} model {} reproduced build {} and verified attestation {}",
-            check.model_id, first.build_id, first_verify.attestation_id
+            "verify-examples: {name} model {} reproduced build {} and verified attestation {}{}",
+            check.model_id,
+            first.build_id,
+            first_verify.attestation_id,
+            if example.command_line.is_some() {
+                " with its command line"
+            } else {
+                ""
+            }
         );
+    }
+    Ok(())
+}
+
+/// A project that `verify-examples` checks, builds twice and verifies twice.
+struct Example {
+    name: &'static str,
+    project: &'static str,
+    /// The command line the verified build must publish and accept, or `None`
+    /// when the project's model declares no command line.
+    command_line: Option<CommandLine>,
+}
+
+/// A modeled text/3 command line and the acceptance partition its
+/// verification must report.
+struct CommandLine {
+    program: &'static str,
+    vectors: u64,
+    within_request_maximum: u64,
+    oversized_vectors: u64,
+    examples: u64,
+}
+
+/// The static programs every text/3 build publishes (SPEC, text/3 profile).
+const COMMAND_LINE_TARGETS: [&str; 2] = ["aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl"];
+
+/// Every project `verify-examples` builds and verifies. The text/3 project
+/// makes V&V produce a generated command line and accept it over vectors
+/// within and beyond its request maximum.
+const EXAMPLES: [Example; 3] = [
+    Example {
+        name: "Calculator",
+        project: "examples/Calculator",
+        command_line: None,
+    },
+    Example {
+        name: "Text Request",
+        project: "tests/fixtures/holo/ho-11-text-application/project",
+        command_line: None,
+    },
+    Example {
+        name: "Text Check",
+        project: "tests/fixtures/holo/ho-17-text-cli/project",
+        command_line: Some(CommandLine {
+            program: "prism-text-check",
+            vectors: 6,
+            within_request_maximum: 4,
+            oversized_vectors: 2,
+            examples: 2,
+        }),
+    },
+];
+
+/// Require the verified build of `example` to publish and accept exactly the
+/// command line it expects, and no command line when it expects none.
+fn check_command_line(
+    example: &Example,
+    build_root: &Path,
+    acceptance: &serde_json::Value,
+) -> Result<(), Fail> {
+    let name = example.name;
+    let evidence = acceptance.get("command_line");
+    let Some(expected) = &example.command_line else {
+        if evidence.is_some() || build_root.join("cli").exists() {
+            return Err(format!(
+                "verify-examples: {name} publishes a command line that its expectation does not declare"
+            )
+            .into());
+        }
+        return Ok(());
+    };
+    if expected.within_request_maximum == 0 || expected.oversized_vectors == 0 {
+        return Err(format!(
+            "verify-examples: {name} must exercise vectors within and beyond its request maximum"
+        )
+        .into());
+    }
+    let evidence = evidence
+        .ok_or_else(|| format!("verify-examples: {name} verification accepted no command line"))?;
+    for (field, value) in [
+        ("schema", serde_json::json!("prismpm/text-cli-acceptance/1")),
+        ("status", serde_json::json!("verified")),
+        ("vectors", serde_json::json!(expected.vectors)),
+        (
+            "within_request_maximum",
+            serde_json::json!(expected.within_request_maximum),
+        ),
+        (
+            "oversized_vectors",
+            serde_json::json!(expected.oversized_vectors),
+        ),
+        ("examples", serde_json::json!(expected.examples)),
+    ] {
+        let actual = evidence.get(field).unwrap_or(&serde_json::Value::Null);
+        if *actual != value {
+            return Err(format!(
+                "verify-examples: {name} command-line {field} is {actual}, expected {value}"
+            )
+            .into());
+        }
+    }
+    let programs = evidence
+        .get("programs")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| format!("verify-examples: {name} command line lists no programs"))?;
+    if programs.len() != COMMAND_LINE_TARGETS.len() {
+        return Err(format!(
+            "verify-examples: {name} command line lists {} programs, expected {}",
+            programs.len(),
+            COMMAND_LINE_TARGETS.len()
+        )
+        .into());
+    }
+    for target in COMMAND_LINE_TARGETS {
+        let path = format!("cli/bin/{target}/{}", expected.program);
+        let row = programs
+            .iter()
+            .find(|row| row.get("path").and_then(serde_json::Value::as_str) == Some(&path))
+            .ok_or_else(|| format!("verify-examples: {name} command line does not list {path}"))?;
+        let bytes = std::fs::read(build_root.join(&path))
+            .map_err(|error| format!("verify-examples: {name} build lacks {path}: {error}"))?;
+        let digest = format!("{:x}", sha2::Sha256::digest(&bytes));
+        if row.get("sha256").and_then(serde_json::Value::as_str) != Some(&digest)
+            || row.get("target").and_then(serde_json::Value::as_str) != Some(target)
+        {
+            return Err(format!(
+                "verify-examples: {name} accepted {path} under another digest or target than it built"
+            )
+            .into());
+        }
+    }
+    if !build_root.join("cli/sbom.spdx.json").is_file() {
+        return Err(format!("verify-examples: {name} build lacks cli/sbom.spdx.json").into());
     }
     Ok(())
 }
@@ -1758,6 +1915,196 @@ fn release_check(root: &Path) -> Result<(), Fail> {
 
 fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), std::io::Error> {
     source_copy::copy_tree(from, to)
+}
+
+#[cfg(test)]
+mod verify_examples_tests {
+    use super::{check_command_line, CommandLine, Example, COMMAND_LINE_TARGETS, EXAMPLES};
+    use sha2::Digest;
+
+    fn text_check() -> &'static Example {
+        EXAMPLES
+            .iter()
+            .find(|example| example.command_line.is_some())
+            .expect("verify-examples builds a text/3 command line")
+    }
+
+    #[test]
+    fn inventory_builds_a_text3_command_line_on_both_sides_of_its_request_maximum() {
+        let example = text_check();
+        let expected = example.command_line.as_ref().unwrap();
+        assert!(expected.within_request_maximum > 0 && expected.oversized_vectors > 0);
+        assert_eq!(
+            expected.within_request_maximum + expected.oversized_vectors,
+            expected.vectors
+        );
+        let source = std::fs::read_to_string(
+            repo_model::repo_root()
+                .join(example.project)
+                .join("src/TextRequest.lex.tex"),
+        )
+        .expect("the text/3 example source exists");
+        assert!(source.contains("profile := \"prismpm/text-application/3\""));
+        assert!(source.contains("cli := (record Foundation.View.Text.V3.Model::TextCli"));
+        assert!(source.contains(&format!("cargoName := \"{}\"", expected.program)));
+    }
+
+    #[test]
+    fn every_example_expectation_matches_its_model_source() {
+        // An example declares a command line exactly when its model does, and
+        // the expected partition is the one its vectors and maximum produce.
+        for example in &EXAMPLES {
+            let project = repo_model::repo_root().join(example.project);
+            let mut sources = String::new();
+            for entry in walkdir::WalkDir::new(project.join("src")) {
+                let entry = entry.unwrap();
+                if entry.file_type().is_file()
+                    && !entry.path().starts_with(project.join("src/Foundation"))
+                {
+                    sources.push_str(&std::fs::read_to_string(entry.path()).unwrap());
+                }
+            }
+            let models_cli = sources.contains("cli := (record");
+            assert_eq!(
+                models_cli,
+                example.command_line.is_some(),
+                "{}: the command-line expectation must match the model",
+                example.name
+            );
+            let Some(expected) = &example.command_line else {
+                continue;
+            };
+            let maximum: usize = sources
+                .split("requestMaximum := (")
+                .nth(1)
+                .and_then(|rest| rest.split(' ').next())
+                .and_then(|value| value.parse().ok())
+                .expect("the text/3 example models its request maximum");
+            let requests = sources
+                .split("AcceptanceVector {request := 0x")
+                .skip(1)
+                .map(|rest| rest.split(',').next().unwrap().len() / 2)
+                .collect::<Vec<_>>();
+            let within = requests.iter().filter(|length| **length <= maximum).count() as u64;
+            assert_eq!(requests.len() as u64, expected.vectors, "{}", example.name);
+            assert_eq!(within, expected.within_request_maximum, "{}", example.name);
+            assert_eq!(
+                requests.len() as u64 - within,
+                expected.oversized_vectors,
+                "{}",
+                example.name
+            );
+            assert_eq!(
+                sources.matches("TextCliExample {name := ").count() as u64,
+                expected.examples,
+                "{}",
+                example.name
+            );
+        }
+    }
+
+    fn built(expected: &CommandLine) -> (tempfile::TempDir, serde_json::Value) {
+        let build = tempfile::tempdir().unwrap();
+        let mut programs = Vec::new();
+        for target in COMMAND_LINE_TARGETS {
+            let path = format!("cli/bin/{target}/{}", expected.program);
+            let file = build.path().join(&path);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(&file, target.as_bytes()).unwrap();
+            programs.push(serde_json::json!({
+                "path": path,
+                "sha256": format!("{:x}", sha2::Sha256::digest(target.as_bytes())),
+                "target": target,
+            }));
+        }
+        std::fs::write(build.path().join("cli/sbom.spdx.json"), b"{}").unwrap();
+        let acceptance = serde_json::json!({
+            "command_line": {
+                "examples": expected.examples,
+                "executed_target": "x86_64-unknown-linux-musl",
+                "oversized_vectors": expected.oversized_vectors,
+                "programs": programs,
+                "schema": "prismpm/text-cli-acceptance/1",
+                "status": "verified",
+                "transports": ["stdin", "file", "stdin-dash"],
+                "vectors": expected.vectors,
+                "within_request_maximum": expected.within_request_maximum,
+            }
+        });
+        (build, acceptance)
+    }
+
+    #[test]
+    fn command_line_evidence_must_match_the_expectation() {
+        let example = text_check();
+        let expected = example.command_line.as_ref().unwrap();
+        let (build, acceptance) = built(expected);
+        check_command_line(example, build.path(), &acceptance).unwrap();
+
+        // Removing the expectation rejects the command line the build publishes.
+        let unexpected = Example {
+            name: example.name,
+            project: example.project,
+            command_line: None,
+        };
+        assert!(check_command_line(&unexpected, build.path(), &acceptance).is_err());
+        assert!(check_command_line(&unexpected, build.path(), &serde_json::json!({})).is_err());
+
+        // An expected command line must be accepted, with the exact partition.
+        assert!(check_command_line(example, build.path(), &serde_json::json!({})).is_err());
+        for (field, value) in [
+            (
+                "within_request_maximum",
+                serde_json::json!(expected.vectors),
+            ),
+            ("oversized_vectors", serde_json::json!(0)),
+            ("examples", serde_json::json!(0)),
+            ("status", serde_json::json!("skipped")),
+        ] {
+            let mut changed = acceptance.clone();
+            changed["command_line"][field] = value;
+            assert!(
+                check_command_line(example, build.path(), &changed).is_err(),
+                "{field}"
+            );
+        }
+
+        // An expectation that never crosses the request maximum is refused.
+        let one_sided = Example {
+            name: example.name,
+            project: example.project,
+            command_line: Some(CommandLine {
+                program: expected.program,
+                vectors: expected.vectors,
+                within_request_maximum: expected.vectors,
+                oversized_vectors: 0,
+                examples: expected.examples,
+            }),
+        };
+        assert!(check_command_line(&one_sided, build.path(), &acceptance).is_err());
+
+        // The accepted programs must be the built bytes, and the SBOM present.
+        let program = build.path().join(format!(
+            "cli/bin/{}/{}",
+            COMMAND_LINE_TARGETS[1], expected.program
+        ));
+        std::fs::write(&program, b"substituted").unwrap();
+        assert!(check_command_line(example, build.path(), &acceptance).is_err());
+        std::fs::write(&program, COMMAND_LINE_TARGETS[1].as_bytes()).unwrap();
+        check_command_line(example, build.path(), &acceptance).unwrap();
+        std::fs::remove_file(build.path().join("cli/sbom.spdx.json")).unwrap();
+        assert!(check_command_line(example, build.path(), &acceptance).is_err());
+    }
+
+    #[test]
+    fn examples_without_a_command_line_must_not_build_one() {
+        let example = &EXAMPLES[0];
+        assert!(example.command_line.is_none());
+        let build = tempfile::tempdir().unwrap();
+        check_command_line(example, build.path(), &serde_json::json!({})).unwrap();
+        std::fs::create_dir(build.path().join("cli")).unwrap();
+        assert!(check_command_line(example, build.path(), &serde_json::json!({})).is_err());
+    }
 }
 
 #[cfg(test)]

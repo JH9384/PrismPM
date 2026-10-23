@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-workspace-interaction-corpus"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.View.Workspace.V1.Corpus"
+component = "probeInitialize"
+
+[[form]]
+id = "prism-workspace-interaction-corpus"
+channel = "text"
+surface = "Workspace interaction corpus"
+canonical_source = true
+features = ["sentence-case", "singular"]

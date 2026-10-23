@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-portable-unit-value"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Core"
+component = "UnitValue"
+
+[[form]]
+id = "prism-portable-unit-value"
+channel = "text"
+surface = "Portable unit value"
+canonical_source = true
+features = ["sentence-case", "singular"]

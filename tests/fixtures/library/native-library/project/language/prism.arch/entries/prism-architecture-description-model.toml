@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-architecture-description-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Arch"
+component = "componentGateway"
+
+[[form]]
+id = "prism-architecture-description-model"
+channel = "text"
+surface = "Architecture description model"
+canonical_source = true
+features = ["sentence-case", "singular"]

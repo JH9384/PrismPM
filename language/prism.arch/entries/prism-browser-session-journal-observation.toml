@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-session-journal-observation"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.SessionJournalObservation"
+component = "writeSessionObservation"
+
+[[form]]
+id = "prism-browser-session-journal-observation"
+channel = "text"
+surface = "Browser session journal observation"
+canonical_source = true
+features = ["sentence-case", "singular"]

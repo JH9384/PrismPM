@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-operation-journal-wire-format"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.OperationJournalWire"
+component = "JournalWireReadJournalRecord"
+
+[[form]]
+id = "prism-browser-operation-journal-wire-format"
+channel = "text"
+surface = "Browser operation journal wire format"
+canonical_source = true
+features = ["sentence-case", "singular"]

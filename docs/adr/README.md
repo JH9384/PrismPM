@@ -20,6 +20,7 @@ This directory contains Architecture Decision Records for PrismPM, documenting s
 | [012](012-calculator-reference-receipt-identity.md) | Calculator Reference Receipt Identity Drift | Proposed | 2026-09-22 |
 | [013](013-vv-evidence-artifact-citation.md) | `target/vv-evidence.json` as Cited Release Evidence | Proposed | 2026-09-22 |
 | [014](014-bootstrap-digest-pin-scope.md) | Partial Bootstrap Digest Pin Scope (PP5008) | Proposed | 2026-09-22 |
+| [015](015-dual-digests.md) | Dual Digests, BLAKE3 Native Plus sha256 | Accepted | 2026-10-23 |
 
 ## Summary of Resolved Dissonance
 
@@ -37,6 +38,7 @@ This directory contains Architecture Decision Records for PrismPM, documenting s
 3. **Foundry integration == SDK release** → ADR-007: Separated milestones
 4. **Diagnostic probe count == boundary coverage** → ADR-008: Tiered coverage model
 5. **"The toolchain is pinned" covers every executed tool** → ADR-014: Digest pins cover only 4 of ~12 tool families; two-layer policy
+6. **BLAKE3 digests work wherever sha256 does** → ADR-015: registries, cosign and Kyverno match only sha256; every Prism subject carries both
 
 ### Gaps Documented with Paths Forward
 - **crates.io publication**: ADR-002 provides bootstrap protocol

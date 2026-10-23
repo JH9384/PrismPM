@@ -44,12 +44,12 @@ That change is RT-01, [#276](https://github.com/UOR-Foundation/PrismPM/issues/27
 | `index.mjs`, `index.d.ts` | Frozen constants: magic, version, section kinds, manifest bytes, extension names, schema paths, predicate types. |
 | `types/holo.d.ts` | The binary layouts: header, section table, application manifest, extensions, content blobs, HOLOVIEW, the guest exports. |
 | `types/documents.d.ts` | Generated from the JSON Schemas below. Do not edit. |
-| `types/attestation.d.ts` | in-toto Statement v1, ResourceDescriptor, DigestSet and the DSSE envelope. |
-| `types/predicates.d.ts` | Predicate type URIs and `PredicateMap`. |
+| `types/attestation.d.ts` | in-toto Statement v1, `PrismDigestSet`, blob and OCI manifest subjects, and the DSSE envelope. |
+| `types/predicates.d.ts` | `PredicateMap` and the registry types. |
 | `schemas/holo/` | The decoded header and table, application manifest, source manifest and application directory. |
 | `schemas/documents/` | `prismpm/model-document/1` to `/6`, `prismpm/sdk-lock/1` and `/2`, `prismpm/model-provenance/1`, `prismpm/build-manifest/1`, `prismpm/browser-provenance/1`. |
 | `schemas/attestation/` | in-toto Statement v1 and the DSSE envelope. |
-| `predicates/registry.json` | Every predicate type, its status and its owner. |
+| `predicates/` | The registry, its schema, and one `.d.ts` and one `.schema.json` per predicate. |
 | `worlds/core-wasm.wit` | The Core-Wasm guest contract `hologram:guest/core-wasm@1`. |
 
 The model document and lock schemas are byte-identical copies of the repository's `schemas/` folder.
@@ -90,8 +90,19 @@ import type { ModelDocument, Statement, DsseEnvelope } from '@prism-code/spec';
 | `https://uor.foundation/prism/proof/v1` | placeholder | [#266](https://github.com/UOR-Foundation/PrismPM/issues/266) |
 | `https://uor.foundation/prism/replay/v1` | placeholder | M3 |
 
-To define one, add `schemas/predicates/<name>-v1.schema.json`.
-Then set `schema` and `status` in its registry row and replace `unknown` in `types/predicates.d.ts`.
+Each predicate owns `predicates/<name>-v<N>.d.ts` and `predicates/<name>-v<N>.schema.json`.
+Today `proof-v1.d.ts` and `replay-v1.d.ts` hold `unknown`, and no predicate schema exists yet.
+#266 reserved `predicates/proof-v1.schema.json`, with `$id` `https://uor.foundation/prism/proof/v1/schema.json`.
+To define a predicate, add its schema, fill its type, then set `schema` and `status` in its registry row.
+The type files are `.d.ts`, not `.ts`, because the package has no build step.
+
+## Attestation subjects
+
+Subjects follow ADR-015 from [#274](https://github.com/UOR-Foundation/PrismPM/issues/274).
+A blob subject carries a `PrismDigestSet`: exactly `sha256` and `blake3`, over the same bytes.
+For a content blob, `blake3` equals the blob's label without the `blake3:` prefix.
+The footer is BLAKE3 of the body, not of the file, so it never appears under `blake3`.
+A registry-facing statement adds `{ name: "oci-manifest", digest: { sha256 } }`.
 
 ## Versioning
 

@@ -2,17 +2,19 @@
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
-import { ATTESTATION, HOLO_SCHEMAS, PREDICATE_TYPE, SCHEMAS } from '../index.mjs';
+import { ATTESTATION, HOLO_SCHEMAS, PROOF_PREDICATE_TYPE, REPLAY_PREDICATE_TYPE, SCHEMAS } from '../index.mjs';
 import { assertSupported, validate } from './json-schema.mjs';
 import { here, loadReference, readJson, schema } from './reference.mjs';
 
 const ref = loadReference();
-const SCHEMA_ROOT = here('../schemas/');
-const allSchemas = readdirSync(SCHEMA_ROOT, { recursive: true })
-  .map((p) => p.replaceAll('\\', '/'))
-  .filter((p) => p.endsWith('.schema.json'))
-  .sort()
-  .map((p) => `schemas/${p}`);
+const REGISTRY_SCHEMA = 'predicates/registry.schema.json';
+const allSchemas = ['schemas', 'predicates']
+  .flatMap((folder) =>
+    readdirSync(here(`../${folder}/`), { recursive: true })
+      .map((p) => `${folder}/${p.replaceAll('\\', '/')}`)
+      .filter((p) => p.endsWith('.schema.json')),
+  )
+  .sort();
 
 /** Package copies of the repository's schemas/ folder, registered in model/contracts.toml. */
 const COPIES = {
@@ -51,7 +53,7 @@ test('every schema file is reachable from the package constants or the registry'
     ...Object.values(HOLO_SCHEMAS),
     ATTESTATION.STATEMENT_SCHEMA,
     ATTESTATION.ENVELOPE_SCHEMA,
-    'schemas/predicates/registry.schema.json',
+    REGISTRY_SCHEMA,
     ...readJson('../predicates/registry.json').predicates.map((p) => p.schema).filter(Boolean),
   ]);
   assert.deepEqual([...named].sort(), allSchemas);
@@ -63,11 +65,16 @@ test('each document schema fixes the `schema` member it is registered under', ()
   }
 });
 
-test('the predicate registry validates and lists exactly the predicate constants', () => {
+test('the predicate registry validates, lists exactly the predicate constants and has a type file per row', () => {
   const registry = readJson('../predicates/registry.json');
-  assert.deepEqual(validate(schema('schemas/predicates/registry.schema.json'), registry), []);
-  assert.deepEqual(registry.predicates.map((p) => p.predicateType), Object.values(PREDICATE_TYPE));
-  for (const row of registry.predicates) assert.equal(row.status === 'placeholder', row.schema === null, row.predicateType);
+  assert.deepEqual(validate(schema(REGISTRY_SCHEMA), registry), []);
+  assert.deepEqual(registry.predicates.map((p) => p.predicateType), [PROOF_PREDICATE_TYPE, REPLAY_PREDICATE_TYPE]);
+  for (const row of registry.predicates) {
+    assert.equal(row.status === 'placeholder', row.schema === null, row.predicateType);
+    const [, name, version] = /\/prism\/([a-z][a-z0-9-]*)\/(v[0-9]+)$/.exec(row.predicateType);
+    const types = readFileSync(here(`../predicates/${name}-${version}.d.ts`), 'utf8');
+    assert.ok(types.includes(`'${row.predicateType}'`), `predicates/${name}-${version}.d.ts names ${row.predicateType}`);
+  }
 });
 
 const rejects = (path, value, why) => assert.notDeepEqual(validate(schema(path), value), [], `${path} accepted ${why}`);
@@ -104,14 +111,17 @@ test('negative controls: each schema rejects a mutated reference value', () => {
   rejects(SCHEMAS['prismpm/build-manifest/1'], { ...build, files: [{ ...build.files[0], path: '../escape' }] }, 'a dot-dot path');
   rejects(SCHEMAS['prismpm/build-manifest/1'], { ...build, inputs: { ...build.inputs, schema: 'prismpm/build-inputs/2' } }, 'inputs /2 without the artifact binding');
 
-  const statement = {
-    _type: ATTESTATION.STATEMENT_TYPE,
-    subject: [{ name: 'Calculator.holo', digest: {} }],
-    predicateType: PREDICATE_TYPE.PROOF_V1,
-    predicate: {},
-  };
-  rejects(ATTESTATION.STATEMENT_SCHEMA, statement, 'an empty DigestSet');
-  rejects(ATTESTATION.STATEMENT_SCHEMA, { ...statement, subject: [{ name: 'x', digest: { blake3: `blake3:${ref.parsed.footer}` } }] }, 'a prefixed blake3 digest');
+  const guest = ref.resolved.guest.label.slice('blake3:'.length);
+  const sha = 'dcf53677'.padEnd(64, '0');
+  const statement = (subject) => ({ _type: ATTESTATION.STATEMENT_TYPE, subject, predicateType: PROOF_PREDICATE_TYPE, predicate: {} });
+  const blob = (digest, name = 'core-wasm/guest.wasm') => [{ name, digest }];
+  rejects(ATTESTATION.STATEMENT_SCHEMA, statement(blob({})), 'an empty PrismDigestSet');
+  rejects(ATTESTATION.STATEMENT_SCHEMA, statement(blob({ blake3: guest })), 'a blob subject without sha256');
+  rejects(ATTESTATION.STATEMENT_SCHEMA, statement(blob({ blake3: guest, sha256: sha, sha512: sha })), 'a third digest');
+  rejects(ATTESTATION.STATEMENT_SCHEMA, statement(blob({ blake3: `blake3:${guest}`, sha256: sha })), 'a prefixed blake3 digest');
+  rejects(ATTESTATION.STATEMENT_SCHEMA, statement(blob({ blake3: guest, sha256: sha }, 'oci-manifest')), 'a blob named oci-manifest');
+  rejects(ATTESTATION.STATEMENT_SCHEMA, statement([{ name: 'oci-manifest', digest: { sha256: sha, blake3: guest } }]), 'blake3 on the OCI manifest');
+  rejects(ATTESTATION.STATEMENT_SCHEMA, statement([]), 'no subject');
   rejects(ATTESTATION.ENVELOPE_SCHEMA, { payload: '', payloadType: 'text/plain', signatures: [{ sig: 'AA==' }] }, 'a foreign payload type');
 });
 

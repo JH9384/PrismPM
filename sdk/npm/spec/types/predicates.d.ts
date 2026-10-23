@@ -1,15 +1,10 @@
 /**
- * Predicate types. `predicates/registry.json` holds each one's status and owner.
- *
- * To define a predicate, its owner adds `schemas/predicates/<name>-v1.schema.json`,
- * sets `schema` and `status` in its registry row, and replaces `unknown` below.
+ * The predicate map and registry types. `predicates/registry.json` holds each
+ * predicate's status and owner. Each predicate owns two files in `predicates/`:
+ * `<name>-v<N>.d.ts` for its type and `<name>-v<N>.schema.json` for its schema.
  */
-
-/** Placeholder for issue #266: Lean proof evidence with a named trusted computing base. */
-export type ProofPredicateV1 = unknown;
-
-/** Placeholder for milestone M3: recorded dispatches that replay against a holo. */
-export type ReplayPredicateV1 = unknown;
+import type { ProofPredicateV1 } from '../predicates/proof-v1.js';
+import type { ReplayPredicateV1 } from '../predicates/replay-v1.js';
 
 /** Predicate type URI to predicate body. */
 export interface PredicateMap {
@@ -26,7 +21,7 @@ export interface PredicateRegistryEntry {
   predicateType: PredicateType;
   status: PredicateStatus;
   owner: { issue: number } | { milestone: string };
-  /** Package-relative schema path, null while the row is a placeholder. */
+  /** `predicates/<name>-v<N>.schema.json`, or null while the row is a placeholder. */
   schema: string | null;
   description: string;
 }

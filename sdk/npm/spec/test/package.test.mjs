@@ -33,7 +33,11 @@ test('package.json declares no dependencies of any kind', () => {
 });
 
 test('every constant the types declare is exported, and nothing more', () => {
-  const declared = [...readFileSync(here('../index.d.ts'), 'utf8').matchAll(/^export declare const ([A-Z_]+)/gm)].map((m) => m[1]);
+  const types = readFileSync(here('../index.d.ts'), 'utf8');
+  const declared = [
+    ...[...types.matchAll(/^export declare const ([A-Z_]+)/gm)].map((m) => m[1]),
+    ...[...types.matchAll(/^export \{ ([A-Z_]+) \} from/gm)].map((m) => m[1]),
+  ];
   assert.deepEqual(declared.sort(), Object.keys(spec).sort());
 });
 

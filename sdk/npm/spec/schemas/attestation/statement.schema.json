@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.uor.foundation/prism/attestation/statement/1",
   "title": "InTotoStatement",
-  "description": "An in-toto Statement v1. Unknown members are allowed, because the in-toto framework tells consumers to ignore them.",
+  "description": "An in-toto Statement v1 about a holo. Subjects follow ADR-015 (issue #274): content blobs with a PrismDigestSet, plus an optional oci-manifest subject for registries. Unknown top-level members are allowed, because the in-toto framework tells consumers to ignore them.",
   "type": "object",
   "required": [
     "_type",
@@ -17,8 +17,16 @@
     "subject": {
       "type": "array",
       "minItems": 1,
+      "uniqueItems": true,
       "items": {
-        "$ref": "#/$defs/ResourceDescriptor"
+        "oneOf": [
+          {
+            "$ref": "#/$defs/BlobSubject"
+          },
+          {
+            "$ref": "#/$defs/OciManifestSubject"
+          }
+        ]
       }
     },
     "predicateType": {
@@ -31,27 +39,29 @@
     }
   },
   "$defs": {
-    "DigestSet": {
-      "description": "Algorithm name to lowercase hex digest. Holds blake3 and sha256 together; issue #274 decides which bytes each covers. blake3 omits the blake3: label prefix.",
+    "PrismDigestSet": {
+      "description": "Exactly sha256 and blake3, lowercase hex, over the same bytes (ADR-015). blake3 is default-mode BLAKE3 with 256-bit output; for a content blob it equals the label without the blake3: prefix. The archive footer never appears here.",
       "type": "object",
-      "minProperties": 1,
+      "additionalProperties": false,
+      "required": [
+        "blake3",
+        "sha256"
+      ],
       "properties": {
-        "sha256": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
-        },
         "blake3": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
-      },
-      "additionalProperties": {
-        "type": "string",
-        "minLength": 1
       }
     },
-    "ResourceDescriptor": {
+    "BlobSubject": {
+      "description": "A content blob of the holo, named by its build-manifest path.",
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "name",
         "digest"
@@ -59,24 +69,40 @@
       "properties": {
         "name": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "not": {
+            "const": "oci-manifest"
+          }
         },
         "digest": {
-          "$ref": "#/$defs/DigestSet"
+          "$ref": "#/$defs/PrismDigestSet"
+        }
+      }
+    },
+    "OciManifestSubject": {
+      "description": "The OCI manifest a registry-facing statement covers. Registries, cosign and Kyverno match only its sha256.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "digest"
+      ],
+      "properties": {
+        "name": {
+          "const": "oci-manifest"
         },
-        "uri": {
-          "type": "string",
-          "format": "uri"
-        },
-        "downloadLocation": {
-          "type": "string",
-          "format": "uri"
-        },
-        "mediaType": {
-          "type": "string"
-        },
-        "annotations": {
-          "type": "object"
+        "digest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sha256"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
         }
       }
     }

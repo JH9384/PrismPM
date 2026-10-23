@@ -1,8 +1,10 @@
 // The reference archive and its documents validate against this package's schemas.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { CAPABILITY_SET, FORMAT_REVISIONS, SCHEMAS } from '../index.mjs';
+import { blake3Hex } from '../../prism-code/src/blake3.mjs';
+import { ATTESTATION, CAPABILITY_SET, FORMAT_REVISIONS, LABEL_PREFIX, PROOF_PREDICATE_TYPE, SCHEMAS } from '../index.mjs';
 import { validate } from './json-schema.mjs';
 import { REFERENCE_SHA256, here, loadReference, readJson, schema } from './reference.mjs';
 
@@ -65,14 +67,23 @@ test('the browser closure provenance matches prismpm/browser-provenance/1 and bi
   assert.equal(provenance.generated_core_sha256, ref.provenance.generated_core_sha256);
 });
 
-test('a statement about the reference archive carries blake3 and sha256 together', () => {
+test('a statement about the guest blob carries sha256 and blake3 over the same bytes (ADR-015)', () => {
+  const guest = ref.resolved.guest;
+  const digest = { blake3: blake3Hex(guest.content), sha256: createHash('sha256').update(guest.content).digest('hex') };
+  assert.equal(`${LABEL_PREFIX}${digest.blake3}`, guest.label);
+  assert.notEqual(digest.blake3, ref.parsed.footer);
   const statement = {
-    _type: 'https://in-toto.io/Statement/v1',
-    subject: [{ name: 'Calculator.holo', digest: { blake3: ref.parsed.footer, sha256: ref.sha256 } }],
-    predicateType: 'https://uor.foundation/prism/proof/v1',
+    _type: ATTESTATION.STATEMENT_TYPE,
+    subject: [{ name: 'core-wasm/prism_calculator_core_wasm.wasm', digest }],
+    predicateType: PROOF_PREDICATE_TYPE,
     predicate: {},
   };
-  valid('schemas/attestation/statement.schema.json', statement);
+  valid(ATTESTATION.STATEMENT_SCHEMA, statement);
+  const registryFacing = {
+    ...statement,
+    subject: [{ name: ATTESTATION.OCI_MANIFEST_SUBJECT, digest: { sha256: ref.sha256 } }, ...statement.subject],
+  };
+  valid(ATTESTATION.STATEMENT_SCHEMA, registryFacing);
   const envelope = {
     payload: Buffer.from(JSON.stringify(statement)).toString('base64'),
     payloadType: 'application/vnd.in-toto+json',

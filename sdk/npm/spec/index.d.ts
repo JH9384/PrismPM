@@ -17,6 +17,8 @@ export type * from './types/holo.js';
 export type * from './types/documents.js';
 export type * from './types/attestation.js';
 export type * from './types/predicates.js';
+export type { ProofPredicateV1 } from './predicates/proof-v1.js';
+export type { ReplayPredicateV1 } from './predicates/replay-v1.js';
 
 /** Any model document, discriminated by `schema`. */
 export type ModelDocument = ModelDocumentV1 | ModelDocumentV2 | ModelDocumentV3 | ModelDocumentV4 | ModelDocumentV5 | ModelDocumentV6;
@@ -95,11 +97,10 @@ export declare const HOLO_SCHEMAS: Readonly<{
 export declare const ATTESTATION: Readonly<{
   STATEMENT_TYPE: 'https://in-toto.io/Statement/v1';
   DSSE_PAYLOAD_TYPE: 'application/vnd.in-toto+json';
+  OCI_MANIFEST_SUBJECT: 'oci-manifest';
   STATEMENT_SCHEMA: 'schemas/attestation/statement.schema.json';
   ENVELOPE_SCHEMA: 'schemas/attestation/dsse-envelope.schema.json';
 }>;
 
-export declare const PREDICATE_TYPE: Readonly<{
-  PROOF_V1: 'https://uor.foundation/prism/proof/v1';
-  REPLAY_V1: 'https://uor.foundation/prism/replay/v1';
-}>;
+export { PROOF_PREDICATE_TYPE } from './predicates/proof-v1.js';
+export { REPLAY_PREDICATE_TYPE } from './predicates/replay-v1.js';

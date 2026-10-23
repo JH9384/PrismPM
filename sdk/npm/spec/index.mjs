@@ -124,19 +124,20 @@ export const HOLO_SCHEMAS = freeze({
   APPLICATION_DIRECTORY: 'schemas/holo/application-directory.schema.json',
 });
 
-/** in-toto Statement v1 and DSSE. */
+/** in-toto Statement v1 and DSSE. Subjects follow ADR-015 (issue #274). */
 export const ATTESTATION = freeze({
   STATEMENT_TYPE: 'https://in-toto.io/Statement/v1',
   DSSE_PAYLOAD_TYPE: 'application/vnd.in-toto+json',
+  /** The subject name of the OCI manifest in a registry-facing statement. */
+  OCI_MANIFEST_SUBJECT: 'oci-manifest',
   STATEMENT_SCHEMA: 'schemas/attestation/statement.schema.json',
   ENVELOPE_SCHEMA: 'schemas/attestation/dsse-envelope.schema.json',
 });
 
-/** Predicate type URIs. `predicates/registry.json` holds their status and owners. */
-export const PREDICATE_TYPE = freeze({
-  PROOF_V1: 'https://uor.foundation/prism/proof/v1',
-  REPLAY_V1: 'https://uor.foundation/prism/replay/v1',
-});
+/** Reserved for issue #266. Type: `predicates/proof-v1.d.ts`. Schema: `predicates/proof-v1.schema.json`. */
+export const PROOF_PREDICATE_TYPE = 'https://uor.foundation/prism/proof/v1';
+/** Reserved for milestone M3. Type: `predicates/replay-v1.d.ts`. */
+export const REPLAY_PREDICATE_TYPE = 'https://uor.foundation/prism/replay/v1';
 
 /**
  * Every format revision, mapped to the identifiers a reader uses to recognize

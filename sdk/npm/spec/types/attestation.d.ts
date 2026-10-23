@@ -1,36 +1,40 @@
 /**
- * in-toto Statement v1 and the DSSE envelope.
+ * in-toto Statement v1 and the DSSE envelope, with subjects as ADR-015 (issue #274) fixes them.
  * Schemas: `schemas/attestation/statement.schema.json`, `schemas/attestation/dsse-envelope.schema.json`.
  */
 import type { PredicateMap, PredicateType } from './predicates.js';
 
-/** Lowercase hexadecimal. */
+/** 64 lowercase hex characters. */
 export type HexDigest = string;
 
 /**
- * Algorithm name to digest. A Prism subject may carry `blake3` and `sha256`
- * together. Issue #274 decides which bytes each one covers.
+ * Exactly two digests over the same bytes. `blake3` is default-mode BLAKE3
+ * with 256-bit output. For a content blob it equals the blob's label without
+ * the `blake3:` prefix. The archive footer is BLAKE3 of the body, not of the
+ * file, so it never appears here.
  */
-export interface DigestSet {
-  sha256?: HexDigest;
-  /** 64 hex characters, without the `blake3:` label prefix. */
-  blake3?: HexDigest;
-  [algorithm: string]: HexDigest | undefined;
+export interface PrismDigestSet {
+  sha256: HexDigest;
+  blake3: HexDigest;
 }
 
-export interface ResourceDescriptor {
+/** A content blob of the holo, named by its build-manifest path. An archive cannot name itself. */
+export interface BlobSubject {
   name: string;
-  digest: DigestSet;
-  uri?: string;
-  downloadLocation?: string;
-  mediaType?: string;
-  annotations?: Record<string, unknown>;
+  digest: PrismDigestSet;
 }
+
+/** The OCI manifest a registry-facing statement covers. Registries, cosign and Kyverno match only its sha256. */
+export interface OciManifestSubject {
+  name: 'oci-manifest';
+  digest: { sha256: HexDigest };
+}
+
+export type Subject = BlobSubject | OciManifestSubject;
 
 export interface Statement<T extends PredicateType = PredicateType> {
   _type: 'https://in-toto.io/Statement/v1';
-  /** At least one subject. */
-  subject: [ResourceDescriptor, ...ResourceDescriptor[]];
+  subject: [Subject, ...Subject[]];
   predicateType: T;
   predicate: PredicateMap[T];
 }

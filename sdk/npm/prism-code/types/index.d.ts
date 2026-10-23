@@ -87,7 +87,113 @@ export interface Application {
   dispatch(request: Uint8Array | ArrayBuffer): Promise<Uint8Array>;
   /** Replay every acceptance vector, comparing bytes. */
   acceptance(): Promise<AcceptanceResult>;
+  /** What the holo says about itself, without running the guest. Rejects with `inspect.kind` for a closure. */
+  inspect(): Promise<Inspection>;
 }
+
+/** sha256 and BLAKE3, lowercase hex, over the same bytes (ADR-015). */
+export interface DigestSet {
+  sha256: string;
+  blake3: string;
+}
+
+export type SectionRole =
+  | 'app-manifest'
+  | 'source-manifest'
+  | 'application-directory'
+  | 'model-provenance'
+  | 'capability-set'
+  | 'guest'
+  | 'view'
+  | 'model-document'
+  | 'extension'
+  | 'content-blob'
+  | 'unknown';
+
+export interface InspectedSection {
+  index: number;
+  /** The table's kind code: 15 app manifest, 8 metadata, 14 extension, 16 content blob. */
+  kind: number;
+  kind_name: 'app-manifest' | 'metadata' | 'extension' | 'content-blob' | 'unknown';
+  role: SectionRole;
+  offset: number;
+  length: number;
+  /** Over exactly the table bytes, `offset` to `offset + length`. */
+  digest: DigestSet;
+  /** Extensions only: the extension name. */
+  name?: string;
+  /** Content blobs only: the 71-byte `blake3:` label. */
+  label?: string;
+  /** Content blobs only: the bytes after the label. `digest.blake3` equals the label when `label_matches`. */
+  content?: { length: number; digest: DigestSet; label_matches: boolean };
+}
+
+export interface InspectedAttestation {
+  predicate_type: string;
+  subjects: { name: string; digest: DigestSet }[];
+}
+
+/** `prismpm/holo-inspection/1`: the object `prism-code inspect --json` prints, keys sorted. */
+export interface Inspection {
+  schema: 'prismpm/holo-inspection/1';
+  name: string | null;
+  /** The format revision whose identifiers the archive carries, or null when none matches. */
+  revision: string | null;
+  physical_version: number;
+  flags: number;
+  /** File size in bytes. */
+  size: number;
+  /** Over the whole file. */
+  digest: DigestSet;
+  /** The last 32 bytes: BLAKE3 of every earlier byte. */
+  footer: string;
+  sections: InspectedSection[];
+  manifest: {
+    uri: string;
+    labels: { capability_set: string; guest: string; view: string };
+    entry: string;
+    contract: string;
+    view_entry: string;
+    surface: string;
+  };
+  model: {
+    schema: string | null;
+    name: string | null;
+    cargo_name: string | null;
+    cargo_version: string | null;
+    description: string | null;
+    profile: string | null;
+    function: string | null;
+    vectors: number;
+    limits: { request: number | null; response: number | null; guest_allocation: number | null };
+    /** Over the model document's bytes. `sha256` is the provenance `model_id`. */
+    digest: DigestSet;
+  };
+  provenance: {
+    schema: string | null;
+    application_kappa: string | null;
+    model_id: string | null;
+    compiler_semantics_id: string | null;
+    stdlib_semantics_id: string | null;
+    lexlean_commit: string | null;
+  };
+  /** The guest contract and its world; `imports` and `exports` are null for a contract this reader does not know. */
+  world: {
+    contract: string;
+    imports: string[] | null;
+    exports: string[] | null;
+    capability_set: { label: string; empty: boolean };
+  } | null;
+  /** Empty until holos carry an attestation section (#267). */
+  attestations: InspectedAttestation[];
+  verification: { footer: boolean; labels: boolean; cross_references: boolean };
+}
+
+export const INSPECTION_SCHEMA: 'prismpm/holo-inspection/1';
+/** Read a `.holo` without running it. Structural errors throw `archive.*`; integrity results land in `verification`. */
+export function inspect(source: Uint8Array | ArrayBuffer | Blob): Promise<Inspection>;
+/** The human view `prism-code inspect` prints: aligned columns, full digests, one fact per line. */
+export function formatInspection(inspection: Inspection): string;
 
 export interface LoadOptions {
   /** For closures: the model document (object, bytes, or in Node a path), needed by numeric-profile closures. */

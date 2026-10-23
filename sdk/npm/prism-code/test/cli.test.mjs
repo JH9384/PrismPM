@@ -24,14 +24,15 @@ test('vectors replays the fixture: 22 of 22', () => {
   assert.match(out, /^22 of 22 vectors passed \(holo, Calculator, identities verified\)/m);
 });
 
-test('inspect prints JSON with identities and evidence', () => {
-  const { code, out } = run(['inspect', fixture]);
-  assert.equal(code, 0);
-  const summary = JSON.parse(out);
-  assert.equal(summary.kind, 'holo');
-  assert.equal(summary.identities.verified, true);
-  assert.equal(summary.vectors, 22);
-  assert.deepEqual(summary.view.files, ['app.css', 'app.js', 'index.html']);
+test('inspect prints the human view, and the whole inspection with --json', () => {
+  // Full coverage of the verb is in inspect.test.mjs.
+  const human = run(['inspect', fixture]);
+  assert.equal(human.code, 0, human.err);
+  assert.match(human.out, /^Name: {6}Calculator$/m);
+  const inspection = JSON.parse(run(['inspect', fixture, '--json']).out);
+  assert.equal(inspection.schema, 'prismpm/holo-inspection/1');
+  assert.equal(inspection.model.vectors, 22);
+  assert.equal(inspection.sections.length, 8);
 });
 
 test('vectors on a closure needs the model for the numeric profile', () => {

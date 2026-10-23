@@ -308,6 +308,7 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "sdk/npm/prism-code/test/canonical.test.mjs",
             "sdk/npm/prism-code/test/cli.test.mjs",
             "sdk/npm/prism-code/test/closure.test.mjs",
+            "sdk/npm/prism-code/test/inspect.test.mjs",
             "sdk/npm/prism-code/test/node.test.mjs",
             "sdk/npm/spec/test/agreement.test.mjs",
             "sdk/npm/spec/test/package.test.mjs",

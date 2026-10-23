@@ -4,7 +4,8 @@
  *
  *   prism-code run <app.holo> [--port N] [--host H]   serve the view and the intent endpoint
  *   prism-code vectors <app.holo | closure-dir>       replay the acceptance vectors
- *   prism-code inspect <app.holo | closure-dir>       print what the artifact says about itself
+ *   prism-code inspect <app.holo> [--json] [--format <path>]
+ *                                                     print what the holo says about itself, without running it
  *   prism-code check|build|verify|conformance ...     run prismpm in the locked SDK image
  *
  * Exit codes: 0 ok, 1 vectors failed, 2 artifact refused, 64 usage,
@@ -19,6 +20,8 @@ import { createRequire } from 'node:module';
 import { fromFile, serve } from '../src/node.mjs';
 import { sdkImageFromLock, dockerArguments, DELEGATED } from '../src/docker.mjs';
 import { PrismCodeError } from '../src/errors.mjs';
+import { inspect, formatInspection, select } from '../src/inspect.mjs';
+import { canonicalJson } from '../src/archive.mjs';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
@@ -28,13 +31,17 @@ const USAGE = `prism-code ${version}
 Usage:
   prism-code run <app.holo> [--port N] [--host H]   serve the application's view; POST /_hologram/intent dispatches
   prism-code vectors <app.holo | closure-dir>       replay every acceptance vector through the guest
-  prism-code inspect <app.holo | closure-dir>       print identities, limits, provenance and view files as JSON
+  prism-code inspect <app.holo> [--json] [--format <path>]
+                                                    print sections, digests, manifest, model, world and
+                                                    attestations without running the guest
   prism-code check [args]                           prismpm check in the SDK image named by ./prismpm.lock
   prism-code build [args]                           prismpm build (needs the Docker socket)
   prism-code verify [args]                          prismpm verify (needs the Docker socket)
   prism-code conformance [args]                     prismpm conformance
   prism-code --version | --help
 
+Options for inspect:  --json                       the whole inspection as canonical JSON
+                      --format <path>              one value, by dotted path: sections[0].digest.sha256
 Options for closures: --model <model.prism.json>   the model document (numeric-profile closures need it)
 `;
 
@@ -56,7 +63,7 @@ function parse(argv) {
     if (a.startsWith('--') && a.length > 2) {
       const eq = a.indexOf('=');
       if (eq > 0) options[a.slice(2, eq)] = a.slice(eq + 1);
-      else if (['port', 'host', 'model'].includes(a.slice(2))) options[a.slice(2)] = argv[++i];
+      else if (['port', 'host', 'model', 'format'].includes(a.slice(2))) options[a.slice(2)] = argv[++i];
       else options[a.slice(2)] = true;
     } else positional.push(a);
   }
@@ -86,10 +93,8 @@ async function commandVectors(positional, options) {
   return result.failed.length === 0 && result.total > 0 ? 0 : 1;
 }
 
-async function commandInspect(positional, options) {
-  if (positional.length !== 1) return usage('inspect takes one artifact');
-  const app = await open(positional[0], options);
-  const summary = {
+function closureSummary(app) {
+  return {
     kind: app.kind,
     name: app.name,
     profile: app.profile,
@@ -100,7 +105,35 @@ async function commandInspect(positional, options) {
     provenance: app.provenance,
     view: { entry: app.view.entry, files: [...app.view.files.keys()] },
   };
-  process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+}
+
+async function commandInspect(positional, options) {
+  if (positional.length !== 1) return usage('inspect takes one artifact');
+  if (Object.hasOwn(options, 'format') && (typeof options.format !== 'string' || options.format === '')) return usage('--format takes a path, such as sections[0].digest.sha256');
+  const path = resolve(positional[0]);
+  const info = await stat(path).catch(() => null);
+  if (!info) throw new PrismCodeError('load.path', `${path} does not exist`);
+  // A closure has no section table; it keeps the 0.2.0 summary.
+  const closure = info.isDirectory();
+  const value = closure ? closureSummary(await open(positional[0], options)) : await inspect(new Uint8Array(await readFile(path)));
+  if (typeof options.format === 'string') {
+    let picked;
+    try {
+      picked = select(value, options.format);
+    } catch (error) {
+      if (error instanceof PrismCodeError) return usage(error.message);
+      throw error;
+    }
+    if (!picked.found) {
+      process.stderr.write(`inspect.selector: no value at ${options.format}\n`);
+      return 2;
+    }
+    process.stdout.write(`${typeof picked.value === 'string' ? picked.value : canonicalJson(picked.value ?? null)}\n`);
+    return 0;
+  }
+  if (options.json) process.stdout.write(`${canonicalJson(value)}\n`);
+  else if (closure) process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+  else process.stdout.write(formatInspection(value));
   return 0;
 }
 

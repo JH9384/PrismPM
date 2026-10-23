@@ -17,7 +17,7 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | archive fingerprint | The 32-byte BLAKE3 footer over every byte before it ([SPEC §3](../SPEC.md#3-canonical-holo-contract)). | image digest |
 | SDK image | The digest-pinned Linux OCI index (`linux/amd64`, `linux/arm64`) with LexLean, Lean 4, rustc and wasm-bindgen, built from [`sdk/Dockerfile`](../sdk/Dockerfile) ([SPEC §1](../SPEC.md#1-repository-scope-and-project-configuration)). | base image |
 | `prismpm.lock` | The project lock. Its `sdk_image` field names the SDK image by immutable digest ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | pinned `FROM image@sha256:...` |
-| `prism-code` runtime | The JavaScript runtime: `load` opens and verifies a holo, `dispatch` runs one request on the guest. Pending in [PR #251](https://github.com/UOR-Foundation/PrismPM/pull/251) at `sdk/npm/prism-code/`. | container runtime |
+| `prism-code` runtime | The JavaScript runtime: `load` opens and verifies a holo, `dispatch` runs one request on the guest. See [`sdk/npm/prism-code`](../sdk/npm/prism-code/README.md). | container runtime |
 | instance | A loaded, verified, running holo. `prism-code` runs each request on a fresh guest instance. | container |
 | browser export | The six-file browser closure written by `prismpm export-browser` ([README](../README.md#development-and-acceptance)). | exporter output (`--output`) |
 | registry | Any OCI Image and Distribution 1.1 registry. `prismpm push` and `prismpm pull` move releases by digest ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | registry |
@@ -38,7 +38,7 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | build | `prismpm build` writes the build tree and holo. `prismpm build --release NAME` builds a product release ([SPEC §6](../SPEC.md#6-build-artifacts-and-identities)). | `docker build` |
 | check | `prismpm check` validates the model in memory and writes nothing ([SPEC §4](../SPEC.md#4-controller-api-cli-and-diagnostics)). | `docker build --check` |
 | verify | `prismpm verify` checks the Lean proofs and runs the holo's acceptance vectors in an independent oracle ([SPEC §1.3](../SPEC.md#13-compiler-pipeline)). | none |
-| run | `prismpm run REF` runs a release through its modeled Compose target. `prism-code run app.holo` serves one holo ([PR #251](https://github.com/UOR-Foundation/PrismPM/pull/251)). | `docker run` |
+| run | `prismpm run REF` runs a release through its modeled Compose target. `prism-code run app.holo` serves one holo ([`prism-code`](../sdk/npm/prism-code/README.md#run-it)). | `docker run` |
 | push / pull | `prismpm push REF`, `prismpm pull REF` ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | `docker push`, `docker pull` |
 | inspect | `prismpm inspect REF` for a product release. `hologram holo inspect` and `prism-code inspect` for one holo. | `docker inspect` |
 | export | `prismpm export-browser REF --output DIR` ([README](../README.md#development-and-acceptance)). | `docker build --output` |

@@ -134,7 +134,7 @@ export const ATTESTATION = freeze({
   ENVELOPE_SCHEMA: 'schemas/attestation/dsse-envelope.schema.json',
 });
 
-/** Reserved for issue #266. Type: `predicates/proof-v1.d.ts`. Schema: `predicates/proof-v1.schema.json`. */
+/** Issue #266, experimental. Type: `predicates/proof-v1.d.ts`. Schema: `predicates/proof-v1.schema.json`. */
 export const PROOF_PREDICATE_TYPE = 'https://uor.foundation/prism/proof/v1';
 /** Reserved for milestone M3. Type: `predicates/replay-v1.d.ts`. */
 export const REPLAY_PREDICATE_TYPE = 'https://uor.foundation/prism/replay/v1';

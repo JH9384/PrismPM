@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uor.foundation/prism/proof/v1/schema.json",
+  "title": "ProofPredicateV1",
+  "description": "The predicate of an in-toto Statement v1 with predicateType https://uor.foundation/prism/proof/v1. The statement has exactly one subject, the Core-Wasm guest blob. The predicate names the verifier, the model, every theorem with its verdict, and the trusted computing base. Design: docs/proposals/266-proof-predicate.md. Digests are lowercase hex without an algorithm prefix.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verifier",
+    "policy",
+    "model",
+    "theorems",
+    "verificationResult",
+    "verifiedLevels",
+    "tcb",
+    "evidence",
+    "timeVerified"
+  ],
+  "properties": {
+    "verifier": {
+      "description": "The kernel that produced the verdict, the compiler whose Lean output was checked, the producer of the statement and the image that hosted the check.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "lean",
+        "lexlean",
+        "prismpm",
+        "sdkImage"
+      ],
+      "properties": {
+        "id": {
+          "const": "https://uor.foundation/prism/verifier/lean4"
+        },
+        "lean": {
+          "description": "tools.lock [lean] release and commit.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "commit"
+          ],
+          "properties": {
+            "version": {
+              "$ref": "#/$defs/Version"
+            },
+            "commit": {
+              "$ref": "#/$defs/GitCommit"
+            }
+          }
+        },
+        "lexlean": {
+          "description": "model/dependencies.toml lexlean, and model-provenance.json lexlean_commit and lexlean_package_sha256.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "commit",
+            "crateSha256"
+          ],
+          "properties": {
+            "version": {
+              "$ref": "#/$defs/Version"
+            },
+            "commit": {
+              "$ref": "#/$defs/GitCommit"
+            },
+            "crateSha256": {
+              "$ref": "#/$defs/HexDigest"
+            }
+          }
+        },
+        "prismpm": {
+          "description": "prismpm.lock sdk_version.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version"
+          ],
+          "properties": {
+            "version": {
+              "$ref": "#/$defs/Version"
+            }
+          }
+        },
+        "sdkImage": {
+          "description": "prismpm.lock sdk_image: <repository>@sha256:<hex>.",
+          "type": "string",
+          "pattern": "^[^@\\s]+@sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "policy": {
+      "description": "The per-declaration axiom policy table. Its digest is the LexLean snapshot that carries it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "uri",
+        "digest"
+      ],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri"
+        },
+        "digest": {
+          "$ref": "#/$defs/Sha256Digest"
+        }
+      }
+    },
+    "model": {
+      "description": "The model the theorems are about, as model-provenance.json and the model document's provenance state it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document",
+        "sourceId",
+        "semanticId",
+        "snapshotId",
+        "compilerSemanticsId",
+        "leanManifestSha256",
+        "modules"
+      ],
+      "properties": {
+        "document": {
+          "$ref": "#/$defs/PrismDigestSet"
+        },
+        "sourceId": {
+          "$ref": "#/$defs/HexDigest"
+        },
+        "semanticId": {
+          "$ref": "#/$defs/HexDigest"
+        },
+        "snapshotId": {
+          "$ref": "#/$defs/HexDigest"
+        },
+        "compilerSemanticsId": {
+          "$ref": "#/$defs/HexDigest"
+        },
+        "leanManifestSha256": {
+          "$ref": "#/$defs/HexDigest"
+        },
+        "modules": {
+          "description": "The Lean modules that were elaborated and replayed: the build manifest rows of kind lean.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "leanSha256"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/LeanName"
+              },
+              "leanSha256": {
+                "$ref": "#/$defs/HexDigest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "theorems": {
+      "description": "Every theorem of the model, with its verdict and axiom audit. Definitions, structures and inductives are not listed. A statement that lists no theorem claims nothing, so at least one is required.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "module",
+          "verdict",
+          "axioms"
+        ],
+        "properties": {
+          "name": {
+            "description": "Full Lean name, namespace plus declaration, as written in the generated module.",
+            "$ref": "#/$defs/LeanName"
+          },
+          "module": {
+            "$ref": "#/$defs/LeanName"
+          },
+          "verdict": {
+            "$ref": "#/$defs/Verdict"
+          },
+          "axioms": {
+            "description": "The observed axioms against the declared policy (VR-05).",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "policy",
+              "observed"
+            ],
+            "properties": {
+              "policy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "axioms"
+                ],
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "none",
+                      "allow",
+                      "exact"
+                    ]
+                  },
+                  "axioms": {
+                    "$ref": "#/$defs/LeanNames"
+                  }
+                }
+              },
+              "observed": {
+                "$ref": "#/$defs/LeanNames"
+              }
+            }
+          }
+        }
+      }
+    },
+    "verificationResult": {
+      "description": "PASSED only when every theorem is PASSED and every leanchecker replay exited 0.",
+      "$ref": "#/$defs/Verdict"
+    },
+    "verifiedLevels": {
+      "description": "The assurance levels this statement supports (#269). This statement alone supports at most P2.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "P0",
+          "P1",
+          "P2",
+          "P3"
+        ]
+      }
+    },
+    "tcb": {
+      "description": "The named trusted computing base: every component whose failure would make the verdict false. No entry is verified, and trust admits only trusted.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "component",
+          "role",
+          "version",
+          "trust"
+        ],
+        "properties": {
+          "component": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "role": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "$ref": "#/$defs/Version"
+          },
+          "digest": {
+            "description": "Optional. A git commit or a SHA-256 digest, lowercase hex.",
+            "type": "string",
+            "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+          },
+          "trust": {
+            "const": "trusted"
+          }
+        }
+      }
+    },
+    "evidence": {
+      "description": "Digests a re-checker uses to fetch the retained evidence.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lexleanAttestation",
+        "verificationManifest"
+      ],
+      "properties": {
+        "lexleanAttestation": {
+          "$ref": "#/$defs/Sha256Digest"
+        },
+        "verificationManifest": {
+          "$ref": "#/$defs/Sha256Digest"
+        }
+      }
+    },
+    "timeVerified": {
+      "description": "RFC 3339, UTC. Not an input to any identity.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    }
+  },
+  "$defs": {
+    "HexDigest": {
+      "description": "64 lowercase hex characters.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "GitCommit": {
+      "description": "A git commit, 40 lowercase hex characters.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "Version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "LeanName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "LeanNames": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/LeanName"
+      }
+    },
+    "Verdict": {
+      "enum": [
+        "PASSED",
+        "FAILED"
+      ]
+    },
+    "Sha256Digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "#/$defs/HexDigest"
+        }
+      }
+    },
+    "PrismDigestSet": {
+      "description": "Exactly sha256 and blake3, lowercase hex, over the same bytes (ADR-015). blake3 is default-mode BLAKE3 with 256-bit output; for a content blob it equals the label without the blake3: prefix. The archive footer never appears here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blake3",
+        "sha256"
+      ],
+      "properties": {
+        "blake3": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

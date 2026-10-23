@@ -371,7 +371,7 @@ fn surface_notation() -> String {
     record(
         "TextCli",
         &format!(
-            "command := \"check\", description := \"Checks one text request.\\n\", usageCode := (64 : UInt8), ioCode := (74 : UInt8), outcomes := {outcomes}, sections := {sections}, examples := {examples}"
+            "command := \"check\", description := \"Checks one text request.\\n\", usageCode := (64 : UInt8), ioCode := (74 : UInt8), limitCode := (ctor Option.none [UInt8]), outcomes := {outcomes}, sections := {sections}, examples := {examples}"
         ),
     )
 }
@@ -539,6 +539,64 @@ fn text_v3_none_resource_bounds_project_as_the_explicit_v1_budget() {
     assert_eq!(text.core_stack_bytes, Some(65536));
     assert!(schema().is_valid(&serde_json::to_value(&doc).unwrap()));
     assert_eq!(doc.application, project(&explicit, V3).unwrap().application);
+}
+
+#[test]
+fn text_cli_limit_code_is_optional_distinct_and_bounded() {
+    // prism-code's map: accepted 0, rejected 1, error 2, usage 64, io 74, and
+    // a refused oversized request distinguishable from a modeled error.
+    let mut value = fixture();
+    value["application"]["cli"]["limit_code"] = json!(3);
+    assert!(schema().is_valid(&value));
+    let doc = typed(value.clone());
+    prismpm::holo::validate::validate(&doc).unwrap();
+    assert_eq!(serde_json::to_value(&doc).unwrap(), value);
+    let bytes = encode_canonical(&doc).unwrap();
+    assert_eq!(decode_canonical(&bytes).unwrap(), doc);
+    let Some(Application::Text(text)) = &doc.application else {
+        panic!("text/3 projects a text application");
+    };
+    let surface = text.cli.as_ref().unwrap();
+    assert_eq!((surface.fault_code(), surface.limit_code()), (2, 3));
+    let Some(Application::Text(text)) = &typed(fixture()).application else {
+        panic!("text/3 projects a text application");
+    };
+    assert_eq!(text.cli.as_ref().unwrap().limit_code(), 2);
+    for code in [0, 1, 2, 64, 74, 126] {
+        let mut value = fixture();
+        value["application"]["cli"]["limit_code"] = json!(code);
+        let rejected = match serde_json::from_value::<ModelDocument>(value) {
+            Ok(doc) => prismpm::holo::validate::validate(&doc).is_err(),
+            Err(_) => true,
+        };
+        assert!(rejected, "limit_code {code} must be refused");
+    }
+}
+
+#[test]
+fn text_cli_limit_code_projects_from_the_option_field() {
+    let some = source().replace(
+        "limitCode := (ctor Option.none [UInt8])",
+        "limitCode := (ctor Option.some [UInt8] (3 : UInt8))",
+    );
+    let doc = project(&some, V3).unwrap();
+    let Some(Application::Text(text)) = &doc.application else {
+        panic!("text/3 projects a text application");
+    };
+    assert_eq!(text.cli.as_ref().unwrap().limit_code, Some(3));
+    assert!(schema().is_valid(&serde_json::to_value(&doc).unwrap()));
+    let shared = source().replace(
+        "limitCode := (ctor Option.none [UInt8])",
+        "limitCode := (ctor Option.some [UInt8] (2 : UInt8))",
+    );
+    assert_eq!(project(&shared, V3).unwrap_err().code, "PP2009");
+    let bare = source().replace(
+        "limitCode := (ctor Option.none [UInt8])",
+        "limitCode := (3 : UInt8)",
+    );
+    // LexLean refuses the bare value at link time (LLT4001), before projection.
+    let refused = std::panic::catch_unwind(|| project(&bare, V3).is_err());
+    assert!(refused.unwrap_or(true));
 }
 
 /// One absent bound does not default the other: `none` pages with explicit

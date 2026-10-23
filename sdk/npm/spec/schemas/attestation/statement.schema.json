@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/attestation/statement/1",
+  "title": "InTotoStatement",
+  "description": "An in-toto Statement v1 about a holo. Subjects follow ADR-015 (issue #274): content blobs with a PrismDigestSet, plus an optional oci-manifest subject for registries. Unknown top-level members are allowed, because the in-toto framework tells consumers to ignore them.",
+  "type": "object",
+  "required": [
+    "_type",
+    "subject",
+    "predicateType",
+    "predicate"
+  ],
+  "properties": {
+    "_type": {
+      "const": "https://in-toto.io/Statement/v1"
+    },
+    "subject": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/BlobSubject"
+          },
+          {
+            "$ref": "#/$defs/OciManifestSubject"
+          }
+        ]
+      }
+    },
+    "predicateType": {
+      "type": "string",
+      "minLength": 1,
+      "format": "uri"
+    },
+    "predicate": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "PrismDigestSet": {
+      "description": "Exactly sha256 and blake3, lowercase hex, over the same bytes (ADR-015). blake3 is default-mode BLAKE3 with 256-bit output; for a content blob it equals the label without the blake3: prefix. The archive footer never appears here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blake3",
+        "sha256"
+      ],
+      "properties": {
+        "blake3": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "BlobSubject": {
+      "description": "A content blob of the holo, named by its build-manifest path.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "digest"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "not": {
+            "const": "oci-manifest"
+          }
+        },
+        "digest": {
+          "$ref": "#/$defs/PrismDigestSet"
+        }
+      }
+    },
+    "OciManifestSubject": {
+      "description": "The OCI manifest a registry-facing statement covers. Registries, cosign and Kyverno match only its sha256.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "digest"
+      ],
+      "properties": {
+        "name": {
+          "const": "oci-manifest"
+        },
+        "digest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sha256"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    }
+  }
+}

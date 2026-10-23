@@ -1,0 +1,369 @@
+\begin{lexlean}{LexLeanMcp}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Foundation.Arch}
+\title{feature}
+\begin{semanticmodule}
+definition{
+  name: stakeholderAuthorAgent,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 0, name := "Author agent", text := "The LLM that writes, checks, repairs and verifies LexLean modules."})
+}
+
+definition{
+  name: stakeholderLexLeanMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 1, name := "LexLean maintainers", text := "Maintain LexLean, the engine the tool layer links."})
+}
+
+definition{
+  name: stakeholderLexiconMaintainer,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 2, name := "Lexicon maintainer", text := "Maintains the vocabulary packages a profile uses."})
+}
+
+definition{
+  name: stakeholderMcpMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 3, name := "MCP maintainers", text := "Maintain the protocol core the tool layer extends."})
+}
+
+definition{
+  name: stakeholderOperator,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 4, name := "Operator", text := "Provisions profiles, runs the service and upgrades it."})
+}
+
+definition{
+  name: stakeholderPrismPMMaintainers,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 5, name := "PrismPM maintainers", text := "Maintain the SDK that checks this model."})
+}
+
+definition{
+  name: stakeholderReader,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 6, name := "Reader", text := "Checks a document and its attestation without trusting the author."})
+}
+
+definition{
+  name: stakeholderRequester,
+  parameters: [],
+  result: Foundation.Arch::Stakeholder,
+  body: (record Foundation.Arch::Stakeholder {index := 7, name := "Requester", text := "Asks for a document and receives it as an attested rendering."})
+}
+
+definition{name: callProfiles, parameters: [], result: String, body: "lexlean_profiles"}
+
+definition{name: callLexiconSearch, parameters: [], result: String, body: "lexlean_lexicon_search"}
+
+definition{
+  name: callLexiconRead,
+  parameters: [],
+  result: String,
+  body: "lexicon resource template of a profile"
+}
+
+definition{name: callDraftWrite, parameters: [], result: String, body: "lexlean_draft_write"}
+
+definition{name: callDraftAssemble, parameters: [], result: String, body: "lexlean_draft_assemble"}
+
+definition{name: callDraftRead, parameters: [], result: String, body: "lexlean_draft_read"}
+
+definition{name: callCheck, parameters: [], result: String, body: "lexlean_check"}
+
+definition{name: callSnapshot, parameters: [], result: String, body: "lexlean_snapshot"}
+
+definition{name: callFormat, parameters: [], result: String, body: "lexlean_format"}
+
+definition{name: callBuild, parameters: [], result: String, body: "lexlean_build"}
+
+definition{name: callExplain, parameters: [], result: String, body: "lexlean_explain"}
+
+definition{name: callVerify, parameters: [], result: String, body: "lexlean_verify"}
+
+definition{name: callPresent, parameters: [], result: String, body: "lexlean_present"}
+
+definition{name: callAttestation, parameters: [], result: String, body: "lexlean_attestation"}
+
+definition{name: callExport, parameters: [], result: String, body: "lexlean_export"}
+
+definition{name: callStoreGet, parameters: [], result: String, body: "store.get"}
+
+definition{name: callStorePut, parameters: [], result: String, body: "store.put"}
+
+definition{
+  name: acProfileIdentity,
+  parameters: [],
+  result: String,
+  body: "Changing any profile file changes the profile ID (issue 8)."
+}
+
+definition{
+  name: acProfileLanguage,
+  parameters: [],
+  result: String,
+  body: "A package of another language is refused with LLC0103 (issue 8)."
+}
+
+definition{
+  name: acAtlasEntries,
+  parameters: [],
+  result: String,
+  body: "An Atlas profile serves all 293 entries (issue 8)."
+}
+
+definition{
+  name: ac09DraftPaths,
+  parameters: [],
+  result: String,
+  body: "AC-09: a path outside the admitted form and a profile bundle with a symlink are refused (issue 9)."
+}
+
+definition{
+  name: acToolEqualsCli,
+  parameters: [],
+  result: String,
+  body: "Each tool result equals the CLI result for the same project bytes (issue 10)."
+}
+
+definition{
+  name: ac04ExamplesBuild,
+  parameters: [],
+  result: String,
+  body: "AC-04: each example builds byte-equal to its expected tree (issue 10)."
+}
+
+definition{
+  name: ac07NegativeFixtures,
+  parameters: [],
+  result: String,
+  body: "AC-07: the negative fixtures give the CLI command result (issues 10 and 11)."
+}
+
+definition{
+  name: ac08AtomOutsideProfile,
+  parameters: [],
+  result: String,
+  body: "AC-08: an atom outside the profile gives LLL1004 with its span (issue 10)."
+}
+
+definition{
+  name: ac05ExamplesVerify,
+  parameters: [],
+  result: String,
+  body: "AC-05: each example verifies with its committed axioms and a valid envelope (issue 11)."
+}
+
+definition{
+  name: ac11KilledVerifier,
+  parameters: [],
+  result: String,
+  body: "AC-11: a verifier killed mid-task leaves no record and affects no other task (issue 11)."
+}
+
+definition{
+  name: ac12CancelledTask,
+  parameters: [],
+  result: String,
+  body: "AC-12: tasks/cancel reports child groups Ended and leaves no record (issue 11)."
+}
+
+definition{
+  name: ac13VerifyConcurrency,
+  parameters: [],
+  result: String,
+  body: "AC-13: verify.concurrency plus one tasks wait and none fails for contention (issue 11)."
+}
+
+definition{
+  name: ac06PresentEmbedded,
+  parameters: [],
+  result: String,
+  body: "AC-06: J1 for nat-add-zero ends in an embedded resource equal to the expected LaTeX (issue 12)."
+}
+
+definition{
+  name: acAttestationLookup,
+  parameters: [],
+  result: String,
+  body: "An attestation resolves by its ID or by a file SHA-256 through the store index (issue 12)."
+}
+
+definition{
+  name: acBundleDigest,
+  parameters: [],
+  result: String,
+  body: "A renderings digest from an exported bundle matches the attested build manifest (issue 12)."
+}
+
+definition{
+  name: ac14NewRevision,
+  parameters: [],
+  result: String,
+  body: "AC-14: a new LexLean revision gives new profile IDs and earlier records resolve (issue 13)."
+}
+
+definition{
+  name: ac15PreviousRevision,
+  parameters: [],
+  result: String,
+  body: "AC-15: returning to the previous revision serves its profiles (issue 13)."
+}
+
+definition{
+  name: ac16Restore,
+  parameters: [],
+  result: String,
+  body: "AC-16: after restore every backed-up record resolves (issue 13)."
+}
+
+definition{
+  name: ac17Rollback,
+  parameters: [],
+  result: String,
+  body: "AC-17: after a release rollback every record still resolves (issue 13)."
+}
+
+definition{
+  name: featureF01Profiles,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F1: list, provision and identify the profiles that carry all semantic configuration.", calls := (cons "LexLeanMcp::callProfiles" (nil String)), acceptance := (cons "LexLeanMcp::acProfileIdentity" (cons "LexLeanMcp::acProfileLanguage" (nil String)))})
+}
+
+definition{
+  name: featureF02Vocabulary,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F2: search and read the lexicon a profile offers before writing.", calls := (cons "LexLeanMcp::callLexiconSearch" (cons "LexLeanMcp::callLexiconRead" (nil String))), acceptance := (cons "LexLeanMcp::acAtlasEntries" (nil String))})
+}
+
+definition{
+  name: featureF03Drafts,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F3: write, assemble and read immutable drafts of LexLean modules.", calls := (cons "LexLeanMcp::callDraftWrite" (cons "LexLeanMcp::callDraftAssemble" (cons "LexLeanMcp::callDraftRead" (nil String)))), acceptance := (cons "LexLeanMcp::ac09DraftPaths" (nil String))})
+}
+
+definition{
+  name: featureF04Check,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F4: check a draft against its profile.", calls := (cons "LexLeanMcp::callCheck" (nil String)), acceptance := (cons "LexLeanMcp::acToolEqualsCli" (cons "LexLeanMcp::ac07NegativeFixtures" (cons "LexLeanMcp::ac08AtomOutsideProfile" (nil String))))})
+}
+
+definition{
+  name: featureF05Snapshot,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F5: snapshot a draft as the canonical semantic snapshot.", calls := (cons "LexLeanMcp::callSnapshot" (nil String)), acceptance := (cons "LexLeanMcp::acToolEqualsCli" (nil String))})
+}
+
+definition{
+  name: featureF06Format,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F6: format a draft to its canonical source.", calls := (cons "LexLeanMcp::callFormat" (nil String)), acceptance := (cons "LexLeanMcp::acToolEqualsCli" (nil String))})
+}
+
+definition{
+  name: featureF07Build,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F7: build a draft into its canonical renderings.", calls := (cons "LexLeanMcp::callBuild" (nil String)), acceptance := (cons "LexLeanMcp::acToolEqualsCli" (cons "LexLeanMcp::ac04ExamplesBuild" (nil String)))})
+}
+
+definition{
+  name: featureF08Verify,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F8: verify a draft as a task and sign the attestation.", calls := (cons "LexLeanMcp::callVerify" (nil String)), acceptance := (cons "LexLeanMcp::ac05ExamplesVerify" (cons "LexLeanMcp::ac11KilledVerifier" (cons "LexLeanMcp::ac12CancelledTask" (cons "LexLeanMcp::ac13VerifyConcurrency" (nil String)))))})
+}
+
+definition{
+  name: featureF09Present,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F9: present the attested canonical rendering with its attestation.", calls := (cons "LexLeanMcp::callPresent" (nil String)), acceptance := (cons "LexLeanMcp::ac06PresentEmbedded" (nil String))})
+}
+
+definition{
+  name: featureF10Attestation,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F10: resolve an attestation by its ID or by a file digest.", calls := (cons "LexLeanMcp::callAttestation" (nil String)), acceptance := (cons "LexLeanMcp::acAttestationLookup" (nil String))})
+}
+
+definition{
+  name: featureF11Explain,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F11: explain a diagnostic of a check or a build.", calls := (cons "LexLeanMcp::callExplain" (nil String)), acceptance := (cons "LexLeanMcp::acToolEqualsCli" (nil String))})
+}
+
+definition{
+  name: featureF12Export,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F12: export a bundle a reader checks offline.", calls := (cons "LexLeanMcp::callExport" (nil String)), acceptance := (cons "LexLeanMcp::acBundleDigest" (nil String))})
+}
+
+definition{
+  name: featureF13Lifecycle,
+  parameters: [],
+  result: Foundation.Arch::Feature,
+  body: (record Foundation.Arch::Feature {statement := "F13: keep, back up and restore the records that cannot be recomputed.", calls := (cons "LexLeanMcp::callStoreGet" (cons "LexLeanMcp::callStorePut" (nil String))), acceptance := (cons "LexLeanMcp::ac14NewRevision" (cons "LexLeanMcp::ac15PreviousRevision" (cons "LexLeanMcp::ac16Restore" (cons "LexLeanMcp::ac17Rollback" (nil String)))))})
+}
+
+definition{
+  name: journeyJ1AuthorAndAttest,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "LexLeanMcp::stakeholderAuthorAgent", steps := (cons "LexLeanMcp::featureF01Profiles" (cons "LexLeanMcp::featureF02Vocabulary" (cons "LexLeanMcp::featureF03Drafts" (cons "LexLeanMcp::featureF04Check" (cons "LexLeanMcp::featureF08Verify" (cons "LexLeanMcp::featureF09Present" (nil String)))))))})
+}
+
+definition{
+  name: journeyJ2Repair,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "LexLeanMcp::stakeholderAuthorAgent", steps := (cons "LexLeanMcp::featureF04Check" (cons "LexLeanMcp::featureF11Explain" (cons "LexLeanMcp::featureF03Drafts" (cons "LexLeanMcp::featureF04Check" (cons "LexLeanMcp::featureF08Verify" (nil String))))))})
+}
+
+definition{
+  name: journeyJ3VocabularyGap,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "LexLeanMcp::stakeholderAuthorAgent", steps := (cons "LexLeanMcp::featureF04Check" (cons "LexLeanMcp::featureF02Vocabulary" (cons "LexLeanMcp::featureF03Drafts" (nil String))))})
+}
+
+definition{
+  name: journeyJ4ReaderCheck,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "LexLeanMcp::stakeholderReader", steps := (cons "LexLeanMcp::featureF10Attestation" (cons "LexLeanMcp::featureF12Export" (nil String)))})
+}
+
+definition{
+  name: journeyJ5ProvisionProfile,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "LexLeanMcp::stakeholderOperator", steps := (cons "LexLeanMcp::featureF01Profiles" (nil String))})
+}
+
+definition{
+  name: journeyJ6Upgrade,
+  parameters: [],
+  result: Foundation.Arch::Journey,
+  body: (record Foundation.Arch::Journey {actor := "LexLeanMcp::stakeholderOperator", steps := (cons "LexLeanMcp::featureF13Lifecycle" (cons "LexLeanMcp::featureF01Profiles" (nil String)))})
+}
+\end{semanticmodule}
+\end{lexlean}

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Feature and user-journey declarations: `Foundation.Arch::Feature` (statement, realizing calls, accepting acceptance rows) and `Foundation.Arch::Journey` (stakeholder actor, ordered feature steps), checked by `prismpm check` and `build` with registered diagnostics PP2014 to PP2018, and the normalized validator `Foundation.Holo.validateNormalizedFeatures` with empty-axiom soundness and completeness theorems (FT-12, FT-13, ST-19).
 - Shared Action command `publish-pages`: builds a browser-resident system once, runs `export-browser` on the built release, checks the exported closure against the release's system manifest, build manifest, release layers and stored blobs, and refuses a system manifest that does not name the `github-pages-browser` target (`PP2101`) before any upload; returns `pages-path` and `pages-closure` outputs for `actions/upload-pages-artifact` and `actions/deploy-pages`.
 - Starter workflow `action/starter/publish-pages.yml` for template instances: one job on one runner, `main` pushes and tags only, `timeout-minutes`, cancelling `concurrency`, commit-pinned Pages actions, no OCI sign, promote or push job.
 

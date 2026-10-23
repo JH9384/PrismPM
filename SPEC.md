@@ -177,6 +177,48 @@ independent of declaration order, and embeds no timestamp or host data. A model
 that declares no design primitive is unaffected. XMI interchange and layout
 are outside the covered subset.
 
+### 2.2 Features and user journeys
+
+FT-12, FT-13 and ST-19 admit the features and user journeys of a product as
+ISO/IEC/IEEE 42010 declarations. `Foundation.Arch` declares `Feature`, which
+carries a `statement`, the `calls` that realize it and the `acceptance` rows
+that accept it, and `Journey`, which carries an `actor` and its ordered `steps`.
+A model declares each as a definition whose result type is
+`Foundation.Arch::Feature` or `Foundation.Arch::Journey` and whose body is a
+record literal. Every cross-reference is the qualified `<module>::<declaration>`
+identifier of the declaration it names, the identifier the model document
+gives a stakeholder: a call or an acceptance row names a definition of the
+checked source graph, a journey's `actor` names a `Foundation.Arch::Stakeholder`
+of the model document, and a step names a declared `Feature`. Features and
+journeys are checked, not projected: they are not part of
+`prismpm/model-document`, so no model-document schema, standards profile or
+emitter digest depends on them.
+
+`check` and `build` run the check after the model document is projected. It is
+the executable form of `Foundation.Holo.validateNormalizedFeatures`, which
+takes the features and the stakeholders numbered in identifier order and every
+reference reduced to an index. The validator holds when each feature has at
+least one call and at least one acceptance row, when every journey actor is
+below the stakeholder count and when every journey step is below the feature
+count. Its component and whole-model soundness and completeness theorems hold
+with an empty axiom set, and five finite theorems prove the verdict on the
+accepted vector and on each refused one. Failures are reported in a fixed
+order, by feature identifier and then by journey identifier, one diagnostic at a
+time, and each failure has its own registered code:
+
+| Code | Failure |
+| --- | --- |
+| `PP2014` | a feature is realized by no call |
+| `PP2015` | a feature is accepted by no acceptance row |
+| `PP2016` | a journey step names a declaration that is not a declared feature |
+| `PP2017` | a journey's actor is not a declared stakeholder |
+| `PP2018` | a declaration is not a closed literal record, a statement has a control character other than line feed or exceeds 4096 characters, or a call or acceptance row names no definition |
+
+A model that declares no feature and no journey is unaffected. The check does
+not decide that a call is an interface call or that an acceptance row is
+executed: the name must resolve to a definition, and what the definition is
+remains the consuming model's statement.
+
 ## 3. Canonical Holo contract
 
 Holo/1 is the Prism application profile defined by the generated declarations
@@ -3569,6 +3611,8 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `FT-09` | `facets` | Facet lexicons produce deterministic canonical LaTeX and Lean lowerings. | §2 |
 | `FT-10` | `facets` | Lexicon package locks reproduce across multiple directory roots. | §2 |
 | `FT-11` | `facets` | prism.arch defines OPM (ISO/PAS 19450) and UML 2.5.1 design view entries as ISO/IEC/IEEE 42010 views. | §2 |
+| `FT-12` | `facets` | prism.arch defines Feature and Journey declarations: a feature states what a product does with the interface calls that realize it and the acceptance rows that accept it, and a journey is an ordered sequence of features performed by a stakeholder. | §2 |
+| `FT-13` | `facets` | The SDK checks features and journeys in prismpm check and refuses a feature without a call with PP2014, a feature without an acceptance row with PP2015, a journey step that names an undeclared feature with PP2016, a journey whose actor is not a declared stakeholder with PP2017, and a malformed declaration or a call or acceptance row that names no declaration with PP2018. | §2 |
 | `HO-01` | `holo` | A Holo/1 artifact is a strict binary Hologram archive with physical version 4 and the HOLO header. | §3 |
 | `HO-02` | `holo` | Legacy application and architecture model documents retain the closed prismpm/model-document/1 schema and model.prism.json name. | §3 |
 | `HO-03` | `holo` | Prism model documents use deterministic canonical JSON and an exact SHA-256 model identity. | §3 |
@@ -3616,6 +3660,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `ST-16` | `stdlib` | The internal bounded CBOR primitive profile preserves deterministic encoding, typed cursor limits and strict UTF-8 through generated native and bounded Wasm execution. | §5 |
 | `ST-17` | `stdlib` | The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox. | §5 |
 | `ST-18` | `stdlib` | Prism-stdlib defines OPM and UML design view primitives in Foundation.Arch. | §5 |
+| `ST-19` | `stdlib` | Prism-stdlib proves with an empty axiom set that the normalized feature and journey validator is sound and complete, and refuses a feature without a call, a feature without acceptance, a journey step outside the declared features and a journey actor outside the stakeholders. | §5 |
 | `AR-01` | `artifacts` | Build artifacts are published under content-addressed .prism/build/<id> paths. | §6 |
 | `AR-02` | `artifacts` | Every build directory contains a canonical manifest of file paths, sizes, and hashes. | §6 |
 | `AR-03` | `artifacts` | Artifact content IDs are derived from deterministic SHA-256 digests. | §6 |

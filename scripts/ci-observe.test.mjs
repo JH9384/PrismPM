@@ -421,7 +421,7 @@ test('one normative workflow owns complete main acceptance and diagnostic owners
       + 'bash scripts/vv.sh --with-sdk bash -euo pipefail -c "$(cat <<\'PRISMPM_VV\'\n'
       + 'node scripts/ci-observe.mjs run target/ci-diagnostics/vv -- just vv\n'
       + 'PRISMPM_VV\n)"\n');
-    const events = [{workflow_dispatch: null}, {pull_request: null, workflow_dispatch: null},
+    const events = [{workflow_dispatch: null}, {pull_request: null, merge_group: {branches: ['main']}, workflow_dispatch: null},
       {schedule: [{cron: '17 3 * * *'}], workflow_dispatch: null}];
     for (const [index, diagnostic] of diagnostics.entries()) assert.deepEqual(diagnostic.on, events[index]);
   };

@@ -354,6 +354,7 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "tests/browser-view/generated-wasm-mutations.test.mjs",
             "tests/browser-session-journal/wasm-artifact-checks.test.mjs",
             "scripts/release-phases.test.mjs",
+            "scripts/crate-readiness.test.mjs",
             "scripts/sdk-release-evidence.test.mjs",
             "scripts/release-gate-evidence.test.mjs",
             "scripts/refresh-osv.test.mjs",

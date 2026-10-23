@@ -392,6 +392,22 @@ pub fn run_at(root: &Path, id: &str) {
             verify_holo(root, id);
         }
         "HO-13" => holo_browser::verify(root),
+        // The JavaScript runtime reads the composed archive, the HOLOVIEW
+        // bundle and the exported closure without the Rust SDK; its complete
+        // owning suite is the acceptance, file by file.
+        "HO-20" => node_suite::verify_exact(
+            root,
+            id,
+            &[
+                ("sdk/npm/prism-code/test/archive.test.mjs", 11),
+                ("sdk/npm/prism-code/test/blake3.test.mjs", 3),
+                ("sdk/npm/prism-code/test/canonical.test.mjs", 2),
+                ("sdk/npm/prism-code/test/cli.test.mjs", 8),
+                ("sdk/npm/prism-code/test/closure.test.mjs", 4),
+                ("sdk/npm/prism-code/test/node.test.mjs", 2),
+            ],
+            "600000",
+        ),
         "HO-14" => {
             let evidence = prismpm::upstream_conformance::verify_blake3_corpus(
                 &root.join("standards/corpora/blake3-1.5.5"),

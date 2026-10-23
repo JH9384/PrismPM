@@ -98,16 +98,29 @@ pub(crate) fn help(application: &TextApplicationModel, cli: &TextCli) -> String 
         .collect::<Vec<_>>();
     rows.push((cli.usage_code, "usage", "invalid command line".to_owned()));
     rows.push((cli.io_code, "io", "input or output failure".to_owned()));
+    if let Some(code) = cli.limit_code {
+        rows.push((
+            code,
+            "limit",
+            format!("request over {} bytes", application.request_maximum),
+        ));
+    }
     rows.sort();
     let width = rows.iter().map(|row| row.1.len()).max().unwrap_or(0);
     for (code, name, meaning) in rows {
         let _ = writeln!(text, "    {code:>3}  {name:<width$}  {meaning}");
     }
-    let _ = writeln!(
-        text,
-        "    A request over {} bytes, a failed computation and an unclassified report\n    exit with the code of error.",
-        application.request_maximum
-    );
+    if cli.limit_code.is_some() {
+        text.push_str(
+            "    A failed computation and an unclassified report exit with the code of error.\n",
+        );
+    } else {
+        let _ = writeln!(
+            text,
+            "    A request over {} bytes, a failed computation and an unclassified report\n    exit with the code of error.",
+            application.request_maximum
+        );
+    }
     text
 }
 
@@ -154,6 +167,7 @@ pub(crate) fn surface(
     let _ = writeln!(text, "pub const USAGE_CODE: u8 = {};", cli.usage_code);
     let _ = writeln!(text, "pub const IO_CODE: u8 = {};", cli.io_code);
     let _ = writeln!(text, "pub const FAULT_CODE: u8 = {};", cli.fault_code());
+    let _ = writeln!(text, "pub const LIMIT_CODE: u8 = {};", cli.limit_code());
     text.push_str("pub const OUTCOMES: &[(&str, u8)] = &[\n");
     for outcome in &cli.outcomes {
         let _ = writeln!(

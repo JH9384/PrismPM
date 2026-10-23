@@ -5,32 +5,44 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{ByteOrder}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{LittleEndian}: \texttt{()}.\par
+\noindent Constructor \texttt{BigEndian}: \texttt{()}.\par
 \subsection*{\texttt{BufferError}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{OutOfBounds}: \texttt{()}.\par
+\noindent Constructor \texttt{LengthOverflow}: \texttt{()}.\par
+\noindent Constructor \texttt{NonCanonical}: \texttt{()}.\par
 \subsection*{\texttt{BoundedBuffer}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{bytes}: \texttt{ByteArray}.\par
+\noindent Field \texttt{maximum}: \texttt{UInt64}.\par
 \subsection*{\texttt{appendBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(left : ByteArray) (right : ByteArray)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.append (left) (right) : ByteArray)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{byteLength}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.length (value) : Nat)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{byteAt}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (offset : Nat)}.\par
 \noindent Type: \texttt{Option (UInt8)}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.index (value) (offset) : Option (UInt8))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{sliceBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (start : Nat) (count : Nat)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.slice (value) (start) (count) : Option (ByteArray))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{compareBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(left : ByteArray) (right : ByteArray)}.\par
 \noindent Type: \texttt{Ordering}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.compareBytes (left) (right) : Ordering)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par

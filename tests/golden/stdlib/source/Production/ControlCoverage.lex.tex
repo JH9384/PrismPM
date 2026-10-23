@@ -1,8 +1,352 @@
 \begin{lexlean}{Production.ControlCoverage}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"LocalRequired"},{"fields":[],"name":"InheritedRequired"}],"kind":"inductive","name":"ControlRequirementMode","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"nat"}},{"name":"control","type":{"kind":"nat"}},{"name":"mode","type":{"arguments":[],"kind":"named","member":{"name":"ControlRequirementMode"}}},{"name":"scope","type":{"kind":"string"}},{"name":"version","type":{"kind":"string"}},{"name":"subject","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"evidenceKind","type":{"kind":"string"}},{"name":"evidence","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"allowedProviders","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"residualControls","type":{"element":{"kind":"nat"},"kind":"list"}}],"kind":"structure","name":"ControlObligation","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"Local"},{"fields":[{"kind":"nat"},{"element":{"kind":"uint8"},"kind":"list"},{"element":{"kind":"uint8"},"kind":"list"}],"name":"Inherited"}],"kind":"inductive","name":"ControlOrigin","parameters":[],"type_parameters":[]},{"fields":[{"name":"obligation","type":{"kind":"nat"}},{"name":"control","type":{"kind":"nat"}},{"name":"policy","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"scope","type":{"kind":"string"}},{"name":"version","type":{"kind":"string"}},{"name":"subject","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"evidenceKind","type":{"kind":"string"}},{"name":"evidence","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"origin","type":{"arguments":[],"kind":"named","member":{"name":"ControlOrigin"}}}],"kind":"structure","name":"ControlContribution","parameters":[],"type_parameters":[]},{"fields":[{"name":"digest","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"obligations","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"kind":"structure","name":"ControlPolicy","parameters":[],"type_parameters":[]},{"fields":[{"name":"contributions","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlContribution"}},"kind":"list"}}],"kind":"structure","name":"ControlSubmission","parameters":[],"type_parameters":[]},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"or","left":{"kind":"beq","left":{"kind":"var","name":"value"},"right":{"kind":"var","name":"row"}},"right":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"rest"}],"function":{"name":"coverageNatMember"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageNatMember","parameters":[{"name":"value","type":{"kind":"nat"}},{"name":"rows","type":{"element":{"kind":"nat"},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"row"},{"kind":"var","name":"rest"}],"function":{"name":"coverageNatMember"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"}],"function":{"name":"coverageUniqueNats"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageUniqueNats","parameters":[{"name":"rows","type":{"element":{"kind":"nat"},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"row"},{"kind":"var","name":"allowed"}],"function":{"name":"coverageNatMember"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"allowed"}],"function":{"name":"coverageAllNatsMember"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageAllNatsMember","parameters":[{"name":"rows","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"allowed","type":{"element":{"kind":"nat"},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"or","left":{"kind":"beq","left":{"kind":"var","name":"value"},"right":{"field":"id","kind":"project","value":{"kind":"var","name":"row"}}},"right":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"rest"}],"function":{"name":"coverageObligationExists"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageObligationExists","parameters":[{"name":"value","type":{"kind":"nat"}},{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"or","left":{"kind":"beq","left":{"kind":"var","name":"value"},"right":{"field":"control","kind":"project","value":{"kind":"var","name":"row"}}},"right":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"rest"}],"function":{"name":"coverageControlExists"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageControlExists","parameters":[{"name":"value","type":{"kind":"nat"}},{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"and","left":{"kind":"not","value":{"kind":"beq","left":{"kind":"var","name":"consumer"},"right":{"field":"id","kind":"project","value":{"kind":"var","name":"row"}}}},"right":{"kind":"and","left":{"kind":"or","left":{"kind":"beq","left":{"kind":"var","name":"provider"},"right":{"field":"id","kind":"project","value":{"kind":"var","name":"row"}}},"right":{"arguments":[{"kind":"var","name":"provider"},{"kind":"var","name":"consumer"},{"kind":"var","name":"rest"}],"function":{"name":"coverageEarlier"},"kind":"call"}},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageEarlier","parameters":[{"name":"provider","type":{"kind":"nat"}},{"name":"consumer","type":{"kind":"nat"}},{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"row"},{"kind":"var","name":"all"}],"function":{"name":"coverageObligationExists"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"all"}],"function":{"name":"coverageProvidersDeclared"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageProvidersDeclared","parameters":[{"name":"rows","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"row"},{"kind":"var","name":"all"}],"function":{"name":"coverageControlExists"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"all"}],"function":{"name":"coverageResidualControlsDeclared"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageResidualControlsDeclared","parameters":[{"name":"rows","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["rightOctet","rightRest"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.nil"}},{"binders":["leftOctet","leftRest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["rightOctet","rightRest"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"leftOctet"},{"kind":"var","name":"rightOctet"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"arguments":[{"kind":"var","name":"leftRest"},{"kind":"var","name":"rightRest"}],"function":{"name":"coverageDigestEqual"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"kind":"definition","name":"coverageDigestEqual","parameters":[{"name":"left","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"right","type":{"element":{"kind":"uint8"},"kind":"list"}}],"recursive_argument":"left","result":{"kind":"bool"}},{"body":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}},"kind":"definition","name":"coverageDigest","parameters":[{"name":"value","type":{"element":{"kind":"uint8"},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"kind":"not","value":{"arguments":[{"kind":"var","name":"value"},{"kind":"string","value":""}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}},"kind":"definition","name":"coverageNonEmptyString","parameters":[{"name":"value","type":{"kind":"string"}}],"result":{"kind":"bool"}},{"body":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"id","kind":"project","value":{"kind":"var","name":"item"}}},"right":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"field":"control","kind":"project","value":{"kind":"var","name":"item"}}},"right":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"item"}}],"function":{"name":"coverageNonEmptyString"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"version","kind":"project","value":{"kind":"var","name":"item"}}],"function":{"name":"coverageNonEmptyString"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"evidenceKind","kind":"project","value":{"kind":"var","name":"item"}}],"function":{"name":"coverageNonEmptyString"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"subject","kind":"project","value":{"kind":"var","name":"item"}}],"function":{"name":"coverageDigest"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"evidence","kind":"project","value":{"kind":"var","name":"item"}}],"function":{"name":"coverageDigest"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"allowedProviders","kind":"project","value":{"kind":"var","name":"item"}}],"function":{"name":"coverageUniqueNats"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"residualControls","kind":"project","value":{"kind":"var","name":"item"}}],"function":{"name":"coverageUniqueNats"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"allowedProviders","kind":"project","value":{"kind":"var","name":"item"}},{"kind":"var","name":"all"}],"function":{"name":"coverageProvidersDeclared"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"residualControls","kind":"project","value":{"kind":"var","name":"item"}},{"kind":"var","name":"all"}],"function":{"name":"coverageResidualControlsDeclared"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}}}}}}},"kind":"definition","name":"coverageObligationWellFormed","parameters":[{"name":"item","type":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"kind":"and","left":{"kind":"beq","left":{"field":"control","kind":"project","value":{"kind":"var","name":"left"}},"right":{"field":"control","kind":"project","value":{"kind":"var","name":"right"}}},"right":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"left"}},{"field":"scope","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"version","kind":"project","value":{"kind":"var","name":"left"}},{"field":"version","kind":"project","value":{"kind":"var","name":"right"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"subject","kind":"project","value":{"kind":"var","name":"left"}},{"field":"subject","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"coverageDigestEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"kind":"definition","name":"coverageSameBinding","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}}}],"result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"item"},{"kind":"var","name":"row"}],"function":{"name":"coverageSameBinding"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"item"},{"kind":"var","name":"rest"}],"function":{"name":"coverageBindingAbsent"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageBindingAbsent","parameters":[{"name":"item","type":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}}},{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"id","kind":"project","value":{"kind":"var","name":"row"}},{"kind":"var","name":"rest"}],"function":{"name":"coverageObligationExists"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"row"},{"kind":"var","name":"rest"}],"function":{"name":"coverageBindingAbsent"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"}],"function":{"name":"coverageUniqueObligations"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageUniqueObligations","parameters":[{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"or","left":{"kind":"beq","left":{"kind":"var","name":"value"},"right":{"field":"obligation","kind":"project","value":{"kind":"var","name":"row"}}},"right":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"rest"}],"function":{"name":"coverageContributionExists"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageContributionExists","parameters":[{"name":"value","type":{"kind":"nat"}},{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlContribution"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"obligation","kind":"project","value":{"kind":"var","name":"row"}},{"kind":"var","name":"all"}],"function":{"name":"coverageObligationExists"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"obligation","kind":"project","value":{"kind":"var","name":"row"}},{"kind":"var","name":"rest"}],"function":{"name":"coverageContributionExists"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"all"}],"function":{"name":"coverageSubmissionClosed"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageSubmissionClosed","parameters":[{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlContribution"}},"kind":"list"}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"or","left":{"kind":"and","left":{"kind":"beq","left":{"kind":"var","name":"control"},"right":{"field":"control","kind":"project","value":{"kind":"var","name":"row"}}},"right":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"consumer"}},{"field":"scope","kind":"project","value":{"kind":"var","name":"row"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"version","kind":"project","value":{"kind":"var","name":"consumer"}},{"field":"version","kind":"project","value":{"kind":"var","name":"row"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"subject","kind":"project","value":{"kind":"var","name":"consumer"}},{"field":"subject","kind":"project","value":{"kind":"var","name":"row"}}],"function":{"name":"coverageDigestEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"id","kind":"project","value":{"kind":"var","name":"row"}},{"field":"id","kind":"project","value":{"kind":"var","name":"consumer"}},{"kind":"var","name":"all"}],"function":{"name":"coverageEarlier"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}},"right":{"arguments":[{"kind":"var","name":"control"},{"kind":"var","name":"consumer"},{"kind":"var","name":"rest"},{"kind":"var","name":"all"}],"function":{"name":"coverageResidualPresent"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageResidualPresent","parameters":[{"name":"control","type":{"kind":"nat"}},{"name":"consumer","type":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}}},{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"row"},{"kind":"var","name":"consumer"},{"kind":"var","name":"all"},{"kind":"var","name":"all"}],"function":{"name":"coverageResidualPresent"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"consumer"},{"kind":"var","name":"all"}],"function":{"name":"coverageResidualsPresent"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageResidualsPresent","parameters":[{"name":"rows","type":{"element":{"kind":"nat"},"kind":"list"}},{"name":"consumer","type":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"or","left":{"kind":"and","left":{"kind":"beq","left":{"kind":"var","name":"provider"},"right":{"field":"id","kind":"project","value":{"kind":"var","name":"row"}}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"control","kind":"project","value":{"kind":"var","name":"consumer"}},"right":{"field":"control","kind":"project","value":{"kind":"var","name":"row"}}},"right":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"consumer"}},{"field":"scope","kind":"project","value":{"kind":"var","name":"row"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"version","kind":"project","value":{"kind":"var","name":"consumer"}},{"field":"version","kind":"project","value":{"kind":"var","name":"row"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"evidenceKind","kind":"project","value":{"kind":"var","name":"consumer"}},{"field":"evidenceKind","kind":"project","value":{"kind":"var","name":"row"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"providerSubject"},{"field":"subject","kind":"project","value":{"kind":"var","name":"row"}}],"function":{"name":"coverageDigestEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"providerEvidence"},{"field":"evidence","kind":"project","value":{"kind":"var","name":"row"}}],"function":{"name":"coverageDigestEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"provider"},{"field":"id","kind":"project","value":{"kind":"var","name":"consumer"}},{"kind":"var","name":"all"}],"function":{"name":"coverageEarlier"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"residualControls","kind":"project","value":{"kind":"var","name":"row"}},{"field":"residualControls","kind":"project","value":{"kind":"var","name":"consumer"}}],"function":{"name":"coverageAllNatsMember"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"residualControls","kind":"project","value":{"kind":"var","name":"row"}},{"kind":"var","name":"consumer"},{"kind":"var","name":"all"}],"function":{"name":"coverageResidualsPresent"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}}}}}},"right":{"arguments":[{"kind":"var","name":"provider"},{"kind":"var","name":"providerSubject"},{"kind":"var","name":"providerEvidence"},{"kind":"var","name":"consumer"},{"kind":"var","name":"rest"},{"kind":"var","name":"all"}],"function":{"name":"coverageProviderPresent"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageProviderPresent","parameters":[{"name":"provider","type":{"kind":"nat"}},{"name":"providerSubject","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"providerEvidence","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"consumer","type":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}}},{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"ControlRequirementMode.LocalRequired"}},{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"ControlRequirementMode.InheritedRequired"}}],"kind":"match","scrutinee":{"kind":"var","name":"mode"}},"kind":"definition","name":"coverageLocalRequired","parameters":[{"name":"mode","type":{"arguments":[],"kind":"named","member":{"name":"ControlRequirementMode"}}}],"result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"arguments":[{"field":"mode","kind":"project","value":{"kind":"var","name":"consumer"}}],"function":{"name":"coverageLocalRequired"},"kind":"call"},"constructor":{"name":"ControlOrigin.Local"}},{"binders":["provider","providerSubject","providerEvidence"],"body":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"mode","kind":"project","value":{"kind":"var","name":"consumer"}}],"function":{"name":"coverageLocalRequired"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"provider"},{"field":"allowedProviders","kind":"project","value":{"kind":"var","name":"consumer"}}],"function":{"name":"coverageNatMember"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"provider"},{"kind":"var","name":"providerSubject"},{"kind":"var","name":"providerEvidence"},{"kind":"var","name":"consumer"},{"kind":"var","name":"all"},{"kind":"var","name":"all"}],"function":{"name":"coverageProviderPresent"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"ControlOrigin.Inherited"}}],"kind":"match","scrutinee":{"kind":"var","name":"origin"}},"kind":"definition","name":"coverageOriginValid","parameters":[{"name":"origin","type":{"arguments":[],"kind":"named","member":{"name":"ControlOrigin"}}},{"name":"consumer","type":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"kind":"and","left":{"kind":"beq","left":{"field":"id","kind":"project","value":{"kind":"var","name":"item"}},"right":{"field":"obligation","kind":"project","value":{"kind":"var","name":"contribution"}}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"control","kind":"project","value":{"kind":"var","name":"item"}},"right":{"field":"control","kind":"project","value":{"kind":"var","name":"contribution"}}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"policy"},{"field":"policy","kind":"project","value":{"kind":"var","name":"contribution"}}],"function":{"name":"coverageDigestEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"item"}},{"field":"scope","kind":"project","value":{"kind":"var","name":"contribution"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"version","kind":"project","value":{"kind":"var","name":"item"}},{"field":"version","kind":"project","value":{"kind":"var","name":"contribution"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"subject","kind":"project","value":{"kind":"var","name":"item"}},{"field":"subject","kind":"project","value":{"kind":"var","name":"contribution"}}],"function":{"name":"coverageDigestEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"evidenceKind","kind":"project","value":{"kind":"var","name":"item"}},{"field":"evidenceKind","kind":"project","value":{"kind":"var","name":"contribution"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"right":{"kind":"and","left":{"arguments":[{"field":"evidence","kind":"project","value":{"kind":"var","name":"item"}},{"field":"evidence","kind":"project","value":{"kind":"var","name":"contribution"}}],"function":{"name":"coverageDigestEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"origin","kind":"project","value":{"kind":"var","name":"contribution"}},{"kind":"var","name":"item"},{"kind":"var","name":"all"}],"function":{"name":"coverageOriginValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}}}}}},"kind":"definition","name":"coverageContributionMatches","parameters":[{"name":"item","type":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}}},{"name":"contribution","type":{"arguments":[],"kind":"named","member":{"name":"ControlContribution"}}},{"name":"policy","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"or","left":{"arguments":[{"kind":"var","name":"item"},{"kind":"var","name":"row"},{"kind":"var","name":"policy"},{"kind":"var","name":"all"}],"function":{"name":"coverageContributionMatches"},"kind":"call"},"right":{"arguments":[{"kind":"var","name":"item"},{"kind":"var","name":"rest"},{"kind":"var","name":"policy"},{"kind":"var","name":"all"}],"function":{"name":"coverageContributionPresent"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageContributionPresent","parameters":[{"name":"item","type":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}}},{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlContribution"}},"kind":"list"}},{"name":"policy","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"and","left":{"arguments":[{"kind":"var","name":"row"},{"kind":"var","name":"all"}],"function":{"name":"coverageObligationWellFormed"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"row"},{"kind":"var","name":"contributions"},{"kind":"var","name":"policy"},{"kind":"var","name":"all"}],"function":{"name":"coverageContributionPresent"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"contributions"},{"kind":"var","name":"policy"},{"kind":"var","name":"all"}],"function":{"name":"coverageAllObligations"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageAllObligations","parameters":[{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}},{"name":"contributions","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlContribution"}},"kind":"list"}},{"name":"policy","type":{"element":{"kind":"uint8"},"kind":"list"}},{"name":"all","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"recursive_argument":"rows","result":{"kind":"bool"}},{"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["row","rest"],"body":{"kind":"bool","value":true},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"rows"}},"kind":"definition","name":"coverageNonEmpty","parameters":[{"name":"rows","type":{"element":{"arguments":[],"kind":"named","member":{"name":"ControlObligation"}},"kind":"list"}}],"result":{"kind":"bool"}},{"body":{"kind":"and","left":{"arguments":[{"field":"digest","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"coverageDigest"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"obligations","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"coverageNonEmpty"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"obligations","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"coverageUniqueObligations"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"contributions","kind":"project","value":{"kind":"var","name":"submission"}},{"field":"obligations","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"coverageSubmissionClosed"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"obligations","kind":"project","value":{"kind":"var","name":"policy"}},{"field":"contributions","kind":"project","value":{"kind":"var","name":"submission"}},{"field":"digest","kind":"project","value":{"kind":"var","name":"policy"}},{"field":"obligations","kind":"project","value":{"kind":"var","name":"policy"}}],"function":{"name":"coverageAllObligations"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}},"kind":"definition","name":"validateControlCoverage","parameters":[{"name":"policy","type":{"arguments":[],"kind":"named","member":{"name":"ControlPolicy"}}},{"name":"submission","type":{"arguments":[],"kind":"named","member":{"name":"ControlSubmission"}}}],"result":{"kind":"bool"}}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: ControlRequirementMode,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: LocalRequired, fields: []}, {name: InheritedRequired, fields: []}]
+}
+
+structure{
+  name: ControlObligation,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: Nat},
+    {name: control, type: Nat},
+    {name: mode, type: ControlRequirementMode},
+    {name: scope, type: String},
+    {name: version, type: String},
+    {name: subject, type: (List UInt8)},
+    {name: evidenceKind, type: String},
+    {name: evidence, type: (List UInt8)},
+    {name: allowedProviders, type: (List Nat)},
+    {name: residualControls, type: (List Nat)}
+  ]
+}
+
+inductive{
+  name: ControlOrigin,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Local, fields: []},
+    {name: Inherited, fields: [Nat, (List UInt8), (List UInt8)]}
+  ]
+}
+
+structure{
+  name: ControlContribution,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: obligation, type: Nat},
+    {name: control, type: Nat},
+    {name: policy, type: (List UInt8)},
+    {name: scope, type: String},
+    {name: version, type: String},
+    {name: subject, type: (List UInt8)},
+    {name: evidenceKind, type: String},
+    {name: evidence, type: (List UInt8)},
+    {name: origin, type: ControlOrigin}
+  ]
+}
+
+structure{
+  name: ControlPolicy,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: digest, type: (List UInt8)}, {name: obligations, type: (List ControlObligation)}]
+}
+
+structure{
+  name: ControlSubmission,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: contributions, type: (List ControlContribution)}]
+}
+
+definition{
+  name: coverageNatMember,
+  parameters: [value : Nat, rows : (List Nat)],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons row rest => ((value =? row) || (coverageNatMember value rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageUniqueNats,
+  parameters: [rows : (List Nat)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons row rest => ((not (coverageNatMember row rest)) && ((coverageUniqueNats rest) && true))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageAllNatsMember,
+  parameters: [rows : (List Nat), allowed : (List Nat)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons row rest => ((coverageNatMember row allowed) && ((coverageAllNatsMember rest allowed) && true))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageObligationExists,
+  parameters: [value : Nat, rows : (List ControlObligation)],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons row rest => ((value =? (project row id)) || (coverageObligationExists value rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageControlExists,
+  parameters: [value : Nat, rows : (List ControlObligation)],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons row rest => ((value =? (project row control)) || (coverageControlExists value rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageEarlier,
+  parameters: [provider : Nat, consumer : Nat, rows : (List ControlObligation)],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons row rest => ((not (consumer =? (project row id))) && (((provider =? (project row id)) || (coverageEarlier provider consumer rest)) && true))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageProvidersDeclared,
+  parameters: [rows : (List Nat), all : (List ControlObligation)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons row rest => ((coverageObligationExists row all) && ((coverageProvidersDeclared rest all) && true))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageResidualControlsDeclared,
+  parameters: [rows : (List Nat), all : (List ControlObligation)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons row rest => ((coverageControlExists row all) && ((coverageResidualControlsDeclared rest all) && true))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageDigestEqual,
+  parameters: [left : (List UInt8), right : (List UInt8)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons rightOctet rightRest => false)
+    | List.cons leftOctet leftRest => (match right
+      | List.nil => false
+      | List.cons rightOctet rightRest => ((prim equal leftOctet rightOctet : Bool) && (coverageDigestEqual leftRest rightRest)))),
+  recursive_argument: left
+}
+
+definition{
+  name: coverageDigest,
+  parameters: [value : (List UInt8)],
+  result: Bool,
+  body: ((prim length value : Nat) =? 32)
+}
+
+definition{
+  name: coverageNonEmptyString,
+  parameters: [value : String],
+  result: Bool,
+  body: (not (prim equal value "" : Bool))
+}
+
+definition{
+  name: coverageObligationWellFormed,
+  parameters: [item : ControlObligation, all : (List ControlObligation)],
+  result: Bool,
+  body: ((0 <? (project item id)) && ((0 <? (project item control)) && ((coverageNonEmptyString (project item scope)) && ((coverageNonEmptyString (project item version)) && ((coverageNonEmptyString (project item evidenceKind)) && ((coverageDigest (project item subject)) && ((coverageDigest (project item evidence)) && ((coverageUniqueNats (project item allowedProviders)) && ((coverageUniqueNats (project item residualControls)) && ((coverageProvidersDeclared (project item allowedProviders) all) && ((coverageResidualControlsDeclared (project item residualControls) all) && true)))))))))))
+}
+
+definition{
+  name: coverageSameBinding,
+  parameters: [left : ControlObligation, right : ControlObligation],
+  result: Bool,
+  body: (((project left control) =? (project right control)) && ((prim equal (project left scope) (project right scope) : Bool) && ((prim equal (project left version) (project right version) : Bool) && ((coverageDigestEqual (project left subject) (project right subject)) && true))))
+}
+
+definition{
+  name: coverageBindingAbsent,
+  parameters: [item : ControlObligation, rows : (List ControlObligation)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons row rest => ((not (coverageSameBinding item row)) && ((coverageBindingAbsent item rest) && true))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageUniqueObligations,
+  parameters: [rows : (List ControlObligation)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons row rest => ((not (coverageObligationExists (project row id) rest)) && ((coverageBindingAbsent row rest) && ((coverageUniqueObligations rest) && true)))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageContributionExists,
+  parameters: [value : Nat, rows : (List ControlContribution)],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons row rest => ((value =? (project row obligation)) || (coverageContributionExists value rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageSubmissionClosed,
+  parameters: [rows : (List ControlContribution), all : (List ControlObligation)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons row rest => ((coverageObligationExists (project row obligation) all) && ((not (coverageContributionExists (project row obligation) rest)) && ((coverageSubmissionClosed rest all) && true)))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageResidualPresent,
+  parameters: [
+    control : Nat,
+    consumer : ControlObligation,
+    rows : (List ControlObligation),
+    all : (List ControlObligation)
+  ],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons row rest => (((control =? (project row control)) && ((prim equal (project consumer scope) (project row scope) : Bool) && ((prim equal (project consumer version) (project row version) : Bool) && ((coverageDigestEqual (project consumer subject) (project row subject)) && ((coverageEarlier (project row id) (project consumer id) all) && true))))) || (coverageResidualPresent control consumer rest all))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageResidualsPresent,
+  parameters: [rows : (List Nat), consumer : ControlObligation, all : (List ControlObligation)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons row rest => ((coverageResidualPresent row consumer all all) && ((coverageResidualsPresent rest consumer all) && true))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageProviderPresent,
+  parameters: [
+    provider : Nat,
+    providerSubject : (List UInt8),
+    providerEvidence : (List UInt8),
+    consumer : ControlObligation,
+    rows : (List ControlObligation),
+    all : (List ControlObligation)
+  ],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons row rest => (((provider =? (project row id)) && (((project consumer control) =? (project row control)) && ((prim equal (project consumer scope) (project row scope) : Bool) && ((prim equal (project consumer version) (project row version) : Bool) && ((prim equal (project consumer evidenceKind) (project row evidenceKind) : Bool) && ((coverageDigestEqual providerSubject (project row subject)) && ((coverageDigestEqual providerEvidence (project row evidence)) && ((coverageEarlier provider (project consumer id) all) && ((coverageAllNatsMember (project row residualControls) (project consumer residualControls)) && ((coverageResidualsPresent (project row residualControls) consumer all) && true)))))))))) || (coverageProviderPresent provider providerSubject providerEvidence consumer rest all))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageLocalRequired,
+  parameters: [mode : ControlRequirementMode],
+  result: Bool,
+  body: (match mode
+    | ControlRequirementMode.LocalRequired => true
+    | ControlRequirementMode.InheritedRequired => false)
+}
+
+definition{
+  name: coverageOriginValid,
+  parameters: [
+    origin : ControlOrigin,
+    consumer : ControlObligation,
+    all : (List ControlObligation)
+  ],
+  result: Bool,
+  body: (match origin
+    | ControlOrigin.Local => (coverageLocalRequired (project consumer mode))
+    | ControlOrigin.Inherited provider providerSubject providerEvidence => ((not (coverageLocalRequired (project consumer mode))) && ((coverageNatMember provider (project consumer allowedProviders)) && ((coverageProviderPresent provider providerSubject providerEvidence consumer all all) && true))))
+}
+
+definition{
+  name: coverageContributionMatches,
+  parameters: [
+    item : ControlObligation,
+    contribution : ControlContribution,
+    policy : (List UInt8),
+    all : (List ControlObligation)
+  ],
+  result: Bool,
+  body: (((project item id) =? (project contribution obligation)) && (((project item control) =? (project contribution control)) && ((coverageDigestEqual policy (project contribution policy)) && ((prim equal (project item scope) (project contribution scope) : Bool) && ((prim equal (project item version) (project contribution version) : Bool) && ((coverageDigestEqual (project item subject) (project contribution subject)) && ((prim equal (project item evidenceKind) (project contribution evidenceKind) : Bool) && ((coverageDigestEqual (project item evidence) (project contribution evidence)) && ((coverageOriginValid (project contribution origin) item all) && true)))))))))
+}
+
+definition{
+  name: coverageContributionPresent,
+  parameters: [
+    item : ControlObligation,
+    rows : (List ControlContribution),
+    policy : (List UInt8),
+    all : (List ControlObligation)
+  ],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons row rest => ((coverageContributionMatches item row policy all) || (coverageContributionPresent item rest policy all))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageAllObligations,
+  parameters: [
+    rows : (List ControlObligation),
+    contributions : (List ControlContribution),
+    policy : (List UInt8),
+    all : (List ControlObligation)
+  ],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons row rest => ((coverageObligationWellFormed row all) && ((coverageContributionPresent row contributions policy all) && ((coverageAllObligations rest contributions policy all) && true)))),
+  recursive_argument: rows
+}
+
+definition{
+  name: coverageNonEmpty,
+  parameters: [rows : (List ControlObligation)],
+  result: Bool,
+  body: (match rows | List.nil => false | List.cons row rest => true)
+}
+
+definition{
+  name: validateControlCoverage,
+  parameters: [policy : ControlPolicy, submission : ControlSubmission],
+  result: Bool,
+  body: ((coverageDigest (project policy digest)) && ((coverageNonEmpty (project policy obligations)) && ((coverageUniqueObligations (project policy obligations)) && ((coverageSubmissionClosed (project submission contributions) (project policy obligations)) && ((coverageAllObligations (project policy obligations) (project submission contributions) (project policy digest) (project policy obligations)) && true)))))
+}
 \end{semanticmodule}
 \end{lexlean}

@@ -1,67 +1,148 @@
 \begin{lexlean}{Production.Runtime}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"Compose"},{"fields":[],"name":"Kubernetes"},{"fields":[],"name":"GithubPages"}],"kind":"inductive","name":"TargetKind","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"string"}},
-{"name":"os","type":{"kind":"string"}},
-{"name":"architectures","type":{"element":{"kind":"string"},"kind":"list"}},
-{"name":"runtime","type":{"kind":"string"}},
-{"name":"runtimeVersion","type":{"kind":"string"}},
-{"name":"capabilities","type":{"element":{"kind":"string"},"kind":"list"}}],"kind":"structure","name":"PlatformRequirement","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"string"}},
-{"name":"component","type":{"kind":"string"}},
-{"name":"trigger","type":{"kind":"string"}},
-{"name":"minimum","type":{"kind":"uint32"}},
-{"name":"maximum","type":{"kind":"uint32"}},
-{"name":"step","type":{"kind":"uint32"}},
-{"name":"cooldownSeconds","type":{"kind":"uint64"}}],"kind":"structure","name":"ScalingPolicy","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"string"}},
-{"name":"accessModes","type":{"element":{"kind":"string"},"kind":"list"}},
-{"name":"bindingMode","type":{"kind":"string"}},
-{"name":"provisioning","type":{"kind":"string"}},
-{"name":"retention","type":{"kind":"string"}},
-{"name":"capabilities","type":{"element":{"kind":"string"},"kind":"list"}},
-{"name":"platformRequirements","type":{"element":{"kind":"string"},"kind":"list"}}],"kind":"structure","name":"StorageClass","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"string"}},
-{"name":"kind","type":{"kind":"string"}},
-{"name":"value","type":{"kind":"string"}},
-{"name":"owners","type":{"element":{"kind":"string"},"kind":"list"}},
-{"name":"dependsOn","type":{"element":{"kind":"string"},"kind":"list"}},
-{"name":"network","type":{"kind":"option","value":{"kind":"string"}}},
-{"name":"port","type":{"kind":"option","value":{"kind":"uint16"}}},
-{"name":"protocol","type":{"kind":"option","value":{"kind":"string"}}},
-{"name":"publiclyAccessible","type":{"kind":"bool"}},
-{"name":"mountPath","type":{"kind":"option","value":{"kind":"string"}}},
-{"name":"storageBytes","type":{"kind":"option","value":{"kind":"uint64"}}},
-{"name":"storageClass","type":{"kind":"option","value":{"kind":"string"}}},
-{"name":"capabilities","type":{"element":{"kind":"string"},"kind":"list"}},
-{"name":"isolation","type":{"kind":"string"}},
-{"name":"placement","type":{"kind":"option","value":{"kind":"string"}}},
-{"name":"scaleMin","type":{"kind":"uint32"}},
-{"name":"scaleMax","type":{"kind":"uint32"}},
-{"name":"platformRequirements","type":{"element":{"kind":"string"},"kind":"list"}}],"kind":"structure","name":"Topology","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"string"}},
-{"name":"owner","type":{"kind":"string"}},
-{"name":"schemaArtifact","type":{"kind":"string"}},
-{"name":"retention","type":{"kind":"string"}},
-{"name":"compatibilityWindow","type":{"kind":"string"}},
-{"name":"rpoSeconds","type":{"kind":"uint64"}},
-{"name":"rtoSeconds","type":{"kind":"uint64"}},
-{"name":"backup","type":{"kind":"string"}},
-{"name":"migrationOrder","type":{"element":{"kind":"string"},"kind":"list"}}],"kind":"structure","name":"Persistence","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"string"}},
-{"name":"kind","type":{"kind":"string"}},
-{"name":"value","type":{"kind":"string"}},
-{"name":"dependsOn","type":{"element":{"kind":"string"},"kind":"list"}}],"kind":"structure","name":"Migration","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"string"}},
-{"name":"kind","type":{"kind":"string"}},
-{"name":"value","type":{"kind":"string"}},
-{"name":"dependsOn","type":{"element":{"kind":"string"},"kind":"list"}}],"kind":"structure","name":"BackupRecovery","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"string"}},
-{"name":"kind","type":{"kind":"string"}},
-{"name":"apiVersion","type":{"kind":"string"}},
-{"name":"adapterDigest","type":{"kind":"string"}},
-{"name":"minimumReleaseStatus","type":{"kind":"string"}},
-{"name":"capabilities","type":{"element":{"kind":"string"},"kind":"list"}},
-{"name":"credentials","type":{"kind":"option","value":{"kind":"string"}}},
-{"name":"platformRequirements","type":{"element":{"kind":"string"},"kind":"list"}},
-{"name":"storageClass","type":{"kind":"option","value":{"kind":"string"}}},
-{"name":"storageProfile","type":{"kind":"option","value":{"kind":"string"}}},
-{"name":"ingressClassName","type":{"kind":"option","value":{"kind":"string"}}},
-{"name":"ingressControllerArtifact","type":{"kind":"option","value":{"kind":"string"}}}],"kind":"structure","name":"TargetBinding","parameters":[],"type_parameters":[]}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: TargetKind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Compose, fields: []},
+    {name: Kubernetes, fields: []},
+    {name: GithubPages, fields: []}
+  ]
+}
+
+structure{
+  name: PlatformRequirement,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: os, type: String},
+    {name: architectures, type: (List String)},
+    {name: runtime, type: String},
+    {name: runtimeVersion, type: String},
+    {name: capabilities, type: (List String)}
+  ]
+}
+
+structure{
+  name: ScalingPolicy,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: component, type: String},
+    {name: trigger, type: String},
+    {name: minimum, type: UInt32},
+    {name: maximum, type: UInt32},
+    {name: step, type: UInt32},
+    {name: cooldownSeconds, type: UInt64}
+  ]
+}
+
+structure{
+  name: StorageClass,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: accessModes, type: (List String)},
+    {name: bindingMode, type: String},
+    {name: provisioning, type: String},
+    {name: retention, type: String},
+    {name: capabilities, type: (List String)},
+    {name: platformRequirements, type: (List String)}
+  ]
+}
+
+structure{
+  name: Topology,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: kind, type: String},
+    {name: value, type: String},
+    {name: owners, type: (List String)},
+    {name: dependsOn, type: (List String)},
+    {name: network, type: (Option String)},
+    {name: port, type: (Option UInt16)},
+    {name: protocol, type: (Option String)},
+    {name: publiclyAccessible, type: Bool},
+    {name: mountPath, type: (Option String)},
+    {name: storageBytes, type: (Option UInt64)},
+    {name: storageClass, type: (Option String)},
+    {name: capabilities, type: (List String)},
+    {name: isolation, type: String},
+    {name: placement, type: (Option String)},
+    {name: scaleMin, type: UInt32},
+    {name: scaleMax, type: UInt32},
+    {name: platformRequirements, type: (List String)}
+  ]
+}
+
+structure{
+  name: Persistence,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: owner, type: String},
+    {name: schemaArtifact, type: String},
+    {name: retention, type: String},
+    {name: compatibilityWindow, type: String},
+    {name: rpoSeconds, type: UInt64},
+    {name: rtoSeconds, type: UInt64},
+    {name: backup, type: String},
+    {name: migrationOrder, type: (List String)}
+  ]
+}
+
+structure{
+  name: Migration,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: kind, type: String},
+    {name: value, type: String},
+    {name: dependsOn, type: (List String)}
+  ]
+}
+
+structure{
+  name: BackupRecovery,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: kind, type: String},
+    {name: value, type: String},
+    {name: dependsOn, type: (List String)}
+  ]
+}
+
+structure{
+  name: TargetBinding,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: kind, type: String},
+    {name: apiVersion, type: String},
+    {name: adapterDigest, type: String},
+    {name: minimumReleaseStatus, type: String},
+    {name: capabilities, type: (List String)},
+    {name: credentials, type: (Option String)},
+    {name: platformRequirements, type: (List String)},
+    {name: storageClass, type: (Option String)},
+    {name: storageProfile, type: (Option String)},
+    {name: ingressClassName, type: (Option String)},
+    {name: ingressControllerArtifact, type: (Option String)}
+  ]
+}
 \end{semanticmodule}
 \end{lexlean}

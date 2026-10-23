@@ -1,9 +1,179 @@
 \begin{lexlean}{Foundation.Sec.V1.Pkce}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Codec.Cbor.V1.Primitive}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"BadLength"},{"fields":[],"name":"InvalidCharacter"},{"fields":[],"name":"InvalidOperation"}],"kind":"inductive","name":"PkceError","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"hex":"","kind":"bytes"},"constructor":{"name":"Option.none"}},{"binders":["part"],"body":{"kind":"var","name":"part"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"offset"},{"kind":"var","name":"count"}],"kind":"primitive","operation":"slice","result":{"kind":"option","value":{"kind":"bytes"}}}},"kind":"definition","name":"pkceSlice","parameters":[{"name":"value","type":{"kind":"bytes"}},{"name":"offset","type":{"kind":"nat"}},{"name":"count","type":{"kind":"nat"}}],"result":{"kind":"bytes"}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Option.none"}},{"binders":["byte"],"body":{"arguments":[{"kind":"var","name":"byte"}],"function":{"module":"Foundation.Codec.Cbor.V1.Primitive","name":"cborOctetNat"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"offset"}],"kind":"primitive","operation":"index","result":{"kind":"option","value":{"kind":"uint8"}}}},"kind":"definition","name":"pkceByte","parameters":[{"name":"value","type":{"kind":"bytes"}},{"name":"offset","type":{"kind":"nat"}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"arguments":[{"hex":"4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a303132333435363738392d5f","kind":"bytes"},{"kind":"var","name":"value"},{"kind":"nat","value":"1"}],"function":{"name":"pkceSlice"},"kind":"call"},"kind":"definition","name":"pkceDigit","parameters":[{"name":"value","type":{"kind":"nat"}}],"result":{"kind":"bytes"}},{"axioms":[],"body":{"arguments":[{"arguments":[{"arguments":[{"arguments":[{"kind":"var","name":"first"},{"kind":"nat","value":"4"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}}],"function":{"name":"pkceDigit"},"kind":"call"},{"arguments":[{"kind":"add","left":{"arguments":[{"arguments":[{"kind":"var","name":"first"},{"kind":"nat","value":"4"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"remainder","result":{"kind":"nat"}},{"kind":"nat","value":"16"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}},"right":{"arguments":[{"kind":"var","name":"second"},{"kind":"nat","value":"16"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}}}],"function":{"name":"pkceDigit"},"kind":"call"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},{"arguments":[{"arguments":[{"kind":"add","left":{"arguments":[{"arguments":[{"kind":"var","name":"second"},{"kind":"nat","value":"16"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"remainder","result":{"kind":"nat"}},{"kind":"nat","value":"4"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}},"right":{"arguments":[{"kind":"var","name":"third"},{"kind":"nat","value":"64"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}}}],"function":{"name":"pkceDigit"},"kind":"call"},{"arguments":[{"arguments":[{"kind":"var","name":"third"},{"kind":"nat","value":"64"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"remainder","result":{"kind":"nat"}}],"function":{"name":"pkceDigit"},"kind":"call"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},"kind":"definition","name":"pkceGroup","parameters":[{"name":"first","type":{"kind":"nat"}},{"name":"second","type":{"kind":"nat"}},{"name":"third","type":{"kind":"nat"}}],"result":{"kind":"bytes"}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"hex":"","kind":"bytes"},"constructor":{"name":"Nat.zero"}},{"binders":["remaining"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"30"}],"function":{"name":"pkceByte"},"kind":"call"},{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"31"}],"function":{"name":"pkceByte"},"kind":"call"},{"kind":"nat","value":"0"}],"function":{"name":"pkceGroup"},"kind":"call"},{"kind":"nat","value":"0"},{"kind":"nat","value":"3"}],"function":{"name":"pkceSlice"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"offset"}],"function":{"name":"pkceByte"},"kind":"call"},{"arguments":[{"kind":"var","name":"value"},{"kind":"add","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"1"}}],"function":{"name":"pkceByte"},"kind":"call"},{"arguments":[{"kind":"var","name":"value"},{"kind":"add","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"2"}}],"function":{"name":"pkceByte"},"kind":"call"}],"function":{"name":"pkceGroup"},"kind":"call"},{"arguments":[{"kind":"var","name":"remaining"},{"kind":"var","name":"value"},{"kind":"add","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"3"}}],"function":{"name":"pkceEncodeBlocks"},"kind":"call"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"30"}}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"pkceEncodeBlocks","parameters":[{"name":"fuel","type":{"kind":"nat"}},{"name":"value","type":{"kind":"bytes"}},{"name":"offset","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bytes"}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"PkceError.BadLength"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"PkceError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[{"kind":"nat","value":"11"},{"kind":"var","name":"value"},{"kind":"nat","value":"0"}],"function":{"name":"pkceEncodeBlocks"},"kind":"call"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"PkceError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"32"}}},"kind":"definition","name":"pkceEncode32","parameters":[{"name":"value","type":{"kind":"bytes"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"PkceError"}},"kind":"result","ok":{"kind":"bytes"}}},{"axioms":["Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"entropy"}],"function":{"name":"pkceEncode32"},"kind":"call"},"kind":"definition","name":"pkceVerifierFromEntropy","parameters":[{"name":"entropy","type":{"kind":"bytes"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"PkceError"}},"kind":"result","ok":{"kind":"bytes"}}},{"axioms":["Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"digest"}],"function":{"name":"pkceEncode32"},"kind":"call"},"kind":"definition","name":"pkceChallengeFromDigest","parameters":[{"name":"digest","type":{"kind":"bytes"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"PkceError"}},"kind":"result","ok":{"kind":"bytes"}}},{"axioms":[],"body":{"kind":"or","left":{"kind":"or","left":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"65"},"right":{"kind":"var","name":"value"}},"right":{"kind":"ble","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"90"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"97"},"right":{"kind":"var","name":"value"}},"right":{"kind":"ble","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"122"}}}},"right":{"kind":"or","left":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"48"},"right":{"kind":"var","name":"value"}},"right":{"kind":"ble","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"57"}}},"right":{"kind":"or","left":{"kind":"or","left":{"kind":"beq","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"45"}},"right":{"kind":"beq","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"46"}}},"right":{"kind":"or","left":{"kind":"beq","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"95"}},"right":{"kind":"beq","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"126"}}}}}},"kind":"definition","name":"pkceUnreserved","parameters":[{"name":"value","type":{"kind":"nat"}}],"result":{"kind":"bool"}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"kind":"beq","left":{"kind":"var","name":"offset"},"right":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"constructor":{"name":"Nat.zero"}},{"binders":["remaining"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"and","left":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"offset"}],"function":{"name":"pkceByte"},"kind":"call"}],"function":{"name":"pkceUnreserved"},"kind":"call"},"right":{"arguments":[{"kind":"var","name":"remaining"},{"kind":"var","name":"value"},{"kind":"add","left":{"kind":"var","name":"offset"},"right":{"kind":"nat","value":"1"}}],"function":{"name":"pkceVerifierCharacters"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"offset"},"right":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}}},"constructor":{"name":"Nat.succ"}}],"kind":"match","scrutinee":{"kind":"var","name":"fuel"}},"kind":"definition","name":"pkceVerifierCharacters","parameters":[{"name":"fuel","type":{"kind":"nat"}},{"name":"value","type":{"kind":"bytes"}},{"name":"offset","type":{"kind":"nat"}}],"recursive_argument":"fuel","result":{"kind":"bool"}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"PkceError.BadLength"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"PkceError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"PkceError.InvalidCharacter"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"PkceError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"value"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"PkceError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"nat","value":"128"},{"kind":"var","name":"value"},{"kind":"nat","value":"0"}],"function":{"name":"pkceVerifierCharacters"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"43"},"right":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"128"}}}},"kind":"definition","name":"pkceVerifierBytes","parameters":[{"name":"value","type":{"kind":"bytes"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"PkceError"}},"kind":"result","ok":{"kind":"bytes"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"hex":"0101","kind":"bytes"},"constructor":{"name":"PkceError.BadLength"}},{"binders":[],"body":{"hex":"0102","kind":"bytes"},"constructor":{"name":"PkceError.InvalidCharacter"}},{"binders":[],"body":{"hex":"0103","kind":"bytes"},"constructor":{"name":"PkceError.InvalidOperation"}}],"kind":"match","scrutinee":{"kind":"var","name":"error"}},"kind":"definition","name":"pkceErrorCode","parameters":[{"name":"error","type":{"arguments":[],"kind":"named","member":{"name":"PkceError"}}}],"result":{"kind":"bytes"}},{"axioms":[],"body":{"branches":[{"binders":["cause"],"body":{"arguments":[{"kind":"var","name":"cause"}],"function":{"name":"pkceErrorCode"},"kind":"call"},"constructor":{"name":"Result.error"}},{"binders":["bytes"],"body":{"arguments":[{"hex":"00","kind":"bytes"},{"kind":"var","name":"bytes"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"kind":"var","name":"value"}},"kind":"definition","name":"pkceResponse","parameters":[{"name":"value","type":{"error":{"arguments":[],"kind":"named","member":{"name":"PkceError"}},"kind":"result","ok":{"kind":"bytes"}}}],"result":{"kind":"bytes"}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"PkceError.InvalidOperation"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"PkceError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"pkceChallengeFromDigest"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"operation"},"right":{"kind":"nat","value":"2"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"pkceVerifierBytes"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"operation"},"right":{"kind":"nat","value":"1"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"pkceVerifierFromEntropy"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"operation"},"right":{"kind":"nat","value":"0"}}},"kind":"definition","name":"pkceOperation","parameters":[{"name":"operation","type":{"kind":"nat"}},{"name":"value","type":{"kind":"bytes"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"PkceError"}},"kind":"result","ok":{"kind":"bytes"}}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"hex":"0101","kind":"bytes"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[{"arguments":[{"kind":"var","name":"request"},{"kind":"nat","value":"0"}],"function":{"name":"pkceByte"},"kind":"call"},{"arguments":[{"kind":"var","name":"request"},{"kind":"nat","value":"1"},{"arguments":[{"arguments":[{"kind":"var","name":"request"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"nat","value":"1"}],"kind":"primitive","operation":"subtract","result":{"kind":"nat"}}],"function":{"name":"pkceSlice"},"kind":"call"}],"function":{"name":"pkceOperation"},"kind":"call"}],"function":{"name":"pkceResponse"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"kind":"var","name":"request"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"request"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"129"}}}},"kind":"definition","name":"pkceWireBytes","parameters":[{"name":"request","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: PkceError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BadLength, fields: []},
+    {name: InvalidCharacter, fields: []},
+    {name: InvalidOperation, fields: []}
+  ]
+}
+
+definition{
+  name: pkceSlice,
+  parameters: [value : Bytes, offset : Nat, count : Nat],
+  result: Bytes,
+  body: (match (prim slice value offset count : (Option Bytes))
+    | Option.none => 0x
+    | Option.some part => part),
+  axioms: []
+}
+
+definition{
+  name: pkceByte,
+  parameters: [value : Bytes, offset : Nat],
+  result: Nat,
+  body: (match (prim index value offset : (Option UInt8))
+    | Option.none => 0
+    | Option.some byte => (Foundation.Codec.Cbor.V1.Primitive::cborOctetNat byte)),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: pkceDigit,
+  parameters: [value : Nat],
+  result: Bytes,
+  body: (pkceSlice 0x4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a303132333435363738392d5f value 1),
+  axioms: []
+}
+
+definition{
+  name: pkceGroup,
+  parameters: [first : Nat, second : Nat, third : Nat],
+  result: Bytes,
+  body: (prim append (prim append (pkceDigit (prim quotient var{
+    name: first
+  } 4 0 : Nat)) (pkceDigit ((prim multiply (prim remainder var{
+    name: first
+  } 4 0 : Nat) 16 : Nat) + (prim quotient var{
+    name: second
+  } 16 0 : Nat))) : Bytes) (prim append (pkceDigit ((prim multiply (prim remainder var{
+    name: second
+  } 16 0 : Nat) 4 : Nat) + (prim quotient third 64 0 : Nat))) (pkceDigit (prim remainder third 64 0 : Nat)) : Bytes) : Bytes),
+  axioms: []
+}
+
+definition{
+  name: pkceEncodeBlocks,
+  parameters: [fuel : Nat, value : Bytes, offset : Nat],
+  result: Bytes,
+  body: (match fuel
+    | Nat.zero => 0x
+    | Nat.succ remaining => (match (offset <? 30)
+      | Bool.false => (pkceSlice (pkceGroup (pkceByte value 30) (pkceByte value 31) 0) 0 3)
+      | Bool.true => (prim append (pkceGroup (pkceByte value offset) (pkceByte value (offset + 1)) (pkceByte value (offset + 2))) (pkceEncodeBlocks remaining value (offset + 3)) : Bytes))),
+  axioms: [Quot.sound, propext],
+  recursive_argument: fuel
+}
+
+definition{
+  name: pkceEncode32,
+  parameters: [value : Bytes],
+  result: (Result Bytes PkceError),
+  body: (match ((prim length value : Nat) =? 32)
+    | Bool.false => (ctor Result.error [Bytes, PkceError] (ctor PkceError.BadLength))
+    | Bool.true => (ctor Result.ok [Bytes, PkceError] (pkceEncodeBlocks 11 value 0))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: pkceVerifierFromEntropy,
+  parameters: [entropy : Bytes],
+  result: (Result Bytes PkceError),
+  body: (pkceEncode32 entropy),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: pkceChallengeFromDigest,
+  parameters: [digest : Bytes],
+  result: (Result Bytes PkceError),
+  body: (pkceEncode32 digest),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: pkceUnreserved,
+  parameters: [value : Nat],
+  result: Bool,
+  body: ((((65 <=? value) && (value <=? 90)) || ((97 <=? value) && (value <=? 122))) || (((48 <=? value) && (value <=? 57)) || (((value =? 45) || (value =? 46)) || ((value =? 95) || (value =? 126))))),
+  axioms: []
+}
+
+definition{
+  name: pkceVerifierCharacters,
+  parameters: [fuel : Nat, value : Bytes, offset : Nat],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => (offset =? (prim length value : Nat))
+    | Nat.succ remaining => (match (offset <? (prim length value : Nat))
+      | Bool.false => true
+      | Bool.true => ((pkceUnreserved (pkceByte value offset)) && (pkceVerifierCharacters remaining value (offset + 1))))),
+  axioms: [Quot.sound, propext],
+  recursive_argument: fuel
+}
+
+definition{
+  name: pkceVerifierBytes,
+  parameters: [value : Bytes],
+  result: (Result Bytes PkceError),
+  body: (match ((43 <=? (prim length value : Nat)) && ((prim length value : Nat) <=? 128))
+    | Bool.false => (ctor Result.error [Bytes, PkceError] (ctor PkceError.BadLength))
+    | Bool.true => (match (pkceVerifierCharacters 128 value 0)
+      | Bool.false => (ctor Result.error [Bytes, PkceError] (ctor PkceError.InvalidCharacter))
+      | Bool.true => (ctor Result.ok [Bytes, PkceError] value))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: pkceErrorCode,
+  parameters: [error : PkceError],
+  result: Bytes,
+  body: (match error
+    | PkceError.BadLength => 0x0101
+    | PkceError.InvalidCharacter => 0x0102
+    | PkceError.InvalidOperation => 0x0103),
+  axioms: []
+}
+
+definition{
+  name: pkceResponse,
+  parameters: [value : (Result Bytes PkceError)],
+  result: Bytes,
+  body: (match value
+    | Result.error cause => (pkceErrorCode cause)
+    | Result.ok bytes => (prim append 0x00 bytes : Bytes)),
+  axioms: []
+}
+
+definition{
+  name: pkceOperation,
+  parameters: [operation : Nat, value : Bytes],
+  result: (Result Bytes PkceError),
+  body: (match (operation =? 0)
+    | Bool.false => (match (operation =? 1)
+      | Bool.false => (match (operation =? 2)
+        | Bool.false => (ctor Result.error [Bytes, PkceError] (ctor PkceError.InvalidOperation))
+        | Bool.true => (pkceChallengeFromDigest value))
+      | Bool.true => (pkceVerifierBytes value))
+    | Bool.true => (pkceVerifierFromEntropy value)),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: pkceWireBytes,
+  parameters: [request : Bytes],
+  result: Bytes,
+  body: (match ((0 <? (prim length request : Nat)) && ((prim length request : Nat) <=? 129))
+    | Bool.false => 0x0101
+    | Bool.true => (pkceResponse (pkceOperation (pkceByte request 0) (pkceSlice request 1 (prim subtract (prim length request : Nat) 1 : Nat))))),
+  axioms: [Quot.sound, propext]
+}
 \end{semanticmodule}
 \end{lexlean}

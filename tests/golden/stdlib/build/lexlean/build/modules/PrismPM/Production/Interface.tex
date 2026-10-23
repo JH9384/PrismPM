@@ -5,16 +5,67 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{InterfaceKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{OpenApi}: \texttt{()}.\par
+\noindent Constructor \texttt{AsyncApi}: \texttt{()}.\par
+\noindent Constructor \texttt{CloudEvents}: \texttt{()}.\par
+\noindent Constructor \texttt{Internal}: \texttt{()}.\par
 \subsection*{\texttt{Delivery}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Synchronous}: \texttt{()}.\par
+\noindent Constructor \texttt{AtLeastOnce}: \texttt{()}.\par
+\noindent Constructor \texttt{ExactlyOnceLocal}: \texttt{()}.\par
 \subsection*{\texttt{Schema}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
+\noindent Field \texttt{compatibility}: \texttt{String}.\par
 \subsection*{\texttt{Interface}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{document}: \texttt{String}.\par
+\noindent Field \texttt{authentication}: \texttt{String}.\par
+\noindent Field \texttt{compatibility}: \texttt{String}.\par
+\noindent Field \texttt{protocol}: \texttt{String}.\par
+\noindent Field \texttt{errors}: \texttt{List (String)}.\par
+\noindent Field \texttt{acceptance}: \texttt{List (String)}.\par
 \subsection*{\texttt{Call}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
+\noindent Field \texttt{fromComponent}: \texttt{String}.\par
+\noindent Field \texttt{toComponent}: \texttt{String}.\par
+\noindent Field \texttt{interfaceId}: \texttt{String}.\par
+\noindent Field \texttt{failurePropagation}: \texttt{String}.\par
+\noindent Field \texttt{timeoutMillis}: \texttt{UInt64}.\par
+\noindent Field \texttt{retryPolicy}: \texttt{String}.\par
+\noindent Field \texttt{idempotency}: \texttt{String}.\par
 \subsection*{\texttt{Event}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
+\noindent Field \texttt{producer}: \texttt{String}.\par
+\noindent Field \texttt{channel}: \texttt{String}.\par
+\noindent Field \texttt{schemaId}: \texttt{String}.\par
+\noindent Field \texttt{owner}: \texttt{String}.\par
+\noindent Field \texttt{delivery}: \texttt{String}.\par
+\noindent Field \texttt{ordering}: \texttt{String}.\par
+\noindent Field \texttt{idempotency}: \texttt{String}.\par
+\noindent Field \texttt{failurePropagation}: \texttt{String}.\par
 \subsection*{\texttt{Flow}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{fromComponent}: \texttt{String}.\par
+\noindent Field \texttt{toComponent}: \texttt{String}.\par
+\noindent Field \texttt{interfaceId}: \texttt{String}.\par
+\noindent Field \texttt{delivery}: \texttt{String}.\par
+\noindent Field \texttt{ordering}: \texttt{String}.\par
+\noindent Field \texttt{idempotency}: \texttt{String}.\par
+\noindent Field \texttt{failurePropagation}: \texttt{String}.\par
 \end{document}

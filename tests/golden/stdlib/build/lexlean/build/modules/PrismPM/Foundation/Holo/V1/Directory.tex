@@ -5,12 +5,31 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{DirectoryLayer}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{position}: \texttt{UInt32}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{contentKappa}: \texttt{ByteArray}.\par
+\noindent Field \texttt{entry}: \texttt{String}.\par
+\noindent Field \texttt{contract}: \texttt{Option (String)}.\par
+\noindent Field \texttt{architecture}: \texttt{Option (String)}.\par
+\noindent Field \texttt{surface}: \texttt{Option (String)}.\par
+\noindent Field \texttt{engine}: \texttt{Option (String)}.\par
 \subsection*{\texttt{DirectoryChild}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{position}: \texttt{UInt32}.\par
+\noindent Field \texttt{applicationKappa}: \texttt{ByteArray}.\par
+\noindent Field \texttt{capabilitiesKappa}: \texttt{ByteArray}.\par
 \subsection*{\texttt{DirectoryBlob}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{contentKappa}: \texttt{ByteArray}.\par
+\noindent Field \texttt{byteLength}: \texttt{UInt64}.\par
 \subsection*{\texttt{ApplicationDirectory}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{schemaVersion}: \texttt{UInt16}.\par
+\noindent Field \texttt{primary}: \texttt{Option (UInt32)}.\par
+\noindent Field \texttt{requiresKappa}: \texttt{ByteArray}.\par
+\noindent Field \texttt{layers}: \texttt{List (DirectoryLayer)}.\par
+\noindent Field \texttt{children}: \texttt{List (DirectoryChild)}.\par
+\noindent Field \texttt{blobs}: \texttt{List (DirectoryBlob)}.\par
 \subsection*{\texttt{extensionName}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{String}.\par

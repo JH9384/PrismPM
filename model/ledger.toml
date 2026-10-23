@@ -54,3 +54,15 @@ level = "some-true"
 statement = "ISO/IEC 25010:2023 defines the product quality model."
 authority = "ISO-25010-2023"
 
+
+[[claim]]
+id = "AUTH-ISO-19450-2015"
+level = "some-true"
+statement = "ISO/PAS 19450:2015 defines Object-Process Methodology for systems modeling."
+authority = "ISO-19450-2015"
+
+[[claim]]
+id = "AUTH-OMG-UML-2-5-1"
+level = "some-true"
+statement = "OMG UML 2.5.1 defines the Unified Modeling Language structural and behavioral notation."
+authority = "OMG-UML-2-5-1"

@@ -89,6 +89,12 @@ The browser application profile cannot build or publish before its generated run
 
 Class: `semantic`. Exit code: 1.
 
+## `PP2012` --- Invalid design view
+
+An OPM or UML design view names a component, edge, process, state or viewpoint the system model does not declare, or violates the structure its notation allows.
+
+Class: `semantic`. Exit code: 1.
+
 ## `PP3001` --- Malformed Hologram archive header or version
 
 A .holo file is not a binary Hologram v4 archive with the exact HOLO header.

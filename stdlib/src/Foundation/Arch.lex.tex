@@ -8,7 +8,12 @@ structure{
   name: StandardReference,
   type_parameters: [],
   parameters: [],
-  fields: [{name: standardIndex, type: Nat}, {name: editionIndex, type: Nat}]
+  fields: [
+    {name: standardIndex, type: Nat},
+    {name: editionIndex, type: Nat},
+    {name: standardId, type: String},
+    {name: edition, type: String}
+  ]
 }
 
 inductive{
@@ -18,7 +23,10 @@ inductive{
   constructors: [
     {name: service, fields: []},
     {name: database, fields: []},
-    {name: externalSystem, fields: []}
+    {name: externalSystem, fields: []},
+    {name: cliAdapter, fields: []},
+    {name: staticSite, fields: []},
+    {name: releaseBinary, fields: []}
   ]
 }
 
@@ -44,7 +52,12 @@ structure{
   name: Component,
   type_parameters: [],
   parameters: [],
-  fields: [{name: index, type: Nat}, {name: kind, type: ComponentKind}]
+  fields: [
+    {name: index, type: Nat},
+    {name: kind, type: ComponentKind},
+    {name: name, type: String},
+    {name: text, type: String}
+  ]
 }
 
 structure{
@@ -63,10 +76,15 @@ structure{
   name: Stakeholder,
   type_parameters: [],
   parameters: [],
-  fields: [{name: index, type: Nat}]
+  fields: [{name: index, type: Nat}, {name: name, type: String}, {name: text, type: String}]
 }
 
-structure{name: Concern, type_parameters: [], parameters: [], fields: [{name: index, type: Nat}]}
+structure{
+  name: Concern,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: index, type: Nat}, {name: name, type: String}, {name: text, type: String}]
+}
 
 structure{
   name: Viewpoint,
@@ -125,14 +143,14 @@ definition{
   name: componentGateway,
   parameters: [],
   result: Component,
-  body: (record Component {index := 1, kind := (ctor ComponentKind.service)})
+  body: (record Component {index := 1, kind := (ctor ComponentKind.service), name := "gateway", text := "Accepts external requests and forwards them to the authentication store."})
 }
 
 definition{
   name: componentAuth,
   parameters: [],
   result: Component,
-  body: (record Component {index := 0, kind := (ctor ComponentKind.database)})
+  body: (record Component {index := 0, kind := (ctor ComponentKind.database), name := "auth", text := "Holds credentials and answers lookups from the gateway."})
 }
 
 definition{
@@ -153,14 +171,21 @@ definition{
   name: stakeholderOperator,
   parameters: [],
   result: Stakeholder,
-  body: (record Stakeholder {index := 0})
+  body: (record Stakeholder {index := 0, name := "operator", text := "Runs the system in production and answers for its availability."})
 }
 
 definition{
   name: concernSecurity,
   parameters: [],
   result: Concern,
-  body: (record Concern {index := 0})
+  body: (record Concern {index := 0, name := "security", text := "Credentials and requests must not be disclosed or altered in transit or at rest."})
+}
+
+definition{
+  name: standardArchitectureDescription,
+  parameters: [],
+  result: StandardReference,
+  body: (record StandardReference {standardIndex := 4, editionIndex := 0, standardId := "ISO-42010-2022", edition := "2022"})
 }
 
 definition{
@@ -182,6 +207,176 @@ definition{
   parameters: [],
   result: View,
   body: (record View {index := 0, viewpointIndex := 0, modelKindIndex := 0})
+}
+
+inductive{
+  name: DesignDiagram,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: opmObjectProcess, fields: []},
+    {name: umlComponent, fields: []},
+    {name: umlSequence, fields: []},
+    {name: umlStateMachine, fields: []}
+  ]
+}
+
+inductive{
+  name: OpmThingKind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: object, fields: []}, {name: process, fields: []}]
+}
+
+inductive{
+  name: OpmLinkKind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: agent, fields: []},
+    {name: instrument, fields: []},
+    {name: consumption, fields: []},
+    {name: result, fields: []},
+    {name: effect, fields: []},
+    {name: invocation, fields: []},
+    {name: aggregation, fields: []},
+    {name: exhibition, fields: []},
+    {name: generalization, fields: []},
+    {name: classification, fields: []}
+  ]
+}
+
+inductive{
+  name: UmlMessageKind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: synchronous, fields: []},
+    {name: asynchronous, fields: []},
+    {name: reply, fields: []}
+  ]
+}
+
+structure{
+  name: SystemProcess,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: owner, type: String}]
+}
+
+structure{
+  name: SystemState,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: owner, type: String}]
+}
+
+structure{
+  name: DesignView,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: title, type: String},
+    {name: viewpoint, type: String},
+    {name: diagram, type: DesignDiagram}
+  ]
+}
+
+structure{
+  name: OpmThing,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: view, type: String},
+    {name: kind, type: OpmThingKind},
+    {name: subject, type: String}
+  ]
+}
+
+structure{
+  name: OpmState,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: view, type: String}, {name: thing, type: String}, {name: state, type: String}]
+}
+
+structure{
+  name: OpmLink,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: view, type: String},
+    {name: kind, type: OpmLinkKind},
+    {name: source, type: String},
+    {name: target, type: String}
+  ]
+}
+
+structure{
+  name: OpmZoom,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: view, type: String},
+    {name: process, type: String},
+    {name: subprocess, type: String},
+    {name: order, type: Nat}
+  ]
+}
+
+structure{
+  name: UmlComponent,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: view, type: String}, {name: component, type: String}]
+}
+
+structure{
+  name: UmlConnector,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: view, type: String}, {name: edge, type: String}]
+}
+
+structure{
+  name: UmlLifeline,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: view, type: String}, {name: component, type: String}, {name: order, type: Nat}]
+}
+
+structure{
+  name: UmlMessage,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: view, type: String},
+    {name: kind, type: UmlMessageKind},
+    {name: order, type: Nat},
+    {name: source, type: String},
+    {name: target, type: String},
+    {name: process, type: String}
+  ]
+}
+
+structure{
+  name: UmlState,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: view, type: String}, {name: state, type: String}, {name: initial, type: Bool}]
+}
+
+structure{
+  name: UmlTransition,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: view, type: String},
+    {name: order, type: Nat},
+    {name: source, type: String},
+    {name: target, type: String},
+    {name: trigger, type: String}
+  ]
 }
 
 theorem{

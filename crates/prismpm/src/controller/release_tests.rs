@@ -90,10 +90,16 @@ fn browser_system_contract_is_registered_and_closed() {
 /// Bind the release at `src/Release.lex.tex` to the application model its
 /// Calculator source projects, and lock the result.
 fn bind_application_digest(root: &Path) {
+    bind_application_digest_of(root, "src/Calculator.lex.tex", 4);
+}
+
+/// Bind every `applicationModelDigest` of `src/Release.lex.tex` to the model
+/// that `application` projects, expecting exactly `bindings` occurrences.
+fn bind_application_digest_of(root: &Path, application: &str, bindings: usize) {
     let snapshot = Engine::load(&utf8(root.join("lexlean.toml")).unwrap())
         .unwrap()
         .snapshot(LexCheckRequest {
-            selection: Selection::Files([Utf8PathBuf::from("src/Calculator.lex.tex")].into()),
+            selection: Selection::Files([Utf8PathBuf::from(application)].into()),
         })
         .unwrap();
     let application = crate::holo::application::project_application(&snapshot)
@@ -120,8 +126,8 @@ fn bind_application_digest(root: &Path) {
     }
     assert_eq!(
         bind(&mut semantic, &digest),
-        4,
-        "both source models and manifests bind the final application"
+        bindings,
+        "every source model and manifest binds the final application"
     );
     std::fs::write(
         &path,
@@ -327,6 +333,287 @@ fn browser_system_source_selection_and_requirements_fail_closed() {
         .contains("duplicates a named system model root"));
     std::fs::write(&path, original).unwrap();
     relock(root);
+}
+
+/// The text/3 command-line system fixture: the ho-11 text application raised
+/// to text/3 with a modeled command line, contained by a browser system that
+/// declares the browser component and, second, the command-line component.
+fn text_command_line_system_project() -> tempfile::TempDir {
+    const V3: &str = "Foundation.View.Text.V3.Model";
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+    let fixture = repository().join("tests/fixtures/holo/ho-11-text-application/project");
+    copy_tree(&fixture.join("src"), &root.join("src"));
+    copy_tree(&fixture.join("language"), &root.join("language"));
+    for name in [
+        "lexlean.toml",
+        "prismpm.toml",
+        "lakefile.toml",
+        "lake-manifest.json",
+        "lean-toolchain",
+    ] {
+        copy_fixture_file(fixture.join(name), root.join(name));
+    }
+    for module in [
+        "Foundation/View/Text/V3/Model",
+        "Production/Core",
+        "Production/BrowserSystem",
+    ] {
+        let destination = root.join(format!("src/{module}.lex.tex"));
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        copy_fixture_file(
+            repository().join(format!("stdlib/src/{module}.lex.tex")),
+            destination,
+        );
+    }
+    let record = |name: &str, fields: &str| format!("(record {V3}::{name} {{{fields}}})");
+    let list = |name: &str, rows: Vec<String>| {
+        rows.into_iter()
+            .rev()
+            .fold(format!("(nil {V3}::{name})"), |tail, head| {
+                format!("(cons {head} {tail})")
+            })
+    };
+    let outcomes = list(
+        "TextCliOutcome",
+        [
+            ("accepted", "Accepted: ", 0),
+            ("rejected", "invalid", 1),
+            ("error", "Failure:", 2),
+        ]
+        .into_iter()
+        .map(|(name, prefix, code)| {
+            record(
+                "TextCliOutcome",
+                &format!(
+                    "name := \"{name}\", prefix := \"{prefix}\", exitCode := ({code} : UInt8)"
+                ),
+            )
+        })
+        .collect(),
+    );
+    let cli = record(
+        "TextCli",
+        &format!(
+            "command := \"check\", description := \"Checks one text request.\", usageCode := (64 : UInt8), ioCode := (74 : UInt8), outcomes := {outcomes}, sections := {}, examples := {}",
+            list("TextCliSection", Vec::new()),
+            list("TextCliExample", Vec::new())
+        ),
+    );
+    let application_path = root.join("src/TextRequest.lex.tex");
+    let mut application = std::fs::read_to_string(&application_path).unwrap();
+    for (from, to) in [
+        (
+            "result: Foundation.View.Text.V1.Model::TextApplication,".to_owned(),
+            format!("result: {V3}::TextApplication,"),
+        ),
+        (
+            "(record Foundation.View.Text.V1.Model::TextApplication {".to_owned(),
+            format!("(record {V3}::TextApplication {{"),
+        ),
+        (
+            "{profile := \"prismpm/text-application/1\",".to_owned(),
+            "{profile := \"prismpm/text-application/3\",".to_owned(),
+        ),
+        (
+            "guestAllocationMaximum := (128 : UInt32),".to_owned(),
+            "guestAllocationMaximum := (128 : UInt32), coreMemoryPages := (ctor Option.none [UInt32]), coreStackBytes := (ctor Option.none [UInt32]),".to_owned(),
+        ),
+        (
+            "responseError := \"Invalid response\"})})".to_owned(),
+            format!("responseError := \"Invalid response\"}}), cli := {cli}}})"),
+        ),
+        (
+            "\\importmodule{Foundation.View.Text.V1.Model}".to_owned(),
+            format!("\\importmodule{{Foundation.View.Text.V1.Model}}\n\\importmodule{{{V3}}}"),
+        ),
+    ] {
+        assert_eq!(application.matches(&from).count(), 1, "edit anchor {from}");
+        application = application.replace(&from, &to);
+    }
+    std::fs::write(&application_path, application).unwrap();
+    let adapter = crate::deployment::digest("github-pages-browser").unwrap();
+    let digest = "0".repeat(64);
+    let controls = "(cons \"application-acceptance\" (cons \"artifact-closure\" (cons \"source-proof\" (cons \"spdx\" (nil String)))))";
+    let system_model = format!(
+        "(record Production.BrowserSystem::SystemModel {{product := (record Production.Core::Product {{id := \"text-product\", owner := \"UOR Foundation\", version := \"1\", lifecycle := \"development\", sourcePolicy := \"selected LexLean source and kernel proof\", supportedPlatforms := (cons \"browser\" (nil String))}}), applicationProfile := (record Production.BrowserSystem::ApplicationProfile {{contract := \"prismpm/browser-resident-application/1\", applicationModelDigest := \"sha256:{digest}\", execution := \"browser-session\", persistentStorage := \"none\", externalServices := \"none\", resources := (cons \"dom\" (cons \"webassembly\" (nil String))), capabilities := (cons \"portable-static-holo-application\" (nil String))}}), artifacts := (cons (record Production.BrowserSystem::GeneratedArtifact {{id := \"text-application\", role := \"selected-application\", licenseExpression := \"MIT OR Apache-2.0\"}}) (cons {} (nil Production.BrowserSystem::GeneratedArtifact))), components := (cons (record Production.BrowserSystem::Component {{id := \"text-browser\", artifact := \"text-application\", kind := \"browser\", version := \"0.1.0\"}}) (cons {} (nil Production.BrowserSystem::Component))), targets := (cons (record Production.BrowserSystem::Target {{id := \"pages\", kind := \"github-pages-browser\", adapterDigest := \"{adapter}\", apiVersion := \"github-pages-artifact@v4\", minimumReleaseStatus := \"development\"}}) (nil Production.BrowserSystem::Target)), controls := {controls}, standards := (cons \"SPDX-3.0.1\" (nil String))}})",
+        CLI_ARTIFACT, CLI_COMPONENT
+    );
+    let system_manifest = format!(
+        "(record Production.BrowserSystem::SystemManifest {{applicationModelDigest := \"sha256:{digest}\", productId := \"text-product\", productVersion := \"1\", componentId := \"text-browser\", artifactId := \"text-application\", targetId := \"pages\", controls := {controls}}})"
+    );
+    let release = format!(
+        "\\begin{{lexlean}}{{Release}}\n\\useglossary{{lexlean.std.bool@1.2.0}}\n\\importmodule{{TextRequest}}\n\\importmodule{{Production.Core}}\n\\importmodule{{Production.BrowserSystem}}\n\\title{{Boolean}}\n\\begin{{semanticmodule}}\ndefinition{{\n  name: systemModel,\n  parameters: [],\n  result: Production.BrowserSystem::SystemModel,\n  body: {system_model}\n}}\n\ndefinition{{\n  name: systemManifest,\n  parameters: [],\n  result: Production.BrowserSystem::SystemManifest,\n  body: {system_manifest}\n}}\n\ntheorem{{\n  name: textSystemReleaseReady,\n  parameters: [],\n  statement: ((Production.BrowserSystem::validateManifest (systemModel) (systemManifest)) = true),\n  proof: decide{{}},\n  axioms: []\n}}\n\\end{{semanticmodule}}\n\\end{{lexlean}}\n"
+    );
+    std::fs::write(root.join("src/Release.lex.tex"), release).unwrap();
+    let config = std::fs::read_to_string(root.join("lexlean.toml")).unwrap();
+    assert!(config.contains("entrypoints = [\"src/TextRequest.lex.tex\"]"));
+    std::fs::write(
+        root.join("lexlean.toml"),
+        config.replace(
+            "entrypoints = [\"src/TextRequest.lex.tex\"]",
+            "entrypoints = [\"src/Release.lex.tex\"]",
+        ),
+    )
+    .unwrap();
+    relock(root);
+    bind_application_digest_of(root, "src/TextRequest.lex.tex", 2);
+    temporary
+}
+
+const CLI_ARTIFACT: &str = "(record Production.BrowserSystem::GeneratedArtifact {id := \"text-program\", role := \"command-line-program\", licenseExpression := \"MIT OR Apache-2.0\"})";
+const CLI_COMPONENT: &str = "(record Production.BrowserSystem::Component {id := \"text-command-line\", artifact := \"text-program\", kind := \"cli\", version := \"0.1.0\"})";
+
+#[test]
+fn browser_system_admits_one_command_line_component_of_a_text_command_line_application() {
+    let temporary = text_command_line_system_project();
+    let root = temporary.path();
+    let prepared = Controller::load(root).unwrap().prepare(None).unwrap();
+    let system = prepared
+        .system
+        .as_ref()
+        .expect("two-component browser system");
+    assert_eq!(system.schema(), "prismpm/system-model/2");
+    let value = system.value();
+    assert!(crate::system::browser::declares_command_line(value));
+    assert_eq!(value["components"][1]["kind"], "cli");
+    assert_eq!(value["artifacts"][1]["role"], "command-line-program");
+    // The manifest binds the selected application; the command-line pair is
+    // bound by the system digest. The release's SPDX names both packages.
+    assert_eq!(
+        crate::system::browser::certificate(value)["component_id"],
+        "text-browser"
+    );
+    let spdx = crate::system::spdx(value);
+    let packages = spdx["@graph"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|row| row["type"] == "software_Package")
+        .map(|row| row["name"].as_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(packages, ["text-browser", "text-command-line"]);
+    let model: crate::holo::model_document::ModelDocument =
+        serde_json::from_slice(&prepared.model_bytes).unwrap();
+    assert_eq!(
+        model.application.as_ref().unwrap().core_memory_pages(),
+        32,
+        "an absent text/3 budget is the text/1 budget"
+    );
+    drop(prepared);
+
+    // Every other shape is refused by the registered PP2101 before any schema
+    // contract violation, naming the closed cardinality it breaks.
+    let path = root.join("src/Release.lex.tex");
+    let original = std::fs::read_to_string(&path).unwrap();
+    let artifact_tail =
+        format!("(cons {CLI_ARTIFACT} (nil Production.BrowserSystem::GeneratedArtifact))");
+    let component_tail =
+        format!("(cons {CLI_COMPONENT} (nil Production.BrowserSystem::Component))");
+    for (changed, expected) in [
+        (
+            original.replace(
+                &artifact_tail,
+                &format!(
+                    "(cons {CLI_ARTIFACT} (cons {} (nil Production.BrowserSystem::GeneratedArtifact)))",
+                    CLI_ARTIFACT.replace("text-program", "extra-program")
+                ),
+            ),
+            "exactly one generated artifact per component",
+        ),
+        (
+            original.replace(
+                &component_tail,
+                &format!(
+                    "(cons {CLI_COMPONENT} (cons {} (nil Production.BrowserSystem::Component)))",
+                    CLI_COMPONENT.replace("text-command-line", "extra-command-line")
+                ),
+            ),
+            "one browser component and at most one command-line component",
+        ),
+        (
+            original.replace(
+                CLI_COMPONENT,
+                &CLI_COMPONENT.replace("kind := \"cli\"", "kind := \"browser\""),
+            ),
+            "second component must be the command-line program",
+        ),
+        (
+            original.replace(
+                CLI_COMPONENT,
+                &CLI_COMPONENT.replace("version := \"0.1.0\"", "version := \"0.2.0\""),
+            ),
+            "identity, reference, or manifest binding differs",
+        ),
+        (
+            original.replace(
+                CLI_COMPONENT,
+                &CLI_COMPONENT.replace(
+                    "artifact := \"text-program\"",
+                    "artifact := \"text-application\"",
+                ),
+            ),
+            "identity, reference, or manifest binding differs",
+        ),
+    ] {
+        assert_ne!(
+            changed, original,
+            "mutation must change its intended source"
+        );
+        std::fs::write(&path, changed).unwrap();
+        relock(root);
+        let error = Controller::load(root)
+            .unwrap()
+            .prepare(None)
+            .err()
+            .expect("changed browser-system source was accepted");
+        assert_eq!(error.code, "PP2101", "{expected}: {error:?}");
+        assert!(error.message.contains(expected), "{error:?}");
+        assert!(!root.join(".prism/build").exists());
+    }
+    std::fs::write(&path, original).unwrap();
+    relock(root);
+}
+
+#[test]
+fn browser_system_refuses_a_command_line_component_without_a_modeled_command_line() {
+    // The Calculator is a legacy application: it models no command line, so a
+    // `cli` component has no generated program to bind.
+    let temporary = browser_system_project();
+    let root = temporary.path();
+    let path = root.join("src/Release.lex.tex");
+    let original = std::fs::read_to_string(&path).unwrap();
+    let artifact = "(record Production.BrowserSystem::GeneratedArtifact {id := \"generated-application\", role := \"selected-application\", licenseExpression := \"MIT OR Apache-2.0\"}) (nil Production.BrowserSystem::GeneratedArtifact)";
+    let component = "(record Production.BrowserSystem::Component {id := \"browser-application\", artifact := \"generated-application\", kind := \"browser\", version := \"0.1.0\"}) (nil Production.BrowserSystem::Component)";
+    assert_eq!(original.matches(artifact).count(), 2);
+    assert_eq!(original.matches(component).count(), 2);
+    let changed = original
+        .replace(
+            artifact,
+            &artifact.replace(
+                "(nil Production.BrowserSystem::GeneratedArtifact)",
+                "(cons (record Production.BrowserSystem::GeneratedArtifact {id := \"command-line-program\", role := \"command-line-program\", licenseExpression := \"MIT OR Apache-2.0\"}) (nil Production.BrowserSystem::GeneratedArtifact))",
+            ),
+        )
+        .replace(
+            component,
+            &component.replace(
+                "(nil Production.BrowserSystem::Component)",
+                "(cons (record Production.BrowserSystem::Component {id := \"command-line\", artifact := \"command-line-program\", kind := \"cli\", version := \"0.1.0\"}) (nil Production.BrowserSystem::Component))",
+            ),
+        );
+    std::fs::write(&path, changed).unwrap();
+    relock(root);
+    let error = Controller::load(root)
+        .unwrap()
+        .prepare_release(None, Some("A"))
+        .err()
+        .expect("a legacy application cannot own a command-line component");
+    assert_eq!(error.code, "PP2101", "{error:?}");
+    assert!(
+        error.message.contains("models no command line"),
+        "{error:?}"
+    );
 }
 
 #[test]

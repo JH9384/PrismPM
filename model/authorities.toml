@@ -1043,6 +1043,44 @@ supersession_policy = "explicit-lock-update-only"
 statement = "The lawful scope is a reviewed quality-model interpretation, not certification or an executable oracle."
 realized_by = ["FT-05", "ST-05"]
 
+[[authority]]
+id = "ISO-19450-2015"
+name = "ISO/PAS 19450:2015"
+issuer = "ISO"
+canonical_identifier = "ISO/PAS 19450:2015"
+edition = "2015"
+source_role = "binding-only"
+immutable_url = "https://www.iso.org/standard/62274.html"
+revision = "not-published"
+acquired_sha256 = "not-acquired"
+signature = "not-published"
+media_type = "text/html"
+license = "ISO-controlled-document"
+redistribution = "citation-only"
+retrieval_date = "2026-10-22"
+supersession_policy = "explicit-lock-update-only"
+statement = "The lawful scope is a reviewed Object-Process Methodology design-view interpretation, not certification or an executable oracle."
+realized_by = ["FT-11", "HO-18", "ST-18"]
+
+[[authority]]
+id = "OMG-UML-2-5-1"
+name = "OMG Unified Modeling Language 2.5.1"
+issuer = "OMG"
+canonical_identifier = "OMG UML 2.5.1 formal/17-12-05"
+edition = "2.5.1"
+source_role = "binding-only"
+immutable_url = "https://www.omg.org/spec/UML/2.5.1"
+revision = "not-published"
+acquired_sha256 = "not-acquired"
+signature = "not-published"
+media_type = "text/html"
+license = "OMG-specification-license"
+redistribution = "citation-only"
+retrieval_date = "2026-10-22"
+supersession_policy = "explicit-lock-update-only"
+statement = "The lawful scope is a reviewed UML component, sequence and state machine design-view interpretation, not certification or an executable oracle."
+realized_by = ["FT-11", "HO-18", "ST-18"]
+
 [[oracle]]
 id = "slsa-provenance-1.2"
 authority_ids = ["SLSA-1-2", "SLSA-VERIFIER-2-7-1", "INTOTO-STATEMENT-1-0"]

@@ -1,0 +1,11 @@
+@startuml
+' UML 2.5.1 state machine diagram
+' view: Design::umlSession
+' viewpoint: Foundation.Arch::viewpointOperations
+title Session
+state "sessionActive" as s0
+state "sessionIdle" as s1
+[*] --> s1
+s1 --> s0 : routeRequest
+s0 --> s1 : routeRequest
+@enduml

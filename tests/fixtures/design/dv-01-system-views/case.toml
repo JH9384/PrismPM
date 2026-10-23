@@ -1,0 +1,12 @@
+spec = "prismpm/test-case/1"
+command = "design-views"
+expected_exit = 0
+normalization = "none"
+capabilities = ["FT-11", "HO-18", "ST-18"]
+expected_artifacts = [
+  "rendered/design/Design.opmPipeline.opl",
+  "rendered/design/Design.umlComponents.puml",
+  "rendered/design/Design.umlSequence.puml",
+  "rendered/design/Design.umlSession.puml",
+]
+expected_diagnostics = []

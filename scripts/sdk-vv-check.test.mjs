@@ -1,7 +1,7 @@
 // These unit adapters validate orchestration, never installed SDK acceptance.
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statfsSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statfsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
@@ -264,8 +264,11 @@ function orchestrationFixture(t, fault, store = 'classic', registryEndpoint) {
   // Actual filesystem pressure, not a replaced statfs result. Docker/OCI
   // metadata below remains an explicit orchestration unit, not an SDK image.
   const pressure = ['late-space-pressure', 'space-bound-positive'].includes(fault);
+  // Other test files share this filesystem while node:test runs them in
+  // parallel, so the positive boundary keeps 256 MiB of headroom and the late
+  // pressure below is measured against the live filesystem rather than assumed.
   const current = pressure ? statfsSync(root) : undefined;
-  const compressed = pressure ? Math.floor((current.bavail * current.bsize - 12 * 1024 ** 3 - 16 * 1024 ** 2) / 4) : 0;
+  const compressed = pressure ? Math.floor((current.bavail * current.bsize - 12 * 1024 ** 3 - 256 * 1024 ** 2) / 4) : 0;
   if (pressure) assert(compressed > 0, 'original12GiB reserve and positive boundary headroom required');
   for (const name of ['dind', 'zot', 'buildkit', 'distribution', 'sdk']) {
     const configuration = digest(Buffer.from(`unit-only ${name} config`));
@@ -360,7 +363,15 @@ function orchestrationFixture(t, fault, store = 'classic', registryEndpoint) {
     if (args[0] === 'buildx') {
       const bytes = metadata.get(args.at(-1)); assert(bytes);
       if (fault === 'late-space-pressure' && args.at(-1) === images.sdk.reference.split('@')[0] + '@' + images.sdk.child_descriptor.digest) {
-        writeFileSync(join(root, 'actual-filesystem-pressure'), Buffer.alloc(32 * 1024 ** 2), {flag: 'wx'});
+        // Consume real space until the live filesystem is below the exact
+        // admission bound; concurrent deletions elsewhere cannot leave it above.
+        const file = join(root, 'actual-filesystem-pressure'), bound = compressed * 4 + 12 * 1024 ** 3;
+        const available = () => { const space = statfsSync(root); return space.bavail * space.bsize; };
+        writeFileSync(file, Buffer.alloc(32 * 1024 ** 2), {flag: 'wx'});
+        for (let attempt = 0; available() >= bound; attempt++) {
+          assert(attempt < 64, 'actual filesystem pressure must reach the admission bound');
+          appendFileSync(file, Buffer.alloc(Math.min(available() - bound + 16 * 1024 ** 2, 1024 ** 3)));
+        }
       }
       return ok(bytes);
     }

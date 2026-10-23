@@ -1,0 +1,79 @@
+# Starter workflow for a PrismPM template instance whose system model names the
+# `github-pages-browser` target (`prismpm/system-model/2`). Copy it unchanged to
+# `.github/workflows/publish-pages.yml` and replace `__PRISMPM_ACTION_REVISION__`
+# with the full commit SHA of the PrismPM revision whose shared Action provides
+# `publish-pages`, as the template pins every other action by commit.
+#
+# One job on one runner: build the locked release once, export its browser
+# closure, check the closure against the release's system manifest, upload it
+# and deploy it. It runs on main pushes and tags only, never on pull requests,
+# and needs no OCI sign, promote or push job. A system manifest that does not
+# name the Pages target fails the `publish-pages` step, so nothing is uploaded.
+name: PrismPM Pages publication
+
+on:
+  push:
+    branches: [main]
+    tags: ['**']
+
+permissions: {}
+
+concurrency:
+  group: prismpm-pages-publication
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: build, export, check and publish the browser-resident system
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
+    steps:
+      - name: Check out the exact event revision without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: lock
+        name: Resolve one immutable SDK manifest and the local build destination
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          image=$(sed -n 's/.*"sdk_image":"\([^"]*\)".*/\1/p' prismpm.lock)
+          if [[ ! $image =~ ^[a-z0-9.-]+(:[0-9]{1,5})?/[a-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]]; then
+            printf '%s\n' 'prismpm.lock does not select an immutable SDK image' >&2
+            exit 64
+          fi
+          printf 'sdk-image=%s\n' "$image" >> "$GITHUB_OUTPUT"
+          # The tagged destination only names the local release; nothing is pushed.
+          printf 'reference=ghcr.io/%s:pages\n' "${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - name: Fetch immutable model inputs through the locked SDK
+        uses: UOR-Foundation/PrismPM/action@__PRISMPM_ACTION_REVISION__ # prismpm-action-input
+        with:
+          command: fetch
+          sdk-image: ${{ steps.lock.outputs.sdk-image }}
+      - id: pages
+        name: Build once, export the browser closure and check it against the system manifest
+        uses: UOR-Foundation/PrismPM/action@__PRISMPM_ACTION_REVISION__ # prismpm-action-input
+        with:
+          command: publish-pages
+          output: pages
+          reference: ${{ steps.lock.outputs.reference }}
+          sdk-image: ${{ steps.lock.outputs.sdk-image }}
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Upload the checked closure as the Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ steps.pages.outputs.pages-path }}
+      - id: deployment
+        name: Deploy the uploaded closure without rebuilding
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -1433,6 +1433,9 @@ pub fn project(
     };
     let mut value = evaluate_model_term(root)?;
     value["schema"] = Value::String(schema.to_owned());
+    if schema == browser::SCHEMA {
+        browser::validate_shape(&value)?;
+    }
     let document = CanonicalDocument::from_value(schema, value)?;
     let manifest =
         system_manifest(snapshot, release, Some((root_name, owner)))?.ok_or_else(|| {

@@ -1,0 +1,193 @@
+{
+  "$comment": "Hand-written stand-in for `prism --help --json`. Replaced, not edited, once the CLI emits its own description. Verbs and flags follow the agreed v1.0 verb list.",
+  "revision": "2026-10-23",
+  "standIn": "prism --help --json",
+  "binary": "prism",
+  "alias": "prismpm",
+  "aliasKeptThrough": "every 1.x release",
+  "globalFlags": [
+    { "flag": "--json", "default": "off", "meaning": "Print the result as one JSON object instead of text." },
+    { "flag": "--policy <file>", "default": "the default policy", "meaning": "Policy file for `check` and `run`." },
+    { "flag": "--unstable-<feature>", "default": "off", "meaning": "Enable one experimental feature by name for this invocation." },
+    { "flag": "--help", "default": "", "meaning": "Print usage for the verb and exit 0." }
+  ],
+  "exitCodes": [
+    { "code": 0, "name": "pass", "meaning": "The verb did what you asked and every check it ran passed." },
+    { "code": 1, "name": "fail", "meaning": "A check failed, an intent sentence is unproved, or a replay diverged." },
+    { "code": 2, "name": "cannot verify", "meaning": "No verdict was reached: a missing attestation, an unreachable registry or an unknown format revision." }
+  ],
+  "verbs": [
+    {
+      "name": "init",
+      "summary": "Scaffold a new application: `prism.toml`, `examples/`, `intent.md`, a default capability set and the lockfile.",
+      "usage": "prism init [<name>] [flags]",
+      "flags": [
+        { "flag": "--types <ts|json-schema|pydantic>", "default": "ts", "meaning": "Which type source the scaffold writes." },
+        { "flag": "--template <name>", "default": "minimal", "meaning": "Starting examples and intent." },
+        { "flag": "--force", "default": "off", "meaning": "Overwrite files that already exist." }
+      ],
+      "example": "prism init calculator"
+    },
+    {
+      "name": "build",
+      "summary": "Compile the model into a holo inside the pinned toolchain image, record provenance and the proof attestation, and cache the result by spec digest.",
+      "usage": "prism build [flags]",
+      "flags": [
+        { "flag": "--provenance=<min|max>", "default": "min", "meaning": "How much the provenance records. `max` adds every resolved input and the full toolchain environment." },
+        { "flag": "--no-provenance", "default": "off", "meaning": "Skip provenance. Unsafe: the holo cannot pass `check` above P0." },
+        { "flag": "--no-cache", "default": "off", "meaning": "Rebuild even when the spec digest is unchanged." },
+        { "flag": "--target <browser|node>", "default": "none", "meaning": "Apply the matching overlay, `prism.browser.toml` or `prism.node.toml`." },
+        { "flag": "--max-iterations <n>", "default": "10", "meaning": "How many times the agent may revise the model before the build fails." }
+      ],
+      "example": "prism build"
+    },
+    {
+      "name": "check",
+      "summary": "Verify the holo's digest, provenance, proof, lockfile pins and declared world against a policy, then print a verdict with the assurance level and reasons.",
+      "usage": "prism check [<ref>] [flags]",
+      "flags": [
+        { "flag": "--policy <file>", "default": "the default policy", "meaning": "Policy to judge against." },
+        { "flag": "--offline", "default": "off", "meaning": "Do not contact the transparency log or any registry. Missing data exits 2." }
+      ],
+      "example": "prism check calculator@sha256:3f9c"
+    },
+    {
+      "name": "run",
+      "summary": "Instantiate the holo after `check` passes at the policy's level, then grant exactly the capability set it declares.",
+      "usage": "prism run <ref> [flags]",
+      "flags": [
+        { "flag": "--input <json>", "default": "stdin", "meaning": "One input to dispatch. Omit it to read inputs line by line." },
+        { "flag": "--policy <file>", "default": "the default policy", "meaning": "Policy the gate judges against." },
+        { "flag": "--allow-unverified", "default": "off", "meaning": "Run even when `check` fails. Prints a warning on every start." },
+        { "flag": "--port <n>", "default": "none", "meaning": "Serve the instance over HTTP instead of dispatching once." }
+      ],
+      "example": "prism run calculator@sha256:3f9c --input '{\"op\":\"add\",\"a\":2,\"b\":3}'"
+    },
+    {
+      "name": "dev",
+      "summary": "Watch the model, rebuild and re-check on every change, and serve a local studio with Check and Replay tabs.",
+      "usage": "prism dev [flags]",
+      "flags": [
+        { "flag": "--port <n>", "default": "4100", "meaning": "Studio port." },
+        { "flag": "--no-open", "default": "off", "meaning": "Do not open the studio in a browser." },
+        { "flag": "--policy <file>", "default": "the default policy", "meaning": "Policy the Check tab judges against." }
+      ],
+      "example": "prism dev"
+    },
+    {
+      "name": "replay",
+      "summary": "Re-execute a recorded history against the current build and fail on the first divergence.",
+      "usage": "prism replay <history> [flags]",
+      "flags": [
+        { "flag": "--holo <ref>", "default": "the current build", "meaning": "Which holo to replay against." },
+        { "flag": "--all", "default": "off", "meaning": "Continue past the first divergence and report every one." }
+      ],
+      "example": "prism replay history/2026-10-23.jsonl"
+    },
+    {
+      "name": "push",
+      "summary": "Push a holo and its attestations to an OCI registry. The attestations travel as referrers of the holo.",
+      "usage": "prism push <ref> <registry/repo[:tag]> [flags]",
+      "flags": [
+        { "flag": "--store <dir>", "default": "none", "meaning": "Push to a local directory store instead of a registry." },
+        { "flag": "--no-attestations", "default": "off", "meaning": "Push the holo only. The pushed holo checks at P0." }
+      ],
+      "example": "prism push calculator@sha256:3f9c ghcr.io/acme/calculator:1.0"
+    },
+    {
+      "name": "pull",
+      "summary": "Pull a holo and its attestations from an OCI registry or a local directory store.",
+      "usage": "prism pull <registry/repo[:tag]|ref> [flags]",
+      "flags": [
+        { "flag": "--store <dir>", "default": "none", "meaning": "Pull from a local directory store." },
+        { "flag": "--check", "default": "off", "meaning": "Run `check` on the pulled holo and exit with its code." }
+      ],
+      "example": "prism pull ghcr.io/acme/calculator:1.0"
+    },
+    {
+      "name": "deploy",
+      "summary": "Publish the holo to a GitHub repository and GitHub Pages, serving its attestations alongside it.",
+      "usage": "prism deploy [<ref>] [flags]",
+      "flags": [
+        { "flag": "--repo <owner/name>", "default": "the git remote", "meaning": "Repository to publish to." },
+        { "flag": "--branch <name>", "default": "gh-pages", "meaning": "Branch GitHub Pages serves." },
+        { "flag": "--no-pages", "default": "off", "meaning": "Push the repository only." }
+      ],
+      "example": "prism deploy"
+    },
+    {
+      "name": "export",
+      "summary": "Write the six-file browser export, a tarball, or a runnable OCI image that `docker run` serves.",
+      "usage": "prism export [<ref>] [flags]",
+      "flags": [
+        { "flag": "--out <dir>", "default": "export/", "meaning": "Where the browser export is written." },
+        { "flag": "--tar <file>", "default": "none", "meaning": "Write one tarball instead of a directory." },
+        { "flag": "--oci <name:tag>", "default": "none", "meaning": "Write a runnable OCI image under this name." }
+      ],
+      "example": "prism export --oci acme/calculator:1.0"
+    },
+    {
+      "name": "inspect",
+      "summary": "Print the manifest, section digests, format revision, world and attestations of a holo without running it.",
+      "usage": "prism inspect <ref> [flags]",
+      "flags": [
+        { "flag": "--format <manifest|sections|world|attestations|revision>", "default": "all", "meaning": "Print one part only." },
+        { "flag": "--audit", "default": "off", "meaning": "Print the security view: signers, trusted base, capability set, theorem list." },
+        { "flag": "--report <file>", "default": "none", "meaning": "With `--audit`, write the report to a file." }
+      ],
+      "example": "prism inspect calculator@sha256:3f9c"
+    },
+    {
+      "name": "attest",
+      "summary": "Add a signed statement to a holo. Signing is keyless by default.",
+      "usage": "prism attest <ref> --predicate <file> --type <uri> [flags]",
+      "flags": [
+        { "flag": "--predicate <file>", "default": "required", "meaning": "JSON file holding the predicate." },
+        { "flag": "--type <uri>", "default": "required", "meaning": "Predicate type URI." },
+        { "flag": "--key <file>", "default": "none", "meaning": "Sign with a local key for air-gapped use instead of keyless." }
+      ],
+      "example": "prism attest calculator@sha256:3f9c --predicate sbom.json --type https://example.com/sbom/v1"
+    },
+    {
+      "name": "verify",
+      "summary": "Check a signed statement on a holo against the signing identity you expect.",
+      "usage": "prism verify <ref> --certificate-identity <id> --certificate-oidc-issuer <url> [flags]",
+      "flags": [
+        { "flag": "--certificate-identity <id>", "default": "required", "meaning": "Identity the statement must be signed by." },
+        { "flag": "--certificate-oidc-issuer <url>", "default": "required", "meaning": "Issuer that identity must come from." },
+        { "flag": "--type <uri>", "default": "all", "meaning": "Verify statements of one predicate type only." },
+        { "flag": "--key <file>", "default": "none", "meaning": "Verify against a local public key instead of keyless." }
+      ],
+      "example": "prism verify calculator@sha256:3f9c --certificate-identity ci@acme.example --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+    },
+    {
+      "name": "generate",
+      "summary": "Regenerate the JS, Rust and Python bindings and the typed client from the world. Nothing is written when nothing changed.",
+      "usage": "prism generate [flags]",
+      "flags": [
+        { "flag": "--out <dir>", "default": "generated/", "meaning": "Output path." },
+        { "flag": "--lang <js,rust,python>", "default": "all three", "meaning": "Which bindings to write." }
+      ],
+      "example": "prism generate"
+    },
+    {
+      "name": "lock",
+      "summary": "Write or refresh the lockfile from the current toolchain image, model and inputs.",
+      "usage": "prism lock [flags]",
+      "flags": [
+        { "flag": "--check", "default": "off", "meaning": "Exit 1 when the lockfile is stale. Write nothing." }
+      ],
+      "example": "prism lock"
+    },
+    {
+      "name": "update",
+      "summary": "Bump the pinned toolchain image and print the old and new digests.",
+      "usage": "prism update [flags]",
+      "flags": [
+        { "flag": "--toolchain <ref>", "default": "the current 1.x", "meaning": "Toolchain image to pin." },
+        { "flag": "--dry-run", "default": "off", "meaning": "Print the change without writing the lockfile." }
+      ],
+      "example": "prism update"
+    }
+  ]
+}

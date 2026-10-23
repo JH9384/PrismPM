@@ -249,7 +249,7 @@ A revision is a date. A file does not carry its revision, so a reader recognizes
 - [Spec package](/docs/api/spec-package)
 - [Load a holo](/docs/api/load)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 
 <!-- reference/attestations -->
 
@@ -315,10 +315,10 @@ Schema: `https://schemas.uor.foundation/prism/attestation/dsse-envelope/1`, file
 
 ## Predicate types
 
-| Type                                     | Status      | Schema |
-| ---------------------------------------- | ----------- | ------ |
-| `https://uor.foundation/prism/proof/v1`  | placeholder | none   |
-| `https://uor.foundation/prism/replay/v1` | placeholder | none   |
+| Type                                     | Status       | Schema                            |
+| ---------------------------------------- | ------------ | --------------------------------- |
+| `https://uor.foundation/prism/proof/v1`  | experimental | `predicates/proof-v1.schema.json` |
+| `https://uor.foundation/prism/replay/v1` | placeholder  | none                              |
 
 ## Example statement
 
@@ -330,7 +330,7 @@ Status: no holo carries a signed statement yet. Every predicate type in the regi
 - [Errors reference](/docs/reference/errors)
 - [Spec package](/docs/api/spec-package)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 
 <!-- reference/manifest -->
 
@@ -351,7 +351,7 @@ Status: no manifest schema exists in the spec package at this revision. This pag
 - [CLI reference](/docs/reference/cli)
 - [Holo format](/docs/reference/holo-format)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 
 <!-- reference/lockfile -->
 
@@ -411,7 +411,7 @@ Schema: `https://schemas.uor.foundation/prismpm/sdk-lock/1`, file `schemas/docum
 - [Holo format](/docs/reference/holo-format)
 - [CLI reference](/docs/reference/cli)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 
 <!-- reference/errors -->
 
@@ -483,7 +483,7 @@ export class PrismCodeError extends Error {
 - [Error types](/docs/api/errors)
 - [Load a holo](/docs/api/load)
 
-Generated from prism-code 0.2.0, sdk/docs/cli.json 2026-10-23, @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from prism-code 0.2.0, sdk/docs/cli.json 2026-10-23, @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 
 <!-- reference/cli -->
 
@@ -1025,7 +1025,7 @@ export type ContentBlobRole = 'capability-set' | 'guest' | 'model-document' | 'v
 - [Check a holo](/docs/api/verify)
 - [Holo format](/docs/reference/holo-format)
 
-Generated from prism-code 0.2.0, @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from prism-code 0.2.0, @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 
 <!-- api/verify -->
 
@@ -1069,7 +1069,7 @@ export interface FormatRevisionIdentifiers {
 - [Attestations reference](/docs/reference/attestations)
 - [Load a holo](/docs/api/load)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 
 <!-- api/instantiate -->
 
@@ -1114,7 +1114,7 @@ world core-wasm {
 - [Check a holo](/docs/api/verify)
 - [Holo format](/docs/reference/holo-format)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 
 <!-- api/dispatch -->
 
@@ -1408,7 +1408,7 @@ https://uor.foundation/prism/proof/v1
 - [Attestations reference](/docs/reference/attestations)
 - [prism-code at a glance](/docs/api)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 
 <!-- api/verify-package -->
 
@@ -1429,7 +1429,7 @@ Status: `@prism-code/verify` does not exist yet. This page is generated from its
 - [Spec package](/docs/api/spec-package)
 - [Load a holo](/docs/api/load)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 
 <!-- api/testing-package -->
 
@@ -1450,5 +1450,5 @@ Status: `@prism-code/testing` does not exist yet. This page is generated from it
 - [Dispatch inputs](/docs/api/dispatch)
 - [prism-code at a glance](/docs/api)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 147992614e1d7dc30d529450e78afed3e2f928c2.
 

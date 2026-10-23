@@ -1,5 +1,12 @@
 Feature: holo
 
+  @HO-20 @build
+  Scenario: The JavaScript runtime in sdk/npm/prism-code opens a composed .holo archive and an exported browser closure without the Rust SDK, verifies the footer, every content-blob label and the manifest cross-references with its own BLAKE3, decodes and re-encodes the HOLOVIEW bundle byte for byte, dispatches requests through the Core-Wasm guest on fresh instances, and replays every modeled acceptance vector byte-identically, so a change to the archive, bundle or model-document layout fails this case in the same change.
+    Given the released Calculator archive and its exported browser closure committed under sdk/npm/prism-code, and no Rust SDK on the path
+    When the JavaScript runtime's owning Node suite parses the archive, verifies its footer, labels and manifest with its own BLAKE3, decodes and re-encodes the HOLOVIEW bundle, compiles the Core-Wasm guest and dispatches every acceptance vector through holo_run and through the closure's adapter
+    Then every section, label, footer and cross-reference verifies, the bundle re-encodes byte for byte, every vector answers byte-identically on both paths, and a corrupted header, label or footer is refused with a named error
+    And the complete owning suite is accepted file by file with its exact registered test inventory, so a drift in the archive, bundle or model-document layout fails the case in the change that causes it
+
   @HO-18 @build
   Scenario: The SDK checks OPM and UML design views against the system model, refuses an unknown component, edge, process, state or viewpoint with PP2012, and emits OPL text and PlantUML source as build artifacts.
     Given a model whose Foundation.Arch design records state OPM and UML views over its components, edges and processes

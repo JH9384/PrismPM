@@ -1,0 +1,66 @@
+{
+  "name": "prism-code",
+  "version": "0.2.0",
+  "description": "JavaScript runtime and CLI for Prism SDK (PrismPM) applications: load .holo archives and browser closures, dispatch bytes through Core-Wasm, replay acceptance vectors, read proof provenance.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "prism-code": "./bin/prism-code.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./src/index.mjs"
+    },
+    "./node": {
+      "types": "./types/node.d.ts",
+      "import": "./src/node.mjs"
+    },
+    "./browser": {
+      "types": "./types/browser.d.ts",
+      "import": "./src/browser.mjs"
+    },
+    "./canonical": {
+      "types": "./src/canonical/index.d.ts",
+      "import": "./src/canonical/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "src",
+    "types",
+    "fixtures/Calculator.holo",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "keywords": [
+    "prism",
+    "prismpm",
+    "lexlean",
+    "hologram",
+    "holo",
+    "core-wasm",
+    "wasm",
+    "formal-verification",
+    "uor"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UOR-Foundation/PrismPM",
+    "directory": "sdk/npm/prism-code"
+  },
+  "homepage": "https://github.com/UOR-Foundation/PrismPM/tree/main/sdk/npm/prism-code",
+  "bugs": "https://github.com/UOR-Foundation/PrismPM/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

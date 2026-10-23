@@ -1041,6 +1041,8 @@ export declare namespace ModelDocumentV6 {
     description: string;
     usage_code: number;
     io_code: number;
+    /** Exit code of a request refused over the request maximum. Absent means the code of the error outcome. */
+    limit_code?: number;
     outcomes: ModelDocumentV6.TextCliOutcome[];
     sections: ModelDocumentV6.TextCliSection[];
     examples: ModelDocumentV6.TextCliExample[];

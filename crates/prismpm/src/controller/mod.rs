@@ -572,7 +572,10 @@ impl Controller {
         };
         plan.observe()?;
         let model_snapshot = application_snapshot.as_ref().unwrap_or(&snapshot);
-        let application_model = crate::holo::application::project_application(model_snapshot)?;
+        // Facet records come from every entrypoint of the checked snapshot, not
+        // only the application roots.
+        let application_model =
+            crate::holo::application::project_application_with_facets(model_snapshot, &snapshot)?;
         let library_model = crate::holo::library::project_library(&snapshot)?;
         let model = match (application_model, library_model) {
             (Some(_), Some(_)) => {

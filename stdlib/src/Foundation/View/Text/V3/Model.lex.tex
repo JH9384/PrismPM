@@ -113,8 +113,8 @@ structure{
     {name: requestMaximum, type: UInt32},
     {name: responseMaximum, type: UInt32},
     {name: guestAllocationMaximum, type: UInt32},
-    {name: coreMemoryPages, type: UInt32},
-    {name: coreStackBytes, type: UInt32},
+    {name: coreMemoryPages, type: (Option UInt32)},
+    {name: coreStackBytes, type: (Option UInt32)},
     {name: capabilitiesEmpty, type: Bool},
     {name: fatArchive, type: Bool},
     {name: primaryLayer, type: UInt8},
@@ -122,6 +122,24 @@ structure{
     {name: view, type: Foundation.View.Text.V1.Model::TextView},
     {name: cli, type: TextCli}
   ]
+}
+
+definition{name: defaultCoreMemoryPages, parameters: [], result: UInt32, body: (32 : UInt32)}
+
+definition{name: defaultCoreStackBytes, parameters: [], result: UInt32, body: (65536 : UInt32)}
+
+definition{
+  name: coreMemoryPagesOrDefault,
+  parameters: [pages : (Option UInt32)],
+  result: UInt32,
+  body: (match pages | Option.none => (defaultCoreMemoryPages) | Option.some value => value)
+}
+
+definition{
+  name: coreStackBytesOrDefault,
+  parameters: [bytes : (Option UInt32)],
+  result: UInt32,
+  body: (match bytes | Option.none => (defaultCoreStackBytes) | Option.some value => value)
 }
 
 definition{

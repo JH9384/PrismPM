@@ -41,6 +41,29 @@ fn ordered<'a>(
     Ok(ids)
 }
 
+/// Longest accepted name, in characters.
+const NAME_LIMIT: usize = 256;
+/// Longest accepted descriptive text, in characters.
+const TEXT_LIMIT: usize = 4096;
+
+/// A name carries no control characters; a text carries none but line feeds.
+/// Both are bounded. The empty string is the absent value of an older source.
+fn described(kind: &str, name: &str, text: &str) -> Result<(), PrismError> {
+    if name.chars().count() > NAME_LIMIT
+        || name.chars().any(char::is_control)
+        || text.chars().count() > TEXT_LIMIT
+        || text
+            .chars()
+            .any(|value| value.is_control() && value != '\n')
+    {
+        return Err(PrismError::new(
+            "PP2001",
+            format!("{kind} name or text is out of bounds"),
+        ));
+    }
+    Ok(())
+}
+
 fn contains_index<T>(rows: &[T], index: u64) -> bool {
     usize::try_from(index).is_ok_and(|value| value < rows.len())
 }
@@ -112,6 +135,7 @@ pub(super) fn validate(doc: &ModelDocument) -> Result<(), PrismError> {
             .map(|row| (row.id.as_str(), row.index)),
     )?;
     for row in &doc.architecture.components {
+        described("component", &row.name, &row.text)?;
         if !component_kinds.contains(&row.kind_id) {
             return Err(PrismError::new("PP2001", "component kind is unresolved"));
         }
@@ -147,6 +171,14 @@ pub(super) fn validate(doc: &ModelDocument) -> Result<(), PrismError> {
             .iter()
             .map(|row| (row.id.as_str(), row.index)),
     )?;
+    for row in doc
+        .architecture
+        .stakeholders
+        .iter()
+        .chain(&doc.architecture.concerns)
+    {
+        described("stakeholder or concern", &row.name, &row.text)?;
+    }
     ordered(
         "viewpoint",
         doc.architecture
@@ -316,4 +348,28 @@ pub(super) fn validate(doc: &ModelDocument) -> Result<(), PrismError> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::described;
+
+    #[test]
+    fn names_and_text_are_bounded_and_free_of_control_characters() {
+        described("component", "api", "line one\nline two").unwrap();
+        described("component", "", "").unwrap();
+        for (name, text) in [
+            ("a\nb", ""),
+            ("", "a\tb"),
+            ("", "a\u{7f}b"),
+            (&"n".repeat(257), ""),
+            ("", &"t".repeat(4097)),
+        ] {
+            assert_eq!(
+                described("component", name, text).unwrap_err().code,
+                "PP2001"
+            );
+        }
+        described("component", &"n".repeat(256), &"t".repeat(4096)).unwrap();
+    }
 }

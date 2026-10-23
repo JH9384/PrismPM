@@ -88,7 +88,7 @@ fn wrong_or_missing_qualifiers_are_not_projected() {
         (
             "App.Security",
             "unmappedType",
-            record("StandardReference", Some("Foundation.Arch"), 0),
+            record("Correspondence", Some("Foundation.Arch"), 0),
         ),
     ];
     assert!(collected(&table, &definitions).unwrap().is_empty());

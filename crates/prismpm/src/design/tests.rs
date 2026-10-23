@@ -694,6 +694,8 @@ fn document() -> ModelDocument {
             id: (*id).to_owned(),
             index: index as u64,
             kind_id: "prism.arch@1.0.0::ComponentKind.service".to_owned(),
+            name: String::new(),
+            text: String::new(),
         })
         .collect();
     architecture.edges = vec![

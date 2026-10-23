@@ -601,7 +601,7 @@
         },
         "concerns": {
           "items": {
-            "$ref": "#/$defs/indexed"
+            "$ref": "#/$defs/described"
           },
           "type": "array"
         },
@@ -625,7 +625,7 @@
         },
         "stakeholders": {
           "items": {
-            "$ref": "#/$defs/indexed"
+            "$ref": "#/$defs/described"
           },
           "type": "array"
         },
@@ -702,6 +702,16 @@
         },
         "kind_id": {
           "$ref": "#/$defs/qualified_catalog"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]*$"
         }
       },
       "required": [
@@ -730,6 +740,32 @@
         "risk_index"
       ],
       "type": "object"
+    },
+    "described": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]*$"
+        }
+      },
+      "required": [
+        "id",
+        "index"
+      ]
     },
     "edge": {
       "additionalProperties": false,

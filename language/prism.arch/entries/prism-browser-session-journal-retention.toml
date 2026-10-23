@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-session-journal-retention"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.SessionJournalRetention"
+component = "SessionRetentionSnapshot"
+
+[[form]]
+id = "prism-browser-session-journal-retention"
+channel = "text"
+surface = "Browser session journal retention"
+canonical_source = true
+features = ["sentence-case", "singular"]

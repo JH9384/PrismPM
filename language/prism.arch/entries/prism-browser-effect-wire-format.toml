@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-effect-wire-format"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.EffectsWire"
+component = "EffectWireHeader"
+
+[[form]]
+id = "prism-browser-effect-wire-format"
+channel = "text"
+surface = "Browser effect wire format"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-production-runtime-target-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Production.Runtime"
+component = "TargetBinding"
+
+[[form]]
+id = "prism-production-runtime-target-model"
+channel = "text"
+surface = "Production runtime target model"
+canonical_source = true
+features = ["sentence-case", "singular"]

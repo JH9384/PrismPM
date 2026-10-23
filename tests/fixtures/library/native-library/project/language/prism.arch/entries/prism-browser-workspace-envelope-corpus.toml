@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-workspace-envelope-corpus"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.V1.WorkspaceEnvelopeCorpus"
+component = "requestRoundTripGenesis"
+
+[[form]]
+id = "prism-browser-workspace-envelope-corpus"
+channel = "text"
+surface = "Browser workspace envelope corpus"
+canonical_source = true
+features = ["sentence-case", "singular"]

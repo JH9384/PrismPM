@@ -1437,6 +1437,59 @@ transport metadata is not production SDK or supply-chain acceptance.
 Installed-SDK acceptance requires the same capability in the full installed
 V&V path and a genuine SDK-bound `Controller::product_build` release.
 
+### Host-effect service system
+
+`prismpm/system-model/3` is the closed projection of
+`Production.HostEffectSystem.SystemModel`, a profile of its own: not an
+extension of the transactional `system-model/1` profile (no database, broker
+or outbox) and not the browser-resident `system-model/2` profile. It describes
+one service whose application acts through host effects.
+
+The application profile names the server application contract
+`prismpm/server-application/1` and the effect protocol
+`prismpm/host-effects/1`, binds the digest of the selected application model,
+and lists the effects that application declares: at least one, each once, each
+a dotted lowercase name. The effect vocabulary belongs to the application, not
+to this profile. Components are `api`, `worker`, `job` or `telemetry-collector`,
+each with one declared image, parameters, secret references, volumes, networks
+and resources. A component depends only on components declared before it, so
+the dependency order is its own acyclicity witness. Listeners are the only
+published ports. A listener belongs to an `api` component that sits on at least
+one non-internal network, binds `127.0.0.1`, uses TCP and publishes a port no
+other listener publishes. The single target is the pinned Compose adapter.
+
+An authored `SystemManifest` and the generated empty-axiom theorem
+`manifestValidation_sound_complete`, with `validateManifest model manifest =
+true` decided for the selected model and manifest, bind the application model
+digest, the product identity, the declared effects and the published listener
+identities. Planted defects are decided theorems: a wildcard, hostname or other
+loopback address, a missing, zero or out-of-range port, a listener on a worker
+or on an unknown component or on internal networks only, two listeners on one
+port, a wrong contract or protocol, no declared effect, a repeated effect, an
+unknown kind, a forward or unknown dependency, an unknown image or network, a
+repeated identity and each manifest mismatch.
+
+The Compose adapter descriptor lists the profiles it projects in
+`model_schemas` and names the one address a published port may bind in its
+projection policy as `loopback_address`. The projection copies each listener
+as `host_ip`, `published`, `target` and `protocol`, and refuses a listener that
+does not name that address instead of rewriting it. The closed schema carries
+the same constant, so a wildcard binding is refused three times: by the
+contract, by the validator and by the projection. A Compose project is also
+audited as emitted bytes: every service port is long-form and names the
+loopback address, and no service uses the host network. The locked Compose
+oracle accepts any host address, so that audit is the check a wildcard cannot
+pass. The projection set is the Compose project and SPDX, both validated by
+their locked oracles.
+
+This profile does not claim that the declared effects equal the host protocol
+of the selected application: the server application model that issue 216
+provides is not part of the model document yet, so the digest binding is the
+only application binding. It adds no OCI product release, source-free replay
+or deployment lifecycle for `system-model/3`, and it does not claim service
+readiness. SY-09's source fixture binds an application model that is not a
+server application and says so.
+
 ### 11.1 Ordered mandatory control coverage
 
 `Production.ControlCoverage` implements Prism-owned structural composition,
@@ -3671,6 +3724,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `SY-06` | `system` | Migrations, recovery, rollout, rollback, drift, retirement, and positive and negative acceptance are explicit modeled values. | §11 |
 | `SY-07` | `system` | Modeled ordered control coverage rejects missing obligations, invalid inheritance, residual omissions, and binding mismatches. | §11 |
 | `SY-08` | `system` | Browser-resident system releases bind selected proved applications, mandatory controls, exact generated artifacts, locked projection oracles, and source-free replay. | §11 |
+| `SY-09` | `system` | Host-effect service system releases declare the effects of a server application, and project Compose services whose published ports bind loopback only and pass the locked Compose oracle. | §11 |
 | `DK-01` | `sdk` | One versioned SDK inventory closes over PrismPM, LexLean, Lean, lean4-prod, stdlib, oracles, adapters, and schemas. | §12 |
 | `DK-02` | `sdk` | Signed non-root amd64 and arm64 SDK images use digest-pinned bases and carry OCI, SPDX, and provenance evidence. | §12 |
 | `DK-03` | `sdk` | Native Linux archives and OCI SDK execution produce identical platform-independent outputs and diagnostics. | §12 |

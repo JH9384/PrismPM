@@ -131,7 +131,7 @@ jose = "6.1.0"
 pg = "8.16.3"
 
 [target-adapters]
-compose = "sha256:0a74dacc5da9c48e582155a2dcc5e830cf71dd054e62c9e6eeb3ccec1e20c255"
+compose = "sha256:5d63cd6921f790c8637e716b632d7777899f37166eff0a6010cd19d1e9127044"
 github_pages = "sha256:db0425b35e875a36af50fb3a73e491af9badc759b6c290a731d6fd23fd62c119"
 kubernetes = "sha256:12021a034cb9b796f1ab6b4431e5cdbd9803e16181f6378ce580e40764b62ff6"
 ingress_nginx_kind_manifest = "sha256:2a3ae008c8786431115502644e77ab398fdebfb721a5d1195ed3089cde3299df"

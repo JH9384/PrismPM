@@ -566,7 +566,7 @@ mod tests {
             .contracts
             .check(&root)
             .expect("all public data contracts must be registered");
-        assert_eq!(model.contracts.contract.len(), 60);
+        assert_eq!(model.contracts.contract.len(), 61);
         for (schema, path) in [
             (
                 "prismpm/model-document/6",
@@ -579,6 +579,10 @@ mod tests {
             (
                 "prismpm/system-model/2",
                 "schemas/system-model-v2.schema.json",
+            ),
+            (
+                "prismpm/system-model/3",
+                "schemas/system-model-v3.schema.json",
             ),
             (
                 "prismpm/browser-system-release/1",

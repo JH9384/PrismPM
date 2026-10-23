@@ -3532,3 +3532,37 @@ regeneration; complete V&V still executes the complete workspace suite. Local
 Rust execution is unavailable, so these new tests and the corrected hosted
 preparation remain unverified until their actual runs complete. The unchanged
 Node preparation suite passes 10/10 locally; it is not Rust-gate evidence.
+
+## Host-effect service systems (SY-09)
+
+`prismpm/system-model/3` (`Production.HostEffectSystem`) was run on the branch
+head in WSL, with `PRISMPM_TEST_SDK_IMAGE` unset. Six of the seven owning
+tests passed: contract registration and closure, the mcp-loopback example and
+its manifest, the loopback-only Compose projection, every non-loopback
+binding, a table of open or inconsistent declarations, and the named
+release built from Lean source. The seventh runs the locked Compose and SPDX
+oracles in the SDK image and was not run locally. `lexlean verify` accepts the
+module with an empty axiom set: the soundness theorem and 25 decided theorems. The projection
+was also read by Docker Compose 2.40.3 (`config --quiet`), which is not the
+locked oracle.
+
+Planted defects, each applied alone and reverted afterwards:
+
+| Defect | Rejected by |
+| --- | --- |
+| Lean validator ignores the bind address | `wildcardBindingIsRefused` and the other binding theorems |
+| Lean validator ignores the `api` owner | `listenerOnAWorkerIsRefused` |
+| Lean validator ignores dependency order | `dependencyOnALaterComponentIsRefused` |
+| Lean validator ignores the manifest listeners | `manifestMustNameThePublishedListeners` |
+| Rust validator ignores the bind address | `host_effect_system_refuses_every_non_loopback_port_binding` |
+| Projection copies a non-loopback address | `host_effect_system_refuses_every_non_loopback_port_binding` |
+| Emitted-bytes audit ignores `host_ip` | `host_effect_system_refuses_every_non_loopback_port_binding` |
+| Schema constant for `bind_address` removed | the same test and the named release |
+| Rust validator ignores dependency order | `host_effect_system_refuses_open_or_inconsistent_declarations` |
+| Rust validator ignores the `api` owner | the named release (the unit case is also refused by the network rule) |
+| Manifest binding not compared | the example test and the named release |
+| Adapter policy names `0.0.0.0` | all six owning tests |
+
+Not established here: the oracle test, the server application binding that
+issue 216 will supply, and any OCI release, replay or deployment of
+`system-model/3`.

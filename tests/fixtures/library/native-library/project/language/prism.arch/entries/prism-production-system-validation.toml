@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-production-system-validation"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Production.SystemValidation"
+component = "allModelIds"
+
+[[form]]
+id = "prism-production-system-validation"
+channel = "text"
+surface = "Production system validation"
+canonical_source = true
+features = ["sentence-case", "singular"]

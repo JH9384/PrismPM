@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-control-coverage-policy"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Production.ControlCoverage"
+component = "ControlPolicy"
+
+[[form]]
+id = "prism-control-coverage-policy"
+channel = "text"
+surface = "Control coverage policy"
+canonical_source = true
+features = ["sentence-case", "singular"]

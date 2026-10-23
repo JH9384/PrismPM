@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-wire-encoding"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.Wire"
+component = "wireSlice"
+
+[[form]]
+id = "prism-hologram-wire-encoding"
+channel = "text"
+surface = "Hologram wire encoding"
+canonical_source = true
+features = ["sentence-case", "singular"]

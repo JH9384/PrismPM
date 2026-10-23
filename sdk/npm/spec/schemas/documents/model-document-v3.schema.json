@@ -1,0 +1,48 @@
+{
+  "$id": "prismpm/model-document/3",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NativeLibraryModelDocument",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["architecture", "library", "provenance", "quality", "schema", "security", "standards_profile"],
+  "properties": {
+    "schema": {"const": "prismpm/model-document/3"},
+    "architecture": {"const": {"component_kinds": [], "components": [], "concerns": [], "edge_kinds": [], "edges": [], "model_kinds": [], "stakeholders": [], "viewpoints": [], "views": []}},
+    "quality": {"const": {"characteristics": [], "measures": [], "requirements": [], "subcharacteristics": []}},
+    "security": {"const": {"activities": [], "assets": [], "controls": [], "impacts": [], "likelihoods": [], "measurements": [], "risks": [], "threats": []}},
+    "standards_profile": {"const": []},
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["compiler_semantics_id", "emitter_semantics_id", "facet_packages", "semantic_id", "snapshot_id", "source_id"],
+      "properties": {
+        "compiler_semantics_id": {"$ref": "#/$defs/digest"},
+        "emitter_semantics_id": {"$ref": "#/$defs/digest"},
+        "facet_packages": {"const": []},
+        "semantic_id": {"$ref": "#/$defs/digest"},
+        "snapshot_id": {"$ref": "#/$defs/digest"},
+        "source_id": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "library": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profile", "name", "cargo_name", "cargo_version", "cargo_description", "cargo_repository", "cargo_homepage", "export_roots", "acceptance_roots"],
+      "properties": {
+        "profile": {"const": "prismpm/native-library/1"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 128},
+        "cargo_name": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$"},
+        "cargo_version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+        "cargo_description": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "cargo_repository": {"$ref": "#/$defs/https"},
+        "cargo_homepage": {"$ref": "#/$defs/https"},
+        "export_roots": {"$ref": "#/$defs/roots"},
+        "acceptance_roots": {"$ref": "#/$defs/roots"}
+      }
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "https": {"type": "string", "format": "uri", "pattern": "^https://", "maxLength": 2048},
+    "roots": {"type": "array", "minItems": 1, "maxItems": 1024, "uniqueItems": true,
+      "items": {"type": "string", "maxLength": 1024, "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"}}
+  }
+}

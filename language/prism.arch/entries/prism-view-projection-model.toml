@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-view-projection-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.View.V1.Projection"
+component = "ProjectionBinding"
+
+[[form]]
+id = "prism-view-projection-model"
+channel = "text"
+surface = "View projection model"
+canonical_source = true
+features = ["sentence-case", "singular"]

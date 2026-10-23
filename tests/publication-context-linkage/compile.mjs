@@ -1,6 +1,6 @@
 import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
-import {chmodSync, copyFileSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync} from 'node:fs';
+import {chmodSync, copyFileSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -21,6 +21,10 @@ export const modules = Object.freeze(['Fixture', 'Production.PublicationAdmissio
 const modulePath = name => (name === 'Fixture' ? 'tests/publication-context-linkage' : 'stdlib')
   + '/src/' + name.replaceAll('.', '/') + '.lex.tex';
 const witnesses = Object.freeze(['collector', 'partition', 'payload', 'bitset'].map(name => name + '_witnesses.rs'));
+// The stdlib modules title themselves from the `prism.arch` lexicon, which the
+// project configuration declares at `language/prism.arch`; its files are inputs.
+const lexiconPaths = () => ['language/prism.arch/lexicon.toml',
+  ...readdirSync(join(repository, 'language/prism.arch/entries')).sort().map(name => 'language/prism.arch/entries/' + name)];
 
 const capturedInputs = new WeakSet();
 function read(path) {
@@ -33,7 +37,7 @@ function read(path) {
 
 export function frozenInputs() {
   pins();
-  const files = new Set([...modules.map(modulePath),
+  const files = new Set([...modules.map(modulePath), ...lexiconPaths(),
     ...['compile.mjs', 'checks.mjs', 'capture-owner.mjs', 'capture-oracle.mjs', 'capture-guard.test.mjs', 'capture.test.mjs', 'owner.test.mjs', 'corpus.mjs', 'maximum-fixtures.mjs', 'mutations.mjs',
       'component.test.mjs', 'resources.test.mjs', 'driver/Cargo.toml', 'driver/Cargo.lock', 'driver/src/main.rs',
       'runner.rs', ...witnesses, 'context-fields-runner.rs', 'context-fields-corpus.mjs', 'execute.mjs', 'CONTRACT.md', 'CONTRACT.cddl'].map(path => 'tests/publication-context-linkage/' + path),
@@ -144,6 +148,10 @@ function prepareStage(compilerOwner, mutation, baseline, inputs) {
     for (const [module, bytes] of sources) {
       const destination = join(project, 'src', ...module.split('.')) + '.lex.tex';
       mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, bytes, {flag: 'wx'});
+    }
+    for (const path of lexiconPaths()) {
+      const destination = join(project, path);
+      mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, capturedInput(path, inputs), {flag: 'wx'});
     }
     const base = capturedInput('tests/fixtures/library/native-library/project/lexlean.toml', inputs).toString('utf8')
       .replace('name = "library-probe"', 'name = "publication-linkage-conformance"')

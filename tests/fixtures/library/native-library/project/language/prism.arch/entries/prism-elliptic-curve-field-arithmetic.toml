@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-elliptic-curve-field-arithmetic"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Crypto.P256.Model"
+component = "p256FieldAdd"
+
+[[form]]
+id = "prism-elliptic-curve-field-arithmetic"
+channel = "text"
+surface = "Elliptic curve field arithmetic"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-proof-key-for-code-exchange"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Sec.V1.Pkce"
+component = "pkceChallengeFromDigest"
+
+[[form]]
+id = "prism-proof-key-for-code-exchange"
+channel = "text"
+surface = "Proof key for code exchange"
+canonical_source = true
+features = ["sentence-case", "singular"]

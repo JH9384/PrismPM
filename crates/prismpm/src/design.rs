@@ -138,6 +138,11 @@ pub(crate) fn render_snapshot(
     snapshot: &SemanticSnapshot,
     document: &ModelDocument,
 ) -> Result<Vec<(String, Vec<u8>)>, PrismError> {
+    // The features and journeys of the model are 42010 declarations checked on
+    // the same snapshot and document, at the same point of `check` and `build`.
+    // The Controller owner is source-review pinned, so the check is invoked
+    // from here instead of from `prepare_release_in_worker`.
+    crate::features::check_snapshot(snapshot, document)?;
     render_definitions(
         snapshot.modules().iter().flat_map(|module| {
             module

@@ -20,6 +20,7 @@ function inspect(bytes: Uint8Array | ArrayBuffer): Inspection;
 
 const FORMAT_REVISION: string; // "2026-10-23"
 const ASSURANCE: { LEVELS, RANK, NAMES, DEFAULT_MINIMUM, ... };
+const INSPECTION_SCHEMA: "prismpm/holo-inspection/1";
 class VerifyError extends Error { code: string }
 ```
 
@@ -49,7 +50,15 @@ class VerifyError extends Error { code: string }
 | `passed` | True when the level reaches `policy.minimum` and every pinned digest matched. |
 | `reasons` | Every check that did not pass: `check`, `withholds`, `message` and sometimes `code`. |
 
-`inspect` returns an `Inspection`. It lists every section with its kind, offset, length and name, and for each content blob its label, both digests, whether the label matches and its role. It also reports the format revision, the footer, the digests of the whole file and of each named part, and summaries of the manifest, source manifest, directory, provenance and model document. `attestation.present` says whether the holo carries an attestation bundle. Format revision 2026-10-23 has no section for one, so it is false today.
+`inspect` returns a `prismpm/holo-inspection/1` object, the same one `prism-code`'s `inspect` returns (issue #271). For the reference archive the two are equal key for key.
+
+- `sections` lists every section with its kind, role, offset, length and name. Its `digest` holds sha256 and BLAKE3 over exactly the table bytes.
+- A content blob adds its `label` and a `content` object: length, both digests over the bytes after the label, and `label_matches`. These are the digests an attestation subject names (ADR-015).
+- The top level holds the `revision`, the whole-file `digest`, the stored `footer`, and summaries of the manifest, model, provenance and world.
+- `attestations` is empty until holos carry an attestation section (issue #267).
+- `verification` holds three flags: footer, labels and cross-references.
+
+Damage after the section table is reported, not thrown. A document that does not decode is `null`.
 
 ## Levels today
 
@@ -136,6 +145,7 @@ A failed check is a reason in a verdict, not an error.
 
 - `src/vendor/` holds byte-for-byte copies: BLAKE3 from `prism-code`, the constants and schemas from `@prism-code/spec`, and the schema validator from the spec's tests. `prism-code`'s entry point imports `node:crypto`, and `@prism-code/spec` is not on npm yet, so neither can be a dependency of a browser package today. `node scripts/vendor.mjs --check` fails when a copy drifts.
 - `src/assurance.mjs` mirrors the assurance levels of PR #334, which is not merged yet. The tests compare it with `@prism-code/spec` as soon as the spec carries it, and validate every verdict against `prism/verdict/1`.
+- `inspect` builds the shape of PR #335, which is not merged yet. `test/fixtures/Calculator.inspect.json` copies its golden. Once `prism-code` carries `inspect`, the tests compare the two readers on intact and damaged holos.
 - SHA-256 is plain JavaScript, so `inspect` stays synchronous and works on plain-HTTP pages, where `crypto.subtle` does not exist.
 - `node scripts/build-browser.mjs` writes `browser.js` with no bundler: each module becomes a function scope. It refuses any import that is not a relative path inside `src/`.
 - The tests run `browser.js` in a bare `vm` context with only ECMAScript and `TextDecoder`, and compare its results with `src/`.

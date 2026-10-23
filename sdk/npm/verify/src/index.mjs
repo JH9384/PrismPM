@@ -410,111 +410,163 @@ function analyze(bytes) {
   return { checks, facts };
 }
 
-function pick(document, fields) {
-  const out = {};
-  for (const [to, from] of Object.entries(fields)) {
-    out[to] = from.split('.').reduce((value, key) => (value == null ? undefined : value[key]), document) ?? null;
+/** The schema of an inspection, shared with `prism-code`'s `inspect` (issue #271, PR #335). */
+export const INSPECTION_SCHEMA = 'prismpm/holo-inspection/1';
+
+/** Worlds by guest contract: `worlds/core-wasm.wit` in @prism-code/spec, an import-free module with three exports. */
+const WORLDS = Object.freeze({
+  [spec.CORE_WASM.CONTRACT]: Object.freeze({ imports: Object.freeze([]), exports: spec.CORE_WASM.EXPORTS }),
+});
+
+/** The fields of the 86-byte manifest suffix, which `manifest.wire` checks byte for byte against the Wire constant. */
+const MANIFEST_SUFFIX_FIELDS = Object.freeze({
+  entry: spec.CORE_WASM.ENTRY,
+  contract: spec.CORE_WASM.CONTRACT,
+  view_entry: spec.HOLOVIEW.ENTRY,
+  surface: 'portable',
+});
+
+const ROLE_NAMES = Object.freeze({ capabilities: 'capability-set', guest: 'guest', view: 'view', model: 'model-document' });
+
+function roleOf(section, facts) {
+  switch (section.kind) {
+    case spec.SECTION_KIND.APP_MANIFEST:
+      return 'app-manifest';
+    case spec.SECTION_KIND.METADATA:
+      return 'source-manifest';
+    case spec.SECTION_KIND.EXTENSION:
+      if (section.name === spec.EXTENSION.APPLICATION_DIRECTORY) return 'application-directory';
+      if (section.name === spec.EXTENSION.PRISMPM_MODEL) return 'model-provenance';
+      return 'extension';
+    case spec.SECTION_KIND.CONTENT_BLOB: {
+      const role = Object.entries(facts.roles).find(([, label]) => label === section.label);
+      return role ? ROLE_NAMES[role[0]] : 'content-blob';
+    }
+    default:
+      return 'unknown';
   }
-  return out;
 }
 
-function inspectionOf(bytes, facts) {
+const orNull = (value) => (value === undefined ? null : value);
+
+/**
+ * A `prismpm/holo-inspection/1` object, the shape `prism-code`'s `inspect`
+ * returns (sdk/npm/prism-code/src/inspect.mjs, PR #335): snake_case keys, a
+ * section digest over exactly its table bytes, and for a content blob a
+ * `content.digest` over the bytes after its label (ADR-015).
+ */
+function inspectionOf(bytes, facts, checks) {
+  const status = (id) => checks.find((c) => c.id === id)?.status === 'pass';
+  const blobOf = (role) => (facts.roles[role] ? facts.sections.find((s) => s.label === facts.roles[role]) : undefined);
+  const header = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
   const sections = facts.sections.map((s) => {
-    const row = { index: s.index, kind: s.kind, kindName: s.kindName, offset: s.offset, length: s.length };
-    if (s.name !== undefined) row.name = s.name;
+    const entry = {
+      index: s.index,
+      kind: s.kind,
+      kind_name: s.kindName,
+      role: roleOf(s, facts),
+      offset: s.offset,
+      length: s.length,
+      digest: digestsOf(bytes.subarray(s.offset, s.offset + s.length)),
+    };
+    if (s.name !== undefined) entry.name = s.name;
     if (s.label !== undefined) {
-      row.label = s.label;
-      row.digests = s.digests;
-      row.labelMatches = s.labelMatches;
-      const role = Object.entries(facts.roles).find(([, label]) => label === s.label);
-      if (role) row.role = role[0];
+      entry.label = s.label;
+      entry.content = { length: s.content.length, digest: s.digests, label_matches: s.labelMatches };
     }
-    if (s.problem) row.problem = s.problem;
-    return row;
+    return entry;
   });
-  const digests = { archive: digestsOf(bytes) };
-  for (const [role, label] of Object.entries(facts.roles)) {
-    const blob = facts.sections.find((s) => s.label === label);
-    if (blob?.digests) digests[role] = blob.digests;
-  }
-  const docs = facts.documents;
-  const modelBlob = facts.roles.model ? facts.sections.find((s) => s.label === facts.roles.model) : undefined;
+
+  const { manifest, provenance, directory, modelDocument } = facts.documents;
+  const application = modelDocument?.application ?? {};
+  const modelBlob = blobOf('model');
+  const capabilities = blobOf('capabilities');
+  const wasm = directory?.layers?.find((l) => l.kind === 'wasm');
+  const contract = wasm?.contract ?? provenance?.core_wasm_contract ?? null;
+  const world = contract ? WORLDS[contract] : undefined;
+
   return {
-    formatRevision: facts.revision,
+    schema: INSPECTION_SCHEMA,
+    name: application.name ?? provenance?.cargo_name ?? null,
+    revision: facts.revision,
+    physical_version: header.getUint16(4, true),
+    flags: header.getUint16(6, true),
     size: bytes.length,
-    digests,
-    footer: facts.footer,
+    digest: digestsOf(bytes),
+    footer: facts.footer.stored,
     sections,
-    manifest: docs.manifest ?? null,
-    sourceManifest: docs.sourceManifest
+    manifest: manifest
       ? {
-          version: docs.sourceManifest.version,
-          sourceId: docs.sourceManifest.source_id ?? null,
-          semanticId: docs.sourceManifest.semantic_id ?? null,
-          files: docs.sourceManifest.files ?? [],
+          uri: manifest.uri,
+          labels: { capability_set: manifest.labels.capabilitySet, guest: manifest.labels.guest, view: manifest.labels.view },
+          ...MANIFEST_SUFFIX_FIELDS,
         }
       : null,
-    directory: docs.directory
+    model:
+      modelDocument && modelBlob
+        ? {
+            schema: orNull(modelDocument.schema),
+            name: orNull(application.name),
+            cargo_name: orNull(application.cargo_name),
+            cargo_version: orNull(application.cargo_version),
+            description: orNull(application.cargo_description),
+            profile: orNull(application.profile),
+            function: orNull(application.function_name),
+            vectors: Array.isArray(application.acceptance_vectors) ? application.acceptance_vectors.length : 0,
+            limits: {
+              request: orNull(application.request_maximum),
+              response: orNull(application.response_maximum),
+              guest_allocation: orNull(application.guest_allocation_maximum),
+            },
+            digest: modelBlob.digests,
+          }
+        : null,
+    provenance: provenance
       ? {
-          primaryLayer: docs.directory.primary_layer,
-          requires: docs.directory.requires_kappa,
-          layers: docs.directory.layers.map((l) => ({
-            position: l.position,
-            kind: l.kind,
-            kappa: l.content_kappa,
-            entry: l.entry ?? null,
-            contract: l.contract ?? null,
-          })),
+          schema: orNull(provenance.schema),
+          application_kappa: orNull(provenance.application_kappa),
+          model_id: orNull(provenance.model_id),
+          compiler_semantics_id: orNull(provenance.compiler_semantics_id),
+          stdlib_semantics_id: orNull(provenance.stdlib_semantics_id),
+          lexlean_commit: orNull(provenance.lexlean_commit),
         }
       : null,
-    provenance: docs.provenance
-      ? pick(docs.provenance, {
-          schema: 'schema',
-          applicationKappa: 'application_kappa',
-          modelId: 'model_id',
-          semanticId: 'semantic_id',
-          compilerSemanticsId: 'compiler_semantics_id',
-          coreWasmContract: 'core_wasm_contract',
-          cargoName: 'cargo_name',
-          cargoVersion: 'cargo_version',
-        })
-      : null,
-    modelDocument: docs.modelDocument
-      ? {
-          ...pick(docs.modelDocument, {
-            schema: 'schema',
-            name: 'application.name',
-            cargoName: 'application.cargo_name',
-            cargoVersion: 'application.cargo_version',
-            coreContract: 'application.core_contract',
-          }),
-          kappa: modelBlob?.label ?? null,
-          sha256: modelBlob?.digests?.sha256 ?? null,
-          acceptanceVectors: Array.isArray(docs.modelDocument.application?.acceptance_vectors)
-            ? docs.modelDocument.application.acceptance_vectors.length
-            : null,
-        }
-      : null,
-    // Format revision 2026-10-23 has no section kind or extension for the
-    // attestation bundle; issue #267 adds one. Until then this is always false.
-    attestation: { present: false, section: null },
+    world:
+      contract && capabilities
+        ? {
+            contract,
+            imports: world ? [...world.imports] : null,
+            exports: world ? [...world.exports] : null,
+            capability_set: { label: capabilities.label, empty: hex(capabilities.content) === spec.CAPABILITY_SET.EMPTY_HEX },
+          }
+        : null,
+    // Statements inside the archive arrive with the attestation section
+    // (issue #267). Until then no holo carries any, and the list is empty.
+    attestations: [],
+    verification: {
+      footer: status('archive.footer'),
+      labels: status('blob.labels'),
+      cross_references: status('references'),
+    },
   };
 }
 
 /**
- * Describe a holo. Throws VerifyError when the header or section table cannot
- * be read, because then there are no sections to describe. Every later
- * problem is reported in the result (`footer.matches`, `labelMatches`,
- * `problem`, a null `formatRevision`), not thrown.
+ * Describe a holo as a `prismpm/holo-inspection/1` object. Throws VerifyError
+ * when the header or section table cannot be read, because then there are no
+ * sections to describe. Later damage is reported, not thrown: `verification`
+ * flags, `label_matches`, a null `revision`, and null for a document that
+ * does not decode.
  *
  * @param {Uint8Array | ArrayBuffer} source the whole holo
  */
 export function inspect(source) {
   const bytes = asBytes(source);
   const { checks, facts } = analyze(bytes);
-  const broken = checks.find((c) => c.status === 'fail' && ['archive.magic', 'archive.version', 'archive.flags', 'archive.table'].includes(c.id));
+  const broken = checks.find((c) => c.status === 'fail' && STRUCTURE_IDS.includes(c.id));
   if (broken) throw new VerifyError(broken.id, broken.detail);
-  return inspectionOf(bytes, facts);
+  return inspectionOf(bytes, facts, checks);
 }
 
 function checkPolicy(policy) {

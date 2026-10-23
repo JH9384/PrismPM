@@ -12,7 +12,7 @@ import * as vendoredSpec from '../src/vendor/spec.mjs';
 import { blake3Hex } from '../src/vendor/blake3.mjs';
 import { sha256Hex } from '../src/sha256.mjs';
 import { readStructure } from '../src/reader.mjs';
-import { FORMAT_REVISION, ASSURANCE } from '../src/index.mjs';
+import { FORMAT_REVISION, ASSURANCE, inspect } from '../src/index.mjs';
 import { here, reference, assertVerdict } from './helpers.mjs';
 
 test('the vendored files are what scripts/vendor.mjs makes from their origins today', () => {
@@ -76,4 +76,24 @@ test('the verdict schema rejects a verdict that contradicts itself', () => {
   assert.throws(() => assertVerdict({ ...good, passed: true }), /not a prism\/verdict\/1 object/);
   assert.throws(() => assertVerdict({ ...good, reasons: [] }), /not a prism\/verdict\/1 object/);
   assert.throws(() => assertVerdict({ ...good, level: 'P1' }), /not a prism\/verdict\/1 object/);
+});
+
+// Issue #271 adds `inspect` to prism-code through PR #335. This package
+// returns the same `prismpm/holo-inspection/1` object; once prism-code has it,
+// these tests compare the two readers directly.
+const prismInspect = here('../../prism-code/src/inspect.mjs');
+const prismGolden = here('../../prism-code/test/fixtures/Calculator.inspect.json');
+
+test('the inspection golden copy equals prism-code once prism-code carries it', { skip: !existsSync(prismGolden) && 'PR #335 not merged' }, () => {
+  assert.deepEqual(JSON.parse(readFileSync(here('fixtures/Calculator.inspect.json'), 'utf8')), JSON.parse(readFileSync(prismGolden, 'utf8')));
+});
+
+test('inspect equals prism-code inspect, intact and damaged, once prism-code carries it', { skip: !existsSync(prismInspect) && 'PR #335 not merged' }, async () => {
+  const { inspect: prismCodeInspect } = await import(pathToFileURL(prismInspect).href);
+  const intact = reference();
+  const damaged = reference();
+  damaged[4440 + 71 + 100] ^= 0x01;
+  for (const bytes of [intact, damaged]) {
+    assert.deepEqual(JSON.parse(JSON.stringify(inspect(bytes))), JSON.parse(JSON.stringify(await prismCodeInspect(bytes))));
+  }
 });

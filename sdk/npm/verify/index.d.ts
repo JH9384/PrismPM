@@ -10,7 +10,7 @@ export interface DigestSet {
   blake3: string;
 }
 
-/** The parts a policy can pin and an inspection reports digests for. `archive` is the whole file. */
+/** The parts a policy can pin. `archive` is the whole file; the others are content blobs. */
 export type DigestTarget = 'archive' | 'capabilities' | 'guest' | 'view' | 'model';
 
 export interface Policy {
@@ -48,68 +48,108 @@ export interface Verdict {
   reasons: VerdictReason[];
 }
 
+/** From prism-code `types/index.d.ts` (PR #335, issue #271): the shape both readers return. */
+export type SectionRole =
+  | 'app-manifest'
+  | 'source-manifest'
+  | 'application-directory'
+  | 'model-provenance'
+  | 'capability-set'
+  | 'guest'
+  | 'view'
+  | 'model-document'
+  | 'extension'
+  | 'content-blob'
+  | 'unknown';
+
 export interface InspectedSection {
   index: number;
+  /** The table's kind code: 15 app manifest, 8 metadata, 14 extension, 16 content blob. */
   kind: number;
-  kindName: 'app-manifest' | 'metadata' | 'extension' | 'content-blob' | 'unknown';
+  kind_name: 'app-manifest' | 'metadata' | 'extension' | 'content-blob' | 'unknown';
+  role: SectionRole;
   offset: number;
   length: number;
-  /** Extension sections: the extension name. */
+  /** Over exactly the table bytes, `offset` to `offset + length`. */
+  digest: DigestSet;
+  /** Extensions only: the extension name. */
   name?: string;
-  /** Content blobs: the `blake3:<hex>` label, the digests of the content, and whether the label matches. */
+  /** Content blobs only: the 71-byte `blake3:` label. */
   label?: string;
-  digests?: DigestSet;
-  labelMatches?: boolean;
-  /** Content blobs the documents name. */
-  role?: Exclude<DigestTarget, 'archive'>;
-  /** A decoding problem in this section. */
-  problem?: string;
+  /** Content blobs only: the bytes after the label. `digest.blake3` equals the label when `label_matches`. */
+  content?: { length: number; digest: DigestSet; label_matches: boolean };
+}
+
+export interface InspectedAttestation {
+  predicate_type: string;
+  subjects: { name: string; digest: DigestSet }[];
 }
 
 export interface Inspection {
-  /** The format revision the archive's identifiers match, or null. */
-  formatRevision: string | null;
+  schema: 'prismpm/holo-inspection/1';
+  name: string | null;
+  /** The format revision whose identifiers the archive carries, or null when none matches. */
+  revision: string | null;
+  physical_version: number;
+  flags: number;
+  /** File size in bytes. */
   size: number;
-  digests: { archive: DigestSet } & Partial<Record<Exclude<DigestTarget, 'archive'>, DigestSet>>;
-  /** The stored footer and the BLAKE3 of the body. */
-  footer: { stored: string; computed: string; matches: boolean };
+  /** Over the whole file. */
+  digest: DigestSet;
+  /** The last 32 bytes: BLAKE3 of every earlier byte. */
+  footer: string;
   sections: InspectedSection[];
-  manifest: { uri: string; labels: { capabilitySet: string; guest: string; view: string } } | null;
-  sourceManifest: { version: number; sourceId: string | null; semanticId: string | null; files: { kind: string; sha256: string }[] } | null;
-  directory: {
-    primaryLayer: number;
-    requires: string;
-    layers: { position: number; kind: string; kappa: string; entry: string | null; contract: string | null }[];
+  /** Null when the application manifest is not the Wire form. */
+  manifest: {
+    uri: string;
+    labels: { capability_set: string; guest: string; view: string };
+    entry: string;
+    contract: string;
+    view_entry: string;
+    surface: string;
   } | null;
-  provenance: {
-    schema: string;
-    applicationKappa: string | null;
-    modelId: string | null;
-    semanticId: string | null;
-    compilerSemanticsId: string | null;
-    coreWasmContract: string | null;
-    cargoName: string | null;
-    cargoVersion: string | null;
-  } | null;
-  modelDocument: {
-    schema: string;
+  /** Null when the model document does not decode. */
+  model: {
+    schema: string | null;
     name: string | null;
-    cargoName: string | null;
-    cargoVersion: string | null;
-    coreContract: string | null;
-    kappa: string | null;
-    sha256: string | null;
-    acceptanceVectors: number | null;
+    cargo_name: string | null;
+    cargo_version: string | null;
+    description: string | null;
+    profile: string | null;
+    function: string | null;
+    vectors: number;
+    limits: { request: number | null; response: number | null; guest_allocation: number | null };
+    /** Over the model document's bytes. `sha256` is the provenance `model_id`. */
+    digest: DigestSet;
   } | null;
-  /** Always `{ present: false, section: null }` for format revision 2026-10-23, which has no attestation section yet. */
-  attestation: { present: boolean; section: number | null };
+  /** Null when the provenance extension does not decode. */
+  provenance: {
+    schema: string | null;
+    application_kappa: string | null;
+    model_id: string | null;
+    compiler_semantics_id: string | null;
+    stdlib_semantics_id: string | null;
+    lexlean_commit: string | null;
+  } | null;
+  /** The guest contract and its world; `imports` and `exports` are null for a contract this reader does not know. */
+  world: {
+    contract: string;
+    imports: string[] | null;
+    exports: string[] | null;
+    capability_set: { label: string; empty: boolean };
+  } | null;
+  /** Empty until holos carry an attestation section (#267). */
+  attestations: InspectedAttestation[];
+  verification: { footer: boolean; labels: boolean; cross_references: boolean };
 }
 
 /** Check a holo. Rejects with VerifyError when no verdict can be reached: not bytes, an invalid policy, an unreadable file or an unknown format revision. */
 export function verify(bytes: HoloBytes, policy?: Policy): Promise<Verdict>;
 
-/** Describe a holo. Throws VerifyError when the header or section table cannot be read. */
+/** Describe a holo as `prismpm/holo-inspection/1`. Throws VerifyError when the header or section table cannot be read. */
 export function inspect(bytes: HoloBytes): Inspection;
+
+export const INSPECTION_SCHEMA: 'prismpm/holo-inspection/1';
 
 /** The newest holo format revision this package reads. */
 export const FORMAT_REVISION: string;

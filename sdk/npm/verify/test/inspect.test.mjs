@@ -1,80 +1,80 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { parseArchive } from '../../prism-code/src/archive.mjs';
-import { inspect, VerifyError, FORMAT_REVISION } from '../src/index.mjs';
-import { reference, table, ADR_015 } from './helpers.mjs';
+import { inspect, VerifyError, FORMAT_REVISION, INSPECTION_SCHEMA } from '../src/index.mjs';
+import { here, reference, table, ADR_015 } from './helpers.mjs';
+
+/**
+ * prism-code's golden inspection of the reference archive, from PR #335
+ * (issue #271). Canonical JSON with sorted keys. test/agreement.test.mjs holds
+ * this copy to prism-code's once that PR has merged.
+ */
+const GOLDEN = JSON.parse(readFileSync(here('fixtures/Calculator.inspect.json'), 'utf8'));
+const plain = (value) => JSON.parse(JSON.stringify(value));
+
+test('inspect returns the prismpm/holo-inspection/1 object prism-code returns for the reference archive', () => {
+  const inspection = inspect(reference());
+  assert.equal(inspection.schema, INSPECTION_SCHEMA);
+  assert.deepEqual(plain(inspection), GOLDEN);
+});
 
 test('inspect lists every section in table order, with kinds, offsets, names and roles', () => {
   const bytes = reference();
   const inspection = inspect(bytes);
-  const parsed = parseArchive(bytes);
-  assert.equal(inspection.sections.length, parsed.sections.length);
   assert.deepEqual(
     inspection.sections.map(({ index, kind, offset, length }) => ({ index, kind, offset, length })),
-    parsed.sections.map(({ index, kind, offset, length }) => ({ index, kind, offset, length })),
+    parseArchive(bytes).sections.map(({ index, kind, offset, length }) => ({ index, kind, offset, length })),
   );
   assert.deepEqual(
-    inspection.sections.map((s) => [s.kindName, s.role ?? s.name ?? null]),
+    inspection.sections.map((s) => [s.kind_name, s.role, s.name ?? null]),
     [
-      ['app-manifest', null],
-      ['metadata', null],
-      ['extension', 'https://hologram.foundation/extension/application-directory/v1'],
-      ['extension', 'https://uor.foundation/extension/prismpm-model/v1'],
-      ['content-blob', 'guest'],
-      ['content-blob', 'view'],
-      ['content-blob', 'capabilities'],
-      ['content-blob', 'model'],
+      ['app-manifest', 'app-manifest', null],
+      ['metadata', 'source-manifest', null],
+      ['extension', 'application-directory', 'https://hologram.foundation/extension/application-directory/v1'],
+      ['extension', 'model-provenance', 'https://uor.foundation/extension/prismpm-model/v1'],
+      ['content-blob', 'guest', null],
+      ['content-blob', 'view', null],
+      ['content-blob', 'capability-set', null],
+      ['content-blob', 'model-document', null],
     ],
   );
-  for (const blob of inspection.sections.filter((s) => s.kindName === 'content-blob')) {
-    assert.equal(blob.label, `blake3:${blob.digests.blake3}`);
-    assert.equal(blob.labelMatches, true);
-    assert.match(blob.digests.sha256, /^[0-9a-f]{64}$/);
+  for (const section of inspection.sections) {
+    assert.match(section.digest.sha256, /^[0-9a-f]{64}$/);
+    if (section.kind_name !== 'content-blob') continue;
+    assert.equal(section.label, `blake3:${section.content.digest.blake3}`);
+    assert.equal(section.content.label_matches, true);
+    assert.equal(section.content.length, section.length - 71);
   }
 });
 
-test('inspect reports both digests of the archive and of each part, as ADR-015 records them', () => {
+test('inspect reports both digests of the archive and of its parts, as ADR-015 records them', () => {
   const inspection = inspect(reference());
-  assert.deepEqual(inspection.digests.archive, ADR_015.archive);
-  assert.deepEqual(inspection.digests.guest, ADR_015.guest);
-  assert.deepEqual(inspection.digests.model, ADR_015.model);
-  assert.deepEqual(Object.keys(inspection.digests), ['archive', 'capabilities', 'guest', 'view', 'model']);
-  assert.deepEqual(inspection.footer, { stored: ADR_015.footer, computed: ADR_015.footer, matches: true });
+  assert.deepEqual(inspection.digest, ADR_015.archive);
+  assert.equal(inspection.footer, ADR_015.footer);
+  assert.deepEqual(inspection.sections[4].content.digest, ADR_015.guest);
+  assert.deepEqual(inspection.sections[7].content.digest, ADR_015.model);
+  assert.deepEqual(inspection.model.digest, ADR_015.model);
+  assert.equal(inspection.provenance.model_id, ADR_015.model.sha256);
 });
 
-test('inspect names the format revision and summarizes the documents', () => {
+test('inspect names the format revision, the world and no attestations', () => {
   const inspection = inspect(reference());
-  assert.equal(inspection.formatRevision, FORMAT_REVISION);
-  assert.equal(inspection.size, 24801);
-  assert.equal(inspection.manifest.labels.guest, `blake3:${ADR_015.guest.blake3}`);
-  assert.equal(inspection.sourceManifest.version, 4);
-  assert.deepEqual(inspection.directory.layers.map((l) => l.kind), ['wasm', 'view']);
-  assert.equal(inspection.provenance.schema, 'prismpm/model-provenance/1');
-  assert.equal(inspection.provenance.modelId, ADR_015.model.sha256);
-  assert.deepEqual(
-    { ...inspection.modelDocument },
-    {
-      schema: 'prismpm/model-document/1',
-      name: 'Calculator',
-      cargoName: 'prism-calculator',
-      cargoVersion: '0.1.0',
-      coreContract: 'hologram:guest/core-wasm@1',
-      kappa: `blake3:${ADR_015.model.blake3}`,
-      sha256: ADR_015.model.sha256,
-      acceptanceVectors: inspection.modelDocument.acceptanceVectors,
-    },
-  );
-  assert.ok(inspection.modelDocument.acceptanceVectors > 0);
-  assert.deepEqual(inspection.attestation, { present: false, section: null });
+  assert.equal(inspection.revision, FORMAT_REVISION);
+  assert.deepEqual(inspection.world.exports, ['holo_alloc', 'holo_run', 'memory']);
+  assert.equal(inspection.world.capability_set.empty, true);
+  assert.deepEqual(inspection.attestations, []);
+  assert.deepEqual(inspection.verification, { footer: true, labels: true, cross_references: true });
 });
 
 test('inspect reports damage after the table instead of throwing', () => {
   const bytes = reference();
   bytes[table(bytes)[4].offset + 71 + 100] ^= 0x01;
   const inspection = inspect(bytes);
-  assert.equal(inspection.footer.matches, false);
-  assert.equal(inspection.sections[4].labelMatches, false);
-  assert.equal(inspection.sections[5].labelMatches, true);
+  assert.deepEqual(inspection.verification, { footer: false, labels: false, cross_references: true });
+  assert.equal(inspection.sections[4].content.label_matches, false);
+  assert.equal(inspection.sections[5].content.label_matches, true);
+  assert.equal(inspection.footer, ADR_015.footer);
 });
 
 test('inspect throws VerifyError when the header or table cannot be read', () => {

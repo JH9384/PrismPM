@@ -151,3 +151,4 @@ integrity against the release's own evidence, not deployment acceptance.
 - [SPEC.md](SPEC.md) — Atomic release contract specification
 - [CONFORMANCE.md](CONFORMANCE.md) — Conformance requirements
 - [ERRORS.md](ERRORS.md) — Error code registry
+- [STABILITY.md](STABILITY.md) — Stability tiers and pre-1.0 versioning policy

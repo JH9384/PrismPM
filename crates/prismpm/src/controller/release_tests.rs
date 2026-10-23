@@ -368,6 +368,7 @@ fn host_effect_system_project() -> tempfile::TempDir {
         root.join("src/Release.lex.tex"),
     );
     copy_fixture_file(fixture.join("lexlean.toml"), root.join("lexlean.toml"));
+    copy_stdlib_lexicon(root);
     relock(root);
     bind_application_digest_of(root, "src/Calculator.lex.tex", 2);
     temporary

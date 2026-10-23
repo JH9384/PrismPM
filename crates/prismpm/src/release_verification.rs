@@ -854,7 +854,7 @@ fn declaration_audits(lex: &Value, modules: &[Value]) -> Result<(), PrismError> 
         let name = string(&row["name"])?;
         let pinned = match expected.get(name) {
             Some(policy) => Some((*policy).clone()),
-            None => crate::lean_project::runtime_declaration_axioms(name)?
+            None => crate::library_verification::runtime_declaration_axioms(name)?
                 .map(|axioms| json!({"axioms": axioms, "kind": "exact"})),
         };
         ensure(
@@ -881,7 +881,7 @@ fn declaration_audits(lex: &Value, modules: &[Value]) -> Result<(), PrismError> 
         .collect::<BTreeSet<_>>();
     ensure(
         expected.keys().all(|name| seen.contains(name))
-            && crate::lean_project::runtime_audit_is_complete(&runtime)?,
+            && crate::library_verification::runtime_audit_is_complete(&runtime)?,
         "LexLean declaration audit is incomplete",
     )
 }

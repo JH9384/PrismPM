@@ -26,6 +26,52 @@ pub(crate) struct LibraryVerification<'a> {
     pub(crate) exporter_owner: crate::exporter::VerifyExporterOwner,
 }
 
+/// The exact axioms a LexLean attestation pins for a runtime declaration.
+///
+/// Under language 1.2 the attestation `declarations` audit reports, beside
+/// the project's own declarations, every declaration of the `LexLeanRuntime`
+/// modules the generated Lean imports (SPEC 17.12), each under an exact
+/// policy over the axioms the runtime native source pins. Returns `None` when
+/// `name` is not a runtime declaration, so the caller can reject it as an
+/// undeclared source declaration.
+pub(crate) fn runtime_declaration_axioms(
+    name: &str,
+) -> Result<Option<&'static [String]>, PrismError> {
+    let modules = lexlean::backend::runtime::modules()
+        .map_err(|diagnostic| PrismError::new("PP5003", diagnostic.message))?;
+    Ok(modules
+        .iter()
+        .flat_map(|module| module.declarations.iter())
+        .find(|(declaration, _)| declaration == name)
+        .map(|(_, axioms)| axioms.as_slice()))
+}
+
+/// Whether the runtime declarations an audit reported close over whole
+/// runtime modules and over the imports of those modules, as LexLean audits
+/// every declaration of each runtime module it compiles.
+pub(crate) fn runtime_audit_is_complete(reported: &BTreeSet<&str>) -> Result<bool, PrismError> {
+    let modules = lexlean::backend::runtime::modules()
+        .map_err(|diagnostic| PrismError::new("PP5003", diagnostic.message))?;
+    let covered = |module: &lexlean::backend::runtime::RuntimeModule| {
+        module
+            .declarations
+            .iter()
+            .filter(|(name, _)| reported.contains(name.as_str()))
+            .count()
+    };
+    Ok(modules.iter().all(|module| {
+        let count = covered(module);
+        count == 0
+            || (count == module.declarations.len()
+                && module.imports.iter().all(|import| {
+                    modules
+                        .iter()
+                        .find(|candidate| candidate.name == *import)
+                        .is_some_and(|imported| covered(imported) > 0)
+                }))
+    }))
+}
+
 /// Audit every selected source declaration, including imported namespaces.
 pub(crate) fn audit_declarations(attestation: &Value, snapshot: &Value) -> Result<(), PrismError> {
     let invalid = |message| PrismError::new("PP5003", message);
@@ -68,7 +114,7 @@ pub(crate) fn audit_declarations(attestation: &Value, snapshot: &Value) -> Resul
                 declaration["axiom_policy"].clone(),
                 declaration["kind"] == "theorem",
             ),
-            None => match crate::lean_project::runtime_declaration_axioms(name)? {
+            None => match runtime_declaration_axioms(name)? {
                 Some(axioms) => (json!({"axioms": axioms, "kind": "exact"}), false),
                 None => {
                     return Err(invalid(
@@ -125,9 +171,7 @@ pub(crate) fn audit_declarations(attestation: &Value, snapshot: &Value) -> Resul
         .filter(|name| !expected.contains_key(**name))
         .copied()
         .collect::<BTreeSet<_>>();
-    if project_rows != expected.len()
-        || !crate::lean_project::runtime_audit_is_complete(&runtime_rows)?
-    {
+    if project_rows != expected.len() || !runtime_audit_is_complete(&runtime_rows)? {
         return Err(invalid(
             "library declaration audit does not cover the complete selected snapshot",
         ));

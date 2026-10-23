@@ -41,53 +41,6 @@ pub(crate) fn stage_runtime<'a>(
     Ok(names)
 }
 
-/// The exact axioms a LexLean attestation pins for a runtime declaration.
-///
-/// Under language 1.2 the attestation `declarations` audit reports, beside
-/// the project's own declarations, every declaration of the `LexLeanRuntime`
-/// modules the generated Lean imports (SPEC 17.12), each under an exact
-/// policy. Returns `None` when `name` is not a runtime declaration, so the
-/// caller can reject it as an undeclared source declaration.
-pub(crate) fn runtime_declaration_axioms(
-    name: &str,
-) -> Result<Option<&'static [String]>, PrismError> {
-    let modules = lexlean::backend::runtime::modules()
-        .map_err(|diagnostic| PrismError::new("PP4004", diagnostic.message))?;
-    Ok(modules
-        .iter()
-        .flat_map(|module| module.declarations.iter())
-        .find(|(declaration, _)| declaration == name)
-        .map(|(_, axioms)| axioms.as_slice()))
-}
-
-/// Whether the runtime declarations an audit reported close over whole
-/// runtime modules and over the imports of those modules, as LexLean audits
-/// every declaration of each runtime module it compiles.
-pub(crate) fn runtime_audit_is_complete(
-    reported: &std::collections::BTreeSet<&str>,
-) -> Result<bool, PrismError> {
-    let modules = lexlean::backend::runtime::modules()
-        .map_err(|diagnostic| PrismError::new("PP4004", diagnostic.message))?;
-    let covered = |module: &lexlean::backend::runtime::RuntimeModule| {
-        module
-            .declarations
-            .iter()
-            .filter(|(name, _)| reported.contains(name.as_str()))
-            .count()
-    };
-    Ok(modules.iter().all(|module| {
-        let count = covered(module);
-        count == 0
-            || (count == module.declarations.len()
-                && module.imports.iter().all(|import| {
-                    modules
-                        .iter()
-                        .find(|candidate| candidate.name == *import)
-                        .is_some_and(|imported| covered(imported) > 0)
-                }))
-    }))
-}
-
 /// The lakefile roots of a workspace: the staged runtime modules, then the
 /// project's generated modules.
 pub(crate) fn roots(runtime: &[String], modules: &[String]) -> Vec<String> {

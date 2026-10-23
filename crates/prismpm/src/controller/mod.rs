@@ -793,7 +793,7 @@ impl Controller {
                     .model
                     .application
                     .as_ref()
-                    .map(|application| application.core_contract.as_str()),
+                    .map(|application| application.core_contract().as_str()),
                 application_generator_sha256: application_generator_identity(),
                 library_generator_sha256: library_generator_identity(),
             })

@@ -1,0 +1,97 @@
+name: npm prism-code
+
+# The JavaScript runtime and CLI in sdk/npm/prism-code. Short, path-filtered,
+# and outside the devcontainer: the package has no dependencies and must work
+# on a plain Node 22 or 24 on every host a consumer has. Publishing runs only
+# on a `prism-code-v*` tag, with npm provenance.
+
+on:
+  pull_request:
+    paths:
+      - sdk/npm/prism-code/**
+      - .github/workflows/npm-prism-code.yml
+  push:
+    branches: [main]
+    paths:
+      - sdk/npm/prism-code/**
+      - .github/workflows/npm-prism-code.yml
+    tags:
+      - prism-code-v*
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-prism-code-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: sdk/npm/prism-code
+
+jobs:
+  test:
+    name: node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Unit tests
+        run: node --test "test/*.test.mjs"
+      - name: Package size and contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm pack --dry-run --json > pack.json
+          size=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("pack.json","utf8"))[0].unpackedSize)')
+          echo "unpacked size: $size bytes"
+          test "$size" -le 153600
+          rm pack.json
+      - name: The entry points import cleanly
+        shell: bash
+        run: |
+          set -euo pipefail
+          for entry in ./src/index.mjs ./src/node.mjs ./src/browser.mjs ./src/canonical/index.js; do
+            node --input-type=module -e "import('$entry').then(m => { if (Object.keys(m).length === 0) throw new Error('$entry exports nothing') })"
+          done
+          node bin/prism-code.mjs vectors fixtures/Calculator.holo
+      - name: Release tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/prism-code-v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p 'require("./package.json").version')
+          test "refs/tags/prism-code-v${version}" = "${{ github.ref }}"
+
+  publish:
+    name: publish to npm
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/prism-code-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+      - name: Publish with provenance
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

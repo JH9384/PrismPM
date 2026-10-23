@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-native-library-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Library.V1.Model"
+component = "NativeLibrary"
+
+[[form]]
+id = "prism-native-library-model"
+channel = "text"
+surface = "Native library model"
+canonical_source = true
+features = ["sentence-case", "singular"]

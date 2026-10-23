@@ -17,7 +17,7 @@ const jobs = [
 
 function sourceEvents(name, value) {
   const expected = {
-    'ci-parallel': {pull_request: null, workflow_dispatch: null},
+    'ci-parallel': {pull_request: null, merge_group: {branches: ['main']}, workflow_dispatch: null},
     vv: {push: {branches: ['main'], tags: ['v*']}, workflow_dispatch: null},
     bootstrap: {workflow_dispatch: null},
     reproducibility: {schedule: [{cron: '17 3 * * *'}], workflow_dispatch: null},
@@ -145,6 +145,10 @@ test('source trigger policy refuses missing filtered broadened or redundant exec
       value => value.on.pull_request = {paths: ['src/**']},
     ];
     if (name !== 'ci-parallel') mutations.push(value => value.on.pull_request = null);
+    if (name === 'ci-parallel') mutations.push(value => delete value.on.merge_group,
+      value => value.on.merge_group = null,
+      value => value.on.merge_group = {branches: ['main', 'other']});
+    else mutations.push(value => value.on.merge_group = {branches: ['main']});
     if (name !== 'reproducibility') mutations.push(value => value.on.schedule = [{cron: '* * * * *'}]);
     if (name !== 'vv') mutations.push(value => value.on.push = {branches: ['main']});
     else mutations.push(value => delete value.on.push, value => value.on.push = null,

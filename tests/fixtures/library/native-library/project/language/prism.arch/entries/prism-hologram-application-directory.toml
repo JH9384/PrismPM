@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-application-directory"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.Directory"
+component = "ApplicationDirectory"
+
+[[form]]
+id = "prism-hologram-application-directory"
+channel = "text"
+surface = "Hologram application directory"
+canonical_source = true
+features = ["sentence-case", "singular"]

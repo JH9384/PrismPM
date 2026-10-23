@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-source-session-wire-format"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.SessionWire"
+component = "SourceReadIntent"
+
+[[form]]
+id = "prism-browser-source-session-wire-format"
+channel = "text"
+surface = "Browser source session wire format"
+canonical_source = true
+features = ["sentence-case", "singular"]

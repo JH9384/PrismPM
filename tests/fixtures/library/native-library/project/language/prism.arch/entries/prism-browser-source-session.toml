@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-source-session"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.Session"
+component = "SourceSession"
+
+[[form]]
+id = "prism-browser-source-session"
+channel = "text"
+surface = "Browser source session"
+canonical_source = true
+features = ["sentence-case", "singular"]

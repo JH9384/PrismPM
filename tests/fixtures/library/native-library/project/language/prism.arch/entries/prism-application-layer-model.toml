@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-application-layer-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Application"
+component = "Application"
+
+[[form]]
+id = "prism-application-layer-model"
+channel = "text"
+surface = "Application layer model"
+canonical_source = true
+features = ["sentence-case", "singular"]

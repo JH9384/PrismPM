@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-publication-linkage-wire-format"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Production.PublicationAdmission.LinkageV1Wire"
+component = "PublicationLinkageReadPublicationMember"
+
+[[form]]
+id = "prism-publication-linkage-wire-format"
+channel = "text"
+surface = "Publication linkage wire format"
+canonical_source = true
+features = ["sentence-case", "singular"]

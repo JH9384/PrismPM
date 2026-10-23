@@ -149,5 +149,7 @@ integrity against the release's own evidence, not deployment acceptance.
 - [RELEASE-STATUS.md](RELEASE-STATUS.md) — Current release status and required acceptance
 - [VERIFICATION.md](VERIFICATION.md) — Detailed verification evidence, digests, and test descriptions
 - [SPEC.md](SPEC.md) — Atomic release contract specification
+- [docs/vocabulary.md](docs/vocabulary.md) — Prism nouns and verbs mapped to Docker's
 - [CONFORMANCE.md](CONFORMANCE.md) — Conformance requirements
 - [ERRORS.md](ERRORS.md) — Error code registry
+- [STABILITY.md](STABILITY.md) — Stability tiers and pre-1.0 versioning policy

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-workspace-journal"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.V1.WorkspaceJournal"
+component = "journalRowValid"
+
+[[form]]
+id = "prism-browser-workspace-journal"
+channel = "text"
+surface = "Browser workspace journal"
+canonical_source = true
+features = ["sentence-case", "singular"]

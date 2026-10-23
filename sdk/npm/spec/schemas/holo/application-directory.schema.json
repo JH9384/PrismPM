@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/holo/application-directory/1",
+  "title": "HoloApplicationDirectory",
+  "description": "The application-directory/v1 extension payload, section row 2, as PrismPM writes it (Directory in crates/prismpm/src/holo/archive.rs). Hologram owns the extension. Blobs are sorted by kappa.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "primary_layer",
+    "requires_kappa",
+    "layers",
+    "children",
+    "blobs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "primary_layer": {
+      "const": 0
+    },
+    "requires_kappa": {
+      "type": "string",
+      "pattern": "^blake3:[0-9a-f]{64}$"
+    },
+    "layers": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "position",
+            "kind",
+            "content_kappa",
+            "entry",
+            "contract",
+            "architecture",
+            "surface",
+            "engine"
+          ],
+          "properties": {
+            "position": {
+              "const": 0
+            },
+            "kind": {
+              "const": "wasm"
+            },
+            "content_kappa": {
+              "type": "string",
+              "pattern": "^blake3:[0-9a-f]{64}$"
+            },
+            "entry": {
+              "const": "holo_run"
+            },
+            "contract": {
+              "const": "hologram:guest/core-wasm@1"
+            },
+            "architecture": {
+              "const": null
+            },
+            "surface": {
+              "const": null
+            },
+            "engine": {
+              "const": null
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "position",
+            "kind",
+            "content_kappa",
+            "entry",
+            "contract",
+            "architecture",
+            "surface",
+            "engine"
+          ],
+          "properties": {
+            "position": {
+              "const": 1
+            },
+            "kind": {
+              "const": "view"
+            },
+            "content_kappa": {
+              "type": "string",
+              "pattern": "^blake3:[0-9a-f]{64}$"
+            },
+            "entry": {
+              "const": "index.html"
+            },
+            "contract": {
+              "const": null
+            },
+            "architecture": {
+              "const": null
+            },
+            "surface": {
+              "const": "portable"
+            },
+            "engine": {
+              "const": null
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "children": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "blobs": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kappa",
+          "byte_length"
+        ],
+        "properties": {
+          "kappa": {
+            "type": "string",
+            "pattern": "^blake3:[0-9a-f]{64}$"
+          },
+          "byte_length": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        }
+      }
+    }
+  }
+}

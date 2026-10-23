@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-application-resource-budget"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.Budget"
+component = "ResourceBudget"
+
+[[form]]
+id = "prism-browser-application-resource-budget"
+channel = "text"
+surface = "Browser application resource budget"
+canonical_source = true
+features = ["sentence-case", "singular"]

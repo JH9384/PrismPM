@@ -103,6 +103,99 @@
 \noindent Type: \texttt{View}.\par
 \noindent Definition: \texttt{(\{ index := 0, viewpointIndex := 0, modelKindIndex := 0 \} : View)}.\par
 \noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{DesignDiagram}}
+\noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{opmObjectProcess}: \texttt{()}.\par
+\noindent Constructor \texttt{umlComponent}: \texttt{()}.\par
+\noindent Constructor \texttt{umlSequence}: \texttt{()}.\par
+\noindent Constructor \texttt{umlStateMachine}: \texttt{()}.\par
+\subsection*{\texttt{OpmThingKind}}
+\noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{object}: \texttt{()}.\par
+\noindent Constructor \texttt{process}: \texttt{()}.\par
+\subsection*{\texttt{OpmLinkKind}}
+\noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{agent}: \texttt{()}.\par
+\noindent Constructor \texttt{instrument}: \texttt{()}.\par
+\noindent Constructor \texttt{consumption}: \texttt{()}.\par
+\noindent Constructor \texttt{result}: \texttt{()}.\par
+\noindent Constructor \texttt{effect}: \texttt{()}.\par
+\noindent Constructor \texttt{invocation}: \texttt{()}.\par
+\noindent Constructor \texttt{aggregation}: \texttt{()}.\par
+\noindent Constructor \texttt{exhibition}: \texttt{()}.\par
+\noindent Constructor \texttt{generalization}: \texttt{()}.\par
+\noindent Constructor \texttt{classification}: \texttt{()}.\par
+\subsection*{\texttt{UmlMessageKind}}
+\noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{synchronous}: \texttt{()}.\par
+\noindent Constructor \texttt{asynchronous}: \texttt{()}.\par
+\noindent Constructor \texttt{reply}: \texttt{()}.\par
+\subsection*{\texttt{SystemProcess}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{owner}: \texttt{String}.\par
+\subsection*{\texttt{SystemState}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{owner}: \texttt{String}.\par
+\subsection*{\texttt{DesignView}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{title}: \texttt{String}.\par
+\noindent Field \texttt{viewpoint}: \texttt{String}.\par
+\noindent Field \texttt{diagram}: \texttt{DesignDiagram}.\par
+\subsection*{\texttt{OpmThing}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{OpmThingKind}.\par
+\noindent Field \texttt{subject}: \texttt{String}.\par
+\subsection*{\texttt{OpmState}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{thing}: \texttt{String}.\par
+\noindent Field \texttt{state}: \texttt{String}.\par
+\subsection*{\texttt{OpmLink}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{OpmLinkKind}.\par
+\noindent Field \texttt{source}: \texttt{String}.\par
+\noindent Field \texttt{target}: \texttt{String}.\par
+\subsection*{\texttt{OpmZoom}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{process}: \texttt{String}.\par
+\noindent Field \texttt{subprocess}: \texttt{String}.\par
+\noindent Field \texttt{order}: \texttt{Nat}.\par
+\subsection*{\texttt{UmlComponent}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{component}: \texttt{String}.\par
+\subsection*{\texttt{UmlConnector}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{edge}: \texttt{String}.\par
+\subsection*{\texttt{UmlLifeline}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{component}: \texttt{String}.\par
+\noindent Field \texttt{order}: \texttt{Nat}.\par
+\subsection*{\texttt{UmlMessage}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{UmlMessageKind}.\par
+\noindent Field \texttt{order}: \texttt{Nat}.\par
+\noindent Field \texttt{source}: \texttt{String}.\par
+\noindent Field \texttt{target}: \texttt{String}.\par
+\noindent Field \texttt{process}: \texttt{String}.\par
+\subsection*{\texttt{UmlState}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{state}: \texttt{String}.\par
+\noindent Field \texttt{initial}: \texttt{Bool}.\par
+\subsection*{\texttt{UmlTransition}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{view}: \texttt{String}.\par
+\noindent Field \texttt{order}: \texttt{Nat}.\par
+\noindent Field \texttt{source}: \texttt{String}.\par
+\noindent Field \texttt{target}: \texttt{String}.\par
+\noindent Field \texttt{trigger}: \texttt{String}.\par
 \subsection*{\texttt{componentIdentityUnique}}
 \noindent Kind: \texttt{theorem}.\par
 \noindent Parameters: \texttt{(value : Component)}.\par

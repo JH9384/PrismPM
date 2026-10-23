@@ -8,9 +8,9 @@ reference = "https://www.iso.org/standard/74393.html"
 basis = "public-catalog"
 scope = "Architecture description conceptual foundations and view/viewpoint framework"
 provenance = "ISO/IEC/IEEE international standard catalog entry"
-interpretation = "Architecture descriptions are modeled as collections of concerns, viewpoints, views, models, and stakeholders. Holo and text-application metadata are Prism-owned specializations in this vocabulary, not ISO-defined wire formats or user-interface contracts."
+interpretation = "Architecture descriptions are modeled as collections of concerns, viewpoints, views, models, and stakeholders. Design views in OPM and UML are 42010 views whose elements must name declarations of the system model. Holo and text-application metadata are Prism-owned specializations in this vocabulary, not ISO-defined wire formats or user-interface contracts."
 facet_package = "prism.arch"
-facet_entries = ["arch-component", "arch-component-kind", "arch-concern", "arch-edge", "arch-edge-kind", "arch-model-kind", "arch-stakeholder", "arch-standard-reference", "arch-text-application-model", "arch-view", "arch-view-class", "arch-viewpoint", "arch-viewpoint-class", "holo-flat-validation-input", "holo-normalized-model", "holo-standards-profile"]
+facet_entries = ["arch-component", "arch-component-kind", "arch-concern", "arch-design-diagram", "arch-design-view", "arch-edge", "arch-edge-kind", "arch-model-kind", "arch-stakeholder", "arch-standard-reference", "arch-system-process", "arch-system-state", "arch-text-application-model", "arch-view", "arch-view-class", "arch-viewpoint", "arch-viewpoint-class", "holo-flat-validation-input", "holo-normalized-model", "holo-standards-profile"]
 coverage_state = "implemented"
 release_scope = true
 
@@ -67,5 +67,33 @@ provenance = "ISO/IEC international standard catalog entry"
 interpretation = "Product quality requirements and measures are organized under characteristics and subcharacteristics."
 facet_package = "prism.qual"
 facet_entries = ["qual-characteristic", "qual-measure", "qual-requirement", "qual-subcharacteristic"]
+coverage_state = "implemented"
+release_scope = true
+
+[[standard]]
+id = "ISO-19450-2015"
+name = "ISO/PAS 19450:2015"
+edition = "2015"
+reference = "https://www.iso.org/standard/62274.html"
+basis = "public-catalog"
+scope = "Object-Process Methodology for systems modeling; covered subset is OPM things (objects and processes), object states, procedural links (agent, instrument, consumption, result, effect, invocation), structural links (aggregation-participation, exhibition-characterization, generalization-specialization, classification-instantiation) and in-zooming of processes"
+provenance = "ISO/PAS international standard catalog entry"
+interpretation = "OPM design views are written as 42010 views over the system model: objects name components, processes name system processes, states name system states. Each view is checked against the system model and rendered as Object-Process Language text in a Prism-defined sentence profile, not as a complete ISO 19450 OPL or OPD interchange. Semantic modifiers, in-zooming of objects, unfolding, exception links, timing and non-text diagrams are outside the covered subset."
+facet_package = "prism.arch"
+facet_entries = ["arch-opm-link", "arch-opm-link-kind", "arch-opm-state", "arch-opm-thing", "arch-opm-thing-kind", "arch-opm-zoom"]
+coverage_state = "implemented"
+release_scope = true
+
+[[standard]]
+id = "OMG-UML-2-5-1"
+name = "OMG Unified Modeling Language 2.5.1"
+edition = "2.5.1"
+reference = "https://www.omg.org/spec/UML/2.5.1"
+basis = "public-catalog"
+scope = "Unified Modeling Language structural and behavioral notation; covered subset is component diagrams (components and assembly connectors), sequence diagrams (lifelines and synchronous, asynchronous and reply messages) and state machine diagrams (states, one initial pseudostate and triggered transitions)"
+provenance = "OMG formal specification catalog entry (formal/17-12-05)"
+interpretation = "UML design views are written as 42010 views over the system model: components and lifelines name components, connectors name edges, messages and triggers name system processes, states name system states. Each view is checked against the system model and rendered as deterministic PlantUML diagram source, not as XMI interchange. Composite and orthogonal states, history and junction pseudostates, combined fragments, profiles and diagram layout interchange are outside the covered subset."
+facet_package = "prism.arch"
+facet_entries = ["arch-uml-component", "arch-uml-connector", "arch-uml-lifeline", "arch-uml-message", "arch-uml-message-kind", "arch-uml-state", "arch-uml-transition"]
 coverage_state = "implemented"
 release_scope = true

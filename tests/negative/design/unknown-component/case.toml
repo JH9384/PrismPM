@@ -1,0 +1,14 @@
+spec = "prismpm/test-case/1"
+command = "check"
+expected_exit = 1
+normalization = "canonical-json"
+capabilities = ["HO-18", "ST-18"]
+expected_artifacts = []
+
+[[expected_diagnostics]]
+code = "PP2012"
+message = "design view Design::opmPipeline: Design::opmBilling names unknown component Foundation.Arch::componentBilling"
+primary = "none"
+labels = []
+notes = []
+help = []

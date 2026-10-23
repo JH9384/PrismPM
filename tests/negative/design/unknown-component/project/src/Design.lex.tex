@@ -1,0 +1,227 @@
+\begin{lexlean}{Design}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Foundation.Arch}
+\title{design view}
+\begin{semanticmodule}
+
+definition{
+  name: verifyCredentials,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Foundation.Arch::componentAuth"})
+}
+
+definition{
+  name: routeRequest,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Foundation.Arch::componentGateway"})
+}
+
+definition{
+  name: sessionIdle,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Foundation.Arch::componentGateway"})
+}
+
+definition{
+  name: sessionActive,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Foundation.Arch::componentGateway"})
+}
+
+definition{
+  name: opmPipeline,
+  parameters: [],
+  result: Foundation.Arch::DesignView,
+  body: (record Foundation.Arch::DesignView {title := "Request pipeline", viewpoint := "Foundation.Arch::viewpointOperations", diagram := (ctor Foundation.Arch::DesignDiagram.opmObjectProcess)})
+}
+
+definition{
+  name: opmGateway,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::opmPipeline", kind := (ctor Foundation.Arch::OpmThingKind.object), subject := "Foundation.Arch::componentGateway"})
+}
+
+definition{
+  name: opmAuth,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::opmPipeline", kind := (ctor Foundation.Arch::OpmThingKind.object), subject := "Foundation.Arch::componentAuth"})
+}
+
+definition{
+  name: opmRoute,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::opmPipeline", kind := (ctor Foundation.Arch::OpmThingKind.process), subject := "Design::routeRequest"})
+}
+
+definition{
+  name: opmVerify,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::opmPipeline", kind := (ctor Foundation.Arch::OpmThingKind.process), subject := "Design::verifyCredentials"})
+}
+
+definition{
+  name: opmBilling,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::opmPipeline", kind := (ctor Foundation.Arch::OpmThingKind.object), subject := "Foundation.Arch::componentBilling"})
+}
+
+definition{
+  name: opmIdle,
+  parameters: [],
+  result: Foundation.Arch::OpmState,
+  body: (record Foundation.Arch::OpmState {view := "Design::opmPipeline", thing := "Foundation.Arch::componentGateway", state := "Design::sessionIdle"})
+}
+
+definition{
+  name: opmActive,
+  parameters: [],
+  result: Foundation.Arch::OpmState,
+  body: (record Foundation.Arch::OpmState {view := "Design::opmPipeline", thing := "Foundation.Arch::componentGateway", state := "Design::sessionActive"})
+}
+
+definition{
+  name: opmInstrument,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::opmPipeline", kind := (ctor Foundation.Arch::OpmLinkKind.instrument), source := "Foundation.Arch::componentAuth", target := "Design::routeRequest"})
+}
+
+definition{
+  name: opmConsumes,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::opmPipeline", kind := (ctor Foundation.Arch::OpmLinkKind.consumption), source := "Foundation.Arch::componentGateway", target := "Design::verifyCredentials"})
+}
+
+definition{
+  name: opmInvokes,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::opmPipeline", kind := (ctor Foundation.Arch::OpmLinkKind.invocation), source := "Design::routeRequest", target := "Design::verifyCredentials"})
+}
+
+definition{
+  name: opmZoom,
+  parameters: [],
+  result: Foundation.Arch::OpmZoom,
+  body: (record Foundation.Arch::OpmZoom {view := "Design::opmPipeline", process := "Design::routeRequest", subprocess := "Design::verifyCredentials", order := 0})
+}
+
+definition{
+  name: umlComponents,
+  parameters: [],
+  result: Foundation.Arch::DesignView,
+  body: (record Foundation.Arch::DesignView {title := "Components", viewpoint := "Foundation.Arch::viewpointOperations", diagram := (ctor Foundation.Arch::DesignDiagram.umlComponent)})
+}
+
+definition{
+  name: umlGateway,
+  parameters: [],
+  result: Foundation.Arch::UmlComponent,
+  body: (record Foundation.Arch::UmlComponent {view := "Design::umlComponents", component := "Foundation.Arch::componentGateway"})
+}
+
+definition{
+  name: umlAuth,
+  parameters: [],
+  result: Foundation.Arch::UmlComponent,
+  body: (record Foundation.Arch::UmlComponent {view := "Design::umlComponents", component := "Foundation.Arch::componentAuth"})
+}
+
+definition{
+  name: umlIngress,
+  parameters: [],
+  result: Foundation.Arch::UmlConnector,
+  body: (record Foundation.Arch::UmlConnector {view := "Design::umlComponents", edge := "Foundation.Arch::edgeIngress"})
+}
+
+definition{
+  name: umlReturn,
+  parameters: [],
+  result: Foundation.Arch::UmlConnector,
+  body: (record Foundation.Arch::UmlConnector {view := "Design::umlComponents", edge := "Foundation.Arch::edgeReturnCycle"})
+}
+
+definition{
+  name: umlSequence,
+  parameters: [],
+  result: Foundation.Arch::DesignView,
+  body: (record Foundation.Arch::DesignView {title := "Authentication", viewpoint := "Foundation.Arch::viewpointOperations", diagram := (ctor Foundation.Arch::DesignDiagram.umlSequence)})
+}
+
+definition{
+  name: seqGateway,
+  parameters: [],
+  result: Foundation.Arch::UmlLifeline,
+  body: (record Foundation.Arch::UmlLifeline {view := "Design::umlSequence", component := "Foundation.Arch::componentGateway", order := 0})
+}
+
+definition{
+  name: seqAuth,
+  parameters: [],
+  result: Foundation.Arch::UmlLifeline,
+  body: (record Foundation.Arch::UmlLifeline {view := "Design::umlSequence", component := "Foundation.Arch::componentAuth", order := 1})
+}
+
+definition{
+  name: seqCall,
+  parameters: [],
+  result: Foundation.Arch::UmlMessage,
+  body: (record Foundation.Arch::UmlMessage {view := "Design::umlSequence", kind := (ctor Foundation.Arch::UmlMessageKind.synchronous), order := 0, source := "Foundation.Arch::componentGateway", target := "Foundation.Arch::componentAuth", process := "Design::verifyCredentials"})
+}
+
+definition{
+  name: seqReply,
+  parameters: [],
+  result: Foundation.Arch::UmlMessage,
+  body: (record Foundation.Arch::UmlMessage {view := "Design::umlSequence", kind := (ctor Foundation.Arch::UmlMessageKind.reply), order := 1, source := "Foundation.Arch::componentAuth", target := "Foundation.Arch::componentGateway", process := "Design::verifyCredentials"})
+}
+
+definition{
+  name: umlSession,
+  parameters: [],
+  result: Foundation.Arch::DesignView,
+  body: (record Foundation.Arch::DesignView {title := "Session", viewpoint := "Foundation.Arch::viewpointOperations", diagram := (ctor Foundation.Arch::DesignDiagram.umlStateMachine)})
+}
+
+definition{
+  name: stIdle,
+  parameters: [],
+  result: Foundation.Arch::UmlState,
+  body: (record Foundation.Arch::UmlState {view := "Design::umlSession", state := "Design::sessionIdle", initial := true})
+}
+
+definition{
+  name: stActive,
+  parameters: [],
+  result: Foundation.Arch::UmlState,
+  body: (record Foundation.Arch::UmlState {view := "Design::umlSession", state := "Design::sessionActive", initial := false})
+}
+
+definition{
+  name: trOpen,
+  parameters: [],
+  result: Foundation.Arch::UmlTransition,
+  body: (record Foundation.Arch::UmlTransition {view := "Design::umlSession", order := 0, source := "Design::sessionIdle", target := "Design::sessionActive", trigger := "Design::routeRequest"})
+}
+
+definition{
+  name: trClose,
+  parameters: [],
+  result: Foundation.Arch::UmlTransition,
+  body: (record Foundation.Arch::UmlTransition {view := "Design::umlSession", order := 1, source := "Design::sessionActive", target := "Design::sessionIdle", trigger := "Design::routeRequest"})
+}
+
+\end{semanticmodule}
+\end{lexlean}

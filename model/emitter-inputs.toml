@@ -1,5 +1,5 @@
 spec = "prismpm/emitter-inputs/1"
-digest = "256c62978738394acd6c801dfbab8d9d67c8b9d289a2deb2e02adbdfe01d9cac"
+digest = "88f8e93ebb595615e7dd79835cc61f2049b306eb652bc4ab86e064f027d305c9"
 inputs = [
     "crates/prismpm/src/holo/application.rs",
     "crates/prismpm/src/holo/browser_application.rs",

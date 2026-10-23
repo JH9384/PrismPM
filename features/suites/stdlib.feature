@@ -116,3 +116,9 @@ Feature: stdlib
     Then all three browser engines derive the exact S256 challenge through their cryptographic provider
     And real source and host defects fail their owning assertions without accepting skipped checks
     And no provider registration or authenticated enrollment is inferred from PKCE material
+
+  @ST-18 @build
+  Scenario: Prism-stdlib defines OPM and UML design view primitives in Foundation.Arch.
+    Given stdlib/src/Foundation/Arch.lex.tex
+    When processed by LexLean
+    Then DesignView, SystemProcess, SystemState, the Opm elements and the Uml elements are defined

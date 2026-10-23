@@ -1,0 +1,14 @@
+View: Design::opmPipeline
+Title: Request pipeline
+Viewpoint: Foundation.Arch::viewpointOperations
+Notation: ISO/PAS 19450:2015 OPM, Prism OPL profile
+
+componentAuth is an object.
+componentGateway is an object.
+componentGateway can be sessionActive or sessionIdle.
+routeRequest is a process.
+verifyCredentials is a process.
+routeRequest requires componentAuth.
+verifyCredentials consumes componentGateway.
+routeRequest invokes verifyCredentials.
+routeRequest zooms into verifyCredentials, in that sequence.

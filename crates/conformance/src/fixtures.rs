@@ -95,6 +95,27 @@ pub fn discover(root: &Path) -> Vec<PathBuf> {
     fixtures
 }
 
+/// Copy the rendered design views of a build under the fixed root
+/// `rendered/design`, because the build identity is part of the published path,
+/// and return the project-relative paths of the copies.
+fn publish_design_views(
+    project: &Path,
+    build_id: &str,
+) -> Result<Vec<String>, prismpm::PrismError> {
+    let io = |error: std::io::Error| prismpm::PrismError::new("PP4002", error.to_string());
+    let source = project.join(".prism/build").join(build_id).join("design");
+    let target = project.join("rendered/design");
+    std::fs::create_dir_all(&target).map_err(io)?;
+    let mut copied = Vec::new();
+    for entry in std::fs::read_dir(&source).map_err(io)? {
+        let entry = entry.map_err(io)?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        std::fs::copy(entry.path(), target.join(&name)).map_err(io)?;
+        copied.push(format!("rendered/design/{name}"));
+    }
+    Ok(copied)
+}
+
 /// Check one fixture directory against its expected files.
 pub fn check(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let case_path = dir.join("case.toml");
@@ -195,6 +216,9 @@ pub fn check(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                     })
                     .collect()
             }),
+        "design-views" => controller
+            .build(prismpm::controller::BuildRequest { config_path: None })
+            .and_then(|result| publish_design_views(temp_dir.path(), &result.build_id)),
         "holo-dangling-edge"
         | "holo-unresolved-risk"
         | "holo-empty"
@@ -523,7 +547,7 @@ pub fn write(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         prismpm::holo::canonical::encode_value(&value)?,
     )?;
     if !case.expected_artifacts.is_empty() {
-        if case.command != "build" || case.expected_exit != 0 {
+        if !matches!(case.command.as_str(), "build" | "design-views") || case.expected_exit != 0 {
             return Err(format!(
                 "{}: artifact byte goldens require a successful build command",
                 dir.display()
@@ -534,20 +558,24 @@ pub fn write(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         copy_dir_recursive(&dir.join("project"), temp_dir.path())?;
         let result = prismpm::Controller::load(temp_dir.path())?
             .build(prismpm::controller::BuildRequest { config_path: None })?;
-        let build_root = temp_dir.path().join(".prism/build").join(result.build_id);
-        let mut observed = walkdir::WalkDir::new(&build_root)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter(|entry| entry.file_type().is_file())
-            .map(|entry| {
-                entry
-                    .path()
-                    .strip_prefix(temp_dir.path())
-                    .expect("artifact remains in fixture project")
-                    .to_string_lossy()
-                    .replace('\\', "/")
-            })
-            .collect::<Vec<_>>();
+        let build_root = temp_dir.path().join(".prism/build").join(&result.build_id);
+        let mut observed = if case.command == "design-views" {
+            publish_design_views(temp_dir.path(), &result.build_id)?
+        } else {
+            walkdir::WalkDir::new(&build_root)
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|entry| entry.file_type().is_file())
+                .map(|entry| {
+                    entry
+                        .path()
+                        .strip_prefix(temp_dir.path())
+                        .expect("artifact remains in fixture project")
+                        .to_string_lossy()
+                        .replace('\\', "/")
+                })
+                .collect::<Vec<_>>()
+        };
         observed.sort();
         if observed != case.expected_artifacts {
             return Err(format!(

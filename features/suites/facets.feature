@@ -59,3 +59,9 @@ Feature: facets
     Given clean checkouts in two directories
     When lexlean lock runs
     Then identical lexlean.lock files are produced
+
+  @FT-11 @build
+  Scenario: prism.arch defines OPM (ISO/PAS 19450) and UML 2.5.1 design view entries as ISO/IEC/IEEE 42010 views.
+    Given language/prism.arch entries for design views, OPM things, links and zoom, and UML components, lifelines, messages and state machines
+    When the entries are mapped to the standards register
+    Then ISO/PAS 19450 and OMG UML 2.5.1 each own exactly their entries and the 42010 row owns the view and system declaration entries

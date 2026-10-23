@@ -1,6 +1,9 @@
 //! Structural, ordering, profile, and cross-reference model validation.
 
-use super::model_document::{Application, ModelDocument, TextApplicationModel};
+use super::model_document::{
+    Application, ModelDocument, TextApplicationModel, DEFAULT_CORE_MEMORY_PAGES,
+    DEFAULT_CORE_STACK_BYTES,
+};
 use crate::error::PrismError;
 use std::collections::BTreeSet;
 
@@ -161,11 +164,24 @@ pub(crate) fn validate_text_application(
                         .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
             })
     };
-    let resource_profile_valid = match (
-        application.profile.as_str(),
-        application.core_memory_pages,
-        application.core_stack_bytes,
-    ) {
+    // text/3 treats an absent bound as the V1 implicit budget; text/2 requires both.
+    let (pages, stack) = if application.profile == "prismpm/text-application/3" {
+        (
+            Some(
+                application
+                    .core_memory_pages
+                    .unwrap_or(DEFAULT_CORE_MEMORY_PAGES),
+            ),
+            Some(
+                application
+                    .core_stack_bytes
+                    .unwrap_or(DEFAULT_CORE_STACK_BYTES),
+            ),
+        )
+    } else {
+        (application.core_memory_pages, application.core_stack_bytes)
+    };
+    let resource_profile_valid = match (application.profile.as_str(), pages, stack) {
         ("prismpm/text-application/1", None, None) => true,
         ("prismpm/text-application/2" | "prismpm/text-application/3", Some(pages), Some(stack)) => {
             let bytes = u64::from(pages) * 65_536;

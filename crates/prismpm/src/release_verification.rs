@@ -852,11 +852,14 @@ fn declaration_audits(lex: &Value, modules: &[Value]) -> Result<(), PrismError> 
     for row in array(&lex["declarations"])? {
         keys(row, &["name", "observed", "policy", "result"])?;
         let name = string(&row["name"])?;
+        let pinned = match expected.get(name) {
+            Some(policy) => Some((*policy).clone()),
+            None => crate::lean_project::runtime_declaration_axioms(name)?
+                .map(|axioms| json!({"axioms": axioms, "kind": "exact"})),
+        };
         ensure(
             seen.insert(name.to_owned())
-                && expected
-                    .get(name)
-                    .is_some_and(|policy| **policy == row["policy"])
+                && pinned.is_some_and(|policy| policy == row["policy"])
                 && row["result"] == "ok",
             "LexLean declaration audit closure or policy differs",
         )?;
@@ -871,8 +874,14 @@ fn declaration_audits(lex: &Value, modules: &[Value]) -> Result<(), PrismError> 
         };
         ensure(permitted, "LexLean declaration has unapproved axioms")?;
     }
+    let runtime = seen
+        .iter()
+        .filter(|name| !expected.contains_key(name.as_str()))
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
     ensure(
-        seen == expected.keys().cloned().collect(),
+        expected.keys().all(|name| seen.contains(name))
+            && crate::lean_project::runtime_audit_is_complete(&runtime)?,
         "LexLean declaration audit is incomplete",
     )
 }

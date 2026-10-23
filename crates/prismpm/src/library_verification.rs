@@ -63,13 +63,24 @@ pub(crate) fn audit_declarations(attestation: &Value, snapshot: &Value) -> Resul
         let name = audit["name"]
             .as_str()
             .ok_or_else(|| invalid("library audit declaration name is absent"))?;
-        let declaration = expected
-            .get(name)
-            .ok_or_else(|| invalid("library audit names an undeclared source declaration"))?;
+        let (pinned, theorem) = match expected.get(name) {
+            Some(declaration) => (
+                declaration["axiom_policy"].clone(),
+                declaration["kind"] == "theorem",
+            ),
+            None => match crate::lean_project::runtime_declaration_axioms(name)? {
+                Some(axioms) => (json!({"axioms": axioms, "kind": "exact"}), false),
+                None => {
+                    return Err(invalid(
+                        "library audit names an undeclared source declaration",
+                    ))
+                }
+            },
+        };
         if !observed.insert(name) {
             return Err(invalid("library declaration audit is duplicated"));
         }
-        if audit["result"] != "ok" || audit["policy"] != declaration["axiom_policy"] {
+        if audit["result"] != "ok" || audit["policy"] != pinned {
             return Err(invalid(
                 "library declaration failed its exact source axiom policy",
             ));
@@ -92,7 +103,7 @@ pub(crate) fn audit_declarations(attestation: &Value, snapshot: &Value) -> Resul
         };
         let actual = names(&audit["observed"])?;
         let permitted = names(&audit["policy"]["axioms"])?;
-        if declaration["kind"] == "theorem" && !actual.is_empty() {
+        if theorem && !actual.is_empty() {
             return Err(invalid("library theorem has a nonempty axiom audit"));
         }
         let valid = match audit["policy"]["kind"].as_str() {
@@ -105,7 +116,18 @@ pub(crate) fn audit_declarations(attestation: &Value, snapshot: &Value) -> Resul
             return Err(invalid("library declaration relies on an unapproved axiom"));
         }
     }
-    if observed.len() != expected.len() {
+    let project_rows = observed
+        .iter()
+        .filter(|name| expected.contains_key(**name))
+        .count();
+    let runtime_rows = observed
+        .iter()
+        .filter(|name| !expected.contains_key(**name))
+        .copied()
+        .collect::<BTreeSet<_>>();
+    if project_rows != expected.len()
+        || !crate::lean_project::runtime_audit_is_complete(&runtime_rows)?
+    {
         return Err(invalid(
             "library declaration audit does not cover the complete selected snapshot",
         ));

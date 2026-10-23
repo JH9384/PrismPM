@@ -22,6 +22,8 @@
   "files": [
     "index.mjs",
     "index.d.ts",
+    "assurance-levels.mjs",
+    "assurance-levels.d.ts",
     "types",
     "schemas",
     "predicates",

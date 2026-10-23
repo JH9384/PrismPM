@@ -321,6 +321,12 @@
           "minimum": 0,
           "maximum": 125
         },
+        "limit_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 125,
+          "description": "Exit code of a request refused over the request maximum. Absent means the code of the error outcome."
+        },
         "outcomes": {
           "type": "array",
           "minItems": 1,

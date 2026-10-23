@@ -13,7 +13,7 @@ enum AdapterFailure {
     InputLimit, AdapterAllocation, ComputeFailure, OutputLimit, ReportUnclassified,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum FailureClass { Usage, Io, Fault }
+enum FailureClass { Usage, Io, Limit, Fault }
 impl AdapterFailure {
     fn class(self) -> FailureClass {
         match self {
@@ -21,7 +21,8 @@ impl AdapterFailure {
             | AdapterFailure::UnknownCommand | AdapterFailure::UnknownExample => FailureClass::Usage,
             AdapterFailure::InputMissing | AdapterFailure::InputOpen | AdapterFailure::InputType
             | AdapterFailure::InputRead | AdapterFailure::OutputWrite => FailureClass::Io,
-            AdapterFailure::InputLimit | AdapterFailure::AdapterAllocation | AdapterFailure::ComputeFailure
+            AdapterFailure::InputLimit => FailureClass::Limit,
+            AdapterFailure::AdapterAllocation | AdapterFailure::ComputeFailure
             | AdapterFailure::OutputLimit | AdapterFailure::ReportUnclassified => FailureClass::Fault,
         }
     }
@@ -29,6 +30,7 @@ impl AdapterFailure {
         match self.class() {
             FailureClass::Usage => surface::USAGE_CODE,
             FailureClass::Io => surface::IO_CODE,
+            FailureClass::Limit => surface::LIMIT_CODE,
             FailureClass::Fault => surface::FAULT_CODE,
         }
     }
@@ -166,10 +168,12 @@ mod tests {
 
     #[test]
     fn every_failure_has_the_class_exit_code() {
-        for failure in [AdapterFailure::UnknownFlag, AdapterFailure::InputOpen, AdapterFailure::InputLimit] {
+        for failure in [AdapterFailure::UnknownFlag, AdapterFailure::InputOpen, AdapterFailure::InputLimit,
+                        AdapterFailure::ComputeFailure] {
             let expected = match failure.class() {
                 FailureClass::Usage => surface::USAGE_CODE,
                 FailureClass::Io => surface::IO_CODE,
+                FailureClass::Limit => surface::LIMIT_CODE,
                 FailureClass::Fault => surface::FAULT_CODE,
             };
             assert_eq!(failure.exit_code(), expected);

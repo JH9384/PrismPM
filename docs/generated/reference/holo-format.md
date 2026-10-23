@@ -243,4 +243,4 @@ A revision is a date. A file does not carry its revision, so a reader recognizes
 - [Spec package](/docs/api/spec-package)
 - [Load a holo](/docs/api/load)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 31b61e31c986041a4667e2143680fdd9c3f7b812.

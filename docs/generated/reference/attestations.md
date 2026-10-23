@@ -75,4 +75,4 @@ Status: no holo carries a signed statement yet. Every predicate type in the regi
 - [Errors reference](/docs/reference/errors)
 - [Spec package](/docs/api/spec-package)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at 31b61e31c986041a4667e2143680fdd9c3f7b812.

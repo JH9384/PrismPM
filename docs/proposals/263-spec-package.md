@@ -31,7 +31,7 @@ Their only definitions are Rust structs and one LexLean structure.
 1. One package that every Prism package imports for format types and constants.
 2. A JSON Schema for every JSON document a holo or a build tree carries.
 3. Types for the binary layouts: header, section table, application manifest, content blob, HOLOVIEW bundle and footer.
-4. In-toto Statement and DSSE envelope types whose DigestSet allows `blake3` and `sha256` together.
+4. In-toto Statement and DSSE envelope types whose subjects carry `blake3` and `sha256` together.
 5. A predicate registry that #266 and M3 extend without changing any other file.
 6. A WIT world for the Core-Wasm guest contract `hologram:guest/core-wasm@1`.
 7. A date-stamped format revision and a stated rule for how a reader accepts revisions.
@@ -41,7 +41,7 @@ Their only definitions are Rust structs and one LexLean structure.
 - No parsing, validation or hashing code. Readers live in `prism-code` and its successors.
 - No change to holo bytes. Revision `2026-10-23` describes what PrismPM writes today.
 - No proof predicate body. #266 designs `https://uor.foundation/prism/proof/v1`.
-- No digest decision. #274 decides which bytes each digest covers.
+- No digest policy. #274 owns it, in ADR-015; this package encodes its outcome.
 - No Rust or Python generation in this change. This proposal names the generators only.
 - No npm publish in this change.
 
@@ -55,7 +55,7 @@ User stories:
 
 - A runtime author imports `HoloSectionKind` and `FORMAT_REVISION` instead of copying numbers.
 - A CI job validates `model.prism.json` against `@prism-code/spec/schemas/documents/model-document-v1.schema.json`.
-- The #266 author adds one row to `predicates/registry.json` and one schema file, and nothing else moves.
+- The #266 author fills `predicates/proof-v1.schema.json` and `predicates/proof-v1.d.ts`, and nothing else moves.
 - A Rust host generates its structs from the same schema files a JavaScript reader uses.
 
 Risks and mitigations:
@@ -78,14 +78,17 @@ sdk/npm/spec/
   types/
     holo.d.ts             binary layouts, section kinds, revision types
     documents.d.ts        generated from schemas/documents/*.json
-    attestation.d.ts      in-toto Statement, DSSE envelope, DigestSet
-    predicates.d.ts       predicate type URIs and the predicate map
+    attestation.d.ts      in-toto Statement, DSSE envelope, PrismDigestSet
+    predicates.d.ts       the predicate map and registry types
   schemas/
     holo/                 decoded archive, manifest, source manifest, directory
     documents/            model documents, lock, build and provenance documents
     attestation/          in-toto Statement v1, DSSE envelope
   predicates/
     registry.json         predicate type URIs, status and owning issue
+    registry.schema.json  the registry's own schema
+    proof-v1.d.ts         ProofPredicateV1, reserved for #266
+    replay-v1.d.ts        ReplayPredicateV1, reserved for M3
   worlds/
     core-wasm.wit         the guest contract hologram:guest/core-wasm@1
   scripts/
@@ -170,29 +173,34 @@ The model provenance schema keeps the tagged `view_binding` and `browser_project
 `types/attestation.d.ts` and `schemas/attestation/` define in-toto Statement v1 and the DSSE envelope.
 
 ```ts
-type Hex = string;                       // lowercase hexadecimal
-interface DigestSet {
-  sha256?: Hex;
-  blake3?: Hex;                          // 64 hex characters, without the "blake3:" prefix
-  [algorithm: string]: Hex | undefined;
+type Hex = string;                       // 64 lowercase hex characters
+interface PrismDigestSet {               // exactly these two keys, over the same bytes
+  sha256: Hex;
+  blake3: Hex;                           // default-mode BLAKE3, 256 bits, no "blake3:" prefix
 }
-interface ResourceDescriptor { name: string; digest: DigestSet }
+interface BlobSubject { name: string; digest: PrismDigestSet }
+interface OciManifestSubject { name: 'oci-manifest'; digest: { sha256: Hex } }
+type Subject = BlobSubject | OciManifestSubject;
 interface Statement<T extends PredicateType = PredicateType> {
   _type: 'https://in-toto.io/Statement/v1';
-  subject: ResourceDescriptor[];         // at least one
+  subject: [Subject, ...Subject[]];
   predicateType: T;
   predicate: PredicateMap[T];
 }
 interface DsseEnvelope {
-  payload: string;                       // base64 of the Statement's canonical JSON
+  payload: string;                       // base64 of the Statement bytes
   payloadType: 'application/vnd.in-toto+json';
-  signatures: { keyid?: string; sig: string }[];
+  signatures: [{ keyid?: string; sig: string }, ...{ keyid?: string; sig: string }[]];
 }
 ```
 
-A DigestSet must hold at least one entry, and may hold `blake3` and `sha256` together.
-The package fixes this shape only.
-#274 decides which bytes each algorithm covers for a holo subject.
+#274 fixed the digest shape in ADR-015, PR #324.
+A `PrismDigestSet` has exactly two keys, and both cover the same bytes.
+For a content blob, `blake3` equals the blob's label without the `blake3:` prefix.
+The footer is BLAKE3 of the body, not of the file, so it never appears under `blake3`.
+Subjects are content blobs, because an archive cannot name itself.
+A registry-facing statement adds an `OciManifestSubject`.
+Registries reject `blake3:` digests, and cosign and Kyverno match only the manifest's `sha256`.
 
 ### Predicates
 
@@ -205,9 +213,15 @@ The package fixes this shape only.
 
 Each row has `predicateType`, `status`, `issue` or `milestone`, and `schema`.
 `schema` is null while the row is a placeholder.
-`types/predicates.d.ts` declares `PredicateMap`, with `unknown` for each placeholder.
-To define a predicate, its owner adds `schemas/predicates/<name>-v1.schema.json`.
-The owner then sets `schema` and `status: "experimental"` in the row, and replaces `unknown` in `PredicateMap`.
+Each predicate owns two files in `predicates/`, as #266 reserved on #263:
+
+- `predicates/proof-v1.d.ts` exports `ProofPredicateV1`, `unknown` until #266 fills it.
+- `predicates/proof-v1.schema.json` is reserved, with `$id` `https://uor.foundation/prism/proof/v1/schema.json`.
+
+`index.mjs` exports `PROOF_PREDICATE_TYPE` and `REPLAY_PREDICATE_TYPE`.
+The types file is `.d.ts`, not `.ts`, because the package has no build step.
+To define a predicate, its owner adds the schema and fills the type.
+The owner then sets `schema` and `status: "experimental"` in the registry row.
 No other file changes.
 
 ### Worlds
@@ -303,6 +317,7 @@ So there is one reference archive today, not two.
 9. Run negative controls: an extra member, a wrong constant and a reordered table must each fail.
 10. Regenerate `types/documents.d.ts` and fail on any difference.
 11. Check that `index.mjs` exports only frozen data and `package.json` lists no dependencies.
+12. Build a statement about the guest blob, and check its `blake3` equals the blob's label.
 
 A CI workflow, `npm-spec.yml`, mirrors `npm-prism-code.yml`.
 It runs the tests on Node 22 and 24, on Linux, macOS and Windows.
@@ -317,7 +332,7 @@ Experimental, 0.1:
 Beta:
 
 - `prism-code` takes its format types from this package (RT-01, #276).
-- #266 registers the proof predicate schema, and #274's decision is reflected in `DigestSet`.
+- #266 fills the proof predicate schema and type.
 - A second, independent reference archive validates, from a text application profile.
 - The new schemas are registered in `model/contracts.toml`, so PrismPM's Rust checks the same files.
 - `wasm-tools component wit` parses `worlds/` in CI.
@@ -357,8 +372,10 @@ The issue's precedent line names three projects.
 
 ## Unresolved questions
 
-1. Which bytes does each digest in a holo subject cover? #274 decides.
+1. Which media type names a holo? #274's test used the placeholder `application/vnd.uor.prism.holo.v1`.
 2. Should a later revision carry its date inside the archive, for example in the source manifest?
 3. Should the JSON Schemas themselves be generated from LexLean, as `model/contracts.toml` rule R1 suggests?
 4. Should Hologram own the application directory schema, since the extension is Hologram's?
 5. Which `$id` prefix should new Prism schemas use? This proposal uses `https://schemas.uor.foundation/prism/`.
+   #266 chose `https://uor.foundation/prism/proof/v1/schema.json` for its predicate.
+6. Should this package carry the deterministic push-manifest template #274 asks for, or should `prism push` own it?

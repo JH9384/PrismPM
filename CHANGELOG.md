@@ -5,6 +5,12 @@ All notable changes to PrismPM will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Shared Action command `publish-pages`: builds a browser-resident system once, runs `export-browser` on the built release, checks the exported closure against the release's system manifest, build manifest, release layers and stored blobs, and refuses a system manifest that does not name the `github-pages-browser` target (`PP2101`) before any upload; returns `pages-path` and `pages-closure` outputs for `actions/upload-pages-artifact` and `actions/deploy-pages`.
+- Starter workflow `action/starter/publish-pages.yml` for template instances: one job on one runner, `main` pushes and tags only, `timeout-minutes`, cancelling `concurrency`, commit-pinned Pages actions, no OCI sign, promote or push job.
+
 ## [0.3.0] - 2026-09-21
 
 ### Added

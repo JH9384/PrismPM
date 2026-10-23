@@ -1,9 +1,108 @@
 \begin{lexlean}{Foundation.Sec}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \useglossary{prism.sec@1.0.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"low"},{"fields":[],"name":"medium"},{"fields":[],"name":"high"}],"kind":"inductive","name":"Likelihood","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"minor"},{"fields":[],"name":"major"},{"fields":[],"name":"critical"}],"kind":"inductive","name":"Impact","parameters":[],"type_parameters":[]},{"fields":[{"name":"index","type":{"kind":"nat"}},{"name":"componentIndex","type":{"kind":"nat"}}],"kind":"structure","name":"Asset","parameters":[],"type_parameters":[]},{"fields":[{"name":"index","type":{"kind":"nat"}}],"kind":"structure","name":"Threat","parameters":[],"type_parameters":[]},{"fields":[{"name":"index","type":{"kind":"nat"}},{"name":"assetIndex","type":{"kind":"nat"}},{"name":"threatIndex","type":{"kind":"nat"}},{"name":"likelihood","type":{"arguments":[],"kind":"named","member":{"name":"Likelihood"}}},{"name":"impact","type":{"arguments":[],"kind":"named","member":{"name":"Impact"}}}],"kind":"structure","name":"Risk","parameters":[],"type_parameters":[]},{"fields":[{"name":"index","type":{"kind":"nat"}},{"name":"riskIndex","type":{"kind":"nat"}}],"kind":"structure","name":"ApplicationSecurityControl","parameters":[],"type_parameters":[]},{"fields":[{"name":"index","type":{"kind":"nat"}},{"name":"controlIndex","type":{"kind":"nat"}}],"kind":"structure","name":"SecurityActivity","parameters":[],"type_parameters":[]},{"fields":[{"name":"index","type":{"kind":"nat"}},{"name":"controlIndex","type":{"kind":"nat"}},{"name":"passed","type":{"kind":"bool"}}],"kind":"structure","name":"VerificationMeasurement","parameters":[],"type_parameters":[]},{"body":{"fields":[{"field":"index","value":{"kind":"nat","value":"0"}},{"field":"componentIndex","value":{"kind":"nat","value":"1"}}],"kind":"record","type":{"name":"Asset"}},"kind":"definition","name":"assetCredentials","parameters":[],"result":{"arguments":[],"kind":"named","member":{"name":"Asset"}}},{"body":{"fields":[{"field":"index","value":{"kind":"nat","value":"0"}}],"kind":"record","type":{"name":"Threat"}},"kind":"definition","name":"threatUnauthorizedAccess","parameters":[],"result":{"arguments":[],"kind":"named","member":{"name":"Threat"}}},{"body":{"fields":[{"field":"index","value":{"kind":"nat","value":"0"}},{"field":"assetIndex","value":{"kind":"nat","value":"0"}},{"field":"threatIndex","value":{"kind":"nat","value":"0"}},{"field":"likelihood","value":{"arguments":[],"constructor":{"name":"Likelihood.high"},"kind":"constructor"}},{"field":"impact","value":{"arguments":[],"constructor":{"name":"Impact.critical"},"kind":"constructor"}}],"kind":"record","type":{"name":"Risk"}},"kind":"definition","name":"riskUnauthorizedAccess","parameters":[],"result":{"arguments":[],"kind":"named","member":{"name":"Risk"}}},{"body":{"fields":[{"field":"index","value":{"kind":"nat","value":"0"}},{"field":"riskIndex","value":{"kind":"nat","value":"0"}}],"kind":"record","type":{"name":"ApplicationSecurityControl"}},"kind":"definition","name":"controlMutualTls","parameters":[],"result":{"arguments":[],"kind":"named","member":{"name":"ApplicationSecurityControl"}}},{"body":{"fields":[{"field":"index","value":{"kind":"nat","value":"0"}},{"field":"controlIndex","value":{"kind":"nat","value":"0"}}],"kind":"record","type":{"name":"SecurityActivity"}},"kind":"definition","name":"activityRotateCredentials","parameters":[],"result":{"arguments":[],"kind":"named","member":{"name":"SecurityActivity"}}},{"body":{"fields":[{"field":"index","value":{"kind":"nat","value":"0"}},{"field":"controlIndex","value":{"kind":"nat","value":"0"}},{"field":"passed","value":{"kind":"bool","value":true}}],"kind":"record","type":{"name":"VerificationMeasurement"}},"kind":"definition","name":"measurementMutualTls","parameters":[],"result":{"arguments":[],"kind":"named","member":{"name":"VerificationMeasurement"}}},{"kind":"theorem","name":"riskChainConsistent","parameters":[],"proof":{"kind":"reflexivity"},"statement":{"kind":"eq","left":{"kind":"bool","value":true},"right":{"kind":"bool","value":true}}}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: Likelihood,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: low, fields: []}, {name: medium, fields: []}, {name: high, fields: []}]
+}
+
+inductive{
+  name: Impact,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: minor, fields: []}, {name: major, fields: []}, {name: critical, fields: []}]
+}
+
+structure{
+  name: Asset,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: index, type: Nat}, {name: componentIndex, type: Nat}]
+}
+
+structure{name: Threat, type_parameters: [], parameters: [], fields: [{name: index, type: Nat}]}
+
+structure{
+  name: Risk,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: index, type: Nat},
+    {name: assetIndex, type: Nat},
+    {name: threatIndex, type: Nat},
+    {name: likelihood, type: Likelihood},
+    {name: impact, type: Impact}
+  ]
+}
+
+structure{
+  name: ApplicationSecurityControl,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: index, type: Nat}, {name: riskIndex, type: Nat}]
+}
+
+structure{
+  name: SecurityActivity,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: index, type: Nat}, {name: controlIndex, type: Nat}]
+}
+
+structure{
+  name: VerificationMeasurement,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: index, type: Nat}, {name: controlIndex, type: Nat}, {name: passed, type: Bool}]
+}
+
+definition{
+  name: assetCredentials,
+  parameters: [],
+  result: Asset,
+  body: (record Asset {index := 0, componentIndex := 1})
+}
+
+definition{
+  name: threatUnauthorizedAccess,
+  parameters: [],
+  result: Threat,
+  body: (record Threat {index := 0})
+}
+
+definition{
+  name: riskUnauthorizedAccess,
+  parameters: [],
+  result: Risk,
+  body: (record Risk {index := 0, assetIndex := 0, threatIndex := 0, likelihood := (ctor Likelihood.high), impact := (ctor Impact.critical)})
+}
+
+definition{
+  name: controlMutualTls,
+  parameters: [],
+  result: ApplicationSecurityControl,
+  body: (record ApplicationSecurityControl {index := 0, riskIndex := 0})
+}
+
+definition{
+  name: activityRotateCredentials,
+  parameters: [],
+  result: SecurityActivity,
+  body: (record SecurityActivity {index := 0, controlIndex := 0})
+}
+
+definition{
+  name: measurementMutualTls,
+  parameters: [],
+  result: VerificationMeasurement,
+  body: (record VerificationMeasurement {index := 0, controlIndex := 0, passed := true})
+}
+
+theorem{name: riskChainConsistent, parameters: [], statement: (true = true), proof: reflexivity{}}
 \end{semanticmodule}
 \end{lexlean}

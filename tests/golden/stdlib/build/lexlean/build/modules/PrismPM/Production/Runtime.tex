@@ -5,20 +5,90 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{TargetKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Compose}: \texttt{()}.\par
+\noindent Constructor \texttt{Kubernetes}: \texttt{()}.\par
+\noindent Constructor \texttt{GithubPages}: \texttt{()}.\par
 \subsection*{\texttt{PlatformRequirement}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{os}: \texttt{String}.\par
+\noindent Field \texttt{architectures}: \texttt{List (String)}.\par
+\noindent Field \texttt{runtime}: \texttt{String}.\par
+\noindent Field \texttt{runtimeVersion}: \texttt{String}.\par
+\noindent Field \texttt{capabilities}: \texttt{List (String)}.\par
 \subsection*{\texttt{ScalingPolicy}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{component}: \texttt{String}.\par
+\noindent Field \texttt{trigger}: \texttt{String}.\par
+\noindent Field \texttt{minimum}: \texttt{UInt32}.\par
+\noindent Field \texttt{maximum}: \texttt{UInt32}.\par
+\noindent Field \texttt{step}: \texttt{UInt32}.\par
+\noindent Field \texttt{cooldownSeconds}: \texttt{UInt64}.\par
 \subsection*{\texttt{StorageClass}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{accessModes}: \texttt{List (String)}.\par
+\noindent Field \texttt{bindingMode}: \texttt{String}.\par
+\noindent Field \texttt{provisioning}: \texttt{String}.\par
+\noindent Field \texttt{retention}: \texttt{String}.\par
+\noindent Field \texttt{capabilities}: \texttt{List (String)}.\par
+\noindent Field \texttt{platformRequirements}: \texttt{List (String)}.\par
 \subsection*{\texttt{Topology}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{owners}: \texttt{List (String)}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
+\noindent Field \texttt{network}: \texttt{Option (String)}.\par
+\noindent Field \texttt{port}: \texttt{Option (UInt16)}.\par
+\noindent Field \texttt{protocol}: \texttt{Option (String)}.\par
+\noindent Field \texttt{publiclyAccessible}: \texttt{Bool}.\par
+\noindent Field \texttt{mountPath}: \texttt{Option (String)}.\par
+\noindent Field \texttt{storageBytes}: \texttt{Option (UInt64)}.\par
+\noindent Field \texttt{storageClass}: \texttt{Option (String)}.\par
+\noindent Field \texttt{capabilities}: \texttt{List (String)}.\par
+\noindent Field \texttt{isolation}: \texttt{String}.\par
+\noindent Field \texttt{placement}: \texttt{Option (String)}.\par
+\noindent Field \texttt{scaleMin}: \texttt{UInt32}.\par
+\noindent Field \texttt{scaleMax}: \texttt{UInt32}.\par
+\noindent Field \texttt{platformRequirements}: \texttt{List (String)}.\par
 \subsection*{\texttt{Persistence}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{owner}: \texttt{String}.\par
+\noindent Field \texttt{schemaArtifact}: \texttt{String}.\par
+\noindent Field \texttt{retention}: \texttt{String}.\par
+\noindent Field \texttt{compatibilityWindow}: \texttt{String}.\par
+\noindent Field \texttt{rpoSeconds}: \texttt{UInt64}.\par
+\noindent Field \texttt{rtoSeconds}: \texttt{UInt64}.\par
+\noindent Field \texttt{backup}: \texttt{String}.\par
+\noindent Field \texttt{migrationOrder}: \texttt{List (String)}.\par
 \subsection*{\texttt{Migration}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
 \subsection*{\texttt{BackupRecovery}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
 \subsection*{\texttt{TargetBinding}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{apiVersion}: \texttt{String}.\par
+\noindent Field \texttt{adapterDigest}: \texttt{String}.\par
+\noindent Field \texttt{minimumReleaseStatus}: \texttt{String}.\par
+\noindent Field \texttt{capabilities}: \texttt{List (String)}.\par
+\noindent Field \texttt{credentials}: \texttt{Option (String)}.\par
+\noindent Field \texttt{platformRequirements}: \texttt{List (String)}.\par
+\noindent Field \texttt{storageClass}: \texttt{Option (String)}.\par
+\noindent Field \texttt{storageProfile}: \texttt{Option (String)}.\par
+\noindent Field \texttt{ingressClassName}: \texttt{Option (String)}.\par
+\noindent Field \texttt{ingressControllerArtifact}: \texttt{Option (String)}.\par
 \end{document}

@@ -17,8 +17,8 @@ public import PrismPM.Foundation.Holo.V1.SourceManifest
 public import PrismPM.Foundation.Holo.V1.View
 public import PrismPM.Foundation.Holo.V1.Wire
 public import PrismPM.Foundation.Integer
+public import PrismPM.Foundation.Outcome
 public import PrismPM.Foundation.Qual
-public import PrismPM.Foundation.Result
 public import PrismPM.Foundation.Runtime
 public import PrismPM.Foundation.Sec
 public import PrismPM.Foundation.Utf8
@@ -28,6 +28,7 @@ public import PrismPM.Foundation.View.V1.Projection
 set_option autoImplicit false
 set_option maxRecDepth 100000
 set_option maxHeartbeats 1000000000
+set_option linter.constructorNameAsVariable false
 namespace PrismPM.Foundation.Holo
 
 public structure StandardsProfile where
@@ -83,21 +84,21 @@ public structure FlatValidationInput where
 
 @[expose] public def validateExactStandardsProfile (profile : StandardsProfile) : Bool := ((Nat.beq ((profile).architectureEdition) (2022)) && ((Nat.beq ((profile).applicationSecurityEdition) (2011)) && ((Nat.beq ((profile).controlEdition) (2017)) && ((Nat.beq ((profile).riskEdition) (2022)) && (Nat.beq ((profile).qualityEdition) (2023))))))
 
-@[expose] public def componentIndexesValid (values : List (Nat)) : Prop := allConsecutiveProp (0) (values)
+@[expose, reducible] public def componentIndexesValid (values : List (Nat)) : Prop := allConsecutiveProp (0) (values)
 
-@[expose] public def edgeEndpointsValid (componentCount : Nat) (endpoints : List (Nat)) : Prop := allBelowProp (componentCount) (endpoints)
+@[expose, reducible] public def edgeEndpointsValid (componentCount : Nat) (endpoints : List (Nat)) : Prop := allBelowProp (componentCount) (endpoints)
 
-@[expose] public def riskLinksValid (count : Nat) (links : List (Nat)) : Prop := allBelowProp (count) (links)
+@[expose, reducible] public def riskLinksValid (count : Nat) (links : List (Nat)) : Prop := allBelowProp (count) (links)
 
-@[expose] public def controlLinksValid (count : Nat) (links : List (Nat)) : Prop := allBelowProp (count) (links)
+@[expose, reducible] public def controlLinksValid (count : Nat) (links : List (Nat)) : Prop := allBelowProp (count) (links)
 
-@[expose] public def viewpointLinksValid (count : Nat) (links : List (Nat)) : Prop := allBelowProp (count) (links)
+@[expose, reducible] public def viewpointLinksValid (count : Nat) (links : List (Nat)) : Prop := allBelowProp (count) (links)
 
-@[expose] public def qualityLinksValid (count : Nat) (links : List (Nat)) : Prop := allBelowProp (count) (links)
+@[expose, reducible] public def qualityLinksValid (count : Nat) (links : List (Nat)) : Prop := allBelowProp (count) (links)
 
-@[expose] public def flattenedBoundsValid (count : Nat) (links : List (Nat)) : Prop := allBelowProp (count) (links)
+@[expose, reducible] public def flattenedBoundsValid (count : Nat) (links : List (Nat)) : Prop := allBelowProp (count) (links)
 
-@[expose] public def standardsProfileValid (profile : StandardsProfile) : Prop := (((profile).architectureEdition = 2022) /\ (((profile).applicationSecurityEdition = 2011) /\ (((profile).controlEdition = 2017) /\ (((profile).riskEdition = 2022) /\ ((profile).qualityEdition = 2023)))))
+@[expose, reducible] public def standardsProfileValid (profile : StandardsProfile) : Prop := (((profile).architectureEdition = 2022) /\ (((profile).applicationSecurityEdition = 2011) /\ (((profile).controlEdition = 2017) /\ (((profile).riskEdition = 2022) /\ ((profile).qualityEdition = 2023)))))
 
 @[expose] public def canonicalStandardsProfile : StandardsProfile := ({ architectureEdition := 2022, applicationSecurityEdition := 2011, controlEdition := 2017, riskEdition := 2022, qualityEdition := 2023 } : StandardsProfile)
 
@@ -182,7 +183,7 @@ public theorem standardsProfile_sound_complete (profile : StandardsProfile) : ((
   | _expected, Nat.zero => ([] : List (Nat))
   | expected, Nat.succ rest => (expected :: canonicalIndexes ((expected + 1)) (rest))
 
-@[expose] public def canonicalIndexAssignment (count : Nat) (values : List (Nat)) : Prop := (values = canonicalIndexes (0) (count))
+@[expose, reducible] public def canonicalIndexAssignment (count : Nat) (values : List (Nat)) : Prop := (values = canonicalIndexes (0) (count))
 
 public theorem canonicalIndexAssignmentUnique (count : Nat) (values : List (Nat)) : (canonicalIndexAssignment (count) (values) <-> (values = canonicalIndexes (0) (count))) := by
   rfl

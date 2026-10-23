@@ -474,9 +474,12 @@ fn application_from(
 }
 
 mod records;
+mod standards;
 use records::assemble;
 
 #[cfg(test)]
 mod named_tests;
+#[cfg(test)]
+mod standards_tests;
 #[cfg(test)]
 mod tests;

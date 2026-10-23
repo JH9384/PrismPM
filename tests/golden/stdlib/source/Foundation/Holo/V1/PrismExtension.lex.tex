@@ -1,8 +1,65 @@
 \begin{lexlean}{Foundation.Holo.V1.PrismExtension}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"None"},{"fields":[{"kind":"bytes"}],"name":"Present"}],"kind":"inductive","name":"BrowserProjection","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"None"},{"fields":[{"kind":"bytes"},{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"BrowserProjection"}}],"name":"Present"}],"kind":"inductive","name":"ViewBinding","parameters":[],"type_parameters":[]},{"fields":[{"name":"schema","type":{"kind":"string"}},{"name":"modelContentKappa","type":{"kind":"bytes"}},{"name":"modelId","type":{"kind":"bytes"}},{"name":"sourceId","type":{"kind":"bytes"}},{"name":"semanticId","type":{"kind":"bytes"}},{"name":"compilerSemanticsId","type":{"kind":"bytes"}},{"name":"snapshotId","type":{"kind":"bytes"}},{"name":"stdlibSemanticsId","type":{"kind":"bytes"}},{"name":"prismStdlibCrateSha256","type":{"kind":"bytes"}},{"name":"lexleanCommit","type":{"kind":"bytes"}},{"name":"lexleanPackageSha256","type":{"kind":"bytes"}},{"name":"lean4ProdCommit","type":{"kind":"bytes"}},{"name":"hologramLiveCommit","type":{"kind":"bytes"}},{"name":"uorHologramCommit","type":{"kind":"bytes"}},{"name":"targetProfileId","type":{"kind":"bytes"}},{"name":"coreWasmContract","type":{"kind":"string"}},{"name":"leanManifestSha256","type":{"kind":"bytes"}},{"name":"lcnfManifestSha256","type":{"kind":"bytes"}},{"name":"generatedCoreSha256","type":{"kind":"bytes"}},{"name":"cargoName","type":{"kind":"string"}},{"name":"cargoVersion","type":{"kind":"string"}},{"name":"cargoCrateSha256","type":{"kind":"bytes"}},{"name":"guestContentKappa","type":{"kind":"bytes"}},{"name":"viewBinding","type":{"arguments":[],"kind":"named","member":{"name":"ViewBinding"}}},{"name":"applicationKappa","type":{"kind":"bytes"}}],"kind":"structure","name":"ModelProvenance","parameters":[],"type_parameters":[]},{"body":{"kind":"string","value":"https://uor.foundation/extension/prismpm-model/v1"},"kind":"definition","name":"extensionName","parameters":[],"result":{"kind":"string"}},{"body":{"kind":"string","value":"prismpm/model-provenance/1"},"kind":"definition","name":"schema","parameters":[],"result":{"kind":"string"}}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: BrowserProjection,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: None, fields: []}, {name: Present, fields: [Bytes]}]
+}
+
+inductive{
+  name: ViewBinding,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: None, fields: []},
+    {name: Present, fields: [Bytes, Bytes, BrowserProjection]}
+  ]
+}
+
+structure{
+  name: ModelProvenance,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: schema, type: String},
+    {name: modelContentKappa, type: Bytes},
+    {name: modelId, type: Bytes},
+    {name: sourceId, type: Bytes},
+    {name: semanticId, type: Bytes},
+    {name: compilerSemanticsId, type: Bytes},
+    {name: snapshotId, type: Bytes},
+    {name: stdlibSemanticsId, type: Bytes},
+    {name: prismStdlibCrateSha256, type: Bytes},
+    {name: lexleanCommit, type: Bytes},
+    {name: lexleanPackageSha256, type: Bytes},
+    {name: lean4ProdCommit, type: Bytes},
+    {name: hologramLiveCommit, type: Bytes},
+    {name: uorHologramCommit, type: Bytes},
+    {name: targetProfileId, type: Bytes},
+    {name: coreWasmContract, type: String},
+    {name: leanManifestSha256, type: Bytes},
+    {name: lcnfManifestSha256, type: Bytes},
+    {name: generatedCoreSha256, type: Bytes},
+    {name: cargoName, type: String},
+    {name: cargoVersion, type: String},
+    {name: cargoCrateSha256, type: Bytes},
+    {name: guestContentKappa, type: Bytes},
+    {name: viewBinding, type: ViewBinding},
+    {name: applicationKappa, type: Bytes}
+  ]
+}
+
+definition{
+  name: extensionName,
+  parameters: [],
+  result: String,
+  body: "https://uor.foundation/extension/prismpm-model/v1"
+}
+
+definition{name: schema, parameters: [], result: String, body: "prismpm/model-provenance/1"}
 \end{semanticmodule}
 \end{lexlean}

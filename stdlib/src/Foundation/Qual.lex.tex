@@ -38,24 +38,52 @@ structure{
 }
 
 definition{
-  name: characteristicMaintainability,
+  name: characteristicInteractionCapability,
   parameters: [],
   result: ProductQualityCharacteristic,
   body: (record ProductQualityCharacteristic {index := 0})
 }
 
 definition{
-  name: subcharacteristicModularity,
+  name: characteristicMaintainability,
+  parameters: [],
+  result: ProductQualityCharacteristic,
+  body: (record ProductQualityCharacteristic {index := 1})
+}
+
+definition{
+  name: subcharacteristicInclusivity,
   parameters: [],
   result: QualitySubcharacteristic,
   body: (record QualitySubcharacteristic {index := 0, characteristicIndex := 0})
 }
 
 definition{
+  name: subcharacteristicModularity,
+  parameters: [],
+  result: QualitySubcharacteristic,
+  body: (record QualitySubcharacteristic {index := 1, characteristicIndex := 1})
+}
+
+definition{
   name: requirementModuleBoundaries,
   parameters: [],
   result: QualityRequirement,
-  body: (record QualityRequirement {index := 0, subcharacteristicIndex := 0})
+  body: (record QualityRequirement {index := 0, subcharacteristicIndex := 1})
+}
+
+definition{
+  name: requirementWcag1411ForcedColorsNonTextContrast,
+  parameters: [],
+  result: QualityRequirement,
+  body: (record QualityRequirement {index := 1, subcharacteristicIndex := 0})
+}
+
+definition{
+  name: requirementWcag413StatusMessages,
+  parameters: [],
+  result: QualityRequirement,
+  body: (record QualityRequirement {index := 2, subcharacteristicIndex := 0})
 }
 
 definition{

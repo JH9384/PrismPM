@@ -581,6 +581,21 @@ fn text_view(
 pub fn project_application(
     snapshot: &SemanticSnapshot,
 ) -> Result<Option<ModelDocument>, PrismError> {
+    project_application_with_facets(snapshot, snapshot)
+}
+
+/// Project the application from `snapshot` and its Foundation.Arch, Sec and
+/// Qual facet records from `facet_snapshot`.
+///
+/// The facet snapshot is the whole checked snapshot of the project, so records
+/// declared in any lexlean entrypoint reach the model document, including
+/// entrypoints that sit outside the application roots (an architecture
+/// entrypoint, for example). Passing the application snapshot itself keeps the
+/// records of the application roots only.
+pub fn project_application_with_facets(
+    snapshot: &SemanticSnapshot,
+    facet_snapshot: &SemanticSnapshot,
+) -> Result<Option<ModelDocument>, PrismError> {
     let mut definitions = Definitions::new();
     for module in snapshot.modules() {
         for declaration in module.declarations() {
@@ -619,7 +634,11 @@ pub fn project_application(
     if member_name(declaration) == Some("BrowserApplication") {
         let browser = super::browser_application::project(&definitions, module, declaration)?;
         super::browser_application::validate_roots(&browser, snapshot)?;
-        return projected_document(snapshot, Application::Browser(Box::new(browser)));
+        return projected_document(
+            snapshot,
+            facet_snapshot,
+            Application::Browser(Box::new(browser)),
+        );
     }
     let fields = record_with_unevaluated_fields(
         &definitions,
@@ -777,15 +796,16 @@ pub fn project_application(
             targets: constructor_list(&fields, "targets")?,
         }))
     };
-    projected_document(snapshot, application)
+    projected_document(snapshot, facet_snapshot, application)
 }
 
 fn projected_document(
     snapshot: &SemanticSnapshot,
+    facet_snapshot: &SemanticSnapshot,
     application: Application,
 ) -> Result<Option<ModelDocument>, PrismError> {
     let (facet_packages, standards_profile, architecture, security, quality) =
-        match super::facets::application_records(snapshot)? {
+        match super::facets::application_records(facet_snapshot)? {
             Some((packages, records)) => (
                 packages,
                 super::facets::PROFILE

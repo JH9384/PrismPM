@@ -37,9 +37,13 @@ jobs:
         run: bash scripts/bootstrap-verify.sh --check-source
       - name: Start bounded host resource diagnostics
         run: node scripts/ci-observe.mjs start target/ci-diagnostics/host
+      - id: cache
+        uses: ./.github/actions/devcontainer-cache
       - name: Run the complete pinned devcontainer gate
         uses: devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6 # v0.3.1900000417
         with:
+          cacheFrom: ${{ steps.cache.outputs.cache-from }}
+          cacheTo: ${{ steps.cache.outputs.cache-to }}
           push: never
           runCmd: |
             set -euo pipefail

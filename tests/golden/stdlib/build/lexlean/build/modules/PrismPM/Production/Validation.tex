@@ -5,112 +5,148 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{ValidationRelation}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{bound}: \texttt{Nat}.\par
+\noindent Field \texttt{values}: \texttt{List (Nat)}.\par
 \subsection*{\texttt{ValidationCertificate}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{closure}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{uniqueness}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{referentialIntegrity}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{compatibility}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{capabilitySatisfaction}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{secretFlow}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{deploymentOrder}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{migrationOrder}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{rollbackSafety}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{evidenceClosure}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{licenseClosure}: \texttt{ValidationRelation}.\par
+\noindent Field \texttt{releaseCompleteness}: \texttt{ValidationRelation}.\par
 \subsection*{\texttt{relationAllConsecutive}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(expected : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match values with | List.nil => true | List.cons value rest => ((Nat.beq (expected) (value)) \&\& relationAllConsecutive ((expected + 1)) (rest)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{relationAllConsecutiveProp}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(expected : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Prop}.\par
 \noindent Definition: \texttt{(match values with | List.nil => (expected = expected) | List.cons value rest => ((expected = value) /\textbackslash{} relationAllConsecutiveProp ((expected + 1)) (rest)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{relationAllBelow}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(bound : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match values with | List.nil => true | List.cons value rest => ((Nat.blt (value) (bound)) \&\& relationAllBelow (bound) (rest)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{relationAllBelowProp}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(bound : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Prop}.\par
 \noindent Definition: \texttt{(match values with | List.nil => (bound = bound) | List.cons value rest => ((value < bound) /\textbackslash{} relationAllBelowProp (bound) (rest)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{relationAllPositive}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match values with | List.nil => true | List.cons value rest => ((Nat.blt (0) (value)) \&\& relationAllPositive (rest)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{relationAllConsecutive\_sound\_complete}}
 \noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(expected : Nat) (values : List (Nat))}.\par
 \noindent Statement: \texttt{((relationAllConsecutive (expected) (values) = true) <-> relationAllConsecutiveProp (expected) (values))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{relationAllBelow\_sound\_complete}}
 \noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(bound : Nat) (values : List (Nat))}.\par
 \noindent Statement: \texttt{((relationAllBelow (bound) (values) = true) <-> relationAllBelowProp (bound) (values))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{nonEmptyNatList}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(match values with | List.nil => false | List.cons \_ \_ => true)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateClosure}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(bound : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& ((Nat.blt (0) (bound)) \&\& relationAllBelow (bound) (values)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateUniqueness}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& relationAllConsecutive (0) (values))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateReferentialIntegrity}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(bound : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& ((Nat.blt (0) (bound)) \&\& relationAllBelow (bound) (values)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateCompatibility}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(bound : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& ((Nat.blt (0) (bound)) \&\& relationAllBelow (bound) (values)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateCapabilitySatisfaction}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(bound : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& ((Nat.blt (0) (bound)) \&\& relationAllBelow (bound) (values)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateSecretFlow}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(bound : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& ((Nat.blt (0) (bound)) \&\& relationAllBelow (bound) (values)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateDeploymentOrder}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& relationAllConsecutive (0) (values))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateMigrationOrder}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& relationAllConsecutive (0) (values))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateRollbackSafety}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(bound : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& ((Nat.blt (0) (bound)) \&\& relationAllBelow (bound) (values)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateEvidenceClosure}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(bound : Nat) (values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& ((Nat.blt (0) (bound)) \&\& relationAllBelow (bound) (values)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateLicenseClosure}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& relationAllPositive (values))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{licenseClosureValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
 \noindent Type: \texttt{Prop}.\par
 \noindent Definition: \texttt{(validateLicenseClosure (values) = true)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{licenseClosure\_sound\_complete}}
 \noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
 \noindent Statement: \texttt{((validateLicenseClosure (values) = true) <-> licenseClosureValid (values))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateReleaseCompleteness}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(nonEmptyNatList (values) \&\& relationAllConsecutive (0) (values))}.\par
 \noindent Axiom policy: \texttt{none}.\par

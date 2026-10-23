@@ -23,6 +23,7 @@ pub(super) fn assemble(
             row.index = index as u64;
         }
     }
+    super::standards::validate(&take_raw(&mut entities, "standards"))?;
     for rows in entities.values_mut() {
         index(rows)?;
     }

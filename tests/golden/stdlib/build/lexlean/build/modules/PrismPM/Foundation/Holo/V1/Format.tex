@@ -5,10 +5,22 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{SectionKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{KernelCalls}: \texttt{()}.\par
+\noindent Constructor \texttt{Metadata}: \texttt{()}.\par
+\noindent Constructor \texttt{Extension}: \texttt{()}.\par
+\noindent Constructor \texttt{AppManifest}: \texttt{()}.\par
+\noindent Constructor \texttt{ContentBlob}: \texttt{()}.\par
 \subsection*{\texttt{Header}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{magic}: \texttt{ByteArray}.\par
+\noindent Field \texttt{version}: \texttt{UInt16}.\par
+\noindent Field \texttt{flags}: \texttt{UInt16}.\par
+\noindent Field \texttt{sectionCount}: \texttt{UInt16}.\par
 \subsection*{\texttt{SectionTableEntry}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{kind}: \texttt{UInt8}.\par
+\noindent Field \texttt{offset}: \texttt{UInt64}.\par
+\noindent Field \texttt{length}: \texttt{UInt64}.\par
 \subsection*{\texttt{physicalVersion}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{UInt16}.\par

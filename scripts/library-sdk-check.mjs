@@ -28,6 +28,7 @@ export const sourceRoots=Object.freeze([
  'scripts/browser-api-sdk-check.mjs','scripts/library-sdk-check.mjs','scripts/library-sdk-check.sh',
  'scripts/sdk-command-owner.mjs','scripts/sdk-command-owner.py',
  'scripts/sdk-qualification-trust.mjs',
+ 'scripts/semantic-source.mjs','crates/conformance/src/bin/prismpm-semantic-source.rs',
  'scripts/library-sdk-check.test.mjs','scripts/library-sdk-check-shell.test.mjs','scripts/library-sdk-fixture.mjs','scripts/library-owner-reader-replay.mjs','.github/workflows/release.yml',
  'scripts/installed-exporter-concurrency.mjs','scripts/installed-exporter-concurrency.test.mjs','scripts/portable-oracle-process-owner.py',
  'scripts/hologram-source-pins.mjs','scripts/hologram-source-pins.test.mjs','crates/prismpm/tests/hologram_interop.rs',
@@ -327,7 +328,7 @@ function readLibraryEvidence(project,receipt,exporterArchiveSha256,compilerIdent
 export function mutateModule(project,change){
  const path=join(project,'src/Probe.lex.tex'),before=regularBytes(path).toString('utf8');
  const module=readSemantic(before);change(module);
- writeFileSync(path,writeSemantic(before,canonical(module)));return before;
+ writeFileSync(path,writeSemantic(before,module));return before;
 }
 const declaration=(module,name)=>{const rows=module.declarations.filter(row=>row.name===name);assert.equal(rows.length,1);return rows[0];};
 const rootField=(module,name)=>{const rows=declaration(module,'probeLibrary').body.fields.filter(row=>row.field===name);assert.equal(rows.length,1);return rows[0].value;};

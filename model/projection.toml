@@ -52,6 +52,11 @@ target = "stakeholders"
 
 [[entity]]
 module = "Foundation.Arch"
+type_name = "StandardReference"
+target = "standards"
+
+[[entity]]
+module = "Foundation.Arch"
 type_name = "View"
 target = "views"
 

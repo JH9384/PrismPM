@@ -103,8 +103,9 @@ test('negative controls: the proof schema rejects what the proposal forbids', ()
   rejects({ ...copy(p), theorems: [] }, 'no theorems');
   rejects({ ...copy(p), theorems: [{ ...p.theorems[0], verdict: 'ok' }] }, 'a verdict outside PASSED and FAILED');
   rejects({ ...copy(p), verificationResult: 'passed' }, 'a lowercase result');
-  rejects({ ...copy(p), verifiedLevels: ['P4'] }, 'an unknown level');
-  rejects({ ...copy(p), verifiedLevels: ['P2', 'P2'] }, 'a repeated level');
+  for (const levels of [[], ['P3'], ['P1'], ['P1', 'P2'], ['P2', 'P2'], 'P2']) {
+    rejects({ ...copy(p), verifiedLevels: levels }, `verifiedLevels ${JSON.stringify(levels)}, not exactly ["P2"]`);
+  }
   rejects({ ...copy(p), verifier: { ...p.verifier, id: 'lean4' } }, 'a bare verifier id');
   rejects({ ...copy(p), verifier: { ...p.verifier, sdkImage: 'ghcr.io/uor-foundation/prismpm:0.3.0' } }, 'an SDK image by tag');
   rejects({ ...copy(p), verifier: { ...p.verifier, lean: { ...p.verifier.lean, commit: 'main' } } }, 'a branch for a commit');
@@ -115,7 +116,6 @@ test('negative controls: the proof schema rejects what the proposal forbids', ()
   const failed = copy(p);
   failed.verificationResult = 'FAILED';
   failed.theorems[0].verdict = 'FAILED';
-  failed.verifiedLevels = [];
   assert.deepEqual(predicateErrors(failed), [], 'a FAILED statement is well formed; the verdict check rejects it');
 });
 

@@ -92,8 +92,8 @@ export interface ProofPredicateV1 {
   theorems: [ProofTheorem, ...ProofTheorem[]];
   /** PASSED only when every theorem is PASSED and every leanchecker replay exited 0. */
   verificationResult: ProofVerdict;
-  /** The assurance levels of #269. This predicate alone supports at most `P2`. */
-  verifiedLevels: ('P0' | 'P1' | 'P2' | 'P3')[];
+  /** The signer's claim, fixed to `P2` (#269). A checker computes the level from evidence and never reads it. */
+  verifiedLevels: ['P2'];
   /** At least one. */
   tcb: [TcbEntry, ...TcbEntry[]];
   evidence: ProofEvidence;

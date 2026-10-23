@@ -232,17 +232,10 @@
       "$ref": "#/$defs/Verdict"
     },
     "verifiedLevels": {
-      "description": "The assurance levels this statement supports (#269). This statement alone supports at most P2.",
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "enum": [
-          "P0",
-          "P1",
-          "P2",
-          "P3"
-        ]
-      }
+      "description": "The signer's claim, exactly one level as in SLSA. A proof statement supports at most P2, so the value is fixed (#269). A checker computes the level from evidence and never reads this claim.",
+      "const": [
+        "P2"
+      ]
     },
     "tcb": {
       "description": "The named trusted computing base: every component whose failure would make the verdict false. No entry is verified, and trust admits only trusted.",

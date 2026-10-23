@@ -90,8 +90,18 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '22'
-          registry-url: https://registry.npmjs.org
+      # Trusted publishing: npm exchanges this job's OIDC token (repository
+      # UOR-Foundation/PrismPM, workflow npm-prism-code.yml, environment npm,
+      # as registered on npmjs.com for prism-code) for a short-lived publish
+      # credential and attaches provenance itself. No npm token exists in
+      # this repository for the package, and none may be set here: a token
+      # in NODE_AUTH_TOKEN would take precedence over the OIDC exchange.
+      - name: npm 11.5 or newer, the first release with trusted publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global npm@11
+          npm --version
+          node -e 'const [a, b] = process.argv[1].split(".").map(Number); if (a < 11 || (a === 11 && b < 5)) throw new Error("npm 11.5+ required")' "$(npm --version)"
       - name: Publish with provenance
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

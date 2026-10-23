@@ -2513,6 +2513,34 @@ fn run_application(
     )?;
     processes.push(execution);
 
+    // Text/3 applications also publish a command line. Every vector must give
+    // the same bytes through the program as through the Core-Wasm entry.
+    let command_line = match application {
+        crate::holo::model_document::Application::Text(text) if text.cli.is_some() => {
+            let target = crate::text_cli::acceptance::host_target(std::env::consts::ARCH)?;
+            let node = executable("node")?;
+            processes.push(crate::text_cli::acceptance::execute(
+                text,
+                &wasm_path,
+                &build_root.join(crate::text_cli::binary_path(target, text)),
+                work.path(),
+                &node,
+                &app_replacements,
+            )?);
+            let mut digests = BTreeMap::new();
+            for built in crate::text_cli::TARGETS {
+                let path = crate::text_cli::binary_path(built, text);
+                digests.insert(path.clone(), hash_file(&build_root.join(&path))?);
+            }
+            Some(crate::text_cli::acceptance::evidence(
+                text,
+                std::env::consts::ARCH,
+                &digests,
+            )?)
+        }
+        _ => None,
+    };
+
     let browser = build_root.join("view/browser");
     let expected_browser = [
         "app.css",
@@ -2613,7 +2641,7 @@ fn run_application(
     .map_err(|error| PrismError::new("PP3014", format!("Holo identities: {error}")))?;
     let process_value = serde_json::to_value(&processes)
         .map_err(|error| PrismError::new("PP9001", error.to_string()))?;
-    let acceptance = json!({
+    let mut acceptance = json!({
         "application": application.name(),
         "artifact_closure": "verified",
         "browser_projection": "verified",
@@ -2629,6 +2657,9 @@ fn run_application(
         "source_id": build.source_id,
         "status": "verified"
     });
+    if let Some(evidence) = command_line {
+        acceptance["command_line"] = evidence;
+    }
     let acceptance_bytes = encode_value(&acceptance)?;
     let manifest = json!({
         "acceptance_sha256": format!("{:x}", Sha256::digest(&acceptance_bytes)),

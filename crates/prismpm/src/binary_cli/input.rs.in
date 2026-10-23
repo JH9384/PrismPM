@@ -1,0 +1,57 @@
+// Bounded request input shared by every generated command-line adapter.
+// The including program defines AdapterFailure with at least InputMissing, InputOpen,
+// InputType, InputRead, InputLimit and AdapterAllocation, and a surface module that
+// defines REQUEST_MAXIMUM. Only adapter allocations are fallible: the application core
+// may abort on allocator failure.
+
+fn reserve_input(cap: usize) -> Result<Vec<u8>, AdapterFailure> {
+    let mut bytes = Vec::new();
+    bytes.try_reserve_exact(cap).map_err(|_| AdapterFailure::AdapterAllocation)?;
+    Ok(bytes)
+}
+
+fn bounded_read(reader: &mut dyn std::io::Read) -> Result<Vec<u8>, AdapterFailure> {
+    let cap = surface::REQUEST_MAXIMUM.checked_add(1).ok_or(AdapterFailure::AdapterAllocation)?;
+    let mut bytes = reserve_input(cap)?;
+    let mut chunk = [0u8; 8192];
+    while bytes.len() < cap {
+        let remaining = cap - bytes.len();
+        let count = match reader.read(&mut chunk[..remaining.min(8192)]) {
+            Ok(count) => count,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => return Err(AdapterFailure::InputRead),
+        };
+        if count == 0 { break; }
+        bytes.extend_from_slice(&chunk[..count]);
+    }
+    if bytes.len() > surface::REQUEST_MAXIMUM { return Err(AdapterFailure::InputLimit); }
+    Ok(bytes)
+}
+
+fn open_failure(error: &std::io::Error) -> AdapterFailure {
+    if error.kind() == std::io::ErrorKind::NotFound { AdapterFailure::InputMissing } else { AdapterFailure::InputOpen }
+}
+
+fn input(path: &std::ffi::OsStr) -> Result<Vec<u8>, AdapterFailure> {
+    if path == "-" { return bounded_read(&mut std::io::stdin().lock()); }
+    let metadata = std::fs::symlink_metadata(path).map_err(|error| open_failure(&error))?;
+    if !metadata.file_type().is_file() { return Err(AdapterFailure::InputType); }
+    let mut options = std::fs::OpenOptions::new(); options.read(true);
+    // Linux: avoid blocking FIFO substitution and following a last-component symlink.
+    // O_NONBLOCK is 0o4000 on every supported architecture. O_NOFOLLOW is 0o400000 on x86_64
+    // and 0o100000 on aarch64, so it must be selected per architecture.
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        #[cfg(target_arch = "x86_64")]
+        const NOFOLLOW: i32 = 0o400000;
+        #[cfg(target_arch = "aarch64")]
+        const NOFOLLOW: i32 = 0o100000;
+        options.custom_flags(0o4000 | NOFOLLOW);
+    }
+    let mut file = options.open(path).map_err(|error| open_failure(&error))?;
+    if !file.metadata().map_err(|_| AdapterFailure::InputType)?.file_type().is_file() {
+        return Err(AdapterFailure::InputType);
+    }
+    bounded_read(&mut file)
+}

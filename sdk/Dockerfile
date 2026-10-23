@@ -101,6 +101,8 @@ ENV ELAN_HOME=/usr/local/elan \
 RUN rustup component add rustfmt clippy rust-analyzer \
     && rustup target add \
       aarch64-unknown-linux-gnu \
+      aarch64-unknown-linux-musl \
+      x86_64-unknown-linux-musl \
       thumbv7em-none-eabihf \
       wasm32-unknown-unknown \
       x86_64-unknown-linux-gnu

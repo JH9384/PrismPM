@@ -71,7 +71,10 @@ RUN curl --proto '=https' --tlsv1.2 -sSfL \
     && /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain 1.97.1 \
     && rm /tmp/rustup-init \
     && rustup component add rustfmt clippy rust-analyzer \
-    && rustup target add wasm32-unknown-unknown
+    && rustup target add \
+        aarch64-unknown-linux-musl \
+        wasm32-unknown-unknown \
+        x86_64-unknown-linux-musl
 
 RUN curl --proto '=https' --tlsv1.2 -sSfL \
         https://nodejs.org/dist/v22.23.2/node-v22.23.2-linux-x64.tar.xz \

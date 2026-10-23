@@ -1,1 +1,1 @@
-{"artifacts":[],"diagnostics":["PP2009: text/2 resources require the exact source-owned Text.V2 application type and profile"],"exit":1,"schema":"prismpm/fixture-result/1"}
+{"artifacts":[],"diagnostics":["PP2009: text/2 and text/3 require the exact source-owned Text.V2 or Text.V3 application type and profile"],"exit":1,"schema":"prismpm/fixture-result/1"}

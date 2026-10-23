@@ -25,7 +25,7 @@ test('text_v2_resource_bounds preserve raw text through the actual browser oracl
   const request = '1\tmatmul\t1\t1\t1\t-9\t7\n🌱';
   const response = '1\tok\t1\t1\t-63\n<safe text>';
   const vector = {request: [...new TextEncoder().encode(request)], response: [...new TextEncoder().encode(response)]};
-  for (const profile of ['prismpm/text-application/1', 'prismpm/text-application/2']) {
+  for (const profile of ['prismpm/text-application/1', 'prismpm/text-application/2', 'prismpm/text-application/3']) {
     const fills = [];
     const page = {locator: selector => ({fill: async value => fills.push([selector, value])})};
     const actual = await runInNewContext(`(async () => {${selection}\n${functions}\nawait fill(vector); return {display: displayed(vector), applicable: applicable(vector)};})()`,

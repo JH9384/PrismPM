@@ -355,7 +355,7 @@ Class: `acceptance`. Exit code: 1.
 
 ## `PP6003` --- Application execution disagreement
 
-Generated Rust, Wasm, Hologram, or browser execution differs over the authoritative acceptance corpus.
+Generated Rust, Wasm, Hologram, browser, or command-line execution differs over the authoritative acceptance corpus.
 
 Class: `acceptance`. Exit code: 1.
 

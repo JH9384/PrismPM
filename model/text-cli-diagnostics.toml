@@ -1,0 +1,81 @@
+spec = "prismpm/text-cli-diagnostics/1"
+# Closed failure vocabulary of generated text command lines. Codes are the
+# constructors of Foundation.View.Text.V3.Model.TextCliFailure in order, the
+# AdapterFailure enum of the generated program and the diagnostics printed on
+# standard error. Class selects the modeled exit code: usage_code, io_code or
+# the code of the required error outcome.
+
+[[failure]]
+code = "UnknownFlag"
+class = "usage"
+statement = "An argument beginning with a dash is neither --help, --version, - nor the -- terminator."
+
+[[failure]]
+code = "ExtraArgument"
+class = "usage"
+statement = "More positional arguments were given than the selected command accepts."
+
+[[failure]]
+code = "MissingCommand"
+class = "usage"
+statement = "No command was given."
+
+[[failure]]
+code = "UnknownCommand"
+class = "usage"
+statement = "The first positional argument is neither the modeled command nor examples."
+
+[[failure]]
+code = "UnknownExample"
+class = "usage"
+statement = "The examples command named an example that the model does not declare."
+
+[[failure]]
+code = "InputMissing"
+class = "io"
+statement = "The request path does not exist."
+
+[[failure]]
+code = "InputOpen"
+class = "io"
+statement = "The request path exists but could not be opened, for example for lack of permission or because it is a symbolic link."
+
+[[failure]]
+code = "InputType"
+class = "io"
+statement = "The request path is not a regular file."
+
+[[failure]]
+code = "InputRead"
+class = "io"
+statement = "Reading the request failed after it was opened."
+
+[[failure]]
+code = "OutputWrite"
+class = "io"
+statement = "Writing the report to standard output failed, for example because it was closed or full."
+
+[[failure]]
+code = "InputLimit"
+class = "fault"
+statement = "The request is longer than the modeled request maximum and was refused before dispatch."
+
+[[failure]]
+code = "AdapterAllocation"
+class = "fault"
+statement = "The adapter could not reserve the bounded request buffer."
+
+[[failure]]
+code = "ComputeFailure"
+class = "fault"
+statement = "The generated entry returned a typed failure instead of a report."
+
+[[failure]]
+code = "OutputLimit"
+class = "fault"
+statement = "The report is longer than the modeled response maximum and was not published."
+
+[[failure]]
+code = "ReportUnclassified"
+class = "fault"
+statement = "The report begins with no declared outcome prefix and was not published."

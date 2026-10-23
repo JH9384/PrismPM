@@ -1,0 +1,433 @@
+{
+  "$id": "prismpm/model-document/6",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BoundedTextCommandModelDocument",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "application": {
+      "$ref": "#/$defs/application"
+    },
+    "architecture": {
+      "const": {
+        "component_kinds": [],
+        "components": [],
+        "concerns": [],
+        "edge_kinds": [],
+        "edges": [],
+        "model_kinds": [],
+        "stakeholders": [],
+        "viewpoints": [],
+        "views": []
+      }
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "quality": {
+      "const": {
+        "characteristics": [],
+        "measures": [],
+        "requirements": [],
+        "subcharacteristics": []
+      }
+    },
+    "schema": {
+      "const": "prismpm/model-document/6"
+    },
+    "security": {
+      "const": {
+        "activities": [],
+        "assets": [],
+        "controls": [],
+        "impacts": [],
+        "likelihoods": [],
+        "measurements": [],
+        "risks": [],
+        "threats": []
+      }
+    },
+    "standards_profile": {
+      "const": []
+    }
+  },
+  "required": [
+    "application",
+    "architecture",
+    "provenance",
+    "quality",
+    "schema",
+    "security",
+    "standards_profile"
+  ],
+  "$defs": {
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "profile": {
+          "const": "prismpm/text-application/3"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9_. -]*[A-Za-z0-9_-])?$"
+        },
+        "cargo_name": {
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        },
+        "cargo_version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        },
+        "cargo_description": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "cargo_repository": {
+          "format": "uri",
+          "pattern": "^https://",
+          "type": "string"
+        },
+        "cargo_homepage": {
+          "format": "uri",
+          "pattern": "^https://",
+          "type": "string"
+        },
+        "library_roots": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+          }
+        },
+        "acceptance_vectors": {
+          "items": {
+            "$ref": "#/$defs/application_acceptance_vector"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "entry_root": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+        },
+        "core_contract": {
+          "const": "hologram:guest/core-wasm@1"
+        },
+        "request_maximum": {
+          "maximum": 4294967295,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "response_maximum": {
+          "maximum": 4294967295,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "guest_allocation_maximum": {
+          "maximum": 4294967295,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "capabilities_empty": {
+          "const": true
+        },
+        "fat_archive": {
+          "const": true
+        },
+        "primary_layer": {
+          "const": 0
+        },
+        "view_layer": {
+          "const": 1
+        },
+        "view": {
+          "$ref": "#/$defs/text_view"
+        },
+        "core_memory_pages": {
+          "maximum": 32767,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "core_stack_bytes": {
+          "maximum": 4294967295,
+          "minimum": 16,
+          "multipleOf": 16,
+          "type": "integer"
+        },
+        "cli": {
+          "$ref": "#/$defs/text_cli"
+        }
+      },
+      "required": [
+        "acceptance_vectors",
+        "capabilities_empty",
+        "cargo_description",
+        "cargo_homepage",
+        "cargo_name",
+        "cargo_repository",
+        "cargo_version",
+        "cli",
+        "core_contract",
+        "core_memory_pages",
+        "core_stack_bytes",
+        "entry_root",
+        "fat_archive",
+        "guest_allocation_maximum",
+        "library_roots",
+        "name",
+        "primary_layer",
+        "profile",
+        "request_maximum",
+        "response_maximum",
+        "view",
+        "view_layer"
+      ]
+    },
+    "application_acceptance_vector": {
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "items": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "response": {
+          "items": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "request",
+        "response"
+      ],
+      "type": "object"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "compiler_semantics_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "emitter_semantics_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "facet_packages": {
+          "const": []
+        },
+        "semantic_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_id": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "required": [
+        "compiler_semantics_id",
+        "emitter_semantics_id",
+        "facet_packages",
+        "semantic_id",
+        "snapshot_id",
+        "source_id"
+      ],
+      "type": "object"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "text_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+        },
+        "heading": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+        },
+        "input_label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+        },
+        "submit_label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+        },
+        "output_label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+        },
+        "input_error": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+        },
+        "response_error": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+        }
+      },
+      "required": [
+        "title",
+        "heading",
+        "input_label",
+        "submit_label",
+        "output_label",
+        "input_error",
+        "response_error"
+      ]
+    },
+    "text_cli": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string",
+          "pattern": "^[a-z](?:[a-z0-9-]{0,30}[a-z0-9])?$",
+          "not": {
+            "const": "examples"
+          }
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384,
+          "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]+$"
+        },
+        "usage_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 125
+        },
+        "io_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 125
+        },
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/text_cli_outcome"
+          }
+        },
+        "sections": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/text_cli_section"
+          }
+        },
+        "examples": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/text_cli_example"
+          }
+        }
+      },
+      "required": [
+        "command",
+        "description",
+        "examples",
+        "io_code",
+        "outcomes",
+        "sections",
+        "usage_code"
+      ]
+    },
+    "text_cli_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z](?:[a-z0-9-]{0,30}[a-z0-9])?$"
+        },
+        "prefix": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000]+$"
+        },
+        "exit_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 125
+        }
+      },
+      "required": [
+        "exit_code",
+        "name",
+        "prefix"
+      ]
+    },
+    "text_cli_section": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384,
+          "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]+$"
+        }
+      },
+      "required": [
+        "body",
+        "title"
+      ]
+    },
+    "text_cli_example": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z](?:[a-z0-9-]{0,30}[a-z0-9])?$"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384,
+          "pattern": "^[^\\u0000]+$"
+        }
+      },
+      "required": [
+        "name",
+        "text"
+      ]
+    }
+  }
+}

@@ -411,7 +411,7 @@ code = "PP6003"
 title = "Application execution disagreement"
 class = "acceptance"
 exit = 1
-statement = "Generated Rust, Wasm, Hologram, or browser execution differs over the authoritative acceptance corpus."
+statement = "Generated Rust, Wasm, Hologram, browser, or command-line execution differs over the authoritative acceptance corpus."
 
 [[error]]
 code = "PP6004"

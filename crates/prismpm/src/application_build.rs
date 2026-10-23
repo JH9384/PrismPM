@@ -106,7 +106,7 @@ fn write(path: &Path, bytes: &[u8]) -> Result<(), PrismError> {
         .map_err(|error| PrismError::new("PP4002", format!("{}: {error}", path.display())))
 }
 
-fn publish_package(root: &Path, package: &GeneratedPackage) -> Result<(), PrismError> {
+pub(crate) fn publish_package(root: &Path, package: &GeneratedPackage) -> Result<(), PrismError> {
     std::fs::create_dir(root)
         .map_err(|error| PrismError::new("PP4002", format!("{}: {error}", root.display())))?;
     for file in &package.files {
@@ -1202,6 +1202,14 @@ fn generate_in(
         "view_model_id": view_model_id
     }))?;
     let browser_projection_sha = sha256(&browser_provenance);
+    // Text/3 applications also ship the modeled command line as static programs.
+    let command_line = match application {
+        Application::Text(text) if text.cli.is_some() => Some((
+            text.as_ref(),
+            crate::text_cli::build(text, workspace, &cargo_env, &replacements)?,
+        )),
+        _ => None,
+    };
     let source_manifest =
         source_manifest(model, lex_manifest_bytes, &kernel_bytes, &coverage_bytes)?;
     let target_profile = encode_value(&application_target_profile(application))?;
@@ -1341,6 +1349,9 @@ fn generate_in(
         "view/view-manifest.json".to_owned(),
         generated_view.view_manifest.bytes,
     ));
+    if let Some((text, built)) = command_line {
+        artifacts.extend(crate::text_cli::artifacts(text, built)?);
+    }
     artifacts.sort_by(|left, right| left.0.as_bytes().cmp(right.0.as_bytes()));
     if artifacts.windows(2).any(|pair| pair[0].0 == pair[1].0) {
         return Err(PrismError::new(

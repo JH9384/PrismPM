@@ -1,6 +1,16 @@
 spec = "prismpm/contracts/1"
 
 [[contract]]
+schema = "prismpm/model-document/6"
+path = "schemas/model-document-v6.schema.json"
+media_type = "application/vnd.prismpm.model-document.v6+json"
+identity = "sha256-canonical-json"
+maximum_bytes = 16777216
+maximum_items = 65536
+extension_policy = "closed"
+compatibility = "exact-major"
+
+[[contract]]
 schema = "prismpm/model-document/5"
 path = "schemas/model-document-v5.schema.json"
 media_type = "application/vnd.prismpm.model-document.v5+json"

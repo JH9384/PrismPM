@@ -445,9 +445,11 @@ mod tests {
             let manifest = digest(format!("{architecture}/manifest").as_bytes());
             let inventory = json!([{"id":"prismpm","kind":"binary","version":"0.3.0",
                 "digest":digest(format!("{architecture}/binary").as_bytes())}]);
-            let document = serde_json::to_string(
-                &json!({"schema":"prismpm/sdk-inventory/1","artifacts":inventory}),
-            )
+            let document = serde_json::to_string(&json!({
+                "schema":"prismpm/sdk-inventory/1",
+                "artifacts":inventory,
+                "commands":[{"command":"prismpm","executable":"/usr/local/bin/prismpm","sha256":"a".repeat(64)}]
+            }))
             .unwrap();
             manifests.push(json!({"mediaType":"application/vnd.oci.image.manifest.v1+json",
                 "digest":manifest,"size":100,"platform":{"os":"linux","architecture":architecture}}));

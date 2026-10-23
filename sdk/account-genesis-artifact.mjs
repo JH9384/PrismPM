@@ -87,7 +87,7 @@ export function verifyAccountGenesisConstruction(sdkRoot, expectedInputs) {
   assert.equal(sha(installed[1]),record.binding.wasm_sha256);
   const proofs = rows(record.proofs,['attestation.json','build-manifest.json','kernel.ir'],'share/account-genesis/');
   const attestation = JSON.parse(proofs[0]), manifest = JSON.parse(proofs[1]);
-  assert.equal(attestation.spec,'lexlean/attestation/1');assert.equal(attestation.status,'verified');
+  assert.equal(attestation.spec,'lexlean/attestation/2');assert.equal(attestation.status,'verified');
   assert.equal(attestation.source_id,record.binding.model_source_id);
   assert.equal(manifest.source_id,record.binding.model_source_id);
   assert.equal(attestation.build_manifest.sha256,sha(proofs[1]));

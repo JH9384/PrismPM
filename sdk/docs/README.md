@@ -30,8 +30,7 @@ The generator never reads the working tree's `sdk/npm/spec`.
 It reads the spec at the commit recorded in `spec.lock.json`, fetching that commit by hash when the checkout does not have it, and caches the files under `.spec-cache/` (ignored by git).
 This is why every spec-sourced page ends with `Generated from @prism-code/spec <revision> at <commit>`: the commit is a fact, not the checkout of the moment.
 
-The pin today is the head of the `@prism-code/spec` branch, pull request 326, which has not merged yet.
-The generator depends on that branch existing at the pinned commit; once 326 merges, `--pin` to the merge commit and the pages regenerate unchanged if the package did not.
+The pin today is the merge commit of pull request 326, which brought `@prism-code/spec` onto main.
 
 When `sdk/npm/spec` is present in the working tree, `--check` also compares its digest with the pin.
 A spec change without a re-pin fails CI with the pin named; `--pin <commit>` after committing the spec change regenerates the pages, and the pull request shows the diff.
@@ -74,7 +73,7 @@ Prose is every line outside a fenced code block with inline code spans removed.
 Identifiers inside code are the sources' own names, not vocabulary; the only identifiers allowed in prose are the predicate type URIs and the site hostname.
 Em dashes and emoji are reported on every line, code included.
 
-By default it lints `docs/` except `docs/adr`, `docs/decisions`, `docs/proposals` and `docs/release`, the engineering records that cite issues and internal names by design.
+By default it lints `docs/` except `docs/adr`, `docs/decisions`, `docs/proposals` and `docs/release`, the engineering records that cite issues and internal names by design, and `docs/vocabulary.md`, which maps the docs' terms onto the repository's own names and so must name them.
 `docs/generated/` is always covered.
 
 ## CI

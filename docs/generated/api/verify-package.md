@@ -15,4 +15,4 @@ Status: `@prism-code/verify` does not exist yet. This page is generated from its
 - [Spec package](/docs/api/spec-package)
 - [Load a holo](/docs/api/load)
 
-Generated from @prism-code/spec 2026-10-23 at 5e1fa67fdd2aa79be8dfa042bd2911e54b8bd043.
+Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.

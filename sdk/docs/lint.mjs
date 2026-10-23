@@ -17,8 +17,12 @@ import { fileURLToPath } from 'node:url';
 import { ALLOWED, BANNED, STYLE } from './lib/banned.mjs';
 import { ROOT } from './lib/spec.mjs';
 
-/** Engineering records under docs/ that cite issues and internal names by design. */
-export const EXCLUDED = ['docs/adr', 'docs/decisions', 'docs/proposals', 'docs/release'];
+/**
+ * Engineering records under docs/ that cite issues and internal names by
+ * design, and the vocabulary page, which maps the docs' terms onto the
+ * repository's own names and so must name them.
+ */
+export const EXCLUDED = ['docs/adr', 'docs/decisions', 'docs/proposals', 'docs/release', 'docs/vocabulary.md'];
 
 export function defaultTargets() {
   const docs = join(ROOT, 'docs');

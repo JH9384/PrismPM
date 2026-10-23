@@ -15,4 +15,4 @@ Status: no manifest schema exists in the spec package at this revision. This pag
 - [CLI reference](/docs/reference/cli)
 - [Holo format](/docs/reference/holo-format)
 
-Generated from @prism-code/spec 2026-10-23 at 5e1fa67fdd2aa79be8dfa042bd2911e54b8bd043.
+Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.

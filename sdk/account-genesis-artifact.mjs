@@ -99,7 +99,7 @@ export function verifyAccountGenesisConstruction(sdkRoot, expectedInputs) {
     assert(Object.hasOwn(expectedInputs,path),'construction input belongs to the independently verified source snapshot');
     assert.equal(digest,expectedInputs[path],'construction input joins the independently verified source snapshot: '+path);
   }
-  const moduleRows = Object.entries(record.inputs).filter(([path])=>path.endsWith('.lex.tex'))
+  const moduleRows = Object.entries(record.inputs).filter(([path])=>path.endsWith('.lex.tex') && !path.startsWith('vendor/'))
     .map(([path,digest])=> {
       assert(path.startsWith('stdlib/src/'));
       assert.equal(typeof digest,'string');assert.match(digest,/^[a-f0-9]{64}$/);

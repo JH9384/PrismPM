@@ -1,0 +1,77 @@
+---
+title: prism-code at a glance
+description: Load a holo, dispatch an input and replay its examples from Node.js with the prism-code runtime.
+---
+
+Source: `prism-code` 0.2.0, `types/index.d.ts`.
+
+## Install
+
+```bash
+npm install prism-code
+```
+
+## Example
+
+```js
+import { load } from 'prism-code';
+
+const app = await load('./Calculator.holo');
+console.log(app.name, app.identities.verified);
+
+const response = await app.dispatch(new TextEncoder().encode('1\tadd\t20\t22'));
+console.log(JSON.stringify(new TextDecoder().decode(response)));
+
+const result = await app.acceptance();
+console.log(result.passed, 'of', result.total, 'examples replayed');
+```
+
+```text
+Calculator true
+"1\tok\t42"
+22 of 22 examples replayed
+```
+
+## Exports
+
+| Export              | Kind      | Declaration                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PrismCodeError`    | class     | `PrismCodeError extends Error`                                                                                                                                                                                                                                                                                                                                                                 |
+| `Limits`            | interface | `Limits`                                                                                                                                                                                                                                                                                                                                                                                       |
+| `Vector`            | interface | `Vector`                                                                                                                                                                                                                                                                                                                                                                                       |
+| `AcceptanceFailure` | interface | `AcceptanceFailure`                                                                                                                                                                                                                                                                                                                                                                            |
+| `AcceptanceResult`  | interface | `AcceptanceResult`                                                                                                                                                                                                                                                                                                                                                                             |
+| `View`              | interface | `View`                                                                                                                                                                                                                                                                                                                                                                                         |
+| `ArchiveIdentities` | interface | `ArchiveIdentities`                                                                                                                                                                                                                                                                                                                                                                            |
+| `ClosureIdentities` | interface | `ClosureIdentities`                                                                                                                                                                                                                                                                                                                                                                            |
+| `Evidence`          | interface | `Evidence`                                                                                                                                                                                                                                                                                                                                                                                     |
+| `Application`       | interface | `Application`                                                                                                                                                                                                                                                                                                                                                                                  |
+| `LoadOptions`       | interface | `LoadOptions`                                                                                                                                                                                                                                                                                                                                                                                  |
+| `load`              | function  | `load(source: Uint8Array \| ArrayBuffer \| Blob \| string \| URL, options?: LoadOptions): Promise<Application>`                                                                                                                                                                                                                                                                                |
+| `loadArchive`       | function  | `loadArchive(source: Uint8Array \| ArrayBuffer): Promise<Application>`                                                                                                                                                                                                                                                                                                                         |
+| `loadClosure`       | function  | `loadClosure( files: Map<string, Uint8Array>, importGlue: (name: string) => Promise<Record<string, unknown>>, options?: { model?: Record<string, unknown> \| Uint8Array \| null }, ): Promise<Application>`                                                                                                                                                                                    |
+| `ParsedArchive`     | interface | `ParsedArchive`                                                                                                                                                                                                                                                                                                                                                                                |
+| `parseArchive`      | function  | `parseArchive(source: Uint8Array \| ArrayBuffer): ParsedArchive`                                                                                                                                                                                                                                                                                                                               |
+| `resolveArchive`    | function  | `resolveArchive(parsed: ParsedArchive): { directory: Record<string, unknown>; provenance: Record<string, unknown>; modelDocument: Record<string, unknown>; guest: { label: string; content: Uint8Array }; view: { label: string; content: Uint8Array }; model: { label: string; content: Uint8Array }; capabilities: { label: string; content: Uint8Array }; identities: ArchiveIdentities; }` |
+| `canonicalJson`     | function  | `canonicalJson(value: unknown): string`                                                                                                                                                                                                                                                                                                                                                        |
+| `decodeHoloview`    | function  | `decodeHoloview(bytes: Uint8Array): View`                                                                                                                                                                                                                                                                                                                                                      |
+| `encodeHoloview`    | function  | `encodeHoloview(view: View): Uint8Array`                                                                                                                                                                                                                                                                                                                                                       |
+| `compileGuest`      | function  | `compileGuest(wasm: Uint8Array): Promise<WebAssembly.Module>`                                                                                                                                                                                                                                                                                                                                  |
+| `runGuest`          | function  | `runGuest(module: WebAssembly.Module, request: Uint8Array, limits?: Partial<Limits>): Uint8Array`                                                                                                                                                                                                                                                                                              |
+| `runAcceptance`     | function  | `runAcceptance(vectors: Vector[], dispatch: (request: Uint8Array) => Uint8Array \| Promise<Uint8Array>): Promise<AcceptanceResult>`                                                                                                                                                                                                                                                            |
+| `verifyClosure`     | function  | `verifyClosure(files: Map<string, Uint8Array>): Promise<{ stem: string; glueName: string; wasmName: string; provenance: Record<string, unknown>; verification: Pick<ClosureIdentities, 'verified' \| 'mismatches' \| 'unverifiable'>; }>`                                                                                                                                                      |
+| `blake3`            | function  | `blake3(bytes: Uint8Array, length?: number): Uint8Array`                                                                                                                                                                                                                                                                                                                                       |
+| `blake3Hex`         | function  | `blake3Hex(bytes: Uint8Array): string`                                                                                                                                                                                                                                                                                                                                                         |
+| `kappa`             | function  | `kappa(bytes: Uint8Array): string`                                                                                                                                                                                                                                                                                                                                                             |
+| `canonicalize`      | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
+| `codeHash`          | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
+| `describe`          | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
+| `differs`           | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
+
+## Next steps
+
+- [Load a holo](/docs/api/load)
+- [Dispatch inputs](/docs/api/dispatch)
+- [History and replay](/docs/api/history-and-replay)
+
+Generated from prism-code 0.2.0, Calculator.holo sha256:84371aaac82af6b2a81a25a81d43d4097892985f55ae4919cfdcfa8b6e3486e7.

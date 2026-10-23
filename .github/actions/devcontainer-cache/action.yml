@@ -1,0 +1,37 @@
+name: Devcontainer layer cache
+description: >
+  Prepares the buildx builder and the GitHub Actions cache credentials so the
+  pinned devcontainer image is built from cached layers. Pass the outputs to
+  devcontainers/ci as cacheFrom (every job) and cacheTo (the one job per run
+  that fills the cache). BuildKit keys each layer by the content of its inputs,
+  so unchanged Dockerfile, bootstrap tools, oracle packages and base digests
+  perform no network installs; the scope only groups caches by Dockerfile and
+  devcontainer definition.
+
+outputs:
+  cache-from:
+    description: cacheFrom value for devcontainers/ci
+    value: ${{ steps.scope.outputs.cache-from }}
+  cache-to:
+    description: cacheTo value for devcontainers/ci
+    value: ${{ steps.scope.outputs.cache-to }}
+
+runs:
+  using: composite
+  steps:
+    - name: Expose the Actions cache service to buildx
+      uses: crazy-max/ghaction-github-runtime@3cb05d89e1f492524af3d41a1c98c83bc3025124 # v3.1.0
+    - name: Select the pinned buildx builder
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      with:
+        version: v0.28.0
+        driver-opts: image=docker.io/moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+    - id: scope
+      shell: bash
+      env:
+        DEFINITION_HASH: ${{ hashFiles('.devcontainer/**') }}
+      run: |
+        set -euo pipefail
+        scope="prismpm-devcontainer-$DEFINITION_HASH"
+        printf 'cache-from=type=gha,scope=%s\n' "$scope" >> "$GITHUB_OUTPUT"
+        printf 'cache-to=type=gha,scope=%s,mode=max\n' "$scope" >> "$GITHUB_OUTPUT"

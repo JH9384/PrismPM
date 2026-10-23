@@ -3,6 +3,7 @@ public import Init
 set_option autoImplicit false
 set_option maxRecDepth 100000
 set_option maxHeartbeats 1000000000
+set_option linter.constructorNameAsVariable false
 namespace PrismPM.Production.Validation
 
 public structure ValidationRelation where
@@ -106,7 +107,7 @@ public theorem relationAllBelow_sound_complete (bound : Nat) (values : List (Nat
 
 @[expose] public def validateLicenseClosure (values : List (Nat)) : Bool := (nonEmptyNatList (values) && relationAllPositive (values))
 
-@[expose] public def licenseClosureValid (values : List (Nat)) : Prop := (validateLicenseClosure (values) = true)
+@[expose, reducible] public def licenseClosureValid (values : List (Nat)) : Prop := (validateLicenseClosure (values) = true)
 
 public theorem licenseClosure_sound_complete (values : List (Nat)) : ((validateLicenseClosure (values) = true) <-> licenseClosureValid (values)) := by
   rfl

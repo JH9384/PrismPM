@@ -18,6 +18,7 @@ pub mod config;
 pub mod contracts;
 pub mod controller;
 pub mod deployment;
+mod design;
 pub mod diagnostics;
 pub mod error;
 mod exporter;

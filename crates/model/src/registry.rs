@@ -344,7 +344,7 @@ pub struct StandardRow {
     pub name: String,
     /// Standard edition.
     pub edition: String,
-    /// Exact public catalog reference.
+    /// Exact public ISO or OMG catalog reference.
     pub reference: String,
     /// Evidence basis (`public-catalog` or `authorized-clause-review`).
     pub basis: String,
@@ -389,9 +389,11 @@ impl Standards {
                     s.id
                 )));
             }
-            if !s.reference.starts_with("https://www.iso.org/standard/") {
+            if !(s.reference.starts_with("https://www.iso.org/standard/")
+                || s.reference.starts_with("https://www.omg.org/spec/"))
+            {
                 return Err(ModelError::Inconsistent(format!(
-                    "{}: reference is not an exact ISO catalog URL",
+                    "{}: reference is not an exact ISO or OMG catalog URL",
                     s.id
                 )));
             }

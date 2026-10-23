@@ -1,0 +1,61 @@
+name: Golden refresh proposal
+
+# Regenerates the shared development goldens (tests/golden/stdlib) for a
+# branch on the development platform and uploads the result as a patch for
+# review and import. Native SDK profiles are not produced here; they come from
+# the native-source-review jobs once the refreshed goldens are committed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch whose goldens are regenerated
+        required: true
+        type: string
+      reason:
+        description: Reason recorded by golden-write
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: golden-refresh-${{ inputs.ref }}
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Regenerate the shared goldens through the pinned devcontainer
+        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca
+        env:
+          GOLDEN_REASON: ${{ inputs.reason }}
+        with:
+          push: never
+          env: GOLDEN_REASON
+          runCmd: |
+            set -euo pipefail
+            just golden-write "$GOLDEN_REASON"
+      - name: Preserve the proposal as a binary patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/golden-refresh"
+          mkdir -p "$out"
+          git add -N -- tests/golden
+          git diff --binary HEAD -- tests/golden > "$out/golden.patch"
+          git rev-parse HEAD > "$out/source.txt"
+          sha256sum "$out/golden.patch" > "$out/SHA256SUMS"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: golden-refresh-${{ github.run_id }}
+          path: ${{ runner.temp }}/golden-refresh/
+          if-no-files-found: error
+          retention-days: 7

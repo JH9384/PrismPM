@@ -38,6 +38,7 @@ enum Rule {
     TextApplication,
     BrowserApplication,
     BrowserRuntime,
+    DesignView,
 }
 
 impl Rule {
@@ -50,6 +51,10 @@ impl Rule {
                 (valid, invalid)
             }
             Self::BrowserRuntime => (Self::TextApplication.specimens().0, browser_specimen()),
+            Self::DesignView => (
+                json!({"component": "Probe::component"}),
+                json!({"component": "Probe::unknown"}),
+            ),
             Self::ArtifactIntegrity => filesystem::specimens("PP4001"),
             Self::ConfinedOutput => filesystem::specimens("PP8001"),
             Self::ImmutableLock => filesystem::specimens("PP1101"),
@@ -124,6 +129,7 @@ impl Rule {
         match self {
             Self::BrowserApplication => validate_browser_specimen(value).is_ok(),
             Self::BrowserRuntime => validate_browser_runtime(value).is_ok(),
+            Self::DesignView => crate::design::probe(value).is_ok(),
             Self::ArtifactIntegrity | Self::ConfinedOutput | Self::ImmutableLock => {
                 filesystem::validate(value).is_ok()
             }
@@ -232,6 +238,7 @@ probes!(
         "browser-application-runtime-unavailable",
         BrowserRuntime
     ),
+    ("PP2012", "unknown-design-view-name", DesignView),
     ("PP3002", "malformed-holo-section-table", PositiveBound),
     ("PP3003", "invalid-holo-section-closure", Complete),
     ("PP3004", "holo-footer-mismatch", Digest),
@@ -376,6 +383,9 @@ fn validate(spec: ProbeSpec, value: &Value) -> Result<(), PrismError> {
     }
     if matches!(spec.rule, Rule::TextApplication) {
         return validate_text_specimen(value);
+    }
+    if matches!(spec.rule, Rule::DesignView) {
+        return crate::design::probe(value);
     }
     if spec.rule.accepts(value) {
         Ok(())

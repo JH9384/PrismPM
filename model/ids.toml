@@ -133,6 +133,12 @@ level = "build"
 statement = "Lexicon package locks reproduce across multiple directory roots."
 
 [[id]]
+id = "FT-11"
+suite = "facets"
+level = "build"
+statement = "prism.arch defines OPM (ISO/PAS 19450) and UML 2.5.1 design view entries as ISO/IEC/IEEE 42010 views."
+
+[[id]]
 id = "HO-01"
 suite = "holo"
 level = "build"
@@ -233,6 +239,12 @@ id = "HO-17"
 suite = "holo"
 level = "build"
 statement = "The explicit text/3 profile models its command-line surface in source and generates static musl programs whose bounded raw input, model-owned help and version, declared exit-code map and registered usage, I/O and fault diagnostics are accepted against the Core-Wasm entry for every vector, without handwritten product code or any claim about targets not executed."
+
+[[id]]
+id = "HO-18"
+suite = "holo"
+level = "build"
+statement = "The SDK checks OPM and UML design views against the system model, refuses an unknown component, edge, process, state or viewpoint with PP2012, and emits OPL text and PlantUML source as build artifacts."
 
 [[id]]
 id = "HO-19"
@@ -407,6 +419,12 @@ id = "ST-17"
 suite = "stdlib"
 level = "build"
 statement = "The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox."
+
+[[id]]
+id = "ST-18"
+suite = "stdlib"
+level = "build"
+statement = "Prism-stdlib defines OPM and UML design view primitives in Foundation.Arch."
 
 [[id]]
 id = "AR-01"

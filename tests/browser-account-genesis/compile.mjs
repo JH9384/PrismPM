@@ -137,8 +137,15 @@ export function prepareAccountGenesis(compilerOwner, mutationId = null, expected
       const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
-    assert.equal(attestation.declarations.length, expected.size);
-    for (const declaration of attestation.declarations) {
+    // LexLean 1.2 also attests the LexLeanRuntime closure the generated modules import.
+    const runtime = attestation.declarations.filter(declaration => declaration.name.startsWith('LexLeanRuntime.'));
+    for (const declaration of runtime) {
+      assert.equal(declaration.result, 'ok'); assert.equal(declaration.policy.kind, 'exact');
+      assert.deepEqual(declaration.observed, declaration.policy.axioms);
+    }
+    const owned = attestation.declarations.filter(declaration => !declaration.name.startsWith('LexLeanRuntime.'));
+    assert.equal(owned.length, expected.size);
+    for (const declaration of owned) {
       assert.ok(expected.has(declaration.name)); const axioms = expected.get(declaration.name);
       assert.equal(declaration.result, 'ok'); assert.deepEqual(declaration.policy, {kind: axioms.length ? 'exact' : 'none', axioms});
       assert.deepEqual(declaration.observed, axioms); expected.delete(declaration.name);

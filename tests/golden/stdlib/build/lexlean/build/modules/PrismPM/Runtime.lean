@@ -22,6 +22,7 @@ public import PrismPM.Production.SystemValidationCorpus
 set_option autoImplicit false
 set_option maxRecDepth 100000
 set_option maxHeartbeats 1000000000
+set_option linter.constructorNameAsVariable false
 namespace PrismPM.Runtime
 
 @[expose] public def productionRuntimeProfile : Bool := true

@@ -1,8 +1,15 @@
 \begin{lexlean}{Foundation.Core}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"UnitValue"}],"kind":"inductive","name":"UnitValue","parameters":[],"type_parameters":[]},{"body":{"kind":"bool","value":true},"kind":"definition","name":"portableTrue","parameters":[],"result":{"kind":"bool"}}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: UnitValue,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: UnitValue, fields: []}]
+}
+
+definition{name: portableTrue, parameters: [], result: Bool, body: true}
 \end{semanticmodule}
 \end{lexlean}

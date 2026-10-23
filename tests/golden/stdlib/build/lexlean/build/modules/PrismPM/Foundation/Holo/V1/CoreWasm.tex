@@ -5,10 +5,30 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{Contract}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{exportedMemory}: \texttt{Bool}.\par
+\noindent Field \texttt{allocatorExport}: \texttt{String}.\par
+\noindent Field \texttt{entryExport}: \texttt{String}.\par
+\noindent Field \texttt{importsEmpty}: \texttt{Bool}.\par
+\noindent Field \texttt{memoryMaximumBytes}: \texttt{UInt32}.\par
+\noindent Field \texttt{maximumPages}: \texttt{UInt32}.\par
+\noindent Field \texttt{allocationAlignment}: \texttt{UInt8}.\par
+\noindent Field \texttt{inputMaximum}: \texttt{UInt32}.\par
+\noindent Field \texttt{outputMaximum}: \texttt{UInt32}.\par
+\noindent Field \texttt{panicAbort}: \texttt{Bool}.\par
 \subsection*{\texttt{PackedResult}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{pointer}: \texttt{UInt32}.\par
+\noindent Field \texttt{length}: \texttt{UInt32}.\par
 \subsection*{\texttt{AbiError}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{NegativePointer}: \texttt{()}.\par
+\noindent Constructor \texttt{NegativeLength}: \texttt{()}.\par
+\noindent Constructor \texttt{OverLimit}: \texttt{()}.\par
+\noindent Constructor \texttt{OutOfBounds}: \texttt{()}.\par
+\noindent Constructor \texttt{Overlap}: \texttt{()}.\par
+\noindent Constructor \texttt{GrowthFailure}: \texttt{()}.\par
+\noindent Constructor \texttt{WrongSignature}: \texttt{()}.\par
+\noindent Constructor \texttt{UnexpectedImport}: \texttt{()}.\par
 \subsection*{\texttt{contractName}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{String}.\par

@@ -5,20 +5,41 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{Likelihood}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{low}: \texttt{()}.\par
+\noindent Constructor \texttt{medium}: \texttt{()}.\par
+\noindent Constructor \texttt{high}: \texttt{()}.\par
 \subsection*{\texttt{Impact}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{minor}: \texttt{()}.\par
+\noindent Constructor \texttt{major}: \texttt{()}.\par
+\noindent Constructor \texttt{critical}: \texttt{()}.\par
 \subsection*{\texttt{Asset}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{componentIndex}: \texttt{Nat}.\par
 \subsection*{\texttt{Threat}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
 \subsection*{\texttt{Risk}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{assetIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{threatIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{likelihood}: \texttt{Likelihood}.\par
+\noindent Field \texttt{impact}: \texttt{Impact}.\par
 \subsection*{\texttt{ApplicationSecurityControl}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{riskIndex}: \texttt{Nat}.\par
 \subsection*{\texttt{SecurityActivity}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{controlIndex}: \texttt{Nat}.\par
 \subsection*{\texttt{VerificationMeasurement}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{controlIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{passed}: \texttt{Bool}.\par
 \subsection*{\texttt{assetCredentials}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{Asset}.\par

@@ -1,8 +1,105 @@
 \begin{lexlean}{Foundation.Browser.Application.V1.Model}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[{"kind":"string"},{"kind":"string"},{"kind":"uint32"},{"kind":"uint32"},{"kind":"uint32"}],"name":"Guest"},{"fields":[{"kind":"uint32"}],"name":"Random"},{"fields":[{"kind":"uint32"}],"name":"Digest"},{"fields":[{"kind":"string"},{"kind":"string"},{"kind":"uint32"}],"name":"Sign"},{"fields":[{"kind":"string"},{"kind":"uint32"}],"name":"Verify"},{"fields":[{"kind":"string"},{"kind":"uint32"},{"kind":"uint32"},{"kind":"uint32"}],"name":"Store"}],"kind":"inductive","name":"RequestedAdapter","parameters":[],"type_parameters":[]},{"fields":[{"name":"request","type":{"kind":"bytes"}},{"name":"response","type":{"kind":"bytes"}}],"kind":"structure","name":"AcceptanceVector","parameters":[],"type_parameters":[]},{"fields":[{"name":"resource","type":{"kind":"string"}},{"name":"adapter","type":{"arguments":[],"kind":"named","member":{"name":"RequestedAdapter"}}}],"kind":"structure","name":"RequestedEffect","parameters":[],"type_parameters":[]},{"fields":[{"name":"protocol","type":{"kind":"string"}},{"name":"resource","type":{"kind":"string"}},{"name":"head","type":{"kind":"string"}},{"name":"replayRoot","type":{"kind":"string"}},{"name":"maxPending","type":{"kind":"uint32"}},{"name":"namespace","type":{"kind":"string"}},{"name":"stagingHead","type":{"kind":"string"}},{"name":"signingResource","type":{"kind":"string"}},{"name":"credentialSlot","type":{"kind":"string"}},{"name":"maximumRecords","type":{"kind":"uint32"}}],"kind":"structure","name":"Durability","parameters":[],"type_parameters":[]},{"fields":[{"name":"id","type":{"kind":"string"}},{"name":"text","type":{"kind":"string"}}],"kind":"structure","name":"Label","parameters":[],"type_parameters":[]},{"fields":[{"name":"surface","type":{"kind":"string"}},{"name":"protocol","type":{"kind":"string"}},{"name":"title","type":{"kind":"string"}},{"name":"heading","type":{"kind":"string"}},{"name":"presentationRoot","type":{"kind":"string"}},{"name":"maximum","type":{"kind":"uint32"}},{"name":"labels","type":{"element":{"arguments":[],"kind":"named","member":{"name":"Label"}},"kind":"list"}}],"kind":"structure","name":"BrowserView","parameters":[],"type_parameters":[]},{"fields":[{"name":"profile","type":{"kind":"string"}},{"name":"name","type":{"kind":"string"}},{"name":"cargoName","type":{"kind":"string"}},{"name":"cargoVersion","type":{"kind":"string"}},{"name":"cargoDescription","type":{"kind":"string"}},{"name":"cargoRepository","type":{"kind":"string"}},{"name":"cargoHomepage","type":{"kind":"string"}},{"name":"libraryRoots","type":{"element":{"kind":"string"},"kind":"list"}},{"name":"acceptanceVectors","type":{"element":{"arguments":[],"kind":"named","member":{"name":"AcceptanceVector"}},"kind":"list"}},{"name":"entryRoot","type":{"kind":"string"}},{"name":"coreContract","type":{"kind":"string"}},{"name":"requestMaximum","type":{"kind":"uint32"}},{"name":"responseMaximum","type":{"kind":"uint32"}},{"name":"guestAllocationMaximum","type":{"kind":"uint32"}},{"name":"memoryPages","type":{"kind":"uint32"}},{"name":"capabilitiesEmpty","type":{"kind":"bool"}},{"name":"fatArchive","type":{"kind":"bool"}},{"name":"primaryLayer","type":{"kind":"uint8"}},{"name":"viewLayer","type":{"kind":"uint8"}},{"name":"protocol","type":{"kind":"string"}},{"name":"requestedEffects","type":{"element":{"arguments":[],"kind":"named","member":{"name":"RequestedEffect"}},"kind":"list"}},{"name":"durability","type":{"arguments":[],"kind":"named","member":{"name":"Durability"}}},{"name":"view","type":{"arguments":[],"kind":"named","member":{"name":"BrowserView"}}}],"kind":"structure","name":"BrowserApplication","parameters":[],"type_parameters":[]}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: RequestedAdapter,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Guest, fields: [String, String, UInt32, UInt32, UInt32]},
+    {name: Random, fields: [UInt32]},
+    {name: Digest, fields: [UInt32]},
+    {name: Sign, fields: [String, String, UInt32]},
+    {name: Verify, fields: [String, UInt32]},
+    {name: Store, fields: [String, UInt32, UInt32, UInt32]}
+  ]
+}
+
+structure{
+  name: AcceptanceVector,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: request, type: Bytes}, {name: response, type: Bytes}]
+}
+
+structure{
+  name: RequestedEffect,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: resource, type: String}, {name: adapter, type: RequestedAdapter}]
+}
+
+structure{
+  name: Durability,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: protocol, type: String},
+    {name: resource, type: String},
+    {name: head, type: String},
+    {name: replayRoot, type: String},
+    {name: maxPending, type: UInt32},
+    {name: namespace, type: String},
+    {name: stagingHead, type: String},
+    {name: signingResource, type: String},
+    {name: credentialSlot, type: String},
+    {name: maximumRecords, type: UInt32}
+  ]
+}
+
+structure{
+  name: Label,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: text, type: String}]
+}
+
+structure{
+  name: BrowserView,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: surface, type: String},
+    {name: protocol, type: String},
+    {name: title, type: String},
+    {name: heading, type: String},
+    {name: presentationRoot, type: String},
+    {name: maximum, type: UInt32},
+    {name: labels, type: (List Label)}
+  ]
+}
+
+structure{
+  name: BrowserApplication,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: profile, type: String},
+    {name: name, type: String},
+    {name: cargoName, type: String},
+    {name: cargoVersion, type: String},
+    {name: cargoDescription, type: String},
+    {name: cargoRepository, type: String},
+    {name: cargoHomepage, type: String},
+    {name: libraryRoots, type: (List String)},
+    {name: acceptanceVectors, type: (List AcceptanceVector)},
+    {name: entryRoot, type: String},
+    {name: coreContract, type: String},
+    {name: requestMaximum, type: UInt32},
+    {name: responseMaximum, type: UInt32},
+    {name: guestAllocationMaximum, type: UInt32},
+    {name: memoryPages, type: UInt32},
+    {name: capabilitiesEmpty, type: Bool},
+    {name: fatArchive, type: Bool},
+    {name: primaryLayer, type: UInt8},
+    {name: viewLayer, type: UInt8},
+    {name: protocol, type: String},
+    {name: requestedEffects, type: (List RequestedEffect)},
+    {name: durability, type: Durability},
+    {name: view, type: BrowserView}
+  ]
+}
 \end{semanticmodule}
 \end{lexlean}

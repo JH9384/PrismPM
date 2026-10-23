@@ -2,8 +2,8 @@
 
 use super::model_document::{
     Application, ApplicationAcceptanceVector, ApplicationModel, ApplicationView,
-    ApplicationViewOperation, ArchitectureModel, ModelDocument, ProjectionProvenance, QualityModel,
-    SecurityModel, TextApplicationModel, TextView,
+    ApplicationViewOperation, ModelDocument, ProjectionProvenance, TextApplicationModel, TextView,
+    DEFAULT_CORE_MEMORY_PAGES, DEFAULT_CORE_STACK_BYTES,
 };
 use crate::error::PrismError;
 use lexlean::SemanticSnapshot;
@@ -209,6 +209,47 @@ pub(super) fn unsigned(
     representation: &str,
 ) -> Result<u64, PrismError> {
     let (_, value) = field(fields, name)?;
+    unsigned_value(value, name, representation)
+}
+
+/// A `(Option UInt32)`-style field: `Option.none` is None, `Option.some` its
+/// closed integer argument.
+pub(super) fn optional_unsigned(
+    definitions: &Definitions<'_>,
+    fields: &BTreeMap<&str, (&str, &Value)>,
+    name: &str,
+    representation: &str,
+) -> Result<Option<u64>, PrismError> {
+    let (module, value) = field(fields, name)?;
+    if value.get("kind").and_then(Value::as_str) != Some("constructor") {
+        return Err(PrismError::new(
+            "PP2001",
+            format!("application field {name} is not an Option"),
+        ));
+    }
+    let arguments = value
+        .get("arguments")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            PrismError::new("PP2001", format!("application field {name} is malformed"))
+        })?;
+    match (
+        value.pointer("/constructor/name").and_then(Value::as_str),
+        arguments.as_slice(),
+    ) {
+        (Some("Option.none"), []) => Ok(None),
+        (Some("Option.some"), [argument]) => {
+            let (_, argument) = evaluated(definitions, module, argument)?;
+            unsigned_value(argument, name, representation).map(Some)
+        }
+        _ => Err(PrismError::new(
+            "PP2001",
+            format!("application field {name} is not an Option"),
+        )),
+    }
+}
+
+fn unsigned_value(value: &Value, name: &str, representation: &str) -> Result<u64, PrismError> {
     if value.get("kind").and_then(Value::as_str) != Some("integer")
         || value.get("representation").and_then(Value::as_str) != Some(representation)
     {
@@ -609,6 +650,29 @@ pub(super) fn exact_fields(
     Ok(())
 }
 
+/// One Core-Wasm resource bound. text/2 states a UInt32; text/3 states an
+/// `(Option UInt32)` whose `Option.none` is the V1 implicit budget, projected
+/// explicitly so that both spellings yield the same model document.
+fn resource_bound(
+    definitions: &Definitions<'_>,
+    fields: &BTreeMap<&str, (&str, &Value)>,
+    name: &str,
+    resource_profile: bool,
+    default: Option<u32>,
+) -> Result<Option<u32>, PrismError> {
+    if !resource_profile {
+        return Ok(None);
+    }
+    let value = match default {
+        Some(default) => optional_unsigned(definitions, fields, name, "uint32")?
+            .map_or(Ok(default), u32::try_from),
+        None => u32::try_from(unsigned(fields, name, "uint32")?),
+    };
+    value
+        .map(Some)
+        .map_err(|_| PrismError::new("PP2001", format!("{name} exceeds UInt32")))
+}
+
 fn text_view(
     definitions: &Definitions<'_>,
     module: &str,
@@ -644,6 +708,21 @@ fn text_view(
 /// application-name special case.
 pub fn project_application(
     snapshot: &SemanticSnapshot,
+) -> Result<Option<ModelDocument>, PrismError> {
+    project_application_with_facets(snapshot, snapshot)
+}
+
+/// Project the application from `snapshot` and its Foundation.Arch, Sec and
+/// Qual facet records from `facet_snapshot`.
+///
+/// The facet snapshot is the whole checked snapshot of the project, so records
+/// declared in any lexlean entrypoint reach the model document, including
+/// entrypoints that sit outside the application roots (an architecture
+/// entrypoint, for example). Passing the application snapshot itself keeps the
+/// records of the application roots only.
+pub fn project_application_with_facets(
+    snapshot: &SemanticSnapshot,
+    facet_snapshot: &SemanticSnapshot,
 ) -> Result<Option<ModelDocument>, PrismError> {
     let mut definitions = Definitions::new();
     for module in snapshot.modules() {
@@ -683,7 +762,11 @@ pub fn project_application(
     if member_name(declaration) == Some("BrowserApplication") {
         let browser = super::browser_application::project(&definitions, module, declaration)?;
         super::browser_application::validate_roots(&browser, snapshot)?;
-        return projected_document(snapshot, Application::Browser(Box::new(browser)));
+        return projected_document(
+            snapshot,
+            facet_snapshot,
+            Application::Browser(Box::new(browser)),
+        );
     }
     let fields = record_with_unevaluated_fields(
         &definitions,
@@ -784,22 +867,20 @@ pub fn project_application(
             request_maximum,
             response_maximum,
             guest_allocation_maximum,
-            core_memory_pages: if resource_profile {
-                Some(
-                    u32::try_from(unsigned(&fields, "coreMemoryPages", "uint32")?)
-                        .map_err(|_| PrismError::new("PP2001", "coreMemoryPages exceeds UInt32"))?,
-                )
-            } else {
-                None
-            },
-            core_stack_bytes: if resource_profile {
-                Some(
-                    u32::try_from(unsigned(&fields, "coreStackBytes", "uint32")?)
-                        .map_err(|_| PrismError::new("PP2001", "coreStackBytes exceeds UInt32"))?,
-                )
-            } else {
-                None
-            },
+            core_memory_pages: resource_bound(
+                &definitions,
+                &fields,
+                "coreMemoryPages",
+                resource_profile,
+                command_profile.then_some(DEFAULT_CORE_MEMORY_PAGES),
+            )?,
+            core_stack_bytes: resource_bound(
+                &definitions,
+                &fields,
+                "coreStackBytes",
+                resource_profile,
+                command_profile.then_some(DEFAULT_CORE_STACK_BYTES),
+            )?,
             capabilities_empty: boolean(&fields, "capabilitiesEmpty")?,
             fat_archive: boolean(&fields, "fatArchive")?,
             primary_layer,
@@ -848,13 +929,28 @@ pub fn project_application(
             targets: constructor_list(&fields, "targets")?,
         }))
     };
-    projected_document(snapshot, application)
+    projected_document(snapshot, facet_snapshot, application)
 }
 
 fn projected_document(
     snapshot: &SemanticSnapshot,
+    facet_snapshot: &SemanticSnapshot,
     application: Application,
 ) -> Result<Option<ModelDocument>, PrismError> {
+    let (facet_packages, standards_profile, architecture, security, quality) =
+        match super::facets::application_records(facet_snapshot)? {
+            Some((packages, records)) => (
+                packages,
+                super::facets::PROFILE
+                    .iter()
+                    .map(|value| (*value).to_owned())
+                    .collect(),
+                records.architecture,
+                records.security,
+                records.quality,
+            ),
+            None => Default::default(),
+        };
     let document = ModelDocument {
         schema: match &application {
             Application::Legacy(_) => "prismpm/model-document/1",
@@ -874,12 +970,12 @@ fn projected_document(
             compiler_semantics_id: snapshot.compiler_semantics_id().to_string(),
             snapshot_id: snapshot.snapshot_id().to_string(),
             emitter_semantics_id: super::projector::compute_emitter_semantics_id(),
-            facet_packages: Vec::new(),
+            facet_packages,
         },
-        standards_profile: Vec::new(),
-        architecture: ArchitectureModel::default(),
-        security: SecurityModel::default(),
-        quality: QualityModel::default(),
+        standards_profile,
+        architecture,
+        security,
+        quality,
         application: Some(application),
         library: None,
     };

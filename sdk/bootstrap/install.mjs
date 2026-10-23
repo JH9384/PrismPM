@@ -20,6 +20,40 @@ import {
   verifyRuntime,
 } from './runner.mjs';
 
+// curl exit statuses that indicate a transient network condition: resolve (6),
+// connect (7), partial transfer (18), timeout (28), TLS connect (35), empty
+// reply (52), send (55), receive (56). Anything else, including HTTP errors
+// and every integrity failure, is final on the first attempt.
+export const TRANSIENT_CURL_STATUS = new Set([6, 7, 18, 28, 35, 52, 55, 56]);
+
+const pause = (milliseconds) =>
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+
+// Run one download at most `attempts` times with doubling backoff, retrying
+// only transient transport failures. Retrying never relaxes verification: the
+// caller checks the digest of whatever the successful attempt produced.
+export function withTransientRetry(
+  download,
+  { attempts = 4, delay = 2000, sleep = pause } = {},
+) {
+  assert(
+    Number.isInteger(attempts) && attempts >= 1,
+    'attempts must be a positive integer',
+  );
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return download();
+    } catch (error) {
+      if (attempt >= attempts || !TRANSIENT_CURL_STATUS.has(error?.status))
+        throw error;
+      process.stderr.write(
+        `download failed with curl status ${error.status}; retry ${attempt}/${attempts - 1}\n`,
+      );
+      sleep(delay * 2 ** (attempt - 1));
+    }
+  }
+}
+
 export function publishRuntime(stage, destination) {
   const identity = lstatSync(stage, { bigint: true });
   assert(identity.isDirectory(), 'bootstrap stage must be a directory');
@@ -69,28 +103,30 @@ export function installRuntime(destination = RUNTIME, cache = null) {
           archive,
         );
       else
-        execFileSync(
-          'curl',
-          [
-            '--disable',
-            '--proto',
-            '=https',
-            '--proto-redir',
-            '=https',
-            '--tlsv1.2',
-            '--fail',
-            '--location',
-            '--silent',
-            '--show-error',
-            '--max-time',
-            '300',
-            '--max-filesize',
-            '67108864',
-            authority.url,
-            '--output',
-            archive,
-          ],
-          { timeout: 310000, stdio: 'inherit' },
+        withTransientRetry(() =>
+          execFileSync(
+            'curl',
+            [
+              '--disable',
+              '--proto',
+              '=https',
+              '--proto-redir',
+              '=https',
+              '--tlsv1.2',
+              '--fail',
+              '--location',
+              '--silent',
+              '--show-error',
+              '--max-time',
+              '300',
+              '--max-filesize',
+              '67108864',
+              authority.url,
+              '--output',
+              archive,
+            ],
+            { timeout: 310000, stdio: 'inherit' },
+          ),
         );
       checkedFile(archive, authority.sha256);
       const unpacked = join(work, name);

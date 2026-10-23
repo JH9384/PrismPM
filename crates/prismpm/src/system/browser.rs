@@ -15,13 +15,30 @@ pub(super) const CONTROLS: [&str; 4] = [
     "spdx",
 ];
 pub(crate) const BINDING: &str = "projections/browser-system-release.json";
+/// Component kind of the selected browser application; always first.
+pub(crate) const BROWSER_COMPONENT: &str = "browser";
+/// Component kind of the optional generated command-line program; always second.
+pub(crate) const COMMAND_LINE_COMPONENT: &str = "cli";
+/// Artifact role of the optional generated command-line program.
+pub(crate) const COMMAND_LINE_PROGRAM: &str = "command-line-program";
 
 fn invalid(message: &str) -> PrismError {
     PrismError::new("PP2101", message)
 }
 
+fn rows<'a>(system: &'a Value, name: &str) -> &'a [Value] {
+    system[name].as_array().map_or(&[], Vec::as_slice)
+}
+
+/// Whether the system declares the optional command-line component.
+pub(crate) fn declares_command_line(system: &Value) -> bool {
+    rows(system, "components").len() == 2
+}
+
 /// The same exact scalar/list bindings checked by the modeled manifest predicate.
-pub(super) fn certificate(system: &Value) -> Value {
+/// The manifest binds the selected application; the system digest binds the
+/// optional command-line component with it.
+pub(crate) fn certificate(system: &Value) -> Value {
     json!({
         "application_model_digest":system["application_profile"]["application_model_digest"],
         "artifact_id":system["artifacts"][0]["id"],
@@ -33,22 +50,70 @@ pub(super) fn certificate(system: &Value) -> Value {
     })
 }
 
+/// Refuse any component graph other than the modeled shapes before schema
+/// validation, so the refusal names the closed cardinality instead of a
+/// generic contract violation. The shapes are exactly those `validateManifest`
+/// admits: one browser component with its selected application, optionally
+/// followed by one command-line component with its program artifact, and one
+/// browser target.
+pub(super) fn validate_shape(system: &Value) -> Result<(), PrismError> {
+    let components = rows(system, "components");
+    let artifacts = rows(system, "artifacts");
+    let targets = rows(system, "targets");
+    if components.is_empty() || components.len() > 2 {
+        return Err(invalid(
+            "browser system admits one browser component and at most one command-line component",
+        ));
+    }
+    if artifacts.len() != components.len() {
+        return Err(invalid(
+            "browser system admits exactly one generated artifact per component",
+        ));
+    }
+    if targets.len() != 1 {
+        return Err(invalid("browser system admits exactly one browser target"));
+    }
+    if components[0]["kind"] != BROWSER_COMPONENT || artifacts[0]["role"] != "selected-application"
+    {
+        return Err(invalid(
+            "browser system must declare the selected browser application first",
+        ));
+    }
+    if components.len() == 2
+        && (components[1]["kind"] != COMMAND_LINE_COMPONENT
+            || artifacts[1]["role"] != COMMAND_LINE_PROGRAM)
+    {
+        return Err(invalid(
+            "browser system second component must be the command-line program of the selected application",
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn validate(system: &Value, manifest: &Value) -> Result<(), PrismError> {
     // Closed schema owns cardinalities and profile constants. The authored
     // manifest is never a caller-supplied validity flag.
-    let ids = [
-        &system["product"]["id"],
-        &system["components"][0]["id"],
-        &system["artifacts"][0]["id"],
-        &system["targets"][0]["id"],
-    ];
+    validate_shape(system)?;
+    let components = rows(system, "components");
+    let artifacts = rows(system, "artifacts");
+    let ids = std::iter::once(&system["product"]["id"])
+        .chain(components.iter().map(|row| &row["id"]))
+        .chain(artifacts.iter().map(|row| &row["id"]))
+        .chain(rows(system, "targets").iter().map(|row| &row["id"]))
+        .collect::<Vec<_>>();
     if ids
         .iter()
         .filter_map(|id| id.as_str())
         .collect::<BTreeSet<_>>()
         .len()
-        != 4
-        || system["components"][0]["artifact"] != system["artifacts"][0]["id"]
+        != ids.len()
+        || components
+            .iter()
+            .zip(artifacts)
+            .any(|(component, artifact)| component["artifact"] != artifact["id"])
+        || components
+            .iter()
+            .any(|component| component["version"] != components[0]["version"])
         || &certificate(system) != manifest
     {
         return Err(invalid(
@@ -80,7 +145,9 @@ pub(crate) fn validate_application(
         crate::holo::model_document::Application::Legacy(_)
             | crate::holo::model_document::Application::Text(_)
     ) || !application.capabilities_empty()
-        || system["components"][0]["version"] != application.cargo_version().as_str()
+        || rows(system, "components")
+            .iter()
+            .any(|component| component["version"] != application.cargo_version().as_str())
         || system["application_profile"]["application_model_digest"]
             != format!(
                 "sha256:{}",
@@ -92,6 +159,11 @@ pub(crate) fn validate_application(
     {
         return Err(invalid(
             "browser system selected application or resource requirements differ",
+        ));
+    }
+    if declares_command_line(system) && application.cli().is_none() {
+        return Err(invalid(
+            "browser system declares a command-line component, but the selected application models no command line",
         ));
     }
     Ok(())
@@ -117,6 +189,25 @@ fn binding<T: AsRef<[u8]>>(
         return Err(invalid(
             "browser system generated Holo application is absent",
         ));
+    }
+    if declares_command_line(system.value()) {
+        // The declared command-line artifact is the generated static program
+        // set of the selected application, not a caller-supplied binary.
+        let crate::holo::model_document::Application::Text(text) = application else {
+            return Err(invalid(
+                "browser system command-line component requires a text application",
+            ));
+        };
+        if crate::text_cli::TARGETS
+            .iter()
+            .map(|target| crate::text_cli::binary_path(target, text))
+            .chain(std::iter::once(crate::text_cli::sbom::SBOM_PATH.to_owned()))
+            .any(|path| !files.contains_key(&path))
+        {
+            return Err(invalid(
+                "browser system generated command-line programs or their SBOM are absent",
+            ));
+        }
     }
     let rows = files
         .iter()

@@ -227,20 +227,24 @@ impl Application {
         }
     }
 
-    /// Core-Wasm guest memory bound; legacy profiles retain 32 pages.
+    /// Core-Wasm guest memory bound; legacy profiles and an absent text/3 bound
+    /// take the V1 implicit budget of 32 pages.
     pub fn core_memory_pages(&self) -> u32 {
         match self {
             Self::Text(value) if value.has_resource_bounds() => {
-                value.core_memory_pages.unwrap_or(32)
+                value.core_memory_pages.unwrap_or(DEFAULT_CORE_MEMORY_PAGES)
             }
-            _ => 32,
+            _ => DEFAULT_CORE_MEMORY_PAGES,
         }
     }
 
-    /// Explicit Core-Wasm linear-memory stack bound, present for text/2 and text/3.
+    /// Core-Wasm linear-memory stack bound, present for text/2 and text/3. An
+    /// absent text/3 bound takes the V1 implicit budget of 65536 bytes.
     pub fn core_stack_bytes(&self) -> Option<u32> {
         match self {
-            Self::Text(value) if value.has_resource_bounds() => value.core_stack_bytes,
+            Self::Text(value) if value.has_resource_bounds() => {
+                Some(value.core_stack_bytes.unwrap_or(DEFAULT_CORE_STACK_BYTES))
+            }
             _ => None,
         }
     }
@@ -261,6 +265,12 @@ impl Application {
         }
     }
 }
+
+/// The V1 implicit Core-Wasm guest memory budget, in 64 KiB pages.
+pub const DEFAULT_CORE_MEMORY_PAGES: u32 = 32;
+
+/// The V1 implicit Core-Wasm linear-memory stack budget, in bytes.
+pub const DEFAULT_CORE_STACK_BYTES: u32 = 65_536;
 
 fn present_resource_bound<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
@@ -300,14 +310,14 @@ pub struct TextApplicationModel {
     pub response_maximum: u32,
     /// Guest input allocation cap.
     pub guest_allocation_maximum: u32,
-    /// Explicit Core-Wasm guest memory pages, required by text/2 and text/3.
+    /// Core-Wasm guest memory pages: required by text/2; text/3 defaults an absent bound to 32.
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
         deserialize_with = "present_resource_bound"
     )]
     pub core_memory_pages: Option<u32>,
-    /// Explicit Core-Wasm linear-memory stack bytes, required by text/2 and text/3.
+    /// Core-Wasm stack bytes: required by text/2; text/3 defaults an absent bound to 65536.
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -581,9 +591,9 @@ pub struct ArchitectureModel {
     /// Edges.
     pub edges: Vec<EdgeRecord>,
     /// Stakeholders.
-    pub stakeholders: Vec<IndexedRecord>,
+    pub stakeholders: Vec<NamedRecord>,
     /// Concerns.
-    pub concerns: Vec<IndexedRecord>,
+    pub concerns: Vec<NamedRecord>,
     /// Viewpoints.
     pub viewpoints: Vec<ViewpointRecord>,
     /// Views.
@@ -646,6 +656,25 @@ pub struct IndexedRecord {
     pub index: u64,
 }
 
+/// An entity with a canonical index and the name and text its source declares.
+///
+/// Both strings are empty when the source record predates the Foundation.Arch
+/// name and text fields; an empty string is then omitted from the document.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NamedRecord {
+    /// Qualified `<module>::<component>` identifier.
+    pub id: String,
+    /// Canonical zero-based index.
+    pub index: u64,
+    /// Short human-facing name.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub name: String,
+    /// Descriptive text.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub text: String,
+}
+
 /// Architectural component.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -656,6 +685,12 @@ pub struct ComponentRecord {
     pub index: u64,
     /// Qualified component-kind catalog identifier.
     pub kind_id: String,
+    /// Short human-facing name; empty when the source record declares none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub name: String,
+    /// Descriptive text; empty when the source record declares none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub text: String,
 }
 
 /// Architectural edge.

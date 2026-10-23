@@ -104,6 +104,32 @@ through qualified LexLean document denotations, never external Lean names.
 catalog/entity arrays. An unmapped declaration is valid LexLean content but is
 not silently projected.
 
+`Component`, `Stakeholder` and `Concern` each declare a `name` and a `text`
+String beside their index, and projected architecture records carry them as
+`name` and `text`. A name has no control character and at most 256 characters;
+a text has none but line feed and at most 4096. A record from a source that
+predates these fields projects them as the empty string and omits them from the
+document. `ComponentKind` states `service`, `database` and `externalSystem`
+together with the delivery kinds `cliAdapter`, `staticSite` and `releaseBinary`.
+`StandardReference` names the standard it cites: `standardIndex` is the
+position of `standardId` in the exact standards profile, and `editionIndex`
+the position of `edition` among the editions the document cites for it. The
+profile cites one edition of each standard, so `editionIndex` is 0 and
+`edition` is the final segment of `standardId`. `StandardReference` has an
+entity row in `model/projection.toml` that validates and does not project: it
+contributes no document array, and a `standardId` outside the profile, a
+`standardIndex` that is not its position, a wrong `edition` or a nonzero
+`editionIndex` is refused with PP4004.
+
+A model document carries the facet records of every entrypoint of the checked
+project, not only the entrypoints under the application roots. When a source
+graph selects an application, the application is projected from the
+application-root snapshot and its Foundation.Arch, Foundation.Sec and
+Foundation.Qual records from the whole entrypoint snapshot, so an architecture
+entrypoint declared apart from the application roots reaches the document.
+Release verification replays the same projection from the archived full
+snapshot.
+
 The fixed runtime root set and sorted Lean names are in
 `model/runtime-roots.toml`. Runtime validity is separate from any erased `Prop`
 field. Generated validators operate on monomorphic `Nat`, Boolean, enum,
@@ -112,6 +138,44 @@ checked host boundary conversion are not attributed to them. The root set also
 contains `canonicalIndexes` so the supported caller-owned list-return buffer
 and its exact exhaustion error are exercised; the host remains responsible for
 sorting external IDs before assigning indexes.
+
+### 2.1 Design views
+
+FT-11 and ST-18 admit OPM (ISO/PAS 19450:2015) and OMG UML 2.5.1 design views
+as ISO/IEC/IEEE 42010 views. `Foundation.Arch` declares `DesignView`, which
+conforms to a registered `Viewpoint` and is drawn as one `DesignDiagram`
+(`opmObjectProcess`, `umlComponent`, `umlSequence` or `umlStateMachine`), the
+`SystemProcess` and `SystemState` declarations that extend the system model
+beyond its components and edges (each is owned by one component), and the
+elements of a view. The covered subset is stated in `model/standards.toml`:
+
+- OPM: `OpmThing` (objects and processes), `OpmState`, `OpmLink` (agent,
+  instrument, consumption, result, effect, invocation, aggregation,
+  exhibition, generalization, classification) and `OpmZoom` (in-zooming of
+  processes).
+- UML: `UmlComponent` and `UmlConnector` (component diagrams), `UmlLifeline`
+  and `UmlMessage` (sequence diagrams, synchronous, asynchronous and reply) and
+  `UmlState` and `UmlTransition` (state machine diagrams, one initial state).
+
+Every cross-reference is the qualified `<module>::<declaration>` identifier of
+the declaration it names, the identifier the model document gives a component,
+edge or viewpoint. Design primitives are projected by the SDK from the
+snapshot and are not part of `prismpm/model-document`, so no model-document
+schema, standards profile or emitter digest depends on them.
+
+HO-18 owns the check and the rendering. The Controller resolves every name
+against the system model before any artifact is published. A view that names a
+component, edge, process, state or viewpoint the system model does not declare,
+repeats an element, mixes elements of another diagram kind, links things in a
+way its notation forbids, or sends a message or invocation across components
+without an edge of the system model in that direction is refused with `PP2012`.
+Each checked view is published as a deterministic file under `design/` of the
+build output and bound by the build manifest: OPM views as Object-Process
+Language text (`.opl`) in a Prism-defined sentence profile, UML views as
+PlantUML source (`.puml`). Rendering is a pure function of the checked view,
+independent of declaration order, and embeds no timestamp or host data. A model
+that declares no design primitive is unaffected. XMI interchange and layout
+are outside the covered subset.
 
 ## 3. Canonical Holo contract
 
@@ -289,7 +353,11 @@ the Holo/1 physical archive or the legacy numeric View representation.
 
 The separate `Foundation.View.Text.V3.Model.TextApplication` declares
 `prismpm/text-application/3` in closed `prismpm/model-document/6`. It retains
-every V2 field and resource rule and adds one required closed `cli` record, so
+every V2 field and resource rule, except that `coreMemoryPages` and
+`coreStackBytes` are `(Option UInt32)`: `Option.none` or an absent JSON member is
+the V1 implicit budget of 32 pages and 65536 stack bytes, which projection
+states explicitly, so both spellings give one document. Explicit values keep
+every V2 range rule. V3 also adds one required closed `cli` record, so
 the command-line surface is source-owned data and not generator input. HO-17
 owns this profile. The record holds the subcommand `command` (a lowercase token
 other than `examples`), a purpose paragraph `description`, `usageCode` and
@@ -1415,7 +1483,19 @@ other requirements are rejected, not recorded as unused metadata.
 An authored `SystemManifest` and its empty-axiom, generated
 `validateManifest model manifest = true` theorem bind the exact selected
 model, manifest, product/release, application digest, component, artifact,
-target and mandatory control list. The mandatory controls are
+target and mandatory control list. The first component, artifact and target
+are the browser application the manifest binds. A text/3 application may
+additionally declare, always second, one `cli` component whose
+`command-line-program` artifact is the generated static program set of the
+same application at the head component's version; no other component,
+artifact, role or target cardinality is admitted, and the validator refuses a
+second browser, two `cli` components, a version mismatch, a dangling or
+mis-roled artifact reference and any extra target. A `cli` component on an
+application that models no command line is refused with PP2101. The optional
+command-line pair is bound by the system digest and the release binding's
+artifact rows, so a single-component system and its generated documents are
+unchanged by the admission. No release target publishes the program: no SDK
+adapter exists for it. The mandatory controls are
 `application-acceptance`, `artifact-closure`, `source-proof` and `spdx`;
 they cannot be omitted or replaced by submitted optional claims.
 Presence of ownership text does not authenticate an owner.
@@ -1426,7 +1506,9 @@ application digest and exact ordered artifact path/size/SHA-256 rows.
 Rows cover all generated build artifacts except the containing system,
 system projections and the self-identifying build manifest. The generated
 Holo/1 application and exact supported six-file browser projection are
-required. This profile accepts only the existing Legacy and Text application
+required, and a declared `cli` component additionally requires both static
+programs and `cli/sbom.spdx.json` in the closure; the SPDX projection then
+describes both packages. This profile accepts only the existing Legacy and Text application
 variants; empty Holo capabilities do not admit browser-effect requirements.
 `build-inputs/2` separately binds the complete final artifact
 table, including both system projections. This avoids a circular source
@@ -1443,7 +1525,10 @@ Compose service, SQL migration or server-resource default is introduced.
 
 The target is an artifact-publication binding, not publication authority,
 service readiness or organizational completeness. Pages publication remains
-the protected publisher workflow. SY-08's source fixture uses genuine
+the protected publisher workflow; for a template instance that workflow is the
+shared Action's `publish-pages` command and its starter workflow (section 17),
+which refuse a release whose system manifest does not name this target before
+any upload. SY-08's source fixture uses genuine
 application, proof and oracle evidence; its explicitly synthetic OCI
 transport metadata is not production SDK or supply-chain acceptance.
 Installed-SDK acceptance requires the same capability in the full installed
@@ -3477,8 +3562,8 @@ execution. Deployment, promotion, recovery and other operations never enter
 this cancellation group. All existing SDK inputs and outputs are preserved.
 The key is validated in a separate, non-concurrent job before the execution
 job can enter its group; invalid keys cannot cancel a valid invocation.
-The existing `TM-03` owner runs all 19 Action controls and all 13 CI-capacity
-controls together. The full source audit additionally owns all 26 diagnostic
+The existing `TM-03` owner runs all 19 Action transport controls, all 14 Pages
+publication controls and all 13 CI-capacity controls together. The full source audit additionally owns all 26 diagnostic
 transport controls; its previous file inventory and compiler-phase controls
 remain selected. CI-capacity controls preserve all six current SDK-candidate
 lanes, including input policy, unpublished construction and archive integrity,
@@ -3502,6 +3587,32 @@ HTTPS target validation. Observation enables network access, but mounts no
 Docker socket or signing/registry credentials. `result` contains only the
 integrity-observation receipt, not deployment authority or readiness evidence.
 It never builds from source or falls back to archive extraction.
+
+The shared Action's `publish-pages` command publishes a browser-resident
+system (`prismpm/system-model/2`) to GitHub Pages from one job. With a tagged
+`reference` and an `output` name it runs the SDK's `build --locked` once, runs
+`export-browser` on the returned release digest, then checks the exported
+closure against that release in the SDK image with the workspace read-only, no
+network and no credentials: the release's `system.prism.json` must be the
+browser-resident profile naming exactly one `github-pages-browser` target with
+`github-pages-artifact@v4`; `projections/browser-system-release.json` must
+bind that system digest, application digest and target; and every exported
+file must equal, byte for byte, its `view/browser/` row in the binding, the
+build manifest, the release layer and the stored blob, with the recomputed tree
+digest equal to the export receipt's. A release whose system manifest does not
+name the Pages target is refused with the registered `PP2101` before any upload
+step can run; inconsistent release evidence or differing served bytes are
+`PP6101`; unsafe paths are `PP8001`. `result` is the browser-export receipt,
+`pages-path` is the repository-relative closure for
+`actions/upload-pages-artifact`, and `pages-closure` is the closure summary.
+The starter workflow `action/starter/publish-pages.yml`, copied unchanged by a
+template instance, runs on `main` pushes and tags only, never on pull requests,
+as one job on one runner with `timeout-minutes` and cancelling `concurrency`,
+and hands the checked closure to the commit-pinned `actions/configure-pages`,
+`actions/upload-pages-artifact` and `actions/deploy-pages`; it requires no OCI
+sign, promote or push job. The check is byte integrity against the release's
+own evidence, not producer authorization, deployed-site observation or product
+acceptance; `verify-browser-publication` and the release gates remain separate.
 
 Untrusted pull requests check and build without write credentials. Protected
 jobs sign and push with short-lived identity. Protected environments authorize
@@ -3564,6 +3675,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `FT-08` | `facets` | Every standards entry links to exactly one row in model/standards.toml. | §2 |
 | `FT-09` | `facets` | Facet lexicons produce deterministic canonical LaTeX and Lean lowerings. | §2 |
 | `FT-10` | `facets` | Lexicon package locks reproduce across multiple directory roots. | §2 |
+| `FT-11` | `facets` | prism.arch defines OPM (ISO/PAS 19450) and UML 2.5.1 design view entries as ISO/IEC/IEEE 42010 views. | §2 |
 | `HO-01` | `holo` | A Holo/1 artifact is a strict binary Hologram archive with physical version 4 and the HOLO header. | §3 |
 | `HO-02` | `holo` | Legacy application and architecture model documents retain the closed prismpm/model-document/1 schema and model.prism.json name. | §3 |
 | `HO-03` | `holo` | Prism model documents use deterministic canonical JSON and an exact SHA-256 model identity. | §3 |
@@ -3581,6 +3693,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `HO-15` | `holo` | The modeled primary-only component profile emits exact source-bound physical-v4 archives and verifies binary native, Wasm and pinned Live execution without accepting a public Browser application. | §3 |
 | `HO-16` | `holo` | The explicit text/2 profile binds modeled Core-Wasm memory and stack limits through generated artifacts and source-free verification while retaining the text/1 profile and legacy guest resource defaults. | §3 |
 | `HO-17` | `holo` | The explicit text/3 profile models its command-line surface in source and generates static musl programs whose bounded raw input, model-owned help and version, declared exit-code map and registered usage, I/O and fault diagnostics are accepted against the Core-Wasm entry for every vector, without handwritten product code or any claim about targets not executed. | §3 |
+| `HO-18` | `holo` | The SDK checks OPM and UML design views against the system model, refuses an unknown component, edge, process, state or viewpoint with PP2012, and emits OPL text and PlantUML source as build artifacts. | §3 |
 | `HO-19` | `holo` | The optional Text/3 workbench binds typed source-owned guidance, forms, examples, error recovery and mandatory no-store Wasm acquisition to real byte-guest results, six exact portable assets and cancellable browser worker execution while preserving Text/1 and Text/2 resource semantics and the text/3 command-line surface. | §3 |
 | `CT-01` | `controller` | The Controller API exposes owned request and result types for load, check, and build. | §4 |
 | `CT-02` | `controller` | The Controller encapsulates LexLean Engine operations without exposing internal compiler types. | §4 |
@@ -3610,6 +3723,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `ST-15` | `stdlib` | The internal organization lifecycle creates isolated provisional organizations without name privileges and composes scoped administration for revision-bound activation and founding-grant handover. | §5 |
 | `ST-16` | `stdlib` | The internal bounded CBOR primitive profile preserves deterministic encoding, typed cursor limits and strict UTF-8 through generated native and bounded Wasm execution. | §5 |
 | `ST-17` | `stdlib` | The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox. | §5 |
+| `ST-18` | `stdlib` | Prism-stdlib defines OPM and UML design view primitives in Foundation.Arch. | §5 |
 | `AR-01` | `artifacts` | Build artifacts are published under content-addressed .prism/build/<id> paths. | §6 |
 | `AR-02` | `artifacts` | Every build directory contains a canonical manifest of file paths, sizes, and hashes. | §6 |
 | `AR-03` | `artifacts` | Artifact content IDs are derived from deterministic SHA-256 digests. | §6 |

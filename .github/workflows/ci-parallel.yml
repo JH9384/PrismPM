@@ -9,6 +9,8 @@ name: PR Fast Checks
 # release tag in vv.yml and can be started on any head with workflow_dispatch.
 on:
   pull_request:
+  merge_group:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

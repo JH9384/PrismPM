@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {run} from '../../tests/browser-journal/compile.mjs';
-import {createPrivateDriverTarget, ensureProdExport} from '../../tests/browser-view/compile.mjs';
+import {createPrivateDriverTarget, ensureProdExport, stageLeanRuntime} from '../../tests/browser-view/compile.mjs';
 import {
   copyFileSync, lstatSync, mkdirSync, mkdtempSync, readFileSync,
   realpathSync, rmSync, writeFileSync,
@@ -183,7 +183,7 @@ test('fresh generated envelope codec and actual browser crypto interoperability'
     copyFileSync(join(verified.root, 'modules/PrismPM/Foundation/Browser/V1', name), join(leanSource, name));
   }
   copyFileSync(join(repository, 'lean-toolchain'), join(lean, 'lean-toolchain'));
-  writeFileSync(join(lean, 'lakefile.toml'), 'name = "workspace_envelope_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ["PrismPM.' + workspaceModule + '", "PrismPM.' + moduleName + '", "PrismPM.' + moduleName + 'Corpus"]\n', {flag: 'wx'});
+  writeFileSync(join(lean, 'lakefile.toml'), 'name = "workspace_envelope_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + stageLeanRuntime(verified, lean) + '"PrismPM.' + workspaceModule + '", "PrismPM.' + moduleName + '", "PrismPM.' + moduleName + 'Corpus"]\n', {flag: 'wx'});
   run('lake', ['build', 'PrismGenerated'], lean);
   const {dir: exporter, bin: prodExport} = ensureProdExport(repository, work);
   const exported = join(work, 'export');

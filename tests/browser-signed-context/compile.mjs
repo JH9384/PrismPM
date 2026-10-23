@@ -5,7 +5,7 @@ import {mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {run, sha} from '../browser-view/compile.mjs';
+import {run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 import {compilerInputPaths, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
@@ -140,8 +140,8 @@ export function prepareSignedContext(compilerOwner, mutationId = null, expectedI
       const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
-    assert.equal(attestation.declarations.length, expected.size);
-    for (const declaration of attestation.declarations) {
+    assert.equal(ownedAttestations(attestation).length, expected.size);
+    for (const declaration of ownedAttestations(attestation)) {
       assert.ok(expected.has(declaration.name)); const axioms = expected.get(declaration.name);
       assert.equal(declaration.result, 'ok'); assert.deepEqual(declaration.policy, {kind: axioms.length ? 'exact' : 'none', axioms});
       assert.deepEqual(declaration.observed, axioms); expected.delete(declaration.name);
@@ -154,7 +154,7 @@ export function prepareSignedContext(compilerOwner, mutationId = null, expectedI
     const lean = join(work, 'lean');
     stage('lean/lean-toolchain', captured('lean-toolchain'));
     stage('lean/lakefile.toml', 'name = "signed_context"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['
-      + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
+      + stageLeanRuntime(verified, lean) + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
     run('lake', ['build', 'PrismGenerated'], lean);
     const exported = join(work, 'export'), roots = ['PrismPM.' + projection + '.signedContextWireBytes'];
     compiler.runExporter(['--module', 'PrismPM.' + projection, ...roots.flatMap(name => ['--root', name]),

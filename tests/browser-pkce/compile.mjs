@@ -5,7 +5,7 @@ import {lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSy
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {run, sha} from '../browser-view/compile.mjs';
+import {run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 import {compilerInputPaths, createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {captureCompilerArtifact, requireCompilerArtifact} from '../browser-view/compiler-artifact.mjs';
 import {captureFile, capturedFile} from '../browser-view/file-custody.mjs';
@@ -141,8 +141,8 @@ export function preparePkce(compilerOwner, expectedInputs, mutationId = null) {
       const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
-    assert.equal(attestation.declarations.length, expected.size);
-    for (const declaration of attestation.declarations) {
+    assert.equal(ownedAttestations(attestation).length, expected.size);
+    for (const declaration of ownedAttestations(attestation)) {
       assert.ok(expected.has(declaration.name)); const axioms = expected.get(declaration.name);
       assert.equal(declaration.result, 'ok'); assert.deepEqual(declaration.policy, {kind: axioms.length ? 'exact' : 'none', axioms});
       assert.deepEqual(declaration.observed, axioms); expected.delete(declaration.name);
@@ -162,7 +162,7 @@ export function preparePkce(compilerOwner, expectedInputs, mutationId = null) {
     for (const name of sources.keys()) stage('lean/' + leanPath(name), provenance.generatedBytes(name));
     stage('lean/lean-toolchain', captured('lean-toolchain'));
     stage('lean/lakefile.toml', 'name = "pkce"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['
-      + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
+      + stageLeanRuntime(verified, lean) + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
     run('lake', ['build', 'PrismGenerated'], lean);
     const exported = join(work, 'export'), roots = ['PrismPM.Foundation.Sec.V1.Pkce.pkceWireBytes'];
     compiler.runExporter(['--module', 'PrismPM.Foundation.Sec.V1.Pkce', ...roots.flatMap(name => ['--root', name]),

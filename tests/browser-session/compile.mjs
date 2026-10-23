@@ -13,7 +13,7 @@ import {captureCompilerArtifact,requireCompilerArtifact} from '../browser-view/c
 import {provenanceProfile} from '../browser-presentation/provenance.mjs';
 import {createSessionProductRetention} from '../browser-view/workspace-products.mjs';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
-import {run, sha} from '../browser-view/compile.mjs';
+import {run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -211,8 +211,8 @@ export function prepare(mutation = null, baseline = null, inputs = frozenInputs(
       return semantic.declarations.map(declaration => ['PrismPM.' + module + '.' + declaration.name,
         {kind: declaration.axioms?.length ? 'exact' : 'none', axioms: declaration.axioms ?? []}]);
     }));
-    assert.equal(attestation.declarations.length, expected.size);
-    for (const audit of attestation.declarations) {
+    assert.equal(ownedAttestations(attestation).length, expected.size);
+    for (const audit of ownedAttestations(attestation)) {
       assert.equal(audit.result, 'ok'); assert.ok(expected.has(audit.name));
       const policy = expected.get(audit.name); assert.deepEqual(audit.policy, policy);
       assert.deepEqual(audit.observed, policy.axioms); expected.delete(audit.name);
@@ -223,7 +223,7 @@ export function prepare(mutation = null, baseline = null, inputs = frozenInputs(
       stage(join('lean','PrismPM',...module.split('.'))+'.lean',provenance.generatedBytes(module));
     }
     stage('lean/lean-toolchain',capturedInput('lean-toolchain',inputs));
-    stage('lean/lakefile.toml','name = "session_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + modules.map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
+    stage('lean/lakefile.toml','name = "session_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + stageLeanRuntime(verified, lean) + modules.map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
     run('lake', ['build', 'PrismGenerated'], lean);
     const exported = join(work, 'export');
     const roots = ['PrismPM.Foundation.Browser.Application.V1.SessionWire.sourceSessionWireBytes',

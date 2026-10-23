@@ -2,8 +2,9 @@ spec = "prismpm/text-cli-diagnostics/1"
 # Closed failure vocabulary of generated text command lines. Codes are the
 # constructors of Foundation.View.Text.V3.Model.TextCliFailure in order, the
 # AdapterFailure enum of the generated program and the diagnostics printed on
-# standard error. Class selects the modeled exit code: usage_code, io_code or
-# the code of the required error outcome.
+# standard error. Class selects the modeled exit code: usage_code, io_code,
+# limit_code (the code of the error outcome when none is declared) or the code
+# of the required error outcome.
 
 [[failure]]
 code = "UnknownFlag"
@@ -57,7 +58,7 @@ statement = "Writing the report to standard output failed, for example because i
 
 [[failure]]
 code = "InputLimit"
-class = "fault"
+class = "limit"
 statement = "The request is longer than the modeled request maximum and was refused before dispatch."
 
 [[failure]]

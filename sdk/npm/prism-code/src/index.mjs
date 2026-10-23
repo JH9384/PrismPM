@@ -8,6 +8,7 @@
  * produces an artifact; those stay in the SDK image.
  */
 import { parseArchive, resolveArchive, asBytes } from './archive.mjs';
+import { attestationSection, readAttestations } from './attestations.mjs';
 import { decodeHoloview } from './view.mjs';
 import { compileGuest, runGuest, runAcceptance } from './core.mjs';
 import { verifyClosure, closureDispatch, initializeGlue } from './closure.mjs';
@@ -20,6 +21,16 @@ export { decodeHoloview, encodeHoloview } from './view.mjs';
 export { compileGuest, runGuest, runAcceptance } from './core.mjs';
 export { verifyClosure, closureDispatch, initializeGlue } from './closure.mjs';
 export { blake3, blake3Hex, kappa } from './blake3.mjs';
+export {
+  ATTESTATION_EXTENSION,
+  BUNDLE_MEDIA_TYPE,
+  attestationSection,
+  readAttestations,
+  decodeBundle,
+  appendAttestations,
+  stripAttestations,
+  encodeArchive,
+} from './attestations.mjs';
 
 const decoder = new TextDecoder('utf-8', { fatal: true });
 
@@ -62,6 +73,8 @@ function evidenceOf(provenance) {
 export async function loadArchive(source) {
   const parsed = parseArchive(asBytes(source));
   const resolved = resolveArchive(parsed);
+  // A malformed attestation row fails the load; the bundles decode lazily.
+  attestationSection(parsed);
   const { modelDocument, provenance, directory } = resolved;
   const application = modelDocument.application ?? fail('archive.model', 'model document has no application');
   const module = await compileGuest(resolved.guest.content);
@@ -92,6 +105,7 @@ export async function loadArchive(source) {
     view,
     archive: parsed,
     dispatch,
+    attestations: () => readAttestations(parsed),
     acceptance: () => runAcceptance(vectors, dispatch),
   });
 }
@@ -130,6 +144,7 @@ export async function loadClosure(files, importGlue, { model = null } = {}) {
     },
     view,
     dispatch: async (request) => dispatch(asBytes(request)),
+    attestations: () => [],
     acceptance: () => runAcceptance(vectors, (r) => dispatch(r)),
   });
 }

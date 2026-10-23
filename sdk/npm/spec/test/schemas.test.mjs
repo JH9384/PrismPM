@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
-import { ATTESTATION, HOLO_SCHEMAS, PROOF_PREDICATE_TYPE, REPLAY_PREDICATE_TYPE, SCHEMAS } from '../index.mjs';
+import { ATTESTATION, ATTESTATION_BUNDLE, HOLO_SCHEMAS, PROOF_PREDICATE_TYPE, REPLAY_PREDICATE_TYPE, SCHEMAS } from '../index.mjs';
 import { assertSupported, validate } from './json-schema.mjs';
 import { here, loadReference, readJson, schema } from './reference.mjs';
 
@@ -53,6 +53,7 @@ test('every schema file is reachable from the package constants or the registry'
     ...Object.values(HOLO_SCHEMAS),
     ATTESTATION.STATEMENT_SCHEMA,
     ATTESTATION.ENVELOPE_SCHEMA,
+    ATTESTATION_BUNDLE.SCHEMA,
     REGISTRY_SCHEMA,
     ...readJson('../predicates/registry.json').predicates.map((p) => p.schema).filter(Boolean),
   ]);

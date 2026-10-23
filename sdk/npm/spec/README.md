@@ -45,10 +45,11 @@ That change is RT-01, [#276](https://github.com/UOR-Foundation/PrismPM/issues/27
 | `types/holo.d.ts` | The binary layouts: header, section table, application manifest, extensions, content blobs, HOLOVIEW, the guest exports. |
 | `types/documents.d.ts` | Generated from the JSON Schemas below. Do not edit. |
 | `types/attestation.d.ts` | in-toto Statement v1, `PrismDigestSet`, blob and OCI manifest subjects, and the DSSE envelope. |
+| `types/attestation-bundle.d.ts` | The holo attestation section (#267): Sigstore bundle v0.3, verification material, in-holo statements, the OCI referrer layout. |
 | `types/predicates.d.ts` | `PredicateMap` and the registry types. |
 | `schemas/holo/` | The decoded header and table, application manifest, source manifest and application directory. |
 | `schemas/documents/` | `prismpm/model-document/1` to `/6`, `prismpm/sdk-lock/1` and `/2`, `prismpm/model-provenance/1`, `prismpm/build-manifest/1`, `prismpm/browser-provenance/1`. |
-| `schemas/attestation/` | in-toto Statement v1 and the DSSE envelope. |
+| `schemas/attestation/` | in-toto Statement v1, the DSSE envelope and the Sigstore bundle of the attestation section. |
 | `predicates/` | The registry, its schema, and one `.d.ts` and one `.schema.json` per predicate. |
 | `worlds/core-wasm.wit` | The Core-Wasm guest contract `hologram:guest/core-wasm@1`. |
 

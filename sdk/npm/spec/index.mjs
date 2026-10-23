@@ -140,6 +140,30 @@ export const PROOF_PREDICATE_TYPE = 'https://uor.foundation/prism/proof/v1';
 export const REPLAY_PREDICATE_TYPE = 'https://uor.foundation/prism/replay/v1';
 
 /**
+ * The attestation bundle section, issue #267 (docs/proposals/267-attestation-bundle.md).
+ * An Extension row (kind 14), last in the table, whose payload is JSON Lines of
+ * Sigstore bundles. Draft: it joins a format revision when
+ * `Foundation.Holo.V1.Wire` admits the ninth row; until then a strict
+ * revision-2026-10-23 reader refuses an archive that carries it.
+ */
+export const ATTESTATION_BUNDLE = freeze({
+  EXTENSION: 'https://uor.foundation/extension/attestation-bundle/v1',
+  SECTION_KIND: 14,
+  MEDIA_TYPE: 'application/vnd.dev.sigstore.bundle.v0.3+json',
+  /** Each bundle line ends with this byte, LF. */
+  LINE_TERMINATOR: 0x0a,
+  SCHEMA: 'schemas/attestation/sigstore-bundle.schema.json',
+  /** The second predicate Prism stores beside `PROOF_PREDICATE_TYPE` (#268). */
+  PROVENANCE_PREDICATE_TYPE: 'https://slsa.dev/provenance/v1',
+  /** Annotations on each bundle when pushed as an OCI referrer. */
+  OCI_ANNOTATIONS: freeze({
+    CONTENT: 'dev.sigstore.bundle.content',
+    PREDICATE_TYPE: 'dev.sigstore.bundle.predicateType',
+  }),
+  OCI_CONTENT: 'dsse-envelope',
+});
+
+/**
  * Every format revision, mapped to the identifiers a reader uses to recognize
  * it. An archive does not carry its revision date, so each new revision must
  * change at least one of these identifiers.

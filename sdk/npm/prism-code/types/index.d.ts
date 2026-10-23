@@ -87,6 +87,8 @@ export interface Application {
   dispatch(request: Uint8Array | ArrayBuffer): Promise<Uint8Array>;
   /** Replay every acceptance vector, comparing bytes. */
   acceptance(): Promise<AcceptanceResult>;
+  /** The bundles of the attestation section (#267), in order; empty without the section and for closures. Signatures are not verified. */
+  attestations(): Attestation[];
 }
 
 export interface LoadOptions {
@@ -153,6 +155,52 @@ export function blake3(bytes: Uint8Array, length?: number): Uint8Array;
 export function blake3Hex(bytes: Uint8Array): string;
 /** `blake3:` + 64 hex characters, the Hologram kappa label. */
 export function kappa(bytes: Uint8Array): string;
+
+/** `https://uor.foundation/extension/attestation-bundle/v1`: the Extension row that carries the bundles. */
+export const ATTESTATION_EXTENSION: 'https://uor.foundation/extension/attestation-bundle/v1';
+export const BUNDLE_MEDIA_TYPE: 'application/vnd.dev.sigstore.bundle.v0.3+json';
+
+/** A content-blob subject of an in-holo statement, with both digests (ADR-015). */
+export interface AttestationSubject {
+  name: string;
+  digest: { sha256: string; blake3: string };
+  /** The `blake3:` label of the content blob the subject names, or null when no blob of this archive matches. */
+  blob: string | null;
+}
+
+/** One Sigstore bundle v0.3 line of the attestation section, decoded. */
+export interface Attestation {
+  /** Line number in the section, from 0. */
+  index: number;
+  /** The line's exact bytes, without LF: the blob pushed as an OCI referrer. */
+  bytes: Uint8Array;
+  bundle: Record<string, unknown>;
+  mediaType: 'application/vnd.dev.sigstore.bundle.v0.3+json';
+  verificationMaterial: Record<string, unknown>;
+  envelope: { payload: string; payloadType: 'application/vnd.in-toto+json'; signatures: { keyid?: string; sig: string }[] };
+  /** The in-toto Statement v1 decoded from the DSSE payload. */
+  statement: { _type: 'https://in-toto.io/Statement/v1'; subject: unknown[]; predicateType: string; predicate?: unknown };
+  predicateType: string;
+  subjects: AttestationSubject[];
+  /** Every subject names a content blob of this archive by its blake3 label. */
+  resolved: boolean;
+}
+
+/** A Sigstore bundle as an object, a one-line JSON string or its UTF-8 bytes. */
+export type BundleInput = Record<string, unknown> | string | Uint8Array;
+
+/** The attestation row, or null. Throws when it is repeated or not the last row. */
+export function attestationSection(source: Uint8Array | ArrayBuffer | ParsedArchive): { section: number; payload: Uint8Array } | null;
+/** Every bundle of the attestation section; an empty array without it. */
+export function readAttestations(source: Uint8Array | ArrayBuffer | ParsedArchive): Attestation[];
+/** Decode one bundle line; `labels` are the archive's blob labels used to resolve subjects. */
+export function decodeBundle(line: string | Uint8Array, labels?: Set<string>): Omit<Attestation, 'index'>;
+/** A new archive with the bundles added as the last row; other row bodies are byte-identical and the footer is recomputed. */
+export function appendAttestations(source: Uint8Array | ArrayBuffer | ParsedArchive, bundles: BundleInput[]): Uint8Array;
+/** The archive without its attestation row: the unsigned archive. */
+export function stripAttestations(source: Uint8Array | ArrayBuffer | ParsedArchive): Uint8Array;
+/** Encode header, table, bodies and BLAKE3 footer from rows. */
+export function encodeArchive(sections: { kind: number; body: Uint8Array }[], options?: { version?: number; flags?: number }): Uint8Array;
 
 /** @deprecated import from 'prism-code/canonical'; removed in 0.3.0 */
 export { canonicalize, codeHash, describe, differs } from '../src/canonical/index.js';

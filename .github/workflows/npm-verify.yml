@@ -3,7 +3,7 @@ name: npm verify
 # The offline verifier in sdk/npm/verify. Short, path-filtered and outside the
 # devcontainer, like npm-prism-code.yml and npm-spec.yml. It also runs when
 # the files it copies change (the spec package, prism-code's BLAKE3) or the
-# reader and fixture its tests compare against, because its tests and the
+# reader, inspection and fixtures its tests compare against, because its tests and the
 # vendor check fail when a copy drifts. There is no publish job.
 
 on:
@@ -13,6 +13,8 @@ on:
       - sdk/npm/spec/**
       - sdk/npm/prism-code/src/archive.mjs
       - sdk/npm/prism-code/src/blake3.mjs
+      - sdk/npm/prism-code/src/inspect.mjs
+      - sdk/npm/prism-code/test/fixtures/Calculator.inspect.json
       - sdk/npm/prism-code/fixtures/**
       - sdk/npm/prism-code/test/blake3-vectors.json
       - .github/workflows/npm-verify.yml
@@ -23,6 +25,8 @@ on:
       - sdk/npm/spec/**
       - sdk/npm/prism-code/src/archive.mjs
       - sdk/npm/prism-code/src/blake3.mjs
+      - sdk/npm/prism-code/src/inspect.mjs
+      - sdk/npm/prism-code/test/fixtures/Calculator.inspect.json
       - sdk/npm/prism-code/fixtures/**
       - sdk/npm/prism-code/test/blake3-vectors.json
       - .github/workflows/npm-verify.yml

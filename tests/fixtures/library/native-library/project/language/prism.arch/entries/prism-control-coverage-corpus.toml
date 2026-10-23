@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-control-coverage-corpus"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Production.ControlCoverageCorpus"
+component = "CoverageOctetConstant"
+
+[[form]]
+id = "prism-control-coverage-corpus"
+channel = "text"
+surface = "Control coverage corpus"
+canonical_source = true
+features = ["sentence-case", "singular"]

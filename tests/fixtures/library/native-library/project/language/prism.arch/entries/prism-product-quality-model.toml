@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-product-quality-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Qual"
+component = "characteristicMaintainability"
+
+[[form]]
+id = "prism-product-quality-model"
+channel = "text"
+surface = "Product quality model"
+canonical_source = true
+features = ["sentence-case", "singular"]

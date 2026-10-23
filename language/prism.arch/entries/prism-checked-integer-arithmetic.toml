@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-checked-integer-arithmetic"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Integer"
+component = "checkedAddInt64"
+
+[[form]]
+id = "prism-checked-integer-arithmetic"
+channel = "text"
+surface = "Checked integer arithmetic"
+canonical_source = true
+features = ["sentence-case", "singular"]

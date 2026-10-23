@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-mailbox-admission"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Sec.V1.MailboxAdmission"
+component = "MailboxAdmissionIntent"
+
+[[form]]
+id = "prism-mailbox-admission"
+channel = "text"
+surface = "Mailbox admission"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-capability-request"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.Capability"
+component = "CapabilityRequest"
+
+[[form]]
+id = "prism-hologram-capability-request"
+channel = "text"
+surface = "Hologram capability request"
+canonical_source = true
+features = ["sentence-case", "singular"]

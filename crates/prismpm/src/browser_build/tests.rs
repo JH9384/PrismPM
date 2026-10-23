@@ -57,117 +57,13 @@ fn fixture(repository: &Path) -> tempfile::TempDir {
         model,
     )
     .unwrap();
-    let source = std::fs::read_to_string(
+    // The committed probe is language-1.2 notation that already carries the
+    // contract-boundary values (maxima, effects and the extra over-output root).
+    std::fs::copy(
         repository.join("tests/fixtures/browser-application/Probe.lex.tex"),
+        project.path().join("src/Probe.lex.tex"),
     )
     .unwrap();
-    let line = source
-        .lines()
-        .find(|v| v.starts_with("\\semanticdata{"))
-        .unwrap();
-    let mut value: Value = serde_json::from_str(
-        line.strip_prefix("\\semanticdata{")
-            .unwrap()
-            .strip_suffix('}')
-            .unwrap(),
-    )
-    .unwrap();
-    for declaration in value["declarations"].as_array_mut().unwrap() {
-        if let Some(byte) = match declaration["name"].as_str().unwrap() {
-            "dispatch" => Some("d1"),
-            "present" => Some("e2"),
-            "replay" => Some("f3"),
-            _ => None,
-        } {
-            declaration["body"] = json!({"kind":"primitive","operation":"append","result":{"kind":"bytes"},"arguments":[{"kind":"var","name":"request"},{"kind":"bytes","hex":byte}]});
-        } else {
-            for field in declaration["body"]["fields"].as_array_mut().unwrap() {
-                match field["field"].as_str().unwrap() {
-                    "libraryRoots" => {
-                        let roots = ["dispatch", "overOutput", "present", "replay"];
-                        field["value"] = roots.into_iter().rev().fold(json!({"kind":"nil","element":{"kind":"string"}}),
-                            |tail, name| json!({"kind":"cons","head":{"kind":"string","value":format!("BrowserContract.Probe.{name}")},"tail":tail}));
-                    }
-                    "requestMaximum" | "guestAllocationMaximum" => {
-                        field["value"]["value"] = json!("131071")
-                    }
-                    "responseMaximum" => field["value"]["value"] = json!("131072"),
-                    "acceptanceVectors" => {
-                        field["value"]["head"]["fields"][1]["value"]["hex"] = json!("00d1")
-                    }
-                    "view" => {
-                        field["value"]["fields"]
-                            .as_array_mut()
-                            .unwrap()
-                            .iter_mut()
-                            .find(|v| v["field"] == "maximum")
-                            .unwrap()["value"]["value"] = json!("131072")
-                    }
-                    "requestedEffects" => {
-                        let mut values = Vec::new();
-                        let mut cursor = &field["value"];
-                        while cursor["kind"] == "cons" {
-                            values.push(cursor["head"].clone());
-                            cursor = &cursor["tail"];
-                        }
-                        let guest = values
-                            .iter_mut()
-                            .find(|v| v["fields"][0]["value"]["value"] == "guest")
-                            .unwrap();
-                        let args = guest["fields"][1]["value"]["arguments"]
-                            .as_array_mut()
-                            .unwrap();
-                        args[2]["value"] = json!("65535");
-                        args[3]["value"] = json!("65536");
-                        args[4]["value"] = json!("8");
-                        let mut large = guest.clone();
-                        large["fields"][0]["value"]["value"] = json!("guest-large");
-                        let args = large["fields"][1]["value"]["arguments"]
-                            .as_array_mut()
-                            .unwrap();
-                        args[0]["value"] = json!("BrowserContract.Probe.present");
-                        args[2]["value"] = json!("2097151");
-                        args[3]["value"] = json!("2097152");
-                        args[4]["value"] = json!("256");
-                        let mut same = large.clone();
-                        same["fields"][0]["value"]["value"] = json!("guest-same");
-                        let mut over = large.clone();
-                        over["fields"][0]["value"]["value"] = json!("guest-over-output");
-                        let args = over["fields"][1]["value"]["arguments"]
-                            .as_array_mut()
-                            .unwrap();
-                        args[0]["value"] = json!("BrowserContract.Probe.overOutput");
-                        args[2]["value"] = json!("1");
-                        args[3]["value"] = json!("1");
-                        args[4]["value"] = json!("8");
-                        values.extend([large, over, same]);
-                        values.sort_by_key(|v| {
-                            v["fields"][0]["value"]["value"]
-                                .as_str()
-                                .unwrap()
-                                .to_owned()
-                        });
-                        field["value"] = values.into_iter().rev().fold(
-                            cursor.clone(),
-                            |tail, head| json!({"kind":"cons","head":head,"tail":tail}),
-                        );
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-    value["declarations"].as_array_mut().unwrap().push(json!({"kind":"definition","name":"overOutput",
-        "parameters":[{"name":"request","type":{"kind":"bytes"}}],"result":{"kind":"bytes"},
-        "body":{"kind":"primitive","operation":"append","result":{"kind":"bytes"},"arguments":[{"kind":"var","name":"request"},{"kind":"bytes","hex":"dead"}]}}));
-    let source = source.replace(
-        line,
-        &format!(
-            "\\semanticdata{{{}}}",
-            String::from_utf8(encode_value(&value).unwrap()).unwrap()
-        ),
-    );
-    std::fs::write(project.path().join("src/Probe.lex.tex"), source).unwrap();
     let config = camino::Utf8PathBuf::from_path_buf(project.path().join("lexlean.toml")).unwrap();
     Engine::load(&config)
         .unwrap()
@@ -289,7 +185,7 @@ fn browser_compiler_plan_preserves_roles_roots_and_exact_budgets() {
     );
     std::fs::write(
         &probe_path,
-        original.replace("\"hex\":\"d1\"", "\"hex\":\"d2\""),
+        original.replace("request 0xd1 :", "request 0xd2 :"),
     )
     .unwrap();
     assert!(

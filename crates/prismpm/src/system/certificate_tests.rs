@@ -94,12 +94,7 @@ fn product_and_secret_reference_cross_collection_collisions_are_rejected() {
 #[test]
 fn host_identity_inventory_matches_authoritative_formal_definitions() {
     let source = include_str!("../../stdlib/src/Production/SystemValidation.lex.tex");
-    let (_, payload) = source.split_once("\\semanticdata{").unwrap();
-    let module = serde_json::Deserializer::from_str(payload)
-        .into_iter::<Value>()
-        .next()
-        .unwrap()
-        .unwrap();
+    let module = lexlean::sdk::read_module(source).unwrap();
     let declarations = module["declarations"].as_array().unwrap();
     let definition = |name: &str| declarations.iter().find(|row| row["name"] == name).unwrap();
     fn fields(value: &Value, found: &mut Vec<String>) {

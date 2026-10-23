@@ -1,6 +1,7 @@
 //! Reviewed-golden comparison; never an acceptance attestation.
 
 use lexlean::artifact::content_id as lex_ids;
+use lexlean::artifact::snapshot::snapshot_spec;
 use prismpm::holo::canonical::{content_id, decode_value, encode_value};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
@@ -354,10 +355,28 @@ fn validate(files: &[(String, Vec<u8>)]) -> Result<(Value, Value, Value), String
 
     let lex_bytes = file(&files, "verified/lexlean-attestation.json")?;
     let lex = canonical(lex_bytes, true)?;
-    let schema: Value = serde_json::from_str(include_str!(
-        "../../../vendor/lexlean/schemas/attestation.schema.json"
-    ))
-    .map_err(|error| error.to_string())?;
+    let snapshot: Value = serde_json::from_slice(file(&files, "build/lexlean/snapshot.json")?)
+        .map_err(|error| format!("golden LexLean snapshot: {error}"))?;
+    let language = text(&snapshot["language"])?;
+    // Each language owns its attestation schema: 1.2 is attestation-v2, the
+    // frozen 1.1 reviewed records keep version 1. Anything else is not emitted
+    // by the vendored LexLean and is rejected rather than guessed.
+    let (schema_text, spec) = match language {
+        "1.1" => (
+            include_str!("../../../vendor/lexlean/schemas/attestation.schema.json"),
+            "lexlean/attestation/1",
+        ),
+        "1.2" => (
+            include_str!("../../../vendor/lexlean/schemas/attestation-v2.schema.json"),
+            "lexlean/attestation/2",
+        ),
+        _ => return Err("golden LexLean language is unsupported".to_owned()),
+    };
+    ensure(
+        snapshot["spec"] == snapshot_spec(language) && lex["spec"] == spec,
+        "golden LexLean snapshot or attestation schema differs from its language",
+    )?;
+    let schema: Value = serde_json::from_str(schema_text).map_err(|error| error.to_string())?;
     jsonschema::validator_for(&schema)
         .map_err(|error| error.to_string())?
         .validate(&lex)
@@ -582,8 +601,11 @@ pub fn native_records(
     for key in [
         "build_id",
         "build_manifest",
+        "compiler_input",
         "declarations",
         "lake_workspace",
+        "origins",
+        "preservation",
         "semantic_id",
         "source_id",
         "spec",

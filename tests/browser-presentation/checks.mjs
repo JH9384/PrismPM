@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {chmodSync, copyFileSync, lstatSync, readFileSync, renameSync, unlinkSync, writeFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
@@ -269,8 +270,8 @@ export function verifyInventory() {
   // Per-node12 covers parent, node/content heads, tag and all scalar fields.
   const maximumValidValues = 8 + 256 * 12 + 64 * 16 + 256 * 3 + 4096 + 4096 + 256 * 16;
   assert.equal(maximumValidValues, 17160); assert.ok(maximumValidValues < 20000);
-  const wire = JSON.parse(/\\semanticdata\{(.*)\}/.exec(readFileSync(join(repository,
-    'stdlib/src/Foundation/View/Browser/V1/Wire.lex.tex'), 'utf8'))[1]);
+  const wire = readSemantic(readFileSync(join(repository,
+    'stdlib/src/Foundation/View/Browser/V1/Wire.lex.tex'), 'utf8'));
   const root = wire.declarations.find(row => row.name === 'viewWireParse');
   const budgets = [];
   function visit(value) {

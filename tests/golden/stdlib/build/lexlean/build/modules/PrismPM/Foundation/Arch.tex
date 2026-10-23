@@ -5,28 +5,55 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{StandardReference}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{standardIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{editionIndex}: \texttt{Nat}.\par
 \subsection*{\texttt{ComponentKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{service}: \texttt{()}.\par
+\noindent Constructor \texttt{database}: \texttt{()}.\par
+\noindent Constructor \texttt{externalSystem}: \texttt{()}.\par
 \subsection*{\texttt{EdgeKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{dataFlow}: \texttt{()}.\par
+\noindent Constructor \texttt{controlFlow}: \texttt{()}.\par
 \subsection*{\texttt{ModelKind}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{componentModel}: \texttt{()}.\par
+\noindent Constructor \texttt{securityModel}: \texttt{()}.\par
+\noindent Constructor \texttt{qualityModel}: \texttt{()}.\par
 \subsection*{\texttt{Component}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{kind}: \texttt{ComponentKind}.\par
 \subsection*{\texttt{Edge}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{fromIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{toIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{kind}: \texttt{EdgeKind}.\par
 \subsection*{\texttt{Stakeholder}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
 \subsection*{\texttt{Concern}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
 \subsection*{\texttt{Viewpoint}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{stakeholderIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{concernIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{modelKindIndex}: \texttt{Nat}.\par
 \subsection*{\texttt{View}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{index}: \texttt{Nat}.\par
+\noindent Field \texttt{viewpointIndex}: \texttt{Nat}.\par
+\noindent Field \texttt{modelKindIndex}: \texttt{Nat}.\par
 \subsection*{\texttt{ViewpointClass}}
 \noindent Kind: \texttt{class}.\par
+\noindent Field \texttt{selectedModelKind}: \texttt{Nat}.\par
 \subsection*{\texttt{ViewClass}}
 \noindent Kind: \texttt{class}.\par
+\noindent Field \texttt{selectedViewpoint}: \texttt{Nat}.\par
 \subsection*{\texttt{canonicalViewpoint}}
 \noindent Kind: \texttt{instance}.\par
 \subsection*{\texttt{canonicalView}}
@@ -78,6 +105,7 @@
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{componentIdentityUnique}}
 \noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(value : Component)}.\par
 \noindent Statement: \texttt{(value = value)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cyclesPermitted}}

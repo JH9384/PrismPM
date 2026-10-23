@@ -7,6 +7,7 @@ use super::model_document::{
     SubcharacteristicRecord, ViewRecord, ViewpointRecord,
 };
 use crate::error::PrismError;
+use lexlean::artifact::snapshot::snapshot_spec;
 use lexlean::SemanticSnapshot;
 use serde::Deserialize;
 use serde_json::Value;
@@ -226,10 +227,14 @@ fn indexed(rows: Vec<Raw<'_>>) -> Vec<IndexedRecord> {
 pub fn validate_snapshot_envelope(bytes: &[u8]) -> Result<(), PrismError> {
     let value: Value = serde_json::from_slice(bytes)
         .map_err(|error| PrismError::new("PP4004", format!("semantic snapshot: {error}")))?;
-    if value.get("spec").and_then(Value::as_str) != Some("lexlean/semantic-snapshot/1")
-        || value.get("language").and_then(Value::as_str) != Some("1.1")
-        || !value.get("modules").is_some_and(Value::is_array)
-    {
+    let supported = value
+        .get("language")
+        .and_then(Value::as_str)
+        .is_some_and(|language| {
+            matches!(language, "1.1" | "1.2")
+                && value.get("spec").and_then(Value::as_str) == Some(snapshot_spec(language))
+        });
+    if !supported || !value.get("modules").is_some_and(Value::is_array) {
         return Err(PrismError::new("PP4004", "unsupported semantic snapshot"));
     }
     Ok(())
@@ -241,7 +246,8 @@ fn take_raw<'a>(map: &mut BTreeMap<String, Vec<Raw<'a>>>, name: &str) -> Vec<Raw
 
 /// Project one checked LexLean snapshot without filesystem writes or child processes.
 pub fn project_snapshot(snapshot: &SemanticSnapshot) -> Result<ModelDocument, PrismError> {
-    if snapshot.spec() != "lexlean/semantic-snapshot/1" || snapshot.language() != "1.1" {
+    let language = snapshot.language();
+    if !matches!(language, "1.1" | "1.2") || snapshot.spec() != snapshot_spec(language) {
         return Err(PrismError::new("PP4004", "unsupported semantic snapshot"));
     }
     let table = table()?;

@@ -1,4 +1,5 @@
 // Private test orchestration; no host implementation of modeled transitions.
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -85,7 +86,7 @@ export function verifyFrozenInputs(inputs) {
 }
 export function assertCapturedAccountGenesisSources(inputs, sources) {
   assert.deepEqual([...sources.keys()].map(modulePath).sort(),
-    Object.keys(inputs).filter(path => path.endsWith('.lex.tex')).sort(),
+    Object.keys(inputs).filter(path => path.endsWith('.lex.tex') && !path.startsWith('vendor/')).sort(),
     'complete captured source module inventory');
   for (const [name, bytes] of sources) assert.equal(sha(bytes), inputs[modulePath(name)],
     'actual captured source must match original snapshot ' + name);
@@ -133,11 +134,18 @@ export function prepareAccountGenesis(compilerOwner, mutationId = null, expected
     assert.equal(attestation.status, 'verified'); assert.equal(attestation.attestation_id, verified.attestation_id);
     assert.equal(attestation.build_manifest.sha256, sha(buildManifest));
     const expected = new Map([...sources].flatMap(([name, bytes]) => {
-      const data = JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+      const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
-    assert.equal(attestation.declarations.length, expected.size);
-    for (const declaration of attestation.declarations) {
+    // LexLean 1.2 also attests the LexLeanRuntime closure the generated modules import.
+    const runtime = attestation.declarations.filter(declaration => declaration.name.startsWith('LexLeanRuntime.'));
+    for (const declaration of runtime) {
+      assert.equal(declaration.result, 'ok'); assert.equal(declaration.policy.kind, 'exact');
+      assert.deepEqual(declaration.observed, declaration.policy.axioms);
+    }
+    const owned = attestation.declarations.filter(declaration => !declaration.name.startsWith('LexLeanRuntime.'));
+    assert.equal(owned.length, expected.size);
+    for (const declaration of owned) {
       assert.ok(expected.has(declaration.name)); const axioms = expected.get(declaration.name);
       assert.equal(declaration.result, 'ok'); assert.deepEqual(declaration.policy, {kind: axioms.length ? 'exact' : 'none', axioms});
       assert.deepEqual(declaration.observed, axioms); expected.delete(declaration.name);

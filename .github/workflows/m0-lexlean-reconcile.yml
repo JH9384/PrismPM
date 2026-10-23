@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
-      LEXLEAN_SOURCE_SHA: 0865df4e540ca643b090a29e9df6d319d6906da6
+      LEXLEAN_SOURCE_SHA: cee0fbade479891479e0b748aaa8b60e0a1aaf07
       CARGO_INCREMENTAL: "0"
       CARGO_NET_OFFLINE: "true"
       CARGO_HOME: ${{ github.workspace }}/target/m0-locked-cargo-inputs
@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: UOR-Foundation/LexLean
-          ref: 0865df4e540ca643b090a29e9df6d319d6906da6
+          ref: cee0fbade479891479e0b748aaa8b60e0a1aaf07
           path: _m0/lexlean
           fetch-depth: 1
           persist-credentials: false
@@ -112,7 +112,7 @@ jobs:
             exec > target/m0-reconciliation-diagnostics/generation-step.log 2>&1
             just codegen
             just fixtures-write
-            just golden-write "M0 issue #5: reconcile reviewed LexLean PR68 0865df4e540ca643b090a29e9df6d319d6906da6"
+            just golden-write "M0 issue #5: reconcile reviewed LexLean PR68 cee0fbade479891479e0b748aaa8b60e0a1aaf07"
             just stdlib-package-write
             stage="$(mktemp -d)"
             cp -a stdlib/generated/package "$stage/stdlib"

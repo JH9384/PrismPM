@@ -1,5 +1,6 @@
 // Closed, actual authored-source mutations; compilation and behavioral failure
 // are required. Editing an AST alone is never a successful oracle receipt.
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {metadataMutations, mutateMetadataSource} from '../browser-session-journal/metadata-mutations.mjs';
 const module = 'Foundation.Browser.Application.V1.SessionJournalRecovery';
@@ -44,7 +45,7 @@ export function mutateComponentSource(sources, id) {
   const mutation = componentMutations.find(row => row.id === id); assert.ok(mutation, 'closed compiled mutation identity');
   if (metadataMutations.some(row => row.id === id)) return {...mutateMetadataSource(sources, id), entry: 'metadata'};
   const before = sources.get(mutation.module); assert.ok(Buffer.isBuffer(before));
-  const text = before.toString('utf8'), matched = /\\semanticdata\{(.*)\}/.exec(text); assert.ok(matched);
+  const text = before.toString('utf8'), matched = [text, JSON.stringify(readSemantic(text))]; assert.ok(matched);
   const data = JSON.parse(matched[1]), declaration = data.declarations.find(row => row.name === mutation.definition);
   assert.equal(declaration?.kind, 'definition');
   let predicate, replacement = bypass;
@@ -77,6 +78,6 @@ export function mutateComponentSource(sources, id) {
       type_arguments: ['SessionJournalState', 'SessionJournalError'].map(name => ({kind: 'named', member: {name}, arguments: []}))});
   } else throw Error('unimplemented closed source mutation');
   const changed = transform(declaration.body, predicate, replacement); assert.equal(changed, 1, id + ' exact source site');
-  const after = Buffer.from(text.replace(matched[0], '\\semanticdata{' + JSON.stringify(canonical(data)) + '}'));
+  const after = Buffer.from(writeSemantic(text, canonical(data)));
   assert.notDeepEqual(after, before); sources.set(mutation.module, after); return {...mutation, changed};
 }

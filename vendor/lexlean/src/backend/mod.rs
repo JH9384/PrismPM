@@ -3,11 +3,14 @@
 //! (I13). Neither backend accepts an opaque bypass (I6).
 
 pub mod core;
+pub mod core_v2;
 pub mod latex;
 pub mod lean;
 pub mod lean_tokens;
 pub mod pdf;
+pub mod runtime;
 pub mod semantic;
+pub mod tooling;
 
 use std::collections::BTreeMap;
 

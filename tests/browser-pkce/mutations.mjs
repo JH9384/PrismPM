@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 
 export const sourceMutations = Object.freeze([
@@ -10,7 +11,7 @@ export const sourceMutations = Object.freeze([
 export function mutatePkceSource(sources, id) {
   const mutation = sourceMutations.find(row => row.id === id); assert.ok(mutation);
   const name = 'Foundation.Sec.V1.Pkce', original = sources.get(name).toString('utf8');
-  const data = JSON.parse(/\\semanticdata\{(.*)\}/.exec(original)[1]);
+  const data = readSemantic(original);
   const declaration = data.declarations.find(row => row.name === mutation.declaration); assert.ok(declaration);
   if (mutation.kind === 'accept') declaration.body = {kind: 'blt',
     left: {kind: 'var', name: 'value'}, right: {kind: 'nat', value: '256'}};
@@ -26,6 +27,6 @@ export function mutatePkceSource(sources, id) {
   }
   const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
     ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-  sources.set(name, Buffer.from(original.replace(/\\semanticdata\{.*\}/, '\\semanticdata{' + JSON.stringify(canonical(data)) + '}')));
+  sources.set(name, Buffer.from(writeSemantic(original, canonical(data))));
   return {...mutation, entry: 'pkce'};
 }

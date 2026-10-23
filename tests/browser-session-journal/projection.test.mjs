@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
@@ -7,8 +8,7 @@ import {verifyNativeProjectionInventory} from './projection-checks.mjs';
 import {mutateProjectionSource, projectionMutations} from './projection-mutations.mjs';
 
 const root = new URL('../../stdlib/src/Foundation/Browser/Application/V1/', import.meta.url);
-const semantic = name => JSON.parse(/\\semanticdata\{(.*)\}/.exec(
-  readFileSync(new URL(name + '.lex.tex', root), 'utf8'))[1]);
+const semantic = name => readSemantic(readFileSync(new URL(name + '.lex.tex', root), 'utf8'));
 const calls = node => {
   if (!node || typeof node !== 'object') return [];
   return [...node.kind === 'call' ? [node.function] : [],
@@ -104,7 +104,7 @@ test('closed projection defect catalogue changes only the named source declarati
   for (const mutation of projectionMutations) {
     const changed = new Map(baseline), result = mutateProjectionSource(changed, mutation.id);
     assert.equal(result.changed, mutation.id === 'predecessor-eof' ? 9 : 1);
-    const parse = bytes => JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+    const parse = bytes => readSemantic(bytes.toString('utf8'));
     for (const [name, bytes] of baseline) {
       if (name !== mutation.module) {assert.deepEqual(changed.get(name), bytes); continue;}
       const before = parse(bytes), after = parse(changed.get(name));

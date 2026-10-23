@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
@@ -119,7 +120,7 @@ export function verifyInventory() {
   const referenced = new Set([...source.matchAll(/(?:fail|#terminate)\('([a-z-]+)'/g)].map(row => row[1]));
   referenced.add('effect-outcome-unknown');
   assert.deepEqual([...new Set(registry.errors)].sort(), [...referenced].sort());
-  const semantic = file => JSON.parse(/\\semanticdata\{(.*)\}/.exec(readFileSync(join(repository, file), 'utf8'))[1]);
+  const semantic = file => readSemantic(readFileSync(join(repository, file), 'utf8'));
   const effects = semantic('stdlib/src/Foundation/Browser/Application/V1/Effects.lex.tex');
   const cbor = semantic('stdlib/src/Foundation/Codec/Cbor/V1/Primitive.lex.tex');
   const names = (model, name) => model.declarations.find(row => row.name === name).constructors.map(row => row.name);

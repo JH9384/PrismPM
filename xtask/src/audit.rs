@@ -122,22 +122,16 @@ pub fn audit_retained_native_profiles(root: &Path) -> Result<(), Fail> {
     }
     Ok(())
 }
-const LEXLEAN_AUTHORITY_REVISION: &str = "0865df4e540ca643b090a29e9df6d319d6906da6";
-const LEXLEAN_AUTHORITY_SOURCES: [&str; 18] = [
-    "language/lcnf-1.2/extract.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/Compose.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/Core.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/Fixed.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/Keys.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/Primitives.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/RustBase.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/RustCorr.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/RustLemmas.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/RustMatches.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/RustSound.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/Templates.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/Validate.lean",
-    "language/preservation-1.2/library/LexLeanPreservation/Values.lean",
+
+/// The LexLean `release/v0.4` commit the vendored package is built from. The
+/// release binding replaces this commit with the v0.4.0 release revision.
+const LEXLEAN_AUTHORITY_REVISION: &str = "cee0fbade479891479e0b748aaa8b60e0a1aaf07";
+/// Handwritten Lean admitted from the vendored LexLean package. The v0.4
+/// package carries its extraction adapter (`language/lcnf-1.2/tooling/src`)
+/// and the preservation library (`language/preservation-1.2/library/src`) as
+/// `.lex.tex` notation that LexLean itself compiles, so only the four target
+/// semantics modules remain as upstream-owned Lean.
+const LEXLEAN_AUTHORITY_SOURCES: [&str; 4] = [
     "language/preservation-1.2/modules/LexLeanTarget/RustSemantics.lean",
     "language/preservation-1.2/modules/LexLeanTarget/RustSyntax.lean",
     "language/preservation-1.2/modules/LexLeanTarget/TargetSemantics.lean",
@@ -664,7 +658,7 @@ fn audit_lexlean_authority_archive(
         return Err("LexLean archive membership differs from its complete extracted tree".into());
     }
     if !vcs_seen || sources != expected.into_iter().map(str::to_owned).collect() {
-        return Err("LexLean authority archive does not contain the exact selected 18-source closure and VCS identity".into());
+        return Err("LexLean authority archive does not contain the exact selected 4-source closure and VCS identity".into());
     }
     Ok(())
 }
@@ -680,16 +674,9 @@ pub fn audit_formal_contract(root: &Path) -> Result<(), Fail> {
     {
         return Err("embedded allocation counter differs from the pinned upstream source".into());
     }
-    let path = root.join("stdlib/src/Foundation/Holo.lex.tex");
-    let source = std::fs::read_to_string(&path)?;
-    let payload = source
-        .lines()
-        .find_map(|line| {
-            line.strip_prefix("\\semanticdata{")
-                .and_then(|value| value.strip_suffix('}'))
-        })
-        .ok_or("Foundation.Holo has no semantic module payload")?;
-    let value: serde_json::Value = serde_json::from_str(payload)?;
+    let value = repo_conformance::semantic_source::module_payload(
+        &root.join("stdlib/src/Foundation/Holo.lex.tex"),
+    )?;
     let declarations = value
         .get("declarations")
         .and_then(serde_json::Value::as_array)
@@ -795,16 +782,9 @@ pub fn audit_formal_contract(root: &Path) -> Result<(), Fail> {
         return Err("canonical index uniqueness theorem is not the exact characterization".into());
     }
 
-    let corpus_source =
-        std::fs::read_to_string(root.join("stdlib/src/Production/SystemValidationCorpus.lex.tex"))?;
-    let corpus_payload = corpus_source
-        .lines()
-        .find_map(|line| {
-            line.strip_prefix("\\semanticdata{")
-                .and_then(|value| value.strip_suffix('}'))
-        })
-        .ok_or("Production.SystemValidationCorpus has no semantic module payload")?;
-    let corpus: serde_json::Value = serde_json::from_str(corpus_payload)?;
+    let corpus = repo_conformance::semantic_source::module_payload(
+        &root.join("stdlib/src/Production/SystemValidationCorpus.lex.tex"),
+    )?;
     let corpus_declarations = corpus["declarations"]
         .as_array()
         .ok_or("Production.SystemValidationCorpus has no semantic declarations")?;
@@ -1686,21 +1666,8 @@ mod lean_source_audit_tests {
     };
     use std::path::Path;
 
-    const ADAPTER: &str = "vendor/lexlean/language/lcnf-1.2/extract.lean";
-    const PRESERVATION: [&str; 17] = [
-        "library/LexLeanPreservation/Compose.lean",
-        "library/LexLeanPreservation/Core.lean",
-        "library/LexLeanPreservation/Fixed.lean",
-        "library/LexLeanPreservation/Keys.lean",
-        "library/LexLeanPreservation/Primitives.lean",
-        "library/LexLeanPreservation/RustBase.lean",
-        "library/LexLeanPreservation/RustCorr.lean",
-        "library/LexLeanPreservation/RustLemmas.lean",
-        "library/LexLeanPreservation/RustMatches.lean",
-        "library/LexLeanPreservation/RustSound.lean",
-        "library/LexLeanPreservation/Templates.lean",
-        "library/LexLeanPreservation/Validate.lean",
-        "library/LexLeanPreservation/Values.lean",
+    const ADAPTER: &str = "vendor/lexlean/language/lcnf-1.2/tooling/src/Extract.lex.tex";
+    const PRESERVATION: [&str; 4] = [
         "modules/LexLeanTarget/RustSemantics.lean",
         "modules/LexLeanTarget/RustSyntax.lean",
         "modules/LexLeanTarget/TargetSemantics.lean",
@@ -1777,9 +1744,13 @@ mod lean_source_audit_tests {
 
     fn fixture() -> tempfile::TempDir {
         let root = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(root.path().join("vendor/lexlean/language/lcnf-1.2")).unwrap();
+        std::fs::create_dir_all(
+            root.path()
+                .join("vendor/lexlean/language/lcnf-1.2/tooling/src"),
+        )
+        .unwrap();
         std::fs::create_dir(root.path().join("model")).unwrap();
-        std::fs::write(root.path().join(ADAPTER), "namespace ImportedAdapter\n").unwrap();
+        std::fs::write(root.path().join(ADAPTER), "\\begin{lexlean}{Extract}\n").unwrap();
         std::fs::write(root.path().join("vendor/fixture.bin"), "fixture\n").unwrap();
         std::fs::write(
             root.path().join("vendor/lexlean/Cargo.toml"),
@@ -1837,6 +1808,12 @@ mod lean_source_audit_tests {
     fn exact_preservation_package_sources_are_admitted_with_archive_custody() {
         let root = preservation_fixture();
         audit_no_handwritten_lean(root.path()).unwrap();
+    }
+
+    #[test]
+    fn current_stdlib_formal_contract_is_read_from_its_notation_sources() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        super::audit_formal_contract(root).unwrap();
     }
 
     #[test]
@@ -1898,7 +1875,13 @@ mod lean_source_audit_tests {
     #[test]
     fn an_unlisted_preservation_member_is_rejected_even_in_the_sealed_archive() {
         let root = preservation_fixture();
-        std::fs::write(root.path().join("vendor/lexlean/language/preservation-1.2/library/LexLeanPreservation/Unlisted.lean"), "unlisted\n").unwrap();
+        std::fs::write(
+            root.path().join(
+                "vendor/lexlean/language/preservation-1.2/modules/LexLeanTarget/Unlisted.lean",
+            ),
+            "unlisted\n",
+        )
+        .unwrap();
         seal(root.path());
         assert!(audit_no_handwritten_lean(root.path()).is_err());
     }

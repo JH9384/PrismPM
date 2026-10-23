@@ -87,6 +87,50 @@ fn browser_system_contract_is_registered_and_closed() {
     assert_eq!(error.code, "PP1101");
 }
 
+/// Bind the release at `src/Release.lex.tex` to the application model its
+/// Calculator source projects, and lock the result.
+fn bind_application_digest(root: &Path) {
+    let snapshot = Engine::load(&utf8(root.join("lexlean.toml")).unwrap())
+        .unwrap()
+        .snapshot(LexCheckRequest {
+            selection: Selection::Files([Utf8PathBuf::from("src/Calculator.lex.tex")].into()),
+        })
+        .unwrap();
+    let application = crate::holo::application::project_application(&snapshot)
+        .unwrap()
+        .unwrap();
+    let digest = format!(
+        "sha256:{}",
+        content_id(&encode_canonical(&application).unwrap())
+    );
+    let path = root.join("src/Release.lex.tex");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let mut semantic = semantic_data(&source);
+    fn bind(value: &mut Value, digest: &str) -> usize {
+        if value["field"] == "applicationModelDigest" {
+            assert_eq!(value["value"]["kind"], "string");
+            value["value"]["value"] = json!(digest);
+            return 1;
+        }
+        match value {
+            Value::Object(fields) => fields.values_mut().map(|value| bind(value, digest)).sum(),
+            Value::Array(values) => values.iter_mut().map(|value| bind(value, digest)).sum(),
+            _ => 0,
+        }
+    }
+    assert_eq!(
+        bind(&mut semantic, &digest),
+        4,
+        "both source models and manifests bind the final application"
+    );
+    std::fs::write(
+        &path,
+        lexlean::sdk::write_module(&source, &semantic).unwrap(),
+    )
+    .unwrap();
+    relock(root);
+}
+
 fn browser_system_project() -> tempfile::TempDir {
     let temporary = calculator_project();
     let root = temporary.path();
@@ -98,12 +142,20 @@ fn browser_system_project() -> tempfile::TempDir {
             root.join(format!("src/Production/{name}.lex.tex")),
         );
     }
+    // The SDK stdlib is language 1.2, so the Calculator model and the release
+    // that imports it are the fixture's language-1.2 notation, not the 1.1
+    // example source.
+    copy_fixture_file(
+        fixture.join("Calculator.lex.tex"),
+        root.join("src/Calculator.lex.tex"),
+    );
     copy_fixture_file(
         fixture.join("Release.lex.tex"),
         root.join("src/Release.lex.tex"),
     );
     copy_fixture_file(fixture.join("lexlean.toml"), root.join("lexlean.toml"));
     relock(root);
+    bind_application_digest(root);
     temporary
 }
 
@@ -133,55 +185,7 @@ impl Controller {
         )
         .unwrap();
         relock(root);
-        let snapshot = Engine::load(&utf8(root.join("lexlean.toml")).unwrap())
-            .unwrap()
-            .snapshot(LexCheckRequest {
-                selection: Selection::Files([Utf8PathBuf::from("src/Calculator.lex.tex")].into()),
-            })
-            .unwrap();
-        let application = crate::holo::application::project_application(&snapshot)
-            .unwrap()
-            .unwrap();
-        let digest = format!(
-            "sha256:{}",
-            content_id(&encode_canonical(&application).unwrap())
-        );
-        let path = root.join("src/Release.lex.tex");
-        let source = std::fs::read_to_string(&path).unwrap();
-        let mut semantic = semantic_data(&source);
-        fn bind(value: &mut Value, digest: &str) -> usize {
-            if value["field"] == "applicationModelDigest" {
-                assert_eq!(value["value"]["kind"], "string");
-                value["value"]["value"] = json!(digest);
-                return 1;
-            }
-            match value {
-                Value::Object(fields) => fields.values_mut().map(|value| bind(value, digest)).sum(),
-                Value::Array(values) => values.iter_mut().map(|value| bind(value, digest)).sum(),
-                _ => 0,
-            }
-        }
-        assert_eq!(
-            bind(&mut semantic, &digest),
-            4,
-            "both source models and manifests bind the final application"
-        );
-        let lines = source
-            .lines()
-            .filter(|line| line.starts_with("\\semanticdata{"))
-            .collect::<Vec<_>>();
-        assert_eq!(lines.len(), 1);
-        std::fs::write(
-            &path,
-            source.replace(
-                lines[0],
-                &format!(
-                    "\\semanticdata{{{}}}",
-                    serde_json::to_string(&semantic).unwrap()
-                ),
-            ),
-        )
-        .unwrap();
+        bind_application_digest(root);
         relock(root);
         temporary
     }
@@ -244,27 +248,15 @@ fn browser_system_source_selection_and_requirements_fail_closed() {
     let path = root.join("src/Release.lex.tex");
     let original = std::fs::read_to_string(&path).unwrap();
     for changed in [
-        original.replace("\"value\":\"none\"", "\"value\":\"indexeddb\""),
+        original.replace("\"none\"", "\"indexeddb\""),
+        original.replace("\"artifact-closure\"", "\"omitted-control\""),
+        original.replace("\"webassembly\"", "\"unmodeled-resource\""),
+        original.replace("\"github-pages-browser\"", "\"compose\""),
+        original.replace("\"selected-application\"", "\"caller-bundle\""),
+        original.replace("name: systemModelB,", "name: systemModelA,"),
         original.replace(
-            "\"value\":\"artifact-closure\"",
-            "\"value\":\"omitted-control\"",
-        ),
-        original.replace(
-            "\"value\":\"webassembly\"",
-            "\"value\":\"unmodeled-resource\"",
-        ),
-        original.replace(
-            "\"value\":\"github-pages-browser\"",
-            "\"value\":\"compose\"",
-        ),
-        original.replace(
-            "\"value\":\"selected-application\"",
-            "\"value\":\"caller-bundle\"",
-        ),
-        original.replace("\"name\":\"systemModelB\"", "\"name\":\"systemModelA\""),
-        original.replace(
-            "\"module\":\"Production.BrowserSystem\",\"name\":\"SystemModel\"",
-            "\"module\":\"Production.Core\",\"name\":\"Product\"",
+            "result: Production.BrowserSystem::SystemModel,",
+            "result: Production.Core::Product,",
         ),
         original.replace(
             a.system.as_ref().unwrap().value()["application_profile"]["application_model_digest"]
@@ -306,10 +298,15 @@ fn browser_system_source_selection_and_requirements_fail_closed() {
         .find(|row| row["name"] == "systemModelA")
         .unwrap()
         .clone();
-    std::fs::write(root.join("src/OtherRelease.lex.tex"), format!(
-        "\\begin{{lexlean}}{{OtherRelease}}\n\\useglossary{{lexlean.std.bool@1.1.0}}\n\\importmodule{{Production.Core}}\n\\importmodule{{Production.BrowserSystem}}\n\\title{{Boolean}}\n\\begin{{semanticmodule}}\n\\semanticdata{{{}}}\n\\end{{semanticmodule}}\n\\end{{lexlean}}\n",
-        serde_json::to_string(&json!({"spec":"lexlean/semantic-module/1","declarations":[duplicate]})).unwrap()
-    )).unwrap();
+    let other_release = format!(
+        "\\begin{{lexlean}}{{OtherRelease}}\n\\useglossary{{lexlean.std.bool@1.2.0}}\n\\importmodule{{Production.Core}}\n\\importmodule{{Production.BrowserSystem}}\n\\title{{Boolean}}\n\\begin{{semanticmodule}}\n\\semanticdata{{{}}}\n\\end{{semanticmodule}}\n\\end{{lexlean}}\n",
+        serde_json::to_string(&json!({"spec":"lexlean/semantic-module/2","declarations":[duplicate]})).unwrap()
+    );
+    std::fs::write(
+        root.join("src/OtherRelease.lex.tex"),
+        lexlean::sdk::to_notation(&other_release).unwrap(),
+    )
+    .unwrap();
     std::fs::write(
         &path,
         original.replace(
@@ -564,12 +561,7 @@ fn relock(root: &Path) {
 }
 
 fn semantic_data(source: &str) -> Value {
-    let (_, payload) = source.split_once("\\semanticdata{").unwrap();
-    serde_json::Deserializer::from_str(payload)
-        .into_iter::<Value>()
-        .next()
-        .unwrap()
-        .unwrap()
+    lexlean::sdk::read_module(source).unwrap()
 }
 
 // Render test data through the actual stdlib structure declarations. The
@@ -625,6 +617,14 @@ fn named(name: &str) -> Value {
 fn named_releases() -> tempfile::TempDir {
     let temporary = calculator_project();
     let root = temporary.path();
+    // The stdlib is language 1.2, so the release builds on the language-1.2
+    // notation Calculator and the configuration that declares its glossaries.
+    let fixture_root = repository().join("tests/browser-system");
+    copy_fixture_file(
+        fixture_root.join("Calculator.lex.tex"),
+        root.join("src/Calculator.lex.tex"),
+    );
+    copy_fixture_file(fixture_root.join("lexlean.toml"), root.join("lexlean.toml"));
     // Calculator production scenario from calculator-example@5051dc6adb18e9ca2b6ae4ca7090e638329831ef,
     // with its complete certificate regenerated against the current stdlib.
     // B differs only in release identity; no application dependencies are removed.
@@ -674,10 +674,15 @@ fn named_releases() -> tempfile::TempDir {
             ]},"right":{"kind":"bool","value":true}}
         }));
     }
-    std::fs::write(root.join("src/Release.lex.tex"), format!(
-        "\\begin{{lexlean}}{{Release}}\n\\useglossary{{lexlean.std.bool@1.1.0}}\n\\useglossary{{lexlean.std.nat@1.1.0}}\n\\importmodule{{Calculator}}\n\\importmodule{{Production.Core}}\n\\importmodule{{Production.Interface}}\n\\importmodule{{Production.Runtime}}\n\\importmodule{{Production.Operations}}\n\\importmodule{{Production.Validation}}\n\\importmodule{{Production.System}}\n\\importmodule{{Production.SystemValidation}}\n\\title{{Boolean}}\n\\begin{{semanticmodule}}\n\\semanticdata{{{}}}\n\\end{{semanticmodule}}\n\\end{{lexlean}}\n",
-        serde_json::to_string(&json!({"spec":"lexlean/semantic-module/1","declarations":declarations})).unwrap()
-    )).unwrap();
+    let release_source = format!(
+        "\\begin{{lexlean}}{{Release}}\n\\useglossary{{lexlean.std.bool@1.2.0}}\n\\useglossary{{lexlean.std.nat@1.2.0}}\n\\importmodule{{Calculator}}\n\\importmodule{{Production.Core}}\n\\importmodule{{Production.Interface}}\n\\importmodule{{Production.Runtime}}\n\\importmodule{{Production.Operations}}\n\\importmodule{{Production.Validation}}\n\\importmodule{{Production.System}}\n\\importmodule{{Production.SystemValidation}}\n\\title{{Boolean}}\n\\begin{{semanticmodule}}\n\\semanticdata{{{}}}\n\\end{{semanticmodule}}\n\\end{{lexlean}}\n",
+        serde_json::to_string(&json!({"spec":"lexlean/semantic-module/2","declarations":declarations})).unwrap()
+    );
+    std::fs::write(
+        root.join("src/Release.lex.tex"),
+        lexlean::sdk::to_notation(&release_source).unwrap(),
+    )
+    .unwrap();
     let config = std::fs::read_to_string(root.join("lexlean.toml"))
         .unwrap()
         .replace(

@@ -1,8 +1,23 @@
 \begin{lexlean}{Foundation.Library.V1.Model}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"profile","type":{"kind":"string"}},{"name":"name","type":{"kind":"string"}},{"name":"cargoName","type":{"kind":"string"}},{"name":"cargoVersion","type":{"kind":"string"}},{"name":"cargoDescription","type":{"kind":"string"}},{"name":"cargoRepository","type":{"kind":"string"}},{"name":"cargoHomepage","type":{"kind":"string"}},{"name":"exportRoots","type":{"element":{"kind":"string"},"kind":"list"}},{"name":"acceptanceRoots","type":{"element":{"kind":"string"},"kind":"list"}}],"kind":"structure","name":"NativeLibrary","parameters":[],"type_parameters":[]}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: NativeLibrary,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: profile, type: String},
+    {name: name, type: String},
+    {name: cargoName, type: String},
+    {name: cargoVersion, type: String},
+    {name: cargoDescription, type: String},
+    {name: cargoRepository, type: String},
+    {name: cargoHomepage, type: String},
+    {name: exportRoots, type: (List String)},
+    {name: acceptanceRoots, type: (List String)}
+  ]
+}
 \end{semanticmodule}
 \end{lexlean}

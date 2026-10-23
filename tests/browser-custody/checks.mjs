@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -32,7 +33,7 @@ export function executeWasm(bytes, vectors) {
 }
 
 export function verifyInventory() {
-  const semantic = name => JSON.parse(/\\semanticdata\{(.*)\}/.exec(readFileSync(join(repository, 'stdlib/src', ...name.split('.')) + '.lex.tex', 'utf8'))[1]);
+  const semantic = name => readSemantic(readFileSync(join(repository, 'stdlib/src', ...name.split('.')) + '.lex.tex', 'utf8'));
   const model = semantic('Foundation.Browser.Application.V1.Custody');
   const types = new Map(model.declarations.filter(row => ['structure', 'inductive'].includes(row.kind)).map(row => [row.name, row]));
   const scalar = bytes => ({bytes, nodes: 1, depth: 0});

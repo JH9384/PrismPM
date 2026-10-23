@@ -1,8 +1,61 @@
 \begin{lexlean}{Foundation.View.V1.Interaction}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"Submit"},{"fields":[],"name":"Enter"}],"kind":"inductive","name":"Action","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"RetainFocus"},{"fields":[],"name":"MoveFocusToResult"}],"kind":"inductive","name":"FocusBehavior","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"Off"},{"fields":[],"name":"Polite"},{"fields":[],"name":"Assertive"}],"kind":"inductive","name":"LiveMode","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"Calculation"},{"fields":[],"name":"InputError"},{"fields":[],"name":"DomainError"}],"kind":"inductive","name":"ResultKind","parameters":[],"type_parameters":[]},{"fields":[{"name":"action","type":{"arguments":[],"kind":"named","member":{"name":"Action"}}},{"name":"intent","type":{"kind":"string"}},{"name":"requestBinding","type":{"kind":"string"}}],"kind":"structure","name":"ActionBinding","parameters":[],"type_parameters":[]},{"fields":[{"name":"kind","type":{"arguments":[],"kind":"named","member":{"name":"ResultKind"}}},{"name":"message","type":{"kind":"string"}},{"name":"focus","type":{"arguments":[],"kind":"named","member":{"name":"FocusBehavior"}}},{"name":"live","type":{"arguments":[],"kind":"named","member":{"name":"LiveMode"}}}],"kind":"structure","name":"ResultBinding","parameters":[],"type_parameters":[]}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: Action,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Submit, fields: []}, {name: Enter, fields: []}]
+}
+
+inductive{
+  name: FocusBehavior,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: RetainFocus, fields: []}, {name: MoveFocusToResult, fields: []}]
+}
+
+inductive{
+  name: LiveMode,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Off, fields: []}, {name: Polite, fields: []}, {name: Assertive, fields: []}]
+}
+
+inductive{
+  name: ResultKind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Calculation, fields: []},
+    {name: InputError, fields: []},
+    {name: DomainError, fields: []}
+  ]
+}
+
+structure{
+  name: ActionBinding,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: action, type: Action},
+    {name: intent, type: String},
+    {name: requestBinding, type: String}
+  ]
+}
+
+structure{
+  name: ResultBinding,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: kind, type: ResultKind},
+    {name: message, type: String},
+    {name: focus, type: FocusBehavior},
+    {name: live, type: LiveMode}
+  ]
+}
 \end{semanticmodule}
 \end{lexlean}

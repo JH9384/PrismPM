@@ -8,6 +8,7 @@ public import PrismPM.Production.Validation
 set_option autoImplicit false
 set_option maxRecDepth 100000
 set_option maxHeartbeats 1000000000
+set_option linter.constructorNameAsVariable false
 namespace PrismPM.Production.System
 
 public structure ModelTerm where
@@ -199,7 +200,7 @@ public structure SystemManifest where
 
 @[expose] public def validateManifest (manifest : SystemManifest) : Bool := (PrismPM.Production.Validation.validateClosure (((manifest).closure).bound) (((manifest).closure).values) && (PrismPM.Production.Validation.validateUniqueness (((manifest).uniqueness).values) && (PrismPM.Production.Validation.validateReferentialIntegrity (((manifest).referentialIntegrity).bound) (((manifest).referentialIntegrity).values) && (PrismPM.Production.Validation.validateCompatibility (((manifest).compatibility).bound) (((manifest).compatibility).values) && (PrismPM.Production.Validation.validateCapabilitySatisfaction (((manifest).capabilitySatisfaction).bound) (((manifest).capabilitySatisfaction).values) && (PrismPM.Production.Validation.validateSecretFlow (((manifest).secretFlow).bound) (((manifest).secretFlow).values) && (PrismPM.Production.Validation.validateDeploymentOrder (((manifest).deploymentOrder).values) && (PrismPM.Production.Validation.validateMigrationOrder (((manifest).migrationOrder).values) && (PrismPM.Production.Validation.validateRollbackSafety (((manifest).rollbackSafety).bound) (((manifest).rollbackSafety).values) && (PrismPM.Production.Validation.validateEvidenceClosure (((manifest).evidenceClosure).bound) (((manifest).evidenceClosure).values) && (PrismPM.Production.Validation.validateLicenseClosure (((manifest).licenseClosure).values) && PrismPM.Production.Validation.validateReleaseCompleteness (((manifest).releaseCompleteness).values))))))))))))
 
-@[expose] public def manifestValid (manifest : SystemManifest) : Prop := (validateManifest (manifest) = true)
+@[expose, reducible] public def manifestValid (manifest : SystemManifest) : Prop := (validateManifest (manifest) = true)
 
 public theorem manifestValidation_sound_complete (manifest : SystemManifest) : ((validateManifest (manifest) = true) <-> manifestValid (manifest)) := by
   rfl

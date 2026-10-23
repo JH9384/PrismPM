@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
@@ -10,7 +11,7 @@ const names = ['Foundation.View.Browser.V1.Model', 'Foundation.View.Browser.V1.W
   'Foundation.View.Browser.V1.Semantics', 'Foundation.Browser.Application.V1.Session'];
 const sources = () => new Map(names.map(name => [name,
   readFileSync(new URL('../../stdlib/src/' + name.replaceAll('.', '/') + '.lex.tex', import.meta.url))]));
-const module = bytes => JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+const module = bytes => readSemantic(bytes.toString('utf8'));
 
 test('dynamic source constructors and all exhaustive presentation matches remain closed', () => {
   const all = sources(), model = module(all.get(names[0]));
@@ -36,7 +37,7 @@ test('every planned defect changes one actual source module and no acceptance fi
   for (const kind of mutationNames) {
     const mutated = new Map(before); mutateSources(mutated, kind);
     assert.equal([...mutated].filter(([name, bytes]) => !bytes.equals(before.get(name))).length, 1, kind);
-    for (const bytes of mutated.values()) assert.equal(module(bytes).spec, 'lexlean/semantic-module/1');
+    for (const bytes of mutated.values()) assert.equal(module(bytes).spec, 'lexlean/semantic-module/2');
   }
   assert.throws(() => mutateSources(new Map(before), 'unknown'));
 });

@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from './semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -91,9 +92,11 @@ test('negative CLI probes require the owning diagnostic and expected exit class'
 });
 
 test('source mutation preserves canonical LexLean module structure and changes the real identity body',t=>{
- const root=temporary(t),path='src/Probe.lex.tex',before='\\semanticdata{{"declarations":[{"body":{"kind":"var","name":"value"},"name":"identity"}]}}\n';put(root,path,before);
- mutateModule(root,module=>{module.declarations[0].body={right:{kind:'nat',value:'1'},left:{kind:'var',name:'value'},kind:'add'};});
- const after=readFileSync(join(root,path),'utf8');assert.match(after,/"body":\{"kind":"add","left"/);assert.notEqual(after,before);
+ const root=temporary(t),path='src/Probe.lex.tex',before='\\begin{lexlean}{Probe}\n\\useglossary{lexlean.std.nat@1.2.0}\n\\title{Natural number}\n\\begin{semanticmodule}\ndefinition{name: identity, parameters: [value : Nat], result: Nat, body: value}\n\\end{semanticmodule}\n\\end{lexlean}\n';put(root,path,before);
+ const body={right:{kind:'nat',value:'1'},left:{kind:'var',name:'value'},kind:'add'};
+ mutateModule(root,module=>{module.declarations[0].body=body;});
+ const after=readFileSync(join(root,path),'utf8');assert.notEqual(after,before);assert.deepEqual(readSemantic(after).declarations[0].body,body);
+ assert.equal(writeSemantic(after,readSemantic(after)),after,'the mutant stays canonical notation');
  put(root,path,before+before);assert.throws(()=>mutateModule(root,()=>{}));
 });
 
@@ -220,7 +223,7 @@ function parserFixture(root,change=()=>{}){
  Object.assign(processes.find(row=>row.tool==='prod-export'),{argv:['exe','prod-export'],exporter:{schema:'prismpm/exporter-execution/1',source_archive_sha256:'3'.repeat(64),acquisition:{schema:'prismpm/exporter-acquisition/1',mode:'cold'},executable:{sha256:'4'.repeat(64),byte_length:1234,mode:0o755}}});
  const manifest={acceptance_sha256:'',artifacts:[],build_id:'',lexlean_attestation_sha256:'',model_sha256:'',processes,schema:'prismpm/library-verification-manifest/1',scope:'native-library-only'};
  const modules=[{lean_module:'LibraryProbe.Foundation.Library.V1.Model',declarations:[{lean_name:'NativeLibrary',axiom_policy:{kind:'none',axioms:[]}}]},{lean_module:'LibraryProbe.Probe',declarations:['acceptance','identity','probeLibrary'].map(lean_name=>({lean_name,axiom_policy:{kind:'none',axioms:[]}}))}];
- const lex={attestation_id:lexId,build_id:'3'.repeat(64),source_id:model.provenance.source_id,semantic_id:model.provenance.semantic_id,spec:'lexlean/attestation/1',status:'verified',declarations:modules.flatMap(module=>module.declarations.map(row=>({name:module.lean_module+'.'+row.lean_name,observed:[],policy:row.axiom_policy,result:'ok'})))};
+ const lex={attestation_id:lexId,build_id:'3'.repeat(64),source_id:model.provenance.source_id,semantic_id:model.provenance.semantic_id,spec:'lexlean/attestation/2',status:'verified',declarations:modules.flatMap(module=>module.declarations.map(row=>({name:module.lean_module+'.'+row.lean_name,observed:[],policy:row.axiom_policy,result:'ok'})))};
  const inputs={schema:'prismpm/build-inputs/3',application_generator_sha256:'4'.repeat(64),dependency_register_sha256:'5'.repeat(64),emitter_semantics_id:model.provenance.emitter_semantics_id,lexlean_build_id:lex.build_id,lexlean_semantic_id:lex.semantic_id,lexlean_source_id:lex.source_id,library_artifacts_sha256:'',library_generator_sha256:'6'.repeat(64),model_id:'',system_id:null};
  change({model,acceptance,manifest,paths,lex,inputs});
  const modelBytes=encode(model);put(root,build+'/model.prism.json',modelBytes);manifest.model_sha256=digest(modelBytes);acceptance.model_id=manifest.model_sha256;
@@ -320,7 +323,7 @@ test('owning CLI test kills a removed process-exit guard',t=>{
  const guard='assert.equal(output.status,expected.code ? exits[expected.code] : 0, "CLI exit class");';assert.equal(module.split(guard).length,2);
  put(root,'scripts/library-sdk-check.mjs',module.replace(guard,''));put(root,'scripts/browser-api-sdk-check.mjs',readFileSync(new URL('./browser-api-sdk-check.mjs',import.meta.url)));put(root,'scripts/library-sdk-check.test.mjs',readFileSync(new URL('./library-sdk-check.test.mjs',import.meta.url)));
  put(root,'scripts/library-sdk-fixture.mjs',readFileSync(new URL('./library-sdk-fixture.mjs',import.meta.url)));
- for(const name of ['sdk-command-owner.mjs','sdk-command-owner.py'])
+ for(const name of ['sdk-command-owner.mjs','sdk-command-owner.py','semantic-source.mjs'])
   put(root,'scripts/'+name,readFileSync(new URL('./'+name,import.meta.url)));
  put(root,'scripts/installed-exporter-concurrency.mjs',readFileSync(new URL('./installed-exporter-concurrency.mjs',import.meta.url)));
  cpSync(new URL('../sdk',import.meta.url),join(root,'sdk'),{recursive:true});

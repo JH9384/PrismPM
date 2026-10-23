@@ -1,5 +1,6 @@
 // Test-only semantic mutations. Each changes an actual source guard; the
 // owning gate must rebuild through LexLean, kernel audit and lean4-prod.
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 
 const SM = 'Foundation.Browser.Application.V1.Session';
@@ -45,7 +46,7 @@ const canonical = value => Array.isArray(value) ? value.map(canonical) : value &
 
 export function mutateSource(sources, id) {
   const mutation = mutations.find(row => row.id === id); assert.ok(mutation, 'closed source mutation inventory');
-  const text = sources.get(mutation.module).toString('utf8'), match = /\\semanticdata\{(.*)\}/.exec(text);
+  const text = sources.get(mutation.module).toString('utf8'), match = [text, JSON.stringify(readSemantic(text))];
   assert.ok(match); const model = JSON.parse(match[1]);
   const declaration = model.declarations.find(row => row.name === mutation.declaration);
   assert.equal(declaration?.kind, 'definition');
@@ -90,6 +91,6 @@ export function mutateSource(sources, id) {
   }
   // Preserve all original evaluated terms/imported axiom dependencies. The
   // mutation must reach generated behavior, not merely fail a source audit.
-  sources.set(mutation.module, Buffer.from(text.replace(match[0], '\\semanticdata{' + JSON.stringify(canonical(model)) + '}')));
+  sources.set(mutation.module, Buffer.from(writeSemantic(text, canonical(model))));
   return mutation;
 }

@@ -5,30 +5,60 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{CborError}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{BadLimits}: \texttt{()}.\par
+\noindent Constructor \texttt{BadCursor}: \texttt{()}.\par
+\noindent Constructor \texttt{Truncated}: \texttt{()}.\par
+\noindent Constructor \texttt{WrongType}: \texttt{()}.\par
+\noindent Constructor \texttt{UnsupportedHead}: \texttt{()}.\par
+\noindent Constructor \texttt{NonCanonical}: \texttt{()}.\par
+\noindent Constructor \texttt{ValueLimit}: \texttt{()}.\par
+\noindent Constructor \texttt{InvalidUtf8}: \texttt{()}.\par
+\noindent Constructor \texttt{TrailingInput}: \texttt{()}.\par
 \subsection*{\texttt{CborLimits}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{maximumInput}: \texttt{Nat}.\par
+\noindent Field \texttt{maximumOutput}: \texttt{Nat}.\par
+\noindent Field \texttt{maximumBytes}: \texttt{Nat}.\par
+\noindent Field \texttt{maximumText}: \texttt{Nat}.\par
+\noindent Field \texttt{maximumArrayItems}: \texttt{Nat}.\par
 \subsection*{\texttt{CborValue}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{Unsigned}: \texttt{(Nat)}.\par
+\noindent Constructor \texttt{ByteString}: \texttt{(ByteArray)}.\par
+\noindent Constructor \texttt{TextString}: \texttt{(String)}.\par
+\noindent Constructor \texttt{Boolean}: \texttt{(Bool)}.\par
+\noindent Constructor \texttt{Null}: \texttt{()}.\par
 \subsection*{\texttt{CborHead}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{argument}: \texttt{Nat}.\par
+\noindent Field \texttt{cursor}: \texttt{PrismPM.Foundation.Codec.BoundedCursor}.\par
 \subsection*{\texttt{CborPayload}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{bytes}: \texttt{ByteArray}.\par
+\noindent Field \texttt{cursor}: \texttt{PrismPM.Foundation.Codec.BoundedCursor}.\par
 \subsection*{\texttt{CborDecoded}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{value}: \texttt{CborValue}.\par
+\noindent Field \texttt{cursor}: \texttt{PrismPM.Foundation.Codec.BoundedCursor}.\par
 \subsection*{\texttt{CborArrayHead}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{count}: \texttt{Nat}.\par
+\noindent Field \texttt{cursor}: \texttt{PrismPM.Foundation.Codec.BoundedCursor}.\par
 \subsection*{\texttt{cborLimitsValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(limits : CborLimits)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.ble ((limits).maximumInput) (4294967295)) \&\& ((Nat.ble ((limits).maximumOutput) (4294967295)) \&\& ((Nat.ble ((limits).maximumBytes) (4294967295)) \&\& ((Nat.ble ((limits).maximumText) (4294967295)) \&\& ((Nat.ble ((limits).maximumArrayItems) (4294967295)) \&\& true)))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborCursorValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor) (limits : CborLimits)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{((Nat.ble ((LexLeanRuntime.length ((cursor).bytes) : Nat)) ((limits).maximumInput)) \&\& ((Nat.ble ((cursor).limit) ((LexLeanRuntime.length ((cursor).bytes) : Nat))) \&\& ((Nat.ble ((cursor).offset) ((cursor).limit)) \&\& true)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborOctetNat}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : UInt8)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{((((((((0 + (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd (value) ((1 : UInt8)) : UInt8)) ((1 : UInt8)) : Bool) with | Bool.false => 0 | Bool.true => 1)) + (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd (value) ((2 : UInt8)) : UInt8)) ((2 : UInt8)) : Bool) with | Bool.false => 0 | Bool.true => 2)) + (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd (value) ((4 : UInt8)) : UInt8)) ((4 : UInt8)) : Bool) with | Bool.false => 0 | Bool.true => 4)) + (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd (value) ((8 : UInt8)) : UInt8)) ((8 : UInt8)) : Bool) with | Bool.false => 0 | Bool.true => 8)) + (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd (value) ((16 : UInt8)) : UInt8)) ((16 : UInt8)) : Bool) with | Bool.false => 0 | Bool.true => 16)) + (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd (value) ((32 : UInt8)) : UInt8)) ((32 : UInt8)) : Bool) with | Bool.false => 0 | Bool.true => 32)) + (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd (value) ((64 : UInt8)) : UInt8)) ((64 : UInt8)) : Bool) with | Bool.false => 0 | Bool.true => 64)) + (match (LexLeanRuntime.equal ((LexLeanRuntime.bitAnd (value) ((128 : UInt8)) : UInt8)) ((128 : UInt8)) : Bool) with | Bool.false => 0 | Bool.true => 128))}.\par
 \noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
@@ -114,106 +144,127 @@
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborOctetBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (Nat.blt (value) (256)) with | Bool.false => ByteArray.mk \#[] | Bool.true => (match (LexLeanRuntime.slice ((match (Nat.blt (value) (128)) with | Bool.false => (match (Nat.blt (value) (192)) with | Bool.false => (match (Nat.blt (value) (224)) with | Bool.false => (match (Nat.blt (value) (240)) with | Bool.false => cborOctetTable15 | Bool.true => cborOctetTable14) | Bool.true => (match (Nat.blt (value) (208)) with | Bool.false => cborOctetTable13 | Bool.true => cborOctetTable12)) | Bool.true => (match (Nat.blt (value) (160)) with | Bool.false => (match (Nat.blt (value) (176)) with | Bool.false => cborOctetTable11 | Bool.true => cborOctetTable10) | Bool.true => (match (Nat.blt (value) (144)) with | Bool.false => cborOctetTable9 | Bool.true => cborOctetTable8))) | Bool.true => (match (Nat.blt (value) (64)) with | Bool.false => (match (Nat.blt (value) (96)) with | Bool.false => (match (Nat.blt (value) (112)) with | Bool.false => cborOctetTable7 | Bool.true => cborOctetTable6) | Bool.true => (match (Nat.blt (value) (80)) with | Bool.false => cborOctetTable5 | Bool.true => cborOctetTable4)) | Bool.true => (match (Nat.blt (value) (32)) with | Bool.false => (match (Nat.blt (value) (48)) with | Bool.false => cborOctetTable3 | Bool.true => cborOctetTable2) | Bool.true => (match (Nat.blt (value) (16)) with | Bool.false => cborOctetTable1 | Bool.true => cborOctetTable0))))) ((LexLeanRuntime.remainder (value) (16) (0) : Nat)) (1) : Option (ByteArray)) with | Option.none => ByteArray.mk \#[] | Option.some octetBytes => octetBytes))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborRead1}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor)}.\par
 \noindent Type: \texttt{Except (CborError) (CborHead)}.\par
 \noindent Definition: \texttt{(match (Nat.ble (1) ((LexLeanRuntime.subtract ((cursor).limit) ((cursor).offset) : Nat))) with | Bool.false => Except.error (CborError.Truncated) | Bool.true => (match PrismPM.Foundation.Bytes.byteAt ((cursor).bytes) (((cursor).offset + 0)) with | Option.none => Except.error (CborError.Truncated) | Option.some octet0 => Except.ok ((\{ argument := (0 + (LexLeanRuntime.multiply (cborOctetNat (octet0)) (1) : Nat)), cursor := (\{ bytes := (cursor).bytes, offset := ((cursor).offset + 1), limit := (cursor).limit \} : PrismPM.Foundation.Codec.BoundedCursor) \} : CborHead))))}.\par
 \noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
 \subsection*{\texttt{cborRead2}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor)}.\par
 \noindent Type: \texttt{Except (CborError) (CborHead)}.\par
 \noindent Definition: \texttt{(match (Nat.ble (2) ((LexLeanRuntime.subtract ((cursor).limit) ((cursor).offset) : Nat))) with | Bool.false => Except.error (CborError.Truncated) | Bool.true => (match PrismPM.Foundation.Bytes.byteAt ((cursor).bytes) (((cursor).offset + 0)) with | Option.none => Except.error (CborError.Truncated) | Option.some octet0 => (match PrismPM.Foundation.Bytes.byteAt ((cursor).bytes) (((cursor).offset + 1)) with | Option.none => Except.error (CborError.Truncated) | Option.some octet1 => Except.ok ((\{ argument := ((0 + (LexLeanRuntime.multiply (cborOctetNat (octet0)) (256) : Nat)) + (LexLeanRuntime.multiply (cborOctetNat (octet1)) (1) : Nat)), cursor := (\{ bytes := (cursor).bytes, offset := ((cursor).offset + 2), limit := (cursor).limit \} : PrismPM.Foundation.Codec.BoundedCursor) \} : CborHead)))))}.\par
 \noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
 \subsection*{\texttt{cborRead4}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor)}.\par
 \noindent Type: \texttt{Except (CborError) (CborHead)}.\par
 \noindent Definition: \texttt{(match (Nat.ble (4) ((LexLeanRuntime.subtract ((cursor).limit) ((cursor).offset) : Nat))) with | Bool.false => Except.error (CborError.Truncated) | Bool.true => (match PrismPM.Foundation.Bytes.byteAt ((cursor).bytes) (((cursor).offset + 0)) with | Option.none => Except.error (CborError.Truncated) | Option.some octet0 => (match PrismPM.Foundation.Bytes.byteAt ((cursor).bytes) (((cursor).offset + 1)) with | Option.none => Except.error (CborError.Truncated) | Option.some octet1 => (match PrismPM.Foundation.Bytes.byteAt ((cursor).bytes) (((cursor).offset + 2)) with | Option.none => Except.error (CborError.Truncated) | Option.some octet2 => (match PrismPM.Foundation.Bytes.byteAt ((cursor).bytes) (((cursor).offset + 3)) with | Option.none => Except.error (CborError.Truncated) | Option.some octet3 => Except.ok ((\{ argument := ((((0 + (LexLeanRuntime.multiply (cborOctetNat (octet0)) (16777216) : Nat)) + (LexLeanRuntime.multiply (cborOctetNat (octet1)) (65536) : Nat)) + (LexLeanRuntime.multiply (cborOctetNat (octet2)) (256) : Nat)) + (LexLeanRuntime.multiply (cborOctetNat (octet3)) (1) : Nat)), cursor := (\{ bytes := (cursor).bytes, offset := ((cursor).offset + 4), limit := (cursor).limit \} : PrismPM.Foundation.Codec.BoundedCursor) \} : CborHead)))))))}.\par
 \noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
 \subsection*{\texttt{cborReadHeadArgument}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor) (additional : Nat)}.\par
 \noindent Type: \texttt{Except (CborError) (CborHead)}.\par
 \noindent Definition: \texttt{(match (Nat.blt (additional) (24)) with | Bool.false => (match (Nat.beq (additional) (24)) with | Bool.false => (match (Nat.beq (additional) (25)) with | Bool.false => (match (Nat.beq (additional) (26)) with | Bool.false => Except.error (CborError.UnsupportedHead) | Bool.true => (match cborRead4 (cursor) with | Except.error cause => Except.error (cause) | Except.ok read => (match (Nat.ble (65536) ((read).argument)) with | Bool.false => Except.error (CborError.NonCanonical) | Bool.true => Except.ok (read)))) | Bool.true => (match cborRead2 (cursor) with | Except.error cause => Except.error (cause) | Except.ok read => (match (Nat.ble (256) ((read).argument)) with | Bool.false => Except.error (CborError.NonCanonical) | Bool.true => Except.ok (read)))) | Bool.true => (match cborRead1 (cursor) with | Except.error cause => Except.error (cause) | Except.ok read => (match (Nat.ble (24) ((read).argument)) with | Bool.false => Except.error (CborError.NonCanonical) | Bool.true => Except.ok (read)))) | Bool.true => Except.ok ((\{ argument := additional, cursor := cursor \} : CborHead)))}.\par
 \noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
 \subsection*{\texttt{cborReadHeadInitial}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor) (major : Nat) (initial : Nat)}.\par
 \noindent Type: \texttt{Except (CborError) (CborHead)}.\par
 \noindent Definition: \texttt{(match (Nat.beq ((LexLeanRuntime.quotient (initial) (32) (0) : Nat)) (major)) with | Bool.false => Except.error (CborError.WrongType) | Bool.true => cborReadHeadArgument ((\{ bytes := (cursor).bytes, offset := ((cursor).offset + 1), limit := (cursor).limit \} : PrismPM.Foundation.Codec.BoundedCursor)) ((LexLeanRuntime.remainder (initial) (32) (0) : Nat)))}.\par
 \noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
 \subsection*{\texttt{cborReadHead}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor) (limits : CborLimits) (major : Nat)}.\par
 \noindent Type: \texttt{Except (CborError) (CborHead)}.\par
 \noindent Definition: \texttt{(match cborLimitsValid (limits) with | Bool.false => Except.error (CborError.BadLimits) | Bool.true => (match cborCursorValid (cursor) (limits) with | Bool.false => Except.error (CborError.BadCursor) | Bool.true => (match (Nat.blt ((cursor).offset) ((cursor).limit)) with | Bool.false => Except.error (CborError.Truncated) | Bool.true => (match PrismPM.Foundation.Bytes.byteAt ((cursor).bytes) ((cursor).offset) with | Option.none => Except.error (CborError.Truncated) | Option.some initialByte => cborReadHeadInitial (cursor) (major) (cborOctetNat (initialByte))))))}.\par
 \noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
 \subsection*{\texttt{cborReadPayload}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(head : CborHead) (maximum : Nat)}.\par
 \noindent Type: \texttt{Except (CborError) (CborPayload)}.\par
 \noindent Definition: \texttt{(match (Nat.ble ((head).argument) (maximum)) with | Bool.false => Except.error (CborError.ValueLimit) | Bool.true => (match (Nat.ble ((head).argument) ((LexLeanRuntime.subtract (((head).cursor).limit) (((head).cursor).offset) : Nat))) with | Bool.false => Except.error (CborError.Truncated) | Bool.true => (match PrismPM.Foundation.Bytes.sliceBytes (((head).cursor).bytes) (((head).cursor).offset) ((head).argument) with | Option.none => Except.error (CborError.Truncated) | Option.some payload => Except.ok ((\{ bytes := payload, cursor := (\{ bytes := ((head).cursor).bytes, offset := (((head).cursor).offset + (head).argument), limit := ((head).cursor).limit \} : PrismPM.Foundation.Codec.BoundedCursor) \} : CborPayload)))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborReadString}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor) (limits : CborLimits) (textMode : Bool)}.\par
 \noindent Type: \texttt{Except (CborError) (CborDecoded)}.\par
 \noindent Definition: \texttt{(match cborReadHead (cursor) (limits) ((match textMode with | Bool.false => 2 | Bool.true => 3)) with | Except.error cause => Except.error (cause) | Except.ok head => (match cborReadPayload (head) ((match textMode with | Bool.false => (limits).maximumBytes | Bool.true => (limits).maximumText)) with | Except.error cause => Except.error (cause) | Except.ok payload => (match textMode with | Bool.false => Except.ok ((\{ value := CborValue.ByteString ((payload).bytes), cursor := (payload).cursor \} : CborDecoded)) | Bool.true => (match (LexLeanRuntime.utf8Decode ((payload).bytes) : Option (String)) with | Option.none => Except.error (CborError.InvalidUtf8) | Option.some textValue => Except.ok ((\{ value := CborValue.TextString (textValue), cursor := (payload).cursor \} : CborDecoded))))))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{cborReadPrimitiveInitial}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor) (limits : CborLimits) (initial : Nat)}.\par
 \noindent Type: \texttt{Except (CborError) (CborDecoded)}.\par
 \noindent Definition: \texttt{(match (Nat.beq ((LexLeanRuntime.quotient (initial) (32) (0) : Nat)) (0)) with | Bool.false => (match (Nat.beq ((LexLeanRuntime.quotient (initial) (32) (0) : Nat)) (2)) with | Bool.false => (match (Nat.beq ((LexLeanRuntime.quotient (initial) (32) (0) : Nat)) (3)) with | Bool.false => (match (Nat.beq (initial) (244)) with | Bool.false => (match (Nat.beq (initial) (245)) with | Bool.false => (match (Nat.beq (initial) (246)) with | Bool.false => Except.error (CborError.WrongType) | Bool.true => Except.ok ((\{ value := CborValue.Null, cursor := (\{ bytes := (cursor).bytes, offset := ((cursor).offset + 1), limit := (cursor).limit \} : PrismPM.Foundation.Codec.BoundedCursor) \} : CborDecoded))) | Bool.true => Except.ok ((\{ value := CborValue.Boolean (true), cursor := (\{ bytes := (cursor).bytes, offset := ((cursor).offset + 1), limit := (cursor).limit \} : PrismPM.Foundation.Codec.BoundedCursor) \} : CborDecoded))) | Bool.true => Except.ok ((\{ value := CborValue.Boolean (false), cursor := (\{ bytes := (cursor).bytes, offset := ((cursor).offset + 1), limit := (cursor).limit \} : PrismPM.Foundation.Codec.BoundedCursor) \} : CborDecoded))) | Bool.true => cborReadString (cursor) (limits) (true)) | Bool.true => cborReadString (cursor) (limits) (false)) | Bool.true => (match cborReadHead (cursor) (limits) (0) with | Except.error cause => Except.error (cause) | Except.ok head => Except.ok ((\{ value := CborValue.Unsigned ((head).argument), cursor := (head).cursor \} : CborDecoded))))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{readCborPrimitive}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor) (limits : CborLimits)}.\par
 \noindent Type: \texttt{Except (CborError) (CborDecoded)}.\par
 \noindent Definition: \texttt{(match cborLimitsValid (limits) with | Bool.false => Except.error (CborError.BadLimits) | Bool.true => (match cborCursorValid (cursor) (limits) with | Bool.false => Except.error (CborError.BadCursor) | Bool.true => (match (Nat.blt ((cursor).offset) ((cursor).limit)) with | Bool.false => Except.error (CborError.Truncated) | Bool.true => (match PrismPM.Foundation.Bytes.byteAt ((cursor).bytes) ((cursor).offset) with | Option.none => Except.error (CborError.Truncated) | Option.some initialByte => cborReadPrimitiveInitial (cursor) (limits) (cborOctetNat (initialByte))))))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{readCborArrayHead}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor) (limits : CborLimits)}.\par
 \noindent Type: \texttt{Except (CborError) (CborArrayHead)}.\par
 \noindent Definition: \texttt{(match cborReadHead (cursor) (limits) (4) with | Except.error cause => Except.error (cause) | Except.ok head => (match (Nat.ble ((head).argument) ((limits).maximumArrayItems)) with | Bool.false => Except.error (CborError.ValueLimit) | Bool.true => Except.ok ((\{ count := (head).argument, cursor := (head).cursor \} : CborArrayHead))))}.\par
 \noindent Axiom policy: \texttt{exact [Quot.sound, propext]}.\par
 \subsection*{\texttt{finishCborCursor}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(cursor : PrismPM.Foundation.Codec.BoundedCursor) (limits : CborLimits)}.\par
 \noindent Type: \texttt{Except (CborError) (Bool)}.\par
 \noindent Definition: \texttt{(match cborLimitsValid (limits) with | Bool.false => Except.error (CborError.BadLimits) | Bool.true => (match cborCursorValid (cursor) (limits) with | Bool.false => Except.error (CborError.BadCursor) | Bool.true => (match (Nat.beq ((cursor).offset) ((cursor).limit)) with | Bool.false => Except.error (CborError.TrailingInput) | Bool.true => Except.ok (true))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborHeadWidth}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{(match (Nat.blt (value) (24)) with | Bool.false => (match (Nat.ble (value) (255)) with | Bool.false => (match (Nat.ble (value) (65535)) with | Bool.false => 5 | Bool.true => 3) | Bool.true => 2) | Bool.true => 1)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborWriteHeadUnchecked}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat) (major : Nat)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match (Nat.blt (value) (24)) with | Bool.false => (match (Nat.ble (value) (255)) with | Bool.false => (match (Nat.ble (value) (65535)) with | Bool.false => (LexLeanRuntime.append (cborOctetBytes (((LexLeanRuntime.multiply (major) (32) : Nat) + 26))) ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (cborOctetBytes ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (16777216) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (cborOctetBytes ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (65536) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (cborOctetBytes ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (256) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) (cborOctetBytes ((LexLeanRuntime.remainder ((LexLeanRuntime.quotient (value) (1) (0) : Nat)) (256) (0) : Nat))) : ByteArray)) : ByteArray) | Bool.true => (LexLeanRuntime.append (cborOctetBytes (((LexLeanRuntime.multiply (major) (32) : Nat) + 25))) ((LexLeanRuntime.append (cborOctetBytes ((LexLeanRuntime.quotient (value) (256) (0) : Nat))) (cborOctetBytes ((LexLeanRuntime.remainder (value) (256) (0) : Nat))) : ByteArray)) : ByteArray)) | Bool.true => (LexLeanRuntime.append (cborOctetBytes (((LexLeanRuntime.multiply (major) (32) : Nat) + 24))) (cborOctetBytes (value)) : ByteArray)) | Bool.true => cborOctetBytes (((LexLeanRuntime.multiply (major) (32) : Nat) + value)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborWriteHead}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Nat) (major : Nat) (limits : CborLimits)}.\par
 \noindent Type: \texttt{Except (CborError) (ByteArray)}.\par
 \noindent Definition: \texttt{(match cborLimitsValid (limits) with | Bool.false => Except.error (CborError.BadLimits) | Bool.true => (match (Nat.ble (value) (4294967295)) with | Bool.false => Except.error (CborError.ValueLimit) | Bool.true => (match (Nat.ble (cborHeadWidth (value)) ((limits).maximumOutput)) with | Bool.false => Except.error (CborError.ValueLimit) | Bool.true => Except.ok (cborWriteHeadUnchecked (value) (major)))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborWritePayload}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(bytes : ByteArray) (major : Nat) (maximum : Nat) (limits : CborLimits)}.\par
 \noindent Type: \texttt{Except (CborError) (ByteArray)}.\par
 \noindent Definition: \texttt{(match (Nat.ble ((LexLeanRuntime.length (bytes) : Nat)) (maximum)) with | Bool.false => Except.error (CborError.ValueLimit) | Bool.true => (match (Nat.ble (((LexLeanRuntime.length (bytes) : Nat) + cborHeadWidth ((LexLeanRuntime.length (bytes) : Nat)))) ((limits).maximumOutput)) with | Bool.false => Except.error (CborError.ValueLimit) | Bool.true => (match cborWriteHead ((LexLeanRuntime.length (bytes) : Nat)) (major) (limits) with | Except.error cause => Except.error (cause) | Except.ok headBytes => Except.ok (PrismPM.Foundation.Bytes.appendBytes (headBytes) (bytes)))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborTextLength}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : String)}.\par
 \noindent Type: \texttt{Nat}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.length (value) : Nat)}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{cborWritePrimitiveChecked}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : CborValue) (limits : CborLimits)}.\par
 \noindent Type: \texttt{Except (CborError) (ByteArray)}.\par
 \noindent Definition: \texttt{(match value with | CborValue.Unsigned integer => cborWriteHead (integer) (0) (limits) | CborValue.ByteString payload => cborWritePayload (payload) (2) ((limits).maximumBytes) (limits) | CborValue.TextString textValue => (match (Nat.ble (cborTextLength (textValue)) ((limits).maximumText)) with | Bool.false => Except.error (CborError.ValueLimit) | Bool.true => cborWritePayload ((LexLeanRuntime.utf8Encode (textValue) : ByteArray)) (3) ((limits).maximumText) (limits)) | CborValue.Boolean boolean => (match (Nat.ble (1) ((limits).maximumOutput)) with | Bool.false => Except.error (CborError.ValueLimit) | Bool.true => Except.ok ((match boolean with | Bool.false => ByteArray.mk \#[244] | Bool.true => ByteArray.mk \#[245]))) | CborValue.Null => (match (Nat.ble (1) ((limits).maximumOutput)) with | Bool.false => Except.error (CborError.ValueLimit) | Bool.true => Except.ok (ByteArray.mk \#[246])))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{writeCborPrimitive}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : CborValue) (limits : CborLimits)}.\par
 \noindent Type: \texttt{Except (CborError) (ByteArray)}.\par
 \noindent Definition: \texttt{(match cborLimitsValid (limits) with | Bool.false => Except.error (CborError.BadLimits) | Bool.true => cborWritePrimitiveChecked (value) (limits))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{writeCborArrayHead}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(count : Nat) (limits : CborLimits)}.\par
 \noindent Type: \texttt{Except (CborError) (ByteArray)}.\par
 \noindent Definition: \texttt{(match cborLimitsValid (limits) with | Bool.false => Except.error (CborError.BadLimits) | Bool.true => (match (Nat.ble (count) ((limits).maximumArrayItems)) with | Bool.false => Except.error (CborError.ValueLimit) | Bool.true => cborWriteHead (count) (4) (limits)))}.\par
 \noindent Axiom policy: \texttt{none}.\par
@@ -224,11 +275,13 @@
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{cborCanonicalResult}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(decoded : CborDecoded)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match finishCborCursor ((decoded).cursor) (cborInvocationLimits) with | Except.error \_ => ByteArray.mk \#[] | Except.ok \_ => (match writeCborPrimitive ((decoded).value) (cborInvocationLimits) with | Except.error \_ => ByteArray.mk \#[] | Except.ok encoded => encoded))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{canonicalCborPrimitiveBytes}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(input : ByteArray)}.\par
 \noindent Type: \texttt{ByteArray}.\par
 \noindent Definition: \texttt{(match readCborPrimitive ((\{ bytes := input, offset := 0, limit := (LexLeanRuntime.length (input) : Nat) \} : PrismPM.Foundation.Codec.BoundedCursor)) (cborInvocationLimits) with | Except.error \_ => ByteArray.mk \#[] | Except.ok decoded => cborCanonicalResult (decoded))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par

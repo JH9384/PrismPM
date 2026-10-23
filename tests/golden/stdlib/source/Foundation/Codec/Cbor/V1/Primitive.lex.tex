@@ -1,10 +1,618 @@
 \begin{lexlean}{Foundation.Codec.Cbor.V1.Primitive}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Bytes}
 \importmodule{Foundation.Codec}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"constructors":[{"fields":[],"name":"BadLimits"},{"fields":[],"name":"BadCursor"},{"fields":[],"name":"Truncated"},{"fields":[],"name":"WrongType"},{"fields":[],"name":"UnsupportedHead"},{"fields":[],"name":"NonCanonical"},{"fields":[],"name":"ValueLimit"},{"fields":[],"name":"InvalidUtf8"},{"fields":[],"name":"TrailingInput"}],"kind":"inductive","name":"CborError","parameters":[],"type_parameters":[]},{"fields":[{"name":"maximumInput","type":{"kind":"nat"}},{"name":"maximumOutput","type":{"kind":"nat"}},{"name":"maximumBytes","type":{"kind":"nat"}},{"name":"maximumText","type":{"kind":"nat"}},{"name":"maximumArrayItems","type":{"kind":"nat"}}],"kind":"structure","name":"CborLimits","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[{"kind":"nat"}],"name":"Unsigned"},{"fields":[{"kind":"bytes"}],"name":"ByteString"},{"fields":[{"kind":"string"}],"name":"TextString"},{"fields":[{"kind":"bool"}],"name":"Boolean"},{"fields":[],"name":"Null"}],"kind":"inductive","name":"CborValue","parameters":[],"type_parameters":[]},{"fields":[{"name":"argument","type":{"kind":"nat"}},{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"structure","name":"CborHead","parameters":[],"type_parameters":[]},{"fields":[{"name":"bytes","type":{"kind":"bytes"}},{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"structure","name":"CborPayload","parameters":[],"type_parameters":[]},{"fields":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"CborValue"}}},{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"structure","name":"CborDecoded","parameters":[],"type_parameters":[]},{"fields":[{"name":"count","type":{"kind":"nat"}},{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"structure","name":"CborArrayHead","parameters":[],"type_parameters":[]},{"axioms":[],"body":{"kind":"and","left":{"kind":"ble","left":{"field":"maximumInput","kind":"project","value":{"kind":"var","name":"limits"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"maximumOutput","kind":"project","value":{"kind":"var","name":"limits"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"maximumBytes","kind":"project","value":{"kind":"var","name":"limits"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"maximumText","kind":"project","value":{"kind":"var","name":"limits"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"maximumArrayItems","kind":"project","value":{"kind":"var","name":"limits"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"bool","value":true}}}}}},"kind":"definition","name":"cborLimitsValid","parameters":[{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"field":"maximumInput","kind":"project","value":{"kind":"var","name":"limits"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}},"right":{"kind":"bool","value":true}}}},"kind":"definition","name":"cborCursorValid","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}}],"result":{"kind":"bool"}},{"axioms":["Quot.sound","propext"],"body":{"kind":"add","left":{"kind":"add","left":{"kind":"add","left":{"kind":"add","left":{"kind":"add","left":{"kind":"add","left":{"kind":"add","left":{"kind":"add","left":{"kind":"nat","value":"0"},"right":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"1"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"1"}],"kind":"primitive","operation":"bit_and","result":{"kind":"uint8"}},{"kind":"integer","representation":"uint8","value":"1"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}}},"right":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"2"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"2"}],"kind":"primitive","operation":"bit_and","result":{"kind":"uint8"}},{"kind":"integer","representation":"uint8","value":"2"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}}},"right":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"4"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"4"}],"kind":"primitive","operation":"bit_and","result":{"kind":"uint8"}},{"kind":"integer","representation":"uint8","value":"4"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}}},"right":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"8"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"8"}],"kind":"primitive","operation":"bit_and","result":{"kind":"uint8"}},{"kind":"integer","representation":"uint8","value":"8"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}}},"right":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"16"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"16"}],"kind":"primitive","operation":"bit_and","result":{"kind":"uint8"}},{"kind":"integer","representation":"uint8","value":"16"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}}},"right":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"32"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"32"}],"kind":"primitive","operation":"bit_and","result":{"kind":"uint8"}},{"kind":"integer","representation":"uint8","value":"32"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}}},"right":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"64"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"64"}],"kind":"primitive","operation":"bit_and","result":{"kind":"uint8"}},{"kind":"integer","representation":"uint8","value":"64"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}}},"right":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"128"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"integer","representation":"uint8","value":"128"}],"kind":"primitive","operation":"bit_and","result":{"kind":"uint8"}},{"kind":"integer","representation":"uint8","value":"128"}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}}}},"kind":"definition","name":"cborOctetNat","parameters":[{"name":"value","type":{"kind":"uint8"}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"hex":"000102030405060708090a0b0c0d0e0f","kind":"bytes"},"kind":"definition","name":"cborOctetTable0","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"101112131415161718191a1b1c1d1e1f","kind":"bytes"},"kind":"definition","name":"cborOctetTable1","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"202122232425262728292a2b2c2d2e2f","kind":"bytes"},"kind":"definition","name":"cborOctetTable2","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"303132333435363738393a3b3c3d3e3f","kind":"bytes"},"kind":"definition","name":"cborOctetTable3","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"404142434445464748494a4b4c4d4e4f","kind":"bytes"},"kind":"definition","name":"cborOctetTable4","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"505152535455565758595a5b5c5d5e5f","kind":"bytes"},"kind":"definition","name":"cborOctetTable5","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"606162636465666768696a6b6c6d6e6f","kind":"bytes"},"kind":"definition","name":"cborOctetTable6","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"707172737475767778797a7b7c7d7e7f","kind":"bytes"},"kind":"definition","name":"cborOctetTable7","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"808182838485868788898a8b8c8d8e8f","kind":"bytes"},"kind":"definition","name":"cborOctetTable8","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"909192939495969798999a9b9c9d9e9f","kind":"bytes"},"kind":"definition","name":"cborOctetTable9","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"a0a1a2a3a4a5a6a7a8a9aaabacadaeaf","kind":"bytes"},"kind":"definition","name":"cborOctetTable10","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"b0b1b2b3b4b5b6b7b8b9babbbcbdbebf","kind":"bytes"},"kind":"definition","name":"cborOctetTable11","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"c0c1c2c3c4c5c6c7c8c9cacbcccdcecf","kind":"bytes"},"kind":"definition","name":"cborOctetTable12","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"d0d1d2d3d4d5d6d7d8d9dadbdcdddedf","kind":"bytes"},"kind":"definition","name":"cborOctetTable13","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"e0e1e2e3e4e5e6e7e8e9eaebecedeeef","kind":"bytes"},"kind":"definition","name":"cborOctetTable14","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"hex":"f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff","kind":"bytes"},"kind":"definition","name":"cborOctetTable15","parameters":[],"result":{"kind":"bytes"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"hex":"","kind":"bytes"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"hex":"","kind":"bytes"},"constructor":{"name":"Option.none"}},{"binders":["octetBytes"],"body":{"kind":"var","name":"octetBytes"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable15"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable14"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"240"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable13"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable12"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"208"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"224"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable11"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable10"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"176"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable9"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable8"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"144"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"160"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"192"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable7"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable6"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"112"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable5"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable4"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"80"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"96"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable3"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable2"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"48"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable1"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[],"function":{"name":"cborOctetTable0"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"16"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"32"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"64"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"128"}}},{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"16"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"remainder","result":{"kind":"nat"}},{"kind":"nat","value":"1"}],"kind":"primitive","operation":"slice","result":{"kind":"option","value":{"kind":"bytes"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"256"}}},"kind":"definition","name":"cborOctetBytes","parameters":[{"name":"value","type":{"kind":"nat"}}],"result":{"kind":"bytes"}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["octet0"],"body":{"arguments":[{"fields":[{"field":"argument","value":{"kind":"add","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"arguments":[{"kind":"var","name":"octet0"}],"function":{"name":"cborOctetNat"},"kind":"call"},{"kind":"nat","value":"1"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}}}},{"field":"cursor","value":{"fields":[{"field":"bytes","value":{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}}},{"field":"offset","value":{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"1"}}},{"field":"limit","value":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}}],"kind":"record","type":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"record","type":{"name":"CborHead"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}},{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"0"}}],"function":{"module":"Foundation.Bytes","name":"byteAt"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"nat","value":"1"},"right":{"arguments":[{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}},{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}}],"kind":"primitive","operation":"subtract","result":{"kind":"nat"}}}},"kind":"definition","name":"cborRead1","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborHead"}}}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["octet0"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["octet1"],"body":{"arguments":[{"fields":[{"field":"argument","value":{"kind":"add","left":{"kind":"add","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"arguments":[{"kind":"var","name":"octet0"}],"function":{"name":"cborOctetNat"},"kind":"call"},{"kind":"nat","value":"256"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}}},"right":{"arguments":[{"arguments":[{"kind":"var","name":"octet1"}],"function":{"name":"cborOctetNat"},"kind":"call"},{"kind":"nat","value":"1"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}}}},{"field":"cursor","value":{"fields":[{"field":"bytes","value":{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}}},{"field":"offset","value":{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"2"}}},{"field":"limit","value":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}}],"kind":"record","type":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"record","type":{"name":"CborHead"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}},{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"1"}}],"function":{"module":"Foundation.Bytes","name":"byteAt"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}},{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"0"}}],"function":{"module":"Foundation.Bytes","name":"byteAt"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"nat","value":"2"},"right":{"arguments":[{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}},{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}}],"kind":"primitive","operation":"subtract","result":{"kind":"nat"}}}},"kind":"definition","name":"cborRead2","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborHead"}}}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["octet0"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["octet1"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["octet2"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["octet3"],"body":{"arguments":[{"fields":[{"field":"argument","value":{"kind":"add","left":{"kind":"add","left":{"kind":"add","left":{"kind":"add","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"arguments":[{"kind":"var","name":"octet0"}],"function":{"name":"cborOctetNat"},"kind":"call"},{"kind":"nat","value":"16777216"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}}},"right":{"arguments":[{"arguments":[{"kind":"var","name":"octet1"}],"function":{"name":"cborOctetNat"},"kind":"call"},{"kind":"nat","value":"65536"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}}},"right":{"arguments":[{"arguments":[{"kind":"var","name":"octet2"}],"function":{"name":"cborOctetNat"},"kind":"call"},{"kind":"nat","value":"256"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}}},"right":{"arguments":[{"arguments":[{"kind":"var","name":"octet3"}],"function":{"name":"cborOctetNat"},"kind":"call"},{"kind":"nat","value":"1"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}}}},{"field":"cursor","value":{"fields":[{"field":"bytes","value":{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}}},{"field":"offset","value":{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"4"}}},{"field":"limit","value":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}}],"kind":"record","type":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"record","type":{"name":"CborHead"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}},{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"3"}}],"function":{"module":"Foundation.Bytes","name":"byteAt"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}},{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"2"}}],"function":{"module":"Foundation.Bytes","name":"byteAt"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}},{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"1"}}],"function":{"module":"Foundation.Bytes","name":"byteAt"},"kind":"call"}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}},{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"0"}}],"function":{"module":"Foundation.Bytes","name":"byteAt"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"nat","value":"4"},"right":{"arguments":[{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}},{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}}],"kind":"primitive","operation":"subtract","result":{"kind":"nat"}}}},"kind":"definition","name":"cborRead4","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborHead"}}}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.UnsupportedHead"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":["cause"],"body":{"arguments":[{"kind":"var","name":"cause"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Result.error"}},{"binders":["read"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.NonCanonical"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"read"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"nat","value":"65536"},"right":{"field":"argument","kind":"project","value":{"kind":"var","name":"read"}}}},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"cursor"}],"function":{"name":"cborRead4"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"additional"},"right":{"kind":"nat","value":"26"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":["cause"],"body":{"arguments":[{"kind":"var","name":"cause"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Result.error"}},{"binders":["read"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.NonCanonical"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"read"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"nat","value":"256"},"right":{"field":"argument","kind":"project","value":{"kind":"var","name":"read"}}}},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"cursor"}],"function":{"name":"cborRead2"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"additional"},"right":{"kind":"nat","value":"25"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":["cause"],"body":{"arguments":[{"kind":"var","name":"cause"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Result.error"}},{"binders":["read"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.NonCanonical"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"read"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"nat","value":"24"},"right":{"field":"argument","kind":"project","value":{"kind":"var","name":"read"}}}},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"cursor"}],"function":{"name":"cborRead1"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"additional"},"right":{"kind":"nat","value":"24"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"argument","value":{"kind":"var","name":"additional"}},{"field":"cursor","value":{"kind":"var","name":"cursor"}}],"kind":"record","type":{"name":"CborHead"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"additional"},"right":{"kind":"nat","value":"24"}}},"kind":"definition","name":"cborReadHeadArgument","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}},{"name":"additional","type":{"kind":"nat"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborHead"}}}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.WrongType"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"bytes","value":{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}}},{"field":"offset","value":{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"1"}}},{"field":"limit","value":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}}],"kind":"record","type":{"module":"Foundation.Codec","name":"BoundedCursor"}},{"arguments":[{"kind":"var","name":"initial"},{"kind":"nat","value":"32"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"remainder","result":{"kind":"nat"}}],"function":{"name":"cborReadHeadArgument"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"initial"},{"kind":"nat","value":"32"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}},"right":{"kind":"var","name":"major"}}},"kind":"definition","name":"cborReadHeadInitial","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}},{"name":"major","type":{"kind":"nat"}},{"name":"initial","type":{"kind":"nat"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborHead"}}}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.BadLimits"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.BadCursor"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["initialByte"],"body":{"arguments":[{"kind":"var","name":"cursor"},{"kind":"var","name":"major"},{"arguments":[{"kind":"var","name":"initialByte"}],"function":{"name":"cborOctetNat"},"kind":"call"}],"function":{"name":"cborReadHeadInitial"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}},{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}}],"function":{"module":"Foundation.Bytes","name":"byteAt"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"cursor"},{"kind":"var","name":"limits"}],"function":{"name":"cborCursorValid"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"limits"}],"function":{"name":"cborLimitsValid"},"kind":"call"}},"kind":"definition","name":"cborReadHead","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}},{"name":"major","type":{"kind":"nat"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborHead"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.ValueLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborPayload"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborPayload"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborPayload"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["payload"],"body":{"arguments":[{"fields":[{"field":"bytes","value":{"kind":"var","name":"payload"}},{"field":"cursor","value":{"fields":[{"field":"bytes","value":{"field":"bytes","kind":"project","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"head"}}}},{"field":"offset","value":{"kind":"add","left":{"field":"offset","kind":"project","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"head"}}},"right":{"field":"argument","kind":"project","value":{"kind":"var","name":"head"}}}},{"field":"limit","value":{"field":"limit","kind":"project","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"head"}}}}],"kind":"record","type":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"record","type":{"name":"CborPayload"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborPayload"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"head"}}},{"field":"offset","kind":"project","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"head"}}},{"field":"argument","kind":"project","value":{"kind":"var","name":"head"}}],"function":{"module":"Foundation.Bytes","name":"sliceBytes"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"field":"argument","kind":"project","value":{"kind":"var","name":"head"}},"right":{"arguments":[{"field":"limit","kind":"project","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"head"}}},{"field":"offset","kind":"project","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"head"}}}],"kind":"primitive","operation":"subtract","result":{"kind":"nat"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"field":"argument","kind":"project","value":{"kind":"var","name":"head"}},"right":{"kind":"var","name":"maximum"}}},"kind":"definition","name":"cborReadPayload","parameters":[{"name":"head","type":{"arguments":[],"kind":"named","member":{"name":"CborHead"}}},{"name":"maximum","type":{"kind":"nat"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborPayload"}}}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"branches":[{"binders":["cause"],"body":{"arguments":[{"kind":"var","name":"cause"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Result.error"}},{"binders":["head"],"body":{"branches":[{"binders":["cause"],"body":{"arguments":[{"kind":"var","name":"cause"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Result.error"}},{"binders":["payload"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"fields":[{"field":"value","value":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"payload"}}],"constructor":{"name":"CborValue.ByteString"},"kind":"constructor"}},{"field":"cursor","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"payload"}}}],"kind":"record","type":{"name":"CborDecoded"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.InvalidUtf8"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["textValue"],"body":{"arguments":[{"fields":[{"field":"value","value":{"arguments":[{"kind":"var","name":"textValue"}],"constructor":{"name":"CborValue.TextString"},"kind":"constructor"}},{"field":"cursor","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"payload"}}}],"kind":"record","type":{"name":"CborDecoded"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"payload"}}],"kind":"primitive","operation":"utf8_decode","result":{"kind":"option","value":{"kind":"string"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"var","name":"textMode"}},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"head"},{"branches":[{"binders":[],"body":{"field":"maximumBytes","kind":"project","value":{"kind":"var","name":"limits"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"field":"maximumText","kind":"project","value":{"kind":"var","name":"limits"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"var","name":"textMode"}}],"function":{"name":"cborReadPayload"},"kind":"call"}},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"cursor"},{"kind":"var","name":"limits"},{"branches":[{"binders":[],"body":{"kind":"nat","value":"2"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"3"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"var","name":"textMode"}}],"function":{"name":"cborReadHead"},"kind":"call"}},"kind":"definition","name":"cborReadString","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}},{"name":"textMode","type":{"kind":"bool"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}}}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.WrongType"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"value","value":{"arguments":[],"constructor":{"name":"CborValue.Null"},"kind":"constructor"}},{"field":"cursor","value":{"fields":[{"field":"bytes","value":{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}}},{"field":"offset","value":{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"1"}}},{"field":"limit","value":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}}],"kind":"record","type":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"record","type":{"name":"CborDecoded"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"initial"},"right":{"kind":"nat","value":"246"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"value","value":{"arguments":[{"kind":"bool","value":true}],"constructor":{"name":"CborValue.Boolean"},"kind":"constructor"}},{"field":"cursor","value":{"fields":[{"field":"bytes","value":{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}}},{"field":"offset","value":{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"1"}}},{"field":"limit","value":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}}],"kind":"record","type":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"record","type":{"name":"CborDecoded"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"initial"},"right":{"kind":"nat","value":"245"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"value","value":{"arguments":[{"kind":"bool","value":false}],"constructor":{"name":"CborValue.Boolean"},"kind":"constructor"}},{"field":"cursor","value":{"fields":[{"field":"bytes","value":{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}}},{"field":"offset","value":{"kind":"add","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"kind":"nat","value":"1"}}},{"field":"limit","value":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}}],"kind":"record","type":{"module":"Foundation.Codec","name":"BoundedCursor"}}}],"kind":"record","type":{"name":"CborDecoded"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"kind":"var","name":"initial"},"right":{"kind":"nat","value":"244"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"cursor"},{"kind":"var","name":"limits"},{"kind":"bool","value":true}],"function":{"name":"cborReadString"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"initial"},{"kind":"nat","value":"32"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}},"right":{"kind":"nat","value":"3"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"cursor"},{"kind":"var","name":"limits"},{"kind":"bool","value":false}],"function":{"name":"cborReadString"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"initial"},{"kind":"nat","value":"32"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}},"right":{"kind":"nat","value":"2"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":["cause"],"body":{"arguments":[{"kind":"var","name":"cause"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Result.error"}},{"binders":["head"],"body":{"arguments":[{"fields":[{"field":"value","value":{"arguments":[{"field":"argument","kind":"project","value":{"kind":"var","name":"head"}}],"constructor":{"name":"CborValue.Unsigned"},"kind":"constructor"}},{"field":"cursor","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"head"}}}],"kind":"record","type":{"name":"CborDecoded"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"cursor"},{"kind":"var","name":"limits"},{"kind":"nat","value":"0"}],"function":{"name":"cborReadHead"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"arguments":[{"kind":"var","name":"initial"},{"kind":"nat","value":"32"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}},"right":{"kind":"nat","value":"0"}}},"kind":"definition","name":"cborReadPrimitiveInitial","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}},{"name":"initial","type":{"kind":"nat"}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}}}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.BadLimits"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.BadCursor"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.Truncated"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Option.none"}},{"binders":["initialByte"],"body":{"arguments":[{"kind":"var","name":"cursor"},{"kind":"var","name":"limits"},{"arguments":[{"kind":"var","name":"initialByte"}],"function":{"name":"cborOctetNat"},"kind":"call"}],"function":{"name":"cborReadPrimitiveInitial"},"kind":"call"},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"bytes","kind":"project","value":{"kind":"var","name":"cursor"}},{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}}],"function":{"module":"Foundation.Bytes","name":"byteAt"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"cursor"},{"kind":"var","name":"limits"}],"function":{"name":"cborCursorValid"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"limits"}],"function":{"name":"cborLimitsValid"},"kind":"call"}},"kind":"definition","name":"readCborPrimitive","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}}}},{"axioms":["Quot.sound","propext"],"body":{"branches":[{"binders":["cause"],"body":{"arguments":[{"kind":"var","name":"cause"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborArrayHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Result.error"}},{"binders":["head"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.ValueLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborArrayHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"count","value":{"field":"argument","kind":"project","value":{"kind":"var","name":"head"}}},{"field":"cursor","value":{"field":"cursor","kind":"project","value":{"kind":"var","name":"head"}}}],"kind":"record","type":{"name":"CborArrayHead"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"CborArrayHead"}},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"field":"argument","kind":"project","value":{"kind":"var","name":"head"}},"right":{"field":"maximumArrayItems","kind":"project","value":{"kind":"var","name":"limits"}}}},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"cursor"},{"kind":"var","name":"limits"},{"kind":"nat","value":"4"}],"function":{"name":"cborReadHead"},"kind":"call"}},"kind":"definition","name":"readCborArrayHead","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"arguments":[],"kind":"named","member":{"name":"CborArrayHead"}}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.BadLimits"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.BadCursor"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.TrailingInput"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"bool","value":true}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"kind":"bool"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"offset","kind":"project","value":{"kind":"var","name":"cursor"}},"right":{"field":"limit","kind":"project","value":{"kind":"var","name":"cursor"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"cursor"},{"kind":"var","name":"limits"}],"function":{"name":"cborCursorValid"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"limits"}],"function":{"name":"cborLimitsValid"},"kind":"call"}},"kind":"definition","name":"finishCborCursor","parameters":[{"name":"cursor","type":{"arguments":[],"kind":"named","member":{"module":"Foundation.Codec","name":"BoundedCursor"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"kind":"bool"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"5"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"3"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"65535"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"2"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"255"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"kind":"nat","value":"1"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"24"}}},"kind":"definition","name":"cborHeadWidth","parameters":[{"name":"value","type":{"kind":"nat"}}],"result":{"kind":"nat"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[{"kind":"add","left":{"arguments":[{"kind":"var","name":"major"},{"kind":"nat","value":"32"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}},"right":{"kind":"nat","value":"26"}}],"function":{"name":"cborOctetBytes"},"kind":"call"},{"arguments":[{"arguments":[{"arguments":[{"arguments":[{"hex":"","kind":"bytes"},{"arguments":[{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"16777216"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}},{"kind":"nat","value":"256"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"remainder","result":{"kind":"nat"}}],"function":{"name":"cborOctetBytes"},"kind":"call"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},{"arguments":[{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"65536"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}},{"kind":"nat","value":"256"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"remainder","result":{"kind":"nat"}}],"function":{"name":"cborOctetBytes"},"kind":"call"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},{"arguments":[{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"256"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}},{"kind":"nat","value":"256"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"remainder","result":{"kind":"nat"}}],"function":{"name":"cborOctetBytes"},"kind":"call"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},{"arguments":[{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"1"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}},{"kind":"nat","value":"256"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"remainder","result":{"kind":"nat"}}],"function":{"name":"cborOctetBytes"},"kind":"call"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[{"kind":"add","left":{"arguments":[{"kind":"var","name":"major"},{"kind":"nat","value":"32"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}},"right":{"kind":"nat","value":"25"}}],"function":{"name":"cborOctetBytes"},"kind":"call"},{"arguments":[{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"256"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"quotient","result":{"kind":"nat"}}],"function":{"name":"cborOctetBytes"},"kind":"call"},{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"nat","value":"256"},{"kind":"nat","value":"0"}],"kind":"primitive","operation":"remainder","result":{"kind":"nat"}}],"function":{"name":"cborOctetBytes"},"kind":"call"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"65535"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[{"kind":"add","left":{"arguments":[{"kind":"var","name":"major"},{"kind":"nat","value":"32"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}},"right":{"kind":"nat","value":"24"}}],"function":{"name":"cborOctetBytes"},"kind":"call"},{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"cborOctetBytes"},"kind":"call"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"255"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"add","left":{"arguments":[{"kind":"var","name":"major"},{"kind":"nat","value":"32"}],"kind":"primitive","operation":"multiply","result":{"kind":"nat"}},"right":{"kind":"var","name":"value"}}],"function":{"name":"cborOctetBytes"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"24"}}},"kind":"definition","name":"cborWriteHeadUnchecked","parameters":[{"name":"value","type":{"kind":"nat"}},{"name":"major","type":{"kind":"nat"}}],"result":{"kind":"bytes"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.BadLimits"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.ValueLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.ValueLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"major"}],"function":{"name":"cborWriteHeadUnchecked"},"kind":"call"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"value"}],"function":{"name":"cborHeadWidth"},"kind":"call"},"right":{"field":"maximumOutput","kind":"project","value":{"kind":"var","name":"limits"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"var","name":"value"},"right":{"kind":"nat","value":"4294967295"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"limits"}],"function":{"name":"cborLimitsValid"},"kind":"call"}},"kind":"definition","name":"cborWriteHead","parameters":[{"name":"value","type":{"kind":"nat"}},{"name":"major","type":{"kind":"nat"}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"kind":"bytes"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.ValueLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.ValueLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":["cause"],"body":{"arguments":[{"kind":"var","name":"cause"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Result.error"}},{"binders":["headBytes"],"body":{"arguments":[{"arguments":[{"kind":"var","name":"headBytes"},{"kind":"var","name":"bytes"}],"function":{"module":"Foundation.Bytes","name":"appendBytes"},"kind":"call"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"arguments":[{"kind":"var","name":"bytes"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},{"kind":"var","name":"major"},{"kind":"var","name":"limits"}],"function":{"name":"cborWriteHead"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"add","left":{"arguments":[{"kind":"var","name":"bytes"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"arguments":[{"arguments":[{"kind":"var","name":"bytes"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}],"function":{"name":"cborHeadWidth"},"kind":"call"}},"right":{"field":"maximumOutput","kind":"project","value":{"kind":"var","name":"limits"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"bytes"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"var","name":"maximum"}}},"kind":"definition","name":"cborWritePayload","parameters":[{"name":"bytes","type":{"kind":"bytes"}},{"name":"major","type":{"kind":"nat"}},{"name":"maximum","type":{"kind":"nat"}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"kind":"bytes"}}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"kind":"definition","name":"cborTextLength","parameters":[{"name":"value","type":{"kind":"string"}}],"result":{"kind":"nat"}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"branches":[{"binders":["integer"],"body":{"arguments":[{"kind":"var","name":"integer"},{"kind":"nat","value":"0"},{"kind":"var","name":"limits"}],"function":{"name":"cborWriteHead"},"kind":"call"},"constructor":{"name":"CborValue.Unsigned"}},{"binders":["payload"],"body":{"arguments":[{"kind":"var","name":"payload"},{"kind":"nat","value":"2"},{"field":"maximumBytes","kind":"project","value":{"kind":"var","name":"limits"}},{"kind":"var","name":"limits"}],"function":{"name":"cborWritePayload"},"kind":"call"},"constructor":{"name":"CborValue.ByteString"}},{"binders":["textValue"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.ValueLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"arguments":[{"kind":"var","name":"textValue"}],"kind":"primitive","operation":"utf8_encode","result":{"kind":"bytes"}},{"kind":"nat","value":"3"},{"field":"maximumText","kind":"project","value":{"kind":"var","name":"limits"}},{"kind":"var","name":"limits"}],"function":{"name":"cborWritePayload"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"textValue"}],"function":{"name":"cborTextLength"},"kind":"call"},"right":{"field":"maximumText","kind":"project","value":{"kind":"var","name":"limits"}}}},"constructor":{"name":"CborValue.TextString"}},{"binders":["boolean"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.ValueLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"branches":[{"binders":[],"body":{"hex":"f4","kind":"bytes"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"hex":"f5","kind":"bytes"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"var","name":"boolean"}}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"nat","value":"1"},"right":{"field":"maximumOutput","kind":"project","value":{"kind":"var","name":"limits"}}}},"constructor":{"name":"CborValue.Boolean"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.ValueLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"hex":"f6","kind":"bytes"}],"constructor":{"name":"Result.ok"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"nat","value":"1"},"right":{"field":"maximumOutput","kind":"project","value":{"kind":"var","name":"limits"}}}},"constructor":{"name":"CborValue.Null"}}],"kind":"match","scrutinee":{"kind":"var","name":"value"}},"kind":"definition","name":"cborWritePrimitiveChecked","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"CborValue"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"kind":"bytes"}}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.BadLimits"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"value"},{"kind":"var","name":"limits"}],"function":{"name":"cborWritePrimitiveChecked"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"limits"}],"function":{"name":"cborLimitsValid"},"kind":"call"}},"kind":"definition","name":"writeCborPrimitive","parameters":[{"name":"value","type":{"arguments":[],"kind":"named","member":{"name":"CborValue"}}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"kind":"bytes"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.BadLimits"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"CborError.ValueLimit"},"kind":"constructor"}],"constructor":{"name":"Result.error"},"kind":"constructor","type_arguments":[{"kind":"bytes"},{"arguments":[],"kind":"named","member":{"name":"CborError"}}]},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"count"},{"kind":"nat","value":"4"},{"kind":"var","name":"limits"}],"function":{"name":"cborWriteHead"},"kind":"call"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"var","name":"count"},"right":{"field":"maximumArrayItems","kind":"project","value":{"kind":"var","name":"limits"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"limits"}],"function":{"name":"cborLimitsValid"},"kind":"call"}},"kind":"definition","name":"writeCborArrayHead","parameters":[{"name":"count","type":{"kind":"nat"}},{"name":"limits","type":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}}],"result":{"error":{"arguments":[],"kind":"named","member":{"name":"CborError"}},"kind":"result","ok":{"kind":"bytes"}}},{"axioms":[],"body":{"fields":[{"field":"maximumInput","value":{"kind":"nat","value":"4202618"}},{"field":"maximumOutput","value":{"kind":"nat","value":"4202617"}},{"field":"maximumBytes","value":{"kind":"nat","value":"4202612"}},{"field":"maximumText","value":{"kind":"nat","value":"4202612"}},{"field":"maximumArrayItems","value":{"kind":"nat","value":"4294967295"}}],"kind":"record","type":{"name":"CborLimits"}},"kind":"definition","name":"cborInvocationLimits","parameters":[],"result":{"arguments":[],"kind":"named","member":{"name":"CborLimits"}}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"branches":[{"binders":["unusedFinishError"],"body":{"hex":"","kind":"bytes"},"constructor":{"name":"Result.error"}},{"binders":["unusedFinished"],"body":{"branches":[{"binders":["unusedEncodeError"],"body":{"hex":"","kind":"bytes"},"constructor":{"name":"Result.error"}},{"binders":["encoded"],"body":{"kind":"var","name":"encoded"},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"field":"value","kind":"project","value":{"kind":"var","name":"decoded"}},{"arguments":[],"function":{"name":"cborInvocationLimits"},"kind":"call"}],"function":{"name":"writeCborPrimitive"},"kind":"call"}},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"field":"cursor","kind":"project","value":{"kind":"var","name":"decoded"}},{"arguments":[],"function":{"name":"cborInvocationLimits"},"kind":"call"}],"function":{"name":"finishCborCursor"},"kind":"call"}},"kind":"definition","name":"cborCanonicalResult","parameters":[{"name":"decoded","type":{"arguments":[],"kind":"named","member":{"name":"CborDecoded"}}}],"result":{"kind":"bytes"}},{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"branches":[{"binders":["unusedDecodeError"],"body":{"hex":"","kind":"bytes"},"constructor":{"name":"Result.error"}},{"binders":["decoded"],"body":{"arguments":[{"kind":"var","name":"decoded"}],"function":{"name":"cborCanonicalResult"},"kind":"call"},"constructor":{"name":"Result.ok"}}],"kind":"match","scrutinee":{"arguments":[{"fields":[{"field":"bytes","value":{"kind":"var","name":"input"}},{"field":"offset","value":{"kind":"nat","value":"0"}},{"field":"limit","value":{"arguments":[{"kind":"var","name":"input"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}}],"kind":"record","type":{"module":"Foundation.Codec","name":"BoundedCursor"}},{"arguments":[],"function":{"name":"cborInvocationLimits"},"kind":"call"}],"function":{"name":"readCborPrimitive"},"kind":"call"}},"kind":"definition","name":"canonicalCborPrimitiveBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}}],"spec":"lexlean/semantic-module/1"}}
+inductive{
+  name: CborError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BadLimits, fields: []},
+    {name: BadCursor, fields: []},
+    {name: Truncated, fields: []},
+    {name: WrongType, fields: []},
+    {name: UnsupportedHead, fields: []},
+    {name: NonCanonical, fields: []},
+    {name: ValueLimit, fields: []},
+    {name: InvalidUtf8, fields: []},
+    {name: TrailingInput, fields: []}
+  ]
+}
+
+structure{
+  name: CborLimits,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: maximumInput, type: Nat},
+    {name: maximumOutput, type: Nat},
+    {name: maximumBytes, type: Nat},
+    {name: maximumText, type: Nat},
+    {name: maximumArrayItems, type: Nat}
+  ]
+}
+
+inductive{
+  name: CborValue,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Unsigned, fields: [Nat]},
+    {name: ByteString, fields: [Bytes]},
+    {name: TextString, fields: [String]},
+    {name: Boolean, fields: [Bool]},
+    {name: Null, fields: []}
+  ]
+}
+
+structure{
+  name: CborHead,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: argument, type: Nat}, {name: cursor, type: Foundation.Codec::BoundedCursor}]
+}
+
+structure{
+  name: CborPayload,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: bytes, type: Bytes}, {name: cursor, type: Foundation.Codec::BoundedCursor}]
+}
+
+structure{
+  name: CborDecoded,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: value, type: CborValue}, {name: cursor, type: Foundation.Codec::BoundedCursor}]
+}
+
+structure{
+  name: CborArrayHead,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: count, type: Nat}, {name: cursor, type: Foundation.Codec::BoundedCursor}]
+}
+
+definition{
+  name: cborLimitsValid,
+  parameters: [limits : CborLimits],
+  result: Bool,
+  body: (((project limits maximumInput) <=? 4294967295) && (((project limits maximumOutput) <=? 4294967295) && (((project limits maximumBytes) <=? 4294967295) && (((project limits maximumText) <=? 4294967295) && (((project limits maximumArrayItems) <=? 4294967295) && true))))),
+  axioms: []
+}
+
+definition{
+  name: cborCursorValid,
+  parameters: [cursor : Foundation.Codec::BoundedCursor, limits : CborLimits],
+  result: Bool,
+  body: (((prim length (project cursor bytes) : Nat) <=? (project limits maximumInput)) && (((project cursor limit) <=? (prim length (project cursor bytes) : Nat)) && (((project cursor offset) <=? (project cursor limit)) && true))),
+  axioms: []
+}
+
+definition{
+  name: cborOctetNat,
+  parameters: [value : UInt8],
+  result: Nat,
+  body: ((((((((0 + (match (prim equal (prim bit_and value (1 : UInt8) : UInt8) (1 : UInt8) : Bool)
+    | Bool.false => 0
+    | Bool.true => 1)) + (match (prim equal (prim bit_and value (2 : UInt8) : UInt8) (2 : UInt8) : Bool)
+    | Bool.false => 0
+    | Bool.true => 2)) + (match (prim equal (prim bit_and value (4 : UInt8) : UInt8) (4 : UInt8) : Bool)
+    | Bool.false => 0
+    | Bool.true => 4)) + (match (prim equal (prim bit_and value (8 : UInt8) : UInt8) (8 : UInt8) : Bool)
+    | Bool.false => 0
+    | Bool.true => 8)) + (match (prim equal (prim bit_and value (16 : UInt8) : UInt8) (16 : UInt8) : Bool)
+    | Bool.false => 0
+    | Bool.true => 16)) + (match (prim equal (prim bit_and value (32 : UInt8) : UInt8) (32 : UInt8) : Bool)
+    | Bool.false => 0
+    | Bool.true => 32)) + (match (prim equal (prim bit_and value (64 : UInt8) : UInt8) (64 : UInt8) : Bool)
+    | Bool.false => 0
+    | Bool.true => 64)) + (match (prim equal (prim bit_and value (128 : UInt8) : UInt8) (128 : UInt8) : Bool)
+    | Bool.false => 0
+    | Bool.true => 128)),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: cborOctetTable0,
+  parameters: [],
+  result: Bytes,
+  body: 0x000102030405060708090a0b0c0d0e0f,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable1,
+  parameters: [],
+  result: Bytes,
+  body: 0x101112131415161718191a1b1c1d1e1f,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable2,
+  parameters: [],
+  result: Bytes,
+  body: 0x202122232425262728292a2b2c2d2e2f,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable3,
+  parameters: [],
+  result: Bytes,
+  body: 0x303132333435363738393a3b3c3d3e3f,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable4,
+  parameters: [],
+  result: Bytes,
+  body: 0x404142434445464748494a4b4c4d4e4f,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable5,
+  parameters: [],
+  result: Bytes,
+  body: 0x505152535455565758595a5b5c5d5e5f,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable6,
+  parameters: [],
+  result: Bytes,
+  body: 0x606162636465666768696a6b6c6d6e6f,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable7,
+  parameters: [],
+  result: Bytes,
+  body: 0x707172737475767778797a7b7c7d7e7f,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable8,
+  parameters: [],
+  result: Bytes,
+  body: 0x808182838485868788898a8b8c8d8e8f,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable9,
+  parameters: [],
+  result: Bytes,
+  body: 0x909192939495969798999a9b9c9d9e9f,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable10,
+  parameters: [],
+  result: Bytes,
+  body: 0xa0a1a2a3a4a5a6a7a8a9aaabacadaeaf,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable11,
+  parameters: [],
+  result: Bytes,
+  body: 0xb0b1b2b3b4b5b6b7b8b9babbbcbdbebf,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable12,
+  parameters: [],
+  result: Bytes,
+  body: 0xc0c1c2c3c4c5c6c7c8c9cacbcccdcecf,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable13,
+  parameters: [],
+  result: Bytes,
+  body: 0xd0d1d2d3d4d5d6d7d8d9dadbdcdddedf,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable14,
+  parameters: [],
+  result: Bytes,
+  body: 0xe0e1e2e3e4e5e6e7e8e9eaebecedeeef,
+  axioms: []
+}
+
+definition{
+  name: cborOctetTable15,
+  parameters: [],
+  result: Bytes,
+  body: 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff,
+  axioms: []
+}
+
+definition{
+  name: cborOctetBytes,
+  parameters: [value : Nat],
+  result: Bytes,
+  body: (match (value <? 256)
+    | Bool.false => 0x
+    | Bool.true => (match (prim slice (match (value <? 128)
+        | Bool.false => (match (value <? 192)
+          | Bool.false => (match (value <? 224)
+            | Bool.false => (match (value <? 240)
+              | Bool.false => (cborOctetTable15)
+              | Bool.true => (cborOctetTable14))
+            | Bool.true => (match (value <? 208)
+              | Bool.false => (cborOctetTable13)
+              | Bool.true => (cborOctetTable12)))
+          | Bool.true => (match (value <? 160)
+            | Bool.false => (match (value <? 176)
+              | Bool.false => (cborOctetTable11)
+              | Bool.true => (cborOctetTable10))
+            | Bool.true => (match (value <? 144)
+              | Bool.false => (cborOctetTable9)
+              | Bool.true => (cborOctetTable8))))
+        | Bool.true => (match (value <? 64)
+          | Bool.false => (match (value <? 96)
+            | Bool.false => (match (value <? 112)
+              | Bool.false => (cborOctetTable7)
+              | Bool.true => (cborOctetTable6))
+            | Bool.true => (match (value <? 80)
+              | Bool.false => (cborOctetTable5)
+              | Bool.true => (cborOctetTable4)))
+          | Bool.true => (match (value <? 32)
+            | Bool.false => (match (value <? 48)
+              | Bool.false => (cborOctetTable3)
+              | Bool.true => (cborOctetTable2))
+            | Bool.true => (match (value <? 16)
+              | Bool.false => (cborOctetTable1)
+              | Bool.true => (cborOctetTable0))))) (prim remainder value 16 0 : Nat) 1 : (Option Bytes))
+      | Option.none => 0x
+      | Option.some octetBytes => octetBytes)),
+  axioms: []
+}
+
+definition{
+  name: cborRead1,
+  parameters: [cursor : Foundation.Codec::BoundedCursor],
+  result: (Result CborHead CborError),
+  body: (match (1 <=? (prim subtract (project cursor limit) (project cursor offset) : Nat))
+    | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+    | Bool.true => (match (Foundation.Bytes::byteAt (project cursor bytes) ((project cursor offset) + 0))
+      | Option.none => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+      | Option.some octet0 => (ctor Result.ok [CborHead, CborError] (record CborHead {argument := (0 + (prim multiply (cborOctetNat octet0) 1 : Nat)), cursor := (record Foundation.Codec::BoundedCursor {bytes := (project cursor bytes), offset := ((project cursor offset) + 1), limit := (project cursor limit)})})))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: cborRead2,
+  parameters: [cursor : Foundation.Codec::BoundedCursor],
+  result: (Result CborHead CborError),
+  body: (match (2 <=? (prim subtract (project cursor limit) (project cursor offset) : Nat))
+    | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+    | Bool.true => (match (Foundation.Bytes::byteAt (project cursor bytes) ((project cursor offset) + 0))
+      | Option.none => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+      | Option.some octet0 => (match (Foundation.Bytes::byteAt (project cursor bytes) ((project cursor offset) + 1))
+        | Option.none => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+        | Option.some octet1 => (ctor Result.ok [CborHead, CborError] (record CborHead {argument := ((0 + (prim multiply (cborOctetNat octet0) 256 : Nat)) + (prim multiply (cborOctetNat octet1) 1 : Nat)), cursor := (record Foundation.Codec::BoundedCursor {bytes := (project cursor bytes), offset := ((project cursor offset) + 2), limit := (project cursor limit)})}))))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: cborRead4,
+  parameters: [cursor : Foundation.Codec::BoundedCursor],
+  result: (Result CborHead CborError),
+  body: (match (4 <=? (prim subtract (project cursor limit) (project cursor offset) : Nat))
+    | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+    | Bool.true => (match (Foundation.Bytes::byteAt (project cursor bytes) ((project cursor offset) + 0))
+      | Option.none => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+      | Option.some octet0 => (match (Foundation.Bytes::byteAt (project cursor bytes) ((project cursor offset) + 1))
+        | Option.none => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+        | Option.some octet1 => (match (Foundation.Bytes::byteAt (project cursor bytes) ((project cursor offset) + 2))
+          | Option.none => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+          | Option.some octet2 => (match (Foundation.Bytes::byteAt (project cursor bytes) ((project cursor offset) + 3))
+            | Option.none => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+            | Option.some octet3 => (ctor Result.ok [CborHead, CborError] (record CborHead {argument := ((((0 + (prim multiply (cborOctetNat octet0) 16777216 : Nat)) + (prim multiply (cborOctetNat octet1) 65536 : Nat)) + (prim multiply (cborOctetNat octet2) 256 : Nat)) + (prim multiply (cborOctetNat octet3) 1 : Nat)), cursor := (record Foundation.Codec::BoundedCursor {bytes := (project cursor bytes), offset := ((project cursor offset) + 4), limit := (project cursor limit)})}))))))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: cborReadHeadArgument,
+  parameters: [cursor : Foundation.Codec::BoundedCursor, additional : Nat],
+  result: (Result CborHead CborError),
+  body: (match (additional <? 24)
+    | Bool.false => (match (additional =? 24)
+      | Bool.false => (match (additional =? 25)
+        | Bool.false => (match (additional =? 26)
+          | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.UnsupportedHead))
+          | Bool.true => (match (cborRead4 cursor)
+            | Result.error cause => (ctor Result.error [CborHead, CborError] cause)
+            | Result.ok read => (match (65536 <=? (project read argument))
+              | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.NonCanonical))
+              | Bool.true => (ctor Result.ok [CborHead, CborError] read))))
+        | Bool.true => (match (cborRead2 cursor)
+          | Result.error cause => (ctor Result.error [CborHead, CborError] cause)
+          | Result.ok read => (match (256 <=? (project read argument))
+            | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.NonCanonical))
+            | Bool.true => (ctor Result.ok [CborHead, CborError] read))))
+      | Bool.true => (match (cborRead1 cursor)
+        | Result.error cause => (ctor Result.error [CborHead, CborError] cause)
+        | Result.ok read => (match (24 <=? (project read argument))
+          | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.NonCanonical))
+          | Bool.true => (ctor Result.ok [CborHead, CborError] read))))
+    | Bool.true => (ctor Result.ok [CborHead, CborError] (record CborHead {argument := additional, cursor := cursor}))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: cborReadHeadInitial,
+  parameters: [cursor : Foundation.Codec::BoundedCursor, major : Nat, initial : Nat],
+  result: (Result CborHead CborError),
+  body: (match ((prim quotient initial 32 0 : Nat) =? major)
+    | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.WrongType))
+    | Bool.true => (cborReadHeadArgument (record Foundation.Codec::BoundedCursor {bytes := (project cursor bytes), offset := ((project cursor offset) + 1), limit := (project cursor limit)}) (prim remainder initial 32 0 : Nat))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: cborReadHead,
+  parameters: [cursor : Foundation.Codec::BoundedCursor, limits : CborLimits, major : Nat],
+  result: (Result CborHead CborError),
+  body: (match (cborLimitsValid limits)
+    | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.BadLimits))
+    | Bool.true => (match (cborCursorValid cursor limits)
+      | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.BadCursor))
+      | Bool.true => (match ((project cursor offset) <? (project cursor limit))
+        | Bool.false => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+        | Bool.true => (match (Foundation.Bytes::byteAt (project cursor bytes) (project cursor offset))
+          | Option.none => (ctor Result.error [CborHead, CborError] (ctor CborError.Truncated))
+          | Option.some initialByte => (cborReadHeadInitial cursor major (cborOctetNat initialByte)))))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: cborReadPayload,
+  parameters: [head : CborHead, maximum : Nat],
+  result: (Result CborPayload CborError),
+  body: (match ((project head argument) <=? maximum)
+    | Bool.false => (ctor Result.error [CborPayload, CborError] (ctor CborError.ValueLimit))
+    | Bool.true => (match ((project head argument) <=? (prim subtract (project (project head cursor) limit) (project (project head cursor) offset) : Nat))
+      | Bool.false => (ctor Result.error [CborPayload, CborError] (ctor CborError.Truncated))
+      | Bool.true => (match (Foundation.Bytes::sliceBytes (project (project head cursor) bytes) (project (project head cursor) offset) (project head argument))
+        | Option.none => (ctor Result.error [CborPayload, CborError] (ctor CborError.Truncated))
+        | Option.some payload => (ctor Result.ok [CborPayload, CborError] (record CborPayload {bytes := payload, cursor := (record Foundation.Codec::BoundedCursor {bytes := (project (project head cursor) bytes), offset := ((project (project head cursor) offset) + (project head argument)), limit := (project (project head cursor) limit)})}))))),
+  axioms: []
+}
+
+definition{
+  name: cborReadString,
+  parameters: [cursor : Foundation.Codec::BoundedCursor, limits : CborLimits, textMode : Bool],
+  result: (Result CborDecoded CborError),
+  body: (match (cborReadHead cursor limits (match textMode | Bool.false => 2 | Bool.true => 3))
+    | Result.error cause => (ctor Result.error [CborDecoded, CborError] cause)
+    | Result.ok head => (match (cborReadPayload head (match textMode
+        | Bool.false => (project limits maximumBytes)
+        | Bool.true => (project limits maximumText)))
+      | Result.error cause => (ctor Result.error [CborDecoded, CborError] cause)
+      | Result.ok payload => (match textMode
+        | Bool.false => (ctor Result.ok [CborDecoded, CborError] (record CborDecoded {value := (ctor CborValue.ByteString (project payload bytes)), cursor := (project payload cursor)}))
+        | Bool.true => (match (prim utf8_decode (project payload bytes) : (Option String))
+          | Option.none => (ctor Result.error [CborDecoded, CborError] (ctor CborError.InvalidUtf8))
+          | Option.some textValue => (ctor Result.ok [CborDecoded, CborError] (record CborDecoded {value := (ctor CborValue.TextString textValue), cursor := (project payload cursor)})))))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: cborReadPrimitiveInitial,
+  parameters: [cursor : Foundation.Codec::BoundedCursor, limits : CborLimits, initial : Nat],
+  result: (Result CborDecoded CborError),
+  body: (match ((prim quotient initial 32 0 : Nat) =? 0)
+    | Bool.false => (match ((prim quotient initial 32 0 : Nat) =? 2)
+      | Bool.false => (match ((prim quotient initial 32 0 : Nat) =? 3)
+        | Bool.false => (match (initial =? 244)
+          | Bool.false => (match (initial =? 245)
+            | Bool.false => (match (initial =? 246)
+              | Bool.false => (ctor Result.error [CborDecoded, CborError] (ctor CborError.WrongType))
+              | Bool.true => (ctor Result.ok [CborDecoded, CborError] (record CborDecoded {value := (ctor CborValue.Null), cursor := (record Foundation.Codec::BoundedCursor {bytes := (project cursor bytes), offset := ((project cursor offset) + 1), limit := (project cursor limit)})})))
+            | Bool.true => (ctor Result.ok [CborDecoded, CborError] (record CborDecoded {value := (ctor CborValue.Boolean true), cursor := (record Foundation.Codec::BoundedCursor {bytes := (project cursor bytes), offset := ((project cursor offset) + 1), limit := (project cursor limit)})})))
+          | Bool.true => (ctor Result.ok [CborDecoded, CborError] (record CborDecoded {value := (ctor CborValue.Boolean false), cursor := (record Foundation.Codec::BoundedCursor {bytes := (project cursor bytes), offset := ((project cursor offset) + 1), limit := (project cursor limit)})})))
+        | Bool.true => (cborReadString cursor limits true))
+      | Bool.true => (cborReadString cursor limits false))
+    | Bool.true => (match (cborReadHead cursor limits 0)
+      | Result.error cause => (ctor Result.error [CborDecoded, CborError] cause)
+      | Result.ok head => (ctor Result.ok [CborDecoded, CborError] (record CborDecoded {value := (ctor CborValue.Unsigned (project head argument)), cursor := (project head cursor)})))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: readCborPrimitive,
+  parameters: [cursor : Foundation.Codec::BoundedCursor, limits : CborLimits],
+  result: (Result CborDecoded CborError),
+  body: (match (cborLimitsValid limits)
+    | Bool.false => (ctor Result.error [CborDecoded, CborError] (ctor CborError.BadLimits))
+    | Bool.true => (match (cborCursorValid cursor limits)
+      | Bool.false => (ctor Result.error [CborDecoded, CborError] (ctor CborError.BadCursor))
+      | Bool.true => (match ((project cursor offset) <? (project cursor limit))
+        | Bool.false => (ctor Result.error [CborDecoded, CborError] (ctor CborError.Truncated))
+        | Bool.true => (match (Foundation.Bytes::byteAt (project cursor bytes) (project cursor offset))
+          | Option.none => (ctor Result.error [CborDecoded, CborError] (ctor CborError.Truncated))
+          | Option.some initialByte => (cborReadPrimitiveInitial cursor limits (cborOctetNat initialByte)))))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: readCborArrayHead,
+  parameters: [cursor : Foundation.Codec::BoundedCursor, limits : CborLimits],
+  result: (Result CborArrayHead CborError),
+  body: (match (cborReadHead cursor limits 4)
+    | Result.error cause => (ctor Result.error [CborArrayHead, CborError] cause)
+    | Result.ok head => (match ((project head argument) <=? (project limits maximumArrayItems))
+      | Bool.false => (ctor Result.error [CborArrayHead, CborError] (ctor CborError.ValueLimit))
+      | Bool.true => (ctor Result.ok [CborArrayHead, CborError] (record CborArrayHead {count := (project head argument), cursor := (project head cursor)})))),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: finishCborCursor,
+  parameters: [cursor : Foundation.Codec::BoundedCursor, limits : CborLimits],
+  result: (Result Bool CborError),
+  body: (match (cborLimitsValid limits)
+    | Bool.false => (ctor Result.error [Bool, CborError] (ctor CborError.BadLimits))
+    | Bool.true => (match (cborCursorValid cursor limits)
+      | Bool.false => (ctor Result.error [Bool, CborError] (ctor CborError.BadCursor))
+      | Bool.true => (match ((project cursor offset) =? (project cursor limit))
+        | Bool.false => (ctor Result.error [Bool, CborError] (ctor CborError.TrailingInput))
+        | Bool.true => (ctor Result.ok [Bool, CborError] true)))),
+  axioms: []
+}
+
+definition{
+  name: cborHeadWidth,
+  parameters: [value : Nat],
+  result: Nat,
+  body: (match (value <? 24)
+    | Bool.false => (match (value <=? 255)
+      | Bool.false => (match (value <=? 65535) | Bool.false => 5 | Bool.true => 3)
+      | Bool.true => 2)
+    | Bool.true => 1),
+  axioms: []
+}
+
+definition{
+  name: cborWriteHeadUnchecked,
+  parameters: [value : Nat, major : Nat],
+  result: Bytes,
+  body: (match (value <? 24)
+    | Bool.false => (match (value <=? 255)
+      | Bool.false => (match (value <=? 65535)
+        | Bool.false => (prim append (cborOctetBytes ((prim multiply major 32 : Nat) + 26)) (prim append (prim append (prim append (prim append 0x (cborOctetBytes (prim remainder (prim quotient value 16777216 0 : Nat) 256 0 : Nat)) : Bytes) (cborOctetBytes (prim remainder (prim quotient value 65536 0 : Nat) 256 0 : Nat)) : Bytes) (cborOctetBytes (prim remainder (prim quotient value 256 0 : Nat) 256 0 : Nat)) : Bytes) (cborOctetBytes (prim remainder (prim quotient value 1 0 : Nat) 256 0 : Nat)) : Bytes) : Bytes)
+        | Bool.true => (prim append (cborOctetBytes ((prim multiply major 32 : Nat) + 25)) (prim append (cborOctetBytes (prim quotient value 256 0 : Nat)) (cborOctetBytes (prim remainder value 256 0 : Nat)) : Bytes) : Bytes))
+      | Bool.true => (prim append (cborOctetBytes ((prim multiply major 32 : Nat) + 24)) (cborOctetBytes value) : Bytes))
+    | Bool.true => (cborOctetBytes ((prim multiply major 32 : Nat) + value))),
+  axioms: []
+}
+
+definition{
+  name: cborWriteHead,
+  parameters: [value : Nat, major : Nat, limits : CborLimits],
+  result: (Result Bytes CborError),
+  body: (match (cborLimitsValid limits)
+    | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.BadLimits))
+    | Bool.true => (match (value <=? 4294967295)
+      | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.ValueLimit))
+      | Bool.true => (match ((cborHeadWidth value) <=? (project limits maximumOutput))
+        | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.ValueLimit))
+        | Bool.true => (ctor Result.ok [Bytes, CborError] (cborWriteHeadUnchecked value major))))),
+  axioms: []
+}
+
+definition{
+  name: cborWritePayload,
+  parameters: [bytes : Bytes, major : Nat, maximum : Nat, limits : CborLimits],
+  result: (Result Bytes CborError),
+  body: (match ((prim length bytes : Nat) <=? maximum)
+    | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.ValueLimit))
+    | Bool.true => (match (((prim length bytes : Nat) + (cborHeadWidth (prim length bytes : Nat))) <=? (project limits maximumOutput))
+      | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.ValueLimit))
+      | Bool.true => (match (cborWriteHead (prim length bytes : Nat) major limits)
+        | Result.error cause => (ctor Result.error [Bytes, CborError] cause)
+        | Result.ok headBytes => (ctor Result.ok [Bytes, CborError] (Foundation.Bytes::appendBytes headBytes bytes))))),
+  axioms: []
+}
+
+definition{
+  name: cborTextLength,
+  parameters: [value : String],
+  result: Nat,
+  body: (prim length value : Nat),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: cborWritePrimitiveChecked,
+  parameters: [value : CborValue, limits : CborLimits],
+  result: (Result Bytes CborError),
+  body: (match value
+    | CborValue.Unsigned integer => (cborWriteHead integer 0 limits)
+    | CborValue.ByteString payload => (cborWritePayload payload 2 (project limits maximumBytes) limits)
+    | CborValue.TextString textValue => (match ((cborTextLength textValue) <=? (project limits maximumText))
+      | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.ValueLimit))
+      | Bool.true => (cborWritePayload (prim utf8_encode textValue : Bytes) 3 (project limits maximumText) limits))
+    | CborValue.Boolean boolean => (match (1 <=? (project limits maximumOutput))
+      | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.ValueLimit))
+      | Bool.true => (ctor Result.ok [Bytes, CborError] (match boolean
+        | Bool.false => 0xf4
+        | Bool.true => 0xf5)))
+    | CborValue.Null => (match (1 <=? (project limits maximumOutput))
+      | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.ValueLimit))
+      | Bool.true => (ctor Result.ok [Bytes, CborError] 0xf6))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: writeCborPrimitive,
+  parameters: [value : CborValue, limits : CborLimits],
+  result: (Result Bytes CborError),
+  body: (match (cborLimitsValid limits)
+    | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.BadLimits))
+    | Bool.true => (cborWritePrimitiveChecked value limits)),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: writeCborArrayHead,
+  parameters: [count : Nat, limits : CborLimits],
+  result: (Result Bytes CborError),
+  body: (match (cborLimitsValid limits)
+    | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.BadLimits))
+    | Bool.true => (match (count <=? (project limits maximumArrayItems))
+      | Bool.false => (ctor Result.error [Bytes, CborError] (ctor CborError.ValueLimit))
+      | Bool.true => (cborWriteHead count 4 limits))),
+  axioms: []
+}
+
+definition{
+  name: cborInvocationLimits,
+  parameters: [],
+  result: CborLimits,
+  body: (record CborLimits {maximumInput := 4202618, maximumOutput := 4202617, maximumBytes := 4202612, maximumText := 4202612, maximumArrayItems := 4294967295}),
+  axioms: []
+}
+
+definition{
+  name: cborCanonicalResult,
+  parameters: [decoded : CborDecoded],
+  result: Bytes,
+  body: (match (finishCborCursor (project decoded cursor) (cborInvocationLimits))
+    | Result.error unusedFinishError => 0x
+    | Result.ok unusedFinished => (match (writeCborPrimitive (project decoded value) (cborInvocationLimits))
+      | Result.error unusedEncodeError => 0x
+      | Result.ok encoded => encoded)),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: canonicalCborPrimitiveBytes,
+  parameters: [input : Bytes],
+  result: Bytes,
+  body: (match (readCborPrimitive (record Foundation.Codec::BoundedCursor {bytes := input, offset := 0, limit := (prim length input : Nat)}) (cborInvocationLimits))
+    | Result.error unusedDecodeError => 0x
+    | Result.ok decoded => (cborCanonicalResult decoded)),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
 \end{semanticmodule}
 \end{lexlean}

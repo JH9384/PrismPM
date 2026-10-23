@@ -118,26 +118,13 @@ fn parse_source(bytes: &[u8], expected: &str) -> Result<Source, PrismError> {
             imports.push(module.to_owned());
         }
     }
-    let marker = "\\semanticdata{";
-    let positions = text
-        .match_indices(marker)
-        .map(|(position, _)| position)
-        .collect::<Vec<_>>();
-    if positions.len() != 1 {
-        return Err(invalid("SDK model has absent or ambiguous semantic data"));
-    }
-    let tail = &text[positions[0] + marker.len()..];
-    let (body, _) = tail
-        .split_once("\\end{semanticmodule}")
-        .ok_or_else(|| invalid("SDK semantic module is unterminated"))?;
-    let body = body
-        .trim_end()
-        .strip_suffix('}')
-        .ok_or_else(|| invalid("SDK semantic data is unterminated"))?;
-    // LexLean source permits JSON layout inside the macro. The captured source
-    // hash binds those bytes; the independently compared typed AST binds meaning.
-    let semantic =
-        serde_json::from_str::<SnapshotSemanticModule>(body).map_err(|e| invalid(e.to_string()))?;
+    // The SDK sources are language-1.2 notation. LexLean reads the module as
+    // the compiler reads it (a module written as data reads the same way); the
+    // captured source hash binds the exact bytes and the independently compared
+    // typed AST binds meaning.
+    let module = lexlean::sdk::read_module(text).map_err(|e| invalid(e.message))?;
+    let semantic = serde_json::from_value::<SnapshotSemanticModule>(module)
+        .map_err(|e| invalid(e.to_string()))?;
     Ok(Source {
         digest: content_id(bytes),
         imports,
@@ -343,7 +330,7 @@ mod tests {
                 ),
                 (
                     "Calculator",
-                    include_bytes!("../../../../../examples/Calculator/src/Calculator.lex.tex")
+                    include_bytes!("../../../../../tests/browser-system/Calculator.lex.tex")
                         .as_slice(),
                 ),
             ] {
@@ -353,18 +340,16 @@ mod tests {
         } else {
             "entrypoints = [\"src/Production/BrowserSystem.lex.tex\", \"src/Production/PublicationAdmission/LinkageV1.lex.tex\"]"
         };
-        let config = include_str!(
-            "../../../../../tests/fixtures/library/native-library/project/lexlean.toml"
-        )
-        .replace(
-            "name = \"library-probe\"",
-            "name = \"publication-linkage-source-pin\"",
-        )
-        .replace(
-            "module_prefix = \"LibraryProbe\"",
-            "module_prefix = \"PrismPM\"",
-        )
-        .replace("entrypoints = [\"src/Probe.lex.tex\"]", entrypoints);
+        let config = include_str!("../../../../../tests/browser-system/lexlean.toml")
+            .replace(
+                "name = \"prism-calculator\"",
+                "name = \"publication-linkage-source-pin\"",
+            )
+            .replace(
+                "module_prefix = \"PrismCalculator\"",
+                "module_prefix = \"PrismPM\"",
+            )
+            .replace("entrypoints = [\"src/Release.lex.tex\"]", entrypoints);
         std::fs::write(root.path().join("lexlean.toml"), config).unwrap();
         std::fs::write(
             root.path().join("lakefile.toml"),

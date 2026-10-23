@@ -5,10 +5,27 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{PortableAsset}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{path}: \texttt{String}.\par
+\noindent Field \texttt{content}: \texttt{ByteArray}.\par
 \subsection*{\texttt{PortableBundle}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{version}: \texttt{UInt16}.\par
+\noindent Field \texttt{entry}: \texttt{String}.\par
+\noindent Field \texttt{files}: \texttt{List (PortableAsset)}.\par
 \subsection*{\texttt{ViewError}}
 \noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{BadMagic}: \texttt{()}.\par
+\noindent Constructor \texttt{BadVersion}: \texttt{()}.\par
+\noindent Constructor \texttt{InvalidPath}: \texttt{()}.\par
+\noindent Constructor \texttt{DuplicatePath}: \texttt{()}.\par
+\noindent Constructor \texttt{CaseFoldCollision}: \texttt{()}.\par
+\noindent Constructor \texttt{WrongOrder}: \texttt{()}.\par
+\noindent Constructor \texttt{MissingEntry}: \texttt{()}.\par
+\noindent Constructor \texttt{Truncated}: \texttt{()}.\par
+\noindent Constructor \texttt{TrailingBytes}: \texttt{()}.\par
+\noindent Constructor \texttt{ResourceLimit}: \texttt{()}.\par
+\noindent Constructor \texttt{UnsupportedSurface}: \texttt{()}.\par
+\noindent Constructor \texttt{IntentMismatch}: \texttt{()}.\par
 \subsection*{\texttt{magic}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Type: \texttt{ByteArray}.\par

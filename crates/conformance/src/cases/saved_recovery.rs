@@ -1,7 +1,7 @@
 //! Finite generated-code acceptance for the internal saved-recovery lifecycle.
 
 use prismpm::controller::VerifyRequest;
-use prismpm::holo::canonical::{content_id, encode_value};
+use prismpm::holo::canonical::content_id;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -233,17 +233,7 @@ fn mutate(project: &Path, mutant: &str) {
     }
     let path = project.join("src").join(SOURCE);
     let source = std::fs::read_to_string(&path).unwrap();
-    let line = source
-        .lines()
-        .find(|line| line.starts_with("\\semanticdata{"))
-        .unwrap();
-    let mut module: Value = serde_json::from_str(
-        line.strip_prefix("\\semanticdata{")
-            .unwrap()
-            .strip_suffix('}')
-            .unwrap(),
-    )
-    .unwrap();
+    let mut module: Value = crate::semantic_source::read(&source);
     let name = match mutant {
         "key-substitution" => "savedRecoveryRequestsEqual",
         "non-consumption" => "consumeSavedCode",
@@ -305,12 +295,7 @@ fn mutate(project: &Path, mutant: &str) {
         changed, 1,
         "mutant {mutant} changes exactly one runtime decision"
     );
-    let replacement = format!(
-        "\\semanticdata{{{}}}",
-        String::from_utf8(encode_value(&module).unwrap()).unwrap()
-    );
-    assert_eq!(source.matches(line).count(), 1);
-    std::fs::write(path, source.replacen(line, &replacement, 1)).unwrap();
+    std::fs::write(path, crate::semantic_source::write(&source, &module)).unwrap();
 }
 
 fn modeled_rejection(error: &prismpm::PrismError, case: &str) -> bool {

@@ -1,3 +1,4 @@
+import { readSemantic, writeSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -26,7 +27,7 @@ test('complete independent finite corpus and every named source counterexample a
 test('SEC2 parameter fixture agrees with independent native named-curve implementation',()=>{
   verifyNativeParameters();
   const text=readFileSync(new URL('../../stdlib/src/Foundation/Crypto/P256/Model.lex.tex',import.meta.url),'utf8');
-  const data=JSON.parse(/\\semanticdata\{(.*)\}/.exec(text)[1]);
+  const data=readSemantic(text);
   function limbs(name){let term=data.declarations.find(d=>d.name===name).body,result=0n,place=1n,count=0;
     while(term.constructor.name==='List.cons'){assert.equal(term.arguments[0].kind,'nat');
       result+=BigInt(term.arguments[0].value)*place;place*=65536n;term=term.arguments[1];count++;}
@@ -42,8 +43,8 @@ test('baseline and all actual authored mutants retain canonical semantic seriali
   for(const id of [null,...mutations.map(row=>row.id)]){
     const candidate=new Map(source);if(id)mutateP256Source(candidate,id);
     for(const bytes of candidate.values()){
-      const serialized=/\\semanticdata\{(.*)\}/.exec(bytes.toString())[1];
-      assert.equal(serialized,JSON.stringify(canonical(JSON.parse(serialized))),id??'baseline');
+      const text=bytes.toString();
+      assert.equal(writeSemantic(text,readSemantic(text)),text,id??'baseline');
     }
   }
 });
@@ -52,7 +53,7 @@ test('right-half defect preserves structural descent and changes accumulated sta
   const path=new URL('../../stdlib/src/Foundation/Crypto/P256/Model.lex.tex',import.meta.url);
   const source=new Map([['Foundation.Crypto.P256.Model',readFileSync(path)]]);
   mutateP256Source(source,'right-half');
-  const data=JSON.parse(/\\semanticdata\{(.*)\}/.exec(source.get('Foundation.Crypto.P256.Model').toString())[1]);
+  const data=readSemantic(source.get('Foundation.Crypto.P256.Model').toString());
   const declaration=data.declarations.find(row=>row.name==='p256MultiplyTree');
   const right=declaration.body.branches[1].body.branches[1].body;
   assert.deepEqual(right.arguments[2],{kind:'var',name:'prior'});

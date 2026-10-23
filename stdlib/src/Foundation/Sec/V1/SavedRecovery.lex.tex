@@ -1,8 +1,516 @@
 \begin{lexlean}{Foundation.Sec.V1.SavedRecovery}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"fields":[{"name":"codeRef","type":{"kind":"bytes"}},{"name":"verifierCommitment","type":{"kind":"bytes"}},{"name":"consumed","type":{"kind":"bool"}}],"kind":"structure","name":"SavedCodeSlot","parameters":[],"type_parameters":[]},{"fields":[{"name":"slots","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}}],"kind":"structure","name":"SavedCodeInventory","parameters":[],"type_parameters":[]},{"fields":[{"name":"scope","type":{"kind":"bytes"}},{"name":"account","type":{"kind":"bytes"}},{"name":"revision","type":{"kind":"nat"}},{"name":"recoveryEpoch","type":{"kind":"nat"}},{"name":"credentialRef","type":{"kind":"bytes"}},{"name":"authorizationRef","type":{"kind":"bytes"}}],"kind":"structure","name":"CredentialBinding","parameters":[],"type_parameters":[]},{"fields":[{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}},{"name":"enabled","type":{"kind":"bool"}},{"name":"retentionCapacity","type":{"kind":"nat"}},{"name":"slots","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}}],"kind":"structure","name":"SavedRecoveryState","parameters":[],"type_parameters":[]},{"fields":[{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}},{"name":"codeRef","type":{"kind":"bytes"}},{"name":"replacementCredentialRef","type":{"kind":"bytes"}}],"kind":"structure","name":"SavedRecoveryRequest","parameters":[],"type_parameters":[]},{"fields":[{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryRequest"}}},{"name":"matchedCommitment","type":{"kind":"bytes"}},{"name":"replacementCode","type":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}}}],"kind":"structure","name":"AdmittedSavedRecovery","parameters":[],"type_parameters":[]},{"fields":[{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}},{"name":"replacementCodes","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}}],"kind":"structure","name":"SavedCodeReplacement","parameters":[],"type_parameters":[]},{"fields":[{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"SavedCodeReplacement"}}}],"kind":"structure","name":"AdmittedCodeReplacement","parameters":[],"type_parameters":[]},{"fields":[{"name":"scope","type":{"kind":"bytes"}},{"name":"account","type":{"kind":"bytes"}},{"name":"previousRevision","type":{"kind":"nat"}},{"name":"revision","type":{"kind":"nat"}},{"name":"previousEpoch","type":{"kind":"nat"}},{"name":"recoveryEpoch","type":{"kind":"nat"}},{"name":"credentialRef","type":{"kind":"bytes"}},{"name":"credentialsRecovered","type":{"kind":"bool"}}],"kind":"structure","name":"RecoveryNotificationIntent","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[],"name":"InvalidState"},{"fields":[],"name":"IdentityDisabled"},{"fields":[],"name":"WrongScope"},{"fields":[],"name":"WrongAccount"},{"fields":[],"name":"StaleRevision"},{"fields":[],"name":"StaleEpoch"},{"fields":[],"name":"CurrentCredentialMismatch"},{"fields":[],"name":"CurrentAuthorizationMismatch"},{"fields":[],"name":"InvalidRequest"},{"fields":[],"name":"EvidenceMismatch"},{"fields":[],"name":"UnknownCode"},{"fields":[],"name":"ConsumedCode"},{"fields":[],"name":"VerifierMismatch"},{"fields":[],"name":"ReusedCode"},{"fields":[],"name":"InvalidReplacement"},{"fields":[],"name":"RetentionExhausted"},{"fields":[],"name":"CounterExhausted"}],"kind":"inductive","name":"SavedRecoveryError","parameters":[],"type_parameters":[]},{"constructors":[{"fields":[{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryError"}}],"name":"Rejected"},{"fields":[{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryState"}},{"arguments":[],"kind":"named","member":{"name":"RecoveryNotificationIntent"}}],"name":"Accepted"}],"kind":"inductive","name":"SavedRecoveryTransition","parameters":[],"type_parameters":[]},{"axioms":["propext"],"body":{"arguments":[{"arguments":[{"kind":"var","name":"left"},{"kind":"var","name":"right"}],"kind":"primitive","operation":"compare_bytes","result":{"kind":"ordering"}},{"arguments":[{"hex":"00","kind":"bytes"},{"hex":"00","kind":"bytes"}],"kind":"primitive","operation":"compare_bytes","result":{"kind":"ordering"}}],"kind":"primitive","operation":"equal","result":{"kind":"bool"}},"kind":"definition","name":"recoveryBytesEqual","parameters":[{"name":"left","type":{"kind":"bytes"}},{"name":"right","type":{"kind":"bytes"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"1"},"right":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"kind":"var","name":"value"}],"kind":"primitive","operation":"length","result":{"kind":"nat"}},"right":{"kind":"nat","value":"128"}},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"recoveryReferenceValid","parameters":[{"name":"value","type":{"kind":"bytes"}}],"result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"nat","value":"0"},"constructor":{"name":"List.nil"}},{"binders":["first","rest"],"body":{"kind":"add","left":{"kind":"nat","value":"1"},"right":{"arguments":[{"kind":"var","name":"rest"}],"function":{"name":"savedCodeCount"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"kind":"definition","name":"savedCodeCount","parameters":[{"name":"slots","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}}],"recursive_argument":"slots","result":{"kind":"nat"}},{"axioms":["propext"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["first","rest"],"body":{"kind":"or","left":{"arguments":[{"field":"codeRef","kind":"project","value":{"kind":"var","name":"first"}},{"field":"codeRef","kind":"project","value":{"kind":"var","name":"slot"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"},"right":{"kind":"or","left":{"arguments":[{"field":"verifierCommitment","kind":"project","value":{"kind":"var","name":"first"}},{"field":"verifierCommitment","kind":"project","value":{"kind":"var","name":"slot"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"},"right":{"kind":"or","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"slot"}],"function":{"name":"savedCodeConflicts"},"kind":"call"},"right":{"kind":"bool","value":false}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"kind":"definition","name":"savedCodeConflicts","parameters":[{"name":"slots","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}},{"name":"slot","type":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}}}],"recursive_argument":"slots","result":{"kind":"bool"}},{"axioms":["propext"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["first","rest"],"body":{"kind":"and","left":{"arguments":[{"field":"codeRef","kind":"project","value":{"kind":"var","name":"first"}}],"function":{"name":"recoveryReferenceValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"verifierCommitment","kind":"project","value":{"kind":"var","name":"first"}}],"function":{"name":"recoveryReferenceValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"first"}],"function":{"name":"savedCodeConflicts"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"}],"function":{"name":"savedCodesValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"kind":"definition","name":"savedCodesValid","parameters":[{"name":"slots","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}}],"recursive_argument":"slots","result":{"kind":"bool"}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["first","rest"],"body":{"kind":"and","left":{"kind":"not","value":{"field":"consumed","kind":"project","value":{"kind":"var","name":"first"}}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"}],"function":{"name":"savedCodesActive"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"kind":"definition","name":"savedCodesActive","parameters":[{"name":"slots","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}}],"recursive_argument":"slots","result":{"kind":"bool"}},{"axioms":["propext"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["first","rest"],"body":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"kind":"var","name":"previous"},{"kind":"var","name":"first"}],"function":{"name":"savedCodeConflicts"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"previous"}],"function":{"name":"savedCodesFresh"},"kind":"call"},"right":{"kind":"bool","value":true}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"fresh"}},"kind":"definition","name":"savedCodesFresh","parameters":[{"name":"fresh","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}},{"name":"previous","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}}],"recursive_argument":"fresh","result":{"kind":"bool"}},{"axioms":["propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[],"constructor":{"name":"Option.none"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}}]},"constructor":{"name":"List.nil"}},{"binders":["first","rest"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"codeRef"}],"function":{"name":"savedCodeFind"},"kind":"call"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"kind":"var","name":"first"}],"constructor":{"name":"Option.some"},"kind":"constructor","type_arguments":[{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}}]},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"codeRef","kind":"project","value":{"kind":"var","name":"first"}},{"kind":"var","name":"codeRef"}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"kind":"definition","name":"savedCodeFind","parameters":[{"name":"slots","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}},{"name":"codeRef","type":{"kind":"bytes"}}],"recursive_argument":"slots","result":{"kind":"option","value":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}}}},{"axioms":["propext"],"body":{"branches":[{"binders":[],"body":{"fields":[{"field":"slots","value":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"nil"}}],"kind":"record","type":{"name":"SavedCodeInventory"}},"constructor":{"name":"List.nil"}},{"binders":["first","rest"],"body":{"fields":[{"field":"slots","value":{"head":{"branches":[{"binders":[],"body":{"kind":"var","name":"first"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"fields":[{"field":"codeRef","value":{"field":"codeRef","kind":"project","value":{"kind":"var","name":"first"}}},{"field":"verifierCommitment","value":{"field":"verifierCommitment","kind":"project","value":{"kind":"var","name":"first"}}},{"field":"consumed","value":{"kind":"bool","value":true}}],"kind":"record","type":{"name":"SavedCodeSlot"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"codeRef","kind":"project","value":{"kind":"var","name":"first"}},{"kind":"var","name":"codeRef"}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"kind":"cons","tail":{"field":"slots","kind":"project","value":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"codeRef"}],"function":{"name":"consumeSavedCode"},"kind":"call"}}}}],"kind":"record","type":{"name":"SavedCodeInventory"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"kind":"definition","name":"consumeSavedCode","parameters":[{"name":"slots","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}},{"name":"codeRef","type":{"kind":"bytes"}}],"recursive_argument":"slots","result":{"arguments":[],"kind":"named","member":{"name":"SavedCodeInventory"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"fields":[{"field":"slots","value":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"nil"}}],"kind":"record","type":{"name":"SavedCodeInventory"}},"constructor":{"name":"List.nil"}},{"binders":["first","rest"],"body":{"fields":[{"field":"slots","value":{"head":{"fields":[{"field":"codeRef","value":{"field":"codeRef","kind":"project","value":{"kind":"var","name":"first"}}},{"field":"verifierCommitment","value":{"field":"verifierCommitment","kind":"project","value":{"kind":"var","name":"first"}}},{"field":"consumed","value":{"kind":"bool","value":true}}],"kind":"record","type":{"name":"SavedCodeSlot"}},"kind":"cons","tail":{"field":"slots","kind":"project","value":{"arguments":[{"kind":"var","name":"rest"}],"function":{"name":"retireSavedCodes"},"kind":"call"}}}}],"kind":"record","type":{"name":"SavedCodeInventory"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"slots"}},"kind":"definition","name":"retireSavedCodes","parameters":[{"name":"slots","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}}],"recursive_argument":"slots","result":{"arguments":[],"kind":"named","member":{"name":"SavedCodeInventory"}}},{"axioms":[],"body":{"branches":[{"binders":[],"body":{"fields":[{"field":"slots","value":{"kind":"var","name":"right"}}],"kind":"record","type":{"name":"SavedCodeInventory"}},"constructor":{"name":"List.nil"}},{"binders":["first","rest"],"body":{"fields":[{"field":"slots","value":{"head":{"kind":"var","name":"first"},"kind":"cons","tail":{"field":"slots","kind":"project","value":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"right"}],"function":{"name":"appendSavedCodes"},"kind":"call"}}}}],"kind":"record","type":{"name":"SavedCodeInventory"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"kind":"definition","name":"appendSavedCodes","parameters":[{"name":"left","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}},{"name":"right","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}}],"recursive_argument":"left","result":{"arguments":[],"kind":"named","member":{"name":"SavedCodeInventory"}}},{"axioms":["propext"],"body":{"branches":[{"binders":[],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":true},"constructor":{"name":"List.nil"}},{"binders":["unusedFirst","unusedRest"],"body":{"kind":"bool","value":false},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.nil"}},{"binders":["first","rest"],"body":{"branches":[{"binders":[],"body":{"kind":"bool","value":false},"constructor":{"name":"List.nil"}},{"binders":["other","tail"],"body":{"kind":"and","left":{"arguments":[{"field":"codeRef","kind":"project","value":{"kind":"var","name":"first"}},{"field":"codeRef","kind":"project","value":{"kind":"var","name":"other"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"verifierCommitment","kind":"project","value":{"kind":"var","name":"first"}},{"field":"verifierCommitment","kind":"project","value":{"kind":"var","name":"other"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"},"right":{"kind":"and","left":{"branches":[{"binders":[],"body":{"kind":"not","value":{"field":"consumed","kind":"project","value":{"kind":"var","name":"other"}}},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"field":"consumed","kind":"project","value":{"kind":"var","name":"other"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"field":"consumed","kind":"project","value":{"kind":"var","name":"first"}}},"right":{"kind":"and","left":{"arguments":[{"kind":"var","name":"rest"},{"kind":"var","name":"tail"}],"function":{"name":"savedCodesEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"right"}},"constructor":{"name":"List.cons"}}],"kind":"match","scrutinee":{"kind":"var","name":"left"}},"kind":"definition","name":"savedCodesEqual","parameters":[{"name":"left","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}},{"name":"right","type":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"list"}}],"recursive_argument":"left","result":{"kind":"bool"}},{"axioms":[],"body":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"binding"}}],"function":{"name":"recoveryReferenceValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"account","kind":"project","value":{"kind":"var","name":"binding"}}],"function":{"name":"recoveryReferenceValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"credentialRef","kind":"project","value":{"kind":"var","name":"binding"}}],"function":{"name":"recoveryReferenceValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"authorizationRef","kind":"project","value":{"kind":"var","name":"binding"}}],"function":{"name":"recoveryReferenceValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"binding"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"recoveryEpoch","kind":"project","value":{"kind":"var","name":"binding"}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"bool","value":true}}}}}}},"kind":"definition","name":"credentialBindingValid","parameters":[{"name":"binding","type":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}}],"result":{"kind":"bool"}},{"axioms":["propext"],"body":{"kind":"and","left":{"arguments":[{"field":"scope","kind":"project","value":{"kind":"var","name":"left"}},{"field":"scope","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"account","kind":"project","value":{"kind":"var","name":"left"}},{"field":"account","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"credentialRef","kind":"project","value":{"kind":"var","name":"left"}},{"field":"credentialRef","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"authorizationRef","kind":"project","value":{"kind":"var","name":"left"}},{"field":"authorizationRef","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"revision","kind":"project","value":{"kind":"var","name":"left"}},"right":{"field":"revision","kind":"project","value":{"kind":"var","name":"right"}}},"right":{"kind":"and","left":{"kind":"beq","left":{"field":"recoveryEpoch","kind":"project","value":{"kind":"var","name":"left"}},"right":{"field":"recoveryEpoch","kind":"project","value":{"kind":"var","name":"right"}}},"right":{"kind":"bool","value":true}}}}}}},"kind":"definition","name":"credentialBindingsEqual","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"CredentialBinding"}}}],"result":{"kind":"bool"}},{"axioms":["propext"],"body":{"kind":"and","left":{"arguments":[{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"credentialBindingValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"ble","left":{"kind":"nat","value":"1"},"right":{"field":"retentionCapacity","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"and","left":{"kind":"ble","left":{"field":"retentionCapacity","kind":"project","value":{"kind":"var","name":"state"}},"right":{"kind":"nat","value":"256"}},"right":{"kind":"and","left":{"kind":"ble","left":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"savedCodeCount"},"kind":"call"},"right":{"field":"retentionCapacity","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"and","left":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"savedCodesValid"},"kind":"call"},"right":{"kind":"bool","value":true}}}}}},"kind":"definition","name":"savedRecoveryStateValid","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryState"}}}],"result":{"kind":"bool"}},{"axioms":["propext"],"body":{"kind":"and","left":{"arguments":[{"field":"binding","kind":"project","value":{"kind":"var","name":"left"}},{"field":"binding","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"credentialBindingsEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"codeRef","kind":"project","value":{"kind":"var","name":"left"}},{"field":"codeRef","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"replacementCredentialRef","kind":"project","value":{"kind":"var","name":"left"}},{"field":"replacementCredentialRef","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}}},"kind":"definition","name":"savedRecoveryRequestsEqual","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryRequest"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryRequest"}}}],"result":{"kind":"bool"}},{"axioms":["propext"],"body":{"kind":"and","left":{"arguments":[{"field":"binding","kind":"project","value":{"kind":"var","name":"left"}},{"field":"binding","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"credentialBindingsEqual"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"replacementCodes","kind":"project","value":{"kind":"var","name":"left"}},{"field":"replacementCodes","kind":"project","value":{"kind":"var","name":"right"}}],"function":{"name":"savedCodesEqual"},"kind":"call"},"right":{"kind":"bool","value":true}}},"kind":"definition","name":"savedCodeReplacementsEqual","parameters":[{"name":"left","type":{"arguments":[],"kind":"named","member":{"name":"SavedCodeReplacement"}}},{"name":"right","type":{"arguments":[],"kind":"named","member":{"name":"SavedCodeReplacement"}}}],"result":{"kind":"bool"}},{"axioms":["propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.InvalidState"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.IdentityDisabled"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.WrongScope"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.WrongAccount"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.StaleRevision"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.StaleEpoch"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.CurrentCredentialMismatch"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.CurrentAuthorizationMismatch"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.InvalidRequest"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.EvidenceMismatch"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.UnknownCode"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Option.none"}},{"binders":["found"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.ConsumedCode"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.VerifierMismatch"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.InvalidReplacement"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.ReusedCode"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.RetentionExhausted"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.CounterExhausted"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"binding","value":{"fields":[{"field":"scope","value":{"field":"scope","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"account","value":{"field":"account","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"revision","value":{"kind":"add","left":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"nat","value":"1"}}},{"field":"recoveryEpoch","value":{"kind":"add","left":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"nat","value":"1"}}},{"field":"credentialRef","value":{"field":"replacementCredentialRef","kind":"project","value":{"kind":"var","name":"request"}}},{"field":"authorizationRef","value":{"field":"authorizationRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}}],"kind":"record","type":{"name":"CredentialBinding"}}},{"field":"enabled","value":{"field":"enabled","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"retentionCapacity","value":{"field":"retentionCapacity","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"slots","value":{"field":"slots","kind":"project","value":{"arguments":[{"field":"slots","kind":"project","value":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"state"}},{"field":"codeRef","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"consumeSavedCode"},"kind":"call"}},{"head":{"field":"replacementCode","kind":"project","value":{"kind":"var","name":"admission"}},"kind":"cons","tail":{"element":{"arguments":[],"kind":"named","member":{"name":"SavedCodeSlot"}},"kind":"nil"}}],"function":{"name":"appendSavedCodes"},"kind":"call"}}}],"kind":"record","type":{"name":"SavedRecoveryState"}},{"fields":[{"field":"scope","value":{"field":"scope","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"account","value":{"field":"account","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"previousRevision","value":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"revision","value":{"kind":"add","left":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"nat","value":"1"}}},{"field":"previousEpoch","value":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"recoveryEpoch","value":{"kind":"add","left":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"nat","value":"1"}}},{"field":"credentialRef","value":{"field":"replacementCredentialRef","kind":"project","value":{"kind":"var","name":"request"}}},{"field":"credentialsRecovered","value":{"kind":"bool","value":true}}],"kind":"record","type":{"name":"RecoveryNotificationIntent"}}],"constructor":{"name":"SavedRecoveryTransition.Accepted"},"kind":"constructor"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"kind":"blt","left":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"and","left":{"kind":"blt","left":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"nat","value":"4294967295"}},"right":{"kind":"bool","value":true}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"savedCodeCount"},"kind":"call"},"right":{"field":"retentionCapacity","kind":"project","value":{"kind":"var","name":"state"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"not","value":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"state"}},{"field":"replacementCode","kind":"project","value":{"kind":"var","name":"admission"}}],"function":{"name":"savedCodeConflicts"},"kind":"call"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"field":"codeRef","kind":"project","value":{"field":"replacementCode","kind":"project","value":{"kind":"var","name":"admission"}}}],"function":{"name":"recoveryReferenceValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"verifierCommitment","kind":"project","value":{"field":"replacementCode","kind":"project","value":{"kind":"var","name":"admission"}}}],"function":{"name":"recoveryReferenceValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"field":"consumed","kind":"project","value":{"field":"replacementCode","kind":"project","value":{"kind":"var","name":"admission"}}}},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"verifierCommitment","kind":"project","value":{"kind":"var","name":"found"}},{"field":"matchedCommitment","kind":"project","value":{"kind":"var","name":"admission"}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"not","value":{"field":"consumed","kind":"project","value":{"kind":"var","name":"found"}}}},"constructor":{"name":"Option.some"}}],"kind":"match","scrutinee":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"state"}},{"field":"codeRef","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"savedCodeFind"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"request"},{"field":"request","kind":"project","value":{"kind":"var","name":"admission"}}],"function":{"name":"savedRecoveryRequestsEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"arguments":[{"field":"codeRef","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"recoveryReferenceValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"replacementCredentialRef","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"recoveryReferenceValid"},"kind":"call"},"right":{"kind":"and","left":{"kind":"not","value":{"arguments":[{"field":"replacementCredentialRef","kind":"project","value":{"kind":"var","name":"request"}},{"field":"credentialRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"authorizationRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"authorizationRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"credentialRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"credentialRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"account","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"account","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"scope","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"scope","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"field":"enabled","kind":"project","value":{"kind":"var","name":"state"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"savedRecoveryStateValid"},"kind":"call"}},"kind":"definition","name":"recoverSavedCredential","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryState"}}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryRequest"}}},{"name":"admission","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedSavedRecovery"}}}],"result":{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryTransition"}}},{"axioms":["propext"],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.InvalidState"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.IdentityDisabled"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.WrongScope"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.WrongAccount"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.StaleRevision"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.StaleEpoch"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.CurrentCredentialMismatch"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.CurrentAuthorizationMismatch"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.EvidenceMismatch"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.InvalidReplacement"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.ReusedCode"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.RetentionExhausted"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"branches":[{"binders":[],"body":{"arguments":[{"arguments":[],"constructor":{"name":"SavedRecoveryError.CounterExhausted"},"kind":"constructor"}],"constructor":{"name":"SavedRecoveryTransition.Rejected"},"kind":"constructor"},"constructor":{"name":"Bool.false"}},{"binders":[],"body":{"arguments":[{"fields":[{"field":"binding","value":{"fields":[{"field":"scope","value":{"field":"scope","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"account","value":{"field":"account","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"revision","value":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"recoveryEpoch","value":{"kind":"add","left":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"nat","value":"1"}}},{"field":"credentialRef","value":{"field":"credentialRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"authorizationRef","value":{"field":"authorizationRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}}],"kind":"record","type":{"name":"CredentialBinding"}}},{"field":"enabled","value":{"field":"enabled","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"retentionCapacity","value":{"field":"retentionCapacity","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"slots","value":{"field":"slots","kind":"project","value":{"arguments":[{"field":"slots","kind":"project","value":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"retireSavedCodes"},"kind":"call"}},{"field":"replacementCodes","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"appendSavedCodes"},"kind":"call"}}}],"kind":"record","type":{"name":"SavedRecoveryState"}},{"fields":[{"field":"scope","value":{"field":"scope","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"account","value":{"field":"account","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"previousRevision","value":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"revision","value":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"previousEpoch","value":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"recoveryEpoch","value":{"kind":"add","left":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"nat","value":"1"}}},{"field":"credentialRef","value":{"field":"credentialRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}}},{"field":"credentialsRecovered","value":{"kind":"bool","value":false}}],"kind":"record","type":{"name":"RecoveryNotificationIntent"}}],"constructor":{"name":"SavedRecoveryTransition.Accepted"},"kind":"constructor"},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"blt","left":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"kind":"nat","value":"4294967295"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"ble","left":{"kind":"add","left":{"arguments":[{"field":"slots","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"savedCodeCount"},"kind":"call"},"right":{"arguments":[{"field":"replacementCodes","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"savedCodeCount"},"kind":"call"}},"right":{"field":"retentionCapacity","kind":"project","value":{"kind":"var","name":"state"}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"replacementCodes","kind":"project","value":{"kind":"var","name":"request"}},{"field":"slots","kind":"project","value":{"kind":"var","name":"state"}}],"function":{"name":"savedCodesFresh"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"and","left":{"kind":"blt","left":{"kind":"nat","value":"0"},"right":{"arguments":[{"field":"replacementCodes","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"savedCodeCount"},"kind":"call"}},"right":{"kind":"and","left":{"arguments":[{"field":"replacementCodes","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"savedCodesValid"},"kind":"call"},"right":{"kind":"and","left":{"arguments":[{"field":"replacementCodes","kind":"project","value":{"kind":"var","name":"request"}}],"function":{"name":"savedCodesActive"},"kind":"call"},"right":{"kind":"bool","value":true}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"request"},{"field":"request","kind":"project","value":{"kind":"var","name":"admission"}}],"function":{"name":"savedCodeReplacementsEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"authorizationRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"authorizationRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"credentialRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"credentialRef","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"field":"recoveryEpoch","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"kind":"beq","left":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},"right":{"field":"revision","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"account","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"account","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"field":"scope","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"state"}}},{"field":"scope","kind":"project","value":{"field":"binding","kind":"project","value":{"kind":"var","name":"request"}}}],"function":{"name":"recoveryBytesEqual"},"kind":"call"}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"field":"enabled","kind":"project","value":{"kind":"var","name":"state"}}},"constructor":{"name":"Bool.true"}}],"kind":"match","scrutinee":{"arguments":[{"kind":"var","name":"state"}],"function":{"name":"savedRecoveryStateValid"},"kind":"call"}},"kind":"definition","name":"replaceSavedCodes","parameters":[{"name":"state","type":{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryState"}}},{"name":"request","type":{"arguments":[],"kind":"named","member":{"name":"SavedCodeReplacement"}}},{"name":"admission","type":{"arguments":[],"kind":"named","member":{"name":"AdmittedCodeReplacement"}}}],"result":{"arguments":[],"kind":"named","member":{"name":"SavedRecoveryTransition"}}}],"spec":"lexlean/semantic-module/1"}}
+structure{
+  name: SavedCodeSlot,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: codeRef, type: Bytes},
+    {name: verifierCommitment, type: Bytes},
+    {name: consumed, type: Bool}
+  ]
+}
+
+structure{
+  name: SavedCodeInventory,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: slots, type: (List SavedCodeSlot)}]
+}
+
+structure{
+  name: CredentialBinding,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: scope, type: Bytes},
+    {name: account, type: Bytes},
+    {name: revision, type: Nat},
+    {name: recoveryEpoch, type: Nat},
+    {name: credentialRef, type: Bytes},
+    {name: authorizationRef, type: Bytes}
+  ]
+}
+
+structure{
+  name: SavedRecoveryState,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: binding, type: CredentialBinding},
+    {name: enabled, type: Bool},
+    {name: retentionCapacity, type: Nat},
+    {name: slots, type: (List SavedCodeSlot)}
+  ]
+}
+
+structure{
+  name: SavedRecoveryRequest,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: binding, type: CredentialBinding},
+    {name: codeRef, type: Bytes},
+    {name: replacementCredentialRef, type: Bytes}
+  ]
+}
+
+structure{
+  name: AdmittedSavedRecovery,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: request, type: SavedRecoveryRequest},
+    {name: matchedCommitment, type: Bytes},
+    {name: replacementCode, type: SavedCodeSlot}
+  ]
+}
+
+structure{
+  name: SavedCodeReplacement,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: binding, type: CredentialBinding},
+    {name: replacementCodes, type: (List SavedCodeSlot)}
+  ]
+}
+
+structure{
+  name: AdmittedCodeReplacement,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: request, type: SavedCodeReplacement}]
+}
+
+structure{
+  name: RecoveryNotificationIntent,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: scope, type: Bytes},
+    {name: account, type: Bytes},
+    {name: previousRevision, type: Nat},
+    {name: revision, type: Nat},
+    {name: previousEpoch, type: Nat},
+    {name: recoveryEpoch, type: Nat},
+    {name: credentialRef, type: Bytes},
+    {name: credentialsRecovered, type: Bool}
+  ]
+}
+
+inductive{
+  name: SavedRecoveryError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: InvalidState, fields: []},
+    {name: IdentityDisabled, fields: []},
+    {name: WrongScope, fields: []},
+    {name: WrongAccount, fields: []},
+    {name: StaleRevision, fields: []},
+    {name: StaleEpoch, fields: []},
+    {name: CurrentCredentialMismatch, fields: []},
+    {name: CurrentAuthorizationMismatch, fields: []},
+    {name: InvalidRequest, fields: []},
+    {name: EvidenceMismatch, fields: []},
+    {name: UnknownCode, fields: []},
+    {name: ConsumedCode, fields: []},
+    {name: VerifierMismatch, fields: []},
+    {name: ReusedCode, fields: []},
+    {name: InvalidReplacement, fields: []},
+    {name: RetentionExhausted, fields: []},
+    {name: CounterExhausted, fields: []}
+  ]
+}
+
+inductive{
+  name: SavedRecoveryTransition,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Rejected, fields: [SavedRecoveryError]},
+    {name: Accepted, fields: [SavedRecoveryState, RecoveryNotificationIntent]}
+  ]
+}
+
+definition{
+  name: recoveryBytesEqual,
+  parameters: [left : Bytes, right : Bytes],
+  result: Bool,
+  body: (prim equal (prim compare_bytes left right : Ordering) (prim compare_bytes 0x00 0x00 : Ordering) : Bool),
+  axioms: [propext]
+}
+
+definition{
+  name: recoveryReferenceValid,
+  parameters: [value : Bytes],
+  result: Bool,
+  body: ((1 <=? (prim length value : Nat)) && (((prim length value : Nat) <=? 128) && true)),
+  axioms: []
+}
+
+definition{
+  name: savedCodeCount,
+  parameters: [slots : (List SavedCodeSlot)],
+  result: Nat,
+  body: match{
+    branches: [
+      {body: 0, binders: [], constructor: List.nil},
+      {body: (1 + (savedCodeCount rest)), binders: [first, rest], constructor: List.cons}
+    ],
+    scrutinee: slots
+  },
+  axioms: [],
+  recursive_argument: slots
+}
+
+definition{
+  name: savedCodeConflicts,
+  parameters: [slots : (List SavedCodeSlot), slot : SavedCodeSlot],
+  result: Bool,
+  body: match{
+    branches: [
+      {body: false, binders: [], constructor: List.nil},
+      {
+        body: ((recoveryBytesEqual (project var{
+          name: first
+        } codeRef) (project slot codeRef)) || ((recoveryBytesEqual (project var{
+          name: first
+        } verifierCommitment) (project slot verifierCommitment)) || ((savedCodeConflicts rest slot) || false))),
+        binders: [first, rest],
+        constructor: List.cons
+      }
+    ],
+    scrutinee: slots
+  },
+  axioms: [propext],
+  recursive_argument: slots
+}
+
+definition{
+  name: savedCodesValid,
+  parameters: [slots : (List SavedCodeSlot)],
+  result: Bool,
+  body: match{
+    branches: [
+      {body: true, binders: [], constructor: List.nil},
+      {
+        body: ((recoveryReferenceValid (project var{
+          name: first
+        } codeRef)) && ((recoveryReferenceValid (project var{
+          name: first
+        } verifierCommitment)) && ((not (savedCodeConflicts rest var{
+          name: first
+        })) && ((savedCodesValid rest) && true)))),
+        binders: [first, rest],
+        constructor: List.cons
+      }
+    ],
+    scrutinee: slots
+  },
+  axioms: [propext],
+  recursive_argument: slots
+}
+
+definition{
+  name: savedCodesActive,
+  parameters: [slots : (List SavedCodeSlot)],
+  result: Bool,
+  body: match{
+    branches: [
+      {body: true, binders: [], constructor: List.nil},
+      {
+        body: ((not (project var{name: first} consumed)) && ((savedCodesActive rest) && true)),
+        binders: [first, rest],
+        constructor: List.cons
+      }
+    ],
+    scrutinee: slots
+  },
+  axioms: [],
+  recursive_argument: slots
+}
+
+definition{
+  name: savedCodesFresh,
+  parameters: [fresh : (List SavedCodeSlot), previous : (List SavedCodeSlot)],
+  result: Bool,
+  body: match{
+    branches: [
+      {body: true, binders: [], constructor: List.nil},
+      {
+        body: ((not (savedCodeConflicts previous var{
+          name: first
+        })) && ((savedCodesFresh rest previous) && true)),
+        binders: [first, rest],
+        constructor: List.cons
+      }
+    ],
+    scrutinee: fresh
+  },
+  axioms: [propext],
+  recursive_argument: fresh
+}
+
+definition{
+  name: savedCodeFind,
+  parameters: [slots : (List SavedCodeSlot), codeRef : Bytes],
+  result: (Option SavedCodeSlot),
+  body: match{
+    branches: [
+      {body: (ctor Option.none [SavedCodeSlot]), binders: [], constructor: List.nil},
+      {
+        body: (match (recoveryBytesEqual (project var{name: first} codeRef) codeRef)
+          | Bool.false => (savedCodeFind rest codeRef)
+          | Bool.true => (ctor Option.some [SavedCodeSlot] var{name: first})),
+        binders: [first, rest],
+        constructor: List.cons
+      }
+    ],
+    scrutinee: slots
+  },
+  axioms: [propext],
+  recursive_argument: slots
+}
+
+definition{
+  name: consumeSavedCode,
+  parameters: [slots : (List SavedCodeSlot), codeRef : Bytes],
+  result: SavedCodeInventory,
+  body: match{
+    branches: [
+      {
+        body: (record SavedCodeInventory {slots := (nil SavedCodeSlot)}),
+        binders: [],
+        constructor: List.nil
+      },
+      {
+        body: (record SavedCodeInventory {slots := (cons (match (recoveryBytesEqual (project var{
+            name: first
+          } codeRef) codeRef)
+          | Bool.false => var{name: first}
+          | Bool.true => (record SavedCodeSlot {codeRef := (project var{
+            name: first
+          } codeRef), verifierCommitment := (project var{
+            name: first
+          } verifierCommitment), consumed := true})) (project (consumeSavedCode rest codeRef) slots))}),
+        binders: [first, rest],
+        constructor: List.cons
+      }
+    ],
+    scrutinee: slots
+  },
+  axioms: [propext],
+  recursive_argument: slots
+}
+
+definition{
+  name: retireSavedCodes,
+  parameters: [slots : (List SavedCodeSlot)],
+  result: SavedCodeInventory,
+  body: match{
+    branches: [
+      {
+        body: (record SavedCodeInventory {slots := (nil SavedCodeSlot)}),
+        binders: [],
+        constructor: List.nil
+      },
+      {
+        body: (record SavedCodeInventory {slots := (cons (record SavedCodeSlot {codeRef := (project var{
+          name: first
+        } codeRef), verifierCommitment := (project var{
+          name: first
+        } verifierCommitment), consumed := true}) (project (retireSavedCodes rest) slots))}),
+        binders: [first, rest],
+        constructor: List.cons
+      }
+    ],
+    scrutinee: slots
+  },
+  axioms: [],
+  recursive_argument: slots
+}
+
+definition{
+  name: appendSavedCodes,
+  parameters: [left : (List SavedCodeSlot), right : (List SavedCodeSlot)],
+  result: SavedCodeInventory,
+  body: match{
+    branches: [
+      {body: (record SavedCodeInventory {slots := right}), binders: [], constructor: List.nil},
+      {
+        body: (record SavedCodeInventory {slots := (cons var{
+          name: first
+        } (project (appendSavedCodes rest right) slots))}),
+        binders: [first, rest],
+        constructor: List.cons
+      }
+    ],
+    scrutinee: left
+  },
+  axioms: [],
+  recursive_argument: left
+}
+
+definition{
+  name: savedCodesEqual,
+  parameters: [left : (List SavedCodeSlot), right : (List SavedCodeSlot)],
+  result: Bool,
+  body: match{
+    branches: [
+      {
+        body: (match right | List.nil => true | List.cons unusedFirst unusedRest => false),
+        binders: [],
+        constructor: List.nil
+      },
+      {
+        body: (match right
+          | List.nil => false
+          | List.cons other tail => ((recoveryBytesEqual (project var{
+            name: first
+          } codeRef) (project other codeRef)) && ((recoveryBytesEqual (project var{
+            name: first
+          } verifierCommitment) (project other verifierCommitment)) && ((match (project var{
+              name: first
+            } consumed)
+            | Bool.false => (not (project other consumed))
+            | Bool.true => (project other consumed)) && ((savedCodesEqual rest tail) && true))))),
+        binders: [first, rest],
+        constructor: List.cons
+      }
+    ],
+    scrutinee: left
+  },
+  axioms: [propext],
+  recursive_argument: left
+}
+
+definition{
+  name: credentialBindingValid,
+  parameters: [binding : CredentialBinding],
+  result: Bool,
+  body: ((recoveryReferenceValid (project binding scope)) && ((recoveryReferenceValid (project binding account)) && ((recoveryReferenceValid (project binding credentialRef)) && ((recoveryReferenceValid (project binding authorizationRef)) && (((project binding revision) <=? 4294967295) && (((project binding recoveryEpoch) <=? 4294967295) && true)))))),
+  axioms: []
+}
+
+definition{
+  name: credentialBindingsEqual,
+  parameters: [left : CredentialBinding, right : CredentialBinding],
+  result: Bool,
+  body: ((recoveryBytesEqual (project left scope) (project right scope)) && ((recoveryBytesEqual (project left account) (project right account)) && ((recoveryBytesEqual (project left credentialRef) (project right credentialRef)) && ((recoveryBytesEqual (project left authorizationRef) (project right authorizationRef)) && (((project left revision) =? (project right revision)) && (((project left recoveryEpoch) =? (project right recoveryEpoch)) && true)))))),
+  axioms: [propext]
+}
+
+definition{
+  name: savedRecoveryStateValid,
+  parameters: [state : SavedRecoveryState],
+  result: Bool,
+  body: ((credentialBindingValid (project state binding)) && ((1 <=? (project state retentionCapacity)) && (((project state retentionCapacity) <=? 256) && (((savedCodeCount (project state slots)) <=? (project state retentionCapacity)) && ((savedCodesValid (project state slots)) && true))))),
+  axioms: [propext]
+}
+
+definition{
+  name: savedRecoveryRequestsEqual,
+  parameters: [left : SavedRecoveryRequest, right : SavedRecoveryRequest],
+  result: Bool,
+  body: ((credentialBindingsEqual (project left binding) (project right binding)) && ((recoveryBytesEqual (project left codeRef) (project right codeRef)) && ((recoveryBytesEqual (project left replacementCredentialRef) (project right replacementCredentialRef)) && true))),
+  axioms: [propext]
+}
+
+definition{
+  name: savedCodeReplacementsEqual,
+  parameters: [left : SavedCodeReplacement, right : SavedCodeReplacement],
+  result: Bool,
+  body: ((credentialBindingsEqual (project left binding) (project right binding)) && ((savedCodesEqual (project left replacementCodes) (project right replacementCodes)) && true)),
+  axioms: [propext]
+}
+
+definition{
+  name: recoverSavedCredential,
+  parameters: [
+    state : SavedRecoveryState,
+    request : SavedRecoveryRequest,
+    admission : AdmittedSavedRecovery
+  ],
+  result: SavedRecoveryTransition,
+  body: (match (savedRecoveryStateValid state)
+    | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.InvalidState))
+    | Bool.true => (match (project state enabled)
+      | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.IdentityDisabled))
+      | Bool.true => (match (recoveryBytesEqual (project (project state binding) scope) (project (project request binding) scope))
+        | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.WrongScope))
+        | Bool.true => (match (recoveryBytesEqual (project (project state binding) account) (project (project request binding) account))
+          | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.WrongAccount))
+          | Bool.true => (match ((project (project state binding) revision) =? (project (project request binding) revision))
+            | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.StaleRevision))
+            | Bool.true => (match ((project (project state binding) recoveryEpoch) =? (project (project request binding) recoveryEpoch))
+              | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.StaleEpoch))
+              | Bool.true => (match (recoveryBytesEqual (project (project state binding) credentialRef) (project (project request binding) credentialRef))
+                | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.CurrentCredentialMismatch))
+                | Bool.true => (match (recoveryBytesEqual (project (project state binding) authorizationRef) (project (project request binding) authorizationRef))
+                  | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.CurrentAuthorizationMismatch))
+                  | Bool.true => (match ((recoveryReferenceValid (project request codeRef)) && ((recoveryReferenceValid (project request replacementCredentialRef)) && ((not (recoveryBytesEqual (project request replacementCredentialRef) (project (project state binding) credentialRef))) && true)))
+                    | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.InvalidRequest))
+                    | Bool.true => (match (savedRecoveryRequestsEqual request (project admission request))
+                      | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.EvidenceMismatch))
+                      | Bool.true => (match (savedCodeFind (project state slots) (project request codeRef))
+                        | Option.none => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.UnknownCode))
+                        | Option.some found => (match (not (project found consumed))
+                          | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.ConsumedCode))
+                          | Bool.true => (match (recoveryBytesEqual (project found verifierCommitment) (project admission matchedCommitment))
+                            | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.VerifierMismatch))
+                            | Bool.true => (match ((recoveryReferenceValid (project (project admission replacementCode) codeRef)) && ((recoveryReferenceValid (project (project admission replacementCode) verifierCommitment)) && ((not (project (project admission replacementCode) consumed)) && true)))
+                              | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.InvalidReplacement))
+                              | Bool.true => (match (not (savedCodeConflicts (project state slots) (project admission replacementCode)))
+                                | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.ReusedCode))
+                                | Bool.true => (match ((savedCodeCount (project state slots)) <? (project state retentionCapacity))
+                                  | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.RetentionExhausted))
+                                  | Bool.true => (match (((project (project state binding) revision) <? 4294967295) && (((project (project state binding) recoveryEpoch) <? 4294967295) && true))
+                                    | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.CounterExhausted))
+                                    | Bool.true => (ctor SavedRecoveryTransition.Accepted (record SavedRecoveryState {binding := (record CredentialBinding {scope := (project (project state binding) scope), account := (project (project state binding) account), revision := ((project (project state binding) revision) + 1), recoveryEpoch := ((project (project state binding) recoveryEpoch) + 1), credentialRef := (project request replacementCredentialRef), authorizationRef := (project (project state binding) authorizationRef)}), enabled := (project state enabled), retentionCapacity := (project state retentionCapacity), slots := (project (appendSavedCodes (project (consumeSavedCode (project state slots) (project request codeRef)) slots) (cons (project admission replacementCode) (nil SavedCodeSlot))) slots)}) (record RecoveryNotificationIntent {scope := (project (project state binding) scope), account := (project (project state binding) account), previousRevision := (project (project state binding) revision), revision := ((project (project state binding) revision) + 1), previousEpoch := (project (project state binding) recoveryEpoch), recoveryEpoch := ((project (project state binding) recoveryEpoch) + 1), credentialRef := (project request replacementCredentialRef), credentialsRecovered := true}))))))))))))))))))),
+  axioms: [propext]
+}
+
+definition{
+  name: replaceSavedCodes,
+  parameters: [
+    state : SavedRecoveryState,
+    request : SavedCodeReplacement,
+    admission : AdmittedCodeReplacement
+  ],
+  result: SavedRecoveryTransition,
+  body: (match (savedRecoveryStateValid state)
+    | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.InvalidState))
+    | Bool.true => (match (project state enabled)
+      | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.IdentityDisabled))
+      | Bool.true => (match (recoveryBytesEqual (project (project state binding) scope) (project (project request binding) scope))
+        | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.WrongScope))
+        | Bool.true => (match (recoveryBytesEqual (project (project state binding) account) (project (project request binding) account))
+          | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.WrongAccount))
+          | Bool.true => (match ((project (project state binding) revision) =? (project (project request binding) revision))
+            | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.StaleRevision))
+            | Bool.true => (match ((project (project state binding) recoveryEpoch) =? (project (project request binding) recoveryEpoch))
+              | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.StaleEpoch))
+              | Bool.true => (match (recoveryBytesEqual (project (project state binding) credentialRef) (project (project request binding) credentialRef))
+                | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.CurrentCredentialMismatch))
+                | Bool.true => (match (recoveryBytesEqual (project (project state binding) authorizationRef) (project (project request binding) authorizationRef))
+                  | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.CurrentAuthorizationMismatch))
+                  | Bool.true => (match (savedCodeReplacementsEqual request (project admission request))
+                    | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.EvidenceMismatch))
+                    | Bool.true => (match ((0 <? (savedCodeCount (project request replacementCodes))) && ((savedCodesValid (project request replacementCodes)) && ((savedCodesActive (project request replacementCodes)) && true)))
+                      | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.InvalidReplacement))
+                      | Bool.true => (match (savedCodesFresh (project request replacementCodes) (project state slots))
+                        | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.ReusedCode))
+                        | Bool.true => (match (((savedCodeCount (project state slots)) + (savedCodeCount (project request replacementCodes))) <=? (project state retentionCapacity))
+                          | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.RetentionExhausted))
+                          | Bool.true => (match ((project (project state binding) recoveryEpoch) <? 4294967295)
+                            | Bool.false => (ctor SavedRecoveryTransition.Rejected (ctor SavedRecoveryError.CounterExhausted))
+                            | Bool.true => (ctor SavedRecoveryTransition.Accepted (record SavedRecoveryState {binding := (record CredentialBinding {scope := (project (project state binding) scope), account := (project (project state binding) account), revision := (project (project state binding) revision), recoveryEpoch := ((project (project state binding) recoveryEpoch) + 1), credentialRef := (project (project state binding) credentialRef), authorizationRef := (project (project state binding) authorizationRef)}), enabled := (project state enabled), retentionCapacity := (project state retentionCapacity), slots := (project (appendSavedCodes (project (retireSavedCodes (project state slots)) slots) (project request replacementCodes)) slots)}) (record RecoveryNotificationIntent {scope := (project (project state binding) scope), account := (project (project state binding) account), previousRevision := (project (project state binding) revision), revision := (project (project state binding) revision), previousEpoch := (project (project state binding) recoveryEpoch), recoveryEpoch := ((project (project state binding) recoveryEpoch) + 1), credentialRef := (project (project state binding) credentialRef), credentialsRecovered := false}))))))))))))))),
+  axioms: [propext]
+}
 \end{semanticmodule}
 \end{lexlean}

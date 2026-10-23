@@ -8,6 +8,7 @@ use crate::error::PrismError;
 use crate::holo::canonical::{content_id, decode_canonical, encode_value};
 use crate::holo::model_document::{Application, ModelDocument};
 use lexlean::artifact::content_id as lex_ids;
+use lexlean::artifact::snapshot::snapshot_spec;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -61,6 +62,28 @@ fn array(value: &Value) -> Result<&[Value], PrismError> {
         .as_array()
         .map(Vec::as_slice)
         .ok_or_else(|| invalid("evidence array is absent"))
+}
+
+/// The attestation schema LexLean selects for a language: language 1.2 has its
+/// own (`attestation-v2`), earlier languages keep the frozen version 1.
+fn attestation_spec(language: &str) -> &'static str {
+    if language == "1.2" {
+        "lexlean/attestation/2"
+    } else {
+        "lexlean/attestation/1"
+    }
+}
+
+/// The build-manifest spec LexLean emits for a language. LexLean 0.4 keeps
+/// `lexlean/build-manifest/1` for languages 1.1 and 1.2 (BuildManifest::to_json
+/// in vendor/lexlean/src/artifact/manifest.rs; the 1.1/1.2 shape is
+/// build-manifest-v2.schema.json, whose `spec` const is the same id). Any other
+/// language has no manifest spec and is refused.
+fn build_manifest_spec(language: &str) -> Result<&'static str, PrismError> {
+    match language {
+        "1.1" | "1.2" => Ok("lexlean/build-manifest/1"),
+        _ => Err(invalid("LexLean evidence language is unsupported")),
+    }
 }
 
 fn keys(value: &Value, fields: &[&str]) -> Result<(), PrismError> {
@@ -366,6 +389,63 @@ pub(crate) fn validate(
     })
 }
 
+fn attestation_shape(
+    lex: &Value,
+    manifest: &Value,
+    snapshot: &Value,
+    mut fields: Vec<&'static str>,
+) -> Result<(), PrismError> {
+    if lex.get("pdf").is_some() {
+        fields.push("pdf");
+    }
+    let language = string(&snapshot["language"])?;
+    ensure(
+        matches!(language, "1.1" | "1.2"),
+        "LexLean evidence language is unsupported",
+    )?;
+    let language_12 = language == "1.2";
+    if language_12 {
+        // Language 1.2 attestations carry optional source-package origins and
+        // the compiler-input and preservation rows (attestation-v2 schema).
+        for optional in ["compiler_input", "origins", "preservation"] {
+            if lex.get(optional).is_some() {
+                fields.push(optional);
+            }
+        }
+    }
+    keys(lex, &fields)?;
+    ensure(
+        lex["spec"] == attestation_spec(language)
+            && lex["status"] == "verified"
+            && manifest["spec"] == build_manifest_spec(language)?
+            && manifest["language"] == language
+            && snapshot["spec"] == snapshot_spec(language),
+        "LexLean evidence schema or status differs",
+    )?;
+    for row in ["compiler_input", "preservation"] {
+        if let Some(value) = lex.get(row) {
+            keys(value, &["byte_length", "sha256"])?;
+            digest(&value["sha256"])?;
+            ensure(
+                value["byte_length"]
+                    .as_u64()
+                    .is_some_and(|length| length > 0),
+                "LexLean compiler-input descriptor is invalid",
+            )?;
+        }
+    }
+    if let Some(origins) = lex.get("origins") {
+        ensure(
+            origins.as_object().is_some_and(|rows| {
+                rows.values()
+                    .all(|origin| origin.as_str().is_some_and(|text| !text.is_empty()))
+            }),
+            "LexLean attestation origins are invalid",
+        )?;
+    }
+    Ok(())
+}
+
 fn lexlean_binding(
     build: &Value,
     files: &BTreeMap<String, Vec<u8>>,
@@ -392,7 +472,7 @@ fn lexlean_binding(
             "spec",
         ],
     )?;
-    let mut fields = vec![
+    let fields = vec![
         "attestation_id",
         "build_id",
         "build_manifest",
@@ -408,17 +488,7 @@ fn lexlean_binding(
         "status",
         "toolchain",
     ];
-    if lex.get("pdf").is_some() {
-        fields.push("pdf");
-    }
-    keys(lex, &fields)?;
-    ensure(
-        lex["spec"] == "lexlean/attestation/1"
-            && lex["status"] == "verified"
-            && manifest["spec"] == "lexlean/build-manifest/1"
-            && snapshot["spec"] == "lexlean/semantic-snapshot/1",
-        "LexLean evidence schema or status differs",
-    )?;
+    attestation_shape(lex, &manifest, snapshot, fields)?;
     let typed: lexlean::artifact::snapshot::SemanticSnapshot =
         serde_json::from_value(snapshot.clone())
             .map_err(|error| invalid(format!("LexLean snapshot: {error}")))?;
@@ -628,7 +698,7 @@ fn selected_application_snapshot(
         ],
     )?;
     ensure(
-        manifest["spec"] == "lexlean/build-manifest/1"
+        manifest["spec"] == build_manifest_spec(string(&manifest["language"])?)?
             && manifest["source_id"] == p.source_id
             && manifest["semantic_id"] == p.semantic_id
             && manifest["compiler"] == full_manifest["compiler"]
@@ -650,7 +720,16 @@ fn selected_application_snapshot(
         !modules.is_empty() && modules.iter().all(|module| full_modules.contains(module)),
         "application selected modules differ from attested full snapshot",
     )?;
-    let module_rows = modules.iter().map(|module| json!({"lean_module":module["lean_module"],"module":module["name"],"source_path":module["source"]["path"]})).collect::<Vec<_>>();
+    let module_rows = modules
+        .iter()
+        .map(|module| {
+            let mut row = json!({"lean_module":module["lean_module"],"module":module["name"],"source_path":module["source"]["path"]});
+            if let Some(origin) = module.get("origin").filter(|origin| origin.is_string()) {
+                row["origin"] = origin.clone();
+            }
+            row
+        })
+        .collect::<Vec<_>>();
     ensure(
         manifest["modules"] == json!(module_rows)
             && manifest["selection"]

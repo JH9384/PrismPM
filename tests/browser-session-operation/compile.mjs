@@ -1,4 +1,5 @@
 // Private test orchestration; no host implementation of modeled transitions.
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -40,7 +41,7 @@ export function frozenInputs() {
   for (const path of ['tests/browser-view/compile.mjs', 'tests/browser-view/driver-cache.mjs',
     'tests/browser-view/kernel-provenance.test.mjs', 'tests/browser-view/local-module-inputs.test.mjs',
     'tests/browser-view/file-custody.test.mjs',
-    'scripts/owning-node-reporter.mjs', 'crates/conformance/src/cases/node_suite.rs',
+    'scripts/owning-node-reporter.mjs', 'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs', 'crates/conformance/src/cases/node_suite.rs',
     'tests/browser-session/wire.mjs', 'tests/browser-session/corpus.mjs',
     'tests/browser-session/maxima.mjs', 'tests/browser-session/budget.mjs',
     'sdk/browser/session-operation-capture.mjs', 'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
@@ -137,7 +138,7 @@ export function prepareOperation(compilerOwner, expectedInputs, mutationId = nul
     assert.equal(attestation.status, 'verified'); assert.equal(attestation.attestation_id, verified.attestation_id);
     assert.equal(attestation.build_manifest.sha256, sha(buildManifest));
     const expected = new Map([...sources].flatMap(([name, bytes]) => {
-      const data = JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+      const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
     assert.equal(attestation.declarations.length, expected.size);

@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
@@ -21,9 +22,8 @@ test('exact RFC authority bytes are retained, including their notices', () => {
 test('primitive implementation is authored LexLean, with typed cursor results', () => {
   const source = readFileSync(new URL(
     'stdlib/src/Foundation/Codec/Cbor/V1/Primitive.lex.tex', root), 'utf8');
-  const line = source.split('\n').find(line => line.startsWith('\\semanticdata{'));
-  const model = JSON.parse(line.slice(14, -1));
-  assert.equal(model.spec, 'lexlean/semantic-module/1');
+  const model = readSemantic(source);
+  assert.equal(model.spec, 'lexlean/semantic-module/2');
   const declarations = new Map(model.declarations.map(row => [row.name, row]));
   assert.equal(declarations.size, model.declarations.length);
   for (const name of ['CborLimits', 'CborDecoded', 'CborArrayHead']) {
@@ -46,7 +46,7 @@ test('primitive implementation is authored LexLean, with typed cursor results', 
 test('octet oracle independently covers every byte and rejected upper boundaries', () => {
   const source = readFileSync(new URL(
     'stdlib/src/Foundation/Codec/Cbor/V1/PrimitiveCorpus.lex.tex', root), 'utf8');
-  const model = JSON.parse(source.split('\n').find(line => line.startsWith('\\semanticdata{')).slice(14, -1));
+  const model = readSemantic(source);
   const declarations = new Map(model.declarations.map(row => [row.name, row]));
   const actual = [];
   function leaves(expression) {

@@ -615,3 +615,160 @@ pub(crate) fn reject_mutations(
         rejected(&changed, "native execution");
     }
 }
+
+fn lexlean_attestation_fields() -> Vec<&'static str> {
+    vec![
+        "attestation_id",
+        "build_id",
+        "build_manifest",
+        "declarations",
+        "host",
+        "lake_workspace",
+        "lexlean",
+        "oleans",
+        "processes",
+        "semantic_id",
+        "source_id",
+        "spec",
+        "status",
+        "toolchain",
+    ]
+}
+
+fn lexlean_attestation(spec: &str, extra: &[(&str, Value)]) -> Value {
+    let mut value = serde_json::Map::new();
+    for field in lexlean_attestation_fields() {
+        value.insert(field.to_owned(), json!(null));
+    }
+    value.insert("spec".to_owned(), json!(spec));
+    value.insert("status".to_owned(), json!("verified"));
+    for (name, row) in extra {
+        value.insert((*name).to_owned(), row.clone());
+    }
+    Value::Object(value)
+}
+
+#[test]
+fn lexlean_attestation_schema_follows_the_project_language() {
+    let row = json!({"byte_length": 7, "sha256": "a".repeat(64)});
+    let cases = [
+        (
+            "1.1",
+            "lexlean/semantic-snapshot/1",
+            "lexlean/attestation/1",
+            vec![],
+        ),
+        (
+            "1.2",
+            "lexlean/semantic-snapshot/2",
+            "lexlean/attestation/2",
+            vec![
+                ("compiler_input", row.clone()),
+                ("preservation", row.clone()),
+                ("origins", json!({"Main": "pkg"})),
+            ],
+        ),
+        (
+            "1.2",
+            "lexlean/semantic-snapshot/2",
+            "lexlean/attestation/2",
+            vec![],
+        ),
+    ];
+    for (language, snapshot_spec, attestation, extra) in cases {
+        let manifest = json!({"spec": "lexlean/build-manifest/1", "language": language});
+        let snapshot = json!({"language": language, "spec": snapshot_spec});
+        let lex = lexlean_attestation(attestation, &extra);
+        attestation_shape(&lex, &manifest, &snapshot, lexlean_attestation_fields()).unwrap();
+    }
+}
+
+#[test]
+fn lexlean_attestation_schema_rejects_cross_language_and_open_shapes() {
+    let row = json!({"byte_length": 7, "sha256": "a".repeat(64)});
+    let snapshot_11 = json!({"language": "1.1", "spec": "lexlean/semantic-snapshot/1"});
+    let snapshot_12 = json!({"language": "1.2", "spec": "lexlean/semantic-snapshot/2"});
+    let wrong = [
+        // A 1.2 attestation under a 1.1 snapshot, and the reverse.
+        (
+            lexlean_attestation("lexlean/attestation/2", &[]),
+            &snapshot_11,
+        ),
+        (
+            lexlean_attestation("lexlean/attestation/1", &[]),
+            &snapshot_12,
+        ),
+        // The 1.2-only rows are closed fields of a 1.1 attestation.
+        (
+            lexlean_attestation("lexlean/attestation/1", &[("compiler_input", row.clone())]),
+            &snapshot_11,
+        ),
+        // A 1.2 snapshot envelope must carry the version 2 spec.
+        (
+            lexlean_attestation("lexlean/attestation/2", &[]),
+            &json!({"language": "1.2", "spec": "lexlean/semantic-snapshot/1"}),
+        ),
+        // Malformed descriptor rows and unknown fields are refused.
+        (
+            lexlean_attestation(
+                "lexlean/attestation/2",
+                &[(
+                    "preservation",
+                    json!({"byte_length": 0, "sha256": "a".repeat(64)}),
+                )],
+            ),
+            &snapshot_12,
+        ),
+        (
+            lexlean_attestation("lexlean/attestation/2", &[("origins", json!({"Main": ""}))]),
+            &snapshot_12,
+        ),
+        (
+            lexlean_attestation("lexlean/attestation/2", &[("unknown", json!(1))]),
+            &snapshot_12,
+        ),
+    ];
+    for (index, (lex, snapshot)) in wrong.iter().enumerate() {
+        let manifest = json!({
+            "spec": "lexlean/build-manifest/1",
+            "language": snapshot["language"],
+        });
+        assert!(
+            attestation_shape(lex, &manifest, snapshot, lexlean_attestation_fields()).is_err(),
+            "case {index} was accepted"
+        );
+    }
+}
+
+#[test]
+fn lexlean_build_manifest_schema_follows_the_project_language() {
+    // LexLean 0.4 emits lexlean/build-manifest/1 for languages 1.1 and 1.2.
+    for language in ["1.1", "1.2"] {
+        assert_eq!(
+            build_manifest_spec(language).unwrap(),
+            "lexlean/build-manifest/1"
+        );
+    }
+    for language in ["1.0", "1.3", "2.0", ""] {
+        assert!(
+            build_manifest_spec(language).is_err(),
+            "language {language:?} was accepted"
+        );
+    }
+    let lex = lexlean_attestation("lexlean/attestation/2", &[]);
+    let snapshot = json!({"language": "1.2", "spec": "lexlean/semantic-snapshot/2"});
+    let refused = [
+        json!({"spec": "lexlean/build-manifest/2", "language": "1.2"}),
+        json!({"spec": "lexlean/build-manifest/1", "language": "1.1"}),
+        json!({"spec": "lexlean/build-manifest/1"}),
+    ];
+    for (index, manifest) in refused.iter().enumerate() {
+        assert!(
+            attestation_shape(&lex, manifest, &snapshot, lexlean_attestation_fields()).is_err(),
+            "manifest case {index} was accepted"
+        );
+    }
+    let unknown = json!({"language": "1.3", "spec": "lexlean/semantic-snapshot/2"});
+    let manifest = json!({"spec": "lexlean/build-manifest/1", "language": "1.3"});
+    assert!(attestation_shape(&lex, &manifest, &unknown, lexlean_attestation_fields()).is_err());
+}

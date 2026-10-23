@@ -19,6 +19,11 @@ use crate::project::Project;
 pub use crate::project::Selection;
 use crate::source::coverage::Coverage;
 
+// The production export contract (§24.7): the stable façade through which a
+// consumer compiles production roots to certified Rust packages and replays
+// the result without the source.
+pub mod production;
+
 /// The stable engine (§24.1).
 pub struct Engine {
     project: Project,
@@ -40,6 +45,54 @@ pub struct BuildRequest {
 pub struct VerifyRequest {
     /// The selection.
     pub selection: Selection,
+}
+
+/// Which modules one part of a verification runs (SPEC.md §9.4): full Lean
+/// module names, as the verifier labels its processes (§22.11).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct VerifyPlan {
+    /// The modules the part elaborates.
+    pub elaborate: Vec<String>,
+    /// The modules the part replays and audits.
+    pub replay: Vec<String>,
+}
+
+/// One part of a verification run as several parts on several hosts of one
+/// run (SPEC.md §9.4). Every process of the verification runs exactly once
+/// across the parts; the join publishes what a whole verification publishes.
+pub enum VerifyPart {
+    /// A shard: the plan's processes, written to `output`; nothing published.
+    Shard {
+        /// The processes of this shard.
+        plan: VerifyPlan,
+        /// The output directories of the parts whose `.olean` files this
+        /// shard's elaborations import.
+        imports: Vec<Utf8PathBuf>,
+        /// Where the shard writes its `.olean` files and process records; it
+        /// must not exist or must be empty.
+        output: Utf8PathBuf,
+    },
+    /// The join: the plan's processes, every other part's records, then the
+    /// attestation and publication.
+    Join {
+        /// The processes of the join itself.
+        plan: VerifyPlan,
+        /// The output directories of every other part.
+        parts: Vec<Utf8PathBuf>,
+    },
+}
+
+/// What a part of a verification produced.
+pub enum VerifyPartOutcome {
+    /// A shard's output directory, and the number of processes it ran.
+    Shard {
+        /// The output directory.
+        output: Utf8PathBuf,
+        /// The elaborations, replays, and audit members it ran.
+        processes: usize,
+    },
+    /// The join's published verification.
+    Verified(VerifiedProject),
 }
 
 /// A format request.
@@ -268,11 +321,16 @@ pub fn render_build(
             .map(|declaration| format!("{lean_module}.{}", declaration.lean_name))
             .collect();
         if let Some(core) = &checked_module.document.core {
+            // A private constant has no name a command can write (its module
+            // prefix is a numbered segment), so the audit covers it through
+            // every declaration that uses it, as the library audits do
+            // (§17.17, §18.9).
             declaration_names.extend(
                 crate::backend::core::environment_declarations(core)
                     .map_err(LexLeanError::from_diagnostic)?
                     .into_iter()
-                    .map(|declaration| declaration.name.clone()),
+                    .map(|declaration| declaration.name.clone())
+                    .filter(|name| !name.starts_with("_private.")),
             );
         }
         if let Some(semantic) = &checked_module.document.semantic {
@@ -358,6 +416,7 @@ pub fn render_build(
             module: name.clone(),
             lean_module: lean_module.clone(),
             source_path: checked_module.document.source_path.clone(),
+            origin: checked_module.document.origin.clone(),
         });
         modules.push(RenderedModule {
             module: name.clone(),
@@ -510,9 +569,28 @@ pub fn publish_build(
 fn publish_build_locked(
     project: &Project,
     build: &RenderedBuild,
+    guard: &MutationGuard,
+) -> Result<Utf8PathBuf, LexLeanError> {
+    publish_tree(
+        project,
+        "build",
+        &build.build_id.to_hex(),
+        &build.files,
+        guard,
+    )
+}
+
+/// Publish `files` atomically at `<build_root>/<area>/<name>`, a
+/// content-addressed directory (§21.8): staging, fsync, validate-before-reuse,
+/// rename. The build directory and the production bundle (§24.7) share it.
+fn publish_tree(
+    project: &Project,
+    area: &str,
+    name: &str,
+    files: &[(String, Vec<u8>)],
     _guard: &MutationGuard,
 ) -> Result<Utf8PathBuf, LexLeanError> {
-    let build_root_relative = format!("{}/build", project.config.build_root);
+    let build_root_relative = format!("{}/{area}", project.config.build_root);
     let build_root = project
         .confined_creatable(&build_root_relative)
         .map_err(LexLeanError::from_diagnostic)?;
@@ -522,8 +600,8 @@ fn publish_build_locked(
             format!("{build_root_relative}: {io_error}"),
         ))
     })?;
-    let target_relative = format!("{build_root_relative}/{}", build.build_id.to_hex());
-    let target = build_root.join(build.build_id.to_hex());
+    let target_relative = format!("{build_root_relative}/{name}");
+    let target = build_root.join(name);
     if std::fs::symlink_metadata(target.as_std_path()).is_ok() {
         // Existing content-addressed output is reused only after every
         // file validates against the new manifest and no extra file is
@@ -532,7 +610,7 @@ fn publish_build_locked(
         project
             .confined_dir(&target_relative)
             .map_err(LexLeanError::from_diagnostic)?;
-        for (relative, bytes) in &build.files {
+        for (relative, bytes) in files {
             let existing = std::fs::read(target.join(relative).as_std_path());
             match existing {
                 Ok(found) if found == *bytes => {}
@@ -540,14 +618,13 @@ fn publish_build_locked(
                     return Err(LexLeanError::from_diagnostic(Diagnostic::new(
                         code!("LLB6003"),
                         format!(
-                            "existing build directory {target_relative} does not validate against the manifest at `{relative}`; refusing to overwrite unexplained bytes"
+                            "existing {area} directory {target_relative} does not validate against the manifest at `{relative}`; refusing to overwrite unexplained bytes"
                         ),
                     )));
                 }
             }
         }
-        let expected: BTreeSet<&str> = build
-            .files
+        let expected: BTreeSet<&str> = files
             .iter()
             .map(|(relative, _)| relative.as_str())
             .collect();
@@ -567,7 +644,7 @@ fn publish_build_locked(
                 return Err(LexLeanError::from_diagnostic(Diagnostic::new(
                     code!("LLB6003"),
                     format!(
-                        "existing build directory {target_relative} holds the unexplained extra file `{relative}`; refusing to reuse it"
+                        "existing {area} directory {target_relative} holds the unexplained extra file `{relative}`; refusing to reuse it"
                     ),
                 )));
             }
@@ -588,7 +665,7 @@ fn publish_build_locked(
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(staging.path(), std::fs::Permissions::from_mode(0o700));
     }
-    for (relative, bytes) in &build.files {
+    for (relative, bytes) in files {
         let destination = staging.path().join(relative);
         if let Some(parent) = destination.parent() {
             std::fs::create_dir_all(parent).map_err(|io_error| {
@@ -733,6 +810,17 @@ impl Engine {
             let existing = crate::lock::read_lock_bytes(&self.project)
                 .map_err(LexLeanError::from_diagnostic)?;
             if existing != bytes {
+                // §10.5: a source package that is not the one the lock pins
+                // is named with both digests, not called a stale lock.
+                if let Ok(committed) =
+                    crate::lock::parse_lock(&self.project.config.lockfile, &existing)
+                {
+                    crate::source_package::check_pins(
+                        &committed.source_packages,
+                        &lock.source_packages,
+                    )
+                    .map_err(LexLeanError::from_diagnostics)?;
+                }
                 return Err(LexLeanError::from_diagnostic(Diagnostic::new(
                     code!("LLC0102"),
                     format!(
@@ -910,6 +998,25 @@ impl Engine {
     }
 
     fn verify_inner(&self, request: &VerifyRequest) -> Result<VerifiedProject, LexLeanError> {
+        match self.verify_part_inner(request, &crate::verify::Part::Whole)? {
+            VerifyPartOutcome::Verified(verified) => Ok(verified),
+            VerifyPartOutcome::Shard { .. } => Err(host_failure(
+                "the whole verification published no verified directory".to_owned(),
+            )),
+        }
+    }
+
+    fn verify_part_inner(
+        &self,
+        request: &VerifyRequest,
+        part: &crate::verify::Part<'_>,
+    ) -> Result<VerifyPartOutcome, LexLeanError> {
+        // The operational settings (§22.11, §22.12) are resolved before any
+        // work, so that a malformed width is refused without a build having
+        // been published, and they are handed to the verifier whole: nothing
+        // downstream reads the environment for them again.
+        let operational = crate::verify::operational::Operational::from_environment()
+            .map_err(LexLeanError::from_diagnostic)?;
         let (mut checked, lock) = self.checked(&request.selection)?;
         let mut rendered = render_build(&self.project, &checked)?;
         // Rendering is the last consumer of parser atoms,
@@ -933,9 +1040,22 @@ impl Engine {
         // stage, and the verified-set publication (§21.8).
         let guard = acquire_lock(&self.project)?;
         publish_build_locked(&self.project, &rendered, &guard)?;
-        let outcome = crate::verify::run(&self.project, &lock, &checked, &mut rendered)?;
+        let outcome = crate::verify::run_part(
+            &self.project,
+            &lock,
+            &checked,
+            &mut rendered,
+            &operational,
+            part,
+        )?;
         drop(guard);
-        Ok(VerifiedProject {
+        let outcome = match outcome {
+            crate::verify::PartOutcome::Shard { output, processes } => {
+                return Ok(VerifyPartOutcome::Shard { output, processes });
+            }
+            crate::verify::PartOutcome::Verified(outcome) => outcome,
+        };
+        Ok(VerifyPartOutcome::Verified(VerifiedProject {
             source_id: checked.source_id,
             semantic_id: checked.semantic_id,
             build_id: rendered.build_id,
@@ -954,7 +1074,7 @@ impl Engine {
                     )
                 })
                 .collect(),
-        })
+        }))
     }
 
     /// Format a selection canonically, or exact-byte compare (§23.5). The
@@ -982,6 +1102,10 @@ impl Engine {
             let (checked, _lock) = self.checked(&request.selection)?;
             let mut units = BTreeMap::new();
             for (name, module) in &checked.modules {
+                // A module of a source package is the package's file (§10.5).
+                if module.document.origin.is_some() {
+                    continue;
+                }
                 let canonical = crate::fmt::canonical_source(module, &checked.closure)
                     .map_err(LexLeanError::from_diagnostic)?;
                 let raw = raw_bytes(&module.document.source_path)?;
@@ -1025,7 +1149,16 @@ impl Engine {
             .map(|path| path.join("project"))
             .map_err(LexLeanError::from_diagnostic)?;
         self.scratch_project_copy(&scratch)?;
-        let scratch_engine = Self::load(&scratch.join(&self.project.config_name))?;
+        let scratch_engine = match (&self.project.workspace, &self.project.workspace_member) {
+            (Some(workspace), Some(member)) => Self {
+                project: Project::load_as_member(
+                    &scratch.join(&self.project.config_name),
+                    workspace,
+                    member,
+                )?,
+            },
+            _ => Self::load(&scratch.join(&self.project.config_name))?,
+        };
         for relative in scratch_engine
             .project
             .all_modules()
@@ -1044,6 +1177,9 @@ impl Engine {
         let mut units = BTreeMap::new();
         let mut rewrites: Vec<(String, String)> = Vec::new();
         for (name, module) in &before.modules {
+            if module.document.origin.is_some() {
+                continue;
+            }
             let canonical = crate::fmt::canonical_source(module, &before.closure)
                 .map_err(LexLeanError::from_diagnostic)?;
             let raw = raw_bytes(&module.document.source_path)?;
@@ -1070,6 +1206,9 @@ impl Engine {
                 }
                 // The canonical text must itself be a fixed point.
                 for (name, module) in &after.modules {
+                    if module.document.origin.is_some() {
+                        continue;
+                    }
                     let again = crate::fmt::canonical_source(module, &after.closure)
                         .map_err(LexLeanError::from_diagnostic)?;
                     if again != module.normalized {
@@ -1320,4 +1459,50 @@ pub fn command_result_json(
         fields.push(("explanation", Json::Str(text.to_owned())));
     }
     Json::object(fields)
+}
+
+/// Verify a project as one part of a verification run as several
+/// parts (SPEC.md §9.4): a shard runs the processes its plan names and
+/// writes them to its output directory; the join runs its own, reads
+/// every other part's, and publishes through the same pipeline as
+/// [`Engine::verify`]. It is repository tooling for the CI gate, not one of
+/// the stable entry points of §24.1. A part is defined for a project without production
+/// roots and without PDF rendering.
+pub fn verify_part(
+    engine: &Engine,
+    request: VerifyRequest,
+    part: VerifyPart,
+) -> Result<VerifyPartOutcome, LexLeanError> {
+    let plan_of = |plan: &VerifyPlan| crate::verify::Plan {
+        elaborate: plan.elaborate.iter().cloned().collect(),
+        replay: plan.replay.iter().cloned().collect(),
+    };
+    match &part {
+        VerifyPart::Shard {
+            plan,
+            imports,
+            output,
+        } => {
+            let plan = plan_of(plan);
+            engine.bound(
+                "verify",
+                engine.verify_part_inner(
+                    &request,
+                    &crate::verify::Part::Shard {
+                        plan: &plan,
+                        imports,
+                        output,
+                    },
+                ),
+            )
+        }
+        VerifyPart::Join { plan, parts } => {
+            let plan = plan_of(plan);
+            engine.bound(
+                "verify",
+                engine
+                    .verify_part_inner(&request, &crate::verify::Part::Join { plan: &plan, parts }),
+            )
+        }
+    }
 }

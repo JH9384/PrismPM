@@ -5,13 +5,18 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{BoundedCursor}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{bytes}: \texttt{ByteArray}.\par
+\noindent Field \texttt{offset}: \texttt{Nat}.\par
+\noindent Field \texttt{limit}: \texttt{Nat}.\par
 \subsection*{\texttt{formatInt64}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : Int64)}.\par
 \noindent Type: \texttt{String}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.formatDecimal (value) : String)}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par
 \subsection*{\texttt{parseInt64}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : String)}.\par
 \noindent Type: \texttt{Option (Int64)}.\par
 \noindent Definition: \texttt{(LexLeanRuntime.parseDecimal (value) : Option (Int64))}.\par
 \noindent Axiom policy: \texttt{exact [Classical.choice, Quot.sound, propext]}.\par

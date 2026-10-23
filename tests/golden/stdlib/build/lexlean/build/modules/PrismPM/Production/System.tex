@@ -5,90 +5,254 @@
 \section*{Semantic declarations}
 \subsection*{\texttt{ModelTerm}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{id}: \texttt{String}.\par
+\noindent Field \texttt{kind}: \texttt{String}.\par
+\noindent Field \texttt{value}: \texttt{String}.\par
+\noindent Field \texttt{dependsOn}: \texttt{List (String)}.\par
 \subsection*{\texttt{Lifecycle}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{backup}: \texttt{String}.\par
+\noindent Field \texttt{drift}: \texttt{String}.\par
+\noindent Field \texttt{migration}: \texttt{String}.\par
+\noindent Field \texttt{recovery}: \texttt{String}.\par
+\noindent Field \texttt{retirement}: \texttt{String}.\par
+\noindent Field \texttt{rollback}: \texttt{String}.\par
+\noindent Field \texttt{rollout}: \texttt{String}.\par
 \subsection*{\texttt{ApplicationErrorBinding}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{wireName}: \texttt{String}.\par
+\noindent Field \texttt{modelName}: \texttt{String}.\par
 \subsection*{\texttt{TransactionalCommandView}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{title}: \texttt{String}.\par
+\noindent Field \texttt{heading}: \texttt{String}.\par
+\noindent Field \texttt{identityHeading}: \texttt{String}.\par
+\noindent Field \texttt{commandFormHeading}: \texttt{String}.\par
+\noindent Field \texttt{historyHeading}: \texttt{String}.\par
+\noindent Field \texttt{principalLabel}: \texttt{String}.\par
+\noindent Field \texttt{principalDefault}: \texttt{String}.\par
+\noindent Field \texttt{roleLabel}: \texttt{String}.\par
+\noindent Field \texttt{submitterRoleLabel}: \texttt{String}.\par
+\noindent Field \texttt{observerRoleLabel}: \texttt{String}.\par
+\noindent Field \texttt{deniedRoleLabel}: \texttt{String}.\par
+\noindent Field \texttt{authenticateLabel}: \texttt{String}.\par
+\noindent Field \texttt{commandIdLabel}: \texttt{String}.\par
+\noindent Field \texttt{inputALabel}: \texttt{String}.\par
+\noindent Field \texttt{operationLabel}: \texttt{String}.\par
+\noindent Field \texttt{inputBLabel}: \texttt{String}.\par
+\noindent Field \texttt{annotationLabel}: \texttt{String}.\par
+\noindent Field \texttt{submitLabel}: \texttt{String}.\par
+\noindent Field \texttt{refreshLabel}: \texttt{String}.\par
+\noindent Field \texttt{emptyText}: \texttt{String}.\par
+\noindent Field \texttt{loadingText}: \texttt{String}.\par
+\noindent Field \texttt{authenticatedText}: \texttt{String}.\par
+\noindent Field \texttt{accessDeniedText}: \texttt{String}.\par
+\noindent Field \texttt{retryLabel}: \texttt{String}.\par
+\noindent Field \texttt{sequenceHeading}: \texttt{String}.\par
+\noindent Field \texttt{commandColumnHeading}: \texttt{String}.\par
+\noindent Field \texttt{inputSummaryHeading}: \texttt{String}.\par
+\noindent Field \texttt{outcomeHeading}: \texttt{String}.\par
+\noindent Field \texttt{annotationHeading}: \texttt{String}.\par
+\noindent Field \texttt{releasePrefix}: \texttt{String}.\par
+\noindent Field \texttt{historyLoadedText}: \texttt{String}.\par
+\noindent Field \texttt{historyEmptyText}: \texttt{String}.\par
+\noindent Field \texttt{authenticatingText}: \texttt{String}.\par
+\noindent Field \texttt{authenticationFailedText}: \texttt{String}.\par
+\noindent Field \texttt{submittingText}: \texttt{String}.\par
+\noindent Field \texttt{outcomePrefix}: \texttt{String}.\par
+\noindent Field \texttt{commandFailedText}: \texttt{String}.\par
+\noindent Field \texttt{historyFailedText}: \texttt{String}.\par
 \subsection*{\texttt{TransactionalCommandServiceProfile}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{contract}: \texttt{String}.\par
+\noindent Field \texttt{applicationErrors}: \texttt{List (ApplicationErrorBinding)}.\par
+\noindent Field \texttt{applicationModelDigest}: \texttt{String}.\par
+\noindent Field \texttt{commandEncoding}: \texttt{String}.\par
+\noindent Field \texttt{responseVersion}: \texttt{String}.\par
+\noindent Field \texttt{optionalAnnotation}: \texttt{String}.\par
+\noindent Field \texttt{coreArtifact}: \texttt{String}.\par
+\noindent Field \texttt{identityAudience}: \texttt{String}.\par
+\noindent Field \texttt{submitterRole}: \texttt{String}.\par
+\noindent Field \texttt{observerRole}: \texttt{String}.\par
+\noindent Field \texttt{eventSource}: \texttt{String}.\par
+\noindent Field \texttt{acceptedEventType}: \texttt{String}.\par
+\noindent Field \texttt{rejectedEventType}: \texttt{String}.\par
+\noindent Field \texttt{databaseName}: \texttt{String}.\par
+\noindent Field \texttt{databaseUser}: \texttt{String}.\par
+\noindent Field \texttt{eventExchange}: \texttt{String}.\par
+\noindent Field \texttt{auditQueue}: \texttt{String}.\par
+\noindent Field \texttt{commandIdPattern}: \texttt{String}.\par
+\noindent Field \texttt{commandPath}: \texttt{String}.\par
+\noindent Field \texttt{tokenPath}: \texttt{String}.\par
+\noindent Field \texttt{commandOperations}: \texttt{List (String)}.\par
+\noindent Field \texttt{annotationMaxScalars}: \texttt{UInt32}.\par
+\noindent Field \texttt{historyDefaultLimit}: \texttt{UInt32}.\par
+\noindent Field \texttt{historyMaxLimit}: \texttt{UInt32}.\par
+\noindent Field \texttt{maxRequestBytes}: \texttt{UInt64}.\par
+\noindent Field \texttt{availabilityThresholdMillionths}: \texttt{UInt64}.\par
+\noindent Field \texttt{outboxLagThresholdMillis}: \texttt{UInt64}.\par
+\noindent Field \texttt{commandIdField}: \texttt{String}.\par
+\noindent Field \texttt{operationField}: \texttt{String}.\par
+\noindent Field \texttt{inputAField}: \texttt{String}.\par
+\noindent Field \texttt{inputBField}: \texttt{String}.\par
+\noindent Field \texttt{annotationField}: \texttt{String}.\par
+\noindent Field \texttt{commandIdColumn}: \texttt{String}.\par
+\noindent Field \texttt{operationColumn}: \texttt{String}.\par
+\noindent Field \texttt{inputAColumn}: \texttt{String}.\par
+\noindent Field \texttt{inputBColumn}: \texttt{String}.\par
+\noindent Field \texttt{annotationColumn}: \texttt{String}.\par
+\noindent Field \texttt{acceptanceErrorOperation}: \texttt{String}.\par
+\noindent Field \texttt{acceptanceErrorInputA}: \texttt{String}.\par
+\noindent Field \texttt{acceptanceErrorInputB}: \texttt{String}.\par
+\noindent Field \texttt{acceptanceExpectedError}: \texttt{String}.\par
+\noindent Field \texttt{acceptanceConflictInputB}: \texttt{String}.\par
+\noindent Field \texttt{acceptanceSuccessOperation}: \texttt{String}.\par
+\noindent Field \texttt{acceptanceSuccessInputA}: \texttt{String}.\par
+\noindent Field \texttt{acceptanceSuccessInputB}: \texttt{String}.\par
+\noindent Field \texttt{acceptanceExpectedResult}: \texttt{String}.\par
+\noindent Field \texttt{view}: \texttt{TransactionalCommandView}.\par
+\noindent Field \texttt{brokerUser}: \texttt{String}.\par
+\noindent Field \texttt{historyTable}: \texttt{String}.\par
+\noindent Field \texttt{outboxTable}: \texttt{String}.\par
+\noindent Field \texttt{auditTable}: \texttt{String}.\par
+\noindent Field \texttt{publicHostnameParameter}: \texttt{String}.\par
 \subsection*{\texttt{SystemModel}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{product}: \texttt{PrismPM.Production.Core.Product}.\par
+\noindent Field \texttt{artifacts}: \texttt{List (PrismPM.Production.Core.Artifact)}.\par
+\noindent Field \texttt{components}: \texttt{List (PrismPM.Production.Core.Component)}.\par
+\noindent Field \texttt{interfaces}: \texttt{List (PrismPM.Production.Interface.Interface)}.\par
+\noindent Field \texttt{schemas}: \texttt{List (PrismPM.Production.Interface.Schema)}.\par
+\noindent Field \texttt{calls}: \texttt{List (PrismPM.Production.Interface.Call)}.\par
+\noindent Field \texttt{events}: \texttt{List (PrismPM.Production.Interface.Event)}.\par
+\noindent Field \texttt{flows}: \texttt{List (PrismPM.Production.Interface.Flow)}.\par
+\noindent Field \texttt{topology}: \texttt{List (PrismPM.Production.Runtime.Topology)}.\par
+\noindent Field \texttt{platformRequirements}: \texttt{List (PrismPM.Production.Runtime.PlatformRequirement)}.\par
+\noindent Field \texttt{scalingPolicies}: \texttt{List (PrismPM.Production.Runtime.ScalingPolicy)}.\par
+\noindent Field \texttt{storageClasses}: \texttt{List (PrismPM.Production.Runtime.StorageClass)}.\par
+\noindent Field \texttt{parameters}: \texttt{List (PrismPM.Production.Core.Configuration)}.\par
+\noindent Field \texttt{secretReferences}: \texttt{List (PrismPM.Production.Core.SecretReference)}.\par
+\noindent Field \texttt{identityRequirements}: \texttt{List (PrismPM.Production.Core.IdentityRequirement)}.\par
+\noindent Field \texttt{persistence}: \texttt{List (PrismPM.Production.Runtime.Persistence)}.\par
+\noindent Field \texttt{migrations}: \texttt{List (PrismPM.Production.Runtime.Migration)}.\par
+\noindent Field \texttt{backups}: \texttt{List (PrismPM.Production.Runtime.BackupRecovery)}.\par
+\noindent Field \texttt{observability}: \texttt{PrismPM.Production.Operations.Observability}.\par
+\noindent Field \texttt{slis}: \texttt{List (PrismPM.Production.Operations.Sli)}.\par
+\noindent Field \texttt{slos}: \texttt{List (PrismPM.Production.Operations.Slo)}.\par
+\noindent Field \texttt{alerts}: \texttt{List (PrismPM.Production.Operations.Alert)}.\par
+\noindent Field \texttt{controls}: \texttt{List (PrismPM.Production.Operations.Control)}.\par
+\noindent Field \texttt{capabilities}: \texttt{List (PrismPM.Production.Core.Capability)}.\par
+\noindent Field \texttt{architecture}: \texttt{List (PrismPM.Production.Operations.ArchitectureBinding)}.\par
+\noindent Field \texttt{targets}: \texttt{List (PrismPM.Production.Runtime.TargetBinding)}.\par
+\noindent Field \texttt{rollouts}: \texttt{List (PrismPM.Production.Operations.Rollout)}.\par
+\noindent Field \texttt{rollbacks}: \texttt{List (PrismPM.Production.Operations.Rollback)}.\par
+\noindent Field \texttt{drifts}: \texttt{List (PrismPM.Production.Operations.Drift)}.\par
+\noindent Field \texttt{retirements}: \texttt{List (PrismPM.Production.Operations.Retirement)}.\par
+\noindent Field \texttt{acceptance}: \texttt{List (PrismPM.Production.Operations.Acceptance)}.\par
+\noindent Field \texttt{lifecycle}: \texttt{Lifecycle}.\par
+\noindent Field \texttt{applicationProfile}: \texttt{TransactionalCommandServiceProfile}.\par
+\noindent Field \texttt{standards}: \texttt{List (String)}.\par
 \subsection*{\texttt{SystemManifest}}
 \noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{closure}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{uniqueness}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{referentialIntegrity}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{compatibility}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{capabilitySatisfaction}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{secretFlow}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{deploymentOrder}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{migrationOrder}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{rollbackSafety}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{evidenceClosure}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{licenseClosure}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
+\noindent Field \texttt{releaseCompleteness}: \texttt{PrismPM.Production.Validation.ValidationRelation}.\par
 \subsection*{\texttt{validateManifestClosure}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateClosure (((manifest).closure).bound) (((manifest).closure).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestUniqueness}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateUniqueness (((manifest).uniqueness).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestReferentialIntegrity}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateReferentialIntegrity (((manifest).referentialIntegrity).bound) (((manifest).referentialIntegrity).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestCompatibility}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateCompatibility (((manifest).compatibility).bound) (((manifest).compatibility).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestCapabilitySatisfaction}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateCapabilitySatisfaction (((manifest).capabilitySatisfaction).bound) (((manifest).capabilitySatisfaction).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestSecretFlow}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateSecretFlow (((manifest).secretFlow).bound) (((manifest).secretFlow).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestDeploymentOrder}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateDeploymentOrder (((manifest).deploymentOrder).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestMigrationOrder}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateMigrationOrder (((manifest).migrationOrder).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestRollbackSafety}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateRollbackSafety (((manifest).rollbackSafety).bound) (((manifest).rollbackSafety).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestEvidenceClosure}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateEvidenceClosure (((manifest).evidenceClosure).bound) (((manifest).evidenceClosure).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestLicenseClosure}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateLicenseClosure (((manifest).licenseClosure).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifestReleaseCompleteness}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{PrismPM.Production.Validation.validateReleaseCompleteness (((manifest).releaseCompleteness).values)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{validateManifest}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(PrismPM.Production.Validation.validateClosure (((manifest).closure).bound) (((manifest).closure).values) \&\& (PrismPM.Production.Validation.validateUniqueness (((manifest).uniqueness).values) \&\& (PrismPM.Production.Validation.validateReferentialIntegrity (((manifest).referentialIntegrity).bound) (((manifest).referentialIntegrity).values) \&\& (PrismPM.Production.Validation.validateCompatibility (((manifest).compatibility).bound) (((manifest).compatibility).values) \&\& (PrismPM.Production.Validation.validateCapabilitySatisfaction (((manifest).capabilitySatisfaction).bound) (((manifest).capabilitySatisfaction).values) \&\& (PrismPM.Production.Validation.validateSecretFlow (((manifest).secretFlow).bound) (((manifest).secretFlow).values) \&\& (PrismPM.Production.Validation.validateDeploymentOrder (((manifest).deploymentOrder).values) \&\& (PrismPM.Production.Validation.validateMigrationOrder (((manifest).migrationOrder).values) \&\& (PrismPM.Production.Validation.validateRollbackSafety (((manifest).rollbackSafety).bound) (((manifest).rollbackSafety).values) \&\& (PrismPM.Production.Validation.validateEvidenceClosure (((manifest).evidenceClosure).bound) (((manifest).evidenceClosure).values) \&\& (PrismPM.Production.Validation.validateLicenseClosure (((manifest).licenseClosure).values) \&\& PrismPM.Production.Validation.validateReleaseCompleteness (((manifest).releaseCompleteness).values))))))))))))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{manifestValid}}
 \noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Type: \texttt{Prop}.\par
 \noindent Definition: \texttt{(validateManifest (manifest) = true)}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{manifestValidation\_sound\_complete}}
 \noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(manifest : SystemManifest)}.\par
 \noindent Statement: \texttt{((validateManifest (manifest) = true) <-> manifestValid (manifest))}.\par
 \noindent Axiom policy: \texttt{none}.\par
 \end{document}

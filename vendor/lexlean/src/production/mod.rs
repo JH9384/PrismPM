@@ -9,11 +9,11 @@
 
 pub mod certificate;
 pub mod eligibility;
+pub mod kernel;
 pub mod lcnf;
 pub mod lower;
 pub mod preserve;
 pub mod rust_cert;
-pub mod rust_term;
 pub(crate) mod source;
 
 use std::collections::{BTreeMap, BTreeSet};

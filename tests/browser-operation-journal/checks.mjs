@@ -1,3 +1,4 @@
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
@@ -11,7 +12,7 @@ import {executeWasm, tsv} from '../browser-effects/checks.mjs';
 import {verifyBrowser, verifyHostMutations} from './browser.mjs';
 
 export function verifyInventory() {
-  const semantic = file => JSON.parse(/\\semanticdata\{(.*)\}/.exec(readFileSync(join(repository, file), 'utf8'))[1]);
+  const semantic = file => readSemantic(readFileSync(join(repository, file), 'utf8'));
   const model = semantic('stdlib/src/Foundation/Browser/Application/V1/OperationJournal.lex.tex');
   const effects = semantic('stdlib/src/Foundation/Browser/Application/V1/Effects.lex.tex');
   const cbor = semantic('stdlib/src/Foundation/Codec/Cbor/V1/Primitive.lex.tex');
@@ -69,6 +70,7 @@ export function sourceClosure() {
     'tests/browser-view/compile.mjs', 'tests/browser-view/driver-cache.mjs', 'tests/browser-view/prerequisites.mjs',
     'tests/browser-view/compiler-artifact.mjs', 'tests/browser-view/compiler-owner-checks.mjs', 'tests/browser-view/compiler-owner.mjs',
     'tests/browser-view/verification-products.mjs',
+    'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs',
     'tests/browser-effects/checks.mjs', 'tests/browser-effects/compile.mjs', 'tests/browser-effects/corpus.mjs',
     'tests/browser-custody/compile.mjs', 'tests/browser-custody/checks.mjs', 'tests/browser-custody/corpus.mjs',
     'tests/browser-custody/browser.mjs', 'tests/browser-custody/browser-fixture.mjs', 'LICENSE-MIT', 'LICENSE-APACHE',

@@ -1,4 +1,5 @@
 // Private test orchestration; no host implementation of modeled transitions.
+import { readSemantic } from '../../scripts/semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {chmodSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -84,7 +85,7 @@ function measured(stage, operation) {
 }
 export function assertCapturedRecoverySources(inputs, sources) {
   assert.deepEqual([...sources.keys()].map(modulePath).sort(),
-    Object.keys(inputs).filter(path => path.endsWith('.lex.tex')).sort(),
+    Object.keys(inputs).filter(path => path.endsWith('.lex.tex') && !path.startsWith('vendor/')).sort(),
     'complete captured source module inventory');
   for (const [name, bytes] of sources) assert.equal(sha(bytes), inputs[modulePath(name)],
     'actual captured source must match original snapshot ' + name);
@@ -343,7 +344,7 @@ export function prepareRecovery(mutationId = null, expectedInputs = null, shared
     assert.equal(attestation.status, 'verified'); assert.equal(attestation.attestation_id, verified.attestation_id);
     assert.equal(attestation.build_manifest.sha256, sha(buildManifest));
     const expected = new Map([...sources].flatMap(([name, bytes]) => {
-      const data = JSON.parse(/\\semanticdata\{(.*)\}/.exec(bytes.toString('utf8'))[1]);
+      const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
     assert.equal(attestation.declarations.length, expected.size);

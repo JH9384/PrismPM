@@ -1,4 +1,5 @@
 // Installed native-profile acceptance only; not SDK release or product acceptance.
+import { readSemantic, writeSemantic } from './semantic-source.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -27,6 +28,7 @@ export const sourceRoots=Object.freeze([
  'scripts/browser-api-sdk-check.mjs','scripts/library-sdk-check.mjs','scripts/library-sdk-check.sh',
  'scripts/sdk-command-owner.mjs','scripts/sdk-command-owner.py',
  'scripts/sdk-qualification-trust.mjs',
+ 'scripts/semantic-source.mjs','crates/conformance/src/bin/prismpm-semantic-source.rs',
  'scripts/library-sdk-check.test.mjs','scripts/library-sdk-check-shell.test.mjs','scripts/library-sdk-fixture.mjs','scripts/library-owner-reader-replay.mjs','.github/workflows/release.yml',
  'scripts/installed-exporter-concurrency.mjs','scripts/installed-exporter-concurrency.test.mjs','scripts/portable-oracle-process-owner.py',
  'scripts/hologram-source-pins.mjs','scripts/hologram-source-pins.test.mjs','crates/prismpm/tests/hologram_interop.rs',
@@ -302,7 +304,7 @@ function readLibraryEvidence(project,receipt,exporterArchiveSha256,compilerIdent
  // LexLean owns its snapshot serialization; the exact bytes are bound above.
  const snapshot=JSON.parse(regularBytes(join(build,'lexlean/snapshot.json')));assert.ok(Array.isArray(snapshot.modules));const declarations=snapshot.modules.flatMap(module=>module.declarations.map(declaration=>({name:module.lean_module+'.'+declaration.lean_name,policy:declaration.axiom_policy})));
  const names=['LibraryProbe.Foundation.Library.V1.Model.NativeLibrary','LibraryProbe.Probe.acceptance','LibraryProbe.Probe.identity','LibraryProbe.Probe.probeLibrary'];same(declarations.map(row=>row.name).sort(),names,'complete selected declaration closure');
- assert.equal(lexAttestation.spec,'lexlean/attestation/1');assert.equal(lexAttestation.status,'verified');assert.equal(lexAttestation.build_id,inputs.lexlean_build_id);assert.equal(lexAttestation.source_id,inputs.lexlean_source_id);assert.equal(lexAttestation.semantic_id,inputs.lexlean_semantic_id);
+ assert.equal(lexAttestation.spec,'lexlean/attestation/2');assert.equal(lexAttestation.status,'verified');assert.equal(lexAttestation.build_id,inputs.lexlean_build_id);assert.equal(lexAttestation.source_id,inputs.lexlean_source_id);assert.equal(lexAttestation.semantic_id,inputs.lexlean_semantic_id);
  assert.ok(Array.isArray(lexAttestation.declarations));same(lexAttestation.declarations.map(row=>row.name).sort(),names,'complete published declaration audit');
  for(const row of lexAttestation.declarations){keys(row,['name','observed','policy','result']);assert.equal(row.result,'ok');same(row.policy,declarations.find(declaration=>declaration.name===row.name).policy,'exact declaration axiom policy');same(row.policy,{axioms:[],kind:'none'},'fixture has no admitted axioms');same(row.observed,[],'fixture has no observed axioms');}
  const library=artifacts.filter(row=>row.path.startsWith('library/'));
@@ -324,10 +326,9 @@ function readLibraryEvidence(project,receipt,exporterArchiveSha256,compilerIdent
  return {build,model_id:hash(modelBytes)};
 }
 export function mutateModule(project,change){
- const path=join(project,'src/Probe.lex.tex'),before=regularBytes(path).toString('utf8'),lines=before.trimEnd().split('\n');
- const indices=lines.flatMap((line,index)=>line.startsWith('\\semanticdata{')?[index]:[]);assert.equal(indices.length,1,'one semantic module');
- const index=indices[0];assert.ok(lines[index].endsWith('}'));const module=JSON.parse(lines[index].slice('\\semanticdata{'.length,-1));change(module);
- lines[index]='\\semanticdata{'+canonical(module)+'}';writeFileSync(path,lines.join('\n')+'\n');return before;
+ const path=join(project,'src/Probe.lex.tex'),before=regularBytes(path).toString('utf8');
+ const module=readSemantic(before);change(module);
+ writeFileSync(path,writeSemantic(before,module));return before;
 }
 const declaration=(module,name)=>{const rows=module.declarations.filter(row=>row.name===name);assert.equal(rows.length,1);return rows[0];};
 const rootField=(module,name)=>{const rows=declaration(module,'probeLibrary').body.fields.filter(row=>row.field===name);assert.equal(rows.length,1);return rows[0].value;};
@@ -359,7 +360,7 @@ export async function run(root,image,lockBytes){
   const secondVerify=positive(second,['verify']);assert.equal(secondVerify.build_id,accepted.build_id);checkAccepted(second,secondVerify,exporterArchiveSha256,compilerIdentity,'cold',binding);
   retain(second,secondVerify,'cold');
   const beforeProduct=tree(first);cli(first,['build','--locked','-t','ghcr.io/uor-foundation/prismpm-library-probe:0.1.0'],{code:'PP6101',message:'native-library acceptance is not product-release or deployment acceptance'});same(tree(first),beforeProduct,'product refusal wrote outputs');
-  const descriptor=regularBytes(join(source,'src/Foundation/Library/V1/Model.lex.tex')).toString('utf8');const descriptorRow=descriptor.split('\n').filter(line=>line.startsWith('\\semanticdata{'));assert.equal(descriptorRow.length,1);const nominal=JSON.parse(descriptorRow[0].slice('\\semanticdata{'.length,-1));
+  const descriptor=regularBytes(join(source,'src/Foundation/Library/V1/Model.lex.tex')).toString('utf8');const nominal=readSemantic(descriptor);
   const mutations=[
    [module=>{rootField(module,'exportRoots').tail.head.value='LibraryProbe.Probe.missing';},'native-library export LibraryProbe.Probe.missing is not defined'],
    [module=>{rootField(module,'acceptanceRoots').head.value=identityRoot;},'native-library acceptance root LibraryProbe.Probe.identity must have type Bool with no parameters'],

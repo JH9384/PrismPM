@@ -50,6 +50,13 @@ title = "GNAF request malformed"
 statement = "A GNAF request is not a closed `lexlean/gnaf-request/1` document, its reference program or a system its universe realizes is not a valid target program, its reference returns no value on a domain argument, its grammar repeats a threshold or misdeclares a plan's preparation, or its stated universe identity is not the one its components determine."
 
 [[error]]
+code = "LLB6007"
+class = "language"
+exit = 1
+title = "GNAF certificate malformed"
+statement = "A GNAF certificate is not a closed `lexlean/gnaf-certificate/1` document, or a certificate fixture states an identity other than its certificate's."
+
+[[error]]
 code = "LLC0001"
 class = "cli-configuration"
 exit = 2
@@ -90,6 +97,62 @@ class = "cli-configuration"
 exit = 2
 title = "Duplicate module or case-folded path collision"
 statement = "Duplicate module or case-folded path collision."
+
+[[error]]
+code = "LLC0105"
+class = "cli-configuration"
+exit = 2
+title = "Source package is not the package the lock pins"
+statement = "A source package's version, source, module prefix, manifest digest, tree digest, or declared packages differ from the lock's row, naming the package and both digests."
+
+[[error]]
+code = "LLC0106"
+class = "cli-configuration"
+exit = 2
+title = "Source package undeclared or declared with two sources"
+statement = "The lock pins a source package the project does not declare, or one identifier names two sources in the closure."
+
+[[error]]
+code = "LLC0107"
+class = "cli-configuration"
+exit = 2
+title = "Module prefix claimed by two sources"
+statement = "A module prefix is claimed by the project and a source package, or by two source packages, equal or one beneath the other, or an import names a module both the project and a package provide."
+
+[[error]]
+code = "LLC0108"
+class = "cli-configuration"
+exit = 2
+title = "Source package outside the workspace rule"
+statement = "A project that declares a source package is outside any workspace or is not a member of it, a package is not a member of the workspace, or the workspace file or a package is malformed."
+
+[[error]]
+code = "LLC0201"
+class = "cli-configuration"
+exit = 2
+title = "Production request malformed"
+statement = "A production request is not a closed `lexlean/production-request/1` document: an unknown or missing field, another spec, roots, targets, or evidence that are empty, unsorted, or repeated, a root, package, or path that is not of its form, or a package name used twice for one target."
+
+[[error]]
+code = "LLC0202"
+class = "cli-configuration"
+exit = 2
+title = "Requested root is not a production root"
+statement = "A production request names a root that is not a linked production root of the project's entrypoint closure."
+
+[[error]]
+code = "LLC0203"
+class = "cli-configuration"
+exit = 2
+title = "Unknown or mismatched production target"
+statement = "A production request names a target that is not registered, that its root does not declare, or whose descriptor digest is not the registered target's."
+
+[[error]]
+code = "LLC0204"
+class = "cli-configuration"
+exit = 2
+title = "Stale production expectation"
+statement = "The source ID, semantic ID, or lock digest a production request pins differs from the project's, or the project changed while it was being exported."
 
 [[error]]
 code = "LLF5001"
@@ -260,6 +323,13 @@ title = "Model artifact bytes violate the declared schema, type, or role"
 statement = "Model artifact bytes violate the declared schema, type, or role."
 
 [[error]]
+code = "LLR3009"
+class = "language"
+exit = 1
+title = "Import of a module of a source package the importing scope does not declare"
+statement = "A module imports a module of a source package that the project, or the package the module belongs to, does not declare."
+
+[[error]]
 code = "LLS8001"
 class = "security-limit"
 exit = 4
@@ -372,6 +442,34 @@ title = "Unvalidated reasoning runtime boundary"
 statement = "Unvalidated reasoning runtime boundary."
 
 [[error]]
+code = "LLT4013"
+class = "language"
+exit = 1
+title = "Tooling module malformed or out of context"
+statement = "A tooling module is not canonical JSON of the closed schema lexlean/tooling-module/1, has a member the schema does not close, nests deeper than the decoder allows, or is not in a language-1.2 project the compiler embeds."
+
+[[error]]
+code = "LLT4014"
+class = "language"
+exit = 1
+title = "Tooling authority registry invalid"
+statement = "A tooling module pins an authority other than the compiler's Lean release, or its registry of types, calls, and plumbing is not closed: a name declared twice, a signature or field naming an unregistered constant or an unbound variable, a type whose parameters, constructors, index requirements, or abbreviation are inconsistent, a plumbing row that is empty, unsorted, or repeats a constant, or a source pin that is not a toolchain path with a SHA-256."
+
+[[error]]
+code = "LLT4015"
+class = "language"
+exit = 1
+title = "Tooling term ill-typed or unlicensed"
+statement = "A tooling term is not well typed: a call with the wrong type arguments or arguments, a match that is not exhaustive at its scrutinee's index, or a binder that shadows another; a function recurses without a licence (partial, or its contiguous mutual group); a command, invocation, or evaluation does not match its grammar; or a traversal does not recurse into every field of its recursive family."
+
+[[error]]
+code = "LLT4016"
+class = "language"
+exit = 1
+title = "Unbounded or unspecified text generation"
+statement = "A text declaration does not state the bound it must: a context window with capacity 0, or a text generator with max_tokens 0."
+
+[[error]]
 code = "LLV7001"
 class = "environment"
 exit = 3
@@ -482,3 +580,31 @@ class = "language"
 exit = 1
 title = "Certificate E rejected"
 statement = "The composition of a production root's certificates A and B for one of its targets does not compile silently under the pinned Lean, its leanchecker replay fails, or its end-to-end theorem depends on axioms other than exactly Classical.choice, Quot.sound, and propext."
+
+[[error]]
+code = "LLV7017"
+class = "environment"
+exit = 3
+title = "Invalid verification resource profile"
+statement = "The operational verification process width the environment selects is not a decimal integer from 1 to 64."
+
+[[error]]
+code = "LLV7018"
+class = "environment"
+exit = 3
+title = "Child start refused after the host ended the live children"
+statement = "A child process could not be started because the host ended the live children of this process through `lexlean::verify::end_live_children` and has not re-enabled starting children."
+
+[[error]]
+code = "LLV7101"
+class = "language"
+exit = 1
+title = "Certificate evidence does not certify the root"
+statement = "Certificate evidence a production request supplies is not the certificate whose identity it pins, earns a refused verdict for its request, or is for a request whose reference program is not the root's lowered program."
+
+[[error]]
+code = "LLV7102"
+class = "language"
+exit = 1
+title = "Production artifact replay rejected"
+statement = "A production bundle does not replay: its result identity, a file digest, a binding between the result, the attestation, the preservation record, and its packages, a re-rendered package, a target descriptor, the producing compiler's semantics, or a recomputed certificate verdict disagrees with what the bundle states, or the bundle holds a file it does not state."

@@ -39,4 +39,4 @@ world core-wasm {
 - [Check a holo](/docs/api/verify)
 - [Holo format](/docs/reference/holo-format)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.

@@ -54,4 +54,4 @@ Schema: `https://schemas.uor.foundation/prismpm/sdk-lock/1`, file `schemas/docum
 - [Holo format](/docs/reference/holo-format)
 - [CLI reference](/docs/reference/cli)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.

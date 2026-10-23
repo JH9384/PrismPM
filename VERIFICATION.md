@@ -3566,3 +3566,47 @@ Planted defects, each applied alone and reverted afterwards:
 Not established here: the oracle test, the server application binding that
 issue 216 will supply, and any OCI release, replay or deployment of
 `system-model/3`.
+
+## crates.io readiness (#214)
+
+`just package-release-crates-check` (`scripts/package-release-crates.sh --check`)
+also requires the packaged `prism-stdlib` to be the crate `prismpm build` embeds,
+and packages `prismpm` against the vendored dependencies; `--dry-run` runs
+`cargo publish --dry-run` for the four crates of this repository (network, no
+credential); `crate-metadata-check.sh` reads each archive for what crates.io
+needs. Run on 2026-10-23 on `main` `7afacadf` with this change, in WSL (Ubuntu,
+Rust 1.97.1): `--check` exits 0 in 26 s, and `--dry-run` exits 0 with cargo's
+"aborting upload due to dry run" for `prod-ir`, `prod-codegen`, `prism-stdlib`
+and `prismpm`. The digests are the reviewed ones:
+
+```text
+7cffc0251ee01ce97debe304a41a4e28f6be94ba41691fac1993c811919cdc21  prod-ir-0.1.0.crate
+29270825b581f950b3914509b7a0613f34964f003eb3c61772636d0805b09148  prod-codegen-0.1.0.crate
+58f398f5453e170e19842360ac1bb3ceda2ea032306527bbeb3adf6650b52bca  prism-stdlib-0.2.0.crate
+```
+
+`prismpm-0.3.0.crate` is 545 files and 5.1 MiB compressed, under the 10 MiB limit.
+Its digest depends on the patched dependency lock and is not a pin.
+
+Each defect was planted in the committed tree, run with the real script, and
+restored with `git checkout`; `scripts/crate-readiness.test.mjs` plants the same
+defects on a scratch copy and `scripts/release-phases.test.mjs` plants eleven changes
+to the `crates` job, each of which must fail `validateWorkflow`.
+
+| Planted defect | Command | Observed | Restored |
+| --- | --- | --- | --- |
+| a package one byte from the embedded crate (byte 1000 overwritten) | `package-release-crates.sh --identity <package>` | exit 1: the packaged digest is not the `crate_sha256` of `stdlib/release.json` | file removed |
+| `stdlib/release.json` names another hash (`58f3…` as `68f3…`) | `--identity stdlib/generated/prism-stdlib-0.2.0.crate` | exit 1 | `git checkout` |
+| the SDK includes `prism-stdlib-0.1.0.crate` instead of 0.2.0 in `application_build.rs` | same | exit 1: no include of the reviewed archive | `git checkout` |
+| no `CARGO_REGISTRY_TOKEN` | `--publish` | exit 64, "set CARGO_REGISTRY_TOKEN for this command; this script never stores it"; no cargo or curl call | none needed |
+| a token and uncommitted changes | `--publish` | exit 1, "the working tree must be clean: the upload is of committed bytes"; no cargo or curl call | none needed |
+| an archive without a description, a license, a repository, or the readme it names; or over 10 MiB | `crate-metadata-check.sh` | exit 1, each named | scratch archives |
+| the `crates` job without the dry run, without the unchanged-bytes check after it, without the metadata check, without the skip when no credential exists, with the `lexlean` wait unconditional, without the `lexlean` patch, with the token not from the secret, or with the trusted-publishing step unguarded | `node --test scripts/release-phases.test.mjs` | `validateWorkflow` throws for each | scratch YAML |
+| an apostrophe in a comment of the job script, which sits inside one single-quoted `bash -c` argument (found while writing this change) | same | `bash: line 110: unexpected EOF while looking for matching` a quote, from the new `bash -n` check of the script | `cp` of the saved workflow |
+
+What this does not show: `release.yml` has never run, and the `crates` job is
+read, not executed. In `scripts/release-phases.test.mjs`, 17 of 18 tests pass
+here; the Buildx test ("pinned Buildx pushes a genuine two-platform OCI index")
+needs `docker buildx`, which this environment lacks, and does not touch the
+`crates` job. The layout-custody test failed once when the file ran beside
+`crate-readiness.test.mjs` and passed alone and in the next full run.

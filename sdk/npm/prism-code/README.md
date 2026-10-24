@@ -172,6 +172,28 @@ document and the HOLOVIEW bundle. The package verifies every label and the
 footer with its own BLAKE3, and refuses structure it does not recognize with a
 named error (`archive.version`, `archive.bounds`, `core.exports`, ...).
 
+## Attestations (draft, #267)
+
+A holo may carry signed statements in one more Extension row, the last one,
+named `https://uor.foundation/extension/attestation-bundle/v1`. Its payload is
+JSON Lines, one Sigstore bundle v0.3 per line. The footer still covers every
+byte before it, bundle included. The design is
+[docs/proposals/267-attestation-bundle.md](../../../docs/proposals/267-attestation-bundle.md).
+
+```js
+import { load, appendAttestations, stripAttestations } from 'prism-code';
+
+const signed = appendAttestations(holoBytes, [bundle]); // other rows byte-identical, footer recomputed
+const app = await load(signed);
+app.attestations();          // [{ predicateType, statement, subjects, bytes, ... }]
+stripAttestations(signed);   // the unsigned archive, byte for byte
+```
+
+The package decodes bundles and resolves each subject to a content blob by its
+`blake3` label. It does not verify signatures; that is `@prism-code/verify`
+(#273). PrismPM's Rust reader refuses the ninth row until the wire model admits
+it, so signed archives are for the JavaScript runtime only for now.
+
 ## In the browser
 
 ```js

@@ -207,7 +207,8 @@ export function errors({ spec, runtime, cli, page }) {
 
   parts.push(heading(2, 'Runtime errors'));
   parts.push(status(page.status));
-  parts.push(fence('ts', declaration(runtime.types, 'PrismCodeError')));
+  parts.push(fence('ts', [declaration(runtime.types, 'PrismError'), declaration(runtime.types, 'PrismCodeError')].join('\n\n')));
+  parts.push(paragraph('The typed errors, their codes and the verdict checks that map to them are on the error types page.'));
   parts.push(table(['Code', 'Raised in'], runtime.errorCodes.map((e) => [code(e.code), e.files.map((f) => code(`src/${f}`)).join(', ')])));
 
   parts.push(heading(2, 'CLI exit codes'));

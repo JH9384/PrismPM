@@ -9,11 +9,14 @@ on:
   pull_request:
     paths:
       - sdk/npm/prism-code/**
+      # test/inspect.test.mjs checks its format revision table against the spec's.
+      - sdk/npm/spec/index.mjs
       - .github/workflows/npm-prism-code.yml
   push:
     branches: [main]
     paths:
       - sdk/npm/prism-code/**
+      - sdk/npm/spec/index.mjs
       - .github/workflows/npm-prism-code.yml
     tags:
       - prism-code-v*

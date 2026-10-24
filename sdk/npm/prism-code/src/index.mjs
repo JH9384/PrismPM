@@ -12,6 +12,7 @@ import { decodeHoloview } from './view.mjs';
 import { compileGuest, runGuest, runAcceptance } from './core.mjs';
 import { verifyClosure, closureDispatch, initializeGlue } from './closure.mjs';
 import { PrismCodeError, fail } from './errors.mjs';
+import { inspect } from './inspect.mjs';
 import * as canonical from './canonical/index.js';
 
 export { PrismCodeError } from './errors.mjs';
@@ -20,6 +21,7 @@ export { decodeHoloview, encodeHoloview } from './view.mjs';
 export { compileGuest, runGuest, runAcceptance } from './core.mjs';
 export { verifyClosure, closureDispatch, initializeGlue } from './closure.mjs';
 export { blake3, blake3Hex, kappa } from './blake3.mjs';
+export { inspect, formatInspection, INSPECTION_SCHEMA } from './inspect.mjs';
 
 const decoder = new TextDecoder('utf-8', { fatal: true });
 
@@ -77,6 +79,7 @@ export async function loadArchive(source) {
     }
   }
   const dispatch = async (request) => runGuest(module, asBytes(request), limits);
+  let inspection = null;
   return Object.freeze({
     kind: 'holo',
     name: application.name ?? provenance.cargo_name ?? null,
@@ -93,6 +96,8 @@ export async function loadArchive(source) {
     archive: parsed,
     dispatch,
     acceptance: () => runAcceptance(vectors, dispatch),
+    /** What the holo says about itself, read from the section table; the guest is not run. */
+    inspect: () => (inspection ??= inspect(parsed.bytes)),
   });
 }
 
@@ -131,6 +136,7 @@ export async function loadClosure(files, importGlue, { model = null } = {}) {
     view,
     dispatch: async (request) => dispatch(asBytes(request)),
     acceptance: () => runAcceptance(vectors, (r) => dispatch(r)),
+    inspect: async () => fail('inspect.kind', 'inspect reads a .holo archive; a closure has no section table'),
   });
 }
 

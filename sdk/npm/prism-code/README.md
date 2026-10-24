@@ -66,12 +66,81 @@ request the view posts) by dispatching through the guest.
 
 ```
 npx prism-code vectors app.holo       # replay every acceptance vector; exit 1 on a failure
-npx prism-code inspect app.holo       # identities, limits, provenance, view files as JSON
 ```
 
-Both also take a closure directory. A numeric-profile closure (the Calculator)
-exposes only `calculate()`, so its wire format comes from the model document:
-pass `--model model.prism.json`.
+`vectors` also takes a closure directory. A numeric-profile closure (the
+Calculator) exposes only `calculate()`, so its wire format comes from the model
+document: pass `--model model.prism.json`.
+
+## Inspect without running
+
+`inspect` prints the format revision, the section table with both digests of
+every section, the manifest, the model, the provenance, the world and the
+attestations. It reads the section table only. It never compiles or runs the
+guest.
+
+```
+npx prism-code inspect Calculator.holo
+```
+
+```text
+Name:      Calculator
+Revision:  2026-10-23
+Format:    HOLO physical version 4, flags 0
+Size:      24801 B
+Digest:    sha256:84371aaac82af6b2a81a25a81d43d4097892985f55ae4919cfdcfa8b6e3486e7
+           blake3:4efe02106778d44a469cc0fc8f6998167af7c9075a3ac605c150098c0f5243bb
+Footer:    8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba (BLAKE3 of the body)
+
+Sections:
+  INDEX  KIND  ROLE                   OFFSET  LENGTH  SHA256                                                            BLAKE3
+  0      15    app-manifest           202     356     0088c507ec48bb78288d898327902037749c6bb9527546633c6a1adbc3ba8a6f  4ed201e5…
+  …
+World:
+  Contract:        hologram:guest/core-wasm@1
+  Imports:         none
+  Exports:         holo_alloc, holo_run, memory
+  Capability set:  blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c (requests nothing)
+
+Attestations:
+  none
+```
+
+Every block has the same lines in the same order, and every digest is printed
+in full, so two outputs diff cleanly in CI. Each digest pair is sha256 and
+BLAKE3 over the same bytes. A section's digest covers exactly its table bytes.
+A content blob also lists the digest of its content, whose BLAKE3 is its
+label. The footer is the BLAKE3 of every byte before it, not of the file.
+
+Pass `--json` for the whole inspection as one canonical JSON object, keys
+sorted, schema `prismpm/holo-inspection/1`. Pass `--format` with a dotted path
+to print one value:
+
+```
+npx prism-code inspect Calculator.holo --format sections[0].digest.sha256
+npx prism-code inspect Calculator.holo --format world
+npx prism-code inspect Calculator.holo --format revision
+```
+
+A string prints as is. Anything else prints as canonical JSON. A path with no
+value exits 2. A malformed path exits 64.
+
+`Attestations` reads `none` until holos carry an attestation section. A damaged
+holo is still inspected: `Verification` reports the footer, the blob labels and
+the cross-references as `ok` or `FAIL`. A holo whose structure the reader does
+not recognize exits 2 with the reader's error code.
+
+The same object is available in code:
+
+```js
+import { inspect } from 'prism-code';
+
+const inspection = await inspect(bytes);   // or: await (await load(path)).inspect()
+inspection.sections[4].content.digest;     // { sha256, blake3 } of the guest
+```
+
+A closure directory has no section table. `inspect` on a closure prints the
+0.2.0 summary of identities, limits, provenance and view files as JSON.
 
 ## Build one
 

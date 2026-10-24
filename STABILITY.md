@@ -74,6 +74,7 @@ Nothing is Stable today.
 | `prism-code` 0.2.0 API: `load`, `Application.dispatch`, `Application.acceptance` | `sdk/npm/prism-code` | Experimental |
 | `@prism-code/verify` 0.1.0 API: `verify`, `inspect`, `FORMAT_REVISION` | `sdk/npm/verify` | Experimental |
 | `prism-code` `inspect`, `Application.inspect`, `prism-code inspect` and the `prismpm/holo-inspection/1` shape | `sdk/npm/prism-code` | Experimental |
+| `prism-code` `experimental_verify`, `experimental_createClient`, `Application.experimental_verify` and the `PrismError` hierarchy with its stable codes | `sdk/npm/prism-code` | Experimental |
 | SDK image contract: the digest-pinned OCI index for `linux/amd64` and `linux/arm64` | [SPEC.md](SPEC.md) section 1 | Experimental |
 
 The CLI binary will be renamed `prism`.

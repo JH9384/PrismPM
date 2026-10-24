@@ -1,10 +1,98 @@
 /** prism-code — JavaScript runtime for Prism SDK (PrismPM) applications. */
 
-export class PrismCodeError extends Error {
+/** Base of every error the package throws. `code` is stable: a class's own code, or for `PrismCodeError` the check that failed. */
+export class PrismError extends Error {
+  static readonly code: string;
+  code: string;
+  /** The verdict reason's check id, such as `holo.integrity` or `proof.subject`, or the reason no verdict was reached. */
+  check?: string;
+  /** The registered diagnostic of the reason, such as `PP5601`. */
+  diagnostic?: string;
+  details?: unknown;
+  /** The whole verdict, when the error explains a failed one. */
+  verdict?: Verdict;
+  reasons?: VerdictReason[];
+  constructor(
+    message: string,
+    options?: { code?: string; check?: string; diagnostic?: string; details?: unknown; verdict?: Verdict; reasons?: VerdictReason[]; cause?: unknown },
+  );
+}
+
+export class PrismCodeError extends PrismError {
   /** The check that failed, e.g. `archive.magic`, `core.exports`, `closure.provenance`, `lock.image`. */
   code: string;
-  details?: unknown;
+  constructor(code: string, message: string, details?: unknown);
 }
+
+/** `verification_failed`: no verdict was reached, or a `holo.*`, `provenance.*` or `policy.*` check failed. */
+export class VerificationError extends PrismError {
+  static readonly code: 'verification_failed';
+}
+/** `proof_mismatch`: a `proof.*` check failed. */
+export class ProofMismatchError extends PrismError {
+  static readonly code: 'proof_mismatch';
+}
+/** `capability_denied`: the declared world exceeds the granted capabilities (`world.capabilities`). */
+export class CapabilityDeniedError extends PrismError {
+  static readonly code: 'capability_denied';
+}
+/** `determinism_violation`: a replay diverged from its recorded history (`replay.divergence`). */
+export class DeterminismViolationError extends PrismError {
+  static readonly code: 'determinism_violation';
+}
+/** `replay_failed`: a replay could not be carried out, or another `replay.*` check failed. */
+export class ReplayError extends PrismError {
+  static readonly code: 'replay_failed';
+}
+export const ERROR_CLASSES: Readonly<Record<string, typeof PrismError>>;
+/** The class a verdict reason's check id maps to. */
+export function classForCheck(check: string): typeof PrismError;
+export function errorForReason(reason: VerdictReason, verdict?: Verdict): PrismError;
+/** The error that explains a failed verdict, or null for a passed one. `ranks` is `ASSURANCE.RANK`. */
+export function errorFromVerdict(verdict: Verdict, ranks: Record<AssuranceLevel, number>): PrismError | null;
+
+export type AssuranceLevel = 'P0' | 'P1' | 'P2' | 'P3';
+
+export interface VerdictReason {
+  check: string;
+  code?: string;
+  withholds: AssuranceLevel | null;
+  message: string;
+}
+
+/** `prism/verdict/1`: what `prism check`, `holo.verify()` and `@prism-code/verify` return. */
+export interface Verdict {
+  schema: 'prism/verdict/1';
+  /** The archive fingerprint, `blake3:` and 64 hex characters. */
+  holo: string;
+  /** The highest level whose evidence checks out, never the policy's minimum. */
+  level: AssuranceLevel;
+  policy: { name: string; minimum: AssuranceLevel };
+  passed: boolean;
+  reasons: VerdictReason[];
+}
+
+export interface VerifyOptions {
+  name?: string;
+  /** Default: `PRISM_MINIMUM_LEVEL`, then `P2`. */
+  minimum?: AssuranceLevel;
+  /** Digests the holo (`archive`) or one of its parts (`capabilities`, `guest`, `view`, `model`) must have. */
+  digests?: Partial<Record<'archive' | 'capabilities' | 'guest' | 'view' | 'model', Partial<DigestSet>>>;
+  /** Throw the typed error for a verdict that did not pass. Default false. */
+  throw?: boolean;
+  /** Where `PRISM_MINIMUM_LEVEL` is read. Default `process.env`. */
+  env?: Record<string, string | undefined>;
+}
+
+export const MINIMUM_LEVEL_ENV: 'PRISM_MINIMUM_LEVEL';
+/** Experimental until the v0.6 freeze. Check a holo (bytes, a Blob or an opened holo) and return its verdict. Throws `VerificationError` when no verdict can be reached. */
+export function experimental_verify(source: Uint8Array | ArrayBuffer | Blob | Application, options?: VerifyOptions): Promise<Verdict>;
+export interface Client {
+  readonly options: Readonly<VerifyOptions>;
+  verify(source: Uint8Array | ArrayBuffer | Blob | Application, options?: VerifyOptions): Promise<Verdict>;
+}
+/** Experimental. A client whose options apply to every call and are replaced by the options of one call. */
+export function experimental_createClient(options?: VerifyOptions): Client;
 
 export interface Limits {
   /** `application.request_maximum`: longer requests get a modeled refusal. */
@@ -89,6 +177,8 @@ export interface Application {
   acceptance(): Promise<AcceptanceResult>;
   /** What the holo says about itself, without running the guest. Rejects with `inspect.kind` for a closure. */
   inspect(): Promise<Inspection>;
+  /** Experimental. The verdict `prism check` returns for this holo. Rejects with `VerificationError` for a closure. */
+  experimental_verify(options?: VerifyOptions): Promise<Verdict>;
   /** The bundles of the attestation section (#267), in order; empty without the section and for closures. Signatures are not verified. */
   attestations(): Attestation[];
 }

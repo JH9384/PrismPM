@@ -5,7 +5,7 @@ import {mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {run, sha} from '../browser-view/compile.mjs';
+import {run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 import {compilerInputPaths, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
@@ -13,6 +13,7 @@ import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
 import {captureCompilerArtifact, requireCompilerArtifact} from '../browser-view/compiler-artifact.mjs';
 import {captureFile, capturedFile} from '../browser-view/file-custody.mjs';
 import {mutateP256Source} from './mutations.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -43,7 +44,7 @@ export function frozenInputs() {
     'tests/browser-view/local-module-inputs.test.mjs',
     'tests/browser-view/compiler-artifact-mutations.test.mjs', 'tests/browser-view/generated-package.test.mjs',
     'stdlib/src/Foundation/Crypto/P256/Model.md', 'stdlib/src/Foundation/Crypto/P256/Wire.cddl',
-    'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
     'model/authorities.toml', 'lean-toolchain', 'rust-toolchain.toml', 'LICENSE-MIT', 'LICENSE-APACHE',
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json', 'vendor/lean4-prod/lean.tar']) files.add(path);
   const capturedModules = localModuleInputs(repository, [...files].filter(path => path.endsWith('.mjs')), read);
@@ -114,6 +115,7 @@ export function prepareP256(compilerOwner, mutationId = null, expectedInputs = n
     // generated Lean/IR/native/two Wasm packages are rebuilt for every mutation.
     for (const [name, bytes] of sources) stage('project/src/' + name.replaceAll('.', '/') + '.lex.tex', bytes);
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) stage('project/' + path, captured(path));
     stage('project/lexlean.toml', captured('tests/fixtures/library/native-library/project/lexlean.toml').toString('utf8')
       .replace('name = "library-probe"', 'name = "p256-conformance"')
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
@@ -132,8 +134,8 @@ export function prepareP256(compilerOwner, mutationId = null, expectedInputs = n
       const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
-    assert.equal(attestation.declarations.length, expected.size);
-    for (const declaration of attestation.declarations) {
+    assert.equal(ownedAttestations(attestation).length, expected.size);
+    for (const declaration of ownedAttestations(attestation)) {
       assert.ok(expected.has(declaration.name)); const axioms = expected.get(declaration.name);
       assert.equal(declaration.result, 'ok'); assert.deepEqual(declaration.policy, {kind: axioms.length ? 'exact' : 'none', axioms});
       assert.deepEqual(declaration.observed, axioms); expected.delete(declaration.name);
@@ -146,7 +148,7 @@ export function prepareP256(compilerOwner, mutationId = null, expectedInputs = n
     const lean = join(work, 'lean');
     stage('lean/lean-toolchain', captured('lean-toolchain'));
     stage('lean/lakefile.toml', 'name = "p256"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['
-      + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
+      + stageLeanRuntime(verified, lean) + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
     run('lake', ['build', 'PrismGenerated'], lean);
     const exported = join(work, 'export'), roots = ['PrismPM.' + projection + '.p256WireBytes'];
     compiler.runExporter(['--module', 'PrismPM.' + projection, ...roots.flatMap(name => ['--root', name]),

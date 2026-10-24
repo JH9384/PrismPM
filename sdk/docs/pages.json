@@ -42,7 +42,7 @@
           "path": "reference/errors",
           "title": "Errors reference",
           "description": "Every error code the runtime raises and every CLI exit code.",
-          "status": "the typed error classes of the v1.0 runtime are not in prism-code 0.2.0, which raises one class with a code. The table lists every code its source raises.",
+          "status": "the typed error classes are in the prism-code source and are not in the published 0.2.0. The table lists every code the source raises.",
           "next": ["reference/cli", "api/errors", "api/load"]
         },
         {
@@ -85,7 +85,7 @@
           "path": "api/verify",
           "title": "Check a holo",
           "description": "Check digest, provenance, proof and world against a policy and get a verdict.",
-          "status": "`verify()` is not in prism-code 0.2.0, which checks the digest footer and every section label on load. This page gains an executed example when the runtime ships the verdict.",
+          "status": "`experimental_verify()` is in the prism-code source and not in the published 0.2.0, which checks the digest footer and every section label on load. It is experimental until the v0.6 freeze. No holo carries an attestation bundle yet, so every holo is P0 and the default policy fails it.",
           "next": ["api/instantiate", "reference/attestations", "api/load"]
         },
         {
@@ -124,7 +124,7 @@
           "path": "api/errors",
           "title": "Error types",
           "description": "Every error the runtime throws and the code it carries.",
-          "status": "the typed error classes of the v1.0 runtime are not in prism-code 0.2.0, which throws one class whose `code` names the check that failed.",
+          "status": "the classes are in the prism-code source and not in the published 0.2.0. `DeterminismViolationError` and `ReplayError` are defined and mapped, and nothing raises them until replay ships.",
           "next": ["reference/errors", "api/load", "api/dispatch"]
         },
         {

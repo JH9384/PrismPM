@@ -27,7 +27,7 @@ export function runExample(name, { map, cwd }) {
   const result = spawnSync(process.execPath, ['--no-warnings', '--import', REGISTER, join(EXAMPLES_DIR, `${name}.mjs`)], {
     cwd,
     encoding: 'utf8',
-    env: { ...process.env, PRISM_DOCS_MODULE_MAP: JSON.stringify(map), NO_COLOR: '1', FORCE_COLOR: '0' },
+    env: { ...process.env, PRISM_DOCS_MODULE_MAP: JSON.stringify(map), NO_COLOR: '1', FORCE_COLOR: '0', PRISM_MINIMUM_LEVEL: '' },
     maxBuffer: 16 * 1024 * 1024,
   });
   if (result.status !== 0) {

@@ -63,10 +63,12 @@ test('the executed examples print what the pages show', () => {
   assert.equal(outputs.load, 'Calculator\ntrue\n{ request: 52, response: 27, guestAllocation: 65536 }\n');
   assert.equal(outputs.dispatch, '"1\\tok\\t42"\n');
   assert.equal(outputs.acceptance, '{ total: 22, passed: 22, failed: [] }\n');
+  assert.equal(outputs.verify, "{ level: 'P0', passed: true }\nVerificationError verification_failed provenance.statement\n");
   assert.ok(outputs['spec-constants'].startsWith(`${spec.module.FORMAT_REVISION}\nHOLO 4 8\n`));
   assert.ok(files.get('api/load.md').includes(`\`\`\`text\n${outputs.load}\`\`\``));
   assert.ok(files.get('api/dispatch.md').includes(`\`\`\`text\n${outputs.dispatch}\`\`\``));
   assert.ok(files.get('api/history-and-replay.md').includes(`\`\`\`text\n${outputs.acceptance}\`\`\``));
+  assert.ok(files.get('api/verify.md').includes(`\`\`\`text\n${outputs.verify}\`\`\``));
 });
 
 test('an example that fails to run fails the generation', () => {
@@ -118,7 +120,7 @@ test('verify names every page that shows an example the runtime cannot run', asy
     const { files: rendered, problems } = await renderSite({ spec, runtime: { ...runtime, url: pathToFileURL(entry).href } });
     assert.deepEqual(
       problems.map((p) => `${p.page} ${p.kind}`).sort(),
-      ['api/history-and-replay example', 'api/dispatch example', 'api/index example', 'api/load example'].sort(),
+      ['api/history-and-replay example', 'api/dispatch example', 'api/index example', 'api/load example', 'api/verify example'].sort(),
     );
     assert.ok(rendered.has('reference/holo-format.md'), 'pages that run nothing still render');
     assert.ok(!rendered.has('llms.txt'), 'the site index is not written from a partial site');

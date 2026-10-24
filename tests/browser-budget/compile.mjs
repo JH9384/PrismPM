@@ -8,6 +8,7 @@ import {fileURLToPath} from 'node:url';
 import {run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 import {compilerInputPaths, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -24,7 +25,7 @@ export function frozenInputs() {
     'tests/browser-view/compile.mjs','tests/browser-view/driver-cache.mjs','tests/browser-view/prerequisites.mjs',
     'tests/browser-view/compiler-owner.mjs','tests/browser-view/compiler-artifact.mjs','tests/browser-view/compiler-owner-checks.mjs',
     'tests/browser-view/verification-products.mjs',
-    'tests/fixtures/library/native-library/project/lexlean.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml',
     'model/dependencies.toml','model/authorities.toml','lean-toolchain','rust-toolchain.toml','LICENSE-MIT','LICENSE-APACHE',
     'vendor/lean4-prod/lean.tar','vendor/lean4-prod/rust/MANIFEST.sha256','vendor/lexlean/MANIFEST.sha256',
   ]);
@@ -134,6 +135,11 @@ export function prepare(mutation, inputs, compilerOwner = null) {
       sources.set(module,Buffer.from(writeSemantic(text, canonical(model))));
     }
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) {
+      const destination = join(project, path);
+      mkdirSync(dirname(destination), {recursive: true});
+      writeFileSync(destination, readFileSync(join(repository, path)), {flag: 'wx'});
+    }
     for (const [module, bytes] of sources) {
       const destination = join(project, 'src', ...module.split('.')) + '.lex.tex';
       mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, bytes, {flag: 'wx'});

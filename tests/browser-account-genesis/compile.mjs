@@ -13,6 +13,7 @@ import {captureGeneratedWasm, requireGeneratedWasm} from '../browser-view/genera
 import {captureCompilerArtifact, requireCompilerArtifact} from '../browser-view/compiler-artifact.mjs';
 import {captureFile, capturedFile} from '../browser-view/file-custody.mjs';
 import {mutateAccountGenesisSource} from './mutations.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -48,7 +49,7 @@ export function frozenInputs() {
     'stdlib/src/Foundation/Browser/Application/V1/AccountGenesis.cddl',
     'tests/browser-p256/oracles/PKV.rsp.base64',
     'tests/browser-p256/oracles/ACVP-KeyVer-FIPS186-5.json.base64',
-    'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
     'model/authorities.toml', 'lean-toolchain', 'rust-toolchain.toml', 'LICENSE-MIT', 'LICENSE-APACHE',
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json', 'vendor/lean4-prod/lean.tar']) files.add(path);
   const capturedModules = localModuleInputs(repository, [...files].filter(path => path.endsWith('.mjs')), read);
@@ -119,6 +120,7 @@ export function prepareAccountGenesis(compilerOwner, mutationId = null, expected
     // generated Lean/IR/native/two Wasm packages are rebuilt for every mutation.
     for (const [name, bytes] of sources) stage('project/src/' + name.replaceAll('.', '/') + '.lex.tex', bytes);
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) stage('project/' + path, captured(path));
     stage('project/lexlean.toml', captured('tests/fixtures/library/native-library/project/lexlean.toml').toString('utf8')
       .replace('name = "library-probe"', 'name = "account-genesis-conformance"')
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')

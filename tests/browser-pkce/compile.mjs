@@ -14,6 +14,7 @@ import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
 import {mutatePkceSource} from './mutations.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -43,7 +44,7 @@ export function frozenInputs() {
     'scripts/owning-node-reporter.mjs', 'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs', 'crates/conformance/src/cases/node_suite.rs',
     'sdk/browser/pkce.mjs', 'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
     'sdk/browser/effects-wire.mjs', 'sdk/browser/effects-module.mjs',
-    'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
     'model/ids.toml', 'features/suites/stdlib.feature', 'crates/conformance/src/cases/mod.rs',
     'crates/conformance/src/cases/scheduling.rs', 'crates/conformance/tests/conformance.rs',
     'model/authorities.toml', 'SPEC.md', 'stdlib/src/Foundation/Sec/V1/Pkce.md',
@@ -123,6 +124,7 @@ export function preparePkce(compilerOwner, expectedInputs, mutationId = null) {
     stage('rust-toolchain.toml', captured('rust-toolchain.toml'));
     for (const [name, bytes] of sources) stage('project/src/' + name.replaceAll('.', '/') + '.lex.tex', bytes);
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) stage('project/' + path, captured(path));
     stage('project/lexlean.toml', captured('tests/fixtures/library/native-library/project/lexlean.toml').toString('utf8')
       .replace('name = "library-probe"', 'name = "pkce-conformance"')
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')

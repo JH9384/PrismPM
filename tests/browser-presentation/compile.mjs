@@ -11,6 +11,7 @@ import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
 import {captureFile, capturedFile} from '../browser-view/file-custody.mjs';
 import {capturePresentationProvenance, presentationOutputRows} from './provenance.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -39,7 +40,7 @@ export function frozenInputs() {
       'generated-package.mjs', 'generated-package.test.mjs', 'generated-wasm.mjs',
       'generated-wasm.test.mjs', 'driver-cache.mjs', 'verification-products.mjs'].map(path => 'tests/browser-view/' + path),
     'tests/browser-view/file-custody.mjs', 'tests/browser-view/file-custody.test.mjs',
-    'tests/fixtures/library/native-library/project/lexlean.toml', 'model/authorities.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/authorities.toml',
     'model/dependencies.toml', 'rust-toolchain.toml', 'lean-toolchain', 'LICENSE-MIT', 'LICENSE-APACHE',
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json', 'model/browser-presentation-diagnostics.json',
     'scripts/browser-api-sdk-check.mjs', 'scripts/browser-api-sdk-check.test.mjs', 'scripts/owning-node-reporter.mjs', 'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs',
@@ -179,6 +180,7 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
       sources.set(name, Buffer.from(writeSemantic(text, canonical(model))));
     }
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) stage('project/' + path, capturedInput(path, inputs));
     for (const [module, bytes] of sources) {
       stage('project/src/' + module.replaceAll('.', '/') + '.lex.tex', bytes);
     }

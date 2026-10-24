@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 import {compilerInputPaths, captureCompilerInputs, createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -31,7 +32,7 @@ export function frozenInputs() {
     'crates/prismpm/src/lifecycle.rs', 'model/publication-admission-diagnostics.json',
     'model/dependencies.toml', 'model/authorities.toml', 'lean-toolchain', 'rust-toolchain.toml',
     'LICENSE-MIT', 'LICENSE-APACHE',
-    'tests/fixtures/library/native-library/project/lexlean.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml',
     'vendor/lexlean/MANIFEST.sha256', 'vendor/lean4-prod/rust/MANIFEST.sha256',
     'vendor/lean4-prod/lean.tar',
   ]);
@@ -124,6 +125,11 @@ export function prepare(mutation = null, inputs = frozenInputs(), compilerOwner 
       sources.set(module, Buffer.from(writeSemantic(text, canonical(model))));
     }
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) {
+      const destination = join(project, path);
+      mkdirSync(dirname(destination), {recursive: true});
+      writeFileSync(destination, readFileSync(join(repository, path)), {flag: 'wx'});
+    }
     for (const [module, bytes] of sources) {
       const destination = join(project, 'src', ...module.split('.')) + '.lex.tex';
       mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, bytes, {flag: 'wx'});

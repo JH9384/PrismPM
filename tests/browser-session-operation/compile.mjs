@@ -14,6 +14,7 @@ import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
 import {mutateProjectionSource} from '../browser-session-journal/projection-mutations.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -46,7 +47,7 @@ export function frozenInputs() {
     'tests/browser-session/maxima.mjs', 'tests/browser-session/budget.mjs',
     'sdk/browser/session-operation-capture.mjs', 'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
     'sdk/browser/effects-wire.mjs', 'sdk/browser/effects-module.mjs', 'sdk/browser/presentation-wire.mjs',
-    'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
     'model/ids.toml', 'features/suites/sdk.feature', 'crates/conformance/src/cases/mod.rs',
     'crates/conformance/src/cases/scheduling.rs', 'crates/conformance/tests/conformance.rs',
     'model/authorities.toml', 'lean-toolchain', 'rust-toolchain.toml', 'LICENSE-MIT', 'LICENSE-APACHE',
@@ -123,6 +124,7 @@ export function prepareOperation(compilerOwner, expectedInputs, mutationId = nul
     stage('rust-toolchain.toml', captured('rust-toolchain.toml'));
     for (const [name, bytes] of sources) stage('project/src/' + name.replaceAll('.', '/') + '.lex.tex', bytes);
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) stage('project/' + path, captured(path));
     stage('project/lexlean.toml', captured('tests/fixtures/library/native-library/project/lexlean.toml').toString('utf8')
       .replace('name = "library-probe"', 'name = "session-operation-conformance"')
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')

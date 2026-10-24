@@ -8,6 +8,7 @@ import {fileURLToPath} from 'node:url';
 import {createPrivateDriverTarget, ensureProdExport, run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 import {requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {ensureProdExport, run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -109,6 +110,11 @@ export function prepare(mutation = null, compilerOwner = null) {
       sources.set(module, Buffer.from(writeSemantic(text, canonical(model))));
     }
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) {
+      const destination = join(project, path);
+      mkdirSync(dirname(destination), {recursive: true});
+      writeFileSync(destination, readFileSync(join(repository, path)), {flag: 'wx'});
+    }
     for (const [module, bytes] of sources) {
       const destination = join(project, 'src', ...module.split('.')) + '.lex.tex';
       mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, bytes, {flag: 'wx'});

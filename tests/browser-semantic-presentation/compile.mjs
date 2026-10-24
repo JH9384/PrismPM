@@ -9,6 +9,7 @@ import {createPrivateDriverTarget, ensureProdExport, run, sha, stageLeanRuntime,
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {ensureProdExport, run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -33,7 +34,7 @@ export function frozenInputs() {
       'generated-package.test.mjs', 'file-custody.mjs', 'compiler-owner.mjs',
       'compiler-artifact.mjs', 'compiler-owner-checks.mjs', 'generated-wasm.mjs']
       .map(path => 'tests/browser-view/' + path),
-    'tests/fixtures/library/native-library/project/lexlean.toml', 'model/authorities.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/authorities.toml',
     'model/dependencies.toml', 'rust-toolchain.toml', 'lean-toolchain', 'LICENSE-MIT', 'LICENSE-APACHE',
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
     'model/browser-semantic-presentation-oracles.json', 'model/browser-semantic-presentation-diagnostics.json',
@@ -159,6 +160,7 @@ function prepareStage(mutation, sourceOnly, baseline, inputs) {
       sources.set(name, Buffer.from(writeSemantic(text, canonical(model))));
     }
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) stage('project/' + path, capturedInput(path, inputs));
     for (const [module, bytes] of sources) {
       const destination = join(project, 'src', ...module.split('.')) + '.lex.tex';
       mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, bytes, {flag: 'wx'});

@@ -1,0 +1,11 @@
+{
+  "schema": "prism/verdict/1",
+  "holo": "blake3:8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba",
+  "level": "P2",
+  "policy": { "name": "default", "minimum": "P2" },
+  "passed": false,
+  "reasons": [
+    { "check": "replay.statement", "withholds": "P3", "message": "The holo carries no replay statement." },
+    { "check": "world.capabilities", "code": "PP5602", "withholds": "P3", "message": "The world imports an outbound host the capability set does not grant." }
+  ]
+}

@@ -164,3 +164,4 @@ export const FORMAT_REVISIONS = freeze({
     ]),
   }),
 });
+export { ASSURANCE } from './assurance-levels.mjs';

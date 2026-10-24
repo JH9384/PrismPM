@@ -1,0 +1,12 @@
+{
+  "schema": "prism/verdict/1",
+  "holo": "blake3:8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba",
+  "level": "P1",
+  "policy": { "name": "default", "minimum": "P2" },
+  "passed": false,
+  "reasons": [
+    { "check": "proof.subject", "code": "PP5503", "withholds": "P2", "message": "The proof statement names a guest blob this holo does not contain." },
+    { "check": "replay.statement", "withholds": "P3", "message": "The holo carries no replay statement." },
+    { "check": "policy.level", "code": "PP5601", "withholds": null, "message": "The level is P1; the policy requires P2 or above." }
+  ]
+}

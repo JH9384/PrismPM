@@ -14,9 +14,23 @@ import { compileGuest, runGuest, runAcceptance } from './core.mjs';
 import { verifyClosure, closureDispatch, initializeGlue } from './closure.mjs';
 import { PrismCodeError, fail } from './errors.mjs';
 import { inspect } from './inspect.mjs';
+import { experimental_verify } from './verify.mjs';
 import * as canonical from './canonical/index.js';
 
-export { PrismCodeError } from './errors.mjs';
+export {
+  PrismError,
+  PrismCodeError,
+  VerificationError,
+  ProofMismatchError,
+  CapabilityDeniedError,
+  DeterminismViolationError,
+  ReplayError,
+  ERROR_CLASSES,
+  classForCheck,
+  errorForReason,
+  errorFromVerdict,
+} from './errors.mjs';
+export { experimental_verify, experimental_createClient, MINIMUM_LEVEL_ENV } from './verify.mjs';
 export { parseArchive, resolveArchive, canonicalJson } from './archive.mjs';
 export { decodeHoloview, encodeHoloview } from './view.mjs';
 export { compileGuest, runGuest, runAcceptance } from './core.mjs';
@@ -112,6 +126,8 @@ export async function loadArchive(source) {
     acceptance: () => runAcceptance(vectors, dispatch),
     /** What the holo says about itself, read from the section table; the guest is not run. */
     inspect: () => (inspection ??= inspect(parsed.bytes)),
+    /** The verdict `prism check` returns for this holo; see `experimental_verify`. */
+    experimental_verify: (options) => experimental_verify(parsed.bytes, options),
   });
 }
 
@@ -152,6 +168,7 @@ export async function loadClosure(files, importGlue, { model = null } = {}) {
     attestations: () => [],
     acceptance: () => runAcceptance(vectors, (r) => dispatch(r)),
     inspect: async () => fail('inspect.kind', 'inspect reads a .holo archive; a closure has no section table'),
+    experimental_verify: (options) => experimental_verify({ kind: 'closure' }, options),
   });
 }
 

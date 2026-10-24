@@ -12,7 +12,7 @@ struct Contract {
     schema: &'static [u8],
 }
 
-const CONTRACTS: [Contract; 61] = [
+const CONTRACTS: [Contract; 62] = [
     Contract {
         id: "prismpm/model-document/6",
         maximum_bytes: 16_777_216,

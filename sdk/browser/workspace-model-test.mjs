@@ -9,7 +9,7 @@ import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {test} from 'node:test';
-import {createPrivateDriverTarget, ensureProdExport, observeCompilerPhase} from '../../tests/browser-view/compile.mjs';
+import {createPrivateDriverTarget, ensureProdExport, observeCompilerPhase, stageLeanRuntime} from '../../tests/browser-view/compile.mjs';
 
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const moduleName = 'Foundation.Browser.V1.Workspace';
@@ -302,7 +302,7 @@ child_timeout_ms = 300000
 version = "0.1.0"
 [[lean_lib]]
 name = "PrismGenerated"
-roots = ["PrismPM.${moduleName}", "PrismPM.${moduleName}Corpus"]
+roots = [${stageLeanRuntime(verified, lean)}"PrismPM.${moduleName}", "PrismPM.${moduleName}Corpus"]
 `, {flag: 'wx'});
   run('lake', ['build', 'PrismGenerated'], lean);
   const {dir: exporter, bin: prodExport} = ensureProdExport(repository, work);

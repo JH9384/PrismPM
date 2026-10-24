@@ -60,7 +60,7 @@ fn fixture(repository: &Path) -> tempfile::TempDir {
     // The committed probe is language-1.2 notation that already carries the
     // contract-boundary values (maxima, effects and the extra over-output root).
     std::fs::copy(
-        repository.join("tests/fixtures/browser-application/Probe.lex.tex"),
+        repository.join("tests/fixtures/browser-application/BuildProbe.lex.tex"),
         project.path().join("src/Probe.lex.tex"),
     )
     .unwrap();

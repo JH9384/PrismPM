@@ -238,7 +238,7 @@ class BoundaryControls(unittest.TestCase):
         self.assertTrue(contents.startswith(b"\x7fELF"))
         self.assertLessEqual(len(contents), boundary.MAX_ELF)
         self.assertEqual(boundary.MAX_FILE, 256 * boundary.MIB)
-        self.assertEqual(boundary.MAX_ELF, 512 * boundary.MIB)
+        self.assertEqual(boundary.MAX_ELF, 1024 * boundary.MIB)
         self.assertEqual(boundary.MAX_TREE, 512 * boundary.MIB)
         self.assertEqual(boundary.MAX_JSON, 32 * boundary.MIB)
         if len(contents) > boundary.MAX_FILE:

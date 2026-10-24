@@ -269,7 +269,7 @@ function emit(root, work, archiveSha, binarySha, sourceCommit) {
   check(production);
   const evidence = {
     bootstrap: { archive_digest: `sha256:${archiveSha}`, binary_digest: `sha256:${binarySha}`, source_commit: sourceCommit, version: '0.2.0' },
-    compatibility_projection: compare(prior, current, manifest, priorLock, regular(join(root, 'lexlean.lock')).toString('utf8')),
+    compatibility_projection: compare(prior, current, manifest, priorLock, current.lock),
     production_model: { ...production, result_digest: digest(`${canonical(production)}\n`) },
     schema: 'prismpm/bootstrap-evidence/2',
     source_manifest: { digest: digest(canonical(manifest)), file_count: manifest.files.length },

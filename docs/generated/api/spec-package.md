@@ -59,6 +59,7 @@ https://uor.foundation/prism/proof/v1
 | `ATTESTATION`           | const  | `ATTESTATION: Readonly<{ STATEMENT_TYPE: 'https://in-toto.io/Statement/v1'; DSSE_PAYLOAD_TYPE: 'application/vnd.in-toto+json'; OCI_MANIFEST_SUBJECT: 'oci-manifest'; STATEMENT_SCHEMA: 'schemas/attestation/statement.schema.json'; ENVELOPE_SCHEMA: 'schemas/attestation/dsse-envelope.schema.json'; }>`                                                                  |
 | `PROOF_PREDICATE_TYPE`  | export | `from ./predicates/proof-v1.js`                                                                                                                                                                                                                                                                                                                                            |
 | `REPLAY_PREDICATE_TYPE` | export | `from ./predicates/replay-v1.js`                                                                                                                                                                                                                                                                                                                                           |
+| `ASSURANCE`             | export | `from ./assurance-levels.js`                                                                                                                                                                                                                                                                                                                                               |
 
 ## Schemas
 
@@ -93,4 +94,4 @@ https://uor.foundation/prism/proof/v1
 - [Attestations reference](/docs/reference/attestations)
 - [prism-code at a glance](/docs/api)
 
-Generated from @prism-code/spec 2026-10-23 at 06f5ae679a67c4bff53be3dd927653270e15ea30.
+Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.

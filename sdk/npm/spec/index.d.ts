@@ -104,3 +104,5 @@ export declare const ATTESTATION: Readonly<{
 
 export { PROOF_PREDICATE_TYPE } from './predicates/proof-v1.js';
 export { REPLAY_PREDICATE_TYPE } from './predicates/replay-v1.js';
+export type * from './assurance-levels.js';
+export { ASSURANCE } from './assurance-levels.js';

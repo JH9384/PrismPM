@@ -12,6 +12,7 @@ use crate::input_lock::{
     changed_fields, create_lock, with_inputs, write_lock, SDK_LOCK_V1, SDK_LOCK_V3,
 };
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -28,6 +29,15 @@ pub(crate) struct Target<'a> {
 }
 
 type Committed = Option<(CanonicalDocument, Vec<u8>)>;
+
+/// The digest an SDK lock binds as `standards_lock`: the committed
+/// `standards.lock`, checked against the reviewed catalog first.
+pub(crate) fn project_standards_digest(root: &Path) -> Result<String, PrismError> {
+    crate::authority::inspect(root)?;
+    let bytes = std::fs::read(root.join("standards.lock"))
+        .map_err(|error| PrismError::new("PP1101", format!("standards.lock: {error}")))?;
+    Ok(format!("sha256:{:x}", Sha256::digest(&bytes)))
+}
 
 /// `prismpm lock [--check]`: write or refresh the pinned inputs.
 pub(crate) fn lock(

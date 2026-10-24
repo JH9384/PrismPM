@@ -542,7 +542,7 @@ fn execute(cli: &Cli) -> Result<(serde_json::Value, String), PrismError> {
         } => {
             let standards = match (toolchain, standards_lock) {
                 (Some(_), Some(digest)) => Some(digest.clone()),
-                (Some(_), None) => Some(crate::authority::project_standards_digest(
+                (Some(_), None) => Some(crate::lock_command::project_standards_digest(
                     &controller.root,
                 )?),
                 (None, _) => None,

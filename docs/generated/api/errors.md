@@ -50,6 +50,8 @@ export class PrismCodeError extends Error {
 | `core.imports`          | `src/core.mjs`                            |
 | `core.request`          | `src/core.mjs`                            |
 | `core.response`         | `src/core.mjs`                            |
+| `inspect.kind`          | `src/index.mjs`                           |
+| `inspect.selector`      | `src/inspect.mjs`                         |
 | `load.fetch`            | `src/browser.mjs`                         |
 | `load.path`             | `src/node.mjs`                            |
 | `load.source`           | `src/index.mjs`                           |

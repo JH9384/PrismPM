@@ -60,10 +60,10 @@ Schema: `https://schemas.uor.foundation/prism/attestation/dsse-envelope/1`, file
 
 ## Predicate types
 
-| Type                                     | Status      | Schema |
-| ---------------------------------------- | ----------- | ------ |
-| `https://uor.foundation/prism/proof/v1`  | placeholder | none   |
-| `https://uor.foundation/prism/replay/v1` | placeholder | none   |
+| Type                                     | Status       | Schema                            |
+| ---------------------------------------- | ------------ | --------------------------------- |
+| `https://uor.foundation/prism/proof/v1`  | experimental | `predicates/proof-v1.schema.json` |
+| `https://uor.foundation/prism/replay/v1` | placeholder  | none                              |
 
 ## Example statement
 
@@ -75,4 +75,4 @@ Status: no holo carries a signed statement yet. Every predicate type in the regi
 - [Errors reference](/docs/reference/errors)
 - [Spec package](/docs/api/spec-package)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.

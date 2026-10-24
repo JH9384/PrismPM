@@ -249,7 +249,7 @@ A revision is a date. A file does not carry its revision, so a reader recognizes
 - [Spec package](/docs/api/spec-package)
 - [Load a holo](/docs/api/load)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 
 <!-- reference/attestations -->
 
@@ -315,10 +315,10 @@ Schema: `https://schemas.uor.foundation/prism/attestation/dsse-envelope/1`, file
 
 ## Predicate types
 
-| Type                                     | Status      | Schema |
-| ---------------------------------------- | ----------- | ------ |
-| `https://uor.foundation/prism/proof/v1`  | placeholder | none   |
-| `https://uor.foundation/prism/replay/v1` | placeholder | none   |
+| Type                                     | Status       | Schema                            |
+| ---------------------------------------- | ------------ | --------------------------------- |
+| `https://uor.foundation/prism/proof/v1`  | experimental | `predicates/proof-v1.schema.json` |
+| `https://uor.foundation/prism/replay/v1` | placeholder  | none                              |
 
 ## Example statement
 
@@ -330,7 +330,7 @@ Status: no holo carries a signed statement yet. Every predicate type in the regi
 - [Errors reference](/docs/reference/errors)
 - [Spec package](/docs/api/spec-package)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 
 <!-- reference/manifest -->
 
@@ -351,7 +351,7 @@ Status: no manifest schema exists in the spec package at this revision. This pag
 - [CLI reference](/docs/reference/cli)
 - [Holo format](/docs/reference/holo-format)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 
 <!-- reference/lockfile -->
 
@@ -360,9 +360,55 @@ title: Lockfile reference
 description: Every field of the lockfile, from the schema the spec package publishes.
 ---
 
-Source: `@prism-code/spec` 2026-10-23, `schemas/documents/sdk-lock-v1.schema.json`, `schemas/documents/sdk-lock-v2.schema.json`.
+Source: `@prism-code/spec` 2026-10-23, `schemas/documents/sdk-lock-v1.schema.json`, `schemas/documents/sdk-lock-v2.schema.json`, `schemas/documents/sdk-lock-v3.schema.json`.
 
 The lockfile is a JSON document whose `schema` member names its version.
+
+## `prismpm/sdk-lock/3`
+
+Schema: `https://schemas.uor.foundation/prismpm/sdk-lock/3`, file `schemas/documents/sdk-lock-v3.schema.json`.
+
+| Field                                            | Type           | Required | Constraint                                                                                                                                                       |
+| ------------------------------------------------ | -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inputs`                                         | object         | yes      | no other members                                                                                                                                                 |
+| `inputs.generation`                              | object         | yes      | no other members                                                                                                                                                 |
+| `inputs.generation.application_generator_sha256` | string         | yes      | matches `^[0-9a-f]{64}$`                                                                                                                                         |
+| `inputs.generation.library_generator_sha256`     | string         | yes      | matches `^[0-9a-f]{64}$`                                                                                                                                         |
+| `inputs.model`                                   | object         | yes      | no other members                                                                                                                                                 |
+| `inputs.model.blake3`                            | string         | yes      | matches `^[0-9a-f]{64}$`                                                                                                                                         |
+| `inputs.model.sha256`                            | string         | yes      | matches `^[0-9a-f]{64}$`                                                                                                                                         |
+| `inputs.spec`                                    | object         | yes      | no other members                                                                                                                                                 |
+| `inputs.spec.basis`                              | string         | yes      | one of `"model-sources"`, `"prism-toml"`                                                                                                                         |
+| `inputs.spec.blake3`                             | string         | yes      | matches `^[0-9a-f]{64}$`                                                                                                                                         |
+| `inputs.toolchain`                               | object         | yes      | no other members                                                                                                                                                 |
+| `inputs.toolchain.lean`                          | string         | yes      | matches `^v[0-9]+.[0-9]+.[0-9]+(-[0-9A-Za-z.-]+)?$`; 5 to 64 characters                                                                                          |
+| `inputs.toolchain.lexlean`                       | string         | yes      | matches `^[0-9]+.[0-9]+.[0-9]+(-[0-9A-Za-z.-]+)?$`; 5 to 64 characters                                                                                           |
+| `inputs.toolchain.prismpm`                       | string         | yes      | matches `^[0-9]+.[0-9]+.[0-9]+(-[0-9A-Za-z.-]+)?$`; 5 to 64 characters                                                                                           |
+| `inputs.toolchain.rustc`                         | string         | yes      | matches `^[0-9]+.[0-9]+.[0-9]+(-[0-9A-Za-z.-]+)?$`; 5 to 64 characters                                                                                           |
+| `inputs.toolchain.wasm_bindgen`                  | string         | yes      | matches `^[0-9]+.[0-9]+.[0-9]+(-[0-9A-Za-z.-]+)?$`; 5 to 64 characters                                                                                           |
+| `inputs.world`                                   | one of 2 forms | yes      |                                                                                                                                                                  |
+| `inputs.world (form 1)`                          | null           | yes      |                                                                                                                                                                  |
+| `inputs.world (form 2)`                          | object         | yes      | no other members                                                                                                                                                 |
+| `inputs.world (form 2).blake3`                   | string         | yes      | matches `^[0-9a-f]{64}$`                                                                                                                                         |
+| `inputs.world (form 2).contract`                 | string         | yes      | one of `"hologram:guest/core-wasm@1"`                                                                                                                            |
+| `inputs.world (form 2).sha256`                   | string         | yes      | matches `^[0-9a-f]{64}$`                                                                                                                                         |
+| `platforms`                                      | array          | yes      | exactly 2 items; unique items                                                                                                                                    |
+| `platforms[]`                                    | object         | yes      | no other members                                                                                                                                                 |
+| `platforms[].inventory`                          | array          | yes      | 1 to 8192 items; unique items                                                                                                                                    |
+| `platforms[].inventory[]`                        | object         | yes      | no other members                                                                                                                                                 |
+| `platforms[].inventory[].digest`                 | string         | yes      | matches `^sha256:[0-9a-f]{64}$`                                                                                                                                  |
+| `platforms[].inventory[].id`                     | string         | yes      | 1 to 128 characters                                                                                                                                              |
+| `platforms[].inventory[].kind`                   | string         | yes      | one of `"binary"`, `"crate"`, `"image"`, `"adapter"`, `"oracle"`, `"schema"`, `"workflow"`, `"base-image"`, `"dependency-lock"`, `"trust-root"`, `"test-corpus"` |
+| `platforms[].inventory[].version`                | string         | yes      | 1 to 128 characters                                                                                                                                              |
+| `platforms[].inventory_digest`                   | string         | yes      | matches `^sha256:[0-9a-f]{64}$`                                                                                                                                  |
+| `platforms[].manifest_digest`                    | string         | yes      | matches `^sha256:[0-9a-f]{64}$`                                                                                                                                  |
+| `platforms[].platform`                           | string         | yes      | one of `"linux/amd64"`, `"linux/arm64"`                                                                                                                          |
+| `platforms[].inventory_document`                 | string         | yes      | 1 to 8388608 characters                                                                                                                                          |
+| `schema`                                         | string         | yes      | = `"prismpm/sdk-lock/3"`                                                                                                                                         |
+| `sdk_image`                                      | string         | yes      | matches `^[a-z0-9.-]+(?::[0-9]{1,5})?/[a-z0-9./_-]+@sha256:[0-9a-f]{64}$`                                                                                        |
+| `sdk_index`                                      | string         | yes      | 1 to 1048576 characters                                                                                                                                          |
+| `sdk_version`                                    | string         | yes      | = `"0.3.0"`                                                                                                                                                      |
+| `standards_lock`                                 | string         | yes      | matches `^sha256:[0-9a-f]{64}$`                                                                                                                                  |
 
 ## `prismpm/sdk-lock/2`
 
@@ -411,7 +457,7 @@ Schema: `https://schemas.uor.foundation/prismpm/sdk-lock/1`, file `schemas/docum
 - [Holo format](/docs/reference/holo-format)
 - [CLI reference](/docs/reference/cli)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 
 <!-- reference/errors -->
 
@@ -433,41 +479,52 @@ export class PrismCodeError extends Error {
 }
 ```
 
-| Code                 | Raised in                            |
-| -------------------- | ------------------------------------ |
-| `archive.blob`       | `src/archive.mjs`                    |
-| `archive.bounds`     | `src/archive.mjs`                    |
-| `archive.directory`  | `src/archive.mjs`                    |
-| `archive.extension`  | `src/archive.mjs`                    |
-| `archive.flags`      | `src/archive.mjs`                    |
-| `archive.input`      | `src/archive.mjs`                    |
-| `archive.kind`       | `src/archive.mjs`                    |
-| `archive.magic`      | `src/archive.mjs`                    |
-| `archive.manifest`   | `src/archive.mjs`                    |
-| `archive.metadata`   | `src/archive.mjs`                    |
-| `archive.model`      | `src/archive.mjs`, `src/index.mjs`   |
-| `archive.provenance` | `src/archive.mjs`                    |
-| `archive.version`    | `src/archive.mjs`                    |
-| `closure.files`      | `src/browser.mjs`, `src/closure.mjs` |
-| `closure.glue`       | `src/closure.mjs`                    |
-| `closure.model`      | `src/closure.mjs`                    |
-| `closure.provenance` | `src/closure.mjs`                    |
-| `core.allocation`    | `src/closure.mjs`, `src/core.mjs`    |
-| `core.compile`       | `src/core.mjs`                       |
-| `core.exports`       | `src/core.mjs`                       |
-| `core.imports`       | `src/core.mjs`                       |
-| `core.request`       | `src/core.mjs`                       |
-| `core.response`      | `src/core.mjs`                       |
-| `load.fetch`         | `src/browser.mjs`                    |
-| `load.path`          | `src/node.mjs`                       |
-| `load.source`        | `src/index.mjs`                      |
-| `lock.image`         | `src/docker.mjs`                     |
-| `mount.environment`  | `src/browser.mjs`                    |
-| `view.bounds`        | `src/view.mjs`                       |
-| `view.entry`         | `src/view.mjs`                       |
-| `view.magic`         | `src/view.mjs`                       |
-| `view.order`         | `src/view.mjs`                       |
-| `view.version`       | `src/view.mjs`                       |
+| Code                    | Raised in                                 |
+| ----------------------- | ----------------------------------------- |
+| `archive.blob`          | `src/archive.mjs`                         |
+| `archive.bounds`        | `src/archive.mjs`, `src/attestations.mjs` |
+| `archive.directory`     | `src/archive.mjs`                         |
+| `archive.extension`     | `src/archive.mjs`                         |
+| `archive.flags`         | `src/archive.mjs`                         |
+| `archive.input`         | `src/archive.mjs`                         |
+| `archive.kind`          | `src/archive.mjs`                         |
+| `archive.magic`         | `src/archive.mjs`                         |
+| `archive.manifest`      | `src/archive.mjs`                         |
+| `archive.metadata`      | `src/archive.mjs`                         |
+| `archive.model`         | `src/archive.mjs`, `src/index.mjs`        |
+| `archive.provenance`    | `src/archive.mjs`                         |
+| `archive.version`       | `src/archive.mjs`                         |
+| `attestation.bundle`    | `src/attestations.mjs`                    |
+| `attestation.duplicate` | `src/attestations.mjs`                    |
+| `attestation.envelope`  | `src/attestations.mjs`                    |
+| `attestation.footer`    | `src/attestations.mjs`                    |
+| `attestation.input`     | `src/attestations.mjs`                    |
+| `attestation.lines`     | `src/attestations.mjs`                    |
+| `attestation.position`  | `src/attestations.mjs`                    |
+| `attestation.statement` | `src/attestations.mjs`                    |
+| `attestation.subject`   | `src/attestations.mjs`                    |
+| `closure.files`         | `src/browser.mjs`, `src/closure.mjs`      |
+| `closure.glue`          | `src/closure.mjs`                         |
+| `closure.model`         | `src/closure.mjs`                         |
+| `closure.provenance`    | `src/closure.mjs`                         |
+| `core.allocation`       | `src/closure.mjs`, `src/core.mjs`         |
+| `core.compile`          | `src/core.mjs`                            |
+| `core.exports`          | `src/core.mjs`                            |
+| `core.imports`          | `src/core.mjs`                            |
+| `core.request`          | `src/core.mjs`                            |
+| `core.response`         | `src/core.mjs`                            |
+| `inspect.kind`          | `src/index.mjs`                           |
+| `inspect.selector`      | `src/inspect.mjs`                         |
+| `load.fetch`            | `src/browser.mjs`                         |
+| `load.path`             | `src/node.mjs`                            |
+| `load.source`           | `src/index.mjs`                           |
+| `lock.image`            | `src/docker.mjs`                          |
+| `mount.environment`     | `src/browser.mjs`                         |
+| `view.bounds`           | `src/view.mjs`                            |
+| `view.entry`            | `src/view.mjs`                            |
+| `view.magic`            | `src/view.mjs`                            |
+| `view.order`            | `src/view.mjs`                            |
+| `view.version`          | `src/view.mjs`                            |
 
 ## CLI exit codes
 
@@ -483,7 +540,7 @@ export class PrismCodeError extends Error {
 - [Error types](/docs/api/errors)
 - [Load a holo](/docs/api/load)
 
-Generated from prism-code 0.2.0, sdk/docs/cli.json 2026-10-23, @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from prism-code 0.2.0, sdk/docs/cli.json 2026-10-23, @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 
 <!-- reference/cli -->
 
@@ -847,39 +904,58 @@ Calculator true
 
 ## Exports
 
-| Export              | Kind      | Declaration                                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PrismCodeError`    | class     | `PrismCodeError extends Error`                                                                                                                                                                                                                                                                                                                                                                 |
-| `Limits`            | interface | `Limits`                                                                                                                                                                                                                                                                                                                                                                                       |
-| `Vector`            | interface | `Vector`                                                                                                                                                                                                                                                                                                                                                                                       |
-| `AcceptanceFailure` | interface | `AcceptanceFailure`                                                                                                                                                                                                                                                                                                                                                                            |
-| `AcceptanceResult`  | interface | `AcceptanceResult`                                                                                                                                                                                                                                                                                                                                                                             |
-| `View`              | interface | `View`                                                                                                                                                                                                                                                                                                                                                                                         |
-| `ArchiveIdentities` | interface | `ArchiveIdentities`                                                                                                                                                                                                                                                                                                                                                                            |
-| `ClosureIdentities` | interface | `ClosureIdentities`                                                                                                                                                                                                                                                                                                                                                                            |
-| `Evidence`          | interface | `Evidence`                                                                                                                                                                                                                                                                                                                                                                                     |
-| `Application`       | interface | `Application`                                                                                                                                                                                                                                                                                                                                                                                  |
-| `LoadOptions`       | interface | `LoadOptions`                                                                                                                                                                                                                                                                                                                                                                                  |
-| `load`              | function  | `load(source: Uint8Array \| ArrayBuffer \| Blob \| string \| URL, options?: LoadOptions): Promise<Application>`                                                                                                                                                                                                                                                                                |
-| `loadArchive`       | function  | `loadArchive(source: Uint8Array \| ArrayBuffer): Promise<Application>`                                                                                                                                                                                                                                                                                                                         |
-| `loadClosure`       | function  | `loadClosure( files: Map<string, Uint8Array>, importGlue: (name: string) => Promise<Record<string, unknown>>, options?: { model?: Record<string, unknown> \| Uint8Array \| null }, ): Promise<Application>`                                                                                                                                                                                    |
-| `ParsedArchive`     | interface | `ParsedArchive`                                                                                                                                                                                                                                                                                                                                                                                |
-| `parseArchive`      | function  | `parseArchive(source: Uint8Array \| ArrayBuffer): ParsedArchive`                                                                                                                                                                                                                                                                                                                               |
-| `resolveArchive`    | function  | `resolveArchive(parsed: ParsedArchive): { directory: Record<string, unknown>; provenance: Record<string, unknown>; modelDocument: Record<string, unknown>; guest: { label: string; content: Uint8Array }; view: { label: string; content: Uint8Array }; model: { label: string; content: Uint8Array }; capabilities: { label: string; content: Uint8Array }; identities: ArchiveIdentities; }` |
-| `canonicalJson`     | function  | `canonicalJson(value: unknown): string`                                                                                                                                                                                                                                                                                                                                                        |
-| `decodeHoloview`    | function  | `decodeHoloview(bytes: Uint8Array): View`                                                                                                                                                                                                                                                                                                                                                      |
-| `encodeHoloview`    | function  | `encodeHoloview(view: View): Uint8Array`                                                                                                                                                                                                                                                                                                                                                       |
-| `compileGuest`      | function  | `compileGuest(wasm: Uint8Array): Promise<WebAssembly.Module>`                                                                                                                                                                                                                                                                                                                                  |
-| `runGuest`          | function  | `runGuest(module: WebAssembly.Module, request: Uint8Array, limits?: Partial<Limits>): Uint8Array`                                                                                                                                                                                                                                                                                              |
-| `runAcceptance`     | function  | `runAcceptance(vectors: Vector[], dispatch: (request: Uint8Array) => Uint8Array \| Promise<Uint8Array>): Promise<AcceptanceResult>`                                                                                                                                                                                                                                                            |
-| `verifyClosure`     | function  | `verifyClosure(files: Map<string, Uint8Array>): Promise<{ stem: string; glueName: string; wasmName: string; provenance: Record<string, unknown>; verification: Pick<ClosureIdentities, 'verified' \| 'mismatches' \| 'unverifiable'>; }>`                                                                                                                                                      |
-| `blake3`            | function  | `blake3(bytes: Uint8Array, length?: number): Uint8Array`                                                                                                                                                                                                                                                                                                                                       |
-| `blake3Hex`         | function  | `blake3Hex(bytes: Uint8Array): string`                                                                                                                                                                                                                                                                                                                                                         |
-| `kappa`             | function  | `kappa(bytes: Uint8Array): string`                                                                                                                                                                                                                                                                                                                                                             |
-| `canonicalize`      | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
-| `codeHash`          | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
-| `describe`          | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
-| `differs`           | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
+| Export                  | Kind      | Declaration                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PrismCodeError`        | class     | `PrismCodeError extends Error`                                                                                                                                                                                                                                                                                                                                                                 |
+| `Limits`                | interface | `Limits`                                                                                                                                                                                                                                                                                                                                                                                       |
+| `Vector`                | interface | `Vector`                                                                                                                                                                                                                                                                                                                                                                                       |
+| `AcceptanceFailure`     | interface | `AcceptanceFailure`                                                                                                                                                                                                                                                                                                                                                                            |
+| `AcceptanceResult`      | interface | `AcceptanceResult`                                                                                                                                                                                                                                                                                                                                                                             |
+| `View`                  | interface | `View`                                                                                                                                                                                                                                                                                                                                                                                         |
+| `ArchiveIdentities`     | interface | `ArchiveIdentities`                                                                                                                                                                                                                                                                                                                                                                            |
+| `ClosureIdentities`     | interface | `ClosureIdentities`                                                                                                                                                                                                                                                                                                                                                                            |
+| `Evidence`              | interface | `Evidence`                                                                                                                                                                                                                                                                                                                                                                                     |
+| `Application`           | interface | `Application`                                                                                                                                                                                                                                                                                                                                                                                  |
+| `DigestSet`             | interface | `DigestSet`                                                                                                                                                                                                                                                                                                                                                                                    |
+| `SectionRole`           | type      | `SectionRole`                                                                                                                                                                                                                                                                                                                                                                                  |
+| `InspectedSection`      | interface | `InspectedSection`                                                                                                                                                                                                                                                                                                                                                                             |
+| `InspectedAttestation`  | interface | `InspectedAttestation`                                                                                                                                                                                                                                                                                                                                                                         |
+| `Inspection`            | interface | `Inspection`                                                                                                                                                                                                                                                                                                                                                                                   |
+| `INSPECTION_SCHEMA`     | const     | `INSPECTION_SCHEMA: 'prismpm/holo-inspection/1'`                                                                                                                                                                                                                                                                                                                                               |
+| `inspect`               | function  | `inspect(source: Uint8Array \| ArrayBuffer \| Blob): Promise<Inspection>`                                                                                                                                                                                                                                                                                                                      |
+| `formatInspection`      | function  | `formatInspection(inspection: Inspection): string`                                                                                                                                                                                                                                                                                                                                             |
+| `LoadOptions`           | interface | `LoadOptions`                                                                                                                                                                                                                                                                                                                                                                                  |
+| `load`                  | function  | `load(source: Uint8Array \| ArrayBuffer \| Blob \| string \| URL, options?: LoadOptions): Promise<Application>`                                                                                                                                                                                                                                                                                |
+| `loadArchive`           | function  | `loadArchive(source: Uint8Array \| ArrayBuffer): Promise<Application>`                                                                                                                                                                                                                                                                                                                         |
+| `loadClosure`           | function  | `loadClosure( files: Map<string, Uint8Array>, importGlue: (name: string) => Promise<Record<string, unknown>>, options?: { model?: Record<string, unknown> \| Uint8Array \| null }, ): Promise<Application>`                                                                                                                                                                                    |
+| `ParsedArchive`         | interface | `ParsedArchive`                                                                                                                                                                                                                                                                                                                                                                                |
+| `parseArchive`          | function  | `parseArchive(source: Uint8Array \| ArrayBuffer): ParsedArchive`                                                                                                                                                                                                                                                                                                                               |
+| `resolveArchive`        | function  | `resolveArchive(parsed: ParsedArchive): { directory: Record<string, unknown>; provenance: Record<string, unknown>; modelDocument: Record<string, unknown>; guest: { label: string; content: Uint8Array }; view: { label: string; content: Uint8Array }; model: { label: string; content: Uint8Array }; capabilities: { label: string; content: Uint8Array }; identities: ArchiveIdentities; }` |
+| `canonicalJson`         | function  | `canonicalJson(value: unknown): string`                                                                                                                                                                                                                                                                                                                                                        |
+| `decodeHoloview`        | function  | `decodeHoloview(bytes: Uint8Array): View`                                                                                                                                                                                                                                                                                                                                                      |
+| `encodeHoloview`        | function  | `encodeHoloview(view: View): Uint8Array`                                                                                                                                                                                                                                                                                                                                                       |
+| `compileGuest`          | function  | `compileGuest(wasm: Uint8Array): Promise<WebAssembly.Module>`                                                                                                                                                                                                                                                                                                                                  |
+| `runGuest`              | function  | `runGuest(module: WebAssembly.Module, request: Uint8Array, limits?: Partial<Limits>): Uint8Array`                                                                                                                                                                                                                                                                                              |
+| `runAcceptance`         | function  | `runAcceptance(vectors: Vector[], dispatch: (request: Uint8Array) => Uint8Array \| Promise<Uint8Array>): Promise<AcceptanceResult>`                                                                                                                                                                                                                                                            |
+| `verifyClosure`         | function  | `verifyClosure(files: Map<string, Uint8Array>): Promise<{ stem: string; glueName: string; wasmName: string; provenance: Record<string, unknown>; verification: Pick<ClosureIdentities, 'verified' \| 'mismatches' \| 'unverifiable'>; }>`                                                                                                                                                      |
+| `blake3`                | function  | `blake3(bytes: Uint8Array, length?: number): Uint8Array`                                                                                                                                                                                                                                                                                                                                       |
+| `blake3Hex`             | function  | `blake3Hex(bytes: Uint8Array): string`                                                                                                                                                                                                                                                                                                                                                         |
+| `kappa`                 | function  | `kappa(bytes: Uint8Array): string`                                                                                                                                                                                                                                                                                                                                                             |
+| `ATTESTATION_EXTENSION` | const     | `ATTESTATION_EXTENSION: 'https://uor.foundation/extension/attestation-bundle/v1'`                                                                                                                                                                                                                                                                                                              |
+| `BUNDLE_MEDIA_TYPE`     | const     | `BUNDLE_MEDIA_TYPE: 'application/vnd.dev.sigstore.bundle.v0.3+json'`                                                                                                                                                                                                                                                                                                                           |
+| `AttestationSubject`    | interface | `AttestationSubject`                                                                                                                                                                                                                                                                                                                                                                           |
+| `Attestation`           | interface | `Attestation`                                                                                                                                                                                                                                                                                                                                                                                  |
+| `BundleInput`           | type      | `BundleInput = Record<string, unknown> \| string \| Uint8Array`                                                                                                                                                                                                                                                                                                                                |
+| `attestationSection`    | function  | `attestationSection(source: Uint8Array \| ArrayBuffer \| ParsedArchive): { section: number; payload: Uint8Array } \| null`                                                                                                                                                                                                                                                                     |
+| `readAttestations`      | function  | `readAttestations(source: Uint8Array \| ArrayBuffer \| ParsedArchive): Attestation[]`                                                                                                                                                                                                                                                                                                          |
+| `decodeBundle`          | function  | `decodeBundle(line: string \| Uint8Array, labels?: Set<string>): Omit<Attestation, 'index'>`                                                                                                                                                                                                                                                                                                   |
+| `appendAttestations`    | function  | `appendAttestations(source: Uint8Array \| ArrayBuffer \| ParsedArchive, bundles: BundleInput[]): Uint8Array`                                                                                                                                                                                                                                                                                   |
+| `stripAttestations`     | function  | `stripAttestations(source: Uint8Array \| ArrayBuffer \| ParsedArchive): Uint8Array`                                                                                                                                                                                                                                                                                                            |
+| `encodeArchive`         | function  | `encodeArchive(sections: { kind: number; body: Uint8Array }[], options?: { version?: number; flags?: number }): Uint8Array`                                                                                                                                                                                                                                                                    |
+| `canonicalize`          | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
+| `codeHash`              | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
+| `describe`              | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
+| `differs`               | export    | `from ../src/canonical/index.js`                                                                                                                                                                                                                                                                                                                                                               |
 
 ## Next steps
 
@@ -928,6 +1004,8 @@ export interface Application {
   view: View;
   dispatch(request: Uint8Array | ArrayBuffer): Promise<Uint8Array>;
   acceptance(): Promise<AcceptanceResult>;
+  inspect(): Promise<Inspection>;
+  attestations(): Attestation[];
 }
 ```
 
@@ -1025,7 +1103,7 @@ export type ContentBlobRole = 'capability-set' | 'guest' | 'model-document' | 'v
 - [Check a holo](/docs/api/verify)
 - [Holo format](/docs/reference/holo-format)
 
-Generated from prism-code 0.2.0, @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from prism-code 0.2.0, @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 
 <!-- api/verify -->
 
@@ -1069,7 +1147,7 @@ export interface FormatRevisionIdentifiers {
 - [Attestations reference](/docs/reference/attestations)
 - [Load a holo](/docs/api/load)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 
 <!-- api/instantiate -->
 
@@ -1114,7 +1192,7 @@ world core-wasm {
 - [Check a holo](/docs/api/verify)
 - [Holo format](/docs/reference/holo-format)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 
 <!-- api/dispatch -->
 
@@ -1263,41 +1341,52 @@ export class PrismCodeError extends Error {
 
 ## Codes
 
-| Code                 | Raised in                            |
-| -------------------- | ------------------------------------ |
-| `archive.blob`       | `src/archive.mjs`                    |
-| `archive.bounds`     | `src/archive.mjs`                    |
-| `archive.directory`  | `src/archive.mjs`                    |
-| `archive.extension`  | `src/archive.mjs`                    |
-| `archive.flags`      | `src/archive.mjs`                    |
-| `archive.input`      | `src/archive.mjs`                    |
-| `archive.kind`       | `src/archive.mjs`                    |
-| `archive.magic`      | `src/archive.mjs`                    |
-| `archive.manifest`   | `src/archive.mjs`                    |
-| `archive.metadata`   | `src/archive.mjs`                    |
-| `archive.model`      | `src/archive.mjs`, `src/index.mjs`   |
-| `archive.provenance` | `src/archive.mjs`                    |
-| `archive.version`    | `src/archive.mjs`                    |
-| `closure.files`      | `src/browser.mjs`, `src/closure.mjs` |
-| `closure.glue`       | `src/closure.mjs`                    |
-| `closure.model`      | `src/closure.mjs`                    |
-| `closure.provenance` | `src/closure.mjs`                    |
-| `core.allocation`    | `src/closure.mjs`, `src/core.mjs`    |
-| `core.compile`       | `src/core.mjs`                       |
-| `core.exports`       | `src/core.mjs`                       |
-| `core.imports`       | `src/core.mjs`                       |
-| `core.request`       | `src/core.mjs`                       |
-| `core.response`      | `src/core.mjs`                       |
-| `load.fetch`         | `src/browser.mjs`                    |
-| `load.path`          | `src/node.mjs`                       |
-| `load.source`        | `src/index.mjs`                      |
-| `lock.image`         | `src/docker.mjs`                     |
-| `mount.environment`  | `src/browser.mjs`                    |
-| `view.bounds`        | `src/view.mjs`                       |
-| `view.entry`         | `src/view.mjs`                       |
-| `view.magic`         | `src/view.mjs`                       |
-| `view.order`         | `src/view.mjs`                       |
-| `view.version`       | `src/view.mjs`                       |
+| Code                    | Raised in                                 |
+| ----------------------- | ----------------------------------------- |
+| `archive.blob`          | `src/archive.mjs`                         |
+| `archive.bounds`        | `src/archive.mjs`, `src/attestations.mjs` |
+| `archive.directory`     | `src/archive.mjs`                         |
+| `archive.extension`     | `src/archive.mjs`                         |
+| `archive.flags`         | `src/archive.mjs`                         |
+| `archive.input`         | `src/archive.mjs`                         |
+| `archive.kind`          | `src/archive.mjs`                         |
+| `archive.magic`         | `src/archive.mjs`                         |
+| `archive.manifest`      | `src/archive.mjs`                         |
+| `archive.metadata`      | `src/archive.mjs`                         |
+| `archive.model`         | `src/archive.mjs`, `src/index.mjs`        |
+| `archive.provenance`    | `src/archive.mjs`                         |
+| `archive.version`       | `src/archive.mjs`                         |
+| `attestation.bundle`    | `src/attestations.mjs`                    |
+| `attestation.duplicate` | `src/attestations.mjs`                    |
+| `attestation.envelope`  | `src/attestations.mjs`                    |
+| `attestation.footer`    | `src/attestations.mjs`                    |
+| `attestation.input`     | `src/attestations.mjs`                    |
+| `attestation.lines`     | `src/attestations.mjs`                    |
+| `attestation.position`  | `src/attestations.mjs`                    |
+| `attestation.statement` | `src/attestations.mjs`                    |
+| `attestation.subject`   | `src/attestations.mjs`                    |
+| `closure.files`         | `src/browser.mjs`, `src/closure.mjs`      |
+| `closure.glue`          | `src/closure.mjs`                         |
+| `closure.model`         | `src/closure.mjs`                         |
+| `closure.provenance`    | `src/closure.mjs`                         |
+| `core.allocation`       | `src/closure.mjs`, `src/core.mjs`         |
+| `core.compile`          | `src/core.mjs`                            |
+| `core.exports`          | `src/core.mjs`                            |
+| `core.imports`          | `src/core.mjs`                            |
+| `core.request`          | `src/core.mjs`                            |
+| `core.response`         | `src/core.mjs`                            |
+| `inspect.kind`          | `src/index.mjs`                           |
+| `inspect.selector`      | `src/inspect.mjs`                         |
+| `load.fetch`            | `src/browser.mjs`                         |
+| `load.path`             | `src/node.mjs`                            |
+| `load.source`           | `src/index.mjs`                           |
+| `lock.image`            | `src/docker.mjs`                          |
+| `mount.environment`     | `src/browser.mjs`                         |
+| `view.bounds`           | `src/view.mjs`                            |
+| `view.entry`            | `src/view.mjs`                            |
+| `view.magic`            | `src/view.mjs`                            |
+| `view.order`            | `src/view.mjs`                            |
+| `view.version`          | `src/view.mjs`                            |
 
 ## Example
 
@@ -1346,35 +1435,36 @@ https://uor.foundation/prism/proof/v1
 
 ## Exports
 
-| Export                  | Kind   | Declaration                                                                                                                                                                                                                                                                                                                                                                |
-| ----------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ModelDocument`         | type   | `ModelDocument = ModelDocumentV1 \| ModelDocumentV2 \| ModelDocumentV3 \| ModelDocumentV4 \| ModelDocumentV5 \| ModelDocumentV6`                                                                                                                                                                                                                                           |
-| `SdkLock`               | type   | `SdkLock = SdkLockV1 \| SdkLockV2`                                                                                                                                                                                                                                                                                                                                         |
-| `FORMAT_REVISION`       | const  | `FORMAT_REVISION: '2026-10-23'`                                                                                                                                                                                                                                                                                                                                            |
-| `FORMAT_REVISIONS`      | const  | `FORMAT_REVISIONS: Readonly<Record<FormatRevision, Readonly<FormatRevisionIdentifiers>>>`                                                                                                                                                                                                                                                                                  |
-| `MAGIC`                 | const  | `MAGIC: 'HOLO'`                                                                                                                                                                                                                                                                                                                                                            |
-| `PHYSICAL_VERSION`      | const  | `PHYSICAL_VERSION: 4`                                                                                                                                                                                                                                                                                                                                                      |
-| `FLAGS`                 | const  | `FLAGS: 0`                                                                                                                                                                                                                                                                                                                                                                 |
-| `HEADER_LENGTH`         | const  | `HEADER_LENGTH: 10`                                                                                                                                                                                                                                                                                                                                                        |
-| `TABLE_ENTRY_LENGTH`    | const  | `TABLE_ENTRY_LENGTH: 24`                                                                                                                                                                                                                                                                                                                                                   |
-| `SECTION_COUNT`         | const  | `SECTION_COUNT: 8`                                                                                                                                                                                                                                                                                                                                                         |
-| `BODY_OFFSET`           | const  | `BODY_OFFSET: 202`                                                                                                                                                                                                                                                                                                                                                         |
-| `FOOTER_LENGTH`         | const  | `FOOTER_LENGTH: 32`                                                                                                                                                                                                                                                                                                                                                        |
-| `SECTION_KIND`          | const  | `SECTION_KIND: Readonly<SectionKind>`                                                                                                                                                                                                                                                                                                                                      |
-| `SECTION_ORDER`         | const  | `SECTION_ORDER: readonly [15, 8, 14, 14, 16, 16, 16, 16]`                                                                                                                                                                                                                                                                                                                  |
-| `LABEL_PREFIX`          | const  | `LABEL_PREFIX: 'blake3:'`                                                                                                                                                                                                                                                                                                                                                  |
-| `LABEL_LENGTH`          | const  | `LABEL_LENGTH: 71`                                                                                                                                                                                                                                                                                                                                                         |
-| `APP_MANIFEST`          | const  | `APP_MANIFEST: Readonly<{ URI: 'https://hologram.foundation/realization/app-manifest'; LENGTH: 356; PREFIX_LENGTH: 57; SUFFIX_LENGTH: 86; PREFIX_HEX: string; SUFFIX_HEX: string; LABELS: readonly ['capability-set', 'guest', 'view']; }>`                                                                                                                                |
-| `CAPABILITY_SET`        | const  | `CAPABILITY_SET: Readonly<{ URI: 'https://hologram.foundation/realization/capability-set'; EMPTY_HEX: string; }>`                                                                                                                                                                                                                                                          |
-| `EXTENSION`             | const  | `EXTENSION: Readonly<{ APPLICATION_DIRECTORY: Extract<ExtensionName, 'https://hologram.foundation/extension/application-directory/v1'>; PRISMPM_MODEL: Extract<ExtensionName, 'https://uor.foundation/extension/prismpm-model/v1'>; }>`                                                                                                                                    |
-| `CORE_WASM`             | const  | `CORE_WASM: Readonly<{ CONTRACT: CoreWasmContract; EXPORTS: readonly ['holo_alloc', 'holo_run', 'memory']; ALLOCATOR: 'holo_alloc'; ENTRY: 'holo_run'; WORLD: 'worlds/core-wasm.wit'; }>`                                                                                                                                                                                  |
-| `HOLOVIEW`              | const  | `HOLOVIEW: Readonly<HoloviewLimits>`                                                                                                                                                                                                                                                                                                                                       |
-| `SCHEMAS`               | const  | `SCHEMAS: Readonly<Record< \| 'prismpm/model-document/1' \| 'prismpm/model-document/2' \| 'prismpm/model-document/3' \| 'prismpm/model-document/4' \| 'prismpm/model-document/5' \| 'prismpm/model-document/6' \| 'prismpm/sdk-lock/1' \| 'prismpm/sdk-lock/2' \| 'prismpm/model-provenance/1' \| 'prismpm/build-manifest/1' \| 'prismpm/browser-provenance/1', string >>` |
-| `HOLO_SCHEMAS`          | const  | `HOLO_SCHEMAS: Readonly<{ ARCHIVE: 'schemas/holo/archive.schema.json'; APP_MANIFEST: 'schemas/holo/app-manifest.schema.json'; SOURCE_MANIFEST: 'schemas/holo/source-manifest.schema.json'; APPLICATION_DIRECTORY: 'schemas/holo/application-directory.schema.json'; }>`                                                                                                    |
-| `ATTESTATION`           | const  | `ATTESTATION: Readonly<{ STATEMENT_TYPE: 'https://in-toto.io/Statement/v1'; DSSE_PAYLOAD_TYPE: 'application/vnd.in-toto+json'; OCI_MANIFEST_SUBJECT: 'oci-manifest'; STATEMENT_SCHEMA: 'schemas/attestation/statement.schema.json'; ENVELOPE_SCHEMA: 'schemas/attestation/dsse-envelope.schema.json'; }>`                                                                  |
-| `PROOF_PREDICATE_TYPE`  | export | `from ./predicates/proof-v1.js`                                                                                                                                                                                                                                                                                                                                            |
-| `REPLAY_PREDICATE_TYPE` | export | `from ./predicates/replay-v1.js`                                                                                                                                                                                                                                                                                                                                           |
-| `ASSURANCE`             | export | `from ./assurance-levels.js`                                                                                                                                                                                                                                                                                                                                               |
+| Export                  | Kind   | Declaration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ModelDocument`         | type   | `ModelDocument = ModelDocumentV1 \| ModelDocumentV2 \| ModelDocumentV3 \| ModelDocumentV4 \| ModelDocumentV5 \| ModelDocumentV6`                                                                                                                                                                                                                                                                                                                                                               |
+| `SdkLock`               | type   | `SdkLock = SdkLockV1 \| SdkLockV2 \| SdkLockV3`                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `FORMAT_REVISION`       | const  | `FORMAT_REVISION: '2026-10-23'`                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `FORMAT_REVISIONS`      | const  | `FORMAT_REVISIONS: Readonly<Record<FormatRevision, Readonly<FormatRevisionIdentifiers>>>`                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `MAGIC`                 | const  | `MAGIC: 'HOLO'`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `PHYSICAL_VERSION`      | const  | `PHYSICAL_VERSION: 4`                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `FLAGS`                 | const  | `FLAGS: 0`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `HEADER_LENGTH`         | const  | `HEADER_LENGTH: 10`                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `TABLE_ENTRY_LENGTH`    | const  | `TABLE_ENTRY_LENGTH: 24`                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `SECTION_COUNT`         | const  | `SECTION_COUNT: 8`                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `BODY_OFFSET`           | const  | `BODY_OFFSET: 202`                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `FOOTER_LENGTH`         | const  | `FOOTER_LENGTH: 32`                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `SECTION_KIND`          | const  | `SECTION_KIND: Readonly<SectionKind>`                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `SECTION_ORDER`         | const  | `SECTION_ORDER: readonly [15, 8, 14, 14, 16, 16, 16, 16]`                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `LABEL_PREFIX`          | const  | `LABEL_PREFIX: 'blake3:'`                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `LABEL_LENGTH`          | const  | `LABEL_LENGTH: 71`                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `APP_MANIFEST`          | const  | `APP_MANIFEST: Readonly<{ URI: 'https://hologram.foundation/realization/app-manifest'; LENGTH: 356; PREFIX_LENGTH: 57; SUFFIX_LENGTH: 86; PREFIX_HEX: string; SUFFIX_HEX: string; LABELS: readonly ['capability-set', 'guest', 'view']; }>`                                                                                                                                                                                                                                                    |
+| `CAPABILITY_SET`        | const  | `CAPABILITY_SET: Readonly<{ URI: 'https://hologram.foundation/realization/capability-set'; EMPTY_HEX: string; }>`                                                                                                                                                                                                                                                                                                                                                                              |
+| `EXTENSION`             | const  | `EXTENSION: Readonly<{ APPLICATION_DIRECTORY: Extract<ExtensionName, 'https://hologram.foundation/extension/application-directory/v1'>; PRISMPM_MODEL: Extract<ExtensionName, 'https://uor.foundation/extension/prismpm-model/v1'>; }>`                                                                                                                                                                                                                                                        |
+| `CORE_WASM`             | const  | `CORE_WASM: Readonly<{ CONTRACT: CoreWasmContract; EXPORTS: readonly ['holo_alloc', 'holo_run', 'memory']; ALLOCATOR: 'holo_alloc'; ENTRY: 'holo_run'; WORLD: 'worlds/core-wasm.wit'; }>`                                                                                                                                                                                                                                                                                                      |
+| `HOLOVIEW`              | const  | `HOLOVIEW: Readonly<HoloviewLimits>`                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `SCHEMAS`               | const  | `SCHEMAS: Readonly<Record< \| 'prismpm/model-document/1' \| 'prismpm/model-document/2' \| 'prismpm/model-document/3' \| 'prismpm/model-document/4' \| 'prismpm/model-document/5' \| 'prismpm/model-document/6' \| 'prismpm/sdk-lock/1' \| 'prismpm/sdk-lock/2' \| 'prismpm/sdk-lock/3' \| 'prismpm/model-provenance/1' \| 'prismpm/build-manifest/1' \| 'prismpm/browser-provenance/1', string >>`                                                                                             |
+| `HOLO_SCHEMAS`          | const  | `HOLO_SCHEMAS: Readonly<{ ARCHIVE: 'schemas/holo/archive.schema.json'; APP_MANIFEST: 'schemas/holo/app-manifest.schema.json'; SOURCE_MANIFEST: 'schemas/holo/source-manifest.schema.json'; APPLICATION_DIRECTORY: 'schemas/holo/application-directory.schema.json'; }>`                                                                                                                                                                                                                        |
+| `ATTESTATION`           | const  | `ATTESTATION: Readonly<{ STATEMENT_TYPE: 'https://in-toto.io/Statement/v1'; DSSE_PAYLOAD_TYPE: 'application/vnd.in-toto+json'; OCI_MANIFEST_SUBJECT: 'oci-manifest'; STATEMENT_SCHEMA: 'schemas/attestation/statement.schema.json'; ENVELOPE_SCHEMA: 'schemas/attestation/dsse-envelope.schema.json'; }>`                                                                                                                                                                                      |
+| `ATTESTATION_BUNDLE`    | const  | `ATTESTATION_BUNDLE: Readonly<{ EXTENSION: 'https://uor.foundation/extension/attestation-bundle/v1'; SECTION_KIND: 14; MEDIA_TYPE: 'application/vnd.dev.sigstore.bundle.v0.3+json'; LINE_TERMINATOR: 10; SCHEMA: 'schemas/attestation/sigstore-bundle.schema.json'; PROVENANCE_PREDICATE_TYPE: 'https://slsa.dev/provenance/v1'; OCI_ANNOTATIONS: Readonly<{ CONTENT: 'dev.sigstore.bundle.content'; PREDICATE_TYPE: 'dev.sigstore.bundle.predicateType' }>; OCI_CONTENT: 'dsse-envelope'; }>` |
+| `PROOF_PREDICATE_TYPE`  | export | `from ./predicates/proof-v1.js`                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `REPLAY_PREDICATE_TYPE` | export | `from ./predicates/replay-v1.js`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `ASSURANCE`             | export | `from ./assurance-levels.js`                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ## Schemas
 
@@ -1388,6 +1478,7 @@ https://uor.foundation/prism/proof/v1
 | `prismpm/model-document/6`     | `schemas/documents/model-document-v6.schema.json`     |
 | `prismpm/sdk-lock/1`           | `schemas/documents/sdk-lock-v1.schema.json`           |
 | `prismpm/sdk-lock/2`           | `schemas/documents/sdk-lock-v2.schema.json`           |
+| `prismpm/sdk-lock/3`           | `schemas/documents/sdk-lock-v3.schema.json`           |
 | `prismpm/model-provenance/1`   | `schemas/documents/model-provenance-v1.schema.json`   |
 | `prismpm/build-manifest/1`     | `schemas/documents/build-manifest-v1.schema.json`     |
 | `prismpm/browser-provenance/1` | `schemas/documents/browser-provenance-v1.schema.json` |
@@ -1409,7 +1500,7 @@ https://uor.foundation/prism/proof/v1
 - [Attestations reference](/docs/reference/attestations)
 - [prism-code at a glance](/docs/api)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 
 <!-- api/verify-package -->
 
@@ -1430,7 +1521,7 @@ Status: `@prism-code/verify` does not exist yet. This page is generated from its
 - [Spec package](/docs/api/spec-package)
 - [Load a holo](/docs/api/load)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 
 <!-- api/testing-package -->
 
@@ -1451,5 +1542,5 @@ Status: `@prism-code/testing` does not exist yet. This page is generated from it
 - [Dispatch inputs](/docs/api/dispatch)
 - [prism-code at a glance](/docs/api)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.
 

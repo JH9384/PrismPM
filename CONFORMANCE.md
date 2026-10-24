@@ -282,6 +282,7 @@ The three honesty levels:
 | `SY-06` | `build` | Migrations, recovery, rollout, rollback, drift, retirement, and positive and negative acceptance are explicit modeled values. |
 | `SY-07` | `build` | Modeled ordered control coverage rejects missing obligations, invalid inheritance, residual omissions, and binding mismatches. |
 | `SY-08` | `build` | Browser-resident system releases bind selected proved applications, mandatory controls, exact generated artifacts, locked projection oracles, and source-free replay. |
+| `SY-09` | `build` | Host-effect service system releases declare the effects of a server application, and project Compose services whose published ports bind loopback only and pass the locked Compose oracle. |
 
 ## template-ci
 

@@ -3103,6 +3103,53 @@ mod tests {
     }
 
     #[test]
+    fn host_effect_system_compose_passes_the_locked_oracle() {
+        let sdk_image = std::env::var("PRISMPM_TEST_SDK_IMAGE").unwrap();
+        crate::oci::validate_reference(&sdk_image, true).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let standards = resolved_lock().unwrap();
+        std::fs::write(root.path().join("standards.lock"), standards.bytes()).unwrap();
+        write_sdk_lock(root.path(), standards.digest(), sdk_image);
+        let (system, _) = crate::system::host_effect::example();
+        for projection in crate::system::projections(&system, &[]).unwrap() {
+            let name = projection.path.rsplit('/').next().unwrap();
+            let (profile, oracle) = match name {
+                "compose.json" => ("compose", "compose-fee041b3"),
+                "spdx.json" => ("spdx", "spdx-3.0.1-model"),
+                other => panic!("unplanned host-effect projection {other}"),
+            };
+            let path = root.path().join(name);
+            std::fs::write(&path, &projection.bytes).unwrap();
+            let result = run_oracle_in_project(root.path(), profile, &path)
+                .unwrap_or_else(|error| panic!("{name} must pass {oracle}: {error:?}"));
+            assert!(result.valid);
+            assert_eq!(result.oracle, oracle);
+            assert_eq!(std::fs::read(&path).unwrap(), projection.bytes);
+            if profile == "compose" {
+                // The oracle checks Compose validity; the loopback audit of the
+                // emitted bytes is the check a wildcard binding cannot pass.
+                let compose: Value = serde_json::from_slice(&projection.bytes).unwrap();
+                crate::system::host_effect::audit_compose(&compose).unwrap();
+                assert_eq!(
+                    compose["services"]["gateway"]["ports"][0]["host_ip"],
+                    "127.0.0.1"
+                );
+                let mut dangling = compose.clone();
+                dangling["services"]["gateway"]["depends_on"]["absent"] =
+                    json!({"condition":"service_healthy","required":true});
+                let path = root.path().join("compose-dangling.json");
+                std::fs::write(&path, encode_value(&dangling).unwrap()).unwrap();
+                assert_eq!(
+                    run_oracle_in_project(root.path(), "compose", &path)
+                        .unwrap_err()
+                        .code,
+                    "PP5404"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn docker_sandbox_compose_checks_secret_references_without_credentials() {
         let sdk_image = std::env::var("PRISMPM_TEST_SDK_IMAGE").unwrap();
         crate::oci::validate_reference(&sdk_image, true).unwrap();

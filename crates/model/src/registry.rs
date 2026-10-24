@@ -483,6 +483,7 @@ impl Contracts {
                 || !(row.schema.ends_with("/1")
                     || row.schema == "prismpm/bootstrap-evidence/2"
                     || row.schema == "prismpm/system-model/2"
+                    || row.schema == "prismpm/system-model/3"
                     || row.schema == "prismpm/ecosystem-release/2"
                     || row.schema == "prismpm/model-document/2"
                     || row.schema == "prismpm/model-document/3"

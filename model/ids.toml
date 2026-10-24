@@ -775,6 +775,12 @@ level = "build"
 statement = "Browser-resident system releases bind selected proved applications, mandatory controls, exact generated artifacts, locked projection oracles, and source-free replay."
 
 [[id]]
+id = "SY-09"
+suite = "system"
+level = "build"
+statement = "Host-effect service system releases declare the effects of a server application, and project Compose services whose published ports bind loopback only and pass the locked Compose oracle."
+
+[[id]]
 id = "DK-01"
 suite = "sdk"
 level = "build"

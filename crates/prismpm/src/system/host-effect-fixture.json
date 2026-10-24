@@ -1,0 +1,285 @@
+{
+  "manifest": {
+    "application_model_digest": "sha256:de510ca735a4394615c29194f3d7b3bcafe3b7b46da6e1b126423df4ce619e4b",
+    "effects": [
+      "engine.check",
+      "engine.verify",
+      "signer.sign"
+    ],
+    "listeners": [
+      "mcp-endpoint"
+    ],
+    "product_id": "mcp-loopback",
+    "product_version": "0.1.0"
+  },
+  "model": {
+    "application_profile": {
+      "application_model_digest": "sha256:de510ca735a4394615c29194f3d7b3bcafe3b7b46da6e1b126423df4ce619e4b",
+      "contract": "prismpm/server-application/1",
+      "effects": [
+        "engine.check",
+        "engine.verify",
+        "signer.sign"
+      ],
+      "protocol": "prismpm/host-effects/1"
+    },
+    "artifacts": [
+      {
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "id": "collector-image",
+        "license_expression": "MIT OR Apache-2.0",
+        "path": "ghcr.io/uor-foundation/lexlean-mcp-collector"
+      },
+      {
+        "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "id": "engine-host-image",
+        "license_expression": "MIT OR Apache-2.0",
+        "path": "ghcr.io/uor-foundation/lexlean-mcp-engine-host"
+      },
+      {
+        "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "id": "gateway-image",
+        "license_expression": "MIT OR Apache-2.0",
+        "path": "ghcr.io/uor-foundation/lexlean-mcp-gateway"
+      },
+      {
+        "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "id": "signer-image",
+        "license_expression": "MIT OR Apache-2.0",
+        "path": "ghcr.io/uor-foundation/lexlean-mcp-signer"
+      },
+      {
+        "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "id": "verifier-image",
+        "license_expression": "MIT OR Apache-2.0",
+        "path": "ghcr.io/uor-foundation/lexlean-mcp-verifier"
+      }
+    ],
+    "components": [
+      {
+        "artifact": "verifier-image",
+        "command": [
+          "/usr/local/bin/verifier"
+        ],
+        "depends_on": [],
+        "id": "verifier",
+        "kind": "job",
+        "networks": [
+          "backend"
+        ],
+        "parameters": [],
+        "readiness": [],
+        "resources": {
+          "cpu_millis": 500,
+          "memory_bytes": 268435456,
+          "replicas_max": 1,
+          "replicas_min": 1
+        },
+        "secrets": [],
+        "version": "0.1.0",
+        "volumes": [
+          "toolchain-cache"
+        ]
+      },
+      {
+        "artifact": "signer-image",
+        "command": [
+          "/usr/local/bin/signer"
+        ],
+        "depends_on": [],
+        "id": "signer",
+        "kind": "worker",
+        "networks": [
+          "backend"
+        ],
+        "parameters": [],
+        "readiness": [
+          "/usr/local/bin/signer",
+          "--ready"
+        ],
+        "resources": {
+          "cpu_millis": 500,
+          "memory_bytes": 268435456,
+          "replicas_max": 1,
+          "replicas_min": 1
+        },
+        "secrets": [
+          "signing-key"
+        ],
+        "version": "0.1.0",
+        "volumes": []
+      },
+      {
+        "artifact": "engine-host-image",
+        "command": [
+          "/usr/local/bin/engine-host"
+        ],
+        "depends_on": [
+          "verifier"
+        ],
+        "id": "engine-host",
+        "kind": "worker",
+        "networks": [
+          "backend"
+        ],
+        "parameters": [
+          "log-level"
+        ],
+        "readiness": [
+          "/usr/local/bin/engine-host",
+          "--ready"
+        ],
+        "resources": {
+          "cpu_millis": 500,
+          "memory_bytes": 268435456,
+          "replicas_max": 1,
+          "replicas_min": 1
+        },
+        "secrets": [],
+        "version": "0.1.0",
+        "volumes": [
+          "toolchain-cache"
+        ]
+      },
+      {
+        "artifact": "gateway-image",
+        "command": [
+          "/usr/local/bin/gateway"
+        ],
+        "depends_on": [
+          "engine-host",
+          "signer"
+        ],
+        "id": "gateway",
+        "kind": "api",
+        "networks": [
+          "backend",
+          "edge"
+        ],
+        "parameters": [
+          "listen-port",
+          "log-level"
+        ],
+        "readiness": [
+          "/usr/local/bin/gateway",
+          "--ready"
+        ],
+        "resources": {
+          "cpu_millis": 500,
+          "memory_bytes": 268435456,
+          "replicas_max": 1,
+          "replicas_min": 1
+        },
+        "secrets": [],
+        "version": "0.1.0",
+        "volumes": []
+      },
+      {
+        "artifact": "collector-image",
+        "command": [
+          "/usr/local/bin/collector"
+        ],
+        "depends_on": [],
+        "id": "telemetry-collector",
+        "kind": "telemetry-collector",
+        "networks": [
+          "backend"
+        ],
+        "parameters": [],
+        "readiness": [
+          "/usr/local/bin/collector",
+          "--ready"
+        ],
+        "resources": {
+          "cpu_millis": 500,
+          "memory_bytes": 268435456,
+          "replicas_max": 1,
+          "replicas_min": 1
+        },
+        "secrets": [],
+        "version": "0.1.0",
+        "volumes": []
+      }
+    ],
+    "listeners": [
+      {
+        "bind_address": "127.0.0.1",
+        "component": "gateway",
+        "id": "mcp-endpoint",
+        "port": 8765,
+        "protocol": "tcp"
+      }
+    ],
+    "networks": [
+      {
+        "id": "backend",
+        "internal": true
+      },
+      {
+        "id": "edge",
+        "internal": false
+      }
+    ],
+    "parameters": [
+      {
+        "allowed": [],
+        "default": "8765",
+        "exposure": "internal",
+        "id": "listen-port",
+        "late_bound": false,
+        "mutable": false,
+        "required": true,
+        "type": "u16"
+      },
+      {
+        "allowed": [
+          "info",
+          "debug"
+        ],
+        "default": "info",
+        "exposure": "internal",
+        "id": "log-level",
+        "late_bound": false,
+        "mutable": false,
+        "required": true,
+        "type": "string"
+      }
+    ],
+    "product": {
+      "id": "mcp-loopback",
+      "lifecycle": "development",
+      "owner": "UOR Foundation",
+      "source_policy": "selected LexLean source and kernel proof",
+      "supported_platforms": [
+        "linux"
+      ],
+      "version": "0.1.0"
+    },
+    "schema": "prismpm/system-model/3",
+    "secret_references": [
+      {
+        "consumers": [
+          "signer"
+        ],
+        "id": "signing-key",
+        "provider_key": "signing-key",
+        "rotation": "manual"
+      }
+    ],
+    "targets": [
+      {
+        "adapter_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "api_version": "compose-spec@fee041b381ffd4aad263410980bdce0cdf4beb7d",
+        "id": "compose-loopback",
+        "kind": "compose",
+        "minimum_release_status": "development"
+      }
+    ],
+    "volumes": [
+      {
+        "id": "toolchain-cache",
+        "mount_path": "/var/cache/lexlean"
+      }
+    ]
+  }
+}

@@ -581,6 +581,10 @@ mod tests {
                 "schemas/system-model-v2.schema.json",
             ),
             (
+                "prismpm/system-model/3",
+                "schemas/system-model-v3.schema.json",
+            ),
+            (
                 "prismpm/browser-system-release/1",
                 "schemas/browser-system-release.schema.json",
             ),

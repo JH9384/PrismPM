@@ -1,0 +1,499 @@
+{
+  "$id": "https://schemas.uor.foundation/prismpm/system-model/3",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "prismpm/system-model/3"
+    },
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "lifecycle": {
+          "enum": [
+            "development",
+            "candidate",
+            "accepted",
+            "retired"
+          ]
+        },
+        "source_policy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "supported_platforms": {
+          "const": [
+            "linux"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "owner",
+        "version",
+        "lifecycle",
+        "source_policy",
+        "supported_platforms"
+      ]
+    },
+    "application_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contract": {
+          "const": "prismpm/server-application/1"
+        },
+        "protocol": {
+          "const": "prismpm/host-effects/1"
+        },
+        "application_model_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)*$"
+          },
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "contract",
+        "protocol",
+        "application_model_digest",
+        "effects"
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "license_expression": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "digest",
+          "license_expression"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 256
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+          },
+          "kind": {
+            "enum": [
+              "api",
+              "worker",
+              "job",
+              "telemetry-collector"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "artifact": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+          },
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "minItems": 1,
+            "maxItems": 32
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+            },
+            "maxItems": 256,
+            "uniqueItems": true
+          },
+          "readiness": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "maxItems": 32
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+            },
+            "maxItems": 256,
+            "uniqueItems": true
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+            },
+            "maxItems": 256,
+            "uniqueItems": true
+          },
+          "volumes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+            },
+            "maxItems": 256,
+            "uniqueItems": true
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+            },
+            "minItems": 1,
+            "maxItems": 256,
+            "uniqueItems": true
+          },
+          "resources": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cpu_millis": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              },
+              "memory_bytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1099511627776
+              },
+              "replicas_min": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "replicas_max": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              }
+            },
+            "required": [
+              "cpu_millis",
+              "memory_bytes",
+              "replicas_min",
+              "replicas_max"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "version",
+          "artifact",
+          "command",
+          "depends_on",
+          "readiness",
+          "parameters",
+          "secrets",
+          "volumes",
+          "networks",
+          "resources"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 256
+    },
+    "parameters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "allowed": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "maxItems": 64
+          },
+          "default": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1024
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "mutable": {
+            "type": "boolean"
+          },
+          "late_bound": {
+            "type": "boolean"
+          },
+          "exposure": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "allowed",
+          "default",
+          "required",
+          "mutable",
+          "late_bound",
+          "exposure"
+        ]
+      },
+      "maxItems": 256
+    },
+    "secret_references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+          },
+          "provider_key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+          },
+          "consumers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+            },
+            "minItems": 1,
+            "maxItems": 256,
+            "uniqueItems": true
+          },
+          "rotation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "id",
+          "provider_key",
+          "consumers",
+          "rotation"
+        ]
+      },
+      "maxItems": 256
+    },
+    "volumes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+          },
+          "mount_path": {
+            "type": "string",
+            "pattern": "^/[A-Za-z0-9._/-]{0,1023}$"
+          }
+        },
+        "required": [
+          "id",
+          "mount_path"
+        ]
+      },
+      "maxItems": 256
+    },
+    "networks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+          },
+          "internal": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "internal"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 256
+    },
+    "listeners": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+          },
+          "component": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "protocol": {
+            "const": "tcp"
+          },
+          "bind_address": {
+            "const": "127.0.0.1"
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "port",
+          "protocol",
+          "bind_address"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 256
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]{0,127}$"
+          },
+          "kind": {
+            "const": "compose"
+          },
+          "adapter_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "api_version": {
+            "const": "compose-spec@fee041b381ffd4aad263410980bdce0cdf4beb7d"
+          },
+          "minimum_release_status": {
+            "enum": [
+              "development",
+              "candidate",
+              "accepted"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "adapter_digest",
+          "api_version",
+          "minimum_release_status"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 1
+    }
+  },
+  "required": [
+    "schema",
+    "product",
+    "application_profile",
+    "artifacts",
+    "components",
+    "parameters",
+    "secret_references",
+    "volumes",
+    "networks",
+    "listeners",
+    "targets"
+  ]
+}

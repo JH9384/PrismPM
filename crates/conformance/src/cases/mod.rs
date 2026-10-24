@@ -11,6 +11,7 @@ mod cbor_primitive;
 mod design_views;
 mod feature_journeys;
 mod holo_browser;
+mod host_effect_system;
 mod mailbox_admission;
 mod native_lease;
 mod native_library;
@@ -559,6 +560,7 @@ pub fn run_at(root: &Path, id: &str) {
             "1200000",
         ),
         "SY-08" => browser_system::verify(root),
+        "SY-09" => host_effect_system::verify(root),
         "SY-01" | "SY-02" | "SY-03" | "SY-04" | "SY-05" | "SY-06" | "SY-07" => {
             verify_system(root, id)
         }

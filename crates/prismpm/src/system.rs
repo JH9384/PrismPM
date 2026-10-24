@@ -8,6 +8,7 @@ use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) mod browser;
+pub(crate) mod host_effect;
 
 const INGRESS_NGINX_KIND: &[u8] = include_bytes!("../adapters/ingress-nginx-kind-v1.15.1.yaml");
 
@@ -91,7 +92,11 @@ fn system_root<'a>(
                     linked
                         .pointer("/result/member/module")
                         .and_then(Value::as_str),
-                    Some("Production.System" | "Production.BrowserSystem")
+                    Some(
+                        "Production.System"
+                            | "Production.BrowserSystem"
+                            | "Production.HostEffectSystem"
+                    )
                 )
                 || linked.pointer("/body/kind").and_then(Value::as_str) != Some("record")
                 || linked.pointer("/body/type/module") != linked.pointer("/result/member/module")
@@ -304,7 +309,11 @@ fn system_manifest(
                         linked
                             .pointer("/statement/left/function/module")
                             .and_then(Value::as_str),
-                        Some("Production.SystemValidation" | "Production.BrowserSystem")
+                        Some(
+                            "Production.SystemValidation"
+                                | "Production.BrowserSystem"
+                                | "Production.HostEffectSystem"
+                        )
                     )
                     || linked
                         .pointer("/statement/left/arguments")
@@ -374,7 +383,11 @@ fn system_manifest(
             if member != Some("SystemManifest")
                 || !matches!(
                     owner,
-                    Some("Production.System" | "Production.BrowserSystem")
+                    Some(
+                        "Production.System"
+                            | "Production.BrowserSystem"
+                            | "Production.HostEffectSystem"
+                    )
                 )
             {
                 return Err(PrismError::new(
@@ -398,7 +411,15 @@ fn system_manifest(
                 "secret_flow",
                 "uniqueness",
             ];
-            let relations: &[&str] = if owner == Some(browser::MODULE) {
+            let relations: &[&str] = if owner == Some(host_effect::MODULE) {
+                &[
+                    "application_model_digest",
+                    "effects",
+                    "listeners",
+                    "product_id",
+                    "product_version",
+                ]
+            } else if owner == Some(browser::MODULE) {
                 &[
                     "application_model_digest",
                     "artifact_id",
@@ -444,6 +465,8 @@ fn system_manifest(
     for (name, owner) in &owners {
         let validator = if *owner == browser::MODULE {
             browser::MODULE
+        } else if *owner == host_effect::MODULE {
+            host_effect::MODULE
         } else {
             "Production.SystemValidation"
         };
@@ -1428,6 +1451,8 @@ pub fn project(
         .expect("typed root");
     let schema = if owner == browser::MODULE {
         browser::SCHEMA
+    } else if owner == host_effect::MODULE {
+        host_effect::SCHEMA
     } else {
         "prismpm/system-model/1"
     };
@@ -1446,6 +1471,8 @@ pub fn project(
         })?;
     if schema == browser::SCHEMA {
         browser::validate(document.value(), &manifest)?;
+    } else if schema == host_effect::SCHEMA {
+        host_effect::validate(document.value(), &manifest)?;
     } else {
         validate(document.value(), &manifest)?;
     }
@@ -1465,6 +1492,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<CanonicalDocument, PrismError> {
     let schema = match value["schema"].as_str() {
         Some("prismpm/system-model/1") => "prismpm/system-model/1",
         Some(browser::SCHEMA) => browser::SCHEMA,
+        Some(host_effect::SCHEMA) => host_effect::SCHEMA,
         _ => return Err(PrismError::new("PP2101", "unsupported system profile")),
     };
     CanonicalDocument::parse(schema, bytes)
@@ -2848,6 +2876,9 @@ pub fn projections(
 ) -> Result<Vec<Projection>, PrismError> {
     if system.schema() == browser::SCHEMA {
         return browser::projections(system, artifacts);
+    }
+    if system.schema() == host_effect::SCHEMA {
+        return host_effect::projections(system);
     }
     let value = system.value();
     let coverage = capability_coverage(&system.digest())?;

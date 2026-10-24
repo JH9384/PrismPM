@@ -345,6 +345,12 @@ const CONTRACTS: [Contract; 61] = [
         schema: include_bytes!("../schemas/system-model-v2.schema.json"),
     },
     Contract {
+        id: "prismpm/system-model/3",
+        maximum_bytes: 16_777_216,
+        maximum_items: 65_536,
+        schema: include_bytes!("../schemas/system-model-v3.schema.json"),
+    },
+    Contract {
         id: "prismpm/browser-system-release/1",
         maximum_bytes: 16_777_216,
         maximum_items: 65_536,

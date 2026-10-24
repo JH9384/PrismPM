@@ -80,7 +80,7 @@ export function sourceClosure() {
     'model/dependencies.toml', 'model/authorities.toml', 'model/browser-operation-journal-diagnostics.json',
     'model/browser-custody-diagnostics.json', 'lean-toolchain', 'rust-toolchain.toml',
     'vendor/lean4-prod/lean.tar', 'vendor/lean4-prod/rust/MANIFEST.sha256', 'vendor/lexlean/MANIFEST.sha256',
-    ...lexiconInputPaths(repository)];
+    'tests/browser-view/lexicon-inputs.mjs', ...lexiconInputPaths(repository)];
   for (const family of ['browser-custody', 'browser-effects']) {
     for (const file of ['driver/Cargo.toml', 'driver/Cargo.lock', 'driver/src/main.rs', 'runner.rs', 'src/Fixture.lex.tex'])
       shared.push('tests/' + family + '/' + file);

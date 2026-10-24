@@ -56,7 +56,8 @@ export function sourceClosure() {
     'stdlib/src/Foundation/Browser/Application/V1/EffectsWire.lex.tex',
     'stdlib/src/Foundation/Bytes.lex.tex', 'stdlib/src/Foundation/Codec.lex.tex',
     'stdlib/src/Foundation/Codec/Cbor/V1/Primitive.lex.tex', 'model/browser-effect-diagnostics.json',
-    'LICENSE-MIT', 'LICENSE-APACHE', ...lexiconInputPaths(repository)];
+    'LICENSE-MIT', 'LICENSE-APACHE',
+    'tests/browser-view/lexicon-inputs.mjs', ...lexiconInputPaths(repository)];
   return {...captureCompilerInputs('effects'),
     ...Object.fromEntries(oraclePaths.map(path => [path, sha(readFileSync(join(repository, path)))]))};
 }

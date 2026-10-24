@@ -5,7 +5,7 @@ import {mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {run, sha} from '../browser-view/compile.mjs';
+import {ownedAttestations, run, sha, stageLeanRuntime} from '../browser-view/compile.mjs';
 import {compilerInputPaths, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
@@ -13,6 +13,7 @@ import {captureGeneratedWasm, requireGeneratedWasm} from '../browser-view/genera
 import {captureCompilerArtifact, requireCompilerArtifact} from '../browser-view/compiler-artifact.mjs';
 import {captureFile, capturedFile} from '../browser-view/file-custody.mjs';
 import {mutateAccountGenesisSource} from './mutations.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -48,7 +49,7 @@ export function frozenInputs() {
     'stdlib/src/Foundation/Browser/Application/V1/AccountGenesis.cddl',
     'tests/browser-p256/oracles/PKV.rsp.base64',
     'tests/browser-p256/oracles/ACVP-KeyVer-FIPS186-5.json.base64',
-    'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
     'model/authorities.toml', 'lean-toolchain', 'rust-toolchain.toml', 'LICENSE-MIT', 'LICENSE-APACHE',
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json', 'vendor/lean4-prod/lean.tar']) files.add(path);
   const capturedModules = localModuleInputs(repository, [...files].filter(path => path.endsWith('.mjs')), read);
@@ -119,6 +120,7 @@ export function prepareAccountGenesis(compilerOwner, mutationId = null, expected
     // generated Lean/IR/native/two Wasm packages are rebuilt for every mutation.
     for (const [name, bytes] of sources) stage('project/src/' + name.replaceAll('.', '/') + '.lex.tex', bytes);
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) stage('project/' + path, captured(path));
     stage('project/lexlean.toml', captured('tests/fixtures/library/native-library/project/lexlean.toml').toString('utf8')
       .replace('name = "library-probe"', 'name = "account-genesis-conformance"')
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
@@ -138,12 +140,7 @@ export function prepareAccountGenesis(compilerOwner, mutationId = null, expected
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
     // LexLean 1.2 also attests the LexLeanRuntime closure the generated modules import.
-    const runtime = attestation.declarations.filter(declaration => declaration.name.startsWith('LexLeanRuntime.'));
-    for (const declaration of runtime) {
-      assert.equal(declaration.result, 'ok'); assert.equal(declaration.policy.kind, 'exact');
-      assert.deepEqual(declaration.observed, declaration.policy.axioms);
-    }
-    const owned = attestation.declarations.filter(declaration => !declaration.name.startsWith('LexLeanRuntime.'));
+    const owned = ownedAttestations(attestation);
     assert.equal(owned.length, expected.size);
     for (const declaration of owned) {
       assert.ok(expected.has(declaration.name)); const axioms = expected.get(declaration.name);
@@ -158,7 +155,7 @@ export function prepareAccountGenesis(compilerOwner, mutationId = null, expected
     const lean = join(work, 'lean');
     stage('lean/lean-toolchain', captured('lean-toolchain'));
     stage('lean/lakefile.toml', 'name = "account_genesis"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['
-      + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
+      + stageLeanRuntime(verified, lean) + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
     run('lake', ['build', 'PrismGenerated'], lean);
     const exported = join(work, 'export'), roots = ['PrismPM.' + projection + '.accountGenesisWireBytes'];
     compiler.runExporter(['--module', 'PrismPM.' + projection, ...roots.flatMap(name => ['--root', name]),

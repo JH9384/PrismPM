@@ -600,9 +600,59 @@ fn lexlean_binding(
             .and_then(|_| crate::system::browser::replay(projected, files))
             .map_err(|error| invalid(format!("browser system replay: {}", error.message)))?;
     }
-    declaration_audits(lex, snapshot_modules)?;
-    lexlean_processes(lex, &modules)?;
+    let runtime = runtime_modules(lex, files, &modules)?;
+    declaration_audits(lex, snapshot_modules, &runtime)?;
+    lexlean_processes(lex, &modules, &runtime)?;
     Ok(())
+}
+
+/// The LexLean runtime modules (language 1.2, SPEC 17.12) the attestation
+/// compiled, replayed and audited beside the project's modules.
+///
+/// The attested olean inventory names them. Each must be a shipped runtime
+/// module, the set must be closed under the runtime's own imports, and it
+/// must include every runtime module the retained generated Lean imports, so
+/// evidence cannot omit a module the build needs or name a foreign one.
+fn runtime_modules(
+    lex: &Value,
+    files: &BTreeMap<String, Vec<u8>>,
+    modules: &BTreeSet<String>,
+) -> Result<Vec<&'static lexlean::backend::runtime::RuntimeModule>, PrismError> {
+    let registry = lexlean::backend::runtime::modules().map_err(|d| invalid(d.message))?;
+    let mut named = BTreeSet::new();
+    for row in array(&lex["oleans"])? {
+        let module = string(&row["module"])?;
+        if !modules.contains(module) {
+            ensure(
+                registry.iter().any(|runtime| runtime.name == module),
+                "LexLean olean closure differs",
+            )?;
+            named.insert(module.to_owned());
+        }
+    }
+    let mut texts = Vec::with_capacity(modules.len());
+    for module in modules {
+        let path = format!("lexlean/build/modules/{}.lean", module.replace('.', "/"));
+        texts.push(std::str::from_utf8(file(files, &path)?).map_err(|e| invalid(e.to_string()))?);
+    }
+    let mut required =
+        lexlean::backend::runtime::imported_by(texts).map_err(|d| invalid(d.message))?;
+    required.retain(|runtime| !modules.contains(&runtime.name));
+    let runtime = registry
+        .iter()
+        .filter(|runtime| named.contains(&runtime.name))
+        .collect::<Vec<_>>();
+    ensure(
+        required.iter().all(|need| named.contains(&need.name))
+            && runtime.iter().all(|module| {
+                module
+                    .imports
+                    .iter()
+                    .all(|import| modules.contains(import) || named.contains(import))
+            }),
+        "LexLean runtime module closure differs",
+    )?;
+    Ok(runtime)
 }
 
 fn lexlean_modules(manifest: &Value) -> Result<BTreeSet<String>, PrismError> {
@@ -831,7 +881,11 @@ fn selected_application_snapshot(
     )
 }
 
-fn declaration_audits(lex: &Value, modules: &[Value]) -> Result<(), PrismError> {
+fn declaration_audits(
+    lex: &Value,
+    modules: &[Value],
+    runtime: &[&lexlean::backend::runtime::RuntimeModule],
+) -> Result<(), PrismError> {
     let mut expected = BTreeMap::new();
     for module in modules {
         for declaration in array(&module["declarations"])? {
@@ -852,11 +906,14 @@ fn declaration_audits(lex: &Value, modules: &[Value]) -> Result<(), PrismError> 
     for row in array(&lex["declarations"])? {
         keys(row, &["name", "observed", "policy", "result"])?;
         let name = string(&row["name"])?;
+        let pinned = match expected.get(name) {
+            Some(policy) => Some((*policy).clone()),
+            None => crate::library_verification::runtime_declaration_axioms(name)?
+                .map(|axioms| json!({"axioms": axioms, "kind": "exact"})),
+        };
         ensure(
             seen.insert(name.to_owned())
-                && expected
-                    .get(name)
-                    .is_some_and(|policy| **policy == row["policy"])
+                && pinned.is_some_and(|policy| policy == row["policy"])
                 && row["result"] == "ok",
             "LexLean declaration audit closure or policy differs",
         )?;
@@ -871,8 +928,16 @@ fn declaration_audits(lex: &Value, modules: &[Value]) -> Result<(), PrismError> 
         };
         ensure(permitted, "LexLean declaration has unapproved axioms")?;
     }
+    let runtime_names = runtime
+        .iter()
+        .flat_map(|module| module.declarations.iter().map(|(name, _)| name.clone()))
+        .collect::<BTreeSet<_>>();
     ensure(
-        seen == expected.keys().cloned().collect(),
+        seen == expected
+            .keys()
+            .cloned()
+            .chain(runtime_names)
+            .collect::<BTreeSet<_>>(),
         "LexLean declaration audit is incomplete",
     )
 }
@@ -1033,7 +1098,18 @@ fn validate_exporter_authority(
     Ok(())
 }
 
-fn lexlean_processes(lex: &Value, modules: &BTreeSet<String>) -> Result<(), PrismError> {
+fn lexlean_processes(
+    lex: &Value,
+    project: &BTreeSet<String>,
+    runtime: &[&lexlean::backend::runtime::RuntimeModule],
+) -> Result<(), PrismError> {
+    // The runtime modules are compiled, replayed, audited and hashed exactly
+    // like the project's own (SPEC 17.12).
+    let modules = &project
+        .iter()
+        .cloned()
+        .chain(runtime.iter().map(|module| module.name.clone()))
+        .collect::<BTreeSet<_>>();
     keys(&lex["toolchain"], &["lake", "lean", "leanchecker"])?;
     for name in ["lake", "lean", "leanchecker"] {
         keys(
@@ -1143,7 +1219,7 @@ fn lexlean_processes(lex: &Value, modules: &BTreeSet<String>) -> Result<(), Pris
             digest(&row["recipe_id"])?;
             ensure(
                 row["byte_length"].as_u64().is_some_and(|length| length > 0)
-                    && modules.contains(string(&row["module"])?),
+                    && project.contains(string(&row["module"])?),
                 "LexLean PDF descriptor differs",
             )?;
             for key in ["compile", "version"] {

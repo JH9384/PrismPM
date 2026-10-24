@@ -39,7 +39,7 @@ function fixture() {
     inputs: [...sources].map(([name, value]) => row('source', 'src/' + name.replaceAll('.', '/') + '.lex.tex', value)),
     outputs: presentationOutputRows.map(({kind, path}) => row(kind, path, outputs.get(path)))};
   const verified = {source_id, semantic_id, build_id, attestation_id: '', root: '/private/verified', modules};
-  const attestation = {spec: 'lexlean/attestation/1', status: 'verified', source_id, semantic_id, build_id};
+  const attestation = {spec: 'lexlean/attestation/2', status: 'verified', source_id, semantic_id, build_id};
   const input = {verified, sources, generated, outputs, manifestBytes: null, attestationBytes: null};
   function bind() {
     input.manifestBytes = file(manifest);

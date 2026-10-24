@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import * as spec from '../../spec/index.mjs';
@@ -55,18 +55,18 @@ test('the structural reader and prism-code parseArchive read the same table', ()
   assert.equal(structure.bodyEnd, parsed.body.length);
 });
 
-// Issue #269 lands in @prism-code/spec through PR #334. Until it merges this
-// package carries a mirror of its constants and a copy of its verdict schema;
-// once the spec has them, these tests hold the copies to them.
+// Issue #269: @prism-code/spec carries the assurance levels and the verdict
+// schema. This package vendors the constants and keeps a copy of the schema
+// for its tests; these tests hold both to the spec.
 const specAssurance = here('../../spec/assurance-levels.mjs');
 const specVerdictSchema = here('../../spec/schemas/verdict/verdict-v1.schema.json');
 
-test('ASSURANCE equals @prism-code/spec once the spec carries it', { skip: !existsSync(specAssurance) && 'PR #334 not merged' }, async () => {
+test('ASSURANCE equals @prism-code/spec', async () => {
   const { ASSURANCE: fromSpec } = await import(pathToFileURL(specAssurance).href);
   assert.deepEqual(JSON.parse(JSON.stringify(ASSURANCE)), JSON.parse(JSON.stringify(fromSpec)));
 });
 
-test('the verdict schema copy equals @prism-code/spec once the spec carries it', { skip: !existsSync(specVerdictSchema) && 'PR #334 not merged' }, () => {
+test('the verdict schema copy equals @prism-code/spec', () => {
   assert.deepEqual(JSON.parse(readFileSync(here('fixtures/verdict-v1.schema.json'), 'utf8')), JSON.parse(readFileSync(specVerdictSchema, 'utf8')));
 });
 
@@ -78,17 +78,16 @@ test('the verdict schema rejects a verdict that contradicts itself', () => {
   assert.throws(() => assertVerdict({ ...good, level: 'P1' }), /not a prism\/verdict\/1 object/);
 });
 
-// Issue #271 adds `inspect` to prism-code through PR #335. This package
-// returns the same `prismpm/holo-inspection/1` object; once prism-code has it,
-// these tests compare the two readers directly.
+// Issue #271: prism-code has `inspect`. This package returns the same
+// `prismpm/holo-inspection/1` object; these tests compare the two readers directly.
 const prismInspect = here('../../prism-code/src/inspect.mjs');
 const prismGolden = here('../../prism-code/test/fixtures/Calculator.inspect.json');
 
-test('the inspection golden copy equals prism-code once prism-code carries it', { skip: !existsSync(prismGolden) && 'PR #335 not merged' }, () => {
+test('the inspection golden copy equals prism-code', () => {
   assert.deepEqual(JSON.parse(readFileSync(here('fixtures/Calculator.inspect.json'), 'utf8')), JSON.parse(readFileSync(prismGolden, 'utf8')));
 });
 
-test('inspect equals prism-code inspect, intact and damaged, once prism-code carries it', { skip: !existsSync(prismInspect) && 'PR #335 not merged' }, async () => {
+test('inspect equals prism-code inspect, intact and damaged', async () => {
   const { inspect: prismCodeInspect } = await import(pathToFileURL(prismInspect).href);
   const intact = reference();
   const damaged = reference();

@@ -143,9 +143,9 @@ A failed check is a reason in a verdict, not an error.
 
 ## How it is built
 
-- `src/vendor/` holds byte-for-byte copies: BLAKE3 from `prism-code`, the constants and schemas from `@prism-code/spec`, and the schema validator from the spec's tests. `prism-code`'s entry point imports `node:crypto`, and `@prism-code/spec` is not on npm yet, so neither can be a dependency of a browser package today. `node scripts/vendor.mjs --check` fails when a copy drifts.
-- `src/assurance.mjs` mirrors the assurance levels of PR #334, which is not merged yet. The tests compare it with `@prism-code/spec` as soon as the spec carries it, and validate every verdict against `prism/verdict/1`.
-- `inspect` builds the shape of PR #335, which is not merged yet. `test/fixtures/Calculator.inspect.json` copies its golden. Once `prism-code` carries `inspect`, the tests compare the two readers on intact and damaged holos.
+- `src/vendor/` holds byte-for-byte copies: BLAKE3 from `prism-code`, the constants, the assurance levels and the schemas from `@prism-code/spec`, and the schema validator from the spec's tests. `prism-code`'s entry point imports `node:crypto`, and `@prism-code/spec` is not on npm yet, so neither can be a dependency of a browser package today. `node scripts/vendor.mjs --check` fails when a copy drifts.
+- The assurance levels come from `@prism-code/spec` (`assurance-levels.mjs`, copied into `src/vendor/`). The tests validate every verdict against `prism/verdict/1`, and compare the copy of the verdict schema in `test/fixtures/` with the spec's.
+- `inspect` builds the shape `prism-code` returns (`prismpm/holo-inspection/1`). `test/fixtures/Calculator.inspect.json` copies the golden of `prism-code`, and the tests compare the two readers on intact and damaged holos.
 - SHA-256 is plain JavaScript, so `inspect` stays synchronous and works on plain-HTTP pages, where `crypto.subtle` does not exist.
 - `node scripts/build-browser.mjs` writes `browser.js` with no bundler: each module becomes a function scope. It refuses any import that is not a relative path inside `src/`.
 - The tests run `browser.js` in a bare `vm` context with only ECMAScript and `TextDecoder`, and compare its results with `src/`.

@@ -48,9 +48,22 @@ async function schemaModule() {
   );
 }
 
+/**
+ * The spec's index re-exports `ASSURANCE` from its own file with an `export ... from`
+ * line, a form the browser build does not accept. The copy imports the vendored
+ * assurance-levels.mjs as a namespace and re-exports the one constant instead.
+ */
+function specIndex() {
+  const reexport = "export { ASSURANCE } from './assurance-levels.mjs';";
+  const text = read('../../spec/index.mjs');
+  if (!text.includes(reexport)) throw new Error('sdk/npm/spec/index.mjs no longer re-exports ASSURANCE the way vendor.mjs expects');
+  return "import * as assuranceLevels from './assurance-levels.mjs';\n" + text.replace(reexport, 'export const ASSURANCE = assuranceLevels.ASSURANCE;');
+}
+
 const outputs = {
   'src/vendor/blake3.mjs': header('sdk/npm/prism-code/src/blake3.mjs') + read('../../prism-code/src/blake3.mjs'),
-  'src/vendor/spec.mjs': header('sdk/npm/spec/index.mjs') + read('../../spec/index.mjs'),
+  'src/vendor/spec.mjs': header('sdk/npm/spec/index.mjs', 'The one re-export line of assurance-levels.mjs is rewritten as an import and a const.') + specIndex(),
+  'src/vendor/assurance-levels.mjs': header('sdk/npm/spec/assurance-levels.mjs') + read('../../spec/assurance-levels.mjs'),
   'src/vendor/json-schema.mjs':
     header(
       'sdk/npm/spec/test/json-schema.mjs',

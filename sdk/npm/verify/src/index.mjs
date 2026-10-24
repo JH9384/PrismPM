@@ -13,7 +13,7 @@ import { validate } from './vendor/json-schema.mjs';
 import { SCHEMA_FILES } from './vendor/schemas.mjs';
 import { sha256Hex } from './sha256.mjs';
 import { readStructure } from './reader.mjs';
-import * as assurance from './assurance.mjs';
+import * as assurance from './vendor/assurance-levels.mjs';
 
 /** The newest holo format revision this package reads, from @prism-code/spec. */
 export const FORMAT_REVISION = spec.FORMAT_REVISION;

@@ -10,13 +10,13 @@ on:
     paths:
       - sdk/npm/prism-code/**
       # test/inspect.test.mjs checks its format revision table against the spec's.
-      - sdk/npm/spec/index.mjs
+      - sdk/npm/spec/constants.mjs
       - .github/workflows/npm-prism-code.yml
   push:
     branches: [main]
     paths:
       - sdk/npm/prism-code/**
-      - sdk/npm/spec/index.mjs
+      - sdk/npm/spec/constants.mjs
       - .github/workflows/npm-prism-code.yml
     tags:
       - prism-code-v*
@@ -49,6 +49,11 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: ${{ matrix.node }}
+      # sdk/npm/spec/index.mjs and index.d.ts are generated from the files in the
+      # package and are not committed. Build them before anything imports the package.
+      - name: Build the spec package's generated entry point
+        working-directory: sdk/npm/spec
+        run: npm run build
       - name: Unit tests
         run: node --test "test/*.test.mjs"
       - name: Package size and contents

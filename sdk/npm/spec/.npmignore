@@ -1,0 +1,2 @@
+# The generated files in .gitignore are part of the package: package.json "files" lists them and prepack builds them.
+# This file exists so npm does not fall back to .gitignore.

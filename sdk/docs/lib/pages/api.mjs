@@ -115,10 +115,17 @@ export function apiErrors({ runtime, page }) {
   return { parts, sources: [runtime.source()] };
 }
 
+/** A generated region: the tables inside are rebuilt from the spec's files on every generation. */
+function region(name, ...parts) {
+  return [paragraph(`<!-- generated:${name}:begin -->`), ...parts, paragraph(`<!-- generated:${name}:end -->`)];
+}
+
 export function specPackage({ spec, examples }) {
   const m = spec.module;
-  const index = spec.text('index.d.ts');
-  const parts = [paragraph(`Source: ${code(spec.name)} ${spec.version}, format revision ${m.FORMAT_REVISION}, ${code('index.d.ts')}.`)];
+  const found = spec.registry;
+  // The hand-written constants and the generated entry point, one export table.
+  const declarations = `${spec.text('constants.d.ts')}\n${spec.text('index.d.ts')}`;
+  const parts = [paragraph(`Source: ${code(spec.name)} ${spec.version}, format revision ${m.FORMAT_REVISION}, ${code('constants.d.ts')}, ${code('index.d.ts')}.`)];
   parts.push(heading(2, 'Install'));
   parts.push(fence('bash', `npm install ${spec.name}`));
   parts.push(...example(examples['spec-constants']));
@@ -126,12 +133,25 @@ export function specPackage({ spec, examples }) {
   parts.push(
     table(
       ['Export', 'Kind', 'Declaration'],
-      exportsOf(index).map((e) => [code(e.name), e.kind, code(e.line)]),
+      exportsOf(declarations).map((e) => [code(e.name), e.kind, code(e.line)]),
     ),
   );
   parts.push(heading(2, 'Schemas'));
+  parts.push(paragraph('The package finds its schemas by reading its folders, so a new schema appears here, in the exports above and in the types without anyone editing a list.'));
   parts.push(table(['Document', 'File'], Object.entries(m.SCHEMAS).map(([k, v]) => [code(k), code(v)])));
   parts.push(table(['Section', 'File'], Object.entries(m.HOLO_SCHEMAS).map(([k, v]) => [code(k), code(v)])));
+  parts.push(heading(3, 'Every schema'));
+  parts.push(...region('schemas', table(['Schema', 'Title', 'File'], found.schemas.map((s) => [code(s.id), s.title, code(s.path)]))));
+  parts.push(heading(2, 'Predicates'));
+  parts.push(
+    ...region(
+      'predicates',
+      table(
+        ['Predicate type', 'Status', 'Schema'],
+        found.predicates.map((p) => [code(p.predicateType), p.status, p.schema ? code(spec.json(p.schema).$id) : 'none']),
+      ),
+    ),
+  );
   parts.push(heading(2, 'World'));
   parts.push(paragraph(`${code(m.CORE_WASM.WORLD)} declares ${code(m.CORE_WASM.CONTRACT)}.`));
   return { parts, sources: [spec.source()] };

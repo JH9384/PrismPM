@@ -20,6 +20,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             let result = engine.verify(VerifyRequest {
                 selection: Selection::All,
             })?;
+            let mut texts = Vec::new();
+            for unit in result.units.values() {
+                let relative = format!("modules/{}.lean", unit.lean_module.replace('.', "/"));
+                texts.push(std::fs::read_to_string(result.root.join(relative))?);
+            }
+            let runtime = lexlean::backend::runtime::imported_by(texts.iter().map(String::as_str))
+                .map_err(|diagnostic| diagnostic.message)?
+                .into_iter()
+                .map(|module| serde_json::json!({"name": module.name, "text": module.text}))
+                .collect::<Vec<_>>();
             println!(
                 "{}",
                 serde_json::json!({
@@ -29,6 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     "source_id": result.source_id.to_string(),
                     "root": result.root.as_str(),
                     "modules": result.units.keys().collect::<Vec<_>>(),
+                    "runtime": runtime,
                 })
             );
         }

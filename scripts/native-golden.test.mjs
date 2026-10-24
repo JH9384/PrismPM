@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execute } from './sdk-vv-check.mjs';
 import test from 'node:test';
-import { canonical, readEnvironmentLock, validateSourceBaseline, validateApplicationGenerator, collectProfile, validateImageSpace, seedCargoCache, runReview, validateWorkflow } from './native-golden.mjs';
+import { canonical, readEnvironmentLock, validateSourceBaseline, validateApplicationGenerator, collectProfile, validateImageSpace, seedCargoCache, runReview, validateWorkflow, NATIVE_REVIEW_EVENTS } from './native-golden.mjs';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const revision = 'a'.repeat(40), environmentRevision = 'b'.repeat(40);
@@ -367,6 +367,25 @@ test('native source review rejects unsupported, mismatched and untrusted runner 
     const f = fixture(t, undefined, 'classic', architecture); change(f.context);
     await assert.rejects(f.run()); assert.equal(f.calls.length, 0); assert.equal(f.generations(), 0);
     assert(!existsSync(f.destination));
+  }
+});
+
+test('native source review accepts exactly the pull request, push and dispatch events the workflow can start', async t => {
+  assert.deepEqual([...NATIVE_REVIEW_EVENTS], ['pull_request', 'push', 'workflow_dispatch']);
+  for (const architecture of ['amd64', 'arm64']) {
+    for (const event of ['pull_request', 'push', 'workflow_dispatch']) {
+      const f = fixture(t, undefined, 'classic', architecture); f.context.environment.GITHUB_EVENT_NAME = event;
+      const result = await f.run();
+      assert.equal(result.status, 'review-required', event); assert.equal(f.generations(), 2, event);
+      assert(existsSync(join(f.destination, 'review.json')), event);
+    }
+    for (const event of ['pull_request_target', 'schedule', 'workflow_run', 'release', '', undefined]) {
+      const f = fixture(t, undefined, 'classic', architecture);
+      if (event === undefined) delete f.context.environment.GITHUB_EVENT_NAME; else f.context.environment.GITHUB_EVENT_NAME = event;
+      await assert.rejects(f.run(), /workflow events/, String(event));
+      assert.equal(f.calls.length, 0, String(event)); assert.equal(f.generations(), 0, String(event));
+      assert(!existsSync(f.destination), String(event));
+    }
   }
 });
 

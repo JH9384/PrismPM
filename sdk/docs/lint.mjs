@@ -3,7 +3,7 @@
  * The vocabulary lint. It applies the docs style guide's banned-word list
  * to Markdown prose and reports every hit as `file:line: word`, then exits 1.
  *
- *   node sdk/docs/lint.mjs               lint docs/generated and the site docs
+ *   node sdk/docs/lint.mjs               lint the site docs under docs/ (the generated pages are linted by generate.mjs verify)
  *   node sdk/docs/lint.mjs <path>...     lint these files or directories
  *
  * Prose is every line outside a fenced code block, with inline code spans

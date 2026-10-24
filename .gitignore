@@ -41,3 +41,6 @@
 !/standards/oracles/openid-conformance-suite-3e09b13b/.claude/**
 !/standards/oracles/openid-conformance-suite-3e09b13b/.idea/
 !/standards/oracles/openid-conformance-suite-3e09b13b/.idea/**
+
+# Output of sdk/docs/generate.mjs (the docs site). Never committed.
+/build/

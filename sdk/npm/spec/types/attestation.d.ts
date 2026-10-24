@@ -2,7 +2,7 @@
  * in-toto Statement v1 and the DSSE envelope, with subjects as ADR-015 (issue #274) fixes them.
  * Schemas: `schemas/attestation/statement.schema.json`, `schemas/attestation/dsse-envelope.schema.json`.
  */
-import type { PredicateMap, PredicateType } from './predicates.js';
+import type { PredicateMap, PredicateType } from './predicate-map.js';
 
 /** 64 lowercase hex characters. */
 export type HexDigest = string;

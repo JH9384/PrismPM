@@ -5,10 +5,10 @@ import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
-import {createPrivateDriverTarget, ensureProdExport, run, sha} from '../browser-view/compile.mjs';
-import {lexiconInputPaths} from '../browser-view/lexicon-inputs.mjs';
+import {createPrivateDriverTarget, ensureProdExport, run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 import {requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {ensureProdExport, run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -117,6 +117,11 @@ export function prepare(mutation = null, sourceOnly = false, compilerOwner = nul
       sources.set(module, Buffer.from(writeSemantic(text, canonical(model))));
     }
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) {
+      const destination = join(project, path);
+      mkdirSync(dirname(destination), {recursive: true});
+      writeFileSync(destination, readFileSync(join(repository, path)), {flag: 'wx'});
+    }
     for (const [module, bytes] of sources) {
       const destination = join(project, 'src', ...module.split('.')) + '.lex.tex';
       mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, bytes, {flag: 'wx'});
@@ -126,10 +131,6 @@ export function prepare(mutation = null, sourceOnly = false, compilerOwner = nul
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
       .replace('src/Probe.lex.tex', 'src/Fixture.lex.tex');
     writeFileSync(join(project, 'lexlean.toml'), base, {flag: 'wx'});
-    for (const path of lexiconInputPaths(repository)) {
-      const destination = join(project, path);
-      mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, readFileSync(join(repository, path)), {flag: 'wx'});
-    }
     writeFileSync(join(project, 'lakefile.toml'), 'name = "operation_journal_conformance"\nversion = "0.1.0"\n', {flag: 'wx'});
     copyFileSync(join(repository, 'lean-toolchain'), join(project, 'lean-toolchain'));
     copyFileSync(join(repository, 'rust-toolchain.toml'), join(work, 'rust-toolchain.toml'));
@@ -157,8 +158,8 @@ export function prepare(mutation = null, sourceOnly = false, compilerOwner = nul
       return semantic.declarations.map(declaration => ['PrismPM.' + module + '.' + declaration.name,
         {kind: declaration.axioms?.length ? 'exact' : 'none', axioms: declaration.axioms ?? []}]);
     }));
-    assert.equal(attestation.declarations.length, expected.size);
-    for (const audit of attestation.declarations) {
+    assert.equal(ownedAttestations(attestation).length, expected.size);
+    for (const audit of ownedAttestations(attestation)) {
       assert.equal(audit.result, 'ok'); assert.ok(expected.has(audit.name));
       const policy = expected.get(audit.name); assert.deepEqual(audit.policy, policy);
       assert.deepEqual(audit.observed, policy.axioms); expected.delete(audit.name);
@@ -170,7 +171,7 @@ export function prepare(mutation = null, sourceOnly = false, compilerOwner = nul
       mkdirSync(dirname(destination), {recursive: true}); copyFileSync(join(verified.root, 'modules', relative), destination);
     }
     copyFileSync(join(repository, 'lean-toolchain'), join(lean, 'lean-toolchain'));
-    writeFileSync(join(lean, 'lakefile.toml'), 'name = "operation_journal_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + modules.map(name => '"PrismPM.' + name + '"').join(',') + ']\n', {flag: 'wx'});
+    writeFileSync(join(lean, 'lakefile.toml'), 'name = "operation_journal_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + stageLeanRuntime(verified, lean) + modules.map(name => '"PrismPM.' + name + '"').join(',') + ']\n', {flag: 'wx'});
     run('lake', ['build', 'PrismGenerated'], lean);
     const exporter = shared ? null : ensureProdExport(repository, work);
     const invokeExporter = args => shared ? shared.runExporter(args, join(lean, '.lake/build/lib/lean'))

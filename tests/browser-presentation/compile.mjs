@@ -5,13 +5,13 @@ import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
-import {run, sha} from '../browser-view/compile.mjs';
-import {lexiconInputPaths} from '../browser-view/lexicon-inputs.mjs';
+import {run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 import {compilerInputPaths, captureCompilerInputs, createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
 import {captureFile, capturedFile} from '../browser-view/file-custody.mjs';
 import {capturePresentationProvenance, presentationOutputRows} from './provenance.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -32,7 +32,6 @@ function freezeRecord(value) {
 export function frozenInputs() {
   pins();
   const files = new Set([...modules.map(modulePath),
-    ...lexiconInputPaths(repository),
     ...readdirSync(draft).filter(path => path.endsWith('.mjs')).map(path => 'tests/browser-presentation/' + path),
     ...['driver/Cargo.toml', 'driver/Cargo.lock', 'driver/src/main.rs', 'runner.rs'].map(path => 'tests/browser-presentation/' + path),
     ...readdirSync(join(repository, 'sdk/browser')).filter(path => path.endsWith('.mjs')).map(path => 'sdk/browser/' + path),
@@ -41,7 +40,7 @@ export function frozenInputs() {
       'generated-package.mjs', 'generated-package.test.mjs', 'generated-wasm.mjs',
       'generated-wasm.test.mjs', 'driver-cache.mjs', 'verification-products.mjs'].map(path => 'tests/browser-view/' + path),
     'tests/browser-view/file-custody.mjs', 'tests/browser-view/file-custody.test.mjs',
-    'tests/fixtures/library/native-library/project/lexlean.toml', 'model/authorities.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/authorities.toml',
     'model/dependencies.toml', 'rust-toolchain.toml', 'lean-toolchain', 'LICENSE-MIT', 'LICENSE-APACHE',
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json', 'model/browser-presentation-diagnostics.json',
     'scripts/browser-api-sdk-check.mjs', 'scripts/browser-api-sdk-check.test.mjs', 'scripts/owning-node-reporter.mjs', 'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs',
@@ -181,6 +180,7 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
       sources.set(name, Buffer.from(writeSemantic(text, canonical(model))));
     }
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) stage('project/' + path, capturedInput(path, inputs));
     for (const [module, bytes] of sources) {
       stage('project/src/' + module.replaceAll('.', '/') + '.lex.tex', bytes);
     }
@@ -189,7 +189,6 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
       .replace('src/Probe.lex.tex', 'src/Fixture.lex.tex');
     stage('project/lexlean.toml', base);
-    for (const path of lexiconInputPaths(repository)) stage('project/' + path, capturedInput(path, inputs));
     stage('project/lakefile.toml', 'name = "presentation_conformance"\nversion = "0.1.0"\n');
     stage('project/lean-toolchain', capturedInput('lean-toolchain', inputs));
     stage('rust-toolchain.toml', capturedInput('rust-toolchain.toml', inputs));
@@ -218,8 +217,8 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
       return semantic.declarations.map(declaration => ['PrismPM.' + module + '.' + declaration.name,
         {kind: declaration.axioms?.length ? 'exact' : 'none', axioms: declaration.axioms ?? []}]);
     }));
-    assert.equal(attestation.declarations.length, expected.size);
-    for (const audit of attestation.declarations) {
+    assert.equal(ownedAttestations(attestation).length, expected.size);
+    for (const audit of ownedAttestations(attestation)) {
       assert.equal(audit.result, 'ok'); assert.ok(expected.has(audit.name));
       const policy = expected.get(audit.name); assert.deepEqual(audit.policy, policy);
       assert.deepEqual(audit.observed, policy.axioms); expected.delete(audit.name);
@@ -241,7 +240,7 @@ function prepareStage(mutation, sourceOnly, baseline, inputs, compilerOwner) {
       stage('lean/' + generatedPath(module), provenance.generatedBytes(module));
     }
     stage('lean/lean-toolchain', capturedInput('lean-toolchain', inputs));
-    stage('lean/lakefile.toml', 'name = "presentation_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + modules.map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
+    stage('lean/lakefile.toml', 'name = "presentation_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = [' + stageLeanRuntime(verified, lean) + modules.map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
     run('lake', ['build', 'PrismGenerated'], lean);
     const exported = join(work, 'export');
     const roots = ['PrismPM.Foundation.View.Browser.V1.Wire.viewWireBytes', ...[

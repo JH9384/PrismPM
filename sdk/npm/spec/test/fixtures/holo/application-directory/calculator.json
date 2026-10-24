@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "primary_layer": 0,
+  "requires_kappa": "blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c",
+  "layers": [
+    {
+      "position": 0,
+      "kind": "wasm",
+      "content_kappa": "blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380",
+      "entry": "holo_run",
+      "contract": "hologram:guest/core-wasm@1",
+      "architecture": null,
+      "surface": null,
+      "engine": null
+    },
+    {
+      "position": 1,
+      "kind": "view",
+      "content_kappa": "blake3:9860e7054e3f3a8e6ab79c26bcda06bc65778ebdda211160ea66871142b7c808",
+      "entry": "index.html",
+      "contract": null,
+      "architecture": null,
+      "surface": "portable",
+      "engine": null
+    }
+  ],
+  "children": [],
+  "blobs": [
+    {
+      "kappa": "blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380",
+      "byte_length": 10498
+    },
+    {
+      "kappa": "blake3:9860e7054e3f3a8e6ab79c26bcda06bc65778ebdda211160ea66871142b7c808",
+      "byte_length": 3570
+    },
+    {
+      "kappa": "blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c",
+      "byte_length": 104
+    },
+    {
+      "kappa": "blake3:e76544838a98c46341ed8807f72897ec68de5a8a9bf28721738a76761c9df90e",
+      "byte_length": 5873
+    }
+  ]
+}

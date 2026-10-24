@@ -15,6 +15,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { loadSpec } from '../../spec/scripts/build.mjs';
 
 const here = (relative) => fileURLToPath(new URL(relative, import.meta.url));
 const read = (relative) => readFileSync(here(relative), 'utf8').replace(/\r\n/g, '\n');
@@ -25,19 +26,23 @@ const header = (origin, note) =>
   (note ? `// ${note}\n` : '') +
   '\n';
 
-/** The schema files a reader of this format revision needs, by package path. */
-async function schemaModule() {
-  const spec = await import('../../spec/index.mjs');
-  const paths = new Set([
-    spec.HOLO_SCHEMAS.ARCHIVE,
-    spec.HOLO_SCHEMAS.APP_MANIFEST,
-    spec.HOLO_SCHEMAS.SOURCE_MANIFEST,
-    spec.HOLO_SCHEMAS.APPLICATION_DIRECTORY,
-  ]);
+/** The holo section schemas the reader checks, by their key in HOLO_SCHEMAS. */
+const HOLO_KEYS = ['ARCHIVE', 'APP_MANIFEST', 'SOURCE_MANIFEST', 'APPLICATION_DIRECTORY'];
+
+/** The `schema` names of the documents a reader of the spec's format revisions checks. */
+function documentNames(spec) {
+  const names = new Set();
   for (const revision of Object.values(spec.FORMAT_REVISIONS)) {
-    paths.add(spec.SCHEMAS[revision.provenanceSchema]);
-    for (const name of revision.modelDocumentSchemas) paths.add(spec.SCHEMAS[name]);
+    names.add(revision.provenanceSchema);
+    for (const name of revision.modelDocumentSchemas) names.add(name);
   }
+  return [...names].sort();
+}
+
+/** The schema files a reader of this format revision needs, by package path. */
+async function schemaModule(spec) {
+  const paths = new Set(HOLO_KEYS.map((key) => spec.HOLO_SCHEMAS[key]));
+  for (const name of documentNames(spec)) paths.add(spec.SCHEMAS[name]);
   const lines = [...paths].sort().map((path) => {
     const json = JSON.stringify(JSON.parse(read(`../../spec/${path}`)));
     return `  ${JSON.stringify(path)}: ${json},`;
@@ -49,27 +54,46 @@ async function schemaModule() {
 }
 
 /**
- * The spec's index re-exports `ASSURANCE` from its own file with an `export ... from`
+ * The spec's constants re-export `ASSURANCE` from its own file with an `export ... from`
  * line, a form the browser build does not accept. The copy imports the vendored
  * assurance-levels.mjs as a namespace and re-exports the one constant instead.
+ *
+ * The copy is constants.mjs, the hand-written constants, plus SCHEMAS and HOLO_SCHEMAS
+ * narrowed to the documents and sections this reader checks. The spec's own SCHEMAS
+ * grows with every new document schema; the copy does not, so adding a schema to the
+ * spec never changes a file here.
  */
-function specIndex() {
+function specIndex(spec) {
   const reexport = "export { ASSURANCE } from './assurance-levels.mjs';";
-  const text = read('../../spec/index.mjs');
-  if (!text.includes(reexport)) throw new Error('sdk/npm/spec/index.mjs no longer re-exports ASSURANCE the way vendor.mjs expects');
-  return "import * as assuranceLevels from './assurance-levels.mjs';\n" + text.replace(reexport, 'export const ASSURANCE = assuranceLevels.ASSURANCE;');
+  const text = read('../../spec/constants.mjs');
+  if (!text.includes(reexport)) throw new Error('sdk/npm/spec/constants.mjs no longer re-exports ASSURANCE the way vendor.mjs expects');
+  const table = (entries) => entries.map(([key, path]) => `  ${JSON.stringify(key)}: ${JSON.stringify(path)},`).join('\n');
+  const schemas = documentNames(spec).map((name) => [name, spec.SCHEMAS[name]]);
+  const holo = HOLO_KEYS.map((key) => [key, spec.HOLO_SCHEMAS[key]]);
+  return (
+    "import * as assuranceLevels from './assurance-levels.mjs';\n" +
+    text.replace(reexport, 'export const ASSURANCE = assuranceLevels.ASSURANCE;') +
+    `\n/** The documents this reader checks, by their \`schema\` member. The spec's SCHEMAS lists every document. */\nexport const SCHEMAS = freeze({\n${table(schemas)}\n});\n` +
+    `\n/** The holo sections this reader checks. The spec's HOLO_SCHEMAS lists every section schema. */\nexport const HOLO_SCHEMAS = freeze({\n${table(holo)}\n});\n`
+  );
 }
+
+const spec = await loadSpec();
 
 const outputs = {
   'src/vendor/blake3.mjs': header('sdk/npm/prism-code/src/blake3.mjs') + read('../../prism-code/src/blake3.mjs'),
-  'src/vendor/spec.mjs': header('sdk/npm/spec/index.mjs', 'The one re-export line of assurance-levels.mjs is rewritten as an import and a const.') + specIndex(),
+  'src/vendor/spec.mjs':
+    header(
+      'sdk/npm/spec/constants.mjs',
+      'The one re-export line of assurance-levels.mjs is rewritten as an import and a const; SCHEMAS and HOLO_SCHEMAS are narrowed to this reader.',
+    ) + specIndex(spec),
   'src/vendor/assurance-levels.mjs': header('sdk/npm/spec/assurance-levels.mjs') + read('../../spec/assurance-levels.mjs'),
   'src/vendor/json-schema.mjs':
     header(
       'sdk/npm/spec/test/json-schema.mjs',
       'Published here as the validator for the documents inside a holo; it rejects any keyword it does not implement.',
     ) + read('../../spec/test/json-schema.mjs'),
-  'src/vendor/schemas.mjs': await schemaModule(),
+  'src/vendor/schemas.mjs': await schemaModule(spec),
 };
 
 let stale = 0;

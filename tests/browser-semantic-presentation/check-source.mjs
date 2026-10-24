@@ -6,7 +6,7 @@ import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {lexiconInputPaths} from '../browser-view/lexicon-inputs.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -54,7 +54,7 @@ try {
     .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
     .replace('entrypoints = ["src/Probe.lex.tex"]', 'entrypoints = ["src/Fixture.lex.tex"]');
   write(join(project, 'lexlean.toml'), configuration);
-  for (const path of lexiconInputPaths(root)) stage(path, join(project, path));
+  for (const path of lexiconPaths(root)) stage(path, join(project, path));
   write(join(project, 'lakefile.toml'), 'name = "semantic_presentation_source"\nversion = "0.1.0"\n');
   stage('lean-toolchain', join(project, 'lean-toolchain'));
   const target = join(work, 'driver-target');

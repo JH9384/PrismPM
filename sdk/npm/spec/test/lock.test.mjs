@@ -4,9 +4,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { blake3Hex } from '../../prism-code/src/blake3.mjs';
-import { SCHEMAS } from '../index.mjs';
+import { spec } from './spec.mjs';
 import { validate } from './json-schema.mjs';
 import { here, readJson, schema } from './reference.mjs';
+
+const { SCHEMAS } = spec;
 
 const V2 = SCHEMAS['prismpm/sdk-lock/2'];
 const V3 = SCHEMAS['prismpm/sdk-lock/3'];
@@ -18,7 +20,7 @@ const copy = (value) => JSON.parse(JSON.stringify(value));
  * `sdk_index`, and each inventory digest is the sha256 of its document. The inputs carry the
  * calculator example's real model, spec and world digests (docs/proposals/264-input-lock.md).
  */
-const lock = readJson('fixtures/sdk-lock-v3.json');
+const lock = readJson('fixtures/documents/sdk-lock-v3/calculator.json');
 
 /** A /3 lock minus `inputs`, renamed /2: what every existing SDK reader receives. */
 function projection(value) {

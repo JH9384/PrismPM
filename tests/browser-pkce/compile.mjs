@@ -5,8 +5,7 @@ import {lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSy
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {run, sha} from '../browser-view/compile.mjs';
-import {lexiconInputPaths} from '../browser-view/lexicon-inputs.mjs';
+import {run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 import {compilerInputPaths, createCompilerOwner, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {captureCompilerArtifact, requireCompilerArtifact} from '../browser-view/compiler-artifact.mjs';
 import {captureFile, capturedFile} from '../browser-view/file-custody.mjs';
@@ -15,6 +14,7 @@ import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
 import {mutatePkceSource} from './mutations.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -44,7 +44,7 @@ export function frozenInputs() {
     'scripts/owning-node-reporter.mjs', 'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs', 'crates/conformance/src/cases/node_suite.rs',
     'sdk/browser/pkce.mjs', 'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
     'sdk/browser/effects-wire.mjs', 'sdk/browser/effects-module.mjs',
-    'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
     'model/ids.toml', 'features/suites/stdlib.feature', 'crates/conformance/src/cases/mod.rs',
     'crates/conformance/src/cases/scheduling.rs', 'crates/conformance/tests/conformance.rs',
     'model/authorities.toml', 'SPEC.md', 'stdlib/src/Foundation/Sec/V1/Pkce.md',
@@ -56,7 +56,6 @@ export function frozenInputs() {
   // The independent protocol oracle and browser harness are part of this closure.
   const modules = localModuleInputs(repository, [...files].filter(path => path.endsWith('.mjs')), read);
   for (const path of modules.keys()) files.add(path);
-  for (const path of lexiconInputPaths(repository)) files.add(path);
   const dependencies = read('model/dependencies.toml').toString('utf8').split('[[dependency.artifact]]').slice(1);
   for (const tree of ['vendor/lexlean', 'vendor/lean4-prod/rust']) {
     const path = tree + '/MANIFEST.sha256', manifest = read(path);
@@ -125,11 +124,11 @@ export function preparePkce(compilerOwner, expectedInputs, mutationId = null) {
     stage('rust-toolchain.toml', captured('rust-toolchain.toml'));
     for (const [name, bytes] of sources) stage('project/src/' + name.replaceAll('.', '/') + '.lex.tex', bytes);
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) stage('project/' + path, captured(path));
     stage('project/lexlean.toml', captured('tests/fixtures/library/native-library/project/lexlean.toml').toString('utf8')
       .replace('name = "library-probe"', 'name = "pkce-conformance"')
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
       .replace('src/Probe.lex.tex', 'src/Foundation/Sec/V1/Pkce.lex.tex'));
-    for (const path of lexiconInputPaths(repository)) stage('project/' + path, captured(path));
     stage('project/lean-toolchain', captured('lean-toolchain'));
     stage('project/lakefile.toml', 'name = "pkce_conformance"\nversion = "0.1.0"\n');
     run('lake', ['update'], project);
@@ -144,8 +143,8 @@ export function preparePkce(compilerOwner, expectedInputs, mutationId = null) {
       const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
-    assert.equal(attestation.declarations.length, expected.size);
-    for (const declaration of attestation.declarations) {
+    assert.equal(ownedAttestations(attestation).length, expected.size);
+    for (const declaration of ownedAttestations(attestation)) {
       assert.ok(expected.has(declaration.name)); const axioms = expected.get(declaration.name);
       assert.equal(declaration.result, 'ok'); assert.deepEqual(declaration.policy, {kind: axioms.length ? 'exact' : 'none', axioms});
       assert.deepEqual(declaration.observed, axioms); expected.delete(declaration.name);
@@ -165,7 +164,7 @@ export function preparePkce(compilerOwner, expectedInputs, mutationId = null) {
     for (const name of sources.keys()) stage('lean/' + leanPath(name), provenance.generatedBytes(name));
     stage('lean/lean-toolchain', captured('lean-toolchain'));
     stage('lean/lakefile.toml', 'name = "pkce"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['
-      + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
+      + stageLeanRuntime(verified, lean) + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
     run('lake', ['build', 'PrismGenerated'], lean);
     const exported = join(work, 'export'), roots = ['PrismPM.Foundation.Sec.V1.Pkce.pkceWireBytes'];
     compiler.runExporter(['--module', 'PrismPM.Foundation.Sec.V1.Pkce', ...roots.flatMap(name => ['--root', name]),

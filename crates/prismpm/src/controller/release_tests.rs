@@ -405,7 +405,7 @@ fn text_command_line_system_project() -> tempfile::TempDir {
     let cli = record(
         "TextCli",
         &format!(
-            "command := \"check\", description := \"Checks one text request.\", usageCode := (64 : UInt8), ioCode := (74 : UInt8), outcomes := {outcomes}, sections := {}, examples := {}",
+            "command := \"check\", description := \"Checks one text request.\", usageCode := (64 : UInt8), ioCode := (74 : UInt8), limitCode := (ctor Option.none [UInt8]), outcomes := {outcomes}, sections := {}, examples := {}",
             list("TextCliSection", Vec::new()),
             list("TextCliExample", Vec::new())
         ),

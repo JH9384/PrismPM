@@ -145,7 +145,7 @@ Inside a holo one more rule applies: every subject is a `BlobSubject`.
 | `subject[].digest` | `PrismDigestSet`: exactly `sha256` and `blake3`, lowercase hex, same bytes |
 | `predicateType` | any URI; Prism writes `https://uor.foundation/prism/proof/v1` (#266) and `https://slsa.dev/provenance/v1` (#268) |
 
-The calculator fixture is `sdk/npm/spec/test/fixtures/calculator-statement.json`, the #266 example statement.
+The calculator fixture is `sdk/npm/spec/test/fixtures/attestation/statement/calculator.json`, the #266 example statement.
 Its subject's `blake3` equals the guest label `blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380` and its `sha256` is `dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03`, both over the 10498 guest bytes.
 
 A bundle may carry any predicate type; readers list what they find.

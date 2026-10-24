@@ -146,7 +146,9 @@ test('select reads dotted paths and indexes, and refuses malformed ones', async 
 });
 
 test('the format revision table agrees with @prism-code/spec', async () => {
-  const spec = await import('../../spec/index.mjs');
+  // The spec's index.mjs is generated and not committed; loadSpec builds it first.
+  const { loadSpec } = await import('../../spec/scripts/build.mjs');
+  const spec = await loadSpec();
   assert.deepEqual(FORMAT_REVISIONS, spec.FORMAT_REVISIONS);
   const inspection = await inspect(bytes);
   assert.ok(Object.hasOwn(spec.FORMAT_REVISIONS, inspection.revision));

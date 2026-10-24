@@ -1,0 +1,163 @@
+{
+  "verifier": {
+    "id": "https://uor.foundation/prism/verifier/lean4",
+    "lean": {
+      "version": "v4.32.1",
+      "commit": "f054605aea4b840552cca2e725580bffd1e1b704"
+    },
+    "lexlean": {
+      "version": "0.3.0",
+      "commit": "0b53334e5846a1f5e5d9bb3bf6959c085daa4d08",
+      "crateSha256": "feedcdaf2a18a9e63d2bbe1dd744f7fa790a2bc3af4a85a10403f7de10676a64"
+    },
+    "prismpm": {
+      "version": "0.3.0"
+    },
+    "sdkImage": "ghcr.io/uor-foundation/prismpm@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "policy": {
+    "uri": "https://uor.foundation/prism/proof/v1/policy/axiom-audit",
+    "digest": {
+      "sha256": "34dc17084bb03c1397da9e7b8505b4173c1b4b133ed3656d403eb45bca590da8"
+    }
+  },
+  "model": {
+    "document": {
+      "sha256": "074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6",
+      "blake3": "e76544838a98c46341ed8807f72897ec68de5a8a9bf28721738a76761c9df90e"
+    },
+    "sourceId": "63611de07b58d03b3a9976b34138d903215e50c53ec2ba4ee3cdeb452b0710ad",
+    "semanticId": "be75c14a6c6ae7c21e0bf6abe3c6312cf107fee86d6a01092306ba7162d4a949",
+    "snapshotId": "34dc17084bb03c1397da9e7b8505b4173c1b4b133ed3656d403eb45bca590da8",
+    "compilerSemanticsId": "49561889f77c9c3571da51e8e53233da9df5ab8f46d16165159425ba2e82dc44",
+    "leanManifestSha256": "3779d20d45e41bf56ce8ca65e57767e527f14e56d028f1bb8116d87e08ac080a",
+    "modules": [
+      {
+        "name": "PrismCalculator.Calculator",
+        "leanSha256": "17792fa9c98f1c3f77d52f410e42b0e1ec6ac78026351fd949feab2594e27cda"
+      }
+    ]
+  },
+  "theorems": [
+    {
+      "name": "PrismCalculator.Calculator.addCorrect",
+      "module": "PrismCalculator.Calculator",
+      "verdict": "PASSED",
+      "axioms": {
+        "policy": {
+          "kind": "none",
+          "axioms": []
+        },
+        "observed": []
+      }
+    },
+    {
+      "name": "PrismCalculator.Calculator.subtractCorrect",
+      "module": "PrismCalculator.Calculator",
+      "verdict": "PASSED",
+      "axioms": {
+        "policy": {
+          "kind": "none",
+          "axioms": []
+        },
+        "observed": []
+      }
+    },
+    {
+      "name": "PrismCalculator.Calculator.multiplyCorrect",
+      "module": "PrismCalculator.Calculator",
+      "verdict": "PASSED",
+      "axioms": {
+        "policy": {
+          "kind": "none",
+          "axioms": []
+        },
+        "observed": []
+      }
+    },
+    {
+      "name": "PrismCalculator.Calculator.divideCorrect",
+      "module": "PrismCalculator.Calculator",
+      "verdict": "PASSED",
+      "axioms": {
+        "policy": {
+          "kind": "none",
+          "axioms": []
+        },
+        "observed": []
+      }
+    },
+    {
+      "name": "PrismCalculator.Calculator.calculate_correct",
+      "module": "PrismCalculator.Calculator",
+      "verdict": "PASSED",
+      "axioms": {
+        "policy": {
+          "kind": "none",
+          "axioms": []
+        },
+        "observed": []
+      }
+    }
+  ],
+  "verificationResult": "PASSED",
+  "verifiedLevels": [
+    "P2"
+  ],
+  "tcb": [
+    {
+      "component": "lean4-kernel",
+      "role": "type-checks every listed theorem; the verdict is its acceptance",
+      "version": "leanprover/lean4:v4.32.1",
+      "digest": "f054605aea4b840552cca2e725580bffd1e1b704",
+      "trust": "trusted"
+    },
+    {
+      "component": "leanchecker",
+      "role": "replays each module environment through the same kernel; not independent of it",
+      "version": "leanprover/lean4:v4.32.1",
+      "trust": "trusted"
+    },
+    {
+      "component": "lexlean",
+      "role": "translates .lex.tex into the Lean that was checked",
+      "version": "0.3.0",
+      "digest": "feedcdaf2a18a9e63d2bbe1dd744f7fa790a2bc3af4a85a10403f7de10676a64",
+      "trust": "trusted"
+    },
+    {
+      "component": "lean4-prod",
+      "role": "exports LCNF from the checked Lean and renders the Rust core",
+      "version": "c4078cf96537cd71c0818bbed0aa82300ef66786",
+      "trust": "trusted"
+    },
+    {
+      "component": "rustc",
+      "role": "compiles the Rust core to the Core-Wasm guest, the subject",
+      "version": "1.97.1",
+      "trust": "trusted"
+    },
+    {
+      "component": "wasm-bindgen-cli",
+      "role": "generates the browser adapter around the guest; outside the subject",
+      "version": "0.2.122",
+      "trust": "trusted"
+    },
+    {
+      "component": "sdk-image",
+      "role": "hosts every step above; pinned in prismpm.lock",
+      "version": "0.3.0",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "trust": "trusted"
+    }
+  ],
+  "evidence": {
+    "lexleanAttestation": {
+      "sha256": "64a57f317b61ca30f627293b304eee52be0dce3c060b2033098cf40770169498"
+    },
+    "verificationManifest": {
+      "sha256": "07d48406772000cce194d0e0f85c02517d927d334cd25ef54b3b8b446a67ad56"
+    }
+  },
+  "timeVerified": "2026-10-23T00:00:00Z"
+}

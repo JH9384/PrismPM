@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import * as archive from '../../prism-code/src/archive.mjs';
 import { PROVENANCE_SCHEMA } from '../../prism-code/src/closure.mjs';
 import { CORE_CONTRACT } from '../../prism-code/src/core.mjs';
-import * as spec from '../index.mjs';
+import { spec } from './spec.mjs';
 import { here, loadReference, schema, wasmExports } from './reference.mjs';
 
 const ref = loadReference();

@@ -4,9 +4,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { blake3Hex } from '../../prism-code/src/blake3.mjs';
-import { ATTESTATION, CAPABILITY_SET, FORMAT_REVISIONS, LABEL_PREFIX, PROOF_PREDICATE_TYPE, SCHEMAS } from '../index.mjs';
+import { spec } from './spec.mjs';
 import { validate } from './json-schema.mjs';
 import { REFERENCE_SHA256, here, loadReference, readJson, schema } from './reference.mjs';
+
+const { ATTESTATION, CAPABILITY_SET, FORMAT_REVISIONS, LABEL_PREFIX, PROOF_PREDICATE_TYPE, SCHEMAS } = spec;
 
 const ref = loadReference();
 const valid = (path, value) => assert.deepEqual(validate(schema(path), value), [], path);
@@ -50,7 +52,7 @@ test('the capability set blob is the empty capability constant', () => {
 });
 
 test('calculator-example build-manifest.json matches prismpm/build-manifest/1 and binds the archive', () => {
-  const manifest = readJson('fixtures/calculator-build-manifest.json');
+  const manifest = readJson('fixtures/documents/build-manifest-v1/calculator.json');
   valid(SCHEMAS['prismpm/build-manifest/1'], manifest);
   const row = manifest.files.find((f) => f.path === 'Calculator.holo');
   assert.equal(row.sha256, REFERENCE_SHA256);

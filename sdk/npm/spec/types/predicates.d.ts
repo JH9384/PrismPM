@@ -1,18 +1,12 @@
 /**
- * The predicate map and registry types. `predicates/registry.json` holds each
- * predicate's status and owner. Each predicate owns two files in `predicates/`:
- * `<name>-v<N>.d.ts` for its type and `<name>-v<N>.schema.json` for its schema.
+ * The registry types. `predicates/registry.json` is generated from one row file
+ * per predicate. Each predicate owns four files in `predicates/`:
+ * `<name>-v<N>.json` for its status, owner and description, `<name>-v<N>.d.ts`
+ * for its type, and `<name>-v<N>.schema.json` for its schema (none while the
+ * row is a placeholder). `PredicateMap` and `PredicateType` are generated into
+ * `types/predicate-map.d.ts` from those files.
  */
-import type { ProofPredicateV1 } from '../predicates/proof-v1.js';
-import type { ReplayPredicateV1 } from '../predicates/replay-v1.js';
-
-/** Predicate type URI to predicate body. */
-export interface PredicateMap {
-  'https://uor.foundation/prism/proof/v1': ProofPredicateV1;
-  'https://uor.foundation/prism/replay/v1': ReplayPredicateV1;
-}
-
-export type PredicateType = keyof PredicateMap;
+import type { PredicateType } from './predicate-map.js';
 
 export type PredicateStatus = 'placeholder' | 'experimental' | 'beta' | 'stable' | 'deprecated';
 

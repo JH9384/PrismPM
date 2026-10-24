@@ -4,14 +4,16 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { ATTESTATION, PROOF_PREDICATE_TYPE } from '../index.mjs';
+import { spec } from './spec.mjs';
 import { validate } from './json-schema.mjs';
 import { here, loadReference, readJson, schema } from './reference.mjs';
 
+const { ATTESTATION, PROOF_PREDICATE_TYPE } = spec;
+
 const PROOF_SCHEMA = 'predicates/proof-v1.schema.json';
 const ref = loadReference();
-const build = readJson('fixtures/calculator-build-manifest.json');
-const fixture = readJson('fixtures/proof/calculator.statement.json');
+const build = readJson('fixtures/documents/build-manifest-v1/calculator.json');
+const fixture = readJson('fixtures/attestation/statement/calculator.json');
 const copy = (value) => JSON.parse(JSON.stringify(value));
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const unlabel = (label) => label.slice('blake3:'.length);
@@ -32,6 +34,10 @@ function subjectAgrees(statement) {
     row.sha256 === digest.sha256
   );
 }
+
+test('the proof-v1 predicate fixture is the predicate of the calculator statement', () => {
+  assert.deepEqual(readJson('fixtures/predicates/proof-v1/calculator.json'), fixture.predicate);
+});
 
 test('the schema $id is the reserved one and the registry row points at it', () => {
   assert.equal(schema(PROOF_SCHEMA).$id, `${PROOF_PREDICATE_TYPE}/schema.json`);

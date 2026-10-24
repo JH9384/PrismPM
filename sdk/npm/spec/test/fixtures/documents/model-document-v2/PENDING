@@ -1,0 +1,2 @@
+No fixture yet: this schema was added before every schema had to have one, and the repository holds no instance of it outside Rust tests.
+Add <case>.json beside this file and delete this file; test/schemas.test.mjs fails while both exist.

@@ -1,0 +1,5 @@
+{
+  "status": "placeholder",
+  "owner": { "milestone": "M3 v0.6 Replay, capabilities, conformance" },
+  "description": "Recorded dispatches that replay against a holo."
+}

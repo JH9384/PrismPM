@@ -965,7 +965,7 @@ redistribution = "citation-only"
 retrieval_date = "2026-09-05"
 supersession_policy = "explicit-lock-update-only"
 statement = "The lawful scope is a reviewed architecture-description interpretation, not certification or an executable oracle."
-realized_by = ["FT-01", "ST-01"]
+realized_by = ["FT-01", "FT-12", "FT-13", "ST-01", "ST-19"]
 
 [[authority]]
 id = "ISO-27034-1-2011"

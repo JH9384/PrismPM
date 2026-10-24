@@ -139,6 +139,18 @@ level = "build"
 statement = "prism.arch defines OPM (ISO/PAS 19450) and UML 2.5.1 design view entries as ISO/IEC/IEEE 42010 views."
 
 [[id]]
+id = "FT-12"
+suite = "facets"
+level = "build"
+statement = "prism.arch defines Feature and Journey declarations: a feature states what a product does with the interface calls that realize it and the acceptance rows that accept it, and a journey is an ordered sequence of features performed by a stakeholder."
+
+[[id]]
+id = "FT-13"
+suite = "facets"
+level = "build"
+statement = "The SDK checks features and journeys in prismpm check and refuses a feature without a call with PP2014, a feature without an acceptance row with PP2015, a journey step that names an undeclared feature with PP2016, a journey whose actor is not a declared stakeholder with PP2017, and a malformed declaration or a call or acceptance row that names no declaration with PP2018."
+
+[[id]]
 id = "HO-01"
 suite = "holo"
 level = "build"
@@ -425,6 +437,12 @@ id = "ST-18"
 suite = "stdlib"
 level = "build"
 statement = "Prism-stdlib defines OPM and UML design view primitives in Foundation.Arch."
+
+[[id]]
+id = "ST-19"
+suite = "stdlib"
+level = "build"
+statement = "Prism-stdlib proves with an empty axiom set that the normalized feature and journey validator is sound and complete, and refuses a feature without a call, a feature without acceptance, a journey step outside the declared features and a journey actor outside the stakeholders."
 
 [[id]]
 id = "AR-01"

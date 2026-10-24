@@ -95,6 +95,36 @@ An OPM or UML design view names a component, edge, process, state or viewpoint t
 
 Class: `semantic`. Exit code: 1.
 
+## `PP2014` --- Feature without a call
+
+A feature is realized by no interface call.
+
+Class: `semantic`. Exit code: 1.
+
+## `PP2015` --- Feature without acceptance
+
+A feature is accepted by no acceptance row.
+
+Class: `semantic`. Exit code: 1.
+
+## `PP2016` --- Journey step names an undeclared feature
+
+A step of a user journey names a declaration that is not a declared feature.
+
+Class: `semantic`. Exit code: 1.
+
+## `PP2017` --- Journey actor is not a stakeholder
+
+The actor of a user journey is not a declared stakeholder.
+
+Class: `semantic`. Exit code: 1.
+
+## `PP2018` --- Invalid feature or journey declaration
+
+A feature or journey is not a closed literal record, a feature statement is out of bounds, or a call or acceptance row of a feature names no declaration.
+
+Class: `semantic`. Exit code: 1.
+
 ## `PP3001` --- Malformed Hologram archive header or version
 
 A .holo file is not a binary Hologram v4 archive with the exact HOLO header.

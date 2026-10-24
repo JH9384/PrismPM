@@ -1,0 +1,14 @@
+spec = "prismpm/test-case/1"
+command = "check"
+expected_exit = 1
+normalization = "canonical-json"
+capabilities = ["FT-13"]
+expected_artifacts = []
+
+[[expected_diagnostics]]
+code = "PP2016"
+message = "journey LexLeanMcp::journeyMain step 1 names LexLeanMcp::featureC, which is not a declared feature"
+primary = "none"
+labels = []
+notes = []
+help = []

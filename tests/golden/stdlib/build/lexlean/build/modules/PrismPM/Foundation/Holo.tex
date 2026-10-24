@@ -199,6 +199,137 @@
 \noindent Parameters: \texttt{(profile : StandardsProfile)}.\par
 \noindent Statement: \texttt{((validateExactStandardsProfile (profile) = true) <-> standardsProfileValid (profile))}.\par
 \noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{NormalizedFeatures}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{stakeholderCount}: \texttt{Nat}.\par
+\noindent Field \texttt{featureCount}: \texttt{Nat}.\par
+\noindent Field \texttt{callCounts}: \texttt{List (Nat)}.\par
+\noindent Field \texttt{acceptanceCounts}: \texttt{List (Nat)}.\par
+\noindent Field \texttt{journeyActors}: \texttt{List (Nat)}.\par
+\noindent Field \texttt{journeySteps}: \texttt{List (Nat)}.\par
+\subsection*{\texttt{natListLength}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{(match values with | List.nil => 0 | List.cons \_ rest => (natListLength (rest) + 1))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{allPositive}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match values with | List.nil => true | List.cons value rest => ((Nat.blt (0) (value)) \&\& allPositive (rest)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{validateFeatureCalls}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(callCounts : List (Nat))}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{allPositive (callCounts)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{validateFeatureAcceptance}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(acceptanceCounts : List (Nat))}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{allPositive (acceptanceCounts)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{validateJourneyActors}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(stakeholderCount : Nat) (actors : List (Nat))}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{allBelow (stakeholderCount) (actors)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{validateJourneySteps}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(featureCount : Nat) (steps : List (Nat))}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{allBelow (featureCount) (steps)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{validateNormalizedFeatures}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(model : NormalizedFeatures)}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{((Nat.beq (natListLength ((model).callCounts)) ((model).featureCount)) \&\& ((Nat.beq (natListLength ((model).acceptanceCounts)) ((model).featureCount)) \&\& (validateFeatureCalls ((model).callCounts) \&\& (validateFeatureAcceptance ((model).acceptanceCounts) \&\& (validateJourneyActors ((model).stakeholderCount) ((model).journeyActors) \&\& validateJourneySteps ((model).featureCount) ((model).journeySteps))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{featureCallsValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(callCounts : List (Nat))}.\par
+\noindent Type: \texttt{Prop}.\par
+\noindent Definition: \texttt{(validateFeatureCalls (callCounts) = true)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{featureAcceptanceValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(acceptanceCounts : List (Nat))}.\par
+\noindent Type: \texttt{Prop}.\par
+\noindent Definition: \texttt{(validateFeatureAcceptance (acceptanceCounts) = true)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{journeyActorsValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(stakeholderCount : Nat) (actors : List (Nat))}.\par
+\noindent Type: \texttt{Prop}.\par
+\noindent Definition: \texttt{allBelowProp (stakeholderCount) (actors)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{journeyStepsValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(featureCount : Nat) (steps : List (Nat))}.\par
+\noindent Type: \texttt{Prop}.\par
+\noindent Definition: \texttt{allBelowProp (featureCount) (steps)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{normalizedFeaturesValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(model : NormalizedFeatures)}.\par
+\noindent Type: \texttt{Prop}.\par
+\noindent Definition: \texttt{(validateNormalizedFeatures (model) = true)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{featureCalls\_sound\_complete}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(callCounts : List (Nat))}.\par
+\noindent Statement: \texttt{((validateFeatureCalls (callCounts) = true) <-> featureCallsValid (callCounts))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{featureAcceptance\_sound\_complete}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(acceptanceCounts : List (Nat))}.\par
+\noindent Statement: \texttt{((validateFeatureAcceptance (acceptanceCounts) = true) <-> featureAcceptanceValid (acceptanceCounts))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{journeyActors\_sound\_complete}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(stakeholderCount : Nat) (actors : List (Nat))}.\par
+\noindent Statement: \texttt{((validateJourneyActors (stakeholderCount) (actors) = true) <-> journeyActorsValid (stakeholderCount) (actors))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{journeySteps\_sound\_complete}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(featureCount : Nat) (steps : List (Nat))}.\par
+\noindent Statement: \texttt{((validateJourneySteps (featureCount) (steps) = true) <-> journeyStepsValid (featureCount) (steps))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{normalizedFeatures\_sound\_complete}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(model : NormalizedFeatures)}.\par
+\noindent Statement: \texttt{((validateNormalizedFeatures (model) = true) <-> normalizedFeaturesValid (model))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{featureVector}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(callCounts : List (Nat)) (acceptanceCounts : List (Nat)) (actors : List (Nat)) (steps : List (Nat))}.\par
+\noindent Type: \texttt{NormalizedFeatures}.\par
+\noindent Definition: \texttt{(\{ stakeholderCount := 2, featureCount := 2, callCounts := callCounts, acceptanceCounts := acceptanceCounts, journeyActors := actors, journeySteps := steps \} : NormalizedFeatures)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{featureVectorAccepted}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Statement: \texttt{(validateNormalizedFeatures (featureVector ((1 :: (2 :: ([] : List (Nat))))) ((1 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: (1 :: ([] : List (Nat))))))) = true)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{featureWithoutCallRefused}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Statement: \texttt{(validateNormalizedFeatures (featureVector ((1 :: (0 :: ([] : List (Nat))))) ((1 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: (1 :: ([] : List (Nat))))))) = false)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{featureWithoutAcceptanceRefused}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Statement: \texttt{(validateNormalizedFeatures (featureVector ((1 :: (2 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: (1 :: ([] : List (Nat))))))) = false)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{journeyStepUndeclaredFeatureRefused}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Statement: \texttt{(validateNormalizedFeatures (featureVector ((1 :: (2 :: ([] : List (Nat))))) ((1 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((0 :: (2 :: ([] : List (Nat)))))) = false)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{journeyActorNotStakeholderRefused}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Statement: \texttt{(validateNormalizedFeatures (featureVector ((1 :: (2 :: ([] : List (Nat))))) ((1 :: (1 :: ([] : List (Nat))))) ((0 :: (2 :: ([] : List (Nat))))) ((0 :: (1 :: (1 :: ([] : List (Nat))))))) = false)}.\par
+\noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{canonicalIndexes}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Parameters: \texttt{(expected : Nat) (count : Nat)}.\par

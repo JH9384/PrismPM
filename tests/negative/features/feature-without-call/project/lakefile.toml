@@ -1,0 +1,6 @@
+name = "DesignViews"
+version = "0.1.0"
+defaultTargets = ["DesignViews"]
+
+[[lean_lib]]
+name = "DesignViews"

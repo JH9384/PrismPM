@@ -15,7 +15,7 @@ import {verifyTranscriptDecoder} from './transcript.mjs';
 import {verifyBrowser, verifyHostMutations} from './browser.mjs';
 
 const draft = dirname(fileURLToPath(import.meta.url)), repository = resolve(draft, '../..');
-const roots = ['stdlib/src', 'sdk/browser', ...['checks.mjs','transcript.mjs','browser.mjs','browser-fixture.mjs']
+const roots = ['stdlib/src', 'language/prism.arch', 'sdk/browser', ...['checks.mjs','transcript.mjs','browser.mjs','browser-fixture.mjs']
   .map(file => 'tests/browser-contextual-effects/' + file), 'tests/browser-effects', 'tests/browser-custody',
   'tests/browser-view', 'tests/browser-workspace/src/main.rs', 'tests/browser-journal/driver/src/main.rs',
   'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml', 'model/authorities.toml',
@@ -54,6 +54,8 @@ function verifyCaptured(build, owner, baseline) {
     assert.deepEqual(readFileSync(join(build.work, 'project/src', ...module.split('.')) + '.lex.tex'), bytes, 'actual staged source input');
   }
   for (const [relative, expected] of Object.entries(baseline)) {
+    if (relative.startsWith('language/prism.arch/'))
+      assert.equal(sha(readFileSync(join(build.work, 'project', relative))), expected, 'actual staged lexicon buffer ' + relative);
     if ((relative.startsWith('vendor/lexlean/') || relative.startsWith('vendor/lean4-prod/rust/')) && !relative.endsWith('/MANIFEST.sha256')
       || relative.startsWith('tests/browser-' + owner + '/driver/'))
       assert.equal(sha(readFileSync(join(build.work, relative))), expected, 'actual staged compiler buffer ' + relative);

@@ -3,9 +3,9 @@
   "predicates": [
     {
       "predicateType": "https://uor.foundation/prism/proof/v1",
-      "status": "placeholder",
+      "status": "experimental",
       "owner": { "issue": 266 },
-      "schema": null,
+      "schema": "predicates/proof-v1.schema.json",
       "description": "Lean proof evidence for a holo, with a named trusted computing base."
     },
     {

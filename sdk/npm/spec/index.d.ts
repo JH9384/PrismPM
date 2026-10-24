@@ -17,7 +17,19 @@ export type * from './types/holo.js';
 export type * from './types/documents.js';
 export type * from './types/attestation.js';
 export type * from './types/predicates.js';
-export type { ProofPredicateV1 } from './predicates/proof-v1.js';
+export type {
+  ProofAxiomAudit,
+  ProofEvidence,
+  ProofModel,
+  ProofModule,
+  ProofPolicy,
+  ProofPredicateV1,
+  ProofStatementV1,
+  ProofTheorem,
+  ProofVerdict,
+  ProofVerifier,
+  TcbEntry,
+} from './predicates/proof-v1.js';
 export type { ReplayPredicateV1 } from './predicates/replay-v1.js';
 
 /** Any model document, discriminated by `schema`. */

@@ -87,12 +87,13 @@ import type { ModelDocument, Statement, DsseEnvelope } from '@prism-code/spec';
 
 | Predicate type | Status | Owner |
 | --- | --- | --- |
-| `https://uor.foundation/prism/proof/v1` | placeholder | [#266](https://github.com/UOR-Foundation/PrismPM/issues/266) |
+| `https://uor.foundation/prism/proof/v1` | experimental: `ProofPredicateV1`, `predicates/proof-v1.schema.json` | [#266](https://github.com/UOR-Foundation/PrismPM/issues/266) |
 | `https://uor.foundation/prism/replay/v1` | placeholder | M3 |
 
 Each predicate owns `predicates/<name>-v<N>.d.ts` and `predicates/<name>-v<N>.schema.json`.
-Today `proof-v1.d.ts` and `replay-v1.d.ts` hold `unknown`, and no predicate schema exists yet.
-#266 reserved `predicates/proof-v1.schema.json`, with `$id` `https://uor.foundation/prism/proof/v1/schema.json`.
+The proof predicate is defined: its schema has `$id` `https://uor.foundation/prism/proof/v1/schema.json`, and `ProofStatementV1` is a statement with exactly one subject, the guest blob.
+Its design is [docs/proposals/266-proof-predicate.md](../../../docs/proposals/266-proof-predicate.md), and `test/fixtures/proof/calculator.statement.json` is its calculator example.
+`replay-v1.d.ts` still holds `unknown`.
 To define a predicate, add its schema, fill its type, then set `schema` and `status` in its registry row.
 The type files are `.d.ts`, not `.ts`, because the package has no build step.
 

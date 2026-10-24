@@ -371,6 +371,12 @@ fn lock_path(root: &Path) -> PathBuf {
     root.join("standards.lock")
 }
 
+/// The digest an SDK lock binds as `standards_lock`: the committed
+/// `standards.lock`, verified to be canonical and self-identifying.
+pub(crate) fn project_standards_digest(root: &Path) -> Result<String, PrismError> {
+    Ok(parse_lock(root)?.digest())
+}
+
 fn parse_lock(root: &Path) -> Result<CanonicalDocument, PrismError> {
     let path = lock_path(root);
     let bytes = std::fs::read(&path)

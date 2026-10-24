@@ -42,7 +42,7 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | push / pull | `prismpm push REF`, `prismpm pull REF` ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | `docker push`, `docker pull` |
 | inspect | `prismpm inspect REF` for a product release. `hologram holo inspect` and `prism-code inspect` for one holo. | `docker inspect` |
 | export | `prismpm export-browser REF --output DIR` ([README](../README.md#development-and-acceptance)). | `docker build --output` |
-| lock / update | `prismpm lock check` verifies the lock. `prismpm lock update` proposes a new pin and does not apply it. | edit the `FROM ...@sha256:` pin |
+| lock / update | `prismpm lock` writes or refreshes the pinned inputs in `prismpm.lock` without building. `prismpm update --toolchain REF` pins a new SDK image and prints the old and new digests. `prismpm lock check` verifies the lock, and `prismpm lock update` proposes a new pin and does not apply it. | `npm install` and `npm update`, or editing the `FROM ...@sha256:` pin |
 | deploy | `prismpm plan` then `prismpm deploy` through the Compose or Kubernetes adapter ([SPEC §15](../SPEC.md#15-target-planning-and-deployment)). | `docker compose up`, `docker stack deploy` |
 
 `REF` is a registry-qualified immutable reference, `NAME@sha256:DIGEST`.

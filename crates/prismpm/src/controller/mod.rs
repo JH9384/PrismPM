@@ -278,6 +278,7 @@ trait ModelWorkerOutput: Send {}
 impl ModelWorkerOutput for CheckResult {}
 impl ModelWorkerOutput for BuildResult {}
 impl ModelWorkerOutput for bool {}
+impl ModelWorkerOutput for serde_json::Value {}
 impl ModelWorkerOutput for Vec<crate::contracts::CanonicalDocument> {}
 
 #[cfg(test)]
@@ -698,6 +699,31 @@ impl Controller {
         })
     }
 
+    /// The `inputs` object `prismpm/sdk-lock/3` pins for this prepared project.
+    fn pinned_inputs(&self, prepared: &Prepared) -> Result<serde_json::Value, PrismError> {
+        crate::input_lock::compute(&crate::input_lock::InputSources {
+            root: &self.root,
+            lexlean_project: &prepared.config.lexlean_project,
+            model_bytes: &prepared.model_bytes,
+            core_contract: prepared
+                .model
+                .application
+                .as_ref()
+                .map(|application| application.core_contract().as_str()),
+            application_generator_sha256: application_generator_identity(),
+            library_generator_sha256: library_generator_identity(),
+        })
+    }
+
+    /// Recompute the pinned build inputs in memory, as `check` does, without
+    /// compiling or writing anything. `prismpm lock` and `prismpm update` use it.
+    pub(crate) fn current_inputs(
+        &self,
+        config_path: Option<&Path>,
+    ) -> Result<serde_json::Value, PrismError> {
+        self.with_prepared_release(config_path, None, |prepared| self.pinned_inputs(prepared))
+    }
+
     /// Check through LexLean snapshot, Holo projection, and validation in memory.
     pub fn check(&self, request: CheckRequest) -> Result<CheckResult, PrismError> {
         self.with_prepared_release(request.config_path.as_deref(), None, |prepared| {
@@ -784,20 +810,7 @@ impl Controller {
         update_lock: bool,
     ) -> Result<BuildResult, PrismError> {
         // Before any compilation: a stale input lock fails fast and writes nothing.
-        crate::input_lock::enforce(&self.root, update_lock, || {
-            crate::input_lock::compute(&crate::input_lock::InputSources {
-                root: &self.root,
-                lexlean_project: &prepared.config.lexlean_project,
-                model_bytes: &prepared.model_bytes,
-                core_contract: prepared
-                    .model
-                    .application
-                    .as_ref()
-                    .map(|application| application.core_contract().as_str()),
-                application_generator_sha256: application_generator_identity(),
-                library_generator_sha256: library_generator_identity(),
-            })
-        })?;
+        crate::input_lock::enforce(&self.root, update_lock, || self.pinned_inputs(prepared))?;
         if let Some(application) = &prepared.model.application {
             crate::holo::browser_application::require_runtime(application)?;
         }

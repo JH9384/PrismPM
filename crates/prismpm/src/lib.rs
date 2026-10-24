@@ -26,6 +26,7 @@ mod features;
 pub mod holo;
 mod input_lock;
 mod lean_project;
+mod lock_command;
 mod library_build;
 mod library_verification;
 pub mod lifecycle;

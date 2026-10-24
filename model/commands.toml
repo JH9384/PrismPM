@@ -80,9 +80,9 @@ result_schema = "prismpm/inspect-result/1"
 
 [[command]]
 name = "lock"
-mutates = "temporary-metadata-acquisition-only"
+mutates = "explicit-update-only"
 requires_digest = false
-result_schema = "prismpm/sdk-lock-update/2"
+result_schema = "prismpm/sdk-lock-change/1"
 [command.subcommand_results]
 check = ["prismpm/sdk-lock/1", "prismpm/sdk-lock/2", "prismpm/sdk-lock/3"]
 migrate = ["prismpm/sdk-lock-migration/1"]
@@ -159,6 +159,12 @@ name = "template"
 mutates = "explicit-update-only"
 requires_digest = false
 result_schema = "prismpm/template-result/1"
+
+[[command]]
+name = "update"
+mutates = "explicit-update-only"
+requires_digest = false
+result_schema = "prismpm/sdk-lock-change/1"
 
 [[command]]
 name = "verify"

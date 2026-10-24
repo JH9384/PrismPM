@@ -19,6 +19,7 @@ function verifyPins(){
 }
 export {ensureProdExport, run} from '../browser-journal/compile.mjs';
 import {createPrivateDriverTarget, ensureProdExport, run} from '../browser-journal/compile.mjs';
+import {stageLeanRuntime} from '../browser-view/compile.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 export function prepare(){
   verifyPins();
@@ -43,7 +44,7 @@ export function prepare(){
   const lean=join(work,'lean'),leanSource=join(lean,'PrismPM/Foundation/Browser/V1');mkdirSync(leanSource,{recursive:true});
   for(const name of files)copyFileSync(join(verified.root,'modules/PrismPM/Foundation/Browser/V1',name+'.lean'),join(leanSource,name+'.lean'));
   copyFileSync(join(repository,'lean-toolchain'),join(lean,'lean-toolchain'));
-  writeFileSync(join(lean,'lakefile.toml'),'name = "workspace_query_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['+files.map(n=>'"PrismPM.Foundation.Browser.V1.'+n+'"').join(',')+']\n',{flag:'wx'});
+  writeFileSync(join(lean,'lakefile.toml'),'name = "workspace_query_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['+stageLeanRuntime(verified,lean)+files.map(n=>'"PrismPM.Foundation.Browser.V1.'+n+'"').join(',')+']\n',{flag:'wx'});
   run('lake',['build','PrismGenerated'],lean);
   const {dir: exporter, bin: prodExport} = ensureProdExport(repository, work);
   const exported=join(work,'export');run(prodExport,['--module','PrismPM.Foundation.Browser.V1.WorkspaceQueryCorpus','--root','PrismPM.Foundation.Browser.V1.WorkspaceJournal.workspaceJournalBytes','--root','PrismPM.Foundation.Browser.V1.WorkspaceQuery.workspaceQueryBytes','--root','PrismPM.Foundation.Browser.V1.WorkspaceQueryCorpus.queryDecodeProbeBytes','--ir-module','BrowserWorkspaceQuery','--out',exported],exporter,{LEAN_PATH:join(lean,'.lake/build/lib/lean')});

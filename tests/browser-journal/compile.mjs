@@ -9,7 +9,7 @@ export const draft=dirname(fileURLToPath(import.meta.url));
 export const repository=resolve(draft,'../..');
 export const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 export {createPrivateDriverTarget, ensureProdExport} from '../browser-view/compile.mjs';
-import {createPrivateDriverTarget, ensureProdExport, observeCompilerPhase} from '../browser-view/compile.mjs';
+import {createPrivateDriverTarget, ensureProdExport, observeCompilerPhase, stageLeanRuntime} from '../browser-view/compile.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 function verifyPins(){
   const artifacts=readFileSync(join(repository,'model/dependencies.toml'),'utf8').split('[[dependency.artifact]]').slice(1).map(section=>{
@@ -154,7 +154,7 @@ export function prepare(){
   const lean=join(work,'lean'),leanSource=join(lean,'PrismPM/Foundation/Browser/V1');mkdirSync(leanSource,{recursive:true});
   for(const name of files)copyFileSync(join(verified.root,'modules/PrismPM/Foundation/Browser/V1',name+'.lean'),join(leanSource,name+'.lean'));
   copyFileSync(join(repository,'lean-toolchain'),join(lean,'lean-toolchain'));
-  writeFileSync(join(lean,'lakefile.toml'),'name = "workspace_journal_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['+files.map(n=>'"PrismPM.Foundation.Browser.V1.'+n+'"').join(',')+']\n',{flag:'wx'});
+  writeFileSync(join(lean,'lakefile.toml'),'name = "workspace_journal_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['+stageLeanRuntime(verified,lean)+files.map(n=>'"PrismPM.Foundation.Browser.V1.'+n+'"').join(',')+']\n',{flag:'wx'});
   run('lake',['build','PrismGenerated'],lean);
   const {dir: exporter, bin: prodExport} = ensureProdExport(repository, work);
   const exported=join(work,'export');run(prodExport,['--module','PrismPM.Foundation.Browser.V1.WorkspaceJournal','--root','PrismPM.Foundation.Browser.V1.WorkspaceJournal.workspaceJournalBytes','--ir-module','BrowserWorkspaceJournal','--out',exported],exporter,{LEAN_PATH:join(lean,'.lake/build/lib/lean')});

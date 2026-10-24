@@ -5,12 +5,13 @@ import {chmodSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync,
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {createPrivateDriverTarget, ensureProdExport, run, sha} from '../browser-view/compile.mjs';
+import {createPrivateDriverTarget, ensureProdExport, run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
 import {mutateComponentSource} from './mutations.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -45,7 +46,7 @@ export function frozenInputs() {
     'tests/browser-session/wire.mjs', 'tests/browser-session/corpus.mjs',
     'tests/browser-session/maxima.mjs', 'tests/browser-session/budget.mjs',
     'sdk/browser/effects-wire.mjs', 'sdk/browser/effects-module.mjs', 'sdk/browser/presentation-wire.mjs',
-    'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
+    ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/dependencies.toml',
     'model/authorities.toml', 'lean-toolchain', 'rust-toolchain.toml', 'LICENSE-MIT', 'LICENSE-APACHE',
     'vendor/lean4-prod/lean.tar']) files.add(path);
   const capturedModules = localModuleInputs(repository, [...files].filter(path => path.endsWith('.mjs')), read);
@@ -329,6 +330,7 @@ export function prepareRecovery(mutationId = null, expectedInputs = null, shared
     assertCompilerOwner(compilerOwner, inputs);
     for (const [name, bytes] of sources) stage('project/src/' + name.replaceAll('.', '/') + '.lex.tex', bytes);
     const project = join(work, 'project');
+    for (const path of lexiconPaths(repository)) stage('project/' + path, captured(path));
     stage('project/lexlean.toml', captured('tests/fixtures/library/native-library/project/lexlean.toml').toString('utf8')
       .replace('name = "library-probe"', 'name = "session-journal-conformance"')
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
@@ -347,8 +349,8 @@ export function prepareRecovery(mutationId = null, expectedInputs = null, shared
       const data = readSemantic(bytes.toString('utf8'));
       return data.declarations.map(declaration => ['PrismPM.' + name + '.' + declaration.name, declaration.axioms ?? []]);
     }));
-    assert.equal(attestation.declarations.length, expected.size);
-    for (const declaration of attestation.declarations) {
+    assert.equal(ownedAttestations(attestation).length, expected.size);
+    for (const declaration of ownedAttestations(attestation)) {
       assert.ok(expected.has(declaration.name)); const axioms = expected.get(declaration.name);
       assert.equal(declaration.result, 'ok'); assert.deepEqual(declaration.policy, {kind: axioms.length ? 'exact' : 'none', axioms});
       assert.deepEqual(declaration.observed, axioms); expected.delete(declaration.name);
@@ -361,7 +363,7 @@ export function prepareRecovery(mutationId = null, expectedInputs = null, shared
     const lean = join(work, 'lean');
     stage('lean/lean-toolchain', captured('lean-toolchain'));
     stage('lean/lakefile.toml', 'name = "journal_recovery"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['
-      + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
+      + stageLeanRuntime(verified, lean) + [...sources.keys()].map(name => '"PrismPM.' + name + '"').join(',') + ']\n');
     compilerOwner.execute('lake', ['build', 'PrismGenerated'], lean);
     const exported = join(work, 'export'), roots = [
       'PrismPM.' + recovery + '.sourceRecoveryContextBytes',

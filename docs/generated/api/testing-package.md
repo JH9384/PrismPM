@@ -15,4 +15,4 @@ Status: `@prism-code/testing` does not exist yet. This page is generated from it
 - [Dispatch inputs](/docs/api/dispatch)
 - [prism-code at a glance](/docs/api)
 
-Generated from @prism-code/spec 2026-10-23 at b26744c4969782a347f5bfc4d82f883deb325bf2.
+Generated from @prism-code/spec 2026-10-23 at 7185a44586ee29b9299da00b7668be529816b12c.

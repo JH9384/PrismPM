@@ -11,19 +11,32 @@ import type {
   SectionKind,
   SectionKindCode,
 } from './types/holo.js';
-import type { ModelDocumentV1, ModelDocumentV2, ModelDocumentV3, ModelDocumentV4, ModelDocumentV5, ModelDocumentV6, SdkLockV1, SdkLockV2 } from './types/documents.js';
+import type { ModelDocumentV1, ModelDocumentV2, ModelDocumentV3, ModelDocumentV4, ModelDocumentV5, ModelDocumentV6, SdkLockV1, SdkLockV2, SdkLockV3 } from './types/documents.js';
 
 export type * from './types/holo.js';
 export type * from './types/documents.js';
 export type * from './types/attestation.js';
+export type * from './types/attestation-bundle.js';
 export type * from './types/predicates.js';
-export type { ProofPredicateV1 } from './predicates/proof-v1.js';
+export type {
+  ProofAxiomAudit,
+  ProofEvidence,
+  ProofModel,
+  ProofModule,
+  ProofPolicy,
+  ProofPredicateV1,
+  ProofStatementV1,
+  ProofTheorem,
+  ProofVerdict,
+  ProofVerifier,
+  TcbEntry,
+} from './predicates/proof-v1.js';
 export type { ReplayPredicateV1 } from './predicates/replay-v1.js';
 
 /** Any model document, discriminated by `schema`. */
 export type ModelDocument = ModelDocumentV1 | ModelDocumentV2 | ModelDocumentV3 | ModelDocumentV4 | ModelDocumentV5 | ModelDocumentV6;
 /** `prismpm.lock`, discriminated by `schema`. */
-export type SdkLock = SdkLockV1 | SdkLockV2;
+export type SdkLock = SdkLockV1 | SdkLockV2 | SdkLockV3;
 
 export declare const FORMAT_REVISION: '2026-10-23';
 export declare const FORMAT_REVISIONS: Readonly<Record<FormatRevision, Readonly<FormatRevisionIdentifiers>>>;
@@ -81,6 +94,7 @@ export declare const SCHEMAS: Readonly<Record<
   | 'prismpm/model-document/6'
   | 'prismpm/sdk-lock/1'
   | 'prismpm/sdk-lock/2'
+  | 'prismpm/sdk-lock/3'
   | 'prismpm/model-provenance/1'
   | 'prismpm/build-manifest/1'
   | 'prismpm/browser-provenance/1',
@@ -100,6 +114,18 @@ export declare const ATTESTATION: Readonly<{
   OCI_MANIFEST_SUBJECT: 'oci-manifest';
   STATEMENT_SCHEMA: 'schemas/attestation/statement.schema.json';
   ENVELOPE_SCHEMA: 'schemas/attestation/dsse-envelope.schema.json';
+}>;
+
+/** The attestation bundle section (#267). Draft until the wire model admits it. */
+export declare const ATTESTATION_BUNDLE: Readonly<{
+  EXTENSION: 'https://uor.foundation/extension/attestation-bundle/v1';
+  SECTION_KIND: 14;
+  MEDIA_TYPE: 'application/vnd.dev.sigstore.bundle.v0.3+json';
+  LINE_TERMINATOR: 10;
+  SCHEMA: 'schemas/attestation/sigstore-bundle.schema.json';
+  PROVENANCE_PREDICATE_TYPE: 'https://slsa.dev/provenance/v1';
+  OCI_ANNOTATIONS: Readonly<{ CONTENT: 'dev.sigstore.bundle.content'; PREDICATE_TYPE: 'dev.sigstore.bundle.predicateType' }>;
+  OCI_CONTENT: 'dsse-envelope';
 }>;
 
 export { PROOF_PREDICATE_TYPE } from './predicates/proof-v1.js';

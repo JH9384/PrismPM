@@ -111,6 +111,7 @@ export const SCHEMAS = freeze({
   'prismpm/model-document/6': 'schemas/documents/model-document-v6.schema.json',
   'prismpm/sdk-lock/1': 'schemas/documents/sdk-lock-v1.schema.json',
   'prismpm/sdk-lock/2': 'schemas/documents/sdk-lock-v2.schema.json',
+  'prismpm/sdk-lock/3': 'schemas/documents/sdk-lock-v3.schema.json',
   'prismpm/model-provenance/1': 'schemas/documents/model-provenance-v1.schema.json',
   'prismpm/build-manifest/1': 'schemas/documents/build-manifest-v1.schema.json',
   'prismpm/browser-provenance/1': 'schemas/documents/browser-provenance-v1.schema.json',
@@ -134,10 +135,34 @@ export const ATTESTATION = freeze({
   ENVELOPE_SCHEMA: 'schemas/attestation/dsse-envelope.schema.json',
 });
 
-/** Reserved for issue #266. Type: `predicates/proof-v1.d.ts`. Schema: `predicates/proof-v1.schema.json`. */
+/** Issue #266, experimental. Type: `predicates/proof-v1.d.ts`. Schema: `predicates/proof-v1.schema.json`. */
 export const PROOF_PREDICATE_TYPE = 'https://uor.foundation/prism/proof/v1';
 /** Reserved for milestone M3. Type: `predicates/replay-v1.d.ts`. */
 export const REPLAY_PREDICATE_TYPE = 'https://uor.foundation/prism/replay/v1';
+
+/**
+ * The attestation bundle section, issue #267 (docs/proposals/267-attestation-bundle.md).
+ * An Extension row (kind 14), last in the table, whose payload is JSON Lines of
+ * Sigstore bundles. Draft: it joins a format revision when
+ * `Foundation.Holo.V1.Wire` admits the ninth row; until then a strict
+ * revision-2026-10-23 reader refuses an archive that carries it.
+ */
+export const ATTESTATION_BUNDLE = freeze({
+  EXTENSION: 'https://uor.foundation/extension/attestation-bundle/v1',
+  SECTION_KIND: 14,
+  MEDIA_TYPE: 'application/vnd.dev.sigstore.bundle.v0.3+json',
+  /** Each bundle line ends with this byte, LF. */
+  LINE_TERMINATOR: 0x0a,
+  SCHEMA: 'schemas/attestation/sigstore-bundle.schema.json',
+  /** The second predicate Prism stores beside `PROOF_PREDICATE_TYPE` (#268). */
+  PROVENANCE_PREDICATE_TYPE: 'https://slsa.dev/provenance/v1',
+  /** Annotations on each bundle when pushed as an OCI referrer. */
+  OCI_ANNOTATIONS: freeze({
+    CONTENT: 'dev.sigstore.bundle.content',
+    PREDICATE_TYPE: 'dev.sigstore.bundle.predicateType',
+  }),
+  OCI_CONTENT: 'dsse-envelope',
+});
 
 /**
  * Every format revision, mapped to the identifiers a reader uses to recognize

@@ -1,7 +1,7 @@
 {
   "package": "@prism-code/spec",
   "path": "sdk/npm/spec",
-  "commit": "b26744c4969782a347f5bfc4d82f883deb325bf2",
-  "digest": "sha256:0cca774b328f2fda138ae3247022d810effbbfdf98e0a9288dac92351f68d3a2",
+  "commit": "7185a44586ee29b9299da00b7668be529816b12c",
+  "digest": "sha256:284c0fd1fbbde39d3fea2ef576007b92d3f7773fc3c13f6989355d4c8efd8115",
   "formatRevision": "2026-10-23"
 }

@@ -16,41 +16,52 @@ export class PrismCodeError extends Error {
 
 ## Codes
 
-| Code                 | Raised in                            |
-| -------------------- | ------------------------------------ |
-| `archive.blob`       | `src/archive.mjs`                    |
-| `archive.bounds`     | `src/archive.mjs`                    |
-| `archive.directory`  | `src/archive.mjs`                    |
-| `archive.extension`  | `src/archive.mjs`                    |
-| `archive.flags`      | `src/archive.mjs`                    |
-| `archive.input`      | `src/archive.mjs`                    |
-| `archive.kind`       | `src/archive.mjs`                    |
-| `archive.magic`      | `src/archive.mjs`                    |
-| `archive.manifest`   | `src/archive.mjs`                    |
-| `archive.metadata`   | `src/archive.mjs`                    |
-| `archive.model`      | `src/archive.mjs`, `src/index.mjs`   |
-| `archive.provenance` | `src/archive.mjs`                    |
-| `archive.version`    | `src/archive.mjs`                    |
-| `closure.files`      | `src/browser.mjs`, `src/closure.mjs` |
-| `closure.glue`       | `src/closure.mjs`                    |
-| `closure.model`      | `src/closure.mjs`                    |
-| `closure.provenance` | `src/closure.mjs`                    |
-| `core.allocation`    | `src/closure.mjs`, `src/core.mjs`    |
-| `core.compile`       | `src/core.mjs`                       |
-| `core.exports`       | `src/core.mjs`                       |
-| `core.imports`       | `src/core.mjs`                       |
-| `core.request`       | `src/core.mjs`                       |
-| `core.response`      | `src/core.mjs`                       |
-| `load.fetch`         | `src/browser.mjs`                    |
-| `load.path`          | `src/node.mjs`                       |
-| `load.source`        | `src/index.mjs`                      |
-| `lock.image`         | `src/docker.mjs`                     |
-| `mount.environment`  | `src/browser.mjs`                    |
-| `view.bounds`        | `src/view.mjs`                       |
-| `view.entry`         | `src/view.mjs`                       |
-| `view.magic`         | `src/view.mjs`                       |
-| `view.order`         | `src/view.mjs`                       |
-| `view.version`       | `src/view.mjs`                       |
+| Code                    | Raised in                                 |
+| ----------------------- | ----------------------------------------- |
+| `archive.blob`          | `src/archive.mjs`                         |
+| `archive.bounds`        | `src/archive.mjs`, `src/attestations.mjs` |
+| `archive.directory`     | `src/archive.mjs`                         |
+| `archive.extension`     | `src/archive.mjs`                         |
+| `archive.flags`         | `src/archive.mjs`                         |
+| `archive.input`         | `src/archive.mjs`                         |
+| `archive.kind`          | `src/archive.mjs`                         |
+| `archive.magic`         | `src/archive.mjs`                         |
+| `archive.manifest`      | `src/archive.mjs`                         |
+| `archive.metadata`      | `src/archive.mjs`                         |
+| `archive.model`         | `src/archive.mjs`, `src/index.mjs`        |
+| `archive.provenance`    | `src/archive.mjs`                         |
+| `archive.version`       | `src/archive.mjs`                         |
+| `attestation.bundle`    | `src/attestations.mjs`                    |
+| `attestation.duplicate` | `src/attestations.mjs`                    |
+| `attestation.envelope`  | `src/attestations.mjs`                    |
+| `attestation.footer`    | `src/attestations.mjs`                    |
+| `attestation.input`     | `src/attestations.mjs`                    |
+| `attestation.lines`     | `src/attestations.mjs`                    |
+| `attestation.position`  | `src/attestations.mjs`                    |
+| `attestation.statement` | `src/attestations.mjs`                    |
+| `attestation.subject`   | `src/attestations.mjs`                    |
+| `closure.files`         | `src/browser.mjs`, `src/closure.mjs`      |
+| `closure.glue`          | `src/closure.mjs`                         |
+| `closure.model`         | `src/closure.mjs`                         |
+| `closure.provenance`    | `src/closure.mjs`                         |
+| `core.allocation`       | `src/closure.mjs`, `src/core.mjs`         |
+| `core.compile`          | `src/core.mjs`                            |
+| `core.exports`          | `src/core.mjs`                            |
+| `core.imports`          | `src/core.mjs`                            |
+| `core.request`          | `src/core.mjs`                            |
+| `core.response`         | `src/core.mjs`                            |
+| `inspect.kind`          | `src/index.mjs`                           |
+| `inspect.selector`      | `src/inspect.mjs`                         |
+| `load.fetch`            | `src/browser.mjs`                         |
+| `load.path`             | `src/node.mjs`                            |
+| `load.source`           | `src/index.mjs`                           |
+| `lock.image`            | `src/docker.mjs`                          |
+| `mount.environment`     | `src/browser.mjs`                         |
+| `view.bounds`           | `src/view.mjs`                            |
+| `view.entry`            | `src/view.mjs`                            |
+| `view.magic`            | `src/view.mjs`                            |
+| `view.order`            | `src/view.mjs`                            |
+| `view.version`          | `src/view.mjs`                            |
 
 ## Example
 

@@ -24,6 +24,7 @@ pub mod error;
 mod exporter;
 mod features;
 pub mod holo;
+mod input_lock;
 mod lean_project;
 mod library_build;
 mod library_verification;

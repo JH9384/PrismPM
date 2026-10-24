@@ -446,8 +446,21 @@ pub fn fetch_project_dependencies(root: &Path) -> Result<Vec<serde_json::Value>,
     Ok(records)
 }
 
-/// Parse either supported exact-major SDK lock; never coerce the legacy format.
+/// Parse any supported exact-major SDK lock as the SDK lock it binds; never
+/// coerce the legacy format. A `/3` input lock yields its exact `/2`
+/// projection, so every SDK reader keeps one set of platform rules.
 pub fn parse_lock(bytes: &[u8]) -> Result<CanonicalDocument, PrismError> {
+    let lock = parse_full_lock(bytes)?;
+    if lock.schema() == crate::input_lock::SDK_LOCK_V3 {
+        sdk_projection(&lock)
+    } else {
+        Ok(lock)
+    }
+}
+
+/// Parse a committed lock in full, including the `/3` pinned build inputs.
+/// A `/3` lock is admitted only when its `/2` projection is also admitted.
+pub(crate) fn parse_full_lock(bytes: &[u8]) -> Result<CanonicalDocument, PrismError> {
     if bytes.len() > SDK_CAPTURE_MAX_BYTES {
         return Err(PrismError::new(
             "PP7601",
@@ -459,9 +472,21 @@ pub fn parse_lock(bytes: &[u8]) -> Result<CanonicalDocument, PrismError> {
     let schema = match value["schema"].as_str() {
         Some("prismpm/sdk-lock/1") => "prismpm/sdk-lock/1",
         Some("prismpm/sdk-lock/2") => "prismpm/sdk-lock/2",
+        Some("prismpm/sdk-lock/3") => "prismpm/sdk-lock/3",
         _ => return Err(PrismError::new("PP5401", "unsupported SDK lock schema")),
     };
-    CanonicalDocument::parse(schema, bytes)
+    let lock = CanonicalDocument::parse(schema, bytes)?;
+    if lock.schema() == crate::input_lock::SDK_LOCK_V3 {
+        sdk_projection(&lock)?;
+    }
+    Ok(lock)
+}
+
+fn sdk_projection(lock: &CanonicalDocument) -> Result<CanonicalDocument, PrismError> {
+    CanonicalDocument::from_value(
+        crate::input_lock::SDK_LOCK_V2,
+        crate::input_lock::sdk_projection(lock.value()),
+    )
 }
 
 fn oci_field_casing(value: &serde_json::Value, names: &[&str]) -> bool {
@@ -1053,6 +1078,25 @@ pub(crate) fn execution_lock(root: &Path) -> Result<CanonicalDocument, PrismErro
     }
     let bytes = read_metadata(&root.join("prismpm.lock"), SDK_CAPTURE_MAX_BYTES, "PP7601")?;
     let lock = parse_lock(&bytes)?;
+    validate_execution_inventory(&lock)?;
+    Ok(lock)
+}
+
+/// The committed lock in full with its exact bytes, after the same execution
+/// checks as [`execution_lock`]; `None` only for a genuinely absent lock.
+pub(crate) fn committed_lock(
+    root: &Path,
+) -> Result<Option<(CanonicalDocument, Vec<u8>)>, PrismError> {
+    if !lock_is_present(root)? {
+        return Ok(None);
+    }
+    let bytes = read_metadata(&root.join("prismpm.lock"), SDK_CAPTURE_MAX_BYTES, "PP7601")?;
+    let lock = parse_full_lock(&bytes)?;
+    validate_execution_inventory(&parse_lock(&bytes)?)?;
+    Ok(Some((lock, bytes)))
+}
+
+fn validate_execution_inventory(lock: &CanonicalDocument) -> Result<(), PrismError> {
     if let Some(path) = inventory_path() {
         let architecture = match std::env::consts::ARCH {
             "x86_64" => "amd64",
@@ -1061,17 +1105,19 @@ pub(crate) fn execution_lock(root: &Path) -> Result<CanonicalDocument, PrismErro
         };
         let inventory = read_metadata(&path, SDK_INVENTORY_MAX_BYTES, "PP5401")?;
         validate_running_inventory(
-            &lock,
+            lock,
             &format!("{}/{architecture}", std::env::consts::OS),
             &inventory,
         )?;
     }
-    Ok(lock)
+    Ok(())
 }
 
-/// Verify and inspect the committed SDK lock without changing it.
+/// Verify and inspect the committed lock without changing it. A `/3` lock is
+/// printed in full, pinned build inputs included.
 pub fn inspect_lock(root: &Path) -> Result<serde_json::Value, PrismError> {
-    let lock = execution_lock(root)?;
+    let (lock, _) =
+        committed_lock(root)?.ok_or_else(|| PrismError::new("PP5401", "prismpm.lock is absent"))?;
     Ok(lock.value().clone())
 }
 
@@ -1094,7 +1140,9 @@ pub fn propose_lock_update(
                     .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
         })
         .ok_or_else(|| PrismError::new("PP5401", "standards-lock digest is malformed"))?;
-    let current = inspect_lock(root)?;
+    // A `/3` lock proposes against its `/2` projection; after adoption the
+    // next `prismpm build --update` pins the inputs again.
+    let current = execution_lock(root)?.value().clone();
     if current["schema"] == "prismpm/sdk-lock/2" {
         let proposed = capture_platform_update(sdk_image, standards_lock)?;
         return platform_update_proposal(&current, proposed.value());

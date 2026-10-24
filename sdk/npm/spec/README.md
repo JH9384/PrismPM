@@ -45,10 +45,11 @@ That change is RT-01, [#276](https://github.com/UOR-Foundation/PrismPM/issues/27
 | `types/holo.d.ts` | The binary layouts: header, section table, application manifest, extensions, content blobs, HOLOVIEW, the guest exports. |
 | `types/documents.d.ts` | Generated from the JSON Schemas below. Do not edit. |
 | `types/attestation.d.ts` | in-toto Statement v1, `PrismDigestSet`, blob and OCI manifest subjects, and the DSSE envelope. |
+| `types/attestation-bundle.d.ts` | The holo attestation section (#267): Sigstore bundle v0.3, verification material, in-holo statements, the OCI referrer layout. |
 | `types/predicates.d.ts` | `PredicateMap` and the registry types. |
 | `schemas/holo/` | The decoded header and table, application manifest, source manifest and application directory. |
-| `schemas/documents/` | `prismpm/model-document/1` to `/6`, `prismpm/sdk-lock/1` and `/2`, `prismpm/model-provenance/1`, `prismpm/build-manifest/1`, `prismpm/browser-provenance/1`. |
-| `schemas/attestation/` | in-toto Statement v1 and the DSSE envelope. |
+| `schemas/documents/` | `prismpm/model-document/1` to `/6`, `prismpm/sdk-lock/1` to `/3`, `prismpm/model-provenance/1`, `prismpm/build-manifest/1`, `prismpm/browser-provenance/1`. |
+| `schemas/attestation/` | in-toto Statement v1, the DSSE envelope and the Sigstore bundle of the attestation section. |
 | `predicates/` | The registry, its schema, and one `.d.ts` and one `.schema.json` per predicate. |
 | `worlds/core-wasm.wit` | The Core-Wasm guest contract `hologram:guest/core-wasm@1`. |
 
@@ -87,12 +88,13 @@ import type { ModelDocument, Statement, DsseEnvelope } from '@prism-code/spec';
 
 | Predicate type | Status | Owner |
 | --- | --- | --- |
-| `https://uor.foundation/prism/proof/v1` | placeholder | [#266](https://github.com/UOR-Foundation/PrismPM/issues/266) |
+| `https://uor.foundation/prism/proof/v1` | experimental: `ProofPredicateV1`, `predicates/proof-v1.schema.json` | [#266](https://github.com/UOR-Foundation/PrismPM/issues/266) |
 | `https://uor.foundation/prism/replay/v1` | placeholder | M3 |
 
 Each predicate owns `predicates/<name>-v<N>.d.ts` and `predicates/<name>-v<N>.schema.json`.
-Today `proof-v1.d.ts` and `replay-v1.d.ts` hold `unknown`, and no predicate schema exists yet.
-#266 reserved `predicates/proof-v1.schema.json`, with `$id` `https://uor.foundation/prism/proof/v1/schema.json`.
+The proof predicate is defined: its schema has `$id` `https://uor.foundation/prism/proof/v1/schema.json`, and `ProofStatementV1` is a statement with exactly one subject, the guest blob.
+Its design is [docs/proposals/266-proof-predicate.md](../../../docs/proposals/266-proof-predicate.md), and `test/fixtures/proof/calculator.statement.json` is its calculator example.
+`replay-v1.d.ts` still holds `unknown`.
 To define a predicate, add its schema, fill its type, then set `schema` and `status` in its registry row.
 The type files are `.d.ts`, not `.ts`, because the package has no build step.
 

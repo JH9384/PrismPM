@@ -35,6 +35,8 @@ export interface Application {
   view: View;
   dispatch(request: Uint8Array | ArrayBuffer): Promise<Uint8Array>;
   acceptance(): Promise<AcceptanceResult>;
+  inspect(): Promise<Inspection>;
+  attestations(): Attestation[];
 }
 ```
 

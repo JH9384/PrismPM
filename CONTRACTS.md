@@ -34,6 +34,7 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `prismpm/validation-result/1` | `schemas/validation-result.schema.json` | `application/vnd.prismpm.validation-result.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
 | `prismpm/oracle-validation-attestation/1` | `schemas/oracle-validation-attestation.schema.json` | `application/vnd.prismpm.oracle-validation-attestation.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
 | `prismpm/sdk-lock/2` | `schemas/sdk-lock-v2.schema.json` | `application/vnd.prismpm.sdk-lock.v2+json` | 67108864 bytes / 65536 items | `closed`; `exact-major` |
+| `prismpm/sdk-lock/3` | `schemas/sdk-lock-v3.schema.json` | `application/vnd.prismpm.sdk-lock.v3+json` | 67108864 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/sdk-lock/1` | `schemas/sdk-lock.schema.json` | `application/vnd.prismpm.sdk-lock.v1+json` | 4194304 bytes / 8192 items | `closed`; `exact-major` |
 | `prismpm/product-release/1` | `schemas/product-release.schema.json` | `application/vnd.prismpm.product.release.v1+json` | 16777216 bytes / 65536 items | `closed`; `exact-major-additive-minor` |
 | `prismpm/product-release-result/1` | `schemas/product-release-result.schema.json` | `application/vnd.prismpm.product.release-result.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major-additive-minor` |
@@ -89,7 +90,7 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `finalize-contract` | `authorized-target-data-contract` | `true` | `prismpm/deployment-evidence/1` |
 | `inspect` | `never` | `true` | `prismpm/inspect-result/1` |
 | `lock` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock-update/2` |
-| `lock check` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock/1`, `prismpm/sdk-lock/2` |
+| `lock check` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock/1`, `prismpm/sdk-lock/2`, `prismpm/sdk-lock/3` |
 | `lock migrate` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock-migration/1` |
 | `lock update` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock-update/1`, `prismpm/sdk-lock-update/2` |
 | `plan` | `local-evidence` | `true` | `prismpm/deployment-plan/1` |

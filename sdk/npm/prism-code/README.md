@@ -142,6 +142,47 @@ inspection.sections[4].content.digest;     // { sha256, blake3 } of the guest
 A closure directory has no section table. `inspect` on a closure prints the
 0.2.0 summary of identities, limits, provenance and view files as JSON.
 
+## Verify one (experimental)
+
+`experimental_verify(holo, options)` and `app.experimental_verify(options)` return the same
+`prism/verdict/1` that `prism check` and `@prism-code/verify` return, from the holo
+alone, offline. The checks are `@prism-code/verify`'s, vendored as one file, so
+the package still has no dependencies. The level is computed from the evidence in
+the holo and no option raises it: a holo with no attestation bundle is `P0`, and
+the default policy (`P2`) fails it.
+
+```js
+import { load, experimental_verify, VerificationError } from 'prism-code';
+
+const app = await load('Calculator.holo');
+const verdict = await app.experimental_verify({ minimum: 'P0' });
+verdict.level;    // 'P0'
+verdict.passed;   // true
+
+try {
+  await experimental_verify(bytes, { throw: true });
+} catch (error) {
+  if (error instanceof VerificationError) error.check; // 'provenance.statement'
+}
+```
+
+Options are `name`, `minimum` (`P0` to `P3`), `digests` and `throw`. The minimum
+defaults to the `PRISM_MINIMUM_LEVEL` environment variable; `experimental_createClient(options)`
+holds options for many calls; the options of one call replace the client's, and
+the client's replace the environment's. A holo that fails a check is a verdict, and
+with `throw: true` it is thrown as the typed error that explains it. A file with
+no verdict (not a holo, an unknown format revision, an invalid option) always
+throws.
+
+Every error is a `PrismError` with a stable `code`: `VerificationError`
+(`verification_failed`; `holo.*`, `provenance.*`, `policy.*` and no verdict),
+`ProofMismatchError` (`proof_mismatch`; `proof.*`), `CapabilityDeniedError`
+(`capability_denied`; `world.capabilities`), `DeterminismViolationError`
+(`determinism_violation`; `replay.divergence`) and `ReplayError` (`replay_failed`; other
+`replay.*`). `check` is the verdict reason's check id, `diagnostic` its registered
+code, `verdict` and `reasons` the whole result. Load and archive failures remain
+`PrismCodeError`, a `PrismError` whose `code` is the check (`archive.magic`, ...).
+
 ## Build one
 
 `check`, `build`, `verify` and `conformance` run `prismpm` inside the

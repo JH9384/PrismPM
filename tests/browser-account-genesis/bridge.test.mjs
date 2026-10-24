@@ -81,7 +81,7 @@ test('canonical binding data cannot substitute for an actual unmutated model con
     model_closure_sha256:sha(Buffer.from(JSON.stringify({Fixture:sourceDigest}))),
     package_sha256:sha(Buffer.from(JSON.stringify(packages['account-genesis-a'])))};
   const manifest = Buffer.from(JSON.stringify({source_id:binding.model_source_id,build_id:'fixture'}));
-  const attestation = Buffer.from(JSON.stringify({spec:'lexlean/attestation/1',status:'verified',
+  const attestation = Buffer.from(JSON.stringify({spec:'lexlean/attestation/2',status:'verified',
     source_id:binding.model_source_id,build_id:'fixture',build_manifest:{sha256:sha(manifest)}}));
   const originals = new Map([
     ['browser/account-genesis-binding.mjs',Buffer.from(renderAccountGenesisBinding(binding))],

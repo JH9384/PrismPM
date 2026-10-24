@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createPrivateDriverTarget, ensureProdExport, run, sha} from '../browser-view/compile.mjs';
+import {lexiconInputPaths} from '../browser-view/lexicon-inputs.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
@@ -48,6 +49,7 @@ export function frozenInputs() {
   // In particular, the independent session corpus imports the effect corpus.
   const modules = localModuleInputs(repository, [...files].filter(path => path.endsWith('.mjs')), read);
   for (const path of modules.keys()) files.add(path);
+  for (const path of lexiconInputPaths(repository)) files.add(path);
   const dependencies = read('model/dependencies.toml').toString('utf8').split('[[dependency.artifact]]').slice(1);
   for (const tree of ['vendor/lexlean', 'vendor/lean4-prod/rust']) {
     const path = tree + '/MANIFEST.sha256', manifest = read(path);
@@ -108,6 +110,7 @@ export function prepareFrames(mutationId = null, expectedInputs = null) {
       .replace('name = "library-probe"', 'name = "session-recovery-frames-conformance"')
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
       .replace('src/Probe.lex.tex', 'src/' + frames.replaceAll('.', '/') + '.lex.tex'));
+    for (const path of lexiconInputPaths(repository)) stage('project/' + path, captured(path));
     stage('project/lean-toolchain', captured('lean-toolchain'));
     stage('project/lakefile.toml', 'name = "session_journal_conformance"\nversion = "0.1.0"\n');
     run('lake', ['update'], project);

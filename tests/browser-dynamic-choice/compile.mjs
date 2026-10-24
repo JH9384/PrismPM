@@ -6,6 +6,7 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {createPrivateDriverTarget, ensureProdExport, run, sha} from '../browser-view/compile.mjs';
+import {lexiconInputPaths} from '../browser-view/lexicon-inputs.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {captureGeneratedWasm} from '../browser-view/generated-wasm.mjs';
@@ -26,6 +27,7 @@ const modulePath = name => (name === 'Fixture' ? 'tests/browser-dynamic-choice' 
 export function frozenInputs() {
   pins();
   const files = new Set([...modules.map(modulePath),
+    ...lexiconInputPaths(repository),
     ...['compile.mjs', 'checks.mjs', 'corpus.mjs', 'maximum-fixtures.mjs', 'mutations.mjs',
       'browser.mjs', 'wire.test.mjs', 'component.test.mjs', 'driver/Cargo.toml', 'driver/Cargo.lock',
       'driver/src/main.rs', 'runner.rs'].map(path => 'tests/browser-dynamic-choice/' + path),
@@ -151,6 +153,10 @@ function prepareStage(mutation, sourceOnly, baseline, inputs) {
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
       .replace('src/Probe.lex.tex', 'src/Fixture.lex.tex');
     writeFileSync(join(project, 'lexlean.toml'), base, {flag: 'wx'});
+    for (const path of lexiconInputPaths(repository)) {
+      const destination = join(project, path);
+      mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, capturedInput(path, inputs), {flag: 'wx'});
+    }
     writeFileSync(join(project, 'lakefile.toml'), 'name = "presentation_conformance"\nversion = "0.1.0"\n', {flag: 'wx'});
     writeFileSync(join(project, 'lean-toolchain'), capturedInput('lean-toolchain', inputs), {flag: 'wx'});
     writeFileSync(join(work, 'rust-toolchain.toml'), capturedInput('rust-toolchain.toml', inputs), {flag: 'wx'});

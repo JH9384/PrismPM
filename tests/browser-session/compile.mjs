@@ -14,6 +14,7 @@ import {provenanceProfile} from '../browser-presentation/provenance.mjs';
 import {createSessionProductRetention} from '../browser-view/workspace-products.mjs';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {run, sha} from '../browser-view/compile.mjs';
+import {lexiconInputPaths} from '../browser-view/lexicon-inputs.mjs';
 export {run, sha};
 export const draft = dirname(fileURLToPath(import.meta.url));
 export const repository = resolve(draft, '../..');
@@ -46,6 +47,7 @@ function assertCapturedNames(captured) {
 export function frozenInputs() {
   const files = new Set([
     ...modules.map(modulePath),
+    ...lexiconInputPaths(repository),
     ...['checks.mjs','compile.mjs','corpus.mjs','maxima.mjs','maximum-runner.mjs','mutations.mjs','size-corpus.mjs',
       'wire.mjs','wire.test.mjs','provenance.test.mjs','budget.mjs','runner.rs','driver/Cargo.toml','driver/Cargo.lock','driver/src/main.rs'].map(path=>'tests/browser-session/'+path),
     'sdk/browser/session-model-test.mjs','sdk/browser/identity.mjs','sdk/browser/effects-wire.mjs','sdk/browser/effects-module.mjs','sdk/browser/presentation-wire.mjs',
@@ -190,6 +192,7 @@ export function prepare(mutation = null, baseline = null, inputs = frozenInputs(
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
       .replace('src/Probe.lex.tex', 'src/Fixture.lex.tex');
     stage('project/lexlean.toml',base);
+    for (const path of lexiconInputPaths(repository)) stage('project/' + path, capturedInput(path, inputs));
     stage('project/lakefile.toml','name = "session_conformance"\nversion = "0.1.0"\n');
     stage('project/lean-toolchain',capturedInput('lean-toolchain',inputs));
     stage('rust-toolchain.toml',capturedInput('rust-toolchain.toml',inputs));

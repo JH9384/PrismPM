@@ -6,6 +6,7 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {run, sha} from '../browser-view/compile.mjs';
+import {lexiconInputPaths} from '../browser-view/lexicon-inputs.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 import {compilerInputPaths, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 export {run, sha};
@@ -18,6 +19,7 @@ export function frozenInputs() {
   pins();
   const files = new Set([
     ...modules.map(modulePath),
+    ...lexiconInputPaths(repository),
     ...['checks.mjs','corpus.mjs','compile.mjs','fallback-owner.test.mjs','runner.rs','driver/Cargo.toml','driver/Cargo.lock','driver/src/main.rs'].map(path=>'tests/browser-budget/'+path),
     'sdk/browser/budget-model-test.mjs','sdk/browser/effects-module.mjs','sdk/browser/effects-wire.mjs','sdk/browser/identity.mjs',
     'crates/prismpm/src/holo/browser_application.rs',
@@ -143,6 +145,10 @@ export function prepare(mutation, inputs, compilerOwner = null) {
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
       .replace('src/Probe.lex.tex', 'src/Fixture.lex.tex');
     writeFileSync(join(project, 'lexlean.toml'), base, {flag: 'wx'});
+    for (const path of lexiconInputPaths(repository)) {
+      const bytes = readFileSync(join(repository, path)); assert.equal(sha(bytes), inputs[path], 'frozen lexicon ' + path);
+      mkdirSync(dirname(join(project, path)), {recursive: true}); writeFileSync(join(project, path), bytes, {flag: 'wx'});
+    }
     writeFileSync(join(project, 'lakefile.toml'), 'name = "budget_conformance"\nversion = "0.1.0"\n', {flag: 'wx'});
     copyFileSync(join(repository, 'lean-toolchain'), join(project, 'lean-toolchain'));
     copyFileSync(join(repository, 'rust-toolchain.toml'), join(work, 'rust-toolchain.toml'));

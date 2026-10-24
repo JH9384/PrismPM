@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {run, sha} from '../browser-view/compile.mjs';
+import {lexiconInputPaths} from '../browser-view/lexicon-inputs.mjs';
 import {compilerInputPaths, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
@@ -56,6 +57,7 @@ export function frozenInputs() {
   }
   const capturedModules = localModuleInputs(repository, [...files].filter(path => path.endsWith('.mjs')), read);
   for (const path of capturedModules.keys()) files.add(path);
+  for (const path of lexiconInputPaths(repository)) files.add(path);
   const dependencies = read('model/dependencies.toml').toString('utf8').split('[[dependency.artifact]]').slice(1);
   for (const tree of ['vendor/lexlean', 'vendor/lean4-prod/rust']) {
     const path = tree + '/MANIFEST.sha256', manifest = read(path);
@@ -126,6 +128,7 @@ export function prepareSignedContext(compilerOwner, mutationId = null, expectedI
       .replace('name = "library-probe"', 'name = "signed-context-conformance"')
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
       .replace('src/Probe.lex.tex', 'src/' + projection.replaceAll('.', '/') + '.lex.tex'));
+    for (const path of lexiconInputPaths(repository)) stage('project/' + path, captured(path));
     stage('project/lean-toolchain', captured('lean-toolchain'));
     stage('project/lakefile.toml', 'name = "signed_context_conformance"\nversion = "0.1.0"\n');
     run('lake', ['update'], project);

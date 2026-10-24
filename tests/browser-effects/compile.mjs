@@ -6,6 +6,7 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Reuse the existing pinned-toolchain, override-refusing process boundary.
 import {createPrivateDriverTarget, ensureProdExport, run, sha} from '../browser-view/compile.mjs';
+import {lexiconInputPaths} from '../browser-view/lexicon-inputs.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
 import {requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 export {ensureProdExport, run, sha};
@@ -118,6 +119,10 @@ export function prepare(mutation = null, compilerOwner = null) {
       .replace('module_prefix = "LibraryProbe"', 'module_prefix = "PrismPM"')
       .replace('src/Probe.lex.tex', 'src/Fixture.lex.tex');
     writeFileSync(join(project, 'lexlean.toml'), base, {flag: 'wx'});
+    for (const path of lexiconInputPaths(repository)) {
+      const destination = join(project, path);
+      mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, readFileSync(join(repository, path)), {flag: 'wx'});
+    }
     writeFileSync(join(project, 'lakefile.toml'), 'name = "effects_conformance"\nversion = "0.1.0"\n', {flag: 'wx'});
     copyFileSync(join(repository, 'lean-toolchain'), join(project, 'lean-toolchain'));
     copyFileSync(join(repository, 'rust-toolchain.toml'), join(work, 'rust-toolchain.toml'));

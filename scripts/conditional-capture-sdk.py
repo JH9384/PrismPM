@@ -102,7 +102,8 @@ def read_regular(path, limit=MAX_FILE, *, immutable_image_links=False):
     links = before.st_nlink == 1 or (immutable_image_links and before.st_nlink >= 1
                                     and not before.st_mode & 0o222)
     require(stat.S_ISREG(before.st_mode) and links and before.st_size <= limit,
-            "bounded singly linked regular input required: " + str(path))
+            "bounded singly linked regular input required: " + str(path) + " (links "
+            + str(before.st_nlink) + ", bytes " + str(before.st_size) + ", limit " + str(limit) + ")")
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
     try:
         require(identity(os.fstat(fd)) == identity(before), "input changed before open")

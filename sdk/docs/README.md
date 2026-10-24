@@ -58,9 +58,10 @@ An example that exits non-zero fails the pages that show it.
 | `dispatch.mjs` | api/dispatch | same |
 | `acceptance.mjs` | api/history-and-replay | same |
 | `three-calls.mjs` | api/index | same |
+| `verify.mjs` | api/verify | `prism-code` source, `Calculator.holo` |
 | `spec-constants.mjs` | api/spec-package | the spec in this checkout |
 
-Pages whose example cannot run yet (`inspect`, `verify`, `instantiate`, `as-tool`, the typed errors, the manifest, the verify and testing packages) carry one generated status line from `pages.json` and the relevant declarations.
+Pages whose example cannot run yet (`inspect`, `instantiate`, `as-tool`, the manifest, the verify and testing packages) carry one generated status line from `pages.json` and the relevant declarations.
 No prose stands in for a missing example.
 
 ## Page shape

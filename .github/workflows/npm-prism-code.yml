@@ -11,12 +11,15 @@ on:
       - sdk/npm/prism-code/**
       # test/inspect.test.mjs checks its format revision table against the spec's.
       - sdk/npm/spec/constants.mjs
+      # src/vendor/verify.mjs is a copy of this file; test/verify.test.mjs checks it.
+      - sdk/npm/verify/browser.js
       - .github/workflows/npm-prism-code.yml
   push:
     branches: [main]
     paths:
       - sdk/npm/prism-code/**
       - sdk/npm/spec/constants.mjs
+      - sdk/npm/verify/browser.js
       - .github/workflows/npm-prism-code.yml
     tags:
       - prism-code-v*
@@ -63,7 +66,8 @@ jobs:
           npm pack --dry-run --json > pack.json
           size=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("pack.json","utf8"))[0].unpackedSize)')
           echo "unpacked size: $size bytes"
-          test "$size" -le 153600
+          # 300 KiB, the cap of @prism-code/verify: src/vendor/verify.mjs is its single-file build, vendored so holo.verify() has no dependency.
+          test "$size" -le 307200
           rm pack.json
       - name: The entry points import cleanly
         shell: bash

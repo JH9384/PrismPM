@@ -76,14 +76,21 @@ export function inspect({ runtime, spec, page }) {
   return { parts, sources: [runtime.source(), spec.source()] };
 }
 
-export function verify({ spec, page }) {
-  const holo = spec.text('types/holo.d.ts');
-  const parts = [paragraph(`Source: ${code(spec.name)} ${spec.module.FORMAT_REVISION}, ${code('types/holo.d.ts')}.`)];
-  parts.push(heading(2, 'Example'));
+export function verify({ runtime, examples, page }) {
+  const parts = [runtimeSource(runtime)];
   parts.push(status(page.status));
-  parts.push(heading(2, 'What a reader declares'));
-  parts.push(fence('ts', [declaration(holo, 'FormatRevision'), declaration(holo, 'RevisionSupport'), declaration(holo, 'FormatRevisionIdentifiers')].join('\n\n')));
-  return { parts, sources: [spec.source()] };
+  parts.push(
+    ...signature(
+      declaration(runtime.types, 'experimental_verify'),
+      member(runtime.types, 'Application', 'experimental_verify'),
+      declaration(runtime.types, 'VerifyOptions'),
+      declaration(runtime.types, 'experimental_createClient'),
+    ),
+  );
+  parts.push(heading(2, 'Returns'));
+  parts.push(fence('ts', [declaration(runtime.types, 'Verdict'), declaration(runtime.types, 'VerdictReason')].join('\n\n')));
+  parts.push(...example(examples.verify));
+  return { parts, sources: [runtime.source(), runtime.fixtureSource()] };
 }
 
 export function instantiate({ spec, page }) {
@@ -105,13 +112,28 @@ export function asTool({ runtime, page }) {
   return { parts, sources: [runtime.source()] };
 }
 
+/** Each error class and the verdict checks that map to it. The code of a class is read from its declaration. */
+const CLASSES = [
+  ['VerificationError', '`holo.*`, `provenance.*`, `policy.*`, and no verdict reached'],
+  ['ProofMismatchError', '`proof.*`'],
+  ['CapabilityDeniedError', '`world.capabilities`'],
+  ['DeterminismViolationError', '`replay.divergence`'],
+  ['ReplayError', 'every other `replay.*`'],
+];
+
 export function apiErrors({ runtime, page }) {
   const parts = [runtimeSource(runtime)];
-  parts.push(...signature(declaration(runtime.types, 'PrismCodeError')));
-  parts.push(heading(2, 'Codes'));
-  parts.push(table(['Code', 'Raised in'], runtime.errorCodes.map((e) => [code(e.code), e.files.map((f) => code(`src/${f}`)).join(', ')])));
-  parts.push(heading(2, 'Example'));
   parts.push(status(page.status));
+  parts.push(...signature(declaration(runtime.types, 'PrismError'), declaration(runtime.types, 'PrismCodeError'), ...CLASSES.map(([name]) => declaration(runtime.types, name))));
+  parts.push(heading(2, 'Classes'));
+  parts.push(
+    table(
+      ['Class', 'Code', 'Verdict checks'],
+      CLASSES.map(([name, checks]) => [code(name), code(/code: '([a-z_]+)'/.exec(declaration(runtime.types, name))[1]), checks]),
+    ),
+  );
+  parts.push(heading(2, 'Codes of load and archive failures'));
+  parts.push(table(['Code', 'Raised in'], runtime.errorCodes.map((e) => [code(e.code), e.files.map((f) => code(`src/${f}`)).join(', ')])));
   return { parts, sources: [runtime.source()] };
 }
 

@@ -8,6 +8,7 @@ import {verifyCompilerOwnerSubstitutions} from '../browser-view/compiler-owner-c
 import {captureVerificationProducts} from '../browser-view/verification-products.mjs';
 import {corpus, historyCorpus, maximumCorpus, partitionCorpus} from './corpus.mjs';
 import {prerequisite} from '../browser-view/prerequisites.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 import {executeWasm, tsv} from '../browser-effects/checks.mjs';
 import {verifyBrowser, verifyHostMutations} from './browser.mjs';
 
@@ -78,7 +79,8 @@ export function sourceClosure() {
     'tests/fixtures/library/native-library/project/lexlean.toml',
     'model/dependencies.toml', 'model/authorities.toml', 'model/browser-operation-journal-diagnostics.json',
     'model/browser-custody-diagnostics.json', 'lean-toolchain', 'rust-toolchain.toml',
-    'vendor/lean4-prod/lean.tar', 'vendor/lean4-prod/rust/MANIFEST.sha256', 'vendor/lexlean/MANIFEST.sha256'];
+    'vendor/lean4-prod/lean.tar', 'vendor/lean4-prod/rust/MANIFEST.sha256', 'vendor/lexlean/MANIFEST.sha256',
+    ...lexiconPaths(repository)];
   for (const family of ['browser-custody', 'browser-effects']) {
     for (const file of ['driver/Cargo.toml', 'driver/Cargo.lock', 'driver/src/main.rs', 'runner.rs', 'src/Fixture.lex.tex'])
       shared.push('tests/' + family + '/' + file);

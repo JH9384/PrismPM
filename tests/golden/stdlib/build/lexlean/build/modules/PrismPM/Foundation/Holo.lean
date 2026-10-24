@@ -179,6 +179,74 @@ public theorem standardsProfile_sound_complete (profile : StandardsProfile) : ((
   change (((Nat.beq ((profile).architectureEdition) (2022) && (Nat.beq ((profile).applicationSecurityEdition) (2011) && (Nat.beq ((profile).controlEdition) (2017) && (Nat.beq ((profile).riskEdition) (2022) && Nat.beq ((profile).qualityEdition) (2023)))))) = true) ↔ (((profile).architectureEdition = 2022) /\ (((profile).applicationSecurityEdition = 2011) /\ (((profile).controlEdition = 2017) /\ (((profile).riskEdition = 2022) /\ ((profile).qualityEdition = 2023)))))
   exact Iff.trans (llAndBridge _ _) (and_congr (llBeqBridge _ _) (Iff.trans (llAndBridge _ _) (and_congr (llBeqBridge _ _) (Iff.trans (llAndBridge _ _) (and_congr (llBeqBridge _ _) (Iff.trans (llAndBridge _ _) (and_congr (llBeqBridge _ _) (llBeqBridge _ _))))))))
 
+public structure NormalizedFeatures where
+  stakeholderCount : Nat
+  featureCount : Nat
+  callCounts : List (Nat)
+  acceptanceCounts : List (Nat)
+  journeyActors : List (Nat)
+  journeySteps : List (Nat)
+
+@[expose] public def natListLength : (values : List (Nat)) -> Nat
+  | List.nil => 0
+  | List.cons _ rest => (natListLength (rest) + 1)
+
+@[expose] public def allPositive : (values : List (Nat)) -> Bool
+  | List.nil => true
+  | List.cons value rest => ((Nat.blt (0) (value)) && allPositive (rest))
+
+@[expose] public def validateFeatureCalls (callCounts : List (Nat)) : Bool := allPositive (callCounts)
+
+@[expose] public def validateFeatureAcceptance (acceptanceCounts : List (Nat)) : Bool := allPositive (acceptanceCounts)
+
+@[expose] public def validateJourneyActors (stakeholderCount : Nat) (actors : List (Nat)) : Bool := allBelow (stakeholderCount) (actors)
+
+@[expose] public def validateJourneySteps (featureCount : Nat) (steps : List (Nat)) : Bool := allBelow (featureCount) (steps)
+
+@[expose] public def validateNormalizedFeatures (model : NormalizedFeatures) : Bool := ((Nat.beq (natListLength ((model).callCounts)) ((model).featureCount)) && ((Nat.beq (natListLength ((model).acceptanceCounts)) ((model).featureCount)) && (validateFeatureCalls ((model).callCounts) && (validateFeatureAcceptance ((model).acceptanceCounts) && (validateJourneyActors ((model).stakeholderCount) ((model).journeyActors) && validateJourneySteps ((model).featureCount) ((model).journeySteps))))))
+
+@[expose, reducible] public def featureCallsValid (callCounts : List (Nat)) : Prop := (validateFeatureCalls (callCounts) = true)
+
+@[expose, reducible] public def featureAcceptanceValid (acceptanceCounts : List (Nat)) : Prop := (validateFeatureAcceptance (acceptanceCounts) = true)
+
+@[expose, reducible] public def journeyActorsValid (stakeholderCount : Nat) (actors : List (Nat)) : Prop := allBelowProp (stakeholderCount) (actors)
+
+@[expose, reducible] public def journeyStepsValid (featureCount : Nat) (steps : List (Nat)) : Prop := allBelowProp (featureCount) (steps)
+
+@[expose, reducible] public def normalizedFeaturesValid (model : NormalizedFeatures) : Prop := (validateNormalizedFeatures (model) = true)
+
+public theorem featureCalls_sound_complete (callCounts : List (Nat)) : ((validateFeatureCalls (callCounts) = true) <-> featureCallsValid (callCounts)) := by
+  rfl
+
+public theorem featureAcceptance_sound_complete (acceptanceCounts : List (Nat)) : ((validateFeatureAcceptance (acceptanceCounts) = true) <-> featureAcceptanceValid (acceptanceCounts)) := by
+  rfl
+
+public theorem journeyActors_sound_complete (stakeholderCount : Nat) (actors : List (Nat)) : ((validateJourneyActors (stakeholderCount) (actors) = true) <-> journeyActorsValid (stakeholderCount) (actors)) := by
+  exact allBelow_sound_complete (stakeholderCount) (actors)
+
+public theorem journeySteps_sound_complete (featureCount : Nat) (steps : List (Nat)) : ((validateJourneySteps (featureCount) (steps) = true) <-> journeyStepsValid (featureCount) (steps)) := by
+  exact allBelow_sound_complete (featureCount) (steps)
+
+public theorem normalizedFeatures_sound_complete (model : NormalizedFeatures) : ((validateNormalizedFeatures (model) = true) <-> normalizedFeaturesValid (model)) := by
+  rfl
+
+@[expose] public def featureVector (callCounts : List (Nat)) (acceptanceCounts : List (Nat)) (actors : List (Nat)) (steps : List (Nat)) : NormalizedFeatures := ({ stakeholderCount := 2, featureCount := 2, callCounts := callCounts, acceptanceCounts := acceptanceCounts, journeyActors := actors, journeySteps := steps } : NormalizedFeatures)
+
+public theorem featureVectorAccepted : (validateNormalizedFeatures (featureVector ((1 :: (2 :: ([] : List (Nat))))) ((1 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: (1 :: ([] : List (Nat))))))) = true) := by
+  decide
+
+public theorem featureWithoutCallRefused : (validateNormalizedFeatures (featureVector ((1 :: (0 :: ([] : List (Nat))))) ((1 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: (1 :: ([] : List (Nat))))))) = false) := by
+  decide
+
+public theorem featureWithoutAcceptanceRefused : (validateNormalizedFeatures (featureVector ((1 :: (2 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: (1 :: ([] : List (Nat))))))) = false) := by
+  decide
+
+public theorem journeyStepUndeclaredFeatureRefused : (validateNormalizedFeatures (featureVector ((1 :: (2 :: ([] : List (Nat))))) ((1 :: (1 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((0 :: (2 :: ([] : List (Nat)))))) = false) := by
+  decide
+
+public theorem journeyActorNotStakeholderRefused : (validateNormalizedFeatures (featureVector ((1 :: (2 :: ([] : List (Nat))))) ((1 :: (1 :: ([] : List (Nat))))) ((0 :: (2 :: ([] : List (Nat))))) ((0 :: (1 :: (1 :: ([] : List (Nat))))))) = false) := by
+  decide
+
 @[expose] public def canonicalIndexes : (expected : Nat) -> (count : Nat) -> List (Nat)
   | _expected, Nat.zero => ([] : List (Nat))
   | expected, Nat.succ rest => (expected :: canonicalIndexes ((expected + 1)) (rest))

@@ -1,0 +1,14 @@
+spec = "prismpm/test-case/1"
+command = "check"
+expected_exit = 1
+normalization = "canonical-json"
+capabilities = ["FT-13"]
+expected_artifacts = []
+
+[[expected_diagnostics]]
+code = "PP2018"
+message = "feature LexLeanMcp::featureB names call LexLeanMcp::callTwo, which no declaration defines"
+primary = "none"
+labels = []
+notes = []
+help = []

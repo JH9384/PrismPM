@@ -1,0 +1,14 @@
+spec = "prismpm/test-case/1"
+command = "check"
+expected_exit = 1
+normalization = "canonical-json"
+capabilities = ["FT-13"]
+expected_artifacts = []
+
+[[expected_diagnostics]]
+code = "PP2015"
+message = "feature LexLeanMcp::featureB is accepted by no acceptance row"
+primary = "none"
+labels = []
+notes = []
+help = []

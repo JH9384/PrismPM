@@ -12,6 +12,9 @@ function kindName(spec, codeValue) {
   return entry[0];
 }
 
+/** The pinned trust a verifier checks log entries and timestamps against. Found by path: attestation schemas are not in the generated registry. */
+const TRUSTED_ROOT_SCHEMA = 'schemas/attestation/trusted-root.schema.json';
+
 function schemaSource(spec, rel) {
   const schema = spec.json(rel);
   return paragraph(`Schema: ${code(schema.$id)}, file ${code(rel)}.`);
@@ -163,6 +166,25 @@ export function attestations({ spec, page }) {
   parts.push(paragraph(`The bundle wraps each statement in an envelope whose payload type is ${code(m.ATTESTATION.DSSE_PAYLOAD_TYPE)}.`));
   parts.push(schemaSource(spec, m.ATTESTATION.ENVELOPE_SCHEMA));
   parts.push(table(HEADER, tableRows(envelope)));
+
+  const bundle = spec.json(m.ATTESTATION_BUNDLE.SCHEMA);
+  const trustedRoot = spec.json(TRUSTED_ROOT_SCHEMA);
+  parts.push(heading(2, 'Transparency log entries and signed timestamps'));
+  parts.push(
+    paragraph(
+      'A keyless signature is checkable only at the time it was made, so a bundle carries two independent witnesses of that time: log entries with an inclusion proof, and signed timestamps. Both sit in the verification material of the bundle. A verifier checks them offline against a trusted root that it pins; the bundle never supplies its own.',
+    ),
+  );
+  parts.push(schemaSource(spec, m.ATTESTATION_BUNDLE.SCHEMA));
+  parts.push(heading(3, 'TransparencyLogEntry'));
+  parts.push(table(HEADER, defRows(bundle, 'TransparencyLogEntry')));
+  parts.push(heading(3, 'Trusted root'));
+  parts.push(schemaSource(spec, TRUSTED_ROOT_SCHEMA));
+  parts.push(table(HEADER, tableRows(trustedRoot)));
+  for (const name of ['TransparencyLog', 'Authority', 'ValidFor']) {
+    parts.push(heading(4, name));
+    parts.push(table(HEADER, defRows(trustedRoot, name)));
+  }
 
   parts.push(heading(2, 'Predicate types'));
   parts.push(

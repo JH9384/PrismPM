@@ -31,7 +31,7 @@
       "pattern": "^(0|[1-9][0-9]{0,18})$"
     },
     "VerificationMaterial": {
-      "description": "Exactly one of a leaf certificate (keyless) or a public key hint, plus transparency log entries and RFC 3161 timestamps. Which identities to trust is verifier policy (#272, #273), not part of the bundle.",
+      "description": "Exactly one of a leaf certificate (keyless) or a public key hint, plus transparency log entries and RFC 3161 timestamps. Which identities to trust is verifier policy (#272, #273), not part of the bundle. How entries and timestamps are checked against a pinned trusted root is docs/proposals/275-transparency-log.md.",
       "type": "object",
       "additionalProperties": false,
       "oneOf": [
@@ -105,7 +105,6 @@
         "logIndex",
         "logId",
         "kindVersion",
-        "integratedTime",
         "canonicalizedBody"
       ],
       "properties": {
@@ -143,6 +142,7 @@
           }
         },
         "integratedTime": {
+          "description": "Seconds since the epoch the log says it added the entry. Rekor v2 omits it (protobuf JSON drops a zero), so the signed timestamps are the clock; a Rekor v1 entry carries it.",
           "$ref": "#/$defs/Int64String"
         },
         "inclusionPromise": {

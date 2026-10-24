@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/attestation/trusted-root/1",
+  "title": "SigstoreTrustedRoot",
+  "description": "The pinned trust a verifier checks transparency log entries and signed timestamps against (issue #275): a Sigstore trusted_root.json, restricted to what Prism reads. Logs, certificate authorities and timestamp authorities each carry the period they are trusted for. Certificate transparency logs may be present and are not read. The caller pins this document; a bundle never supplies its own.",
+  "type": "object",
+  "required": [
+    "mediaType",
+    "tlogs",
+    "certificateAuthorities",
+    "timestampAuthorities"
+  ],
+  "properties": {
+    "mediaType": {
+      "type": "string",
+      "pattern": "^application/vnd\\.dev\\.sigstore\\.trustedroot\\+json;version=0\\.1$"
+    },
+    "tlogs": {
+      "description": "Transparency logs. A Rekor v2 entry is checked against the log whose logId it names.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TransparencyLog"
+      }
+    },
+    "certificateAuthorities": {
+      "description": "Certificate authorities (Fulcio). The signing certificate of a keyless bundle must chain to one of them.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Authority"
+      }
+    },
+    "timestampAuthorities": {
+      "description": "RFC 3161 timestamp authorities. A timestamp counts when one of them signed it.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Authority"
+      }
+    },
+    "ctlogs": {
+      "description": "Certificate transparency logs. Present in Sigstore's own roots; not read.",
+      "type": "array"
+    }
+  },
+  "$defs": {
+    "Base64": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/_-]+={0,2}$"
+    },
+    "ValidFor": {
+      "description": "The period the key or chain is trusted for, as RFC 3339 times. The end is inclusive. An open end means still trusted.",
+      "type": "object",
+      "required": [
+        "start"
+      ],
+      "properties": {
+        "start": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+        },
+        "end": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+        }
+      }
+    },
+    "TransparencyLog": {
+      "type": "object",
+      "required": [
+        "baseUrl",
+        "hashAlgorithm",
+        "publicKey",
+        "logId"
+      ],
+      "properties": {
+        "baseUrl": {
+          "description": "Where the log is served. A checkpoint's origin must be this host.",
+          "type": "string",
+          "minLength": 1
+        },
+        "hashAlgorithm": {
+          "const": "SHA2_256"
+        },
+        "publicKey": {
+          "type": "object",
+          "required": [
+            "rawBytes",
+            "keyDetails",
+            "validFor"
+          ],
+          "properties": {
+            "rawBytes": {
+              "description": "DER SubjectPublicKeyInfo of the log's checkpoint key, base64.",
+              "$ref": "#/$defs/Base64"
+            },
+            "keyDetails": {
+              "enum": [
+                "PKIX_ED25519",
+                "PKIX_ECDSA_P256_SHA_256",
+                "PKIX_ECDSA_P384_SHA_384"
+              ]
+            },
+            "validFor": {
+              "$ref": "#/$defs/ValidFor"
+            }
+          }
+        },
+        "logId": {
+          "type": "object",
+          "required": [
+            "keyId"
+          ],
+          "properties": {
+            "keyId": {
+              "description": "SHA-256 of the key's SubjectPublicKeyInfo, base64. A log entry names its log by this value.",
+              "$ref": "#/$defs/Base64"
+            }
+          }
+        }
+      }
+    },
+    "Authority": {
+      "type": "object",
+      "required": [
+        "certChain",
+        "validFor"
+      ],
+      "properties": {
+        "uri": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "object"
+        },
+        "certChain": {
+          "description": "The authority's certificates. Every certificate is trusted only through a self-signed root in this list.",
+          "type": "object",
+          "required": [
+            "certificates"
+          ],
+          "properties": {
+            "certificates": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "rawBytes"
+                ],
+                "properties": {
+                  "rawBytes": {
+                    "description": "DER certificate, base64.",
+                    "$ref": "#/$defs/Base64"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "validFor": {
+          "$ref": "#/$defs/ValidFor"
+        }
+      }
+    }
+  }
+}

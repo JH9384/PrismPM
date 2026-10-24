@@ -205,7 +205,7 @@ In `@prism-code/spec` these codes are `ASSURANCE.EXIT`.
 - `assurance-levels.mjs` exports one frozen constant, `ASSURANCE`. It holds `LEVELS`, `RANK`, `NAMES`, `ADDS` (the evidence each level adds), `PREDICATES`, `DEFAULT_MINIMUM`, `DEFAULT_POLICY`, `EXIT`, `VERDICT` and `VERDICT_SCHEMA`.
 - `assurance-levels.d.ts` declares `AssuranceLevel`, `WithheldLevel`, `AssuranceEvidence`, `VerdictReason` and `Verdict`.
 - `schemas/verdict/verdict-v1.schema.json`, `$id` `https://schemas.uor.foundation/prism/verdict/1`.
-- `index.mjs` re-exports `ASSURANCE`; `index.d.ts` re-exports the types.
+- `constants.mjs` re-exports `ASSURANCE`; `constants.d.ts` re-exports the types; the generated `index.mjs` and `index.d.ts` pass both on.
 
 ### Test plan
 

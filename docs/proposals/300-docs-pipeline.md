@@ -4,7 +4,7 @@
 | --- | --- |
 | Issues | [#300](https://github.com/UOR-Foundation/PrismPM/issues/300), [#327](https://github.com/UOR-Foundation/PrismPM/issues/327), [#328](https://github.com/UOR-Foundation/PrismPM/issues/328) |
 | Milestone | M4 v1.0-beta.1 Freeze, ship, docs |
-| Status | Proposed |
+| Status | Proposed; generation and storage revised by [#340](https://github.com/UOR-Foundation/PrismPM/issues/340) |
 | Depends on | #263 (`@prism-code/spec`, PR #326), the CLI verbs (#270 and M3), the conformance suite (#287) |
 
 ## Summary
@@ -16,7 +16,7 @@ Every code block on a generated page is executed in CI against the reference hol
 The captured output becomes the output block.
 A second stage checks hand-written guides.
 Each claim cites a conformance check id, and a lint enforces the vocabulary.
-CI fails when committed docs differ from what the sources produce, and names the page.
+Nothing generated is committed. CI generates the docs from the checkout, fails when a page cannot be generated, an example fails or the lint fails, and names the page.
 
 ## Motivation
 
@@ -31,7 +31,8 @@ Readers and agents also need to know which statements are backed by evidence.
 
 - Every Reference and API page comes from a named source, with no hand-written body text.
 - Every example runs in CI, and its output block is the captured output.
-- Changing the spec or the CLI without regenerating fails CI and names the page.
+- Changing the spec or the CLI so that a page cannot be generated, an example fails or the lint fails fails CI and names the page.
+- A pull request changes no generated file, so two pull requests that change the spec never conflict on the docs.
 - Guides keep hand-written prose, but every product claim resolves to a passing check.
 - `llms.txt`, `llms-full.md` and per-page Markdown are generated outputs.
 - No manual publish step exists anywhere.
@@ -119,7 +120,7 @@ Each page's Markdown is the file the generator wrote, served at the page URL plu
 
 | Layer | What is checked | How |
 | --- | --- | --- |
-| Consistency | Generated text matches the spec and the CLI description. | Regenerate and diff in CI. |
+| Consistency | Generated text matches the spec and the CLI description. | The pages are generated from them in the same checkout, so they cannot differ. |
 | Execution | Every shown example runs and prints what is shown. | Run in CI and compare captured output. |
 | Evidence | Every guide claim cites a check that passes. | Resolve ids against conformance results. |
 
@@ -131,17 +132,41 @@ The docs say so on the page that explains verification.
 
 The generator lives in `sdk/docs/`.
 It needs Node 22 and no dependencies beyond `prism-code` and the spec package.
-It reads the spec from the sibling path `sdk/npm/spec/`, not a vendored copy.
+It reads the spec from the sibling path `sdk/npm/spec/` in the checkout it runs in, not a vendored copy and not a pinned commit.
 A vendored copy would be a second source that can drift.
-Its output is committed under `docs/generated/`.
+A pin is a second source too, and it made every spec pull request edit the same file.
+Nothing it writes is committed: no pages and no pin.
+
+```
+node sdk/docs/generate.mjs [--out <dir>]   write the site (default build/docs, ignored by git)
+node sdk/docs/generate.mjs verify          generate, run every example, lint every page; exit 1 naming the page
+node sdk/docs/changed.mjs <base> <head>    the pages that differ between two generated sites
+```
+
+`verify` generates every page into a temporary directory and runs every example against `Calculator.holo`.
+It then applies the vocabulary lint to every generated page.
+It collects failures instead of stopping at the first, and names each one by page: `api/load: example: ...`, `reference/lockfile: lint: line 12, ...`.
+An example that fails fails only the pages that show it.
 
 The workflow `docs-generate.yml` runs on every pull request and every push to main.
-It runs `check` and the lint, and fails on drift with the page named.
-It does not commit regenerated output to main.
-Main is unprotected, and a bot commit would hide drift instead of catching it.
-The author regenerates in the same pull request that changed the source.
-The site deploys from `docs/generated/` on main.
-No manual step exists.
+It runs the generator's tests, `verify`, and the lint of the hand-written docs.
+It uploads the generated site as the workflow artifact `docs-site`.
+On a pull request it also generates the base branch's site and writes the pages that differ, with their diff, to the job summary and the artifact `docs-diff`.
+The footer commit of each page is ignored in that comparison, so only a real change shows.
+A comment on the pull request would need `pull-requests: write`, which the workflow does not hold.
+Nothing is committed back: main is unprotected, and a bot commit would hide a failure instead of catching it.
+
+The site is to deploy from the generator's output on every push to main, with no manual step.
+The workflow produces that output as the `docs-site` artifact of the push and stops there: it holds no deploy credential.
+Connecting the hosting site to the artifact is a configuration step outside this repository (see `sdk/docs/README.md`).
+
+### Why nothing is committed (issue #340)
+
+Until #340 the pages lived in `docs/generated/` and the spec was pinned in `sdk/docs/spec.lock.json`.
+Every pull request that touched the spec regenerated the same pages and rewrote the same pin.
+On 2026-10-24 six such pull requests could not land independently and had to be combined by hand.
+A page is a function of the checkout, so storing it adds a second copy that can only drift or conflict.
+Reviewers still see what a change does to a page through the `docs-diff` artifact and the job summary.
 
 ### Path to #328
 
@@ -153,7 +178,9 @@ Nothing here blocks that, because pages are already deterministic outputs of nam
 ### Test plan
 
 - Unit tests with `node --test` for schema-to-table, page rendering and the footer.
-- A test that edits a schema in a temp copy and expects `check` to fail naming the page.
+- A test that breaks the spec in a temp copy and expects `verify` to fail naming the page whose example it breaks.
+- A test that plants a banned word in a page and expects `verify` to name the page and the line.
+- A test that asserts no generated page and no pin is committed.
 - A test that plants a banned word and expects the lint to report file and line.
 - A test that runs the three executable examples and compares their output blocks.
 - CI runs all of these on Ubuntu with Node 22.
@@ -162,7 +189,7 @@ Nothing here blocks that, because pages are already deterministic outputs of nam
 
 - Reference and API tabs on the site come only from the generator.
 - Every example runs green in CI.
-- A deliberate spec change with no docs change fails CI with the page named.
+- A deliberate spec change that breaks a documented example fails CI with the page named.
 - `prism --help --json` replaces `cli.json`.
 - Guides build with zero unresolved claims and zero lint hits.
 
@@ -176,7 +203,7 @@ Nothing here blocks that, because pages are already deterministic outputs of nam
 ## Alternatives
 
 - Hand-written reference with a review checklist. Rejected: the draft already drifted.
-- Generate in the site build only and commit nothing. Rejected: reviewers cannot see diffs.
+- Commit the generated pages. Chosen first, rejected by #340: every spec pull request edits the same files, so they cannot land independently. Reviewers see page diffs through the CI summary instead.
 - Commit regenerated output from CI on main. Rejected: it hides drift on an unprotected branch.
 - Vendor the spec into `sdk/docs/`. Rejected: two copies of one source.
 
@@ -191,4 +218,4 @@ Nothing here blocks that, because pages are already deterministic outputs of nam
 1. The claim reference syntax in Markdown, and how it renders.
 2. Whether `policy.md` waits for the policy issue or ships with a status line.
 3. Where the conformance results file lives before #287 lands.
-4. Whether the site reads `docs/generated/` directly or a published bundle.
+4. How the hosting site reads the `docs-site` artifact: pulled by the host, or pushed by a deploy job with a credential the repository does not hold yet.

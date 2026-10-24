@@ -5,12 +5,14 @@ import { test } from 'node:test';
 import { blake3Hex } from '../../prism-code/src/blake3.mjs';
 import { KIND } from '../../prism-code/src/archive.mjs';
 import * as bundles from '../../prism-code/src/attestations.mjs';
-import { ATTESTATION, ATTESTATION_BUNDLE, LABEL_PREFIX, PROOF_PREDICATE_TYPE, SECTION_KIND } from '../index.mjs';
+import { spec } from './spec.mjs';
 import { validate } from './json-schema.mjs';
 import { loadReference, readJson, schema } from './reference.mjs';
 
+const { ATTESTATION, ATTESTATION_BUNDLE, LABEL_PREFIX, PROOF_PREDICATE_TYPE, SECTION_KIND } = spec;
+
 const ref = loadReference();
-const fixture = readJson('fixtures/calculator-statement.json');
+const fixture = readJson('fixtures/attestation/statement/calculator.json');
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const b64 = (value) => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)).toString('base64');
 const valid = (path, value) => assert.deepEqual(validate(schema(path), value), [], path);
@@ -18,30 +20,9 @@ const rejects = (path, value, why) => assert.notDeepEqual(validate(schema(path),
 const strip = ({ $schema, $id, title, description, ...rest }) => rest;
 
 /** An unsigned bundle around the fixture. The shape is real; the signature is a placeholder (signing is #272). */
-const keyed = {
-  mediaType: ATTESTATION_BUNDLE.MEDIA_TYPE,
-  verificationMaterial: { publicKey: { hint: 'placeholder' } },
-  dsseEnvelope: { payload: b64(fixture), payloadType: ATTESTATION.DSSE_PAYLOAD_TYPE, signatures: [{ keyid: '', sig: b64('not a real signature') }] },
-};
+const keyed = readJson('fixtures/attestation/sigstore-bundle/keyed.json');
 /** The keyless shape cosign 3 writes: leaf certificate, one Rekor entry with proof, one timestamp. Values are placeholders. */
-const keyless = {
-  ...keyed,
-  verificationMaterial: {
-    certificate: { rawBytes: b64('DER') },
-    tlogEntries: [
-      {
-        logIndex: '123456789',
-        logId: { keyId: b64('log') },
-        kindVersion: { kind: 'dsse', version: '0.0.1' },
-        integratedTime: '1761177600',
-        inclusionPromise: { signedEntryTimestamp: b64('set') },
-        inclusionProof: { logIndex: '1234', rootHash: b64('root'), treeSize: '5678', hashes: [b64('h1')], checkpoint: { envelope: 'rekor.sigstore.dev - 1\n5678\n' } },
-        canonicalizedBody: b64('body'),
-      },
-    ],
-    timestampVerificationData: { rfc3161Timestamps: [{ signedTimestamp: b64('tsa') }] },
-  },
-};
+const keyless = readJson('fixtures/attestation/sigstore-bundle/keyless.json');
 
 test('the calculator fixture statement names the guest blob with both digests over the same bytes (ADR-015)', () => {
   valid(ATTESTATION.STATEMENT_SCHEMA, fixture);

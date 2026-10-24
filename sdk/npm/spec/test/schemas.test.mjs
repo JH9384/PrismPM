@@ -1,38 +1,25 @@
-// Every schema is well-formed, the repository copies have not drifted, and the schemas reject what they must.
+// Every schema in the package is checked by walking its directories. Nothing here, and nothing in the
+// package, lists a schema file: adding a schema means adding the schema and its fixture.
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
-import { ASSURANCE, ATTESTATION, ATTESTATION_BUNDLE, HOLO_SCHEMAS, PROOF_PREDICATE_TYPE, REPLAY_PREDICATE_TYPE, SCHEMAS } from '../index.mjs';
+import { discover, pascal } from '../scripts/discover.mjs';
+import { spec } from './spec.mjs';
 import { assertSupported, validate } from './json-schema.mjs';
+import { fixtureProblems } from './fixtures.mjs';
 import { here, loadReference, readJson, schema } from './reference.mjs';
 
-const ref = loadReference();
-const REGISTRY_SCHEMA = 'predicates/registry.schema.json';
-const allSchemas = ['schemas', 'predicates']
-  .flatMap((folder) =>
-    readdirSync(here(`../${folder}/`), { recursive: true })
-      .map((p) => `${folder}/${p.replaceAll('\\', '/')}`)
-      .filter((p) => p.endsWith('.schema.json')),
-  )
-  .sort();
+const { ATTESTATION, HOLO_SCHEMAS, PROOF_PREDICATE_TYPE, SCHEMAS } = spec;
 
-/** Package copies of the repository's schemas/ folder, registered in model/contracts.toml. */
-const COPIES = {
-  'schemas/documents/model-document-v1.schema.json': 'model-document.schema.json',
-  'schemas/documents/model-document-v2.schema.json': 'model-document-v2.schema.json',
-  'schemas/documents/model-document-v3.schema.json': 'model-document-v3.schema.json',
-  'schemas/documents/model-document-v4.schema.json': 'model-document-v4.schema.json',
-  'schemas/documents/model-document-v5.schema.json': 'model-document-v5.schema.json',
-  'schemas/documents/model-document-v6.schema.json': 'model-document-v6.schema.json',
-  'schemas/documents/sdk-lock-v1.schema.json': 'sdk-lock.schema.json',
-  'schemas/documents/sdk-lock-v2.schema.json': 'sdk-lock-v2.schema.json',
-  'schemas/documents/sdk-lock-v3.schema.json': 'sdk-lock-v3.schema.json',
-};
+const ref = loadReference();
+const found = discover();
+const REPO_SCHEMAS = here('../../../../schemas/');
 
 test('every schema is draft 2020-12, uses only supported keywords and has a unique $id', () => {
+  assert.ok(found.schemas.length >= 20, 'schemas were found');
   const ids = new Set();
-  for (const path of allSchemas) {
-    const s = schema(path);
+  for (const { path, schema: s } of found.schemas) {
     assert.equal(s.$schema, 'https://json-schema.org/draft/2020-12/schema', path);
     assert.doesNotThrow(() => assertSupported(s), path);
     assert.ok(typeof s.$id === 'string' && !ids.has(s.$id), `${path} $id`);
@@ -40,44 +27,64 @@ test('every schema is draft 2020-12, uses only supported keywords and has a uniq
   }
 });
 
-test('the copied schemas equal the repository schemas byte for byte', () => {
-  for (const [copy, source] of Object.entries(COPIES)) {
-    const a = readFileSync(here(`../${copy}`));
-    const b = readFileSync(here(`../../../../schemas/${source}`));
-    assert.ok(a.equals(b), `${copy} differs from schemas/${source}`);
+test('a document schema equal to a repository schema, by $id or by name, is a byte-for-byte copy of it', () => {
+  // schemas/model-document.schema.json is the /1 schema; /N is schemas/model-document-vN.schema.json.
+  const repo = new Map(readdirSync(REPO_SCHEMAS).filter((f) => f.endsWith('.schema.json')).map((f) => [f, readFileSync(join(REPO_SCHEMAS, f))]));
+  const ids = new Map([...repo].map(([name, bytes]) => [JSON.parse(bytes).$id, name]));
+  let copies = 0;
+  for (const doc of found.documents) {
+    const names = new Set([ids.get(doc.id), doc.version === 1 ? `${doc.family}.schema.json` : `${doc.family}-v${doc.version}.schema.json`].filter((n) => repo.has(n)));
+    for (const name of names) {
+      copies++;
+      assert.ok(readFileSync(here(`../${doc.path}`)).equals(repo.get(name)), `${doc.path} differs from schemas/${name}`);
+    }
   }
+  assert.ok(copies >= 9, 'the model document and lock schemas were compared');
 });
 
-test('every schema file is reachable from the package constants or the registry', () => {
-  const named = new Set([
-    ...Object.values(SCHEMAS),
-    ...Object.values(HOLO_SCHEMAS),
-    ATTESTATION.STATEMENT_SCHEMA,
-    ATTESTATION.ENVELOPE_SCHEMA,
-    ASSURANCE.VERDICT_SCHEMA,
-    ATTESTATION_BUNDLE.SCHEMA,
-    REGISTRY_SCHEMA,
-    ...readJson('../predicates/registry.json').predicates.map((p) => p.schema).filter(Boolean),
-  ]);
-  assert.deepEqual([...named].sort(), allSchemas);
-});
-
-test('each document schema fixes the `schema` member it is registered under', () => {
+test('each document schema fixes the `schema` member it is registered under, and every document is registered', () => {
+  assert.deepEqual(Object.keys(SCHEMAS).sort(), found.documents.map((d) => d.name).sort());
   for (const [name, path] of Object.entries(SCHEMAS)) {
     assert.equal(schema(path).properties.schema.const, name, path);
   }
+  assert.deepEqual(Object.values(HOLO_SCHEMAS).sort(), found.holo.map((h) => h.path).sort());
 });
 
-test('the predicate registry validates, lists exactly the predicate constants and has a type file per row', () => {
+test('the generated predicate registry validates, and each row has its type file, constant and schema', () => {
   const registry = readJson('../predicates/registry.json');
-  assert.deepEqual(validate(schema(REGISTRY_SCHEMA), registry), []);
-  assert.deepEqual(registry.predicates.map((p) => p.predicateType), [PROOF_PREDICATE_TYPE, REPLAY_PREDICATE_TYPE]);
+  assert.deepEqual(validate(schema('predicates/registry.schema.json'), registry), []);
+  assert.deepEqual(registry.predicates.map((p) => p.predicateType), found.predicates.map((p) => p.predicateType));
+  assert.ok(registry.predicates.length >= 2);
   for (const row of registry.predicates) {
     assert.equal(row.status === 'placeholder', row.schema === null, row.predicateType);
-    const [, name, version] = /\/prism\/([a-z][a-z0-9-]*)\/(v[0-9]+)$/.exec(row.predicateType);
-    const types = readFileSync(here(`../predicates/${name}-${version}.d.ts`), 'utf8');
-    assert.ok(types.includes(`'${row.predicateType}'`), `predicates/${name}-${version}.d.ts names ${row.predicateType}`);
+    const p = found.predicates.find((x) => x.predicateType === row.predicateType);
+    assert.equal(spec[p.constant], row.predicateType, `${p.constant} is exported`);
+    const types = readFileSync(here(`../${p.types}`), 'utf8');
+    assert.ok(types.includes(`export declare const ${p.constant}: '${row.predicateType}'`), `${p.types} declares ${p.constant}`);
+    assert.ok(new RegExp(String.raw`export (?:type|interface) ${pascal(p.name)}PredicateV${p.version}\b`).test(types), `${p.types} declares the predicate type`);
+    if (row.schema) assert.equal(schema(row.schema).$id, `${row.predicateType}/schema.json`, row.schema);
   }
+});
+
+// The rule is in fixtures.mjs: a schema without a fixture, or with an invalid one, fails here by name.
+for (const record of found.schemas) {
+  test(`fixtures of ${record.path}`, () => {
+    if (record.path === 'predicates/registry.schema.json') {
+      assert.deepEqual(validate(record.schema, readJson('../predicates/registry.json')), []);
+      return;
+    }
+    assert.deepEqual(fixtureProblems(record), []);
+  });
+}
+
+test('the calculator fixtures of the holo schemas are what the reference archive decodes to', () => {
+  const same = (path, value) => assert.deepEqual(readJson(path), value, path);
+  same('fixtures/holo/archive/calculator.json', ref.archive);
+  same('fixtures/holo/app-manifest/calculator.json', ref.appManifest);
+  same('fixtures/holo/source-manifest/calculator.json', ref.sourceManifest);
+  same('fixtures/holo/application-directory/calculator.json', ref.directory);
+  same('fixtures/documents/model-provenance-v1/calculator.json', ref.provenance);
+  same('fixtures/documents/model-document-v1/calculator.json', ref.modelDocument);
 });
 
 const rejects = (path, value, why) => assert.notDeepEqual(validate(schema(path), value), [], `${path} accepted ${why}`);
@@ -110,7 +117,7 @@ test('negative controls: each schema rejects a mutated reference value', () => {
   delete vectors.application.acceptance_vectors;
   rejects(SCHEMAS['prismpm/model-document/1'], vectors, 'an application without acceptance vectors');
 
-  const build = readJson('fixtures/calculator-build-manifest.json');
+  const build = readJson('fixtures/documents/build-manifest-v1/calculator.json');
   rejects(SCHEMAS['prismpm/build-manifest/1'], { ...build, files: [{ ...build.files[0], path: '../escape' }] }, 'a dot-dot path');
   rejects(SCHEMAS['prismpm/build-manifest/1'], { ...build, inputs: { ...build.inputs, schema: 'prismpm/build-inputs/2' } }, 'inputs /2 without the artifact binding');
 

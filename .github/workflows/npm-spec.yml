@@ -54,10 +54,14 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: ${{ matrix.node }}
+      # index.mjs, index.d.ts, types/documents.d.ts, types/predicate-map.d.ts and
+      # predicates/registry.json are generated from the package's files and are not
+      # committed. The tests build them themselves; this step is the one the
+      # dependants' workflows repeat, and it keeps a build failure out of the test log.
+      - name: Build the generated files
+        run: npm run build
       - name: Unit tests
         run: node --test "test/*.test.mjs"
-      - name: Generated types are current
-        run: node scripts/generate-types.mjs --check
       - name: Package size and contents
         shell: bash
         run: |
@@ -69,6 +73,10 @@ jobs:
             if (pack.unpackedSize > 262144) throw new Error("package exceeds 256 KiB");
             const stray = pack.files.map((f) => f.path).filter((p) => /^(test|scripts)\//.test(p));
             if (stray.length) throw new Error(`tests or scripts in the package: ${stray}`);
+            const paths = pack.files.map((f) => f.path);
+            for (const required of ["index.mjs", "index.d.ts", "constants.mjs", "constants.d.ts", "types/documents.d.ts", "types/predicate-map.d.ts", "predicates/registry.json"]) {
+              if (!paths.includes(required)) throw new Error(`missing from the package: ${required}`);
+            }
           '
           rm pack.json
       - name: The entry point imports cleanly

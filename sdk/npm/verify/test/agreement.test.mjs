@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-import * as spec from '../../spec/index.mjs';
+import { discover, loadSpec } from '../../spec/scripts/build.mjs';
 import * as prismBlake3 from '../../prism-code/src/blake3.mjs';
 import { parseArchive } from '../../prism-code/src/archive.mjs';
 import * as vendoredSpec from '../src/vendor/spec.mjs';
@@ -15,13 +15,21 @@ import { readStructure } from '../src/reader.mjs';
 import { FORMAT_REVISION, ASSURANCE, inspect } from '../src/index.mjs';
 import { here, reference, assertVerdict } from './helpers.mjs';
 
+// The spec's index.mjs is generated and not committed: build it before the first comparison.
+const spec = await loadSpec();
+
 test('the vendored files are what scripts/vendor.mjs makes from their origins today', () => {
   execFileSync(process.execPath, [here('../scripts/vendor.mjs'), '--check'], { stdio: 'pipe' });
 });
 
 test('FORMAT_REVISION and the vendored constants equal @prism-code/spec', () => {
   assert.equal(FORMAT_REVISION, spec.FORMAT_REVISION);
-  assert.deepEqual(Object.keys(vendoredSpec), Object.keys(spec));
+  // The copy is constants.mjs plus SCHEMAS and HOLO_SCHEMAS narrowed to what a reader of its revisions needs, so a new
+  // schema in the spec changes nothing here. The predicate type constants are not part of the copy.
+  const predicateConstants = discover().predicates.map((p) => p.constant);
+  assert.deepEqual(Object.keys(vendoredSpec).sort(), Object.keys(spec).filter((key) => !predicateConstants.includes(key)).sort());
+  for (const [name, path] of Object.entries(vendoredSpec.SCHEMAS)) assert.equal(spec.SCHEMAS[name], path, name);
+  for (const [key, path] of Object.entries(vendoredSpec.HOLO_SCHEMAS)) assert.equal(spec.HOLO_SCHEMAS[key], path, key);
   assert.deepEqual({ ...vendoredSpec.FORMAT_REVISIONS }, { ...spec.FORMAT_REVISIONS });
 });
 

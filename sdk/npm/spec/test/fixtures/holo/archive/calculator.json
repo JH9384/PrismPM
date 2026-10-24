@@ -1,0 +1,48 @@
+{
+  "magic": "HOLO",
+  "version": 4,
+  "flags": 0,
+  "sections": [
+    {
+      "kind": 15,
+      "offset": 202,
+      "length": 356
+    },
+    {
+      "kind": 8,
+      "offset": 558,
+      "length": 610
+    },
+    {
+      "kind": 14,
+      "offset": 1168,
+      "length": 1078
+    },
+    {
+      "kind": 14,
+      "offset": 2246,
+      "length": 2194
+    },
+    {
+      "kind": 16,
+      "offset": 4440,
+      "length": 10569
+    },
+    {
+      "kind": 16,
+      "offset": 15009,
+      "length": 3641
+    },
+    {
+      "kind": 16,
+      "offset": 18650,
+      "length": 175
+    },
+    {
+      "kind": 16,
+      "offset": 18825,
+      "length": 5944
+    }
+  ],
+  "footer": "8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba"
+}

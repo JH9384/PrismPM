@@ -10,7 +10,7 @@
  * Statement, subject and digest types are reused from `attestation.d.ts`.
  */
 import type { BlobSubject, DsseEnvelope, Statement } from './attestation.js';
-import type { PredicateType } from './predicates.js';
+import type { PredicateType } from './predicate-map.js';
 
 /** Standard or URL-safe base64. */
 export type Base64 = string;

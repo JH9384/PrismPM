@@ -1,0 +1,49 @@
+{
+  "platforms": [
+    {
+      "inventory": [
+        {
+          "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "id": "prismpm",
+          "kind": "binary",
+          "version": "0.3.0"
+        },
+        {
+          "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "id": "sdk-manifest",
+          "kind": "image",
+          "version": "0.3.0"
+        }
+      ],
+      "inventory_digest": "sha256:9fcc37864bb53053553dd50a40422e68fad4669f357fb44727892749b8b41f81",
+      "inventory_document": "{\"artifacts\":[{\"digest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"id\":\"prismpm\",\"kind\":\"binary\",\"version\":\"0.3.0\"},{\"digest\":\"sha256:2222222222222222222222222222222222222222222222222222222222222222\",\"id\":\"sdk-manifest\",\"kind\":\"image\",\"version\":\"0.3.0\"}],\"schema\":\"prismpm/sdk-inventory/1\"}",
+      "manifest_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "platform": "linux/amd64"
+    },
+    {
+      "inventory": [
+        {
+          "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "id": "prismpm",
+          "kind": "binary",
+          "version": "0.3.0"
+        },
+        {
+          "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "id": "sdk-manifest",
+          "kind": "image",
+          "version": "0.3.0"
+        }
+      ],
+      "inventory_digest": "sha256:46517bf79e8cc62d30ae1fa027c16d275be7ad12d4593c65ccfc58968f26593a",
+      "inventory_document": "{\"artifacts\":[{\"digest\":\"sha256:4444444444444444444444444444444444444444444444444444444444444444\",\"id\":\"prismpm\",\"kind\":\"binary\",\"version\":\"0.3.0\"},{\"digest\":\"sha256:5555555555555555555555555555555555555555555555555555555555555555\",\"id\":\"sdk-manifest\",\"kind\":\"image\",\"version\":\"0.3.0\"}],\"schema\":\"prismpm/sdk-inventory/1\"}",
+      "manifest_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "platform": "linux/arm64"
+    }
+  ],
+  "schema": "prismpm/sdk-lock/2",
+  "sdk_image": "ghcr.io/uor-foundation/prismpm-sdk@sha256:2b898a27544569dabd9e7622fd139f9cec8226d3287efe559f1e6c30fe9e3e67",
+  "sdk_index": "{\"manifests\":[{\"digest\":\"sha256:3333333333333333333333333333333333333333333333333333333333333333\",\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\",\"platform\":{\"architecture\":\"amd64\",\"os\":\"linux\"},\"size\":1024},{\"digest\":\"sha256:6666666666666666666666666666666666666666666666666666666666666666\",\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\",\"platform\":{\"architecture\":\"arm64\",\"os\":\"linux\"},\"size\":1024}],\"mediaType\":\"application/vnd.oci.image.index.v1+json\",\"schemaVersion\":2}",
+  "sdk_version": "0.3.0",
+  "standards_lock": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+}

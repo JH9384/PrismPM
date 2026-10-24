@@ -69,7 +69,7 @@ export function sourceClosure() {
     'sdk/oracles/package.json', 'sdk/oracles/package-lock.json',
     'tests/browser-view/compile.mjs', 'tests/browser-view/driver-cache.mjs', 'tests/browser-view/prerequisites.mjs',
     'tests/browser-view/compiler-artifact.mjs', 'tests/browser-view/compiler-owner-checks.mjs', 'tests/browser-view/compiler-owner.mjs',
-    'tests/browser-view/verification-products.mjs',
+    'tests/browser-view/verification-products.mjs', 'tests/browser-view/lexicon-inputs.mjs',
     'scripts/semantic-source.mjs', 'crates/conformance/src/bin/prismpm-semantic-source.rs',
     'tests/browser-effects/checks.mjs', 'tests/browser-effects/compile.mjs', 'tests/browser-effects/corpus.mjs',
     'tests/browser-custody/compile.mjs', 'tests/browser-custody/checks.mjs', 'tests/browser-custody/corpus.mjs',

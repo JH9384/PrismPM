@@ -1,0 +1,57 @@
+{
+  "name": "@prism-code/verify",
+  "version": "0.1.0",
+  "description": "Check a Prism .holo offline in a browser, a worker or Node, without the runtime: archive integrity, both digests of every part, the documents inside, and a Verdict with an assurance level.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./src/index.mjs"
+    },
+    "./browser.js": {
+      "types": "./index.d.ts",
+      "default": "./browser.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./index.d.ts",
+  "files": [
+    "src",
+    "browser.js",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "vendor": "node scripts/vendor.mjs",
+    "build": "node scripts/build-browser.mjs"
+  },
+  "keywords": [
+    "prism",
+    "prismpm",
+    "holo",
+    "verify",
+    "blake3",
+    "sha256",
+    "browser",
+    "offline",
+    "uor"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UOR-Foundation/PrismPM",
+    "directory": "sdk/npm/verify"
+  },
+  "homepage": "https://github.com/UOR-Foundation/PrismPM/tree/main/sdk/npm/verify",
+  "bugs": "https://github.com/UOR-Foundation/PrismPM/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

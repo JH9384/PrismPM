@@ -1,0 +1,53 @@
+// MIRROR of sdk/npm/spec/assurance-levels.mjs from PR #334 (issue #269) at head b26744c4969782a347f5bfc4d82f883deb325bf2.
+// That module is not on main yet. test/agreement.test.mjs compares this copy with the spec's
+// once it exists, and scripts/vendor.mjs should take it over when #334 merges.
+
+/**
+ * Assurance levels P0 to P3 and the verdict of a check, as data.
+ *
+ * Design: docs/proposals/269-assurance-levels.md. Like index.mjs, this module
+ * holds frozen constants only, no functions, and imports nothing.
+ */
+
+const freeze = Object.freeze;
+
+/**
+ * The four levels, weakest first. A level's index in `LEVELS` is its rank.
+ * Each level includes every requirement of the levels below it.
+ */
+export const ASSURANCE = freeze({
+  LEVELS: freeze(['P0', 'P1', 'P2', 'P3']),
+  RANK: freeze({ P0: 0, P1: 1, P2: 2, P3: 3 }),
+  /** The short name printed beside each level. */
+  NAMES: freeze({
+    P0: 'unverified',
+    P1: 'provenance',
+    P2: 'proof checked',
+    P3: 'proof, replay and world',
+  }),
+  /**
+   * The evidence each level adds to the level below it. Every item must be
+   * present and valid. `integrity` is the archive footer and every section
+   * fingerprint; `world` is the declared world within the granted capabilities.
+   */
+  ADDS: freeze({
+    P0: freeze([]),
+    P1: freeze(['integrity', 'provenance']),
+    P2: freeze(['proof']),
+    P3: freeze(['replay', 'world']),
+  }),
+  /** The predicate type whose statement carries each kind of attested evidence. */
+  PREDICATES: freeze({
+    provenance: 'https://slsa.dev/provenance/v1',
+    proof: 'https://uor.foundation/prism/proof/v1',
+    replay: 'https://uor.foundation/prism/replay/v1',
+  }),
+  /** The default policy: this level or above, and the declared world within the granted capabilities. */
+  DEFAULT_MINIMUM: 'P2',
+  DEFAULT_POLICY: 'default',
+  /** Exit codes of `prism check`. NO_VERDICT means no verdict was reached and none is printed. */
+  EXIT: freeze({ PASSED: 0, FAILED: 1, NO_VERDICT: 2 }),
+  /** The `schema` member of a verdict, and its JSON Schema. */
+  VERDICT: 'prism/verdict/1',
+  VERDICT_SCHEMA: 'schemas/verdict/verdict-v1.schema.json',
+});

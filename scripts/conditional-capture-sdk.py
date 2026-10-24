@@ -32,7 +32,7 @@ MAX_FILE = 256 * MIB
 # Cargo's unchanged default-debug libtest ELF exceeds the retained-file bound.
 # Its sealed, singly linked transfer has a separate finite allowance; source
 # files, capture records and complete retained trees keep their original caps.
-MAX_ELF = 512 * MIB
+MAX_ELF = 1024 * MIB
 MAX_TREE = 512 * MIB
 MAX_JSON = 32 * MIB
 DEADLINE_SECONDS = 2400

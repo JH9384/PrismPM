@@ -111,6 +111,7 @@ export const SCHEMAS = freeze({
   'prismpm/model-document/6': 'schemas/documents/model-document-v6.schema.json',
   'prismpm/sdk-lock/1': 'schemas/documents/sdk-lock-v1.schema.json',
   'prismpm/sdk-lock/2': 'schemas/documents/sdk-lock-v2.schema.json',
+  'prismpm/sdk-lock/3': 'schemas/documents/sdk-lock-v3.schema.json',
   'prismpm/model-provenance/1': 'schemas/documents/model-provenance-v1.schema.json',
   'prismpm/build-manifest/1': 'schemas/documents/build-manifest-v1.schema.json',
   'prismpm/browser-provenance/1': 'schemas/documents/browser-provenance-v1.schema.json',

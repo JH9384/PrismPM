@@ -1259,3 +1259,50 @@ export type SdkLockV2 = {
   sdk_version: "0.3.0";
   standards_lock: string;
 };
+
+/** Schema: schemas/documents/sdk-lock-v3.schema.json. */
+export type SdkLockV3 = {
+  inputs: {
+    generation: {
+      application_generator_sha256: string;
+      library_generator_sha256: string;
+    };
+    model: {
+      blake3: string;
+      sha256: string;
+    };
+    spec: {
+      basis: "model-sources" | "prism-toml";
+      blake3: string;
+    };
+    toolchain: {
+      lean: string;
+      lexlean: string;
+      prismpm: string;
+      rustc: string;
+      wasm_bindgen: string;
+    };
+    world: null | {
+      blake3: string;
+      contract: "hologram:guest/core-wasm@1";
+      sha256: string;
+    };
+  };
+  platforms: {
+    inventory: {
+      digest: string;
+      id: string;
+      kind: "binary" | "crate" | "image" | "adapter" | "oracle" | "schema" | "workflow" | "base-image" | "dependency-lock" | "trust-root" | "test-corpus";
+      version: string;
+    }[];
+    inventory_digest: string;
+    manifest_digest: string;
+    platform: "linux/amd64" | "linux/arm64";
+    inventory_document: string;
+  }[];
+  schema: "prismpm/sdk-lock/3";
+  sdk_image: string;
+  sdk_index: string;
+  sdk_version: "0.3.0";
+  standards_lock: string;
+};

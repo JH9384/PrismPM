@@ -84,7 +84,7 @@ mutates = "temporary-metadata-acquisition-only"
 requires_digest = false
 result_schema = "prismpm/sdk-lock-update/2"
 [command.subcommand_results]
-check = ["prismpm/sdk-lock/1", "prismpm/sdk-lock/2"]
+check = ["prismpm/sdk-lock/1", "prismpm/sdk-lock/2", "prismpm/sdk-lock/3"]
 migrate = ["prismpm/sdk-lock-migration/1"]
 update = ["prismpm/sdk-lock-update/1", "prismpm/sdk-lock-update/2"]
 

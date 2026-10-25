@@ -14,6 +14,7 @@ import { SCHEMA_FILES } from './vendor/schemas.mjs';
 import { sha256Hex } from './sha256.mjs';
 import { readStructure } from './reader.mjs';
 import * as assurance from './vendor/assurance-levels.mjs';
+import * as transparency from './transparency.mjs';
 
 /** The newest holo format revision this package reads, from @prism-code/spec. */
 export const FORMAT_REVISION = spec.FORMAT_REVISION;
@@ -676,4 +677,27 @@ export async function verify(source, policy) {
     passed,
     reasons,
   };
+}
+
+/**
+ * Check the transparency log entries and RFC 3161 timestamps of one Sigstore
+ * bundle against a pinned Sigstore trusted root, offline (issue #275,
+ * docs/proposals/275-transparency-log.md). The result lists every problem at
+ * once; `reasons` has the shape of a verdict's `reasons`.
+ *
+ * Rejects with VerifyError `trustedroot.invalid` when the trusted root is not
+ * usable, and `input` when the bundle is not an object.
+ *
+ * @param {object} bundle a Sigstore bundle v0.3
+ * @param {object} trustedRoot a Sigstore `trusted_root.json`, pinned by the caller
+ * @param {{ crypto?: { subtle: SubtleCrypto }, entries?: number, timestamps?: number }} [options]
+ */
+export async function verifyTransparency(bundle, trustedRoot, options) {
+  if (bundle === null || typeof bundle !== 'object' || Array.isArray(bundle)) throw new VerifyError('input', 'the bundle must be an object');
+  try {
+    return await transparency.verifyTransparency(bundle, trustedRoot, options);
+  } catch (error) {
+    if (error instanceof transparency.TrustedRootError) throw new VerifyError('trustedroot.invalid', error.message);
+    throw error;
+  }
 }

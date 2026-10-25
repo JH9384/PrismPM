@@ -21,7 +21,8 @@ export interface TransparencyLogEntry {
   logIndex: Int64String;
   logId: { keyId: Base64 };
   kindVersion: { kind: string; version: string };
-  integratedTime: Int64String;
+  /** Absent in a Rekor v2 entry, which has no integrated time; the signed timestamps are its clock. */
+  integratedTime?: Int64String;
   inclusionPromise?: { signedEntryTimestamp: Base64 };
   inclusionProof?: {
     logIndex: Int64String;

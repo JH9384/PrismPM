@@ -78,7 +78,7 @@ jobs:
           node -e '
             const pack = JSON.parse(require("fs").readFileSync("pack.json", "utf8"))[0];
             console.log(`unpacked size: ${pack.unpackedSize} bytes, ${pack.entryCount} files`);
-            if (pack.unpackedSize > 307200) throw new Error("package exceeds 300 KiB");
+            if (pack.unpackedSize > 393216) throw new Error("package exceeds 384 KiB");
             const paths = pack.files.map((f) => f.path);
             const stray = paths.filter((p) => /^(test|scripts)\//.test(p));
             if (stray.length) throw new Error(`tests or scripts in the package: ${stray}`);

@@ -170,6 +170,54 @@ export const ASSURANCE: Readonly<{
 
 export class VerifyError extends Error {
   name: 'VerifyError';
-  /** `input`, `policy.invalid`, `archive.magic`, `archive.version`, `archive.flags`, `archive.table` or `format.revision`. */
+  /** `input`, `policy.invalid`, `trustedroot.invalid`, `archive.magic`, `archive.version`, `archive.flags`, `archive.table` or `format.revision`. */
   code: string;
 }
+
+/** Options of `verifyTransparency`. */
+export interface TransparencyOptions {
+  /** Where WebCrypto comes from. Default `globalThis.crypto`. Without it the result carries a `crypto.unavailable` reason. */
+  crypto?: { subtle: SubtleCrypto };
+  /** The least number of log entries that must verify. Default 1. */
+  entries?: number;
+  /** The least number of RFC 3161 timestamps that must verify. Default 1. */
+  timestamps?: number;
+}
+
+/** One check of `verifyTransparency`: `timestamp.<n>`, `certificate.chain`, `tlog.<n>`, a counted shortfall, or a named failure. */
+export interface TransparencyCheck {
+  check: string;
+  passed: boolean;
+  message: string;
+}
+
+/** A failed check in the shape of a verdict reason. Every one withholds P1. */
+export interface TransparencyReason {
+  /** `bundle.shape`, `timestamp`, `timestamp.count`, `certificate.chain`, `tlog.kind`, `tlog.log`, `tlog.body`, `tlog.inclusion`, `tlog.checkpoint`, `tlog.count` or `crypto.unavailable`. */
+  check: string;
+  withholds: 'P1';
+  message: string;
+}
+
+export interface TransparencyResult {
+  /** True when no check failed and the required numbers of entries and timestamps verified. */
+  passed: boolean;
+  /** The earliest verified timestamp, as an ISO 8601 UTC string, or null when none verified. */
+  time: string | null;
+  checks: TransparencyCheck[];
+  reasons: TransparencyReason[];
+}
+
+/** A Sigstore bundle v0.3 (`sigstore-bundle.schema.json` in @prism-code/spec). A message-signature bundle is also read. */
+export type SigstoreBundle = Record<string, unknown>;
+
+/** A Sigstore `trusted_root.json` (`trusted-root.schema.json` in @prism-code/spec), pinned by the caller. */
+export type TrustedRoot = Record<string, unknown>;
+
+/**
+ * Check the transparency log entries and RFC 3161 timestamps of one Sigstore
+ * bundle against a pinned trusted root, offline (issue #275). Rejects with
+ * VerifyError `input` for a bundle that is not an object and `trustedroot.invalid`
+ * for a trusted root that is not usable; every other problem is a reason.
+ */
+export function verifyTransparency(bundle: SigstoreBundle, trustedRoot: TrustedRoot, options?: TransparencyOptions): Promise<TransparencyResult>;

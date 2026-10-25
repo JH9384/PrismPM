@@ -80,7 +80,68 @@ Nothing is Stable today.
 The CLI binary will be renamed `prism`.
 `prismpm` stays as an alias through every 1.x release.
 
-## 6. Where the rules come from
+## 6. Experimental in v0.5
+
+The Verification API ships in v0.5 as Experimental, issue [#277](https://github.com/UOR-Foundation/PrismPM/issues/277).
+Pin the exact version if you use any surface in this section.
+Each moves up one tier at the v0.6 feature freeze ([#291](https://github.com/UOR-Foundation/PrismPM/issues/291)) and is Stable at 1.0 ([#306](https://github.com/UOR-Foundation/PrismPM/issues/306)).
+
+The CLI has no `--unstable-<feature>` flag yet.
+Until it has, this list is the marker: every verb and flag below is Experimental whether or not it carries the prefix.
+A flag marked planned is named here so you can plan for it; its spelling may change before it ships.
+
+### 6.1 CLI verbs and flags
+
+| Verb or flag | Issue | State |
+| --- | --- | --- |
+| `lock`, `lock --check` | [#265](https://github.com/UOR-Foundation/PrismPM/issues/265) | On main |
+| `update`, `update --toolchain`, `update --standards-lock`, `update --dry-run` | [#265](https://github.com/UOR-Foundation/PrismPM/issues/265) | On main |
+| `build --update` | [#264](https://github.com/UOR-Foundation/PrismPM/issues/264) | On main |
+| `prism-code inspect <holo>`, `--json`, `--format <path>` | [#271](https://github.com/UOR-Foundation/PrismPM/issues/271) | On main |
+| `inspect` on a `.holo` in the Rust CLI | [#271](https://github.com/UOR-Foundation/PrismPM/issues/271) | Planned |
+| `check` as a typed verdict, with `--json`, `--policy <file>` and exit codes 0, 1, 2 | [#270](https://github.com/UOR-Foundation/PrismPM/issues/270) | Planned |
+| `build --provenance=<min\|max>`, `build --no-provenance` | [#268](https://github.com/UOR-Foundation/PrismPM/issues/268) | Planned |
+| `attest --predicate <file> --type <uri>` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | Planned |
+| `verify --certificate-identity`, `--certificate-oidc-issuer`, `--key` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | Planned |
+
+Today `prismpm check` validates the model and `prismpm verify` checks the Lean proofs.
+When #270 and #272 ship, both verbs judge a holo and return a verdict.
+That change is breaking and gets its changelog line.
+
+### 6.2 SDK exports
+
+| Package | Surface | Issue |
+| --- | --- | --- |
+| `prism-code` | `experimental_verify`, `experimental_createClient`, `Application.experimental_verify`, `MINIMUM_LEVEL_ENV` and the `PRISM_MINIMUM_LEVEL` variable | [#276](https://github.com/UOR-Foundation/PrismPM/issues/276) |
+| `prism-code` | `PrismError`, `VerificationError`, `ProofMismatchError`, `CapabilityDeniedError`, `DeterminismViolationError`, `ReplayError`, `ERROR_CLASSES`, `classForCheck`, `errorForReason`, `errorFromVerdict` and every error `code` | [#276](https://github.com/UOR-Foundation/PrismPM/issues/276) |
+| `prism-code` | `inspect`, `formatInspection`, `INSPECTION_SCHEMA`, `Application.inspect` | [#271](https://github.com/UOR-Foundation/PrismPM/issues/271) |
+| `prism-code` | `readAttestations`, `attestationSection`, `decodeBundle`, `appendAttestations`, `stripAttestations`, `encodeArchive`, `ATTESTATION_EXTENSION`, `BUNDLE_MEDIA_TYPE` | [#267](https://github.com/UOR-Foundation/PrismPM/issues/267) |
+| `@prism-code/verify` | `verify`, `inspect`, `verifyTransparency`, `ASSURANCE`, `VerifyError`, `FORMAT_REVISION`, `INSPECTION_SCHEMA` | [#273](https://github.com/UOR-Foundation/PrismPM/issues/273), [#275](https://github.com/UOR-Foundation/PrismPM/issues/275) |
+| `@prism-code/spec` | The `prism/proof/v1` types and schema, the `prism/verdict/1` schema, assurance levels, the attestation and Sigstore bundle schemas, the trusted-root schema and the lock schemas | [#266](https://github.com/UOR-Foundation/PrismPM/issues/266), [#269](https://github.com/UOR-Foundation/PrismPM/issues/269), [#267](https://github.com/UOR-Foundation/PrismPM/issues/267), [#264](https://github.com/UOR-Foundation/PrismPM/issues/264) |
+
+`prism-code` entries land in the first release after 0.2.0.
+`@prism-code/verify` and `@prism-code/spec` are not published yet.
+The `prism/replay/v1` predicate is a placeholder owned by M3 and carries no promise.
+
+### 6.3 Verdict fields
+
+Every field of `prism/verdict/1` is Experimental, as is the `prismpm/holo-inspection/1` shape.
+
+| Field | Meaning |
+| --- | --- |
+| `schema` | Always `prism/verdict/1`. |
+| `holo` | The archive fingerprint, `blake3:` and 64 lowercase hex characters. |
+| `level` | `P0` to `P3`, computed from the evidence. The policy never changes it. |
+| `policy.name`, `policy.minimum` | The policy the holo was judged against and the lowest level it accepts. |
+| `passed` | True when the policy accepts the holo. |
+| `reasons[].check` | A dotted check id such as `proof.subject` or `policy.level`. |
+| `reasons[].code` | A registered diagnostic such as `PP5601`, when one exists. |
+| `reasons[].withholds` | The lowest level the failure withholds, or null. |
+
+`reasons[].message` is a sentence for a person and is never part of the contract.
+The exit codes of `check` (0 pass, 1 fail, 2 cannot verify) follow the verdict and are Experimental with it.
+
+## 7. Where the rules come from
 
 - Experimental flags: [Deno stability and releases](https://docs.deno.com/runtime/fundamentals/stability_and_releases/).
 - The `experimental_` prefix: [Vercel AI SDK versioning](https://ai-sdk.dev/docs/migration-guides/versioning).

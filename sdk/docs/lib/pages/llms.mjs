@@ -1,13 +1,12 @@
 /**
- * `llms.txt` from the page list, and `llms-full.md` as the generated pages
- * in page-list order.
+ * `llms.txt` from the page list, and `llms-full.md` as every page, narrative
+ * and generated, in page-list order.
  */
+import { sitePath } from '../site.mjs';
 
-/** The site path of a page: `api/index` is served at `api`. */
-export function sitePath(path) {
-  return path.replace(/\/index$/, '');
-}
+export { sitePath };
 
+/** The page list with every page's title and description filled in. */
 export function llmsTxt(pages, rendered) {
   const lines = [`# ${pages.name}`, '', `> ${pages.summary}`, ''];
   for (const group of pages.groups) {
@@ -26,7 +25,7 @@ export function llmsTxt(pages, rendered) {
 }
 
 export function llmsFull(pages, rendered) {
-  const out = [`# ${pages.name}: every reference and API page`, '', `> ${pages.summary}`, ''];
+  const out = [`# ${pages.name}: every page`, '', `> ${pages.summary}`, ''];
   for (const group of pages.groups) {
     for (const page of group.pages) {
       const body = rendered.get(page.path);

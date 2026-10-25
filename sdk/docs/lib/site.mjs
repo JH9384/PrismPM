@@ -163,9 +163,37 @@ export function linkProblems(text, knownSitePaths) {
 /** A flag as cli.json spells it, reduced to its name: `--policy <file>` and `--provenance=<min|max>` to `--policy`, `--provenance`. */
 const flagName = (flag) => flag.split(/[\s=]/)[0];
 
+/** Flags every shipped verb accepts. */
+const SHIPPED_GLOBAL_FLAGS = new Set(['--help', '--version', '-h', '-v']);
+
+/**
+ * One command segment against the `prism-code` command that ships today, as
+ * cli.json describes it under `prismCode`. `npx prism-code run app.holo` and
+ * `prism-code@0.2.0 run app.holo` both count; a segment that is not a
+ * `prism-code` command returns null. A verb or a flag the description does not
+ * have returns a message.
+ * @returns {string | null}
+ */
+export function shippedCommandProblem(segment, cli) {
+  const command = /^\s*(?:npx\s+(?:--yes\s+|-y\s+)?)?prism-code(?:@\S+)?(?:\s+(\S+)(.*))?\s*$/.exec(segment);
+  if (!command) return null;
+  const [, verb, rest = ''] = command;
+  if (verb === undefined || SHIPPED_GLOBAL_FLAGS.has(verb)) return null;
+  const shipped = new Map(cli.prismCode.verbs.map((v) => [v.name, new Set([...v.usage.matchAll(/--[a-z][a-z-]*/g)].map((m) => m[0]))]));
+  if (!shipped.has(verb)) return `prism-code ${verb} is not a verb in the prismCode list of sdk/docs/cli.json`;
+  const words = rest.replace(/'[^']*'|"[^"]*"/g, ' ').split(/\s+/);
+  for (const word of words.filter((w) => w.startsWith('-'))) {
+    const name = flagName(word);
+    if (!shipped.get(verb).has(name) && !SHIPPED_GLOBAL_FLAGS.has(name)) return `prism-code ${verb} has no flag ${name} in the prismCode list of sdk/docs/cli.json`;
+  }
+  return null;
+}
+
 /**
  * Every `prism <verb> ...` line in a `bash` block must use a verb the CLI
- * description has, and only that verb's flags or the global ones.
+ * description has, and only that verb's flags or the global ones. Every
+ * `prism-code <verb> ...` line must use a verb and flags of the command that
+ * ships today.
  */
 export function commandProblems(text, cli) {
   const verbs = new Map(cli.verbs.map((v) => [v.name, new Set((v.flags ?? []).map((f) => flagName(f.flag)))]));
@@ -180,7 +208,9 @@ export function commandProblems(text, cli) {
     }
     if (fenceLanguage !== 'bash') return;
     for (const segment of line.split(/\||&&|;/)) {
-      const command = /^\s*(?:prism|prismpm)\s+(\S+)(.*)$/.exec(segment);
+      const shipped = shippedCommandProblem(segment, cli);
+      if (shipped) problems.push(`line ${index + 1}: ${shipped}`);
+      const command =/^\s*(?:prism|prismpm)\s+(\S+)(.*)$/.exec(segment);
       if (!command) continue;
       const [, verb, rest] = command;
       if (verb.startsWith('-')) continue;

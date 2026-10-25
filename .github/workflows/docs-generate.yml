@@ -62,6 +62,10 @@ jobs:
         run: node sdk/docs/generate.mjs verify
       - name: Vocabulary lint of the hand-written docs
         run: node sdk/docs/lint.mjs
+      # skills/prism/SKILL.md may name only prism-code verbs and flags that
+      # cli.json lists, and its generated blocks must be current.
+      - name: Check the agent skill
+        run: node sdk/docs/skill.mjs --check
       - name: Generate the site
         run: node sdk/docs/generate.mjs --out build/docs
       - name: Upload the site

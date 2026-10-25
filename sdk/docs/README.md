@@ -17,6 +17,9 @@ node sdk/docs/publish.mjs <site> --commit <sha> [--previous <dir>]
                                            stage a built site as the docs-site tree; print changed=true|false
 node sdk/docs/lint.mjs [path...]           vocabulary lint; default: docs/ minus the engineering records
 node --test "sdk/docs/test/*.test.mjs"     the generator's own tests
+node sdk/docs/skill.mjs                    rebuild the generated blocks of skills/prism/SKILL.md
+node sdk/docs/skill.mjs --check            fail when a block is stale or the skill names a command that does not ship
+node sdk/docs/skill.mjs smoke              install prism-code from npm and run every command the skill tells an agent to try
 ```
 
 ## Sources
@@ -154,6 +157,22 @@ The pages that differ, with their diff, go to the job summary and to the artifac
 The commit in each page's footer is ignored, so only a real change to a page shows.
 It does not post a comment, because that needs `pull-requests: write`, and it never commits to main: a bot commit there would hide a failure instead of catching it.
 
+## The agent skill
+
+`skills/prism/SKILL.md` is the Agent Skill that teaches an agent Prism in Docker's words: install `prism-code`, load, run, inspect and verify a holo, and where these docs and `llms.txt` live.
+It is committed, because an agent installs it from the repository with `npx skills add`, and it is hand-written prose around four blocks the generator owns, each between `<!-- generated:<name>:begin -->` and `:end` markers: the command table and exit codes (from `prismCode` in `cli.json`), the executed three-call example, the commands to try, and the docs links (from `pages.json`).
+The `<!-- mcp:begin -->` spot is left for the MCP section.
+
+`prismCode` in `cli.json` lists the `prism-code` verbs that ship today. A test compares them with the command's own `--help`, so they cannot drift from the binary, and the CLI reference renders them above the `prism` verbs, which have not shipped.
+`skill.mjs --check` fails when a block is stale, and when the skill:
+
+- names a `prism-code` verb or flag `prismCode` does not list, or any `prism` or `prismpm` command;
+- links a page the site does not have, or has frontmatter other than `name` (the directory's name) and `description`;
+- breaks the vocabulary lint.
+
+The same check runs on the narrative pages: a `prism-code` line in a `bash` block must use a listed verb and flag.
+`.github/workflows/agent-skill.yml` installs the skill with `npx skills add` from this checkout and from its GitHub source on a clean runner, compares the installed file with the repository's, and runs `skill.mjs smoke`.
+
 ## The docs-site branch
 
 The hosting site at `https://universal-coordinate-foundation.lovable.app/docs` (`site` in `pages.json`) pulls the `docs-site` branch of this repository on a schedule.
@@ -197,5 +216,7 @@ lib/schema.mjs      JSON Schema to table rows
 lib/dts.mjs         declarations out of .d.ts files
 lib/markdown.mjs    frontmatter, tables, fences, footer
 lib/pages/          one module per tab: reference, cli, api, llms
+skill.mjs           the agent skill: rebuild, check, smoke
+lib/skill.mjs       the skill's generated blocks and rules
 test/               node --test
 ```

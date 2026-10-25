@@ -10,6 +10,12 @@ export function cli({ cli: description, page }) {
   parts.push(paragraph(`Source: ${code('sdk/docs/cli.json')} ${description.revision}, the stand-in for ${code(description.standIn)}.`));
   parts.push(paragraph(`${code(description.alias)} is an alias of ${code(description.binary)} and is kept through ${description.aliasKeptThrough}.`));
 
+  const shipped = description.prismCode;
+  parts.push(heading(2, 'The command that ships today'));
+  parts.push(paragraph(`Install ${code(shipped.package)} with ${code(shipped.install)}, or run it with ${code(`npx ${shipped.binary} <verb>`)}. ${shipped.needs}`));
+  parts.push(table(['Verb', 'Usage', 'What it does'], shipped.verbs.map((v) => [code(v.name), code(v.usage), v.summary])));
+  parts.push(table(['Code', 'Name', 'Meaning'], shipped.exitCodes.map((e) => [e.code, e.name, e.meaning])));
+
   parts.push(heading(2, 'Global flags'));
   parts.push(table(['Flag', 'Default', 'Meaning'], description.globalFlags.map((f) => [code(f.flag), f.default, f.meaning])));
 

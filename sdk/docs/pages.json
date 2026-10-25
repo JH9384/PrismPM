@@ -75,7 +75,7 @@
           "id": "cli",
           "path": "reference/cli",
           "title": "CLI reference",
-          "description": "Every prism verb, its flags, its exit codes and its usage.",
+          "description": "The prism-code command that ships today, then every prism verb, its flags, its exit codes and its usage.",
           "available_in": "1.0-beta",
           "status": "the prism CLI has not shipped, so no verb output is captured. Usage and flags come from the stand-in description.",
           "next": ["reference/manifest", "reference/errors", "reference/lockfile"]

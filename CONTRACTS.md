@@ -66,6 +66,7 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `prismpm/sdk-lock-update/1` | `schemas/sdk-lock-update.schema.json` | `application/vnd.prismpm.sdk-lock-update.v1+json` | 4194304 bytes / 8192 items | `closed`; `exact-major-additive-minor` |
 | `prismpm/sdk-lock-migration/1` | `schemas/sdk-lock-migration.schema.json` | `application/vnd.prismpm.sdk-lock-migration.v1+json` | 201326592 bytes / 262144 items | `closed`; `exact-major` |
 | `prismpm/sdk-lock-update/2` | `schemas/sdk-lock-update-v2.schema.json` | `application/vnd.prismpm.sdk-lock-update.v2+json` | 201326592 bytes / 262144 items | `closed`; `exact-major` |
+| `prismpm/sdk-lock-change/1` | `schemas/sdk-lock-change.schema.json` | `application/vnd.prismpm.sdk-lock-change.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
 | `prismpm/signature-result/1` | `schemas/signature-result.schema.json` | `application/vnd.prismpm.signature-result.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major-additive-minor` |
 | `prismpm/signature-closure-result/1` | `schemas/signature-closure-result.schema.json` | `application/vnd.prismpm.signature-closure-result.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major-additive-minor` |
 | `prismpm/template-result/1` | `schemas/template-result.schema.json` | `application/vnd.prismpm.template-result.v1+json` | 4194304 bytes / 8192 items | `closed`; `exact-major-additive-minor` |
@@ -90,10 +91,10 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `fetch` | `immutable-cache` | `false` | `prismpm/fetch-result/1` |
 | `finalize-contract` | `authorized-target-data-contract` | `true` | `prismpm/deployment-evidence/1` |
 | `inspect` | `never` | `true` | `prismpm/inspect-result/1` |
-| `lock` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock-update/2` |
-| `lock check` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock/1`, `prismpm/sdk-lock/2`, `prismpm/sdk-lock/3` |
-| `lock migrate` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock-migration/1` |
-| `lock update` | `temporary-metadata-acquisition-only` | `false` | `prismpm/sdk-lock-update/1`, `prismpm/sdk-lock-update/2` |
+| `lock` | `explicit-update-only` | `false` | `prismpm/sdk-lock-change/1` |
+| `lock check` | `explicit-update-only` | `false` | `prismpm/sdk-lock/1`, `prismpm/sdk-lock/2`, `prismpm/sdk-lock/3` |
+| `lock migrate` | `explicit-update-only` | `false` | `prismpm/sdk-lock-migration/1` |
+| `lock update` | `explicit-update-only` | `false` | `prismpm/sdk-lock-update/1`, `prismpm/sdk-lock-update/2` |
 | `plan` | `local-evidence` | `true` | `prismpm/deployment-plan/1` |
 | `prepare-promotion` | `owned-local-policy` | `true` | `prismpm/promotion-policy/1` |
 | `promote` | `signed-local-evidence` | `true` | `prismpm/promotion-result/1` |
@@ -106,6 +107,7 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `sign-evidence` | `signed-local-evidence` | `true` | `prismpm/evidence-signature-result/1` |
 | `status` | `never` | `true` | `prismpm/deployment-state/1` |
 | `template` | `explicit-update-only` | `false` | `prismpm/template-result/1` |
+| `update` | `explicit-update-only` | `false` | `prismpm/sdk-lock-change/1` |
 | `verify` | `local-evidence` | `false` | `prismpm/verify-result/1` |
 | `verify-browser-publication` | `never` | `true` | `prismpm/browser-publication-integrity/1` |
 | `verify-release` | `never` | `true` | `prismpm/signature-closure-result/1` |

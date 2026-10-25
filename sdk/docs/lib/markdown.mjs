@@ -2,8 +2,13 @@
  * Markdown building blocks shared by every page generator. Output is LF only.
  */
 
-export function frontmatter(title, description) {
-  return `---\ntitle: ${title}\ndescription: ${description}\n---\n`;
+/**
+ * `available_in` is quoted: unquoted, YAML reads `1.0` as the number 1.
+ * The validation in lib/site.mjs rejects a page without it.
+ */
+export function frontmatter(title, description, availableIn) {
+  const release = availableIn === undefined ? '' : `available_in: "${availableIn}"\n`;
+  return `---\ntitle: ${title}\ndescription: ${description}\n${release}---\n`;
 }
 
 export function heading(level, text) {

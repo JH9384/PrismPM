@@ -29,6 +29,7 @@ mod lean_project;
 mod library_build;
 mod library_verification;
 pub mod lifecycle;
+mod lock_command;
 pub mod oci;
 pub mod operations;
 mod process_resources;

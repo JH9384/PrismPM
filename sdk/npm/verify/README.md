@@ -21,6 +21,7 @@ function inspect(bytes: Uint8Array | ArrayBuffer): Inspection;
 const FORMAT_REVISION: string; // "2026-10-23"
 const ASSURANCE: { LEVELS, RANK, NAMES, DEFAULT_MINIMUM, ... };
 const INSPECTION_SCHEMA: "prismpm/holo-inspection/1";
+function verifyTransparency(bundle: object, trustedRoot: object, options?: TransparencyOptions): Promise<TransparencyResult>;
 class VerifyError extends Error { code: string }
 ```
 
@@ -124,6 +125,42 @@ const verdict = await verify(bytes, {
 
 `browser.js` is one file with no imports. Load it from a page with no bundler and no import map. With a bundler, import `@prism-code/verify` instead.
 
+## Transparency log and timestamps
+
+`verifyTransparency(bundle, trustedRoot, options)` checks the two pieces of third-party evidence a Sigstore bundle carries, offline (issue #275, `docs/proposals/275-transparency-log.md`). It does not read a holo and does not change a verdict yet: pass it a bundle, such as the `bundle` of an entry that `prism-code`'s `readAttestations` returns.
+
+`trustedRoot` is a Sigstore `trusted_root.json` that you pin (`schemas/attestation/trusted-root.schema.json` in `@prism-code/spec`). The bundle never supplies its own. The verifier fetches nothing and reads no clock: the signed time of the timestamps decides which keys and certificates apply, so a bundle whose certificates have since expired still verifies.
+
+```js
+import { verifyTransparency } from "@prism-code/verify";
+
+const result = await verifyTransparency(bundle, trustedRoot);
+// { passed: true, time: "2026-05-13T19:23:33.000Z", checks: [...], reasons: [] }
+```
+
+| Option | Meaning |
+|---|---|
+| `entries` | The least number of log entries that must verify. Default 1. |
+| `timestamps` | The least number of RFC 3161 timestamps that must verify. Default 1. A Rekor v2 entry has no integrated time, so the timestamp is the clock. |
+| `crypto` | Where WebCrypto comes from. Default `globalThis.crypto`. |
+
+Every check runs. A failed one is a reason with the shape of a verdict reason (`check`, `withholds`, `message`):
+
+| Check | Fails when |
+|---|---|
+| `timestamp` | A timestamp is not signed by a pinned authority, is outside that authority's validity, does not cover the bundle's signature, or falls outside the signing certificate's validity. |
+| `certificate.chain` | The signing certificate does not chain to a pinned certificate authority that was valid at the signed time. |
+| `tlog.kind`, `tlog.log` | The entry is not a Rekor v2 `hashedrekord` 0.0.2, or names a log the root does not pin. |
+| `tlog.body` | The logged body is not this bundle's digest, signature or certificate. |
+| `tlog.inclusion` | The proof is missing, is for another index, or does not recompute the root hash. |
+| `tlog.checkpoint` | The checkpoint is malformed, disagrees with the proof, or carries no valid signature from the pinned log key. |
+| `timestamp.count`, `tlog.count` | Fewer verified than `timestamps` or `entries`. |
+| `crypto.unavailable` | WebCrypto is missing. |
+
+It rejects with `VerifyError` code `trustedroot.invalid` for a root that is not usable, and `input` for a bundle that is not an object.
+
+Not checked: the DSSE signature, the signing identity, revocation and checkpoint witnesses. Those belong to `prism verify` (issue #272). Rekor v1 entries are reported as `tlog.kind`.
+
 ## Errors
 
 `verify` rejects, and `inspect` throws, only when there is no verdict to give. `prism check` exits 2 in the same cases.
@@ -132,6 +169,7 @@ const verdict = await verify(bytes, {
 |---|---|
 | `input` | `bytes` is not a typed array, a `DataView` or an `ArrayBuffer`. |
 | `policy.invalid` | The policy has an unknown member, an unknown level, or a digest that is not 64 lowercase hex characters. |
+| `trustedroot.invalid` | `verifyTransparency` only: the trusted root has the wrong media type, a missing validity period or a certificate that does not parse. |
 | `archive.magic`, `archive.version`, `archive.flags`, `archive.table` | The file is not a readable holo: wrong magic, another physical version, or a section table that does not end at the footer, as in a truncated file. |
 | `format.revision` | `verify` only: the holo is intact, but its sections or extensions match no format revision this package knows. Upgrade the package. |
 
@@ -139,7 +177,7 @@ A failed check is a reason in a verdict, not an error.
 
 ## Size
 
-`browser.js` is about 120 KB, 23 KB gzipped. Half of it is the JSON Schemas of the four model document versions a holo can carry.
+`browser.js` is about 160 KB. Most of it is the JSON Schemas of the four model document versions a holo can carry, BLAKE3, and the log and timestamp checks.
 
 ## How it is built
 

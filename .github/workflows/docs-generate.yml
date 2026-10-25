@@ -1,25 +1,32 @@
 name: docs generate
 
-# The Reference and API docs are produced by sdk/docs/generate.mjs from the
-# spec package, sdk/docs/cli.json and the executed prism-code examples in the
-# same checkout. Nothing generated is committed: no pages, no pin. A pull
+# The docs site is produced by sdk/docs/generate.mjs: the Reference and API
+# pages from the spec package, sdk/docs/cli.json and the executed prism-code
+# examples in the same checkout, merged with the hand-written pages under
+# docs/site. Nothing generated is committed to main: no pages, no pin. A pull
 # request that changes the spec therefore changes no generated file, and two
 # such pull requests cannot conflict.
 #
 # On every pull request and every push to main this workflow
 #   - runs the generator's own tests,
-#   - verifies the docs: generates every page, runs every example, applies the
+#   - verifies the docs: generates every page, fills the narrative pages, runs
+#     every example, checks frontmatter, links and CLI commands, applies the
 #     vocabulary lint, and fails naming the page that breaks,
 #   - lints the hand-written docs under docs/,
-#   - uploads the generated site as the workflow artifact `docs-site`.
+#   - uploads the built site as the workflow artifact `docs-site`.
 # On a pull request it also generates the base branch's site and writes the
 # pages that differ, with their diff, to the job summary and to the artifact
 # `docs-diff`, so a reviewer still sees what a change does to the docs. It does
 # not post a comment: that needs pull-requests: write, which this workflow
 # does not hold.
 #
-# Publishing the `docs-site` artifact to the hosting site is not done here;
-# sdk/docs/README.md says what remains.
+# On a push to main, and only after that check passes, the `publish` job
+# force-updates the `docs-site` branch to one commit whose tree is the built
+# site plus a README naming the main commit. The hosting site pulls that
+# branch. It is the only job with contents: write. Its push uses the workflow
+# token, and a push made with that token starts no workflow; no workflow here
+# runs on pushes to docs-site in any case. The contract is in
+# sdk/docs/README.md.
 
 on:
   pull_request:
@@ -55,6 +62,10 @@ jobs:
         run: node sdk/docs/generate.mjs verify
       - name: Vocabulary lint of the hand-written docs
         run: node sdk/docs/lint.mjs
+      # skills/prism/SKILL.md may name only prism-code verbs and flags that
+      # cli.json lists, and its generated blocks must be current.
+      - name: Check the agent skill
+        run: node sdk/docs/skill.mjs --check
       - name: Generate the site
         run: node sdk/docs/generate.mjs --out build/docs
       - name: Upload the site
@@ -100,3 +111,79 @@ jobs:
           path: ${{ runner.temp }}/docs-changes.diff
           if-no-files-found: error
           retention-days: 14
+
+  publish:
+    name: publish to the docs-site branch
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    # One publish at a time. A newer push to main cancels this whole run (the
+    # workflow concurrency above), at worst during the push, which is atomic;
+    # the newer run then publishes its own site.
+    concurrency:
+      group: docs-site-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      # Exactly the site the check job verified and uploaded.
+      - name: Download the site
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: docs-site
+          path: ${{ runner.temp }}/site
+      # The repository is public, so reading the branch needs no credential.
+      - name: Read the published branch
+        id: previous
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin docs-site > /dev/null; then
+            git fetch --no-tags --depth=1 origin +refs/heads/docs-site:refs/remotes/origin/docs-site
+            mkdir -p "$RUNNER_TEMP/previous"
+            git archive refs/remotes/origin/docs-site | tar -x -C "$RUNNER_TEMP/previous"
+            echo "lease=$(git rev-parse refs/remotes/origin/docs-site)" >> "$GITHUB_OUTPUT"
+          else
+            echo "lease=" >> "$GITHUB_OUTPUT"
+          fi
+      # Checks the layout, writes the branch README and compares page by page,
+      # ignoring the commit stamps in footers; prints changed=true|false.
+      - name: Stage the branch tree
+        id: stage
+        run: >-
+          node sdk/docs/publish.mjs "$RUNNER_TEMP/site"
+          --commit "$GITHUB_SHA" --repository "$GITHUB_REPOSITORY"
+          --previous "$RUNNER_TEMP/previous" >> "$GITHUB_OUTPUT"
+      # One orphan commit, force-pushed. The lease refuses the push if the
+      # branch moved since it was read, so a concurrent writer is never
+      # overwritten unseen. The token reaches git as a header, never a remote
+      # URL or a file.
+      - name: Push the docs-site branch
+        if: steps.stage.outputs.changed == 'true'
+        shell: bash
+        env:
+          TOKEN: ${{ github.token }}
+          LEASE: ${{ steps.previous.outputs.lease }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/site"
+          git init -q -b docs-site
+          git add -A
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "docs: site generated from main at $GITHUB_SHA"
+          auth="$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push --force-with-lease="refs/heads/docs-site:$LEASE" \
+            "https://github.com/$GITHUB_REPOSITORY.git" HEAD:refs/heads/docs-site
+          echo "Published $(git rev-parse HEAD) to docs-site from main at $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - name: Nothing to publish
+        if: steps.stage.outputs.changed != 'true'
+        run: echo "No page differs from the docs-site branch; it stays as it is." >> "$GITHUB_STEP_SUMMARY"

@@ -12,7 +12,7 @@ struct Contract {
     schema: &'static [u8],
 }
 
-const CONTRACTS: [Contract; 63] = [
+const CONTRACTS: [Contract; 64] = [
     Contract {
         id: "prismpm/workbench-view-projection/1",
         maximum_bytes: 1_048_576,
@@ -109,6 +109,12 @@ const CONTRACTS: [Contract; 63] = [
         maximum_bytes: 201_326_592,
         maximum_items: 262_144,
         schema: include_bytes!("../schemas/sdk-lock-update-v2.schema.json"),
+    },
+    Contract {
+        id: "prismpm/sdk-lock-change/1",
+        maximum_bytes: 1_048_576,
+        maximum_items: 4_096,
+        schema: include_bytes!("../schemas/sdk-lock-change.schema.json"),
     },
     Contract {
         id: "prismpm/sdk-lock/2",

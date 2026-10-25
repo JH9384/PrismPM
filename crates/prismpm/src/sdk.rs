@@ -1173,6 +1173,31 @@ pub fn propose_lock_update(
     }))
 }
 
+/// Capture the platform lock of an exact SDK image for `prismpm update`, which
+/// applies it. Same bounded metadata acquisition as [`propose_lock_update`];
+/// no image layer is pulled and no target code runs.
+pub(crate) fn capture_update_target(
+    sdk_image: &str,
+    standards_lock: &str,
+) -> Result<CanonicalDocument, PrismError> {
+    crate::oci::validate_reference(sdk_image, true)?;
+    if !standards_lock
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| {
+            digest.len() == 64
+                && digest
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+    {
+        return Err(PrismError::new(
+            "PP5401",
+            "standards-lock digest is malformed",
+        ));
+    }
+    capture_platform_update(sdk_image, standards_lock)
+}
+
 /// Capture an explicit legacy-to-platform migration without modifying a project.
 /// The old lock is historical evidence only; it does not admit project execution.
 pub fn propose_lock_migration(

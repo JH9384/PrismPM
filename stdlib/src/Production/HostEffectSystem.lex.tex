@@ -1,0 +1,951 @@
+\begin{lexlean}{Production.HostEffectSystem}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Production.Core}
+\title{Production system model}
+\begin{semanticmodule}
+structure{
+  name: ApplicationProfile,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: contract, type: String},
+    {name: protocol, type: String},
+    {name: applicationModelDigest, type: String},
+    {name: effects, type: (List String)}
+  ]
+}
+
+structure{
+  name: Artifact,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: path, type: String},
+    {name: digest, type: String},
+    {name: licenseExpression, type: String}
+  ]
+}
+
+structure{
+  name: Resources,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: cpuMillis, type: Nat},
+    {name: memoryBytes, type: Nat},
+    {name: replicasMin, type: Nat},
+    {name: replicasMax, type: Nat}
+  ]
+}
+
+structure{
+  name: Component,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: kind, type: String},
+    {name: version, type: String},
+    {name: artifact, type: String},
+    {name: command, type: (List String)},
+    {name: dependsOn, type: (List String)},
+    {name: readiness, type: (List String)},
+    {name: parameters, type: (List String)},
+    {name: secrets, type: (List String)},
+    {name: volumes, type: (List String)},
+    {name: networks, type: (List String)},
+    {name: resources, type: Resources}
+  ]
+}
+
+structure{
+  name: Volume,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: mountPath, type: String}]
+}
+
+structure{
+  name: Network,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: internal, type: Bool}]
+}
+
+structure{
+  name: Listener,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: component, type: String},
+    {name: port, type: Nat},
+    {name: protocol, type: String},
+    {name: bindAddress, type: String}
+  ]
+}
+
+structure{
+  name: Target,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: id, type: String},
+    {name: kind, type: String},
+    {name: adapterDigest, type: String},
+    {name: apiVersion, type: String},
+    {name: minimumReleaseStatus, type: String}
+  ]
+}
+
+structure{
+  name: SystemModel,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: product, type: Production.Core::Product},
+    {name: applicationProfile, type: ApplicationProfile},
+    {name: artifacts, type: (List Artifact)},
+    {name: components, type: (List Component)},
+    {name: parameters, type: (List Production.Core::Configuration)},
+    {name: secretReferences, type: (List Production.Core::SecretReference)},
+    {name: volumes, type: (List Volume)},
+    {name: networks, type: (List Network)},
+    {name: listeners, type: (List Listener)},
+    {name: targets, type: (List Target)}
+  ]
+}
+
+structure{
+  name: SystemManifest,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: applicationModelDigest, type: String},
+    {name: productId, type: String},
+    {name: productVersion, type: String},
+    {name: effects, type: (List String)},
+    {name: listeners, type: (List String)}
+  ]
+}
+
+definition{
+  name: nonEmpty,
+  parameters: [value : String],
+  result: Bool,
+  body: (not (prim equal value "" : Bool))
+}
+
+definition{
+  name: nonEmptyStrings,
+  parameters: [items : (List String)],
+  result: Bool,
+  body: (match items | List.nil => false | List.cons head tail => true),
+  recursive_argument: items
+}
+
+definition{
+  name: hasComponents,
+  parameters: [rows : (List Component)],
+  result: Bool,
+  body: (match rows | List.nil => false | List.cons head tail => true),
+  recursive_argument: rows
+}
+
+definition{
+  name: allNonEmpty,
+  parameters: [items : (List String)],
+  result: Bool,
+  body: (match items
+    | List.nil => true
+    | List.cons head tail => ((nonEmpty head) && (allNonEmpty tail))),
+  recursive_argument: items
+}
+
+definition{
+  name: equalStrings,
+  parameters: [left : (List String), right : (List String)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons h t => false)
+    | List.cons head tail => (match right
+      | List.nil => false
+      | List.cons other rest => ((prim equal head other : Bool) && (equalStrings tail rest)))),
+  recursive_argument: left
+}
+
+definition{
+  name: memberString,
+  parameters: [item : String, items : (List String)],
+  result: Bool,
+  body: (match items
+    | List.nil => false
+    | List.cons head tail => ((prim equal item head : Bool) || (memberString item tail))),
+  recursive_argument: items
+}
+
+definition{
+  name: allMembers,
+  parameters: [items : (List String), within : (List String)],
+  result: Bool,
+  body: (match items
+    | List.nil => true
+    | List.cons head tail => ((memberString head within) && (allMembers tail within))),
+  recursive_argument: items
+}
+
+definition{
+  name: anyMember,
+  parameters: [items : (List String), within : (List String)],
+  result: Bool,
+  body: (match items
+    | List.nil => false
+    | List.cons head tail => ((memberString head within) || (anyMember tail within))),
+  recursive_argument: items
+}
+
+definition{
+  name: uniqueStrings,
+  parameters: [items : (List String)],
+  result: Bool,
+  body: (match items
+    | List.nil => true
+    | List.cons head tail => ((not (memberString head tail)) && (uniqueStrings tail))),
+  recursive_argument: items
+}
+
+definition{
+  name: appendStrings,
+  parameters: [left : (List String), right : (List String)],
+  result: (List String),
+  body: (match left
+    | List.nil => right
+    | List.cons head tail => (cons head (appendStrings tail right))),
+  recursive_argument: left
+}
+
+definition{
+  name: memberNat,
+  parameters: [item : Nat, items : (List Nat)],
+  result: Bool,
+  body: (match items
+    | List.nil => false
+    | List.cons head tail => ((item =? head) || (memberNat item tail))),
+  recursive_argument: items
+}
+
+definition{
+  name: uniqueNats,
+  parameters: [items : (List Nat)],
+  result: Bool,
+  body: (match items
+    | List.nil => true
+    | List.cons head tail => ((not (memberNat head tail)) && (uniqueNats tail))),
+  recursive_argument: items
+}
+
+definition{
+  name: artifactIds,
+  parameters: [rows : (List Artifact)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (artifactIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: componentIds,
+  parameters: [rows : (List Component)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (componentIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: parameterIds,
+  parameters: [rows : (List Production.Core::Configuration)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (parameterIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: secretIds,
+  parameters: [rows : (List Production.Core::SecretReference)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (secretIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: volumeIds,
+  parameters: [rows : (List Volume)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (volumeIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: networkIds,
+  parameters: [rows : (List Network)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (networkIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: listenerIds,
+  parameters: [rows : (List Listener)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (listenerIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: listenerPorts,
+  parameters: [rows : (List Listener)],
+  result: (List Nat),
+  body: (match rows
+    | List.nil => (nil Nat)
+    | List.cons head tail => (cons (project head port) (listenerPorts tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: targetIds,
+  parameters: [rows : (List Target)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head id) (targetIds tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: modelIds,
+  parameters: [model : SystemModel],
+  result: (List String),
+  body: (cons (project (project model product) id) (appendStrings (componentIds (project model components)) (appendStrings (artifactIds (project model artifacts)) (appendStrings (parameterIds (project model parameters)) (appendStrings (secretIds (project model secretReferences)) (appendStrings (volumeIds (project model volumes)) (appendStrings (networkIds (project model networks)) (appendStrings (listenerIds (project model listeners)) (targetIds (project model targets))))))))))
+}
+
+definition{
+  name: networkIsOpen,
+  parameters: [rows : (List Network), wanted : String],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons head tail => (((prim equal (project head id) wanted : Bool) && (not (project head internal))) || (networkIsOpen tail wanted))),
+  recursive_argument: rows
+}
+
+definition{
+  name: anyOpenNetwork,
+  parameters: [names : (List String), rows : (List Network)],
+  result: Bool,
+  body: (match names
+    | List.nil => false
+    | List.cons head tail => ((networkIsOpen rows head) || (anyOpenNetwork tail rows))),
+  recursive_argument: names
+}
+
+definition{
+  name: isApiComponent,
+  parameters: [rows : (List Component), wanted : String],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons head tail => (((prim equal (project head id) wanted : Bool) && (prim equal (project head kind) "api" : Bool)) || (isApiComponent tail wanted))),
+  recursive_argument: rows
+}
+
+definition{
+  name: componentHasOpenNetwork,
+  parameters: [rows : (List Component), networks : (List Network), wanted : String],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons head tail => (((prim equal (project head id) wanted : Bool) && (anyOpenNetwork (project head networks) networks)) || (componentHasOpenNetwork tail networks wanted))),
+  recursive_argument: rows
+}
+
+definition{
+  name: validProduct,
+  parameters: [product : Production.Core::Product],
+  result: Bool,
+  body: ((nonEmpty (project product id)) && ((nonEmpty (project product owner)) && ((nonEmpty (project product version)) && ((nonEmpty (project product sourcePolicy)) && ((equalStrings (project product supportedPlatforms) (cons "linux" (nil String))) && (((prim equal (project product lifecycle) "development" : Bool) || ((prim equal (project product lifecycle) "candidate" : Bool) || ((prim equal (project product lifecycle) "accepted" : Bool) || (prim equal (project product lifecycle) "retired" : Bool)))) && true))))))
+}
+
+definition{
+  name: validApplicationProfile,
+  parameters: [profile : ApplicationProfile],
+  result: Bool,
+  body: ((prim equal (project profile contract) "prismpm/server-application/1" : Bool) && ((prim equal (project profile protocol) "prismpm/host-effects/1" : Bool) && ((nonEmpty (project profile applicationModelDigest)) && ((nonEmptyStrings (project profile effects)) && ((allNonEmpty (project profile effects)) && ((uniqueStrings (project profile effects)) && true))))))
+}
+
+definition{
+  name: validArtifacts,
+  parameters: [rows : (List Artifact)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => ((nonEmpty (project head id)) && ((nonEmpty (project head path)) && ((nonEmpty (project head digest)) && ((nonEmpty (project head licenseExpression)) && (validArtifacts tail)))))),
+  recursive_argument: rows
+}
+
+definition{
+  name: validKind,
+  parameters: [kind : String],
+  result: Bool,
+  body: ((prim equal kind "api" : Bool) || ((prim equal kind "worker" : Bool) || ((prim equal kind "job" : Bool) || (prim equal kind "telemetry-collector" : Bool))))
+}
+
+definition{
+  name: validResources,
+  parameters: [resources : Resources],
+  result: Bool,
+  body: ((0 <? (project resources cpuMillis)) && ((0 <? (project resources memoryBytes)) && ((0 <? (project resources replicasMin)) && (((project resources replicasMin) <? (project resources replicasMax)) || ((project resources replicasMin) =? (project resources replicasMax))))))
+}
+
+definition{
+  name: validComponent,
+  parameters: [model : SystemModel, earlier : (List String), component : Component],
+  result: Bool,
+  body: ((nonEmpty (project component id)) && ((nonEmpty (project component version)) && ((validKind (project component kind)) && ((memberString (project component artifact) (artifactIds (project model artifacts))) && ((nonEmptyStrings (project component command)) && ((allNonEmpty (project component command)) && ((allMembers (project component dependsOn) earlier) && (((prim equal (project component kind) "job" : Bool) || (nonEmptyStrings (project component readiness))) && ((allMembers (project component parameters) (parameterIds (project model parameters))) && ((allMembers (project component secrets) (secretIds (project model secretReferences))) && ((allMembers (project component volumes) (volumeIds (project model volumes))) && ((nonEmptyStrings (project component networks)) && ((allMembers (project component networks) (networkIds (project model networks))) && (validResources (project component resources)))))))))))))))
+}
+
+definition{
+  name: validComponents,
+  parameters: [model : SystemModel, earlier : (List String), rows : (List Component)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => ((validComponent model earlier head) && (validComponents model (cons (project head id) earlier) tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: validParameters,
+  parameters: [rows : (List Production.Core::Configuration)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => ((nonEmpty (project head id)) && ((nonEmpty (project head valueType)) && (validParameters tail)))),
+  recursive_argument: rows
+}
+
+definition{
+  name: validSecrets,
+  parameters: [model : SystemModel, rows : (List Production.Core::SecretReference)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => ((nonEmpty (project head id)) && ((nonEmpty (project head providerKey)) && ((nonEmptyStrings (project head consumers)) && ((allMembers (project head consumers) (componentIds (project model components))) && (validSecrets model tail)))))),
+  recursive_argument: rows
+}
+
+definition{
+  name: validVolumes,
+  parameters: [rows : (List Volume)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => ((nonEmpty (project head id)) && ((nonEmpty (project head mountPath)) && (validVolumes tail)))),
+  recursive_argument: rows
+}
+
+definition{
+  name: validNetworks,
+  parameters: [rows : (List Network)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => ((nonEmpty (project head id)) && (validNetworks tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: loopbackAddress,
+  parameters: [],
+  result: String,
+  body: "127.0.0.1"
+}
+
+definition{
+  name: validListener,
+  parameters: [model : SystemModel, listener : Listener],
+  result: Bool,
+  body: ((nonEmpty (project listener id)) && ((0 <? (project listener port)) && (((project listener port) <? 65536) && ((prim equal (project listener protocol) "tcp" : Bool) && ((prim equal (project listener bindAddress) (loopbackAddress) : Bool) && ((isApiComponent (project model components) (project listener component)) && (componentHasOpenNetwork (project model components) (project model networks) (project listener component))))))))
+}
+
+definition{
+  name: validListeners,
+  parameters: [model : SystemModel, rows : (List Listener)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head tail => ((validListener model head) && (validListeners model tail))),
+  recursive_argument: rows
+}
+
+definition{
+  name: validTarget,
+  parameters: [target : Target],
+  result: Bool,
+  body: ((nonEmpty (project target id)) && ((nonEmpty (project target adapterDigest)) && ((prim equal (project target kind) "compose" : Bool) && ((prim equal (project target apiVersion) "compose-spec@fee041b381ffd4aad263410980bdce0cdf4beb7d" : Bool) && (((prim equal (project target minimumReleaseStatus) "development" : Bool) || ((prim equal (project target minimumReleaseStatus) "candidate" : Bool) || (prim equal (project target minimumReleaseStatus) "accepted" : Bool))) && true)))))
+}
+
+definition{
+  name: validTargets,
+  parameters: [rows : (List Target)],
+  result: Bool,
+  body: (match rows
+    | List.nil => false
+    | List.cons head tail => (match tail
+      | List.nil => (validTarget head)
+      | List.cons extra rest => false))
+}
+
+definition{
+  name: validSystem,
+  parameters: [model : SystemModel],
+  result: Bool,
+  body: ((validProduct (project model product)) && ((validApplicationProfile (project model applicationProfile)) && ((uniqueStrings (modelIds model)) && ((validArtifacts (project model artifacts)) && ((validParameters (project model parameters)) && ((validSecrets model (project model secretReferences)) && ((validVolumes (project model volumes)) && ((validNetworks (project model networks)) && ((hasComponents (project model components)) && ((validComponents model (nil String) (project model components)) && ((nonEmptyStrings (listenerIds (project model listeners))) && ((validListeners model (project model listeners)) && ((uniqueNats (listenerPorts (project model listeners))) && (validTargets (project model targets)))))))))))))))
+}
+
+definition{
+  name: validateManifest,
+  parameters: [model : SystemModel, manifest : SystemManifest],
+  result: Bool,
+  body: ((validSystem model) && ((prim equal (project manifest applicationModelDigest) (project (project model applicationProfile) applicationModelDigest) : Bool) && ((prim equal (project manifest productId) (project (project model product) id) : Bool) && ((prim equal (project manifest productVersion) (project (project model product) version) : Bool) && ((equalStrings (project manifest effects) (project (project model applicationProfile) effects)) && (equalStrings (project manifest listeners) (listenerIds (project model listeners))))))))
+}
+
+definition{
+  name: manifestValid,
+  parameters: [model : SystemModel, manifest : SystemManifest],
+  result: Prop,
+  body: ((validateManifest model manifest) = true),
+  axioms: []
+}
+
+theorem{
+  name: manifestValidation_sound_complete,
+  parameters: [model : SystemModel, manifest : SystemManifest],
+  statement: (((validateManifest model manifest) = true) <-> (manifestValid model manifest)),
+  proof: reflexivity{}
+}
+
+definition{
+  name: exampleDigest,
+  parameters: [],
+  result: String,
+  body: "sha256:de510ca735a4394615c29194f3d7b3bcafe3b7b46da6e1b126423df4ce619e4b"
+}
+
+definition{
+  name: exampleProfile,
+  parameters: [contract : String, protocol : String, effects : (List String)],
+  result: ApplicationProfile,
+  body: (record ApplicationProfile {contract := contract, protocol := protocol, applicationModelDigest := (exampleDigest), effects := effects})
+}
+
+definition{
+  name: exampleEffects,
+  parameters: [],
+  result: (List String),
+  body: (cons "engine.check" (cons "engine.verify" (cons "signer.sign" (nil String))))
+}
+
+definition{
+  name: exampleResources,
+  parameters: [],
+  result: Resources,
+  body: (record Resources {cpuMillis := 500, memoryBytes := 268435456, replicasMin := 1, replicasMax := 1})
+}
+
+definition{
+  name: exampleComponent,
+  parameters: [
+    identity : String,
+    kind : String,
+    artifact : String,
+    command : (List String),
+    dependsOn : (List String),
+    readiness : (List String),
+    parameters : (List String),
+    secrets : (List String),
+    volumes : (List String),
+    networks : (List String)
+  ],
+  result: Component,
+  body: (record Component {id := identity, kind := kind, version := "0.1.0", artifact := artifact, command := command, dependsOn := dependsOn, readiness := readiness, parameters := parameters, secrets := secrets, volumes := volumes, networks := networks, resources := (exampleResources)})
+}
+
+definition{
+  name: exampleVerifier,
+  parameters: [],
+  result: Component,
+  body: (exampleComponent "verifier" "job" "verifier-image" (cons "/usr/local/bin/verifier" (nil String)) (nil String) (nil String) (nil String) (nil String) (cons "toolchain-cache" (nil String)) (cons "backend" (nil String)))
+}
+
+definition{
+  name: exampleSigner,
+  parameters: [],
+  result: Component,
+  body: (exampleComponent "signer" "worker" "signer-image" (cons "/usr/local/bin/signer" (nil String)) (nil String) (cons "/usr/local/bin/signer" (cons "--ready" (nil String))) (nil String) (cons "signing-key" (nil String)) (nil String) (cons "backend" (nil String)))
+}
+
+definition{
+  name: exampleEngineHost,
+  parameters: [],
+  result: Component,
+  body: (exampleComponent "engine-host" "worker" "engine-host-image" (cons "/usr/local/bin/engine-host" (nil String)) (cons "verifier" (nil String)) (cons "/usr/local/bin/engine-host" (cons "--ready" (nil String))) (cons "log-level" (nil String)) (nil String) (cons "toolchain-cache" (nil String)) (cons "backend" (nil String)))
+}
+
+definition{
+  name: exampleGateway,
+  parameters: [networks : (List String)],
+  result: Component,
+  body: (exampleComponent "gateway" "api" "gateway-image" (cons "/usr/local/bin/gateway" (nil String)) (cons "engine-host" (cons "signer" (nil String))) (cons "/usr/local/bin/gateway" (cons "--ready" (nil String))) (cons "listen-port" (cons "log-level" (nil String))) (nil String) (nil String) networks)
+}
+
+definition{
+  name: exampleCollector,
+  parameters: [],
+  result: Component,
+  body: (exampleComponent "telemetry-collector" "telemetry-collector" "collector-image" (cons "/usr/local/bin/collector" (nil String)) (nil String) (cons "/usr/local/bin/collector" (cons "--ready" (nil String))) (nil String) (nil String) (nil String) (cons "backend" (nil String)))
+}
+
+definition{
+  name: exampleComponents,
+  parameters: [gateway : Component],
+  result: (List Component),
+  body: (cons (exampleVerifier) (cons (exampleSigner) (cons (exampleEngineHost) (cons gateway (cons (exampleCollector) (nil Component))))))
+}
+
+definition{
+  name: exampleImage,
+  parameters: [identity : String, path : String, digest : String],
+  result: Artifact,
+  body: (record Artifact {id := identity, path := path, digest := digest, licenseExpression := "MIT OR Apache-2.0"})
+}
+
+definition{
+  name: exampleArtifacts,
+  parameters: [],
+  result: (List Artifact),
+  body: (cons (exampleImage "collector-image" "ghcr.io/uor-foundation/lexlean-mcp-collector" "sha256:1111111111111111111111111111111111111111111111111111111111111111") (cons (exampleImage "engine-host-image" "ghcr.io/uor-foundation/lexlean-mcp-engine-host" "sha256:2222222222222222222222222222222222222222222222222222222222222222") (cons (exampleImage "gateway-image" "ghcr.io/uor-foundation/lexlean-mcp-gateway" "sha256:3333333333333333333333333333333333333333333333333333333333333333") (cons (exampleImage "signer-image" "ghcr.io/uor-foundation/lexlean-mcp-signer" "sha256:4444444444444444444444444444444444444444444444444444444444444444") (cons (exampleImage "verifier-image" "ghcr.io/uor-foundation/lexlean-mcp-verifier" "sha256:5555555555555555555555555555555555555555555555555555555555555555") (nil Artifact))))))
+}
+
+definition{
+  name: exampleParameters,
+  parameters: [],
+  result: (List Production.Core::Configuration),
+  body: (cons (record Production.Core::Configuration {id := "listen-port", valueType := "u16", allowed := (nil String), defaultValue := (ctor Option.some [String] "8765"), required := true, mutable := false, lateBound := false, exposure := "internal"}) (cons (record Production.Core::Configuration {id := "log-level", valueType := "string", allowed := (cons "info" (cons "debug" (nil String))), defaultValue := (ctor Option.some [String] "info"), required := true, mutable := false, lateBound := false, exposure := "internal"}) (nil Production.Core::Configuration)))
+}
+
+definition{
+  name: exampleSecrets,
+  parameters: [],
+  result: (List Production.Core::SecretReference),
+  body: (cons (record Production.Core::SecretReference {id := "signing-key", providerKey := "signing-key", consumers := (cons "signer" (nil String)), rotation := "manual"}) (nil Production.Core::SecretReference))
+}
+
+definition{
+  name: exampleVolumes,
+  parameters: [],
+  result: (List Volume),
+  body: (cons (record Volume {id := "toolchain-cache", mountPath := "/var/cache/lexlean"}) (nil Volume))
+}
+
+definition{
+  name: exampleNetworks,
+  parameters: [],
+  result: (List Network),
+  body: (cons (record Network {id := "backend", internal := true}) (cons (record Network {id := "edge", internal := false}) (nil Network)))
+}
+
+definition{
+  name: exampleListener,
+  parameters: [component : String, port : Nat, bindAddress : String],
+  result: Listener,
+  body: (record Listener {id := "mcp-endpoint", component := component, port := port, protocol := "tcp", bindAddress := bindAddress})
+}
+
+definition{
+  name: exampleTarget,
+  parameters: [],
+  result: Target,
+  body: (record Target {id := "compose-loopback", kind := "compose", adapterDigest := "sha256:0000000000000000000000000000000000000000000000000000000000000000", apiVersion := "compose-spec@fee041b381ffd4aad263410980bdce0cdf4beb7d", minimumReleaseStatus := "development"})
+}
+
+definition{
+  name: exampleModel,
+  parameters: [
+    profile : ApplicationProfile,
+    components : (List Component),
+    networks : (List Network),
+    listeners : (List Listener)
+  ],
+  result: SystemModel,
+  body: (record SystemModel {product := (record Production.Core::Product {id := "mcp-loopback", owner := "UOR Foundation", version := "0.1.0", lifecycle := "development", sourcePolicy := "selected LexLean source and kernel proof", supportedPlatforms := (cons "linux" (nil String))}), applicationProfile := profile, artifacts := (exampleArtifacts), components := components, parameters := (exampleParameters), secretReferences := (exampleSecrets), volumes := (exampleVolumes), networks := networks, listeners := listeners, targets := (cons (exampleTarget) (nil Target))})
+}
+
+definition{
+  name: exampleManifest,
+  parameters: [effects : (List String), listeners : (List String)],
+  result: SystemManifest,
+  body: (record SystemManifest {applicationModelDigest := (exampleDigest), productId := "mcp-loopback", productVersion := "0.1.0", effects := effects, listeners := listeners})
+}
+
+definition{
+  name: goodProfile,
+  parameters: [],
+  result: ApplicationProfile,
+  body: (exampleProfile "prismpm/server-application/1" "prismpm/host-effects/1" (exampleEffects))
+}
+
+definition{
+  name: goodGateway,
+  parameters: [],
+  result: Component,
+  body: (exampleGateway (cons "backend" (cons "edge" (nil String))))
+}
+
+definition{
+  name: goodListeners,
+  parameters: [bindAddress : String],
+  result: (List Listener),
+  body: (cons (exampleListener "gateway" 8765 bindAddress) (nil Listener))
+}
+
+definition{
+  name: goodManifest,
+  parameters: [],
+  result: SystemManifest,
+  body: (exampleManifest (exampleEffects) (cons "mcp-endpoint" (nil String)))
+}
+
+definition{
+  name: loopbackModel,
+  parameters: [],
+  result: SystemModel,
+  body: (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (goodListeners "127.0.0.1"))
+}
+
+theorem{
+  name: loopbackServiceIsAdmitted,
+  parameters: [],
+  statement: ((validateManifest (loopbackModel) (goodManifest)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: wildcardBindingIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (goodListeners "0.0.0.0")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: hostnameBindingIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (goodListeners "localhost")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: unspecifiedBindingIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (goodListeners "")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: otherLoopbackAddressIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (goodListeners "127.0.0.2")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: listenerWithoutPortIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (cons (exampleListener "gateway" 0 "127.0.0.1") (nil Listener))) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: listenerOutsideTheWireRangeIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (cons (exampleListener "gateway" 65536 "127.0.0.1") (nil Listener))) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: serviceWithoutListenerIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (nil Listener)) (exampleManifest (exampleEffects) (nil String))) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: listenerOnAWorkerIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (exampleComponent "gateway" "worker" "gateway-image" (cons "/usr/local/bin/gateway" (nil String)) (cons "engine-host" (cons "signer" (nil String))) (cons "/usr/local/bin/gateway" (cons "--ready" (nil String))) (cons "listen-port" (cons "log-level" (nil String))) (nil String) (nil String) (cons "backend" (cons "edge" (nil String))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: listenerNamingAnUnknownComponentIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (cons (exampleListener "absent" 8765 "127.0.0.1") (nil Listener))) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: apiOnlyOnAnInternalNetworkCannotPublishAPort,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (exampleGateway (cons "backend" (nil String)))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: twoListenersOnOnePortAreRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (cons (exampleListener "gateway" 8765 "127.0.0.1") (cons (record Listener {id := "second", component := "gateway", port := 8765, protocol := "tcp", bindAddress := "127.0.0.1"}) (nil Listener)))) (exampleManifest (exampleEffects) (cons "mcp-endpoint" (cons "second" (nil String))))) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: nonTcpListenerIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (exampleNetworks) (cons (record Listener {id := "mcp-endpoint", component := "gateway", port := 8765, protocol := "udp", bindAddress := "127.0.0.1"}) (nil Listener))) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: serverApplicationContractIsRequired,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (exampleProfile "prismpm/browser-resident-application/1" "prismpm/host-effects/1" (exampleEffects)) (exampleComponents (goodGateway)) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: hostEffectProtocolIsRequired,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (exampleProfile "prismpm/server-application/1" "prismpm/other/1" (exampleEffects)) (exampleComponents (goodGateway)) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: aServiceWithoutDeclaredEffectsIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (exampleProfile "prismpm/server-application/1" "prismpm/host-effects/1" (nil String)) (exampleComponents (goodGateway)) (exampleNetworks) (goodListeners "127.0.0.1")) (exampleManifest (nil String) (cons "mcp-endpoint" (nil String)))) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: duplicateEffectIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (exampleProfile "prismpm/server-application/1" "prismpm/host-effects/1" (cons "engine.check" (cons "engine.check" (nil String)))) (exampleComponents (goodGateway)) (exampleNetworks) (goodListeners "127.0.0.1")) (exampleManifest (cons "engine.check" (cons "engine.check" (nil String))) (cons "mcp-endpoint" (nil String)))) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: manifestMustNameTheDeclaredEffects,
+  parameters: [],
+  statement: ((validateManifest (loopbackModel) (exampleManifest (cons "engine.check" (nil String)) (cons "mcp-endpoint" (nil String)))) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: manifestMustNameThePublishedListeners,
+  parameters: [],
+  statement: ((validateManifest (loopbackModel) (exampleManifest (exampleEffects) (cons "other" (nil String)))) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: manifestMustBindTheApplicationDigest,
+  parameters: [],
+  statement: ((validateManifest (loopbackModel) (record SystemManifest {applicationModelDigest := "sha256:0", productId := "mcp-loopback", productVersion := "0.1.0", effects := (exampleEffects), listeners := (cons "mcp-endpoint" (nil String))})) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: unknownComponentKindIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (cons (exampleVerifier) (cons (exampleSigner) (cons (exampleEngineHost) (cons (goodGateway) (cons (record Component {id := "database", kind := "database", version := "0.1.0", artifact := "collector-image", command := (cons "/bin/db" (nil String)), dependsOn := (nil String), readiness := (cons "/bin/db" (nil String)), parameters := (nil String), secrets := (nil String), volumes := (nil String), networks := (cons "backend" (nil String)), resources := (exampleResources)}) (nil Component)))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: dependencyOnALaterComponentIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (cons (goodGateway) (cons (exampleVerifier) (cons (exampleSigner) (cons (exampleEngineHost) (cons (exampleCollector) (nil Component)))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: componentWithAnUnknownImageIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (cons (exampleVerifier) (cons (exampleSigner) (cons (exampleEngineHost) (cons (exampleComponent "gateway" "api" "absent-image" (cons "/usr/local/bin/gateway" (nil String)) (cons "engine-host" (cons "signer" (nil String))) (cons "/usr/local/bin/gateway" (nil String)) (cons "listen-port" (nil String)) (nil String) (nil String) (cons "backend" (cons "edge" (nil String)))) (cons (exampleCollector) (nil Component)))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: componentWithAnUnknownNetworkIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (exampleGateway (cons "backend" (cons "absent" (cons "edge" (nil String)))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: duplicateIdentityAcrossCollectionsIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (goodGateway)) (cons (record Network {id := "gateway", internal := true}) (exampleNetworks)) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

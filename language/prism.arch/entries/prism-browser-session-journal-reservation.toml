@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-session-journal-reservation"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.SessionJournalReservation"
+component = "SessionJournalReservation"
+
+[[form]]
+id = "prism-browser-session-journal-reservation"
+channel = "text"
+surface = "Browser session journal reservation"
+canonical_source = true
+features = ["sentence-case", "singular"]

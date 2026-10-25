@@ -35,6 +35,7 @@ structure{
     {name: description, type: String},
     {name: usageCode, type: UInt8},
     {name: ioCode, type: UInt8},
+    {name: limitCode, type: (Option UInt8)},
     {name: outcomes, type: (List TextCliOutcome)},
     {name: sections, type: (List TextCliSection)},
     {name: examples, type: (List TextCliExample)}
@@ -68,7 +69,12 @@ inductive{
   name: TextCliFailureClass,
   type_parameters: [],
   parameters: [],
-  constructors: [{name: Usage, fields: []}, {name: Io, fields: []}, {name: Fault, fields: []}]
+  constructors: [
+    {name: Usage, fields: []},
+    {name: Io, fields: []},
+    {name: Limit, fields: []},
+    {name: Fault, fields: []}
+  ]
 }
 
 definition{
@@ -86,7 +92,7 @@ definition{
     | TextCliFailure.InputType => (ctor TextCliFailureClass.Io)
     | TextCliFailure.InputRead => (ctor TextCliFailureClass.Io)
     | TextCliFailure.OutputWrite => (ctor TextCliFailureClass.Io)
-    | TextCliFailure.InputLimit => (ctor TextCliFailureClass.Fault)
+    | TextCliFailure.InputLimit => (ctor TextCliFailureClass.Limit)
     | TextCliFailure.AdapterAllocation => (ctor TextCliFailureClass.Fault)
     | TextCliFailure.ComputeFailure => (ctor TextCliFailureClass.Fault)
     | TextCliFailure.OutputLimit => (ctor TextCliFailureClass.Fault)

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-signed-context-wire-format"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.Application.V1.SignedContextWire"
+component = "SignedContextRead"
+
+[[form]]
+id = "prism-browser-signed-context-wire-format"
+channel = "text"
+surface = "Browser signed context wire format"
+canonical_source = true
+features = ["sentence-case", "singular"]

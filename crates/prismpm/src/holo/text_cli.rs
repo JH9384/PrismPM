@@ -5,7 +5,7 @@
 //! application; `crate::text_cli` renders these records into the generated
 //! program and `crate::verification` replays the same classification.
 
-use super::application::{field, record, string, unsigned, Definitions};
+use super::application::{field, optional_unsigned, record, string, unsigned, Definitions};
 use super::model_document::TextApplicationModel;
 use crate::error::PrismError;
 use serde::{Deserialize, Serialize};
@@ -71,6 +71,11 @@ pub struct TextCli {
     pub usage_code: u8,
     /// Exit status for every input or output failure.
     pub io_code: u8,
+    /// Exit status for a request refused because it exceeds the request
+    /// maximum (`InputLimit`). Absent, the refusal exits with the code of the
+    /// `error` outcome.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit_code: Option<u8>,
     /// Report classes in declaration order.
     pub outcomes: Vec<TextCliOutcome>,
     /// Help sections in declaration order.
@@ -94,6 +99,12 @@ impl TextCli {
             .iter()
             .find(|outcome| outcome.name == FAULT_OUTCOME)
             .map_or(self.usage_code, |outcome| outcome.exit_code)
+    }
+
+    /// Exit status for a request over the request maximum: the declared
+    /// `limit_code`, or the fault code when none is declared.
+    pub fn limit_code(&self) -> u8 {
+        self.limit_code.unwrap_or_else(|| self.fault_code())
     }
 }
 
@@ -171,6 +182,7 @@ pub(super) fn project(
             "description",
             "usageCode",
             "ioCode",
+            "limitCode",
             "outcomes",
             "sections",
             "examples",
@@ -181,6 +193,13 @@ pub(super) fn project(
         description: string(&values, "description")?,
         usage_code: exit_code(&values, "usageCode")?,
         io_code: exit_code(&values, "ioCode")?,
+        limit_code: optional_unsigned(definitions, &values, "limitCode", "uint8")?
+            .map(|code| {
+                u8::try_from(code).map_err(|_| {
+                    PrismError::new("PP2001", "application field limitCode exceeds UInt8")
+                })
+            })
+            .transpose()?,
         outcomes: rows(definitions, &values, "outcomes", |row| {
             super::application::exact_fields(row, &["name", "prefix", "exitCode"])?;
             Ok(TextCliOutcome {
@@ -256,6 +275,11 @@ pub fn validate(cli: &TextCli, application: &TextApplicationModel) -> Result<(),
                 "text command-line outcomes need unique tokens, nonempty prefixes and unique exit codes",
             ));
         }
+    }
+    if cli.limit_code.is_some_and(|code| !codes.insert(code)) {
+        return Err(invalid(
+            "a declared text command-line limit code must differ from every other exit code",
+        ));
     }
     if !names.contains(FAULT_OUTCOME) {
         return Err(invalid(

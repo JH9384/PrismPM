@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-view-semantics-wire-format"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.View.Browser.V1.SemanticsWire"
+component = "readSemanticPresentation"
+
+[[form]]
+id = "prism-browser-view-semantics-wire-format"
+channel = "text"
+surface = "Browser view semantics wire format"
+canonical_source = true
+features = ["sentence-case", "singular"]

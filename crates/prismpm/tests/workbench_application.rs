@@ -95,6 +95,14 @@ fn workbench_closed_contract_roundtrip_preserves_explicit_resources() {
                 .as_object_mut()
                 .unwrap()
                 .remove(key);
+            if pointer == "/application"
+                && matches!(key.as_str(), "core_memory_pages" | "core_stack_bytes")
+            {
+                // The Core-Wasm budgets are optional in text/3: absence takes
+                // the V1 implicit budget, so the schema accepts the removal.
+                assert!(validator.is_valid(&bad), "{pointer}/{key}");
+                continue;
+            }
             assert!(!validator.is_valid(&bad), "{pointer}/{key}");
             // text/3's `cli` and Core-Wasm budgets are optional in the shared
             // text DTO and required by validation, so either owner may refuse.

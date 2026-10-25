@@ -1,0 +1,35 @@
+{
+  "application_kappa": "blake3:4ed201e5a4b5f463686bcbc8d70c1512632183d54cc417778a71e9ef00a40583",
+  "cargo_crate_sha256": "bd30defc579454a161692a038dc63039a235777b5ac9ae027d3319630aca1d7b",
+  "cargo_name": "prism-calculator",
+  "cargo_version": "0.1.0",
+  "compiler_semantics_id": "49561889f77c9c3571da51e8e53233da9df5ab8f46d16165159425ba2e82dc44",
+  "core_wasm_contract": "hologram:guest/core-wasm@1",
+  "generated_core_sha256": "ae6c37001a43698ab8b56ec4685d66a783b78e83395b93404681f8ba157420b5",
+  "guest_content_kappa": "blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380",
+  "hologram_live_commit": "d8208266d8abdc2445b7bbc0cef412a566adfaf1",
+  "lcnf_manifest_sha256": "c82b908352bab0529f54e42324469c90062c2647e1e04d69c8faab947e6fbd42",
+  "lean4_prod_commit": "c4078cf96537cd71c0818bbed0aa82300ef66786",
+  "lean_manifest_sha256": "3779d20d45e41bf56ce8ca65e57767e527f14e56d028f1bb8116d87e08ac080a",
+  "lexlean_commit": "0b53334e5846a1f5e5d9bb3bf6959c085daa4d08",
+  "lexlean_package_sha256": "feedcdaf2a18a9e63d2bbe1dd744f7fa790a2bc3af4a85a10403f7de10676a64",
+  "model_content_kappa": "blake3:e76544838a98c46341ed8807f72897ec68de5a8a9bf28721738a76761c9df90e",
+  "model_id": "074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6",
+  "prism_stdlib_crate_sha256": "96e41ec1793d75db04ef12224d685a67ee8451d5a034e3bcb7a51ebc1ea91f4d",
+  "schema": "prismpm/model-provenance/1",
+  "semantic_id": "be75c14a6c6ae7c21e0bf6abe3c6312cf107fee86d6a01092306ba7162d4a949",
+  "snapshot_id": "34dc17084bb03c1397da9e7b8505b4173c1b4b133ed3656d403eb45bca590da8",
+  "source_id": "63611de07b58d03b3a9976b34138d903215e50c53ec2ba4ee3cdeb452b0710ad",
+  "stdlib_semantics_id": "35a9c91b1b50f2b61d4e1b4a4abddc833b2185837d6d1511dfff246574692234",
+  "target_profile_id": "ae8fcc6e04db8a9da94362237b28b81b50a3a1f5d927d2f6bc34110ac9f21eb5",
+  "uor_hologram_commit": "2bda6a9a9476872dade705bd61ece4209607f6da",
+  "view_binding": {
+    "browser_projection": {
+      "sha256": "a745ebc5fa0d8d4325e147786380aba93ad7f78e82d5f94d46412d904feda366",
+      "tag": "present"
+    },
+    "tag": "present",
+    "view_content_kappa": "blake3:9860e7054e3f3a8e6ab79c26bcda06bc65778ebdda211160ea66871142b7c808",
+    "view_model_id": "706ed92a8dbf79bd1eafe6a6cf8b980e99f089b69af373a90de1955f78d7bd1b"
+  }
+}

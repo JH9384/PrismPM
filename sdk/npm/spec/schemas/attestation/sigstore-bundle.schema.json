@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/attestation/sigstore-bundle/1",
+  "title": "SigstoreBundle",
+  "description": "One line of the holo attestation section (issue #267): a Sigstore bundle v0.3 in protobuf JSON form, restricted to what Prism writes. Content is always a DSSE envelope carrying an in-toto Statement v1; messageSignature is not allowed. The statement inside is checked against statement.schema.json after base64 decoding. int64 fields are strings, as protobuf JSON encodes them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "mediaType",
+    "verificationMaterial",
+    "dsseEnvelope"
+  ],
+  "properties": {
+    "mediaType": {
+      "const": "application/vnd.dev.sigstore.bundle.v0.3+json"
+    },
+    "verificationMaterial": {
+      "$ref": "#/$defs/VerificationMaterial"
+    },
+    "dsseEnvelope": {
+      "$ref": "#/$defs/DsseEnvelope"
+    }
+  },
+  "$defs": {
+    "Base64": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/_-]*={0,2}$"
+    },
+    "Int64String": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,18})$"
+    },
+    "VerificationMaterial": {
+      "description": "Exactly one of a leaf certificate (keyless) or a public key hint, plus transparency log entries and RFC 3161 timestamps. Which identities to trust is verifier policy (#272, #273), not part of the bundle.",
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "certificate"
+          ]
+        },
+        {
+          "required": [
+            "publicKey"
+          ]
+        }
+      ],
+      "properties": {
+        "certificate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rawBytes"
+          ],
+          "properties": {
+            "rawBytes": {
+              "$ref": "#/$defs/Base64",
+              "description": "DER of the signing certificate, base64."
+            }
+          }
+        },
+        "publicKey": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "hint": {
+              "type": "string"
+            }
+          }
+        },
+        "tlogEntries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TransparencyLogEntry"
+          }
+        },
+        "timestampVerificationData": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rfc3161Timestamps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "signedTimestamp"
+                ],
+                "properties": {
+                  "signedTimestamp": {
+                    "$ref": "#/$defs/Base64"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "TransparencyLogEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logIndex",
+        "logId",
+        "kindVersion",
+        "integratedTime",
+        "canonicalizedBody"
+      ],
+      "properties": {
+        "logIndex": {
+          "$ref": "#/$defs/Int64String"
+        },
+        "logId": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "keyId"
+          ],
+          "properties": {
+            "keyId": {
+              "$ref": "#/$defs/Base64"
+            }
+          }
+        },
+        "kindVersion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "version"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "integratedTime": {
+          "$ref": "#/$defs/Int64String"
+        },
+        "inclusionPromise": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "signedEntryTimestamp"
+          ],
+          "properties": {
+            "signedEntryTimestamp": {
+              "$ref": "#/$defs/Base64"
+            }
+          }
+        },
+        "inclusionProof": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "logIndex",
+            "rootHash",
+            "treeSize",
+            "hashes",
+            "checkpoint"
+          ],
+          "properties": {
+            "logIndex": {
+              "$ref": "#/$defs/Int64String"
+            },
+            "rootHash": {
+              "$ref": "#/$defs/Base64"
+            },
+            "treeSize": {
+              "$ref": "#/$defs/Int64String"
+            },
+            "hashes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Base64"
+              }
+            },
+            "checkpoint": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "envelope"
+              ],
+              "properties": {
+                "envelope": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "canonicalizedBody": {
+          "$ref": "#/$defs/Base64"
+        }
+      }
+    },
+    "DsseEnvelope": {
+      "description": "The same envelope as dsse-envelope.schema.json, restated because $ref resolves only inside one schema. A test keeps the two equal.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "payload",
+        "payloadType",
+        "signatures"
+      ],
+      "properties": {
+        "payload": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/_-]*={0,2}$"
+        },
+        "payloadType": {
+          "const": "application/vnd.in-toto+json"
+        },
+        "signatures": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sig"
+            ],
+            "properties": {
+              "keyid": {
+                "type": "string"
+              },
+              "sig": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/_-]*={0,2}$",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

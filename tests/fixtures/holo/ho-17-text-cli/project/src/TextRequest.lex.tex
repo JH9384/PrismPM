@@ -1,0 +1,28 @@
+\begin{lexlean}{TextRequest}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Foundation.Bytes}
+\importmodule{Foundation.Utf8}
+\importmodule{Foundation.View.Text.V1.Model}
+\importmodule{Foundation.View.Text.V3.Model}
+\title{Text application model}
+\begin{semanticmodule}
+definition{
+  name: application,
+  parameters: [],
+  result: Foundation.View.Text.V3.Model::TextApplication,
+  body: (record Foundation.View.Text.V3.Model::TextApplication {profile := "prismpm/text-application/3", name := "Text Check", cargoName := "prism-text-check", cargoVersion := "0.1.0", cargoDescription := "A modeled byte-request conformance fixture.", cargoRepository := "https://github.com/UOR-Foundation/PrismPM", cargoHomepage := "https://github.com/UOR-Foundation/PrismPM", libraryRoots := (cons "PrismTextCheck.TextRequest.dispatch" (nil String)), acceptanceVectors := (cons (record Foundation.View.Text.V1.Model::AcceptanceVector {request := 0x68c3a9, response := 0x41636365707465643a2068c3a9}) (cons (record Foundation.View.Text.V1.Model::AcceptanceVector {request := 0xff, response := 0x696e76616c6964}) (cons (record Foundation.View.Text.V1.Model::AcceptanceVector {request := 0x, response := 0x696e76616c6964}) (cons (record Foundation.View.Text.V1.Model::AcceptanceVector {request := 0x61616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161, response := 0x41636365707465643a2061616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161}) (cons (record Foundation.View.Text.V1.Model::AcceptanceVector {request := 0x6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161, response := 0x696e76616c6964}) (cons (record Foundation.View.Text.V1.Model::AcceptanceVector {request := 0x6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161, response := 0x696e76616c6964}) (nil Foundation.View.Text.V1.Model::AcceptanceVector))))))), entryRoot := "PrismTextCheck.TextRequest.dispatch", coreContract := "hologram:guest/core-wasm@1", requestMaximum := (64 : UInt32), responseMaximum := (256 : UInt32), guestAllocationMaximum := (128 : UInt32), coreMemoryPages := (ctor Option.some [UInt32] (32 : UInt32)), coreStackBytes := (ctor Option.some [UInt32] (65536 : UInt32)), capabilitiesEmpty := true, fatArchive := true, primaryLayer := (0 : UInt8), viewLayer := (1 : UInt8), view := (record Foundation.View.Text.V1.Model::TextView {title := "Text request — UTF-8", heading := "Text request", inputLabel := "Request", submitLabel := "Submit", outputLabel := "Response", inputError := "Invalid request", responseError := "Invalid response"}), cli := (record Foundation.View.Text.V3.Model::TextCli {command := "check", description := "Checks one UTF-8 text request and prints the report.\n", usageCode := (64 : UInt8), ioCode := (74 : UInt8), limitCode := (ctor Option.none [UInt8]), outcomes := (cons (record Foundation.View.Text.V3.Model::TextCliOutcome {name := "accepted", prefix := "Accepted: ", exitCode := (0 : UInt8)}) (cons (record Foundation.View.Text.V3.Model::TextCliOutcome {name := "rejected", prefix := "invalid", exitCode := (1 : UInt8)}) (cons (record Foundation.View.Text.V3.Model::TextCliOutcome {name := "error", prefix := "Failure:", exitCode := (2 : UInt8)}) (nil Foundation.View.Text.V3.Model::TextCliOutcome)))), sections := (cons (record Foundation.View.Text.V3.Model::TextCliSection {title := "REQUEST", body := "The request is UTF-8 text of at most 64 bytes.\n"}) (cons (record Foundation.View.Text.V3.Model::TextCliSection {title := "REPORT", body := "An accepted request is echoed after Accepted: ; anything else reports invalid.\n"}) (nil Foundation.View.Text.V3.Model::TextCliSection))), examples := (cons (record Foundation.View.Text.V3.Model::TextCliExample {name := "accepted", text := "hé"}) (cons (record Foundation.View.Text.V3.Model::TextCliExample {name := "newline", text := "\n"}) (nil Foundation.View.Text.V3.Model::TextCliExample)))}), workbench := (ctor Option.none [Foundation.View.Text.V3.Model::WorkbenchView])})
+}
+
+definition{
+  name: dispatch,
+  parameters: [value : Bytes],
+  result: Bytes,
+  body: (if ((Foundation.Bytes::byteLength value) =? 0) then 0x696e76616c6964 else (if (64 <? (Foundation.Bytes::byteLength value)) then 0x696e76616c6964 else (match (Foundation.Utf8::decode value)
+    | Option.none => 0x696e76616c6964
+    | Option.some text => (Foundation.Bytes::appendBytes 0x41636365707465643a20 value)))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+\end{semanticmodule}
+\end{lexlean}

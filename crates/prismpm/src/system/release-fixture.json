@@ -1863,7 +1863,7 @@
         "id": "compose-local",
         "kind": "compose",
         "apiVersion": "compose-spec@fee041b381ffd4aad263410980bdce0cdf4beb7d",
-        "adapterDigest": "sha256:0a74dacc5da9c48e582155a2dcc5e830cf71dd054e62c9e6eeb3ccec1e20c255",
+        "adapterDigest": "sha256:5d63cd6921f790c8637e716b632d7777899f37166eff0a6010cd19d1e9127044",
         "minimumReleaseStatus": "development",
         "capabilities": [
           "cap-calculation",

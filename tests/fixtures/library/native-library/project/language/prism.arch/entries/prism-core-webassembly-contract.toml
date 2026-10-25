@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-core-webassembly-contract"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.CoreWasm"
+component = "Contract"
+
+[[form]]
+id = "prism-core-webassembly-contract"
+channel = "text"
+surface = "Core WebAssembly contract"
+canonical_source = true
+features = ["sentence-case", "singular"]

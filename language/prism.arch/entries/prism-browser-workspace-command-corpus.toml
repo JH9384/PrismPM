@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-browser-workspace-command-corpus"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Browser.V1.WorkspaceCommandCorpus"
+component = "fixtureData0"
+
+[[form]]
+id = "prism-browser-workspace-command-corpus"
+channel = "text"
+surface = "Browser workspace command corpus"
+canonical_source = true
+features = ["sentence-case", "singular"]

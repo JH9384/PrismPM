@@ -86,10 +86,25 @@ fn cargo(arguments: &[&str], directory: &Path, target: &Path) -> Output {
         .expect("cargo runs")
 }
 
+/// The fixture with prism-code's map: `InputLimit` has its own code, 3.
+fn limited() -> TextApplicationModel {
+    let mut value = serde_json::to_value(model()).unwrap();
+    value["cli"]["limit_code"] = json!(3);
+    serde_json::from_value(value).expect("a text/3 model with a limit code deserializes")
+}
+
 fn built() -> &'static Built {
     static BUILT: OnceLock<Built> = OnceLock::new();
-    BUILT.get_or_init(|| {
-        let application = model();
+    BUILT.get_or_init(|| build(&model()))
+}
+
+fn built_limited() -> &'static Built {
+    static BUILT: OnceLock<Built> = OnceLock::new();
+    BUILT.get_or_init(|| build(&limited()))
+}
+
+fn build(application: &TextApplicationModel) -> Built {
+    {
         let directory = tempfile::tempdir().unwrap();
         let core = directory.path().join("core");
         std::fs::create_dir_all(core.join("src")).unwrap();
@@ -101,7 +116,7 @@ fn built() -> &'static Built {
         std::fs::write(core.join("src/lib.rs"), CORE).unwrap();
         let package = directory.path().join("cli");
         std::fs::create_dir_all(package.join("src")).unwrap();
-        let generated = generate(&application).unwrap();
+        let generated = generate(application).unwrap();
         for item in &generated.files {
             let bytes = if item.path == "Cargo.toml" {
                 let manifest = String::from_utf8(item.bytes.clone()).unwrap();
@@ -129,11 +144,15 @@ fn built() -> &'static Built {
             target,
             _directory: directory,
         }
-    })
+    }
 }
 
 fn run(arguments: &[&str], stdin: &[u8]) -> Output {
-    let mut child = Command::new(&built().program)
+    run_program(&built().program, arguments, stdin)
+}
+
+fn run_program(program: &Path, arguments: &[&str], stdin: &[u8]) -> Output {
+    let mut child = Command::new(program)
         .args(arguments)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -720,5 +739,79 @@ fn acceptance_plan_expects_framed_workbench_vectors_to_be_refused() {
             .unwrap_err()
             .code,
         "PP6003"
+    );
+}
+
+#[test]
+fn without_a_limit_code_input_limit_keeps_the_error_code() {
+    let application = model();
+    let cli = application.cli.as_ref().unwrap();
+    let surface = surface(&application, cli).unwrap();
+    assert!(surface.contains("pub const FAULT_CODE: u8 = 2;"));
+    assert!(
+        surface.contains("pub const LIMIT_CODE: u8 = 2;"),
+        "{surface}"
+    );
+    let text = help(&application, cli);
+    assert!(!text.contains(" limit "), "{text}");
+    assert!(text.ends_with(
+        "    A request over 16 bytes, a failed computation and an unclassified report\n    exit with the code of error.\n"
+    ));
+    assert!(serde_json::to_value(cli)
+        .unwrap()
+        .get("limit_code")
+        .is_none());
+}
+
+#[test]
+fn a_declared_limit_code_is_rendered_into_the_surface_and_the_help() {
+    let application = limited();
+    let cli = application.cli.as_ref().unwrap();
+    let surface = surface(&application, cli).unwrap();
+    assert!(surface.contains("pub const FAULT_CODE: u8 = 2;"));
+    assert!(
+        surface.contains("pub const LIMIT_CODE: u8 = 3;"),
+        "{surface}"
+    );
+    let text = help(&application, cli);
+    for expected in [
+        "  2  error     report begins with",
+        "  3  limit     request over 16 bytes",
+        " 64  usage",
+        "    A failed computation and an unclassified report exit with the code of error.\n",
+    ] {
+        assert!(text.contains(expected), "{expected:?} in {text}");
+    }
+    assert!(!text.contains("A request over 16 bytes"), "{text}");
+}
+
+#[test]
+fn oversized_input_exits_with_the_declared_limit_code() {
+    let program = &built_limited().program;
+    let output = run_program(program, &["check"], &[b'a'; 17]);
+    assert_eq!(output.status.code(), Some(3), "{}", text(&output.stderr));
+    assert!(output.stdout.is_empty());
+    assert_eq!(text(&output.stderr), "echo-check: InputLimit\n");
+    // Every other fault keeps the code of error; reports keep their own codes.
+    let unclassified = run_program(program, &["check"], b"z");
+    assert_eq!(unclassified.status.code(), Some(2));
+    let error = run_program(program, &["check"], b"x");
+    assert_eq!(error.status.code(), Some(2));
+    assert_eq!(error.stdout, b"error: bad request\n");
+    let help_output = run_program(program, &["--help"], b"");
+    let application = limited();
+    assert_eq!(
+        text(&help_output.stdout),
+        help(&application, application.cli.as_ref().unwrap())
+    );
+    let unit = cargo(
+        &["test", "--offline"],
+        &built_limited().package,
+        &built_limited().target,
+    );
+    assert!(
+        unit.status.success(),
+        "{}",
+        String::from_utf8_lossy(&unit.stderr)
     );
 }

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-portable-error-outcome"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Outcome"
+component = "PortableError"
+
+[[form]]
+id = "prism-portable-error-outcome"
+channel = "text"
+surface = "Portable error outcome"
+canonical_source = true
+features = ["sentence-case", "singular"]

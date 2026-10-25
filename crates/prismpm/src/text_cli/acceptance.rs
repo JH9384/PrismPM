@@ -5,8 +5,9 @@
 //! and the explicit `-` argument. A report must be byte-identical to the guest's
 //! and exit with the code of its modeled outcome. A request over the modeled
 //! maximum cannot reach the guest through the program: it must be refused with
-//! the typed `InputLimit` failure before dispatch, so the guest's response to it
-//! is compared only with the model.
+//! the typed `InputLimit` failure before dispatch, exiting with the modeled
+//! limit code (the code of `error` unless the surface declares its own), so the
+//! guest's response to it is compared only with the model.
 
 use super::{binary_path, help};
 use crate::error::PrismError;
@@ -84,6 +85,7 @@ pub(super) fn plan(application: &TextApplicationModel, cli: &TextCli) -> Result<
         "command": cli.command,
         "examples": cli.examples,
         "fault_code": cli.fault_code(),
+        "limit_code": cli.limit_code(),
         "help": help(application, cli),
         "outcomes": cli
             .outcomes

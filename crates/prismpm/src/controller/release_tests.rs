@@ -160,9 +160,19 @@ fn browser_system_project() -> tempfile::TempDir {
         root.join("src/Release.lex.tex"),
     );
     copy_fixture_file(fixture.join("lexlean.toml"), root.join("lexlean.toml"));
+    copy_stdlib_lexicon(root);
     relock(root);
     bind_application_digest(root);
     temporary
+}
+
+/// The stdlib modules title themselves from `prism.arch`, so a project that
+/// vendors them carries that lexicon beside its sources, as the SDK ships it.
+fn copy_stdlib_lexicon(root: &Path) {
+    copy_tree(
+        &repository().join("language/prism.arch"),
+        &root.join("language/prism.arch"),
+    );
 }
 
 impl Controller {
@@ -335,6 +345,102 @@ fn browser_system_source_selection_and_requirements_fail_closed() {
     relock(root);
 }
 
+/// The mcp-loopback host-effect service of `tests/host-effect-system`, bound to
+/// the Calculator application model as the stand-in for the server application
+/// that issue 216 will supply.
+fn host_effect_system_project() -> tempfile::TempDir {
+    let temporary = calculator_project();
+    let root = temporary.path();
+    std::fs::create_dir(root.join("src/Production")).unwrap();
+    for name in ["Core", "HostEffectSystem"] {
+        copy_fixture_file(
+            repository().join(format!("stdlib/src/Production/{name}.lex.tex")),
+            root.join(format!("src/Production/{name}.lex.tex")),
+        );
+    }
+    copy_fixture_file(
+        repository().join("tests/browser-system/Calculator.lex.tex"),
+        root.join("src/Calculator.lex.tex"),
+    );
+    let fixture = repository().join("tests/host-effect-system");
+    copy_fixture_file(
+        fixture.join("Release.lex.tex"),
+        root.join("src/Release.lex.tex"),
+    );
+    copy_fixture_file(fixture.join("lexlean.toml"), root.join("lexlean.toml"));
+    copy_stdlib_lexicon(root);
+    relock(root);
+    bind_application_digest_of(root, "src/Calculator.lex.tex", 2);
+    temporary
+}
+
+#[test]
+fn host_effect_system_named_release_selects_and_binds_its_source() {
+    let temporary = host_effect_system_project();
+    let root = temporary.path();
+    let prepared = Controller::load(root).unwrap().prepare(None).unwrap();
+    let system = prepared.system.as_ref().unwrap();
+    assert_eq!(system.schema(), "prismpm/system-model/3");
+    // The proved Lean value is the registered example, up to the digest of
+    // the application model the fixture binds.
+    let (example, _) = crate::system::host_effect::example();
+    let mut projected = system.value().clone();
+    assert_eq!(
+        projected["application_profile"]["application_model_digest"],
+        format!("sha256:{}", content_id(&prepared.model_bytes))
+    );
+    projected["application_profile"]["application_model_digest"] =
+        example.value()["application_profile"]["application_model_digest"].clone();
+    assert_eq!(&projected, example.value());
+    let projections = crate::system::projections(system, &[]).unwrap();
+    let compose: Value = serde_json::from_slice(&projections[0].bytes).unwrap();
+    assert_eq!(projections[0].path, "projections/compose.json");
+    assert_eq!(
+        compose["services"]["gateway"]["ports"][0]["host_ip"],
+        "127.0.0.1"
+    );
+    drop(prepared);
+
+    let path = root.join("src/Release.lex.tex");
+    let original = std::fs::read_to_string(&path).unwrap();
+    let adapter = crate::deployment::digest("compose").unwrap();
+    for (changed, code) in [
+        (original.replace("\"127.0.0.1\"", "\"0.0.0.0\""), "PP1101"),
+        (original.replace("\"api\"", "\"worker\""), "PP2101"),
+        (
+            original.replace(&adapter, &format!("sha256:{}", "0".repeat(64))),
+            "PP7101",
+        ),
+        (
+            original.replacen("\"engine.check\"", "\"engine.other\"", 1),
+            "PP2101",
+        ),
+        (
+            original.replace(
+                "name: mcpLoopbackSystemReleaseReady,",
+                "name: mcpLoopbackReady,",
+            ),
+            "PP2101",
+        ),
+    ] {
+        assert_ne!(
+            changed, original,
+            "mutation must change its intended source"
+        );
+        std::fs::write(&path, changed).unwrap();
+        relock(root);
+        let error = Controller::load(root)
+            .unwrap()
+            .prepare(None)
+            .err()
+            .expect("changed host-effect source was accepted");
+        assert_eq!(error.code, code, "{}", error.message);
+        assert!(!root.join(".prism/build").exists());
+    }
+    std::fs::write(&path, original).unwrap();
+    relock(root);
+}
+
 /// The text/3 command-line system fixture: the ho-11 text application raised
 /// to text/3 with a modeled command line, contained by a browser system that
 /// declares the browser component and, second, the command-line component.
@@ -395,7 +501,7 @@ fn text_command_line_system_project() -> tempfile::TempDir {
     let cli = record(
         "TextCli",
         &format!(
-            "command := \"check\", description := \"Checks one text request.\", usageCode := (64 : UInt8), ioCode := (74 : UInt8), outcomes := {outcomes}, sections := {}, examples := {}",
+            "command := \"check\", description := \"Checks one text request.\", usageCode := (64 : UInt8), ioCode := (74 : UInt8), limitCode := (ctor Option.none [UInt8]), outcomes := {outcomes}, sections := {}, examples := {}",
             list("TextCliSection", Vec::new()),
             list("TextCliExample", Vec::new())
         ),
@@ -421,7 +527,9 @@ fn text_command_line_system_project() -> tempfile::TempDir {
         ),
         (
             "responseError := \"Invalid response\"})})".to_owned(),
-            format!("responseError := \"Invalid response\"}}), cli := {cli}}})"),
+            format!(
+                "responseError := \"Invalid response\"}}), cli := {cli}, workbench := (ctor Option.none [{V3}::WorkbenchView])}})"
+            ),
         ),
         (
             "\\importmodule{Foundation.View.Text.V1.Model}".to_owned(),
@@ -912,6 +1020,7 @@ fn named_releases() -> tempfile::TempDir {
         root.join("src/Calculator.lex.tex"),
     );
     copy_fixture_file(fixture_root.join("lexlean.toml"), root.join("lexlean.toml"));
+    copy_stdlib_lexicon(root);
     // Calculator production scenario from calculator-example@5051dc6adb18e9ca2b6ae4ca7090e638329831ef,
     // with its complete certificate regenerated against the current stdlib.
     // B differs only in release identity; no application dependencies are removed.

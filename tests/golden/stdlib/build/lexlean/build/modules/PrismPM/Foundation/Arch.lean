@@ -187,6 +187,15 @@ public structure UmlTransition where
   target : String
   trigger : String
 
+public structure Feature where
+  statement : String
+  calls : List (String)
+  acceptance : List (String)
+
+public structure Journey where
+  actor : String
+  steps : List (String)
+
 public theorem componentIdentityUnique (value : Component) : (value = value) := by
   rfl
 

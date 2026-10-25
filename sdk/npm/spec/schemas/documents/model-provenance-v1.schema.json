@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prismpm/model-provenance/1",
+  "title": "ModelProvenance",
+  "description": "The payload of the https://uor.foundation/extension/prismpm-model/v1 extension, section row 3 (Foundation.Holo.V1.PrismExtension.ModelProvenance, ModelProvenanceV1 in crates/prismpm/src/holo/archive.rs).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "application_kappa",
+    "cargo_crate_sha256",
+    "cargo_name",
+    "cargo_version",
+    "compiler_semantics_id",
+    "core_wasm_contract",
+    "generated_core_sha256",
+    "guest_content_kappa",
+    "hologram_live_commit",
+    "lcnf_manifest_sha256",
+    "lean4_prod_commit",
+    "lean_manifest_sha256",
+    "lexlean_commit",
+    "lexlean_package_sha256",
+    "model_content_kappa",
+    "model_id",
+    "prism_stdlib_crate_sha256",
+    "schema",
+    "semantic_id",
+    "snapshot_id",
+    "source_id",
+    "stdlib_semantics_id",
+    "target_profile_id",
+    "uor_hologram_commit",
+    "view_binding"
+  ],
+  "properties": {
+    "application_kappa": {
+      "type": "string",
+      "pattern": "^blake3:[0-9a-f]{64}$"
+    },
+    "cargo_crate_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "cargo_name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,64}$"
+    },
+    "cargo_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "compiler_semantics_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "core_wasm_contract": {
+      "const": "hologram:guest/core-wasm@1"
+    },
+    "generated_core_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "guest_content_kappa": {
+      "type": "string",
+      "pattern": "^blake3:[0-9a-f]{64}$"
+    },
+    "hologram_live_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "lcnf_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "lean4_prod_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "lean_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "lexlean_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "lexlean_package_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "model_content_kappa": {
+      "type": "string",
+      "pattern": "^blake3:[0-9a-f]{64}$"
+    },
+    "model_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "prism_stdlib_crate_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "schema": {
+      "const": "prismpm/model-provenance/1"
+    },
+    "semantic_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "stdlib_semantics_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "target_profile_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "uor_hologram_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "view_binding": {
+      "description": "PrismPM requires the present form, with a present browser projection, for a portable view application.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag"
+          ],
+          "properties": {
+            "tag": {
+              "const": "none"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag",
+            "browser_projection",
+            "view_content_kappa",
+            "view_model_id"
+          ],
+          "properties": {
+            "tag": {
+              "const": "present"
+            },
+            "browser_projection": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "tag"
+                  ],
+                  "properties": {
+                    "tag": {
+                      "const": "none"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "tag",
+                    "sha256"
+                  ],
+                  "properties": {
+                    "tag": {
+                      "const": "present"
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  }
+                }
+              ]
+            },
+            "view_content_kappa": {
+              "type": "string",
+              "pattern": "^blake3:[0-9a-f]{64}$"
+            },
+            "view_model_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

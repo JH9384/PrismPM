@@ -12,7 +12,7 @@ struct Contract {
     schema: &'static [u8],
 }
 
-const CONTRACTS: [Contract; 61] = [
+const CONTRACTS: [Contract; 63] = [
     Contract {
         id: "prismpm/workbench-view-projection/1",
         maximum_bytes: 1_048_576,
@@ -115,6 +115,12 @@ const CONTRACTS: [Contract; 61] = [
         maximum_bytes: 67_108_864,
         maximum_items: 65_536,
         schema: include_bytes!("../schemas/sdk-lock-v2.schema.json"),
+    },
+    Contract {
+        id: "prismpm/sdk-lock/3",
+        maximum_bytes: 67_108_864,
+        maximum_items: 65_536,
+        schema: include_bytes!("../schemas/sdk-lock-v3.schema.json"),
     },
     Contract {
         id: "prismpm/model-document/2",
@@ -343,6 +349,12 @@ const CONTRACTS: [Contract; 61] = [
         maximum_bytes: 16_777_216,
         maximum_items: 65_536,
         schema: include_bytes!("../schemas/system-model-v2.schema.json"),
+    },
+    Contract {
+        id: "prismpm/system-model/3",
+        maximum_bytes: 16_777_216,
+        maximum_items: 65_536,
+        schema: include_bytes!("../schemas/system-model-v3.schema.json"),
     },
     Contract {
         id: "prismpm/browser-system-release/1",
@@ -580,7 +592,7 @@ fn validate_semantic_order(id: &str, value: &Value) -> Result<(), PrismError> {
         ],
         "prismpm/standards-lock/1" => vec![("authorities", "id"), ("oracles", "id")],
         "prismpm/sdk-lock/1" => vec![("inventory", "id")],
-        "prismpm/sdk-lock/2" => vec![("platforms", "platform")],
+        "prismpm/sdk-lock/2" | "prismpm/sdk-lock/3" => vec![("platforms", "platform")],
         "prismpm/system-model/1" => vec![
             ("acceptance", "id"),
             ("alerts", "id"),
@@ -645,7 +657,8 @@ fn validate_semantic_order(id: &str, value: &Value) -> Result<(), PrismError> {
             ));
         }
     }
-    if id == "prismpm/sdk-lock/2" {
+    // A /3 lock carries every /2 field unchanged, so the same platform rules apply.
+    if id == "prismpm/sdk-lock/2" || id == "prismpm/sdk-lock/3" {
         crate::sdk::validate_platform_lock(value)?;
     }
     if id == "prismpm/sdk-lock-migration/1" {

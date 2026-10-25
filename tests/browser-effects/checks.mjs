@@ -4,6 +4,7 @@ import {readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {prepare, run, sha, repository} from './compile.mjs';
 import {captureCompilerInputs} from '../browser-view/compiler-owner.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 import {corpus, maximumCorpus, boundaryCorpus} from './corpus.mjs';
 import {prerequisite} from '../browser-view/prerequisites.mjs';
 import {inspectEffectModule} from '../../sdk/browser/effects-module.mjs';
@@ -55,7 +56,8 @@ export function sourceClosure() {
     'stdlib/src/Foundation/Browser/Application/V1/EffectsWire.lex.tex',
     'stdlib/src/Foundation/Bytes.lex.tex', 'stdlib/src/Foundation/Codec.lex.tex',
     'stdlib/src/Foundation/Codec/Cbor/V1/Primitive.lex.tex', 'model/browser-effect-diagnostics.json',
-    'LICENSE-MIT', 'LICENSE-APACHE'];
+    'LICENSE-MIT', 'LICENSE-APACHE',
+    'tests/browser-view/lexicon-inputs.mjs', ...lexiconPaths(repository)];
   return {...captureCompilerInputs('effects'),
     ...Object.fromEntries(oraclePaths.map(path => [path, sha(readFileSync(join(repository, path)))]))};
 }

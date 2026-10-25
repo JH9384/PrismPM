@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-standard-library-system-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "System"
+component = "stdlibModel"
+
+[[form]]
+id = "prism-standard-library-system-model"
+channel = "text"
+surface = "Standard library system model"
+canonical_source = true
+features = ["sentence-case", "singular"]

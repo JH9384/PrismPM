@@ -122,3 +122,9 @@ Feature: stdlib
     Given stdlib/src/Foundation/Arch.lex.tex
     When processed by LexLean
     Then DesignView, SystemProcess, SystemState, the Opm elements and the Uml elements are defined
+
+  @ST-19 @build
+  Scenario: Prism-stdlib proves with an empty axiom set that the normalized feature and journey validator is sound and complete, and refuses a feature without a call, a feature without acceptance, a journey step outside the declared features and a journey actor outside the stakeholders.
+    Given stdlib/src/Foundation/Holo.lex.tex
+    When processed by LexLean
+    Then validateNormalizedFeatures is sound and complete with an empty axiom set and refuses a feature without a call, a feature without acceptance, a journey step outside the declared features and a journey actor outside the stakeholders

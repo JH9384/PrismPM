@@ -1,0 +1,13 @@
+{
+  "schema": "prism/verdict/1",
+  "holo": "blake3:8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba",
+  "level": "P0",
+  "policy": { "name": "policies/provenance-only.cue", "minimum": "P1" },
+  "passed": false,
+  "reasons": [
+    { "check": "provenance.statement", "withholds": "P1", "message": "The holo carries no provenance statement." },
+    { "check": "proof.statement", "withholds": "P2", "message": "The holo carries no proof statement." },
+    { "check": "replay.statement", "withholds": "P3", "message": "The holo carries no replay statement." },
+    { "check": "policy.level", "code": "PP5601", "withholds": null, "message": "The level is P0; the policy requires P1 or above." }
+  ]
+}

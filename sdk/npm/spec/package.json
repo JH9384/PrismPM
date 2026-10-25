@@ -1,0 +1,66 @@
+{
+  "name": "@prism-code/spec",
+  "version": "0.1.0",
+  "private": false,
+  "description": "The Prism formats as data: TypeScript types, JSON Schemas and WIT for the .holo archive, its documents, in-toto attestations, predicate types and the Core-Wasm guest world. No functions, no dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.mjs"
+    },
+    "./schemas/*": "./schemas/*",
+    "./predicates/*": "./predicates/*",
+    "./worlds/*": "./worlds/*",
+    "./package.json": "./package.json"
+  },
+  "types": "./index.d.ts",
+  "files": [
+    "index.mjs",
+    "index.d.ts",
+    "constants.mjs",
+    "constants.d.ts",
+    "assurance-levels.mjs",
+    "assurance-levels.d.ts",
+    "types",
+    "schemas",
+    "predicates",
+    "worlds",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepare": "node scripts/build.mjs",
+    "prepack": "node scripts/build.mjs",
+    "pretest": "node scripts/build.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "keywords": [
+    "prism",
+    "prismpm",
+    "holo",
+    "json-schema",
+    "wit",
+    "in-toto",
+    "dsse",
+    "core-wasm",
+    "uor"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UOR-Foundation/PrismPM",
+    "directory": "sdk/npm/spec"
+  },
+  "homepage": "https://github.com/UOR-Foundation/PrismPM/tree/main/sdk/npm/spec",
+  "bugs": "https://github.com/UOR-Foundation/PrismPM/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

@@ -66,12 +66,122 @@ request the view posts) by dispatching through the guest.
 
 ```
 npx prism-code vectors app.holo       # replay every acceptance vector; exit 1 on a failure
-npx prism-code inspect app.holo       # identities, limits, provenance, view files as JSON
 ```
 
-Both also take a closure directory. A numeric-profile closure (the Calculator)
-exposes only `calculate()`, so its wire format comes from the model document:
-pass `--model model.prism.json`.
+`vectors` also takes a closure directory. A numeric-profile closure (the
+Calculator) exposes only `calculate()`, so its wire format comes from the model
+document: pass `--model model.prism.json`.
+
+## Inspect without running
+
+`inspect` prints the format revision, the section table with both digests of
+every section, the manifest, the model, the provenance, the world and the
+attestations. It reads the section table only. It never compiles or runs the
+guest.
+
+```
+npx prism-code inspect Calculator.holo
+```
+
+```text
+Name:      Calculator
+Revision:  2026-10-23
+Format:    HOLO physical version 4, flags 0
+Size:      24801 B
+Digest:    sha256:84371aaac82af6b2a81a25a81d43d4097892985f55ae4919cfdcfa8b6e3486e7
+           blake3:4efe02106778d44a469cc0fc8f6998167af7c9075a3ac605c150098c0f5243bb
+Footer:    8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba (BLAKE3 of the body)
+
+Sections:
+  INDEX  KIND  ROLE                   OFFSET  LENGTH  SHA256                                                            BLAKE3
+  0      15    app-manifest           202     356     0088c507ec48bb78288d898327902037749c6bb9527546633c6a1adbc3ba8a6f  4ed201e5…
+  …
+World:
+  Contract:        hologram:guest/core-wasm@1
+  Imports:         none
+  Exports:         holo_alloc, holo_run, memory
+  Capability set:  blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c (requests nothing)
+
+Attestations:
+  none
+```
+
+Every block has the same lines in the same order, and every digest is printed
+in full, so two outputs diff cleanly in CI. Each digest pair is sha256 and
+BLAKE3 over the same bytes. A section's digest covers exactly its table bytes.
+A content blob also lists the digest of its content, whose BLAKE3 is its
+label. The footer is the BLAKE3 of every byte before it, not of the file.
+
+Pass `--json` for the whole inspection as one canonical JSON object, keys
+sorted, schema `prismpm/holo-inspection/1`. Pass `--format` with a dotted path
+to print one value:
+
+```
+npx prism-code inspect Calculator.holo --format sections[0].digest.sha256
+npx prism-code inspect Calculator.holo --format world
+npx prism-code inspect Calculator.holo --format revision
+```
+
+A string prints as is. Anything else prints as canonical JSON. A path with no
+value exits 2. A malformed path exits 64.
+
+`Attestations` reads `none` until holos carry an attestation section. A damaged
+holo is still inspected: `Verification` reports the footer, the blob labels and
+the cross-references as `ok` or `FAIL`. A holo whose structure the reader does
+not recognize exits 2 with the reader's error code.
+
+The same object is available in code:
+
+```js
+import { inspect } from 'prism-code';
+
+const inspection = await inspect(bytes);   // or: await (await load(path)).inspect()
+inspection.sections[4].content.digest;     // { sha256, blake3 } of the guest
+```
+
+A closure directory has no section table. `inspect` on a closure prints the
+0.2.0 summary of identities, limits, provenance and view files as JSON.
+
+## Verify one (experimental)
+
+`experimental_verify(holo, options)` and `app.experimental_verify(options)` return the same
+`prism/verdict/1` that `prism check` and `@prism-code/verify` return, from the holo
+alone, offline. The checks are `@prism-code/verify`'s, vendored as one file, so
+the package still has no dependencies. The level is computed from the evidence in
+the holo and no option raises it: a holo with no attestation bundle is `P0`, and
+the default policy (`P2`) fails it.
+
+```js
+import { load, experimental_verify, VerificationError } from 'prism-code';
+
+const app = await load('Calculator.holo');
+const verdict = await app.experimental_verify({ minimum: 'P0' });
+verdict.level;    // 'P0'
+verdict.passed;   // true
+
+try {
+  await experimental_verify(bytes, { throw: true });
+} catch (error) {
+  if (error instanceof VerificationError) error.check; // 'provenance.statement'
+}
+```
+
+Options are `name`, `minimum` (`P0` to `P3`), `digests` and `throw`. The minimum
+defaults to the `PRISM_MINIMUM_LEVEL` environment variable; `experimental_createClient(options)`
+holds options for many calls; the options of one call replace the client's, and
+the client's replace the environment's. A holo that fails a check is a verdict, and
+with `throw: true` it is thrown as the typed error that explains it. A file with
+no verdict (not a holo, an unknown format revision, an invalid option) always
+throws.
+
+Every error is a `PrismError` with a stable `code`: `VerificationError`
+(`verification_failed`; `holo.*`, `provenance.*`, `policy.*` and no verdict),
+`ProofMismatchError` (`proof_mismatch`; `proof.*`), `CapabilityDeniedError`
+(`capability_denied`; `world.capabilities`), `DeterminismViolationError`
+(`determinism_violation`; `replay.divergence`) and `ReplayError` (`replay_failed`; other
+`replay.*`). `check` is the verdict reason's check id, `diagnostic` its registered
+code, `verdict` and `reasons` the whole result. Load and archive failures remain
+`PrismCodeError`, a `PrismError` whose `code` is the check (`archive.magic`, ...).
 
 ## Build one
 
@@ -102,6 +212,28 @@ its 71-byte `blake3:` label: the capability set, the Core-Wasm guest, the model
 document and the HOLOVIEW bundle. The package verifies every label and the
 footer with its own BLAKE3, and refuses structure it does not recognize with a
 named error (`archive.version`, `archive.bounds`, `core.exports`, ...).
+
+## Attestations (draft, #267)
+
+A holo may carry signed statements in one more Extension row, the last one,
+named `https://uor.foundation/extension/attestation-bundle/v1`. Its payload is
+JSON Lines, one Sigstore bundle v0.3 per line. The footer still covers every
+byte before it, bundle included. The design is
+[docs/proposals/267-attestation-bundle.md](../../../docs/proposals/267-attestation-bundle.md).
+
+```js
+import { load, appendAttestations, stripAttestations } from 'prism-code';
+
+const signed = appendAttestations(holoBytes, [bundle]); // other rows byte-identical, footer recomputed
+const app = await load(signed);
+app.attestations();          // [{ predicateType, statement, subjects, bytes, ... }]
+stripAttestations(signed);   // the unsigned archive, byte for byte
+```
+
+The package decodes bundles and resolves each subject to a content blob by its
+`blake3` label. It does not verify signatures; that is `@prism-code/verify`
+(#273). PrismPM's Rust reader refuses the ninth row until the wire model admits
+it, so signed archives are for the JavaScript runtime only for now.
 
 ## In the browser
 

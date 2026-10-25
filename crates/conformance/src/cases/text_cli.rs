@@ -29,6 +29,10 @@ fn run(root: &Path, arguments: &[&str]) -> String {
 }
 
 pub(super) fn verify(root: &Path) {
+    // The in-tree text/3 project with a modeled command line, which
+    // `verify-examples` builds and verifies, must check exactly as declared.
+    crate::fixtures::check(&root.join("tests/fixtures/holo/ho-17-text-cli"))
+        .expect("the complete text/3 command-line fixture matches its declared outcome");
     let library = run(root, &["--lib", "text_cli"]);
     for name in [
         "bill_of_materials_binds_every_program_to_its_digest",

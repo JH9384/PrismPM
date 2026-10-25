@@ -102,7 +102,7 @@ export function provenanceProfile(name) {
     const source = capturedMap(sources, 'source'), lean = capturedMap(generated, 'generated Lean');
     const manifest = document(manifestBytes, 'manifest'), attestation = document(attestationBytes, 'attestation');
     assert.equal(manifest.spec, 'lexlean/build-manifest/1');
-    assert.equal(attestation.spec, 'lexlean/attestation/1');
+    assert.equal(attestation.spec, 'lexlean/attestation/2');
     assert.equal(attestation.status, 'verified');
     for (const key of ['source_id', 'semantic_id', 'build_id']) {
       assert.ok(digest(verified[key]), 'actual driver ' + key);

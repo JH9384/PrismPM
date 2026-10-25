@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prismpm/browser-provenance/1",
+  "title": "BrowserProvenance",
+  "description": "provenance.json in the six-file browser closure that prismpm export-browser writes (crates/prismpm/src/application_build.rs).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "adapter_lock_sha256",
+    "adapter_wasm_sha256",
+    "binding_javascript_sha256",
+    "generated_core_sha256",
+    "model_id",
+    "schema",
+    "view_manifest_sha256",
+    "view_model_id"
+  ],
+  "properties": {
+    "adapter_lock_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "adapter_wasm_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "binding_javascript_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "generated_core_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "model_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "schema": {
+      "const": "prismpm/browser-provenance/1"
+    },
+    "view_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "view_model_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

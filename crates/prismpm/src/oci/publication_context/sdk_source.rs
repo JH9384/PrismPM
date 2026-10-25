@@ -304,6 +304,14 @@ mod tests {
         assert!(rows.contains_key("stdlib/Production/PublicationAdmission/LinkageV1.lex.tex"));
         assert!(!rows.contains_key("stdlib/src/Production/PublicationAdmission/LinkageV1.lex.tex"));
         for (path, bytes) in rows {
+            // The lexicons ride beside the modules: the stdlib titles itself
+            // from `prism.arch`, which the project declares at `language/`.
+            if path.starts_with("language/") {
+                let destination = root.path().join(&path);
+                std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+                std::fs::write(destination, bytes).unwrap();
+                continue;
+            }
             let Some(path) = path.strip_prefix("stdlib/") else {
                 continue;
             };

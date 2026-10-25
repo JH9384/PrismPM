@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-publication-linkage-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Production.PublicationAdmission.LinkageV1"
+component = "PublicationRequirement"
+
+[[form]]
+id = "prism-publication-linkage-model"
+channel = "text"
+surface = "Publication linkage model"
+canonical_source = true
+features = ["sentence-case", "singular"]

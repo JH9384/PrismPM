@@ -39,6 +39,11 @@ enum Rule {
     BrowserApplication,
     BrowserRuntime,
     DesignView,
+    FeatureCall,
+    FeatureAcceptance,
+    FeatureStep,
+    JourneyActor,
+    FeatureDeclaration,
 }
 
 impl Rule {
@@ -55,6 +60,11 @@ impl Rule {
                 json!({"component": "Probe::component"}),
                 json!({"component": "Probe::unknown"}),
             ),
+            Self::FeatureCall
+            | Self::FeatureAcceptance
+            | Self::FeatureStep
+            | Self::JourneyActor
+            | Self::FeatureDeclaration => feature_specimens(self),
             Self::ArtifactIntegrity => filesystem::specimens("PP4001"),
             Self::ConfinedOutput => filesystem::specimens("PP8001"),
             Self::ImmutableLock => filesystem::specimens("PP1101"),
@@ -130,6 +140,11 @@ impl Rule {
             Self::BrowserApplication => validate_browser_specimen(value).is_ok(),
             Self::BrowserRuntime => validate_browser_runtime(value).is_ok(),
             Self::DesignView => crate::design::probe(value).is_ok(),
+            Self::FeatureCall
+            | Self::FeatureAcceptance
+            | Self::FeatureStep
+            | Self::JourneyActor
+            | Self::FeatureDeclaration => crate::features::probe(value).is_ok(),
             Self::ArtifactIntegrity | Self::ConfinedOutput | Self::ImmutableLock => {
                 filesystem::validate(value).is_ok()
             }
@@ -239,6 +254,15 @@ probes!(
         BrowserRuntime
     ),
     ("PP2012", "unknown-design-view-name", DesignView),
+    ("PP2014", "feature-without-call", FeatureCall),
+    ("PP2015", "feature-without-acceptance", FeatureAcceptance),
+    ("PP2016", "journey-step-undeclared-feature", FeatureStep),
+    ("PP2017", "journey-actor-not-stakeholder", JourneyActor),
+    (
+        "PP2018",
+        "invalid-feature-or-journey-declaration",
+        FeatureDeclaration
+    ),
     ("PP3002", "malformed-holo-section-table", PositiveBound),
     ("PP3003", "invalid-holo-section-closure", Complete),
     ("PP3004", "holo-footer-mismatch", Digest),
@@ -340,6 +364,31 @@ fn validate_text_specimen(value: &Value) -> Result<(), PrismError> {
     crate::holo::validate::validate_text_application(&application)
 }
 
+/// The control and malformed specimens of the feature and journey rules: a
+/// stakeholder, a call and an acceptance row that exist, one feature and one
+/// journey, with the single defect each rule names.
+fn feature_specimens(rule: Rule) -> (Value, Value) {
+    let valid = json!({
+        "stakeholders": ["Probe::stakeholder"],
+        "definitions": ["Probe::call", "Probe::acceptance"],
+        "features": {"Probe::feature": {"calls": ["Probe::call"], "acceptance": ["Probe::acceptance"]}},
+        "journeys": {"Probe::journey": {"actor": "Probe::stakeholder", "steps": ["Probe::feature"]}},
+    });
+    let mut invalid = valid.clone();
+    match rule {
+        Rule::FeatureCall => invalid["features"]["Probe::feature"]["calls"] = json!([]),
+        Rule::FeatureAcceptance => invalid["features"]["Probe::feature"]["acceptance"] = json!([]),
+        Rule::FeatureStep => {
+            invalid["journeys"]["Probe::journey"]["steps"] = json!(["Probe::unknown"])
+        }
+        Rule::JourneyActor => {
+            invalid["journeys"]["Probe::journey"]["actor"] = json!("Probe::unknown")
+        }
+        _ => invalid["definitions"] = json!(["Probe::acceptance"]),
+    }
+    (valid, invalid)
+}
+
 fn browser_specimen() -> Value {
     serde_json::from_str(r#"{"profile":"prismpm/browser-application/1","name":"Browser Contract","cargo_name":"prism-browser-contract","cargo_version":"0.1.0","cargo_description":"Source projection fixture, not an executable application.","cargo_repository":"https://github.com/UOR-Foundation/PrismPM","cargo_homepage":"https://github.com/UOR-Foundation/PrismPM","library_roots":["BrowserContract.Probe.dispatch","BrowserContract.Probe.present","BrowserContract.Probe.replay"],"acceptance_vectors":[{"request":[0],"response":[0]}],"entry_root":"BrowserContract.Probe.dispatch","core_contract":"hologram:guest/core-wasm@1","request_maximum":1,"response_maximum":1,"guest_allocation_maximum":1,"memory_pages":32,"capabilities_empty":true,"fat_archive":true,"primary_layer":0,"view_layer":1,"protocol":"prismpm/browser-application-session/1","requested_effects":[{"resource":"digest","adapter":{"kind":"digest","maximum":1048576}},{"resource":"guest","adapter":{"kind":"guest","entry_root":"BrowserContract.Probe.dispatch","protocol":"fixture/1","input_maximum":1,"output_maximum":1,"memory_pages":32}},{"resource":"random","adapter":{"kind":"random","maximum":65536}},{"resource":"sign","adapter":{"kind":"sign","credential_slot":"selected","context":"prismpm/fixture/1","maximum":1048576}},{"resource":"store","adapter":{"kind":"store","namespace":"browser-contract","max_object_bytes":1048576,"max_objects":4096,"max_heads":64}},{"resource":"verify","adapter":{"kind":"verify","context":"prismpm/fixture/1","maximum":1048576}}],"durability":{"protocol":"prismpm/browser-operation-journal/1","resource":"journal","head":"operations","replay_root":"BrowserContract.Probe.replay","max_pending":1,"namespace":"browser-contract-journal","staging_head":"staging","signing_resource":"journal-sign","credential_slot":"selected","maximum_records":1024},"view":{"surface":"prismpm-browser/1","protocol":"prismpm/browser-presentation/1","title":"Browser Contract","heading":"Declaration fixture","presentation_root":"BrowserContract.Probe.present","maximum":1,"labels":[{"id":"status","text":"Runtime unavailable"}]}}"#).expect("closed browser diagnostic fixture")
 }
@@ -386,6 +435,16 @@ fn validate(spec: ProbeSpec, value: &Value) -> Result<(), PrismError> {
     }
     if matches!(spec.rule, Rule::DesignView) {
         return crate::design::probe(value);
+    }
+    if matches!(
+        spec.rule,
+        Rule::FeatureCall
+            | Rule::FeatureAcceptance
+            | Rule::FeatureStep
+            | Rule::JourneyActor
+            | Rule::FeatureDeclaration
+    ) {
+        return crate::features::probe(value);
     }
     if spec.rule.accepts(value) {
         Ok(())

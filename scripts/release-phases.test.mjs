@@ -40,10 +40,14 @@ function validateWorkflow(value) {
   for (const checkpoint of [
     'package_target=${archive%/package/*}',
     'test "$archive" = "$package_target/package/$package-$version.crate"',
-    'cargo package --locked --manifest-path "$manifest" --target-dir "$package_target"',
+    'release_cargo "$package" package --locked --manifest-path "$manifest" --target-dir "$package_target"',
     'test -f "$archive"',
     'cmp "$archive" "$expected"',
     'local_checksum=$(sha256sum "$archive" | cut -d" " -f1)',
+    'release_cargo "$package" publish --dry-run --locked --manifest-path "$manifest" --target-dir "$package_target"',
+    'test "$(sha256sum "$archive" | cut -d" " -f1)" = "$local_checksum"',
+    './scripts/crate-metadata-check.sh "$archive"',
+    'if [ "$UPLOAD" != true ]; then',
     'cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"',
   ]) {
     const offset = cargoPublication.indexOf(checkpoint);
@@ -51,10 +55,33 @@ function validateWorkflow(value) {
     assert.equal(cargoPublication.lastIndexOf(checkpoint), offset, `Cargo publication repeats ${checkpoint}`);
     previous = offset;
   }
-  assert.deepEqual(cargoPublication.split('\n').map(line => line.trim()).filter(line => line.startsWith('cargo ')), [
-    'cargo package --locked --manifest-path "$manifest" --target-dir "$package_target"',
+  assert.deepEqual(cargoPublication.split('\n').map(line => line.trim())
+    .filter(line => /^(release_cargo "\$package" |cargo )(package|publish)/.test(line)), [
+    'release_cargo "$package" package --locked --manifest-path "$manifest" --target-dir "$package_target"',
+    'release_cargo "$package" publish --dry-run --locked --manifest-path "$manifest" --target-dir "$package_target"',
     'cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"',
-  ], 'Cargo must retain complete verification for both selected-target operations');
+  ], 'Cargo must retain complete verification for every selected-target operation, and only the last one uploads');
+  // The upload happens only with a credential: the skip returns before it, the
+  // wait for lexlean is conditional on it, and no step hands Cargo a token
+  // without the secret or the trusted-publishing switch (#214).
+  assert.ok(cargoPublication.indexOf('return 0', cargoPublication.indexOf('if [ "$UPLOAD" != true ]; then'))
+    < cargoPublication.indexOf('cargo publish --locked --manifest-path'), 'the skip must return before the upload');
+  assert.match(cargoPublication, /if \[ "\$UPLOAD" = true \]; then\n\s+wait_for_crate lexlean 0\.3\.0\n\s+fi/);
+  assert.match(cargoPublication, /release_cargo\(\) \{\n\s+name=\$1\n\s+shift\n\s+if \[ "\$UPLOAD" = true \]; then\n\s+cargo "\$@"\n\s+elif \[ "\$name" = prod-codegen \]/);
+  for (const dependency of ['lexlean', 'prod-ir', 'prod-codegen', 'prism-stdlib']) {
+    assert.ok(cargoPublication.includes(`--config "patch.crates-io.${dependency}.path=`), `${dependency} must resolve from the reviewed copy before upload`);
+  }
+  assert.equal(value.jobs.crates.env.HAS_CARGO_REGISTRY_TOKEN, "${{ secrets.CARGO_REGISTRY_TOKEN != '' }}");
+  assert.equal(value.jobs.crates.env.TRUSTED_PUBLISHING, "${{ vars.CRATES_IO_TRUSTED_PUBLISHING == 'true' }}");
+  const authentication = value.jobs.crates.steps.find(step => step.uses?.startsWith('rust-lang/crates-io-auth-action'));
+  assert.equal(authentication.if, "${{ env.HAS_CARGO_REGISTRY_TOKEN != 'true' && env.TRUSTED_PUBLISHING == 'true' }}");
+  const publicationStep = value.jobs.crates.steps.find(step => step.run?.includes('publish_exact()'));
+  assert.equal(publicationStep.env.CARGO_REGISTRY_TOKEN, '${{ secrets.CARGO_REGISTRY_TOKEN || steps.auth.outputs.token }}');
+  assert.equal(publicationStep.env.UPLOAD, "${{ env.HAS_CARGO_REGISTRY_TOKEN == 'true' || env.TRUSTED_PUBLISHING == 'true' }}");
+  assert.match(publicationStep.run, /--env UPLOAD \\\n/);
+  // The job script is one single-quoted `bash -c` argument: an apostrophe in a
+  // comment or a message inside it ends the quote and breaks the whole job.
+  execFileSync('bash', ['-n'], {input: publicationStep.run, stdio: ['pipe', 'pipe', 'pipe']});
   assert.equal(value.jobs.gate.outputs['publish-crates'], '${{ steps.version.outputs.publish-crates }}');
   assert.match(value.jobs.gate.steps.find(step => step.id === 'version').run, /release-phases\.mjs policy/);
   const sourceGate = value.jobs.gate.steps.find(step => step.with?.runCmd)?.with.runCmd;
@@ -162,20 +189,36 @@ test('publication phases preserve all gates and decouple OCI/native from optiona
     ...[
       run => run.replace('package_target=${archive%/package/*}', 'package_target=target'),
       run => run.replace('test "$archive" = "$package_target/package/$package-$version.crate"', 'true'),
-      run => run.replace('cargo package --locked --manifest-path "$manifest" --target-dir "$package_target"',
-        'cargo package --locked --manifest-path "$manifest"'),
-      run => run.replace('cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"',
-        'cargo publish --locked --manifest-path "$manifest"'),
-      run => run.replace('cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"',
-        'cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target" --no-verify'),
+      run => run.replace('release_cargo "$package" package --locked --manifest-path "$manifest" --target-dir "$package_target"',
+        'release_cargo package --locked --manifest-path "$manifest"'),
+      run => run.replace('cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"\n',
+        'cargo publish --locked --manifest-path "$manifest"\n'),
+      run => run.replace('cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"\n',
+        'cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target" --no-verify\n'),
       run => run.replace('cmp "$archive" "$expected"', 'true'),
       run => run.replace('cmp "$archive" "$expected"', 'true').replace(
-        'cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"',
-        'cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"\n                cmp "$archive" "$expected"'),
+        'cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"\n',
+        'cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"\n                cmp "$archive" "$expected"\n'),
+      // #214: the packaged crate must be dry-run, must stay the compared bytes
+      // through the dry run, must meet crates.io metadata, and must not upload
+      // without a credential.
+      run => run.replace('release_cargo "$package" publish --dry-run --locked --manifest-path "$manifest" --target-dir "$package_target"\n', ''),
+      run => run.replace('release_cargo "$package" publish --dry-run --locked --manifest-path "$manifest" --target-dir "$package_target"',
+        'release_cargo "$package" publish --dry-run --locked --manifest-path "$manifest" --target-dir "$package_target" --no-verify'),
+      run => run.replace('test "$(sha256sum "$archive" | cut -d" " -f1)" = "$local_checksum"\n', ''),
+      run => run.replace('./scripts/crate-metadata-check.sh "$archive"\n', ''),
+      run => run.replace('if [ "$UPLOAD" != true ]; then', 'if false; then'),
+      run => run.replace(/if \[ "\$UPLOAD" = true \]; then\s+wait_for_crate lexlean 0\.3\.0\s+fi/, 'wait_for_crate lexlean 0.3.0'),
+      run => run.replace(/\s*--config "patch\.crates-io\.lexlean\.path=[^\n]*\n/, '\n'),
     ].map(mutate => value => {
       const step = value.jobs.crates.steps.find(step => step.run?.includes('publish_exact()'));
       step.run = mutate(step.run);
     }),
+    value => { delete value.jobs.crates.env.HAS_CARGO_REGISTRY_TOKEN; },
+    value => { delete value.jobs.crates.steps.find(step => step.uses?.startsWith('rust-lang/crates-io-auth-action')).if; },
+    value => { value.jobs.crates.steps.find(step => step.run?.includes('publish_exact()')).env.UPLOAD = 'true'; },
+    value => { value.jobs.crates.steps.find(step => step.run?.includes('publish_exact()')).env.CARGO_REGISTRY_TOKEN
+      = '${{ steps.auth.outputs.token }}'; },
     value => { value.jobs.gate.steps.find(step => step.with?.runCmd).with.runCmd = 'just vv'; },
     value => { value.jobs.reproducibility.steps.find(step => step.env?.DOCKERFILE).run = 'cmp root-a.digest root-b.digest'; },
     value => { value.jobs.images.steps = value.jobs.images.steps.filter(step => !step.run?.includes('release-phases.mjs policy')); },
@@ -234,7 +277,7 @@ test('release crates use stage-owned targets despite an inherited Cargo target d
 
 test('Cargo publication target selection binds the exact package and version archive', () => {
   const body = workflow().jobs.crates.steps.find(step => step.run?.includes('publish_exact()')).run;
-  const selection = body.slice(body.indexOf('package_target='), body.indexOf('cargo package')).trim();
+  const selection = body.slice(body.indexOf('package_target='), body.indexOf('release_cargo "$package" package')).trim();
   const select = (packageName, version, archive) => execFileSync('sh', ['-eu', '-c',
     `${selection}\nprintf '%s\\n' "$package_target"`], {encoding: 'utf8', stdio: 'pipe',
     env: {...process.env, package: packageName, version, archive}});

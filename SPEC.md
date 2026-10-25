@@ -177,6 +177,48 @@ independent of declaration order, and embeds no timestamp or host data. A model
 that declares no design primitive is unaffected. XMI interchange and layout
 are outside the covered subset.
 
+### 2.2 Features and user journeys
+
+FT-12, FT-13 and ST-19 admit the features and user journeys of a product as
+ISO/IEC/IEEE 42010 declarations. `Foundation.Arch` declares `Feature`, which
+carries a `statement`, the `calls` that realize it and the `acceptance` rows
+that accept it, and `Journey`, which carries an `actor` and its ordered `steps`.
+A model declares each as a definition whose result type is
+`Foundation.Arch::Feature` or `Foundation.Arch::Journey` and whose body is a
+record literal. Every cross-reference is the qualified `<module>::<declaration>`
+identifier of the declaration it names, the identifier the model document
+gives a stakeholder: a call or an acceptance row names a definition of the
+checked source graph, a journey's `actor` names a `Foundation.Arch::Stakeholder`
+of the model document, and a step names a declared `Feature`. Features and
+journeys are checked, not projected: they are not part of
+`prismpm/model-document`, so no model-document schema, standards profile or
+emitter digest depends on them.
+
+`check` and `build` run the check after the model document is projected. It is
+the executable form of `Foundation.Holo.validateNormalizedFeatures`, which
+takes the features and the stakeholders numbered in identifier order and every
+reference reduced to an index. The validator holds when each feature has at
+least one call and at least one acceptance row, when every journey actor is
+below the stakeholder count and when every journey step is below the feature
+count. Its component and whole-model soundness and completeness theorems hold
+with an empty axiom set, and five finite theorems prove the verdict on the
+accepted vector and on each refused one. Failures are reported in a fixed
+order, by feature identifier and then by journey identifier, one diagnostic at a
+time, and each failure has its own registered code:
+
+| Code | Failure |
+| --- | --- |
+| `PP2014` | a feature is realized by no call |
+| `PP2015` | a feature is accepted by no acceptance row |
+| `PP2016` | a journey step names a declaration that is not a declared feature |
+| `PP2017` | a journey's actor is not a declared stakeholder |
+| `PP2018` | a declaration is not a closed literal record, a statement has a control character other than line feed or exceeds 4096 characters, or a call or acceptance row names no definition |
+
+A model that declares no feature and no journey is unaffected. The check does
+not decide that a call is an interface call or that an acceptance row is
+executed: the name must resolve to a definition, and what the definition is
+remains the consuming model's statement.
+
 ## 3. Canonical Holo contract
 
 Holo/1 is the Prism application profile defined by the generated declarations
@@ -361,11 +403,14 @@ every V2 range rule. V3 also adds one required closed `cli` record, so
 the command-line surface is source-owned data and not generator input. HO-17
 owns this profile. The record holds the subcommand `command` (a lowercase token
 other than `examples`), a purpose paragraph `description`, `usageCode` and
-`ioCode`, the ordered exit-code map `outcomes`, optional help `sections` and
-named `examples`. Each outcome has a unique lowercase `name`, a nonempty
-`prefix` and a unique `exitCode`; prefixes must not begin one another, every
-code is at most 125, usage and I/O codes differ from each other and from every
-outcome, and an outcome named `error` is required. Every acceptance response
+`ioCode`, the optional `limitCode`, the ordered exit-code map `outcomes`,
+optional help `sections` and named `examples`. Each outcome has a unique
+lowercase `name`, a nonempty `prefix` and a unique `exitCode`; prefixes must not
+begin one another, every code is at most 125, usage and I/O codes differ from
+each other and from every outcome, and an outcome named `error` is required.
+`limitCode` is `(Option UInt8)`: `Option.none` (absent `limit_code` in the
+document) gives an oversized request the code of the `error` outcome, and
+`Option.some` gives it its own code, which must differ from every other code. Every acceptance response
 must begin with exactly one declared prefix. Missing, null, mistyped or
 undeclared fields, a `cli` under another profile or schema and a foreign type
 owner are rejected with PP2009 or PP2001.
@@ -386,8 +431,8 @@ whose prefix begins it. `--help` is rendered from the model: purpose, usage,
 the request bound, modeled sections, examples and the complete exit-code table.
 `--version` prints `{cargo_name} {cargo_version}`. Failures are the closed
 `TextCliFailure` vocabulary registered in `model/text-cli-diagnostics.toml`;
-each exits with `usageCode`, `ioCode` or the code of the `error` outcome by its
-class and prints `{binary}: {Failure}[: detail]` on standard error. A closed or
+each exits with `usageCode`, `ioCode`, the limit code (`InputLimit` only) or
+the code of the `error` outcome by its class and prints `{binary}: {Failure}[: detail]` on standard error. A closed or
 full standard output is `OutputWrite`; a standard stream closed before exec is
 reopened by the standard library on `/dev/null` and cannot be observed as a
 write failure.
@@ -406,12 +451,20 @@ entry and through the program for the host architecture over standard input, a
 file and `-`. A vector within the request maximum must produce the identical
 report bytes, the modeled exit code and an empty standard error. A vector over
 the modeled maximum cannot reach the guest through the program; it must exit
-with the fault code, empty standard output and `InputLimit`, and its guest
+with the limit code, empty standard output and `InputLimit`, and its guest
 response is compared only with the model. The retained
 `application-acceptance.json` carries the `command_line` record with program
 digests, and source-free verification replays it exactly. The program for a
 target other than the host architecture is built, validated and digested but
 not executed.
+
+The V&V gate exercises this path on an in-tree project: `cargo xtask
+verify-examples` builds and verifies the `ho-17-text-cli` fixture, a text/3
+application whose acceptance vectors lie within and beyond its request
+maximum. Its verified build must publish both programs under the digests its
+`command_line` record names, `cli/sbom.spdx.json`, and the expected counts of
+vectors, within-maximum vectors, oversized vectors and examples. The
+Calculator and text/1 examples must publish no command line.
 
 The V1 model defines the header and section table; `AppManifest`, Metadata,
 Extension, and ContentBlob sections; canonical capability requests and child
@@ -1534,6 +1587,59 @@ transport metadata is not production SDK or supply-chain acceptance.
 Installed-SDK acceptance requires the same capability in the full installed
 V&V path and a genuine SDK-bound `Controller::product_build` release.
 
+### Host-effect service system
+
+`prismpm/system-model/3` is the closed projection of
+`Production.HostEffectSystem.SystemModel`, a profile of its own: not an
+extension of the transactional `system-model/1` profile (no database, broker
+or outbox) and not the browser-resident `system-model/2` profile. It describes
+one service whose application acts through host effects.
+
+The application profile names the server application contract
+`prismpm/server-application/1` and the effect protocol
+`prismpm/host-effects/1`, binds the digest of the selected application model,
+and lists the effects that application declares: at least one, each once, each
+a dotted lowercase name. The effect vocabulary belongs to the application, not
+to this profile. Components are `api`, `worker`, `job` or `telemetry-collector`,
+each with one declared image, parameters, secret references, volumes, networks
+and resources. A component depends only on components declared before it, so
+the dependency order is its own acyclicity witness. Listeners are the only
+published ports. A listener belongs to an `api` component that sits on at least
+one non-internal network, binds `127.0.0.1`, uses TCP and publishes a port no
+other listener publishes. The single target is the pinned Compose adapter.
+
+An authored `SystemManifest` and the generated empty-axiom theorem
+`manifestValidation_sound_complete`, with `validateManifest model manifest =
+true` decided for the selected model and manifest, bind the application model
+digest, the product identity, the declared effects and the published listener
+identities. Planted defects are decided theorems: a wildcard, hostname or other
+loopback address, a missing, zero or out-of-range port, a listener on a worker
+or on an unknown component or on internal networks only, two listeners on one
+port, a wrong contract or protocol, no declared effect, a repeated effect, an
+unknown kind, a forward or unknown dependency, an unknown image or network, a
+repeated identity and each manifest mismatch.
+
+The Compose adapter descriptor lists the profiles it projects in
+`model_schemas` and names the one address a published port may bind in its
+projection policy as `loopback_address`. The projection copies each listener
+as `host_ip`, `published`, `target` and `protocol`, and refuses a listener that
+does not name that address instead of rewriting it. The closed schema carries
+the same constant, so a wildcard binding is refused three times: by the
+contract, by the validator and by the projection. A Compose project is also
+audited as emitted bytes: every service port is long-form and names the
+loopback address, and no service uses the host network. The locked Compose
+oracle accepts any host address, so that audit is the check a wildcard cannot
+pass. The projection set is the Compose project and SPDX, both validated by
+their locked oracles.
+
+This profile does not claim that the declared effects equal the host protocol
+of the selected application: the server application model that issue 216
+provides is not part of the model document yet, so the digest binding is the
+only application binding. It adds no OCI product release, source-free replay
+or deployment lifecycle for `system-model/3`, and it does not claim service
+readiness. SY-09's source fixture binds an application model that is not a
+server application and says so.
+
 ### 11.1 Ordered mandatory control coverage
 
 `Production.ControlCoverage` implements Prism-owned structural composition,
@@ -1852,6 +1958,17 @@ permits initial unbound loading; dangling links, links outside the project,
 directories and other inspection failures are rejected with PP5401.
 Ordinary commands never update locks. `lock update --sdk-image <digest-ref>
 --standards-lock <digest>` produces a reviewable proposal, never adopts it.
+`prismpm/sdk-lock/3` is a platform lock plus one closed `inputs` object that
+pins the toolchain versions inside the SDK image, the model document digests
+(BLAKE3 and SHA-256), a BLAKE3 spec digest over the authored sources, the guest
+WIT world digests and the generator identities (docs/proposals/264-input-lock.md).
+Every SDK reader receives its exact `/2` projection, which must itself be
+admitted. `build` and `verify` recompute `inputs` before compiling and reject a
+disagreeing `/3` lock with PP5401, naming the changed fields. Only the explicit
+`build --update`, never with `-t` or `--locked`, rewrites `inputs` (and upgrades
+a `/2` lock to `/3`); it never changes an SDK field. Absent, `/1` and `/2` locks
+build as before. The product-release provenance names the complete lock bytes
+as `urn:prismpm:sdk-lock`.
 For a platform lock, `DK-28` acquires the exact pinned OCI index, its two child
 manifests, configurations and terminal metadata layers. It never pulls ordinary
 filesystem layers, synthesizes Docker inspection results, or starts target code.
@@ -3676,6 +3793,8 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `FT-09` | `facets` | Facet lexicons produce deterministic canonical LaTeX and Lean lowerings. | §2 |
 | `FT-10` | `facets` | Lexicon package locks reproduce across multiple directory roots. | §2 |
 | `FT-11` | `facets` | prism.arch defines OPM (ISO/PAS 19450) and UML 2.5.1 design view entries as ISO/IEC/IEEE 42010 views. | §2 |
+| `FT-12` | `facets` | prism.arch defines Feature and Journey declarations: a feature states what a product does with the interface calls that realize it and the acceptance rows that accept it, and a journey is an ordered sequence of features performed by a stakeholder. | §2 |
+| `FT-13` | `facets` | The SDK checks features and journeys in prismpm check and refuses a feature without a call with PP2014, a feature without an acceptance row with PP2015, a journey step that names an undeclared feature with PP2016, a journey whose actor is not a declared stakeholder with PP2017, and a malformed declaration or a call or acceptance row that names no declaration with PP2018. | §2 |
 | `HO-01` | `holo` | A Holo/1 artifact is a strict binary Hologram archive with physical version 4 and the HOLO header. | §3 |
 | `HO-02` | `holo` | Legacy application and architecture model documents retain the closed prismpm/model-document/1 schema and model.prism.json name. | §3 |
 | `HO-03` | `holo` | Prism model documents use deterministic canonical JSON and an exact SHA-256 model identity. | §3 |
@@ -3725,6 +3844,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `ST-16` | `stdlib` | The internal bounded CBOR primitive profile preserves deterministic encoding, typed cursor limits and strict UTF-8 through generated native and bounded Wasm execution. | §5 |
 | `ST-17` | `stdlib` | The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox. | §5 |
 | `ST-18` | `stdlib` | Prism-stdlib defines OPM and UML design view primitives in Foundation.Arch. | §5 |
+| `ST-19` | `stdlib` | Prism-stdlib proves with an empty axiom set that the normalized feature and journey validator is sound and complete, and refuses a feature without a call, a feature without acceptance, a journey step outside the declared features and a journey actor outside the stakeholders. | §5 |
 | `AR-01` | `artifacts` | Build artifacts are published under content-addressed .prism/build/<id> paths. | §6 |
 | `AR-02` | `artifacts` | Every build directory contains a canonical manifest of file paths, sizes, and hashes. | §6 |
 | `AR-03` | `artifacts` | Artifact content IDs are derived from deterministic SHA-256 digests. | §6 |
@@ -3780,6 +3900,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `SY-06` | `system` | Migrations, recovery, rollout, rollback, drift, retirement, and positive and negative acceptance are explicit modeled values. | §11 |
 | `SY-07` | `system` | Modeled ordered control coverage rejects missing obligations, invalid inheritance, residual omissions, and binding mismatches. | §11 |
 | `SY-08` | `system` | Browser-resident system releases bind selected proved applications, mandatory controls, exact generated artifacts, locked projection oracles, and source-free replay. | §11 |
+| `SY-09` | `system` | Host-effect service system releases declare the effects of a server application, and project Compose services whose published ports bind loopback only and pass the locked Compose oracle. | §11 |
 | `DK-01` | `sdk` | One versioned SDK inventory closes over PrismPM, LexLean, Lean, lean4-prod, stdlib, oracles, adapters, and schemas. | §12 |
 | `DK-02` | `sdk` | Signed non-root amd64 and arm64 SDK images use digest-pinned bases and carry OCI, SPDX, and provenance evidence. | §12 |
 | `DK-03` | `sdk` | Native Linux archives and OCI SDK execution produce identical platform-independent outputs and diagnostics. | §12 |

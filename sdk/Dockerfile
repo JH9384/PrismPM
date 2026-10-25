@@ -386,6 +386,7 @@ RUN set -eu; \
     mkdir -p /workspace /home/vscode/.cargo /home/vscode/.elan /home/vscode/.docker \
     && cp -a /opt/prismpm/cargo-home/. /home/vscode/.cargo/ \
     && chown -R 1000:1000 /workspace /home/vscode \
+    && chmod 0755 /home/vscode \
     && chmod -R a+rwX /home/vscode/.cargo /home/vscode/.elan /home/vscode/.docker \
     && chmod -R a+rX,a-w /opt/prismpm/cargo-home
 

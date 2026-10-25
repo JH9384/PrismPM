@@ -99,6 +99,8 @@ The three honesty levels:
 | `FT-09` | `build` | Facet lexicons produce deterministic canonical LaTeX and Lean lowerings. |
 | `FT-10` | `build` | Lexicon package locks reproduce across multiple directory roots. |
 | `FT-11` | `build` | prism.arch defines OPM (ISO/PAS 19450) and UML 2.5.1 design view entries as ISO/IEC/IEEE 42010 views. |
+| `FT-12` | `build` | prism.arch defines Feature and Journey declarations: a feature states what a product does with the interface calls that realize it and the acceptance rows that accept it, and a journey is an ordered sequence of features performed by a stakeholder. |
+| `FT-13` | `build` | The SDK checks features and journeys in prismpm check and refuses a feature without a call with PP2014, a feature without an acceptance row with PP2015, a journey step that names an undeclared feature with PP2016, a journey whose actor is not a declared stakeholder with PP2017, and a malformed declaration or a call or acceptance row that names no declaration with PP2018. |
 
 ## holo
 
@@ -256,6 +258,7 @@ The three honesty levels:
 | `ST-16` | `build` | The internal bounded CBOR primitive profile preserves deterministic encoding, typed cursor limits and strict UTF-8 through generated native and bounded Wasm execution. |
 | `ST-17` | `build` | The private PKCE S256 primitive generates and validates source-owned verifier bytes and encodes actual browser SHA-256 challenges against RFC 7636 vectors without authenticating an account or mailbox. |
 | `ST-18` | `build` | Prism-stdlib defines OPM and UML design view primitives in Foundation.Arch. |
+| `ST-19` | `build` | Prism-stdlib proves with an empty axiom set that the normalized feature and journey validator is sound and complete, and refuses a feature without a call, a feature without acceptance, a journey step outside the declared features and a journey actor outside the stakeholders. |
 
 ## supply-chain
 
@@ -280,6 +283,7 @@ The three honesty levels:
 | `SY-06` | `build` | Migrations, recovery, rollout, rollback, drift, retirement, and positive and negative acceptance are explicit modeled values. |
 | `SY-07` | `build` | Modeled ordered control coverage rejects missing obligations, invalid inheritance, residual omissions, and binding mismatches. |
 | `SY-08` | `build` | Browser-resident system releases bind selected proved applications, mandatory controls, exact generated artifacts, locked projection oracles, and source-free replay. |
+| `SY-09` | `build` | Host-effect service system releases declare the effects of a server application, and project Compose services whose published ports bind loopback only and pass the locked Compose oracle. |
 
 ## template-ci
 
@@ -348,7 +352,7 @@ The three honesty levels:
 | `DEVCONTAINER-C95FFEED` | `c95ffeed1d05` | https://codeload.github.com/devcontainers/spec/tar.gz/c95ffeed1d059abfe9ffbe79762dc2fa4e7c2421 | `1b97d24f6b6cf0b65ea6d737a12812e802e6a443c306312ae43d90715bc08074` | `AU-01`, `TM-02` |
 | `COMPOSE-FEE041B3` | `fee041b381ff` | https://codeload.github.com/compose-spec/compose-spec/tar.gz/fee041b381ffd4aad263410980bdce0cdf4beb7d | `09916fd41b9a36b404c3b99b75c43f771624a8cab74d33d794a237d49d34be81` | `AU-01`, `DP-02` |
 | `KUBERNETES-1-36-4` | `1.36.4` | https://codeload.github.com/kubernetes/kubernetes/tar.gz/bb826b1d48562f110659e64e8ec444327433db95 | `edde021b39188a92163596c3887372bc4164467927b426dd75c586ff927fa182` | `AU-01`, `DP-03` |
-| `ISO-42010-2022` | `2022` | https://www.iso.org/standard/74393.html | `not-acquired` | `FT-01`, `ST-01` |
+| `ISO-42010-2022` | `2022` | https://www.iso.org/standard/74393.html | `not-acquired` | `FT-01`, `FT-12`, `FT-13`, `ST-01`, `ST-19` |
 | `ISO-27034-1-2011` | `2011-cor1-2014` | https://www.iso.org/standard/44378.html | `not-acquired` | `FT-02`, `ST-02` |
 | `ISO-27034-5-2017` | `2017` | https://www.iso.org/standard/55585.html | `not-acquired` | `FT-03`, `ST-03` |
 | `ISO-27005-2022` | `2022` | https://www.iso.org/standard/80585.html | `not-acquired` | `FT-04`, `ST-04` |

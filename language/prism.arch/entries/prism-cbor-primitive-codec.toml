@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-cbor-primitive-codec"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Codec.Cbor.V1.Primitive"
+component = "CborValue"
+
+[[form]]
+id = "prism-cbor-primitive-codec"
+channel = "text"
+surface = "CBOR primitive codec"
+canonical_source = true
+features = ["sentence-case", "singular"]

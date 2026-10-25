@@ -1,4 +1,4 @@
-// PR source-development baseline collection. Never SDK or release acceptance.
+// Source-development baseline collection for PRs, main, tags and dispatch. Never SDK or release acceptance.
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { chmodSync, constants, closeSync, copyFileSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync,
@@ -135,7 +135,7 @@ export function validateSourceBaseline(source) {
 // literals in comments/disabled code cannot authorize a different recipe.
 export function validateApplicationGenerator(source) {
   const owner = regular(join(source, 'crates/prismpm/src/controller/mod.rs'), 1024 ** 2);
-  assert.equal(hash(owner), '31b7c65081ebce069cd6f75ac4fc9ddb7b7c61bc9df599c5b6506d350c69560e',
+  assert.equal(hash(owner), 'e267731f7ca80ad3cb1fa67b11c2335e7b4015ae3d2f8122e6999e17ccc29c66',
     'application generator recipe owner requires independent source review');
   const parts = ['application_build.rs', 'lean_project.rs', 'holo/archive.rs']
     .map(path => regular(join(source, 'crates/prismpm/src', path), 16 * 1024 ** 2));
@@ -175,6 +175,9 @@ function success(result, label) {
   return result.stdout;
 }
 
+// The events native-golden.yml can start: pull_request, push to main or a tag, and dispatch.
+export const NATIVE_REVIEW_EVENTS = Object.freeze(['pull_request', 'push', 'workflow_dispatch']);
+
 // Transport/context injection is a unit seam, never available from CLI or env.
 export async function runReview({source, revision, destination}, transport = execute,
   context = {architecture: process.arch, uid: process.getuid(), gid: process.getgid(), environment: process.env}) {
@@ -185,7 +188,8 @@ export async function runReview({source, revision, destination}, transport = exe
   const [architecture, platformPolicy] = selected, profile = platformProfile(architecture);
   assert.equal(environment.GITHUB_ACTIONS, 'true');
   assert.equal(environment.RUNNER_ENVIRONMENT, 'github-hosted'); assert.equal(environment.RUNNER_OS, 'Linux');
-  assert.equal(environment.RUNNER_ARCH, platformPolicy.runner); assert.equal(environment.GITHUB_EVENT_NAME, 'pull_request');
+  assert.equal(environment.RUNNER_ARCH, platformPolicy.runner);
+  assert(NATIVE_REVIEW_EVENTS.includes(environment.GITHUB_EVENT_NAME), 'native source review runs only for the workflow events');
   for (const name of ['GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT']) assert.match(environment[name], /^[1-9][0-9]*$/);
   source = realpathSync(source); destination = resolve(destination);
   assert(!/[\x00-\x1f,]/.test(source), 'source path cannot alter Docker mount options');
@@ -545,7 +549,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const environment = {...process.env}; delete environment.NODE_TEST_CONTEXT;
     const result = await execute(process.execPath, ['--test', '--test-reporter=tap', '--test-timeout=120000', join(dirname(process.argv[1]), 'native-golden.test.mjs')], {environment});
     process.stdout.write(result.stdout); process.stderr.write(result.stderr); success(result, 'owning source-review tests');
-    assert.equal(verifyTap(result.stdout.toString(), 17), 17);
+    assert.equal(verifyTap(result.stdout.toString(), 18), 18);
   } else {
     assert.equal(operation, 'run'); assert(revision && destination && extra.length === 0, 'usage: native-golden.mjs tests | run SOURCE_COMMIT FRESH_OUTPUT');
     await runReview({source: process.cwd(), revision, destination});

@@ -69,40 +69,10 @@ fn project(path: &Path) -> Result<ModelDocument, prismpm::PrismError> {
     prismpm::holo::application::project_application(&snapshot).map(Option::unwrap)
 }
 
-fn mutate(source: &str, change: impl FnOnce(&mut Value)) -> String {
-    let line = source
-        .lines()
-        .find(|l| l.starts_with("\\semanticdata{"))
-        .unwrap();
-    let mut value: Value = serde_json::from_str(
-        line.strip_prefix("\\semanticdata{")
-            .unwrap()
-            .strip_suffix('}')
-            .unwrap(),
-    )
-    .unwrap();
-    change(&mut value);
-    source.replace(
-        line,
-        &format!(
-            "\\semanticdata{{{}}}",
-            serde_json::to_string(&value).unwrap()
-        ),
-    )
-}
-
-fn field<'a>(module: &'a mut Value, name: &str) -> &'a mut Value {
-    &mut module["declarations"]
-        .as_array_mut()
-        .unwrap()
-        .iter_mut()
-        .find(|v| v["name"] == "browserApplication")
-        .unwrap()["body"]["fields"]
-        .as_array_mut()
-        .unwrap()
-        .iter_mut()
-        .find(|v| v["field"] == name)
-        .unwrap()["value"]
+/// Replace text that occurs exactly once in the notation source.
+fn edit(source: &str, from: &str, to: &str) -> String {
+    assert_eq!(source.matches(from).count(), 1, "{from}");
+    source.replace(from, to)
 }
 
 fn typed(value: Value) -> prismpm::holo::browser_application::BrowserApplication {
@@ -521,26 +491,26 @@ pub fn verify(root: &Path) {
         ),
         source.replace("prismpm/fixture/1", "scope:record"),
         source.replace("prismpm/fixture/1", "scope..record"),
-        mutate(&source, |m| {
-            field(m, "entryRoot")["value"] = json!("BrowserContract.Probe.missing")
-        }),
-        mutate(&source, |m| {
-            field(m, "requestMaximum")["value"] = json!("0")
-        }),
-        mutate(&source, |m| {
-            let d = m["declarations"]
-                .as_array_mut()
-                .unwrap()
-                .iter_mut()
-                .find(|v| v["name"] == "present")
-                .unwrap();
-            d["result"] = json!({"kind":"bool"});
-            d["body"] = json!({"kind":"bool","value":true});
-        }),
-        mutate(&source, |m| {
-            field(m, "requestedEffects")["head"]["fields"][1]["value"]["arguments"][0]["value"] =
-                json!("1048577")
-        }),
+        edit(
+            &source,
+            "entryRoot := \"BrowserContract.Probe.dispatch\"",
+            "entryRoot := \"BrowserContract.Probe.missing\"",
+        ),
+        edit(
+            &source,
+            "requestMaximum := (1 : UInt32)",
+            "requestMaximum := (0 : UInt32)",
+        ),
+        edit(
+            &source,
+            "name: present, parameters: [request : Bytes], result: Bytes, body: request",
+            "name: present, parameters: [request : Bytes], result: Bool, body: true",
+        ),
+        edit(
+            &source,
+            "RequestedAdapter.Digest (1048576 : UInt32)",
+            "RequestedAdapter.Digest (1048577 : UInt32)",
+        ),
     ] {
         let fixture = fixture(root, &changed, &model);
         assert_eq!(project(fixture.path()).unwrap_err().code, "PP2010");

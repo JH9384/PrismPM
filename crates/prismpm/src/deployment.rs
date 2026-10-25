@@ -17,7 +17,7 @@ fn sha(bytes: &[u8]) -> String {
     format!("sha256:{:x}", Sha256::digest(bytes))
 }
 
-fn descriptor(kind: &str) -> Result<(Value, &'static [u8]), PrismError> {
+pub(crate) fn descriptor(kind: &str) -> Result<(Value, &'static [u8]), PrismError> {
     let bytes = match kind {
         "compose" => COMPOSE,
         "github-pages" => GITHUB_PAGES,
@@ -220,6 +220,10 @@ pub(crate) fn required_oracles(
             ("cloudevents", "", "cloudevents-1.0-json"),
         ]),
         Some("prismpm/system-model/2") => Ok(&[("spdx", "spdx.json", "spdx-3.0.1-model")]),
+        Some("prismpm/system-model/3") => Ok(&[
+            ("spdx", "spdx.json", "spdx-3.0.1-model"),
+            ("compose", "compose.json", "compose-fee041b3"),
+        ]),
         _ => Err(PrismError::new(
             "PP7101",
             "unsupported system projection oracle profile",

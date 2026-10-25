@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-hologram-physical-archive"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Holo.V1.Archive"
+component = "PhysicalArchive"
+
+[[form]]
+id = "prism-hologram-physical-archive"
+channel = "text"
+surface = "Hologram physical archive"
+canonical_source = true
+features = ["sentence-case", "singular"]

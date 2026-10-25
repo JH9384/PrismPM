@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-organization-administration"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Organization.V1.Administration"
+component = "AdministrationPlan"
+
+[[form]]
+id = "prism-organization-administration"
+channel = "text"
+surface = "Organization administration"
+canonical_source = true
+features = ["sentence-case", "singular"]

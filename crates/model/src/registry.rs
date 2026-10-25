@@ -467,7 +467,7 @@ pub struct ContractRow {
 impl Contracts {
     /// Validate public contract registry invariants.
     pub fn check(&self, root: &std::path::Path) -> Result<(), ModelError> {
-        if self.spec != "prismpm/contracts/1" || self.contract.len() != 61 {
+        if self.spec != "prismpm/contracts/1" || self.contract.len() != 63 {
             return Err(ModelError::Inconsistent(
                 "public contract registry is incomplete".to_owned(),
             ));
@@ -483,6 +483,7 @@ impl Contracts {
                 || !(row.schema.ends_with("/1")
                     || row.schema == "prismpm/bootstrap-evidence/2"
                     || row.schema == "prismpm/system-model/2"
+                    || row.schema == "prismpm/system-model/3"
                     || row.schema == "prismpm/ecosystem-release/2"
                     || row.schema == "prismpm/model-document/2"
                     || row.schema == "prismpm/model-document/3"
@@ -490,6 +491,7 @@ impl Contracts {
                     || row.schema == "prismpm/model-document/5"
                     || row.schema == "prismpm/model-document/6"
                     || row.schema == "prismpm/sdk-lock/2"
+                    || row.schema == "prismpm/sdk-lock/3"
                     || row.schema == "prismpm/sdk-lock-update/2"
                     || row.schema == "prismpm/library-verification-manifest/2")
                 || !row.path.starts_with("schemas/")
@@ -613,7 +615,11 @@ impl Commands {
                             != std::collections::BTreeMap::from([
                                 (
                                     "check".into(),
-                                    vec!["prismpm/sdk-lock/1".into(), "prismpm/sdk-lock/2".into()],
+                                    vec![
+                                        "prismpm/sdk-lock/1".into(),
+                                        "prismpm/sdk-lock/2".into(),
+                                        "prismpm/sdk-lock/3".into(),
+                                    ],
                                 ),
                                 (
                                     "migrate".into(),

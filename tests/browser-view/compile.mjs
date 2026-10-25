@@ -12,6 +12,36 @@ import {isCapturedCompilerDriver} from './compiler-artifact.mjs';
 export const draft=dirname(fileURLToPath(import.meta.url));
 export const repository=resolve(draft,'../..');
 export const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
+// LexLean 1.2 generated modules import the LexLeanRuntime modules instead of
+// splicing the runtime. Each family driver reports, in its verify result, the
+// runtime modules (name and Lean text) that LexLean itself selects for the
+// verified modules, closed under imports and in dependency order. This stages
+// them as lake sources of the fresh project and returns their lakefile roots
+// entries, each followed by a comma, to precede the project's own roots.
+export function stageLeanRuntime(verified,lean){
+  assert.ok(Array.isArray(verified.runtime),'driver verify result lists the LexLean runtime modules');
+  let roots='';
+  for(const {name,text} of verified.runtime){
+    assert.match(name,/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/,'runtime module name');
+    assert.equal(typeof text,'string','runtime module text');
+    const path=join(lean,...name.split('.'))+'.lean';
+    mkdirSync(dirname(path),{recursive:true});writeFileSync(path,text,{flag:'wx'});
+    roots+='"'+name+'",';
+  }
+  return roots;
+}
+// LexLean 1.2 also attests the runtime declarations the verified modules import
+// (exact policy, ok result, observed equal to the policy axioms). Check those
+// here and return the project's own declarations for the exact per-declaration
+// comparison.
+export function ownedAttestations(attestation){
+  const runtime=name=>name.startsWith('LexLeanRuntime.');
+  for(const declaration of attestation.declarations.filter(row=>runtime(row.name))){
+    assert.equal(declaration.result,'ok');assert.equal(declaration.policy.kind,'exact');
+    assert.deepEqual(declaration.observed,declaration.policy.axioms);
+  }
+  return attestation.declarations.filter(row=>!runtime(row.name));
+}
 function sourceFile(repo, name) {
   const path = resolve(repo, name);
   assert.equal(realpathSync(path), path, 'aliased compiler source refused: '+name);
@@ -326,7 +356,7 @@ export function prepare(mutation=null,compilerOwner=null){
     const lean=join(work,'lean');mkdirSync(lean);
     for(const name of modules){const relative=join('PrismPM',...name.split('.'))+'.lean',path=join(lean,relative);mkdirSync(dirname(path),{recursive:true});copyFileSync(join(verified.root,'modules',relative),path);}
     copyFileSync(join(repository,'lean-toolchain'),join(lean,'lean-toolchain'));
-    writeFileSync(join(lean,'lakefile.toml'),'name = "workspace_view_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['+modules.map(n=>'"PrismPM.'+n+'"').join(',')+']\n',{flag:'wx'});
+    writeFileSync(join(lean,'lakefile.toml'),'name = "workspace_view_probe"\nversion = "0.1.0"\n[[lean_lib]]\nname = "PrismGenerated"\nroots = ['+stageLeanRuntime(verified,lean)+modules.map(n=>'"PrismPM.'+n+'"').join(',')+']\n',{flag:'wx'});
     run('lake',['build','PrismGenerated'],lean);
     const exporter=shared?null:ensureProdExport(repository,work);
     const invokeExporter=args=>shared?shared.runExporter(args,join(lean,'.lake/build/lib/lean'))

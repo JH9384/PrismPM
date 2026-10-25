@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-organization-lifecycle"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Organization.V1.Lifecycle"
+component = "OrganizationRegistry"
+
+[[form]]
+id = "prism-organization-lifecycle"
+channel = "text"
+surface = "Organization lifecycle"
+canonical_source = true
+features = ["sentence-case", "singular"]

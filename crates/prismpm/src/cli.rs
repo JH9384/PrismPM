@@ -71,6 +71,10 @@ pub enum Commands {
         /// Require every resolved input and prohibit lock mutation.
         #[arg(long)]
         locked: bool,
+        /// Rewrite the pinned build inputs in prismpm.lock instead of refusing a stale lock.
+        /// A product release (-t) or a --locked build never rewrites the lock.
+        #[arg(long, conflicts_with_all = ["locked", "tag"])]
+        update: bool,
         /// Named system release from the authoritative source graph.
         #[arg(long)]
         release: Option<String>,
@@ -601,6 +605,7 @@ fn execute(cli: &Cli) -> Result<(serde_json::Value, String), PrismError> {
         Commands::Build {
             tag,
             locked,
+            update,
             release,
             ..
         } => {
@@ -624,11 +629,12 @@ fn execute(cli: &Cli) -> Result<(serde_json::Value, String), PrismError> {
                         "--locked requires -t for a product release build",
                     ));
                 }
-                let result = controller.build_release(
+                let result = controller.build_release_updating_lock(
                     BuildRequest {
                         config_path: cli.config.clone(),
                     },
                     release.as_deref(),
+                    *update,
                 )?;
                 let human = format!("build published: {}", result.build_id);
                 Ok((
@@ -1019,6 +1025,45 @@ pub fn run() -> ExitCode {
 mod tests {
     use super::{Cli, Commands};
     use clap::Parser;
+
+    #[test]
+    fn build_update_rewrites_inputs_only_for_a_plain_build() {
+        let cli = Cli::try_parse_from(["prismpm", "build", "--update"]).unwrap();
+        assert!(matches!(
+            cli.command,
+            Commands::Build {
+                update: true,
+                locked: false,
+                tag: None,
+                ..
+            }
+        ));
+        let plain = Cli::try_parse_from(["prismpm", "build"]).unwrap();
+        assert!(matches!(
+            plain.command,
+            Commands::Build { update: false, .. }
+        ));
+        for arguments in [
+            &["prismpm", "build", "--update", "--locked"][..],
+            &[
+                "prismpm",
+                "build",
+                "--update",
+                "-t",
+                "example.test/product:1",
+            ][..],
+            &[
+                "prismpm",
+                "build",
+                "--update",
+                "--locked",
+                "-t",
+                "example.test/product:1",
+            ][..],
+        ] {
+            assert!(Cli::try_parse_from(arguments).is_err(), "{arguments:?}");
+        }
+    }
 
     #[test]
     fn browser_publication_requires_explicit_target_without_trust_bypass_flags() {

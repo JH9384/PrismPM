@@ -1,0 +1,75 @@
+{
+  "inputs": {
+    "generation": {
+      "application_generator_sha256": "552e9f283ebff3937b65fb29ca58c0934af3068b4f64e8602d87c0ed7549d610",
+      "library_generator_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+    },
+    "model": {
+      "blake3": "e76544838a98c46341ed8807f72897ec68de5a8a9bf28721738a76761c9df90e",
+      "sha256": "074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6"
+    },
+    "spec": {
+      "basis": "model-sources",
+      "blake3": "981eff9742ded9005be7b324263b097a7d47b03783274faa8cc58c121ccb8e1f"
+    },
+    "toolchain": {
+      "lean": "v4.32.1",
+      "lexlean": "0.3.0",
+      "prismpm": "0.3.0",
+      "rustc": "1.97.1",
+      "wasm_bindgen": "0.2.122"
+    },
+    "world": {
+      "blake3": "0774a8ecbfa945a427712ee7d7ad406195b2d07492ceae15cca0067276c9ced8",
+      "contract": "hologram:guest/core-wasm@1",
+      "sha256": "a566c87a359cadf98f652747f1b3574aa307ff5f652a190c6d99c350db9cf369"
+    }
+  },
+  "platforms": [
+    {
+      "inventory": [
+        {
+          "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "id": "prismpm",
+          "kind": "binary",
+          "version": "0.3.0"
+        },
+        {
+          "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "id": "sdk-manifest",
+          "kind": "image",
+          "version": "0.3.0"
+        }
+      ],
+      "inventory_digest": "sha256:9fcc37864bb53053553dd50a40422e68fad4669f357fb44727892749b8b41f81",
+      "inventory_document": "{\"artifacts\":[{\"digest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"id\":\"prismpm\",\"kind\":\"binary\",\"version\":\"0.3.0\"},{\"digest\":\"sha256:2222222222222222222222222222222222222222222222222222222222222222\",\"id\":\"sdk-manifest\",\"kind\":\"image\",\"version\":\"0.3.0\"}],\"schema\":\"prismpm/sdk-inventory/1\"}",
+      "manifest_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "platform": "linux/amd64"
+    },
+    {
+      "inventory": [
+        {
+          "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "id": "prismpm",
+          "kind": "binary",
+          "version": "0.3.0"
+        },
+        {
+          "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "id": "sdk-manifest",
+          "kind": "image",
+          "version": "0.3.0"
+        }
+      ],
+      "inventory_digest": "sha256:46517bf79e8cc62d30ae1fa027c16d275be7ad12d4593c65ccfc58968f26593a",
+      "inventory_document": "{\"artifacts\":[{\"digest\":\"sha256:4444444444444444444444444444444444444444444444444444444444444444\",\"id\":\"prismpm\",\"kind\":\"binary\",\"version\":\"0.3.0\"},{\"digest\":\"sha256:5555555555555555555555555555555555555555555555555555555555555555\",\"id\":\"sdk-manifest\",\"kind\":\"image\",\"version\":\"0.3.0\"}],\"schema\":\"prismpm/sdk-inventory/1\"}",
+      "manifest_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "platform": "linux/arm64"
+    }
+  ],
+  "schema": "prismpm/sdk-lock/3",
+  "sdk_image": "ghcr.io/uor-foundation/prismpm-sdk@sha256:2b898a27544569dabd9e7622fd139f9cec8226d3287efe559f1e6c30fe9e3e67",
+  "sdk_index": "{\"manifests\":[{\"digest\":\"sha256:3333333333333333333333333333333333333333333333333333333333333333\",\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\",\"platform\":{\"architecture\":\"amd64\",\"os\":\"linux\"},\"size\":1024},{\"digest\":\"sha256:6666666666666666666666666666666666666666666666666666666666666666\",\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\",\"platform\":{\"architecture\":\"arm64\",\"os\":\"linux\"},\"size\":1024}],\"mediaType\":\"application/vnd.oci.image.index.v1+json\",\"schemaVersion\":2}",
+  "sdk_version": "0.3.0",
+  "standards_lock": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+}

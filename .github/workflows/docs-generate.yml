@@ -1,0 +1,102 @@
+name: docs generate
+
+# The Reference and API docs are produced by sdk/docs/generate.mjs from the
+# spec package, sdk/docs/cli.json and the executed prism-code examples in the
+# same checkout. Nothing generated is committed: no pages, no pin. A pull
+# request that changes the spec therefore changes no generated file, and two
+# such pull requests cannot conflict.
+#
+# On every pull request and every push to main this workflow
+#   - runs the generator's own tests,
+#   - verifies the docs: generates every page, runs every example, applies the
+#     vocabulary lint, and fails naming the page that breaks,
+#   - lints the hand-written docs under docs/,
+#   - uploads the generated site as the workflow artifact `docs-site`.
+# On a pull request it also generates the base branch's site and writes the
+# pages that differ, with their diff, to the job summary and to the artifact
+# `docs-diff`, so a reviewer still sees what a change does to the docs. It does
+# not post a comment: that needs pull-requests: write, which this workflow
+# does not hold.
+#
+# Publishing the `docs-site` artifact to the hosting site is not done here;
+# sdk/docs/README.md says what remains.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-generate-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: docs generate and verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: Generator tests
+        run: node --test "sdk/docs/test/*.test.mjs"
+      # Generates every page into a scratch directory, runs every example
+      # against Calculator.holo and applies the vocabulary lint to every page.
+      # The spec is read from this checkout; its generated entry point is built
+      # first by the generator.
+      - name: Verify the generated docs
+        run: node sdk/docs/generate.mjs verify
+      - name: Vocabulary lint of the hand-written docs
+        run: node sdk/docs/lint.mjs
+      - name: Generate the site
+        run: node sdk/docs/generate.mjs --out build/docs
+      - name: Upload the site
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: docs-site
+          path: build/docs/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Check out the base branch
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      # The base branch may not be able to generate (it can predate the
+      # generator's current form); then there is nothing to compare, and the
+      # summary says so.
+      - name: Generate the base branch's site
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: node base/sdk/docs/generate.mjs --out "$RUNNER_TEMP/docs-base"
+      - name: List the pages this pull request changes
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f "$RUNNER_TEMP/docs-base/llms.txt" ]; then
+            node sdk/docs/changed.mjs "$RUNNER_TEMP/docs-base" build/docs \
+              --markdown "$RUNNER_TEMP/docs-changes.md" --diff "$RUNNER_TEMP/docs-changes.diff"
+          else
+            printf '%s\n' '## Docs changed against the base branch' '' \
+              'The base branch could not generate its site, so there is nothing to compare.' > "$RUNNER_TEMP/docs-changes.md"
+            : > "$RUNNER_TEMP/docs-changes.diff"
+          fi
+          cat "$RUNNER_TEMP/docs-changes.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the page diff
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: docs-diff
+          path: ${{ runner.temp }}/docs-changes.diff
+          if-no-files-found: error
+          retention-days: 14

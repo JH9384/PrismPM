@@ -1,6 +1,6 @@
 {
   "$comment": "Hand-written stand-in for `prism --help --json`. Replaced, not edited, once the CLI emits its own description. Verbs and flags follow the agreed v1.0 verb list.",
-  "revision": "2026-10-23",
+  "revision": "2026-10-24",
   "standIn": "prism --help --json",
   "binary": "prism",
   "alias": "prismpm",
@@ -172,22 +172,23 @@
     },
     {
       "name": "lock",
-      "summary": "Write or refresh the lockfile from the current toolchain image, model and inputs.",
+      "summary": "Write or refresh the lockfile from the current model and inputs, without building. Pins that still resolve stay as they are, and the toolchain image and toolchain pins do not move. Exits 2 when there is no lockfile or its SDK cannot be resolved.",
       "usage": "prism lock [flags]",
       "flags": [
-        { "flag": "--check", "default": "off", "meaning": "Exit 1 when the lockfile is stale. Write nothing." }
+        { "flag": "--check", "default": "off", "meaning": "Write nothing. Fail when the lockfile is stale and name the pins that differ." }
       ],
       "example": "prism lock"
     },
     {
       "name": "update",
-      "summary": "Bump the pinned toolchain image and print the old and new digests.",
+      "summary": "Move the lockfile forward and print the old and new digests of every pin that changed. Without a flag it refreshes the toolchain pins; with `--toolchain` it also pins a new toolchain image. Exits 2 when the lockfile or the image cannot be resolved.",
       "usage": "prism update [flags]",
       "flags": [
-        { "flag": "--toolchain <ref>", "default": "the current 1.x", "meaning": "Toolchain image to pin." },
+        { "flag": "--toolchain <ref>", "default": "the pinned image", "meaning": "Toolchain image to pin, as `name@sha256:digest`." },
+        { "flag": "--standards-lock <digest>", "default": "the project's standards lock", "meaning": "Standards lock the new image selects. Needs `--toolchain`." },
         { "flag": "--dry-run", "default": "off", "meaning": "Print the change without writing the lockfile." }
       ],
-      "example": "prism update"
+      "example": "prism update --toolchain ghcr.io/acme/toolchain@sha256:1f3c --dry-run"
     }
   ]
 }

@@ -43,11 +43,29 @@ pub enum Commands {
         #[arg(value_enum)]
         shell: CompletionShell,
     },
-    /// Check or propose an explicit reviewable SDK-lock update.
+    /// Write or refresh the pinned build inputs in prismpm.lock without building.
+    /// The subcommands check the lock or propose a reviewable SDK-lock change.
+    #[command(args_conflicts_with_subcommands = true)]
     Lock {
-        /// SDK lock operation.
+        /// SDK lock operation; omit it to write or refresh prismpm.lock.
         #[command(subcommand)]
-        command: LockCommands,
+        command: Option<LockCommands>,
+        /// Write nothing; fail with PP5401 when prismpm.lock is stale.
+        #[arg(long)]
+        check: bool,
+    },
+    /// Move prismpm.lock forward and print the old and new digests.
+    Update {
+        /// Immutable SDK manifest-list reference to pin (NAME@sha256:DIGEST).
+        /// Without it the SDK stays and only the toolchain pins move.
+        #[arg(long, alias = "sdk-image")]
+        toolchain: Option<String>,
+        /// Standards-lock digest the new SDK selects (defaults to this project's standards.lock).
+        #[arg(long, requires = "toolchain")]
+        standards_lock: Option<String>,
+        /// Print the change without writing prismpm.lock.
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Resolve, inspect, or verify immutable standards authority bindings.
     Authority {
@@ -495,10 +513,11 @@ fn execute(cli: &Cli) -> Result<(serde_json::Value, String), PrismError> {
     // above still applies; all ordinary commands retain Controller admission.
     if let Commands::Lock {
         command:
-            LockCommands::Migrate {
+            Some(LockCommands::Migrate {
                 sdk_image,
                 standards_lock,
-            },
+            }),
+        ..
     } = &cli.command
     {
         let result = crate::sdk::propose_lock_migration(root, sdk_image, standards_lock)?;
@@ -510,7 +529,42 @@ fn execute(cli: &Cli) -> Result<(serde_json::Value, String), PrismError> {
     let controller = Controller::load(root)?;
     match &cli.command {
         Commands::Completion { .. } => unreachable!("completion returns before project loading"),
-        Commands::Lock { command } => match command {
+        Commands::Lock {
+            command: None,
+            check,
+        } => crate::lock_command::lock(&controller.root, *check, || {
+            controller.current_inputs(cli.config.as_deref())
+        }),
+        Commands::Update {
+            toolchain,
+            standards_lock,
+            dry_run,
+        } => {
+            let standards = match (toolchain, standards_lock) {
+                (Some(_), Some(digest)) => Some(digest.clone()),
+                (Some(_), None) => Some(crate::lock_command::project_standards_digest(
+                    &controller.root,
+                )?),
+                (None, _) => None,
+            };
+            let target = toolchain.as_deref().zip(standards.as_deref()).map(
+                |(sdk_image, standards_lock)| crate::lock_command::Target {
+                    sdk_image,
+                    standards_lock,
+                },
+            );
+            crate::lock_command::update(
+                &controller.root,
+                target.as_ref(),
+                *dry_run,
+                || controller.current_inputs(cli.config.as_deref()),
+                |target| crate::sdk::capture_update_target(target.sdk_image, target.standards_lock),
+            )
+        }
+        Commands::Lock {
+            command: Some(command),
+            ..
+        } => match command {
             LockCommands::Migrate { .. } => {
                 unreachable!("migration returns before project loading")
             }
@@ -1063,6 +1117,80 @@ mod tests {
         ] {
             assert!(Cli::try_parse_from(arguments).is_err(), "{arguments:?}");
         }
+    }
+
+    #[test]
+    fn lock_without_a_subcommand_refreshes_and_the_subcommands_keep_working() {
+        let bare = Cli::try_parse_from(["prismpm", "lock"]).unwrap();
+        assert!(matches!(
+            bare.command,
+            Commands::Lock {
+                command: None,
+                check: false
+            }
+        ));
+        let check = Cli::try_parse_from(["prismpm", "lock", "--check"]).unwrap();
+        assert!(matches!(
+            check.command,
+            Commands::Lock {
+                command: None,
+                check: true
+            }
+        ));
+        let subcommand = Cli::try_parse_from(["prismpm", "lock", "check"]).unwrap();
+        assert!(matches!(
+            subcommand.command,
+            Commands::Lock {
+                command: Some(super::LockCommands::Check),
+                check: false
+            }
+        ));
+        assert!(Cli::try_parse_from(["prismpm", "lock", "--check", "check"]).is_err());
+        assert!(Cli::try_parse_from([
+            "prismpm",
+            "lock",
+            "update",
+            "--sdk-image",
+            "example.test/sdk@sha256:aa",
+            "--standards-lock",
+            "sha256:bb",
+        ])
+        .is_ok());
+    }
+
+    #[test]
+    fn update_takes_an_optional_sdk_and_a_dry_run() {
+        let plain = Cli::try_parse_from(["prismpm", "update"]).unwrap();
+        assert!(matches!(
+            plain.command,
+            Commands::Update {
+                toolchain: None,
+                standards_lock: None,
+                dry_run: false
+            }
+        ));
+        for flag in ["--toolchain", "--sdk-image"] {
+            let pinned = Cli::try_parse_from([
+                "prismpm",
+                "update",
+                flag,
+                "example.test/sdk@sha256:aa",
+                "--dry-run",
+            ])
+            .unwrap();
+            assert!(matches!(
+                pinned.command,
+                Commands::Update {
+                    toolchain: Some(_),
+                    dry_run: true,
+                    ..
+                }
+            ));
+        }
+        // A standards-lock digest only qualifies an SDK image.
+        assert!(
+            Cli::try_parse_from(["prismpm", "update", "--standards-lock", "sha256:bb"]).is_err()
+        );
     }
 
     #[test]

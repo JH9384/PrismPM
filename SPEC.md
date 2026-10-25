@@ -1872,6 +1872,22 @@ disagreeing `/3` lock with PP5401, naming the changed fields. Only the explicit
 a `/2` lock to `/3`); it never changes an SDK field. Absent, `/1` and `/2` locks
 build as before. The product-release provenance names the complete lock bytes
 as `urn:prismpm:sdk-lock`.
+`lock` and `update` rewrite `prismpm.lock` without building and report the change
+as `prismpm/sdk-lock-change/1` (docs/proposals/265-lock-update.md). `lock` computes
+`inputs` like a build and rewrites only the pins the project determines (model,
+spec, world), upgrading a `/2` lock to `/3`; it leaves every pin that still
+resolves alone, refuses a moved toolchain or generator pin with PP5401 naming it,
+and with `--check` writes nothing and fails with PP5401 when the lock is stale.
+`update` also moves those pins; with `--toolchain <digest-ref>` it captures the
+platform lock of that exact SDK image (the same bounded metadata acquisition as
+`lock update`, standards-lock digest from `standards.lock` unless
+`--standards-lock` is given) and pins it, creating `prismpm.lock` when it is absent;
+`--dry-run` prints the change and writes nothing. Both print the old and new value of
+every pin that changed, including the SDK image, platform manifest and inventory
+digests and the lock's own digest. An absent lock for `lock`, a legacy `/1` lock, or an
+SDK image that cannot be resolved fails with PP1101 (exit 2) and writes nothing. The
+SDK fields of a lock still change only through `update --toolchain` or an adopted
+`lock update` proposal, never through a build.
 For a platform lock, `DK-28` acquires the exact pinned OCI index, its two child
 manifests, configurations and terminal metadata layers. It never pulls ordinary
 filesystem layers, synthesizes Docker inspection results, or starts target code.

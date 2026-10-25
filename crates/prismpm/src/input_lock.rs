@@ -135,7 +135,7 @@ fn reconcile(
 }
 
 /// The `inputs.<field>` names whose values differ, in field order.
-fn changed_fields(locked: &Value, current: &Value) -> Vec<String> {
+pub(crate) fn changed_fields(locked: &Value, current: &Value) -> Vec<String> {
     let mut names = BTreeSet::new();
     for value in [locked, current] {
         if let Some(object) = value.as_object() {
@@ -150,7 +150,7 @@ fn changed_fields(locked: &Value, current: &Value) -> Vec<String> {
 }
 
 /// A `/3` lock with every SDK field of `lock` and the given `inputs`.
-fn with_inputs(lock: &Value, inputs: Value) -> Result<CanonicalDocument, PrismError> {
+pub(crate) fn with_inputs(lock: &Value, inputs: Value) -> Result<CanonicalDocument, PrismError> {
     let mut value = lock.clone();
     let object = value
         .as_object_mut()
@@ -161,7 +161,11 @@ fn with_inputs(lock: &Value, inputs: Value) -> Result<CanonicalDocument, PrismEr
 }
 
 /// Replace `prismpm.lock` atomically, never over bytes this build did not read.
-fn write_lock(root: &Path, original: &[u8], lock: &CanonicalDocument) -> Result<(), PrismError> {
+pub(crate) fn write_lock(
+    root: &Path,
+    original: &[u8],
+    lock: &CanonicalDocument,
+) -> Result<(), PrismError> {
     let failed = |error: std::io::Error| {
         PrismError::new("PP5401", format!("cannot update prismpm.lock: {error}"))
     };
@@ -181,6 +185,29 @@ fn write_lock(root: &Path, original: &[u8], lock: &CanonicalDocument) -> Result<
         ));
     }
     staged.persist(&path).map_err(|error| failed(error.error))?;
+    Ok(())
+}
+
+/// Write a first `prismpm.lock`, never over a file that appeared meanwhile.
+pub(crate) fn create_lock(root: &Path, lock: &CanonicalDocument) -> Result<(), PrismError> {
+    let failed = |error: std::io::Error| {
+        PrismError::new("PP5401", format!("cannot create prismpm.lock: {error}"))
+    };
+    let mut staged = tempfile::Builder::new()
+        .prefix(".prismpm.lock.")
+        .tempfile_in(root)
+        .map_err(failed)?;
+    staged.write_all(lock.bytes()).map_err(failed)?;
+    staged.as_file().sync_all().map_err(failed)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(staged.path(), std::fs::Permissions::from_mode(0o644))
+            .map_err(failed)?;
+    }
+    staged
+        .persist_noclobber(root.join("prismpm.lock"))
+        .map_err(|error| failed(error.error))?;
     Ok(())
 }
 
@@ -408,6 +435,38 @@ pub(crate) fn sample_inputs() -> Value {
     })
 }
 
+/// A `/2` lock value accepted by the platform rules, built like `sdk::tests`.
+/// A different `salt` yields a different SDK image, as a later SDK would.
+#[cfg(test)]
+pub(crate) fn sample_platform_lock(salt: &str) -> Value {
+    let digest = |value: &[u8]| format!("sha256:{:x}", Sha256::digest(value));
+    let mut manifests = Vec::new();
+    let mut platforms = Vec::new();
+    for architecture in ["amd64", "arm64"] {
+        let manifest = digest(format!("{salt}{architecture}/manifest").as_bytes());
+        let inventory = json!([{"id":"prismpm","kind":"binary","version":"0.3.0",
+            "digest":digest(format!("{salt}{architecture}/binary").as_bytes())}]);
+        let document = serde_json::to_string(&json!({
+            "schema":"prismpm/sdk-inventory/1",
+            "artifacts":inventory,
+            "commands":[{"command":"prismpm","executable":"/usr/local/bin/prismpm","sha256":"a".repeat(64)}]
+        }))
+        .unwrap();
+        manifests.push(
+            json!({"mediaType":"application/vnd.oci.image.manifest.v1+json",
+            "digest":manifest,"size":100,"platform":{"os":"linux","architecture":architecture}}),
+        );
+        platforms.push(json!({"platform":format!("linux/{architecture}"),"manifest_digest":manifest,
+            "inventory_digest":digest(document.as_bytes()),"inventory_document":document,"inventory":inventory}));
+    }
+    let index = serde_json::to_string(&json!({"schemaVersion":2,
+        "mediaType":"application/vnd.oci.image.index.v1+json","manifests":manifests}))
+    .unwrap();
+    json!({"schema":SDK_LOCK_V2,"sdk_version":"0.3.0",
+        "sdk_image":format!("example.invalid/test-sdk@{}", digest(index.as_bytes())),
+        "sdk_index":index,"standards_lock":digest(b"standards"),"platforms":platforms})
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -438,30 +497,7 @@ mod tests {
 
     /// A `/2` lock value accepted by the platform rules, built like `sdk::tests`.
     fn platform_lock() -> Value {
-        let digest = |value: &[u8]| format!("sha256:{:x}", Sha256::digest(value));
-        let mut manifests = Vec::new();
-        let mut platforms = Vec::new();
-        for architecture in ["amd64", "arm64"] {
-            let manifest = digest(format!("{architecture}/manifest").as_bytes());
-            let inventory = json!([{"id":"prismpm","kind":"binary","version":"0.3.0",
-                "digest":digest(format!("{architecture}/binary").as_bytes())}]);
-            let document = serde_json::to_string(&json!({
-                "schema":"prismpm/sdk-inventory/1",
-                "artifacts":inventory,
-                "commands":[{"command":"prismpm","executable":"/usr/local/bin/prismpm","sha256":"a".repeat(64)}]
-            }))
-            .unwrap();
-            manifests.push(json!({"mediaType":"application/vnd.oci.image.manifest.v1+json",
-                "digest":manifest,"size":100,"platform":{"os":"linux","architecture":architecture}}));
-            platforms.push(json!({"platform":format!("linux/{architecture}"),"manifest_digest":manifest,
-                "inventory_digest":digest(document.as_bytes()),"inventory_document":document,"inventory":inventory}));
-        }
-        let index = serde_json::to_string(&json!({"schemaVersion":2,
-            "mediaType":"application/vnd.oci.image.index.v1+json","manifests":manifests}))
-        .unwrap();
-        json!({"schema":SDK_LOCK_V2,"sdk_version":"0.3.0",
-            "sdk_image":format!("example.invalid/test-sdk@{}", digest(index.as_bytes())),
-            "sdk_index":index,"standards_lock":digest(b"standards"),"platforms":platforms})
+        sample_platform_lock("")
     }
 
     #[test]

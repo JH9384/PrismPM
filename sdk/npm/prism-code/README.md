@@ -98,8 +98,12 @@ Sections:
   …
 World:
   Contract:        hologram:guest/core-wasm@1
+  WIT:             hologram:guest@1.0.0 world core-wasm, worlds/core-wasm.wit
+  WIT digest:      sha256:a566c87a359cadf98f652747f1b3574aa307ff5f652a190c6d99c350db9cf369
+                   blake3:0774a8ecbfa945a427712ee7d7ad406195b2d07492ceae15cca0067276c9ced8
   Imports:         none
   Exports:         holo_alloc, holo_run, memory
+  Guest:           conforms to the world
   Capability set:  blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c (requests nothing)
 
 Attestations:
@@ -166,7 +170,18 @@ try {
 }
 ```
 
-Options are `name`, `minimum` (`P0` to `P3`), `digests` and `throw`. The minimum
+The `world` option pins the world the holo must declare, in the shape of the
+lock's `inputs.world` (issue #278), so a project's lock can be passed unchanged:
+
+```js
+await experimental_verify(bytes, { world: lock.inputs.world, throw: true });
+// throws WorldMismatchError (check 'world.hash') when the contract or a digest differs
+```
+
+Independently of any pin, a guest whose imports and exports are not those of
+its declared WIT world fails the `world.contract` check.
+
+Options are `name`, `minimum` (`P0` to `P3`), `digests`, `world` and `throw`. The minimum
 defaults to the `PRISM_MINIMUM_LEVEL` environment variable; `experimental_createClient(options)`
 holds options for many calls; the options of one call replace the client's, and
 the client's replace the environment's. A holo that fails a check is a verdict, and
@@ -177,7 +192,8 @@ throws.
 Every error is a `PrismError` with a stable `code`: `VerificationError`
 (`verification_failed`; `holo.*`, `provenance.*`, `policy.*` and no verdict),
 `ProofMismatchError` (`proof_mismatch`; `proof.*`), `CapabilityDeniedError`
-(`capability_denied`; `world.capabilities`), `DeterminismViolationError`
+(`capability_denied`; `world.capabilities`), `WorldMismatchError`
+(`world_mismatch`; `world.contract`, `world.hash`), `DeterminismViolationError`
 (`determinism_violation`; `replay.divergence`) and `ReplayError` (`replay_failed`; other
 `replay.*`). `check` is the verdict reason's check id, `diagnostic` its registered
 code, `verdict` and `reasons` the whole result. Load and archive failures remain

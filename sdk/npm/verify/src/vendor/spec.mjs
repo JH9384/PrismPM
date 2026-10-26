@@ -99,6 +99,38 @@ export const CORE_WASM = freeze({
   WORLD: 'worlds/core-wasm.wit',
 });
 
+/**
+ * The worlds a guest can target, by guest contract (issue #278,
+ * docs/proposals/278-wit-world.md). A holo declares its world by naming its
+ * contract; the world's hash is a function of that name through this table.
+ *
+ * `version` is the version of a row's shape, not of the world. A world's own
+ * version is the `@N` of its contract: a change to imports, exports or a
+ * signature is a new contract and a new row, and a row is never edited.
+ * `digest` is over the bytes of `file`, the lock's `inputs.world` without
+ * `contract`. `exports` are core-module terms: the canonical ABI names
+ * (`holo-run` is `holo_run`) and lowered signatures. `memory` is listed
+ * because WIT cannot name an exported memory.
+ */
+export const WORLDS = freeze({
+  [CORE_WASM.CONTRACT]: freeze({
+    version: 1,
+    package: 'hologram:guest@1.0.0',
+    world: 'core-wasm',
+    file: CORE_WASM.WORLD,
+    digest: freeze({
+      blake3: '0774a8ecbfa945a427712ee7d7ad406195b2d07492ceae15cca0067276c9ced8',
+      sha256: 'a566c87a359cadf98f652747f1b3574aa307ff5f652a190c6d99c350db9cf369',
+    }),
+    imports: freeze([]),
+    exports: freeze([
+      freeze({ name: 'holo_alloc', kind: 'func', params: freeze(['i32']), results: freeze(['i32']) }),
+      freeze({ name: 'holo_run', kind: 'func', params: freeze(['i32', 'i32']), results: freeze(['i64']) }),
+      freeze({ name: 'memory', kind: 'memory' }),
+    ]),
+  }),
+});
+
 /** The portable view bundle, big-endian (SPEC section 3). */
 export const HOLOVIEW = freeze({
   MAGIC: 'HOLOVIEW',

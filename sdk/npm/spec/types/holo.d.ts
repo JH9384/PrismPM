@@ -131,3 +131,37 @@ export interface DecodedHolo {
   /** The archive fingerprint. */
   footer: Hex;
 }
+
+/** A lowered core-wasm value type, as the canonical ABI lowers a WIT type. */
+export type WasmValueType = 'i32' | 'i64' | 'f32' | 'f64';
+
+/** An export of a world: a function with its lowered signature, or an exported memory (WIT cannot name one). */
+export type WorldExport =
+  | { readonly name: string; readonly kind: 'func'; readonly params: readonly WasmValueType[]; readonly results: readonly WasmValueType[] }
+  | { readonly name: string; readonly kind: 'memory' | 'table' | 'global' };
+
+/** An import of a world. The Core-Wasm world has none. */
+export interface WorldImport {
+  readonly module: string;
+  readonly name: string;
+  readonly kind: 'func' | 'table' | 'memory' | 'global';
+}
+
+/**
+ * One row of `WORLDS` (issue #278): the WIT world a guest contract names.
+ * `digest` covers the bytes of `file`; it is the lock's `inputs.world` without `contract`.
+ */
+export interface World {
+  /** The version of this row's shape. The world's own version is the `@N` of its contract. */
+  readonly version: 1;
+  /** The WIT package, for example `hologram:guest@1.0.0`. */
+  readonly package: string;
+  /** The world's name inside the package. */
+  readonly world: string;
+  /** The WIT file, relative to the package root. */
+  readonly file: string;
+  readonly digest: { readonly blake3: string; readonly sha256: string };
+  readonly imports: readonly WorldImport[];
+  readonly exports: readonly WorldExport[];
+}
+

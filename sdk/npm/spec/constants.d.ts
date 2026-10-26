@@ -12,6 +12,7 @@ import type {
   HoloviewLimits,
   SectionKind,
   SectionKindCode,
+  World,
 } from './types/holo.js';
 
 export declare const FORMAT_REVISION: '2026-10-23';
@@ -57,6 +58,9 @@ export declare const CORE_WASM: Readonly<{
   ENTRY: 'holo_run';
   WORLD: 'worlds/core-wasm.wit';
 }>;
+
+/** The WIT world of each guest contract (issue #278). */
+export declare const WORLDS: Readonly<Record<CoreWasmContract, World>>;
 
 export declare const HOLOVIEW: Readonly<HoloviewLimits>;
 

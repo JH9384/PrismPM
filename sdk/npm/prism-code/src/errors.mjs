@@ -9,10 +9,12 @@
  *   check that is about the archive itself, its documents or its provenance.
  * - `ProofMismatchError`: a `proof.*` check of a verdict failed.
  * - `CapabilityDeniedError`: the declared world exceeds the granted capabilities.
+ * - `WorldMismatchError`: the guest does not have the interface of the WIT world it declares,
+ *   or the world is not the one the caller pinned (issue #278).
  * - `DeterminismViolationError`: a replay diverged from its recorded history.
  * - `ReplayError`: a replay could not be carried out or its statement failed.
  *
- * The last four map one-to-one to the check ids of a `prism/verdict/1`
+ * The last five map one-to-one to the check ids of a `prism/verdict/1`
  * reason (docs/proposals/269-assurance-levels.md); `errorForReason` is the map.
  */
 export class PrismError extends Error {
@@ -55,6 +57,14 @@ ProofMismatchError.code = 'proof_mismatch';
 export class CapabilityDeniedError extends PrismError {}
 CapabilityDeniedError.code = 'capability_denied';
 
+/**
+ * The guest does not have the imports and exports of its declared world
+ * (`world.contract`), or the declared world differs from the world hash the
+ * caller pinned (`world.hash`). `check` says which.
+ */
+export class WorldMismatchError extends PrismError {}
+WorldMismatchError.code = 'world_mismatch';
+
 /** A replay produced output that differs from the recorded history. */
 export class DeterminismViolationError extends PrismError {}
 DeterminismViolationError.code = 'determinism_violation';
@@ -68,6 +78,7 @@ export const ERROR_CLASSES = Object.freeze({
   [VerificationError.code]: VerificationError,
   [ProofMismatchError.code]: ProofMismatchError,
   [CapabilityDeniedError.code]: CapabilityDeniedError,
+  [WorldMismatchError.code]: WorldMismatchError,
   [DeterminismViolationError.code]: DeterminismViolationError,
   [ReplayError.code]: ReplayError,
 });
@@ -81,6 +92,7 @@ export const ERROR_CLASSES = Object.freeze({
 export function classForCheck(check) {
   if (check.startsWith('proof.')) return ProofMismatchError;
   if (check === 'world.capabilities') return CapabilityDeniedError;
+  if (check === 'world.contract' || check === 'world.hash') return WorldMismatchError;
   if (check === 'replay.divergence') return DeterminismViolationError;
   if (check.startsWith('replay.')) return ReplayError;
   return VerificationError;
@@ -98,17 +110,19 @@ export function errorForReason(reason, verdict = undefined) {
 }
 
 /**
- * The error that explains a failed verdict, or null for one that passed. When
- * the level is below the policy's minimum, it is the first reason that
- * withholds a level up to the minimum, which is what kept the holo down;
- * otherwise it is the first reason (a pinned digest that differs). The error
- * carries the whole verdict and every reason.
+ * The error that explains a failed verdict, or null for one that passed. A
+ * rule the caller pinned and the holo broke (a digest, the world) comes
+ * first: the caller asked for that fact by name, and it holds whatever the
+ * level is. Otherwise, when the level is below the policy's minimum, it is
+ * the first reason that withholds a level up to the minimum, which is what
+ * kept the holo down. The error carries the whole verdict and every reason.
  */
 export function errorFromVerdict(verdict, ranks) {
   if (verdict.passed) return null;
   const minimum = ranks[verdict.policy.minimum];
+  const pinned = verdict.reasons.find((r) => r.withholds === null && r.check !== 'policy.level');
   const blocking = verdict.reasons.find((r) => r.withholds && ranks[r.withholds] <= minimum);
-  const reason = blocking ?? verdict.reasons.find((r) => r.check !== 'policy.level') ?? verdict.reasons[0];
+  const reason = pinned ?? blocking ?? verdict.reasons.find((r) => r.check !== 'policy.level') ?? verdict.reasons[0];
   return errorForReason(reason, verdict);
 }
 

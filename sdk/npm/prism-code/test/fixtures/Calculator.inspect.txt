@@ -56,8 +56,12 @@ Provenance:
 
 World:
   Contract:        hologram:guest/core-wasm@1
+  WIT:             hologram:guest@1.0.0 world core-wasm, worlds/core-wasm.wit
+  WIT digest:      sha256:a566c87a359cadf98f652747f1b3574aa307ff5f652a190c6d99c350db9cf369
+                   blake3:0774a8ecbfa945a427712ee7d7ad406195b2d07492ceae15cca0067276c9ced8
   Imports:         none
   Exports:         holo_alloc, holo_run, memory
+  Guest:           conforms to the world
   Capability set:  blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c (requests nothing)
 
 Attestations:

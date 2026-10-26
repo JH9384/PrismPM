@@ -23,6 +23,7 @@ export {
   VerificationError,
   ProofMismatchError,
   CapabilityDeniedError,
+  WorldMismatchError,
   DeterminismViolationError,
   ReplayError,
   ERROR_CLASSES,

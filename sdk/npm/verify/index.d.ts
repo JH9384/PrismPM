@@ -20,11 +20,17 @@ export interface Policy {
   minimum?: AssuranceLevel;
   /** Expected digests. Every algorithm given must match; at least one per target. A mismatch is a `policy.digests.<target>` reason. */
   digests?: Partial<Record<DigestTarget, Partial<DigestSet>>>;
+  /**
+   * The world the holo must declare (issue #278), in the shape of the lock's `inputs.world`, so a caller passes
+   * `lock.inputs.world` unchanged. Any digest may be left out. `null` expects no world, which no holo satisfies.
+   * A mismatch is a `world.hash` reason and never changes the level.
+   */
+  world?: { contract?: string; blake3?: string; sha256?: string } | null;
 }
 
 /** One check that did not pass. */
 export interface VerdictReason {
-  /** `holo.integrity`, `holo.documents`, `provenance.statement`, `proof.statement`, `replay.statement`, `policy.level` or `policy.digests.<target>`. */
+  /** `holo.integrity`, `holo.documents`, `provenance.statement`, `proof.statement`, `replay.statement`, `world.contract`, `world.hash`, `policy.level` or `policy.digests.<target>`. */
   check: string;
   /** The registered diagnostic, when one exists: `PP5601` for `policy.level`. */
   code?: string;
@@ -131,11 +137,21 @@ export interface Inspection {
     stdlib_semantics_id: string | null;
     lexlean_commit: string | null;
   } | null;
-  /** The guest contract and its world; `imports` and `exports` are null for a contract this reader does not know. */
+  /** The guest contract and its world (issue #278); every member but `contract` and `capability_set` is null for a contract this reader does not know. */
   world: {
     contract: string;
+    /** The WIT package, for example `hologram:guest@1.0.0`. */
+    package: string | null;
+    /** The world's name in that package. */
+    name: string | null;
+    /** The WIT file in `@prism-code/spec`. */
+    file: string | null;
+    /** Digests of the WIT file: the lock's `inputs.world` without `contract`. */
+    digest: { sha256: string; blake3: string } | null;
     imports: string[] | null;
     exports: string[] | null;
+    /** Whether the guest module has exactly the imports and exports of the world. */
+    conforms: boolean | null;
     capability_set: { label: string; empty: boolean };
   } | null;
   /** Empty until holos carry an attestation section (#267). */
@@ -145,6 +161,9 @@ export interface Inspection {
 
 /** Check a holo. Rejects with VerifyError when no verdict can be reached: not bytes, an invalid policy, an unreadable file or an unknown format revision. */
 export function verify(bytes: HoloBytes, policy?: Policy): Promise<Verdict>;
+
+/** The `world` of an inspection for a guest contract and its module (issue #278). `conforms` is null when the contract is unknown or `guest` is null. */
+export function worldOf(contract: string, guest: Uint8Array | null): Omit<NonNullable<Inspection['world']>, 'capability_set'>;
 
 /** Describe a holo as `prismpm/holo-inspection/1`. Throws VerifyError when the header or section table cannot be read. */
 export function inspect(bytes: HoloBytes): Inspection;

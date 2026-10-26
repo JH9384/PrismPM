@@ -100,7 +100,7 @@ export function instantiate({ spec, page }) {
   parts.push(heading(2, 'Example'));
   parts.push(status(page.status));
   parts.push(heading(2, 'What an instance exports'));
-  parts.push(fence('ts', [declaration(holo, 'CoreWasmContract'), declaration(holo, 'CoreWasmExports')].join('\n\n')));
+  parts.push(fence('ts', [declaration(holo, 'CoreWasmContract'), declaration(holo, 'CoreWasmExports'), declaration(holo, 'World')].join('\n\n')));
   parts.push(fence('wit', spec.text(m.CORE_WASM.WORLD).replace(/^\/\/.*\n/gm, '').trim()));
   return { parts, sources: [spec.source()] };
 }
@@ -117,6 +117,7 @@ const CLASSES = [
   ['VerificationError', '`holo.*`, `provenance.*`, `policy.*`, and no verdict reached'],
   ['ProofMismatchError', '`proof.*`'],
   ['CapabilityDeniedError', '`world.capabilities`'],
+  ['WorldMismatchError', '`world.contract`, `world.hash`'],
   ['DeterminismViolationError', '`replay.divergence`'],
   ['ReplayError', 'every other `replay.*`'],
 ];

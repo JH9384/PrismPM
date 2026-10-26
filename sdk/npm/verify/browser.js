@@ -160,6 +160,38 @@ const __vendor_spec = (() => {
     WORLD: 'worlds/core-wasm.wit',
   });
 
+  /**
+   * The worlds a guest can target, by guest contract (issue #278,
+   * docs/proposals/278-wit-world.md). A holo declares its world by naming its
+   * contract; the world's hash is a function of that name through this table.
+   *
+   * `version` is the version of a row's shape, not of the world. A world's own
+   * version is the `@N` of its contract: a change to imports, exports or a
+   * signature is a new contract and a new row, and a row is never edited.
+   * `digest` is over the bytes of `file`, the lock's `inputs.world` without
+   * `contract`. `exports` are core-module terms: the canonical ABI names
+   * (`holo-run` is `holo_run`) and lowered signatures. `memory` is listed
+   * because WIT cannot name an exported memory.
+   */
+  const WORLDS = freeze({
+    [CORE_WASM.CONTRACT]: freeze({
+      version: 1,
+      package: 'hologram:guest@1.0.0',
+      world: 'core-wasm',
+      file: CORE_WASM.WORLD,
+      digest: freeze({
+        blake3: '0774a8ecbfa945a427712ee7d7ad406195b2d07492ceae15cca0067276c9ced8',
+        sha256: 'a566c87a359cadf98f652747f1b3574aa307ff5f652a190c6d99c350db9cf369',
+      }),
+      imports: freeze([]),
+      exports: freeze([
+        freeze({ name: 'holo_alloc', kind: 'func', params: freeze(['i32']), results: freeze(['i32']) }),
+        freeze({ name: 'holo_run', kind: 'func', params: freeze(['i32', 'i32']), results: freeze(['i64']) }),
+        freeze({ name: 'memory', kind: 'memory' }),
+      ]),
+    }),
+  });
+
   /** The portable view bundle, big-endian (SPEC section 3). */
   const HOLOVIEW = freeze({
     MAGIC: 'HOLOVIEW',
@@ -248,7 +280,7 @@ const __vendor_spec = (() => {
     "SOURCE_MANIFEST": "schemas/holo/source-manifest.schema.json",
     "APPLICATION_DIRECTORY": "schemas/holo/application-directory.schema.json",
   });
-  return Object.freeze({ FORMAT_REVISION, MAGIC, PHYSICAL_VERSION, FLAGS, HEADER_LENGTH, TABLE_ENTRY_LENGTH, SECTION_COUNT, BODY_OFFSET, FOOTER_LENGTH, SECTION_KIND, SECTION_ORDER, LABEL_PREFIX, LABEL_LENGTH, APP_MANIFEST, CAPABILITY_SET, EXTENSION, CORE_WASM, HOLOVIEW, ATTESTATION, ATTESTATION_BUNDLE, FORMAT_REVISIONS, ASSURANCE, SCHEMAS, HOLO_SCHEMAS });
+  return Object.freeze({ FORMAT_REVISION, MAGIC, PHYSICAL_VERSION, FLAGS, HEADER_LENGTH, TABLE_ENTRY_LENGTH, SECTION_COUNT, BODY_OFFSET, FOOTER_LENGTH, SECTION_KIND, SECTION_ORDER, LABEL_PREFIX, LABEL_LENGTH, APP_MANIFEST, CAPABILITY_SET, EXTENSION, CORE_WASM, WORLDS, HOLOVIEW, ATTESTATION, ATTESTATION_BUNDLE, FORMAT_REVISIONS, ASSURANCE, SCHEMAS, HOLO_SCHEMAS });
 })();
 
 // src/vendor/blake3.mjs
@@ -1664,6 +1696,234 @@ const __transparency = (() => {
   return Object.freeze({ TrustedRootError, fromBase64, readTrustedRoot, inclusionHolds, verifyTransparency });
 })();
 
+// src/world.mjs
+const __world = (() => {
+  const { WORLDS } = __vendor_spec;
+  /**
+   * The world of a guest (issue #278, docs/proposals/278-wit-world.md): what a
+   * core-wasm module imports and exports, read from its binary, and whether
+   * that is the interface the WIT world its contract names declares.
+   *
+   * Nothing here compiles or instantiates the module. It reads the type,
+   * import, function and export sections and stops. It never throws on bad
+   * bytes: a module it cannot read is reported as unreadable.
+   */
+
+  const VALUE_TYPES = Object.freeze({ 0x7f: 'i32', 0x7e: 'i64', 0x7d: 'f32', 0x7c: 'f64' });
+  const EXTERNAL_KINDS = Object.freeze(['func', 'table', 'memory', 'global', 'tag']);
+  const utf8 = new TextDecoder('utf-8', { fatal: true });
+
+  class Unreadable extends Error {}
+
+  /** A cursor over one module. Every read past the end throws `Unreadable`. */
+  function reader(bytes) {
+    let at = 0;
+    const need = (n) => {
+      if (at + n > bytes.length) throw new Unreadable('the module ends inside a section');
+    };
+    const self = {
+      get at() {
+        return at;
+      },
+      set at(value) {
+        at = value;
+      },
+      byte() {
+        need(1);
+        return bytes[at++];
+      },
+      leb() {
+        let result = 0;
+        for (let shift = 0; shift < 35; shift += 7) {
+          const byte = self.byte();
+          result += (byte & 0x7f) * 2 ** shift;
+          if (byte < 0x80) return result;
+        }
+        throw new Unreadable('a LEB128 integer is longer than 5 bytes');
+      },
+      name() {
+        const length = self.leb();
+        need(length);
+        const text = utf8.decode(bytes.subarray(at, at + length));
+        at += length;
+        return text;
+      },
+    };
+    return self;
+  }
+
+  function limits(r) {
+    const flag = r.byte();
+    r.leb();
+    if (flag & 1) r.leb();
+  }
+
+  /**
+   * The imports and exports of a core module.
+   *
+   * Returns `{ ok: true, imports, exports }`, or `{ ok: false, detail }` when
+   * the bytes are not a readable core module. A function export carries its
+   * parameter and result types; other exports carry only their kind.
+   *
+   * @param {Uint8Array} bytes
+   */
+  function readInterface(bytes) {
+    try {
+      if (bytes.length < 8 || bytes[0] !== 0 || bytes[1] !== 0x61 || bytes[2] !== 0x73 || bytes[3] !== 0x6d) {
+        return { ok: false, detail: 'the guest is not a WebAssembly module' };
+      }
+      if (bytes[4] !== 1 || bytes[5] !== 0 || bytes[6] !== 0 || bytes[7] !== 0) return { ok: false, detail: 'the guest is not a version 1 core module' };
+      const r = reader(bytes);
+      r.at = 8;
+      const types = [];
+      const functions = [];
+      const imports = [];
+      const exports = [];
+      let importedFunctions = 0;
+      while (r.at < bytes.length) {
+        const id = r.byte();
+        const size = r.leb();
+        const end = r.at + size;
+        if (end > bytes.length) throw new Unreadable('a section is longer than the module');
+        if (id === 1) {
+          for (let n = r.leb(); n > 0; n--) {
+            if (r.byte() !== 0x60) throw new Unreadable('a type is not a function type');
+            const params = Array.from({ length: r.leb() }, () => VALUE_TYPES[r.byte()] ?? 'other');
+            const results = Array.from({ length: r.leb() }, () => VALUE_TYPES[r.byte()] ?? 'other');
+            types.push({ params, results });
+          }
+        } else if (id === 2) {
+          for (let n = r.leb(); n > 0; n--) {
+            const module = r.name();
+            const name = r.name();
+            const kind = EXTERNAL_KINDS[r.byte()] ?? 'other';
+            if (kind === 'func') {
+              r.leb();
+              importedFunctions++;
+            } else if (kind === 'table') {
+              r.byte();
+              limits(r);
+            } else if (kind === 'memory') limits(r);
+            else if (kind === 'global') {
+              r.byte();
+              r.byte();
+            } else {
+              // A tag or an unknown kind: record it and stop; the rest of the section is not needed.
+              imports.push({ module, name, kind });
+              break;
+            }
+            imports.push({ module, name, kind });
+          }
+        } else if (id === 3) {
+          for (let n = r.leb(); n > 0; n--) functions.push(r.leb());
+        } else if (id === 7) {
+          for (let n = r.leb(); n > 0; n--) {
+            const name = r.name();
+            const kind = EXTERNAL_KINDS[r.byte()] ?? 'other';
+            const index = r.leb();
+            if (kind === 'func') {
+              const type = types[functions[index - importedFunctions]];
+              exports.push({ name, kind, params: type ? type.params : null, results: type ? type.results : null });
+            } else exports.push({ name, kind });
+          }
+        }
+        r.at = end;
+      }
+      return { ok: true, imports, exports };
+    } catch (error) {
+      if (error instanceof Unreadable || error instanceof TypeError || error instanceof RangeError) {
+        return { ok: false, detail: `the guest module cannot be read: ${error.message}` };
+      }
+      throw error;
+    }
+  }
+
+  const sameList = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i]);
+  const signature = (e) => `${e.name}(${e.params ? e.params.join(', ') : '?'}) -> ${e.results ? e.results.join(', ') : '?'}`;
+
+  /**
+   * Whether a guest module has the interface its contract's world declares.
+   *
+   * Returns `{ known, conforms, problems }`. `known` is false when no world is
+   * registered for the contract, and then `conforms` is null. `problems` lists
+   * every difference, one plain clause each.
+   *
+   * @param {string} contract the guest contract, for example `hologram:guest/core-wasm@1`
+   * @param {Uint8Array} guest the guest module
+   */
+  function checkWorld(contract, guest) {
+    const world = Object.hasOwn(WORLDS, contract) ? WORLDS[contract] : undefined;
+    if (!world) return { known: false, conforms: null, problems: [] };
+    const found = readInterface(guest);
+    if (!found.ok) return { known: true, conforms: false, problems: [found.detail] };
+
+    const problems = [];
+    const wanted = new Map(world.imports.map((i) => [`${i.module}.${i.name}`, i]));
+    for (const i of found.imports) {
+      if (!wanted.has(`${i.module}.${i.name}`)) problems.push(`the guest imports ${i.module}.${i.name} (${i.kind}), which the world does not list`);
+    }
+    for (const [key, i] of wanted) {
+      if (!found.imports.some((f) => `${f.module}.${f.name}` === key)) problems.push(`the guest lacks the import ${key} (${i.kind}) the world lists`);
+    }
+    const have = new Map(found.exports.map((e) => [e.name, e]));
+    for (const e of world.exports) {
+      const actual = have.get(e.name);
+      if (!actual) problems.push(`the guest lacks the export ${e.name}`);
+      else if (actual.kind !== e.kind) problems.push(`the guest exports ${e.name} as a ${actual.kind}, the world declares a ${e.kind}`);
+      else if (e.kind === 'func' && !(sameList(actual.params, e.params) && sameList(actual.results, e.results))) {
+        problems.push(`the guest exports ${signature(actual)}, the world declares ${signature(e)}`);
+      }
+    }
+    const declared = new Set(world.exports.map((e) => e.name));
+    for (const e of found.exports) if (!declared.has(e.name)) problems.push(`the guest exports ${e.name}, which the world does not declare`);
+    if (found.exports.length !== have.size) problems.push('the guest exports one name twice');
+    return { known: true, conforms: problems.length === 0, problems };
+  }
+
+  /**
+   * The world a holo's contract names, as `inspect` prints it. `conforms` is
+   * null when the contract is not registered or no guest module is at hand.
+   *
+   * @param {string} contract
+   * @param {Uint8Array | null} guest
+   */
+  function describeWorld(contract, guest) {
+    const world = Object.hasOwn(WORLDS, contract) ? WORLDS[contract] : undefined;
+    return {
+      contract,
+      package: world ? world.package : null,
+      name: world ? world.world : null,
+      file: world ? world.file : null,
+      digest: world ? { blake3: world.digest.blake3, sha256: world.digest.sha256 } : null,
+      imports: world ? world.imports.map((i) => `${i.module}.${i.name}`) : null,
+      exports: world ? world.exports.map((e) => e.name) : null,
+      conforms: world && guest ? checkWorld(contract, guest).conforms : null,
+    };
+  }
+
+  /**
+   * Compare a pinned world, in the shape of the lock's `inputs.world`, with the
+   * world a holo's contract names. Returns the differences, empty when it matches.
+   * `null` pins "no world expected", which a holo with a guest never satisfies.
+   *
+   * @param {string} contract the holo's contract
+   * @param {{ contract?: string, blake3?: string, sha256?: string } | null} pin
+   */
+  function compareWorldPin(contract, pin) {
+    if (pin === null) return [`the policy expects no world, the holo declares ${contract}`];
+    const problems = [];
+    if (pin.contract !== undefined && pin.contract !== contract) problems.push(`the policy pins contract ${pin.contract}, the holo declares ${contract}`);
+    const world = Object.hasOwn(WORLDS, contract) ? WORLDS[contract] : undefined;
+    for (const algorithm of ['blake3', 'sha256']) {
+      if (pin[algorithm] === undefined) continue;
+      if (!world) problems.push(`the policy pins ${algorithm} ${pin[algorithm]}, and this reader has no world for ${contract}`);
+      else if (world.digest[algorithm] !== pin[algorithm]) problems.push(`the policy pins ${algorithm} ${pin[algorithm]}, the world ${contract} has ${world.digest[algorithm]}`);
+    }
+    return problems;
+  }
+  return Object.freeze({ readInterface, checkWorld, describeWorld, compareWorldPin });
+})();
+
 // src/index.mjs
 const __index = (() => {
   const spec = __vendor_spec;
@@ -1674,6 +1934,7 @@ const __index = (() => {
   const { readStructure } = __reader;
   const assurance = __vendor_assurance_levels;
   const transparency = __transparency;
+  const { checkWorld, compareWorldPin, describeWorld } = __world;
   /**
    * @prism-code/verify: check a `.holo` offline, without the runtime.
    *
@@ -1717,12 +1978,13 @@ const __index = (() => {
   /** Internal checks, in evaluation order. The structural ones decide whether the file is a readable holo at all. */
   const STRUCTURE_IDS = ['archive.magic', 'archive.version', 'archive.flags', 'archive.table'];
   const ARCHIVE_IDS = [...STRUCTURE_IDS, 'archive.footer', 'blob.labels'];
-  const DOCUMENT_IDS = ['format.revision', 'manifest.wire', 'metadata.schema', 'directory.schema', 'provenance.schema', 'model.schema', 'references', 'model.sha256'];
+  const DOCUMENT_IDS = ['format.revision', 'manifest.wire', 'metadata.schema', 'directory.schema', 'provenance.schema', 'model.schema', 'references', 'model.sha256', 'world.contract'];
   /**
    * The verdict check id each internal check reports under. `holo.integrity`
    * covers every fingerprint that must recompute or agree; `holo.documents`
-   * covers the documents inside. Both withhold P1, as the integrity half of P1
-   * in docs/proposals/269-assurance-levels.md.
+   * covers the documents inside. `world.contract` is the guest not having the
+   * interface its WIT world declares (issue #278). All withhold P1, as the
+   * integrity half of P1 in docs/proposals/269-assurance-levels.md.
    */
   const REPORTED_AS = Object.freeze({
     'archive.footer': 'holo.integrity',
@@ -1735,6 +1997,7 @@ const __index = (() => {
     'directory.schema': 'holo.documents',
     'provenance.schema': 'holo.documents',
     'model.schema': 'holo.documents',
+    'world.contract': 'world.contract',
   });
   const HEX64 = /^[0-9a-f]{64}$/;
   const utf8 = new TextDecoder('utf-8', { fatal: true });
@@ -2016,6 +2279,26 @@ const __index = (() => {
       add('documents', 'model.sha256', problems.length === 0, problems.length === 0 ? `the model document's sha256 ${actual} equals the recorded model_id` : problems.join('; '));
     }
 
+    // world.contract: the guest module has the imports and exports its contract's WIT world declares.
+    {
+      const wasm = directory?.layers?.find((l) => l.kind === 'wasm');
+      const guestBlob = facts.roles.guest ? blobByLabel.get(facts.roles.guest) : undefined;
+      if (!wasm || !guestBlob) skip('documents', 'world.contract', 'not checked: the directory or the guest blob is missing');
+      else if (guestBlob.problem || !guestBlob.labelMatches) skip('documents', 'world.contract', 'not checked: the guest blob fails its label, which blob.labels reports');
+      else {
+        const world = checkWorld(wasm.contract, guestBlob.content);
+        if (!world.known) skip('documents', 'world.contract', `not checked: this package has no world for the contract ${wasm.contract}`);
+        else {
+          add(
+            'documents',
+            'world.contract',
+            world.conforms,
+            world.conforms ? `the guest has exactly the imports and exports of the ${wasm.contract} world` : `the guest does not match the ${wasm.contract} world: ${world.problems.join('; ')}`,
+          );
+        }
+      }
+    }
+
     // format.revision: an archive carries no date; its identifiers name the revision.
     {
       const differencesFrom = (revision) => {
@@ -2079,13 +2362,22 @@ const __index = (() => {
     return { checks, facts };
   }
 
+  /**
+   * The world a guest contract names, as the `world` member of an inspection
+   * prints it (issue #278): WIT package, name, file, digests, imports, exports
+   * and whether the guest module conforms. `prism-code`'s `inspect` calls this
+   * one function, so the two cannot disagree. `guest` may be null, and then
+   * `conforms` is null.
+   *
+   * @param {string} contract for example `hologram:guest/core-wasm@1`
+   * @param {Uint8Array | null} guest the guest module
+   */
+  function worldOf(contract, guest) {
+    return describeWorld(contract, guest);
+  }
+
   /** The schema of an inspection, shared with `prism-code`'s `inspect` (issue #271, PR #335). */
   const INSPECTION_SCHEMA = 'prismpm/holo-inspection/1';
-
-  /** Worlds by guest contract: `worlds/core-wasm.wit` in @prism-code/spec, an import-free module with three exports. */
-  const WORLDS = Object.freeze({
-    [spec.CORE_WASM.CONTRACT]: Object.freeze({ imports: Object.freeze([]), exports: spec.CORE_WASM.EXPORTS }),
-  });
 
   /** The fields of the 86-byte manifest suffix, which `manifest.wire` checks byte for byte against the Wire constant. */
   const MANIFEST_SUFFIX_FIELDS = Object.freeze({
@@ -2153,7 +2445,7 @@ const __index = (() => {
     const capabilities = blobOf('capabilities');
     const wasm = directory?.layers?.find((l) => l.kind === 'wasm');
     const contract = wasm?.contract ?? provenance?.core_wasm_contract ?? null;
-    const world = contract ? WORLDS[contract] : undefined;
+    const guest = blobOf('guest');
 
     return {
       schema: INSPECTION_SCHEMA,
@@ -2204,9 +2496,7 @@ const __index = (() => {
       world:
         contract && capabilities
           ? {
-              contract,
-              imports: world ? [...world.imports] : null,
-              exports: world ? [...world.exports] : null,
+              ...describeWorld(contract, guest ? guest.content : null),
               capability_set: { label: capabilities.label, empty: hex(capabilities.content) === spec.CAPABILITY_SET.EMPTY_HEX },
             }
           : null,
@@ -2240,10 +2530,10 @@ const __index = (() => {
 
   function checkPolicy(policy) {
     const { LEVELS, DEFAULT_MINIMUM, DEFAULT_POLICY } = ASSURANCE;
-    if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {} };
+    if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {}, world: undefined };
     if (typeof policy !== 'object') throw new VerifyError('policy.invalid', 'the policy must be an object');
     for (const key of Object.keys(policy)) {
-      if (!['name', 'minimum', 'digests'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum or digests`);
+      if (!['name', 'minimum', 'digests', 'world'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum, digests or world`);
     }
     const name = policy.name ?? DEFAULT_POLICY;
     if (typeof name !== 'string' || name.length < 1 || name.length > 1024) throw new VerifyError('policy.invalid', 'policy.name must be a string of 1 to 1024 characters');
@@ -2260,7 +2550,26 @@ const __index = (() => {
         if (!HEX64.test(set[algorithm])) throw new VerifyError('policy.invalid', `policy.digests.${target}.${algorithm} is not 64 lowercase hex characters`);
       }
     }
-    return { name, minimum, digests };
+    return { name, minimum, digests, world: checkWorldPin(policy.world) };
+  }
+
+  /**
+   * The `world` member of a policy: the lock's `inputs.world` (issue #278), so a
+   * caller passes it unchanged. `undefined` pins nothing; `null` says no world
+   * is expected.
+   */
+  function checkWorldPin(pin) {
+    if (pin === undefined || pin === null) return pin;
+    if (typeof pin !== 'object' || Array.isArray(pin)) throw new VerifyError('policy.invalid', 'policy.world must be an object, as in the inputs.world of the lock, or null');
+    for (const key of Object.keys(pin)) {
+      if (!['contract', 'blake3', 'sha256'].includes(key)) throw new VerifyError('policy.invalid', `policy.world.${key} is not one of contract, blake3, sha256`);
+    }
+    if (Object.keys(pin).length === 0) throw new VerifyError('policy.invalid', 'policy.world names nothing');
+    if (pin.contract !== undefined && (typeof pin.contract !== 'string' || pin.contract.length < 1)) throw new VerifyError('policy.invalid', 'policy.world.contract must be a string');
+    for (const algorithm of ['blake3', 'sha256']) {
+      if (pin[algorithm] !== undefined && !HEX64.test(pin[algorithm])) throw new VerifyError('policy.invalid', `policy.world.${algorithm} is not 64 lowercase hex characters`);
+    }
+    return pin;
   }
 
   /** A detail line as one plain sentence, within the verdict schema's 1024 characters. */
@@ -2294,7 +2603,7 @@ const __index = (() => {
    * needs WebCrypto, can join without an API change.
    *
    * @param {Uint8Array | ArrayBuffer} source the whole holo
-   * @param {{ name?: string, minimum?: 'P0' | 'P1' | 'P2' | 'P3', digests?: Record<string, { sha256?: string, blake3?: string }> }} [policy]
+   * @param {{ name?: string, minimum?: 'P0' | 'P1' | 'P2' | 'P3', digests?: Record<string, { sha256?: string, blake3?: string }>, world?: { contract?: string, sha256?: string, blake3?: string } | null }} [policy]
    */
   async function verify(source, policy) {
     const bytes = asBytes(source);
@@ -2337,6 +2646,15 @@ const __index = (() => {
       }
     }
 
+    if (wanted.world !== undefined) {
+      const contract = facts.documents.directory?.layers?.find((l) => l.kind === 'wasm')?.contract ?? facts.documents.provenance?.core_wasm_contract ?? null;
+      const mismatches = contract === null ? ['the holo declares no guest contract to compare with the pinned world'] : compareWorldPin(contract, wanted.world);
+      if (mismatches.length > 0) {
+        passed = false;
+        reasons.push({ check: 'world.hash', withholds: null, message: sentence(`the world does not match the policy: ${mismatches.join('; ')}`) });
+      }
+    }
+
     return {
       schema: ASSURANCE.VERDICT,
       holo: facts.fingerprint,
@@ -2369,7 +2687,7 @@ const __index = (() => {
       throw error;
     }
   }
-  return Object.freeze({ FORMAT_REVISION, ASSURANCE, VerifyError, INSPECTION_SCHEMA, inspect, verify, verifyTransparency });
+  return Object.freeze({ FORMAT_REVISION, ASSURANCE, VerifyError, worldOf, INSPECTION_SCHEMA, inspect, verify, verifyTransparency });
 })();
 
-export const { FORMAT_REVISION, ASSURANCE, VerifyError, INSPECTION_SCHEMA, inspect, verify, verifyTransparency } = __index;
+export const { FORMAT_REVISION, ASSURANCE, VerifyError, worldOf, INSPECTION_SCHEMA, inspect, verify, verifyTransparency } = __index;

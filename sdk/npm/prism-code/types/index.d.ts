@@ -36,6 +36,13 @@ export class ProofMismatchError extends PrismError {
 export class CapabilityDeniedError extends PrismError {
   static readonly code: 'capability_denied';
 }
+/**
+ * `world_mismatch`: the guest does not have the imports and exports of its declared WIT world (`world.contract`),
+ * or the declared world is not the one the caller pinned (`world.hash`). Issue #278.
+ */
+export class WorldMismatchError extends PrismError {
+  static readonly code: 'world_mismatch';
+}
 /** `determinism_violation`: a replay diverged from its recorded history (`replay.divergence`). */
 export class DeterminismViolationError extends PrismError {
   static readonly code: 'determinism_violation';
@@ -78,6 +85,12 @@ export interface VerifyOptions {
   minimum?: AssuranceLevel;
   /** Digests the holo (`archive`) or one of its parts (`capabilities`, `guest`, `view`, `model`) must have. */
   digests?: Partial<Record<'archive' | 'capabilities' | 'guest' | 'view' | 'model', Partial<DigestSet>>>;
+  /**
+   * The world the holo must declare, in the shape of the lock's `inputs.world`, so a caller passes `lock.inputs.world`
+   * unchanged. Any digest may be left out. `null` expects no world, which no holo satisfies. A mismatch is a
+   * `world.hash` reason, never changes the level, and throws `WorldMismatchError` with `throw: true`.
+   */
+  world?: { contract?: string; blake3?: string; sha256?: string } | null;
   /** Throw the typed error for a verdict that did not pass. Default false. */
   throw?: boolean;
   /** Where `PRISM_MINIMUM_LEVEL` is read. Default `process.env`. */
@@ -269,11 +282,21 @@ export interface Inspection {
     stdlib_semantics_id: string | null;
     lexlean_commit: string | null;
   };
-  /** The guest contract and its world; `imports` and `exports` are null for a contract this reader does not know. */
+  /** The guest contract and its world (issue #278); every member but `contract` and `capability_set` is null for a contract this reader does not know. */
   world: {
     contract: string;
+    /** The WIT package, for example `hologram:guest@1.0.0`. */
+    package: string | null;
+    /** The world's name in that package. */
+    name: string | null;
+    /** The WIT file in `@prism-code/spec`. */
+    file: string | null;
+    /** Digests of the WIT file: the lock's `inputs.world` without `contract`. */
+    digest: DigestSet | null;
     imports: string[] | null;
     exports: string[] | null;
+    /** Whether the guest module has exactly the imports and exports of the world. */
+    conforms: boolean | null;
     capability_set: { label: string; empty: boolean };
   } | null;
   /** Empty until holos carry an attestation section (#267). */

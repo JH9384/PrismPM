@@ -1,0 +1,291 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/attestation/provenance/1",
+  "title": "HoloProvenance",
+  "description": "The predicate of the SLSA provenance v1 statement that prismpm build writes into every holo (issue #268, docs/proposals/268-build-provenance.md). Two modes. Min is the default: model, spec and the lock, nothing that varies between machines or runs. Max adds the build arguments, the platform, an invocation id and timestamps, and is opt-in because those leak. The statement around it is checked by statement.schema.json.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/MinPredicate"
+    },
+    {
+      "$ref": "#/$defs/MaxPredicate"
+    }
+  ],
+  "$defs": {
+    "Hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "PrismDigestSet": {
+      "description": "Exactly sha256 and blake3 over the same bytes (ADR-015).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blake3",
+        "sha256"
+      ],
+      "properties": {
+        "blake3": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hex64"
+        }
+      }
+    },
+    "ResourceDescriptor": {
+      "description": "One resolved dependency, a SLSA ResourceDescriptor. A row that names bytes carries a digest; a row that names a tool version carries only its uri.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "uri"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uri": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri"
+        },
+        "digest": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "blake3": {
+              "$ref": "#/$defs/Hex64"
+            },
+            "sha256": {
+              "$ref": "#/$defs/Hex64"
+            }
+          }
+        },
+        "mediaType": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Spec": {
+      "description": "inputs.spec of the lock: BLAKE3 over the authored sources (docs/proposals/264-input-lock.md).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basis",
+        "blake3"
+      ],
+      "properties": {
+        "basis": {
+          "enum": [
+            "model-sources",
+            "prism-toml"
+          ]
+        },
+        "blake3": {
+          "$ref": "#/$defs/Hex64"
+        }
+      }
+    },
+    "Builder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "description": "The SDK image the lock pins, by digest.",
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "prismpm"
+          ],
+          "properties": {
+            "prismpm": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "Dependencies": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/ResourceDescriptor"
+      }
+    },
+    "Timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "MinPredicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "buildDefinition",
+        "runDetails"
+      ],
+      "properties": {
+        "buildDefinition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "buildType",
+            "externalParameters",
+            "internalParameters",
+            "resolvedDependencies"
+          ],
+          "properties": {
+            "buildType": {
+              "const": "https://uor.foundation/prism/holo-build/v1"
+            },
+            "externalParameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "model"
+              ],
+              "properties": {
+                "model": {
+                  "$ref": "#/$defs/PrismDigestSet"
+                },
+                "spec": {
+                  "$ref": "#/$defs/Spec"
+                }
+              }
+            },
+            "internalParameters": {
+              "type": "object",
+              "additionalProperties": false
+            },
+            "resolvedDependencies": {
+              "$ref": "#/$defs/Dependencies"
+            }
+          }
+        },
+        "runDetails": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "builder"
+          ],
+          "properties": {
+            "builder": {
+              "$ref": "#/$defs/Builder"
+            }
+          }
+        }
+      }
+    },
+    "MaxPredicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "buildDefinition",
+        "runDetails"
+      ],
+      "properties": {
+        "buildDefinition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "buildType",
+            "externalParameters",
+            "internalParameters",
+            "resolvedDependencies"
+          ],
+          "properties": {
+            "buildType": {
+              "const": "https://uor.foundation/prism/holo-build/v1"
+            },
+            "externalParameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "arguments",
+                "model"
+              ],
+              "properties": {
+                "arguments": {
+                  "description": "The command line after prismpm, as the process received it. This is what makes max opt-in: it can hold paths, names and tokens passed as flags.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "model": {
+                  "$ref": "#/$defs/PrismDigestSet"
+                },
+                "spec": {
+                  "$ref": "#/$defs/Spec"
+                }
+              }
+            },
+            "internalParameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "platform"
+              ],
+              "properties": {
+                "platform": {
+                  "description": "The OCI platform the builder ran on, for example linux/amd64.",
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+/[a-z0-9]+(/[a-z0-9]+)?$"
+                }
+              }
+            },
+            "resolvedDependencies": {
+              "$ref": "#/$defs/Dependencies"
+            }
+          }
+        },
+        "runDetails": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "builder",
+            "metadata"
+          ],
+          "properties": {
+            "builder": {
+              "$ref": "#/$defs/Builder"
+            },
+            "metadata": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "finishedOn",
+                "invocationId",
+                "startedOn"
+              ],
+              "properties": {
+                "invocationId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "startedOn": {
+                  "$ref": "#/$defs/Timestamp"
+                },
+                "finishedOn": {
+                  "$ref": "#/$defs/Timestamp"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

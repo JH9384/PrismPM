@@ -1,0 +1,90 @@
+{
+  "buildDefinition": {
+    "buildType": "https://uor.foundation/prism/holo-build/v1",
+    "externalParameters": {
+      "model": {
+        "blake3": "e76544838a98c46341ed8807f72897ec68de5a8a9bf28721738a76761c9df90e",
+        "sha256": "074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6"
+      },
+      "spec": {
+        "basis": "model-sources",
+        "blake3": "981eff9742ded9005be7b324263b097a7d47b03783274faa8cc58c121ccb8e1f"
+      }
+    },
+    "internalParameters": {},
+    "resolvedDependencies": [
+      {
+        "name": "sdk-image",
+        "uri": "ghcr.io/uor-foundation/prismpm-sdk@sha256:2b898a27544569dabd9e7622fd139f9cec8226d3287efe559f1e6c30fe9e3e67",
+        "digest": {
+          "sha256": "2b898a27544569dabd9e7622fd139f9cec8226d3287efe559f1e6c30fe9e3e67"
+        }
+      },
+      {
+        "name": "world",
+        "uri": "hologram:guest/core-wasm@1",
+        "digest": {
+          "blake3": "0774a8ecbfa945a427712ee7d7ad406195b2d07492ceae15cca0067276c9ced8",
+          "sha256": "a566c87a359cadf98f652747f1b3574aa307ff5f652a190c6d99c350db9cf369"
+        }
+      },
+      {
+        "name": "application-generator",
+        "uri": "urn:prismpm:generator:application",
+        "digest": {
+          "sha256": "552e9f283ebff3937b65fb29ca58c0934af3068b4f64e8602d87c0ed7549d610"
+        }
+      },
+      {
+        "name": "library-generator",
+        "uri": "urn:prismpm:generator:library",
+        "digest": {
+          "sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+        }
+      },
+      {
+        "name": "sdk-lock",
+        "uri": "urn:prismpm:sdk-lock",
+        "digest": {
+          "blake3": "cf3c3895587f0c51b5605c5ae4724309a3bf133c9097da70249511cc64c662be",
+          "sha256": "724728aa2fe85a10f34dc6c6a4565a2ce1d5b961ada4988f4cc345d96459fedb"
+        },
+        "mediaType": "application/vnd.prismpm.sdk-lock.v3+json"
+      },
+      {
+        "name": "standards-lock",
+        "uri": "urn:prismpm:standards-lock",
+        "digest": {
+          "sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+        }
+      },
+      {
+        "name": "lean",
+        "uri": "urn:prismpm:toolchain:lean:v4.32.1"
+      },
+      {
+        "name": "lexlean",
+        "uri": "urn:prismpm:toolchain:lexlean:0.3.0"
+      },
+      {
+        "name": "prismpm",
+        "uri": "urn:prismpm:toolchain:prismpm:0.3.0"
+      },
+      {
+        "name": "rustc",
+        "uri": "urn:prismpm:toolchain:rustc:1.97.1"
+      },
+      {
+        "name": "wasm-bindgen",
+        "uri": "urn:prismpm:toolchain:wasm-bindgen:0.2.122"
+      }
+    ]
+  },
+  "runDetails": {
+    "builder": {
+      "version": {
+        "prismpm": "0.3.0"
+      }
+    }
+  }
+}

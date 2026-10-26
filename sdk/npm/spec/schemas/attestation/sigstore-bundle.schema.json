@@ -234,9 +234,9 @@
                 "type": "string"
               },
               "sig": {
+                "description": "Base64 of the signature. Empty only in the unsigned placeholder that prismpm build writes (docs/proposals/268-build-provenance.md); no verifier accepts an empty signature.",
                 "type": "string",
-                "pattern": "^[A-Za-z0-9+/_-]*={0,2}$",
-                "minLength": 1
+                "pattern": "^[A-Za-z0-9+/_-]*={0,2}$"
               }
             }
           }

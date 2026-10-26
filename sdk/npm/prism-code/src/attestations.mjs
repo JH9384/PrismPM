@@ -144,6 +144,8 @@ export function decodeBundle(line, labels = new Set()) {
     mediaType: bundle.mediaType,
     verificationMaterial: bundle.verificationMaterial,
     envelope,
+    /** At least one signature is non-empty. An unsigned placeholder (#268) has one empty signature; no verifier accepts it. */
+    signed: envelope.signatures.some((signature) => signature.sig !== ''),
     statement,
     predicateType: statement.predicateType,
     subjects,

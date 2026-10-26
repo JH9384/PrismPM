@@ -201,6 +201,48 @@ export const FORMAT_REVISIONS = freeze({
     ]),
   }),
 });
+/**
+ * Build provenance of a holo, issue #268 (docs/proposals/268-build-provenance.md). The predicate is SLSA
+ * provenance v1; Prism adds the build type and the rules for each member. Schema: SCHEMA.
+ */
+export const PROVENANCE = freeze({
+  /** The predicate type of the statement. Standard SLSA v1, not a Prism URI. */
+  PREDICATE_TYPE: 'https://slsa.dev/provenance/v1',
+  /** The build type of a holo built by `prismpm build`. The URL names the document that defines the members below. */
+  BUILD_TYPE: 'https://uor.foundation/prism/holo-build/v1',
+  /** JSON Schema of the predicate member of the statement. */
+  SCHEMA: 'schemas/attestation/provenance-v1.schema.json',
+  /** `min` is the default and is always written; `max` is opt-in because it records build arguments. */
+  MODES: freeze({ MIN: 'min', MAX: 'max' }),
+  DEFAULT_MODE: 'min',
+  /** The command line flags of `prismpm build`. `--no-provenance` is documented as unsafe. */
+  FLAGS: freeze({ MODE: '--provenance', DISABLE: '--no-provenance' }),
+  /** The subjects of the statement: the four content blobs, in this order, with the build-manifest path that names each. */
+  SUBJECTS: freeze({
+    GUEST: 'core-wasm/<cargo_name with - as _>_core_wasm.wasm',
+    VIEW: 'view/hologram/view.holoview',
+    MODEL: 'model.prism.json',
+    CAPABILITIES: 'application/capability-request.bin',
+  }),
+  /** The `uri` of each resolved dependency row that is not an OCI reference, and the `mediaType` of the lock row. */
+  DEPENDENCIES: freeze({
+    LOCK: 'urn:prismpm:sdk-lock',
+    STANDARDS_LOCK: 'urn:prismpm:standards-lock',
+    TOOLCHAIN: 'urn:prismpm:toolchain:',
+    GENERATOR: 'urn:prismpm:generator:',
+    LOCK_MEDIA_TYPES: freeze({
+      'prismpm/sdk-lock/2': 'application/vnd.prismpm.sdk-lock.v2+json',
+      'prismpm/sdk-lock/3': 'application/vnd.prismpm.sdk-lock.v3+json',
+    }),
+  }),
+  /**
+   * An unsigned statement is stored as a bundle whose envelope carries one
+   * signature with an empty `sig` and whose verification material is an empty
+   * `publicKey`. No verifier accepts it; `prism attest` replaces it.
+   */
+  UNSIGNED: freeze({ SIGNATURE: '' }),
+});
+
 export const ASSURANCE = assuranceLevels.ASSURANCE;
 
 /** The documents this reader checks, by their `schema` member. The spec's SCHEMAS lists every document. */

@@ -55,6 +55,17 @@ export {
   stripAttestations,
   encodeArchive,
 } from './attestations.mjs';
+export {
+  PROVENANCE_PREDICATE_TYPE,
+  HOLO_BUILD_TYPE,
+  PROVENANCE_MODES,
+  resolvedDependencies,
+  provenanceStatement,
+  statementBytes,
+  provenanceBundle,
+  attachProvenance,
+  readProvenance,
+} from './provenance.mjs';
 
 const decoder = new TextDecoder('utf-8', { fatal: true });
 

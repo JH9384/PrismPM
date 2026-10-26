@@ -425,6 +425,8 @@ export interface Attestation {
   mediaType: 'application/vnd.dev.sigstore.bundle.v0.3+json';
   verificationMaterial: Record<string, unknown>;
   envelope: { payload: string; payloadType: 'application/vnd.in-toto+json'; signatures: { keyid?: string; sig: string }[] };
+  /** At least one signature is non-empty. The provenance placeholder `prismpm build` writes has one empty signature; no verifier accepts it. */
+  signed: boolean;
   /** The in-toto Statement v1 decoded from the DSSE payload. */
   statement: { _type: 'https://in-toto.io/Statement/v1'; subject: unknown[]; predicateType: string; predicate?: unknown };
   predicateType: string;
@@ -446,6 +448,59 @@ export function decodeBundle(line: string | Uint8Array, labels?: Set<string>): O
 export function appendAttestations(source: Uint8Array | ArrayBuffer | ParsedArchive, bundles: BundleInput[]): Uint8Array;
 /** The archive without its attestation row: the unsigned archive. */
 export function stripAttestations(source: Uint8Array | ArrayBuffer | ParsedArchive): Uint8Array;
+/** `https://slsa.dev/provenance/v1`. */
+export const PROVENANCE_PREDICATE_TYPE: 'https://slsa.dev/provenance/v1';
+/** The build type of a holo built by `prismpm build`. */
+export const HOLO_BUILD_TYPE: 'https://uor.foundation/prism/holo-build/v1';
+export const PROVENANCE_MODES: Readonly<{ MIN: 'min'; MAX: 'max' }>;
+
+/** One resolved dependency row of a provenance statement. */
+export interface ProvenanceDependency {
+  name: string;
+  uri: string;
+  digest?: { blake3?: string; sha256?: string };
+  mediaType?: string;
+}
+
+export interface ProvenanceStatement {
+  _type: 'https://in-toto.io/Statement/v1';
+  subject: { name: string; digest: { blake3: string; sha256: string } }[];
+  predicateType: 'https://slsa.dev/provenance/v1';
+  predicate: Record<string, unknown>;
+}
+
+export interface ProvenanceOptions {
+  /** The bytes of `prismpm.lock`, schema `prismpm/sdk-lock/2` or `/3`. */
+  lock: Uint8Array | string;
+  /** `min` unless told otherwise. Max records the arguments, platform, invocation id and timestamps. */
+  mode?: 'min' | 'max';
+  /** Max only: the command line after `prismpm`. */
+  arguments?: string[];
+  /** Max only: the OCI platform of the builder, for example `linux/amd64`. */
+  platform?: string;
+  /** Max only. */
+  invocationId?: string;
+  /** Max only, UTC RFC 3339 without fractions. */
+  startedOn?: string;
+  /** Max only, UTC RFC 3339 without fractions. */
+  finishedOn?: string;
+  /** The build-manifest path of each blob; the defaults are the paths `prismpm build` writes. */
+  subjectNames?: { guest?: string; view?: string; model?: string; capabilities?: string };
+}
+
+/** The resolved dependency rows a lock gives, sorted by uri then name. */
+export function resolvedDependencies(lock: Uint8Array | string): Promise<ProvenanceDependency[]>;
+/** The SLSA provenance v1 statement of a holo. Throws `provenance.*` errors. */
+export function provenanceStatement(source: Uint8Array | ArrayBuffer | ParsedArchive, options: ProvenanceOptions): Promise<ProvenanceStatement>;
+/** The bytes a DSSE envelope signs: canonical JSON of the statement. */
+export function statementBytes(statement: ProvenanceStatement): Uint8Array;
+/** One unsigned bundle line for a statement, as canonical JSON bytes. */
+export function provenanceBundle(statement: ProvenanceStatement): Uint8Array;
+/** The provenance statements an archive carries, with their mode and whether any signature is present. */
+export function readProvenance(source: Uint8Array | ArrayBuffer | ParsedArchive): { index: number; mode: 'min' | 'max'; signed: boolean; statement: ProvenanceStatement }[];
+/** A new archive that carries its provenance statement as an unsigned bundle. Refuses an archive that already has one. */
+export function attachProvenance(source: Uint8Array | ArrayBuffer | ParsedArchive, options: ProvenanceOptions): Promise<Uint8Array>;
+
 /** Encode header, table, bodies and BLAKE3 footer from rows. */
 export function encodeArchive(sections: { kind: number; body: Uint8Array }[], options?: { version?: number; flags?: number }): Uint8Array;
 

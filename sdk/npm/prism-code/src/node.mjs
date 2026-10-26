@@ -131,3 +131,6 @@ export async function serve(app, { port = 0, host = '127.0.0.1' } = {}) {
     close: () => new Promise((resolveClose) => server.close(() => resolveClose())),
   };
 }
+
+// Signing and checking attestations (#272). The sigstore packages they need are optional and load on first use.
+export { experimental_attest, experimental_verifyAttestations, experimental_verifyBundle, GITHUB_ACTIONS_ISSUER } from './attest.mjs';

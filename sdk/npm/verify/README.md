@@ -153,7 +153,7 @@ Every check runs. A failed one is a reason with the shape of a verdict reason (`
 |---|---|
 | `timestamp` | A timestamp is not signed by a pinned authority, is outside that authority's validity, does not cover the bundle's signature, or falls outside the signing certificate's validity. |
 | `certificate.chain` | The signing certificate does not chain to a pinned certificate authority that was valid at the signed time. |
-| `tlog.kind`, `tlog.log` | The entry is not a Rekor v2 `hashedrekord` 0.0.2, or names a log the root does not pin. |
+| `tlog.kind`, `tlog.log` | The entry is none of `hashedrekord` 0.0.2, `dsse` 0.0.2 (Rekor v2) or `dsse` 0.0.1 (Rekor v1), or names a log the root does not pin. |
 | `tlog.body` | The logged body is not this bundle's digest, signature or certificate. |
 | `tlog.inclusion` | The proof is missing, is for another index, or does not recompute the root hash. |
 | `tlog.checkpoint` | The checkpoint is malformed, disagrees with the proof, or carries no valid signature from the pinned log key. |
@@ -162,7 +162,7 @@ Every check runs. A failed one is a reason with the shape of a verdict reason (`
 
 It rejects with `VerifyError` code `trustedroot.invalid` for a root that is not usable, and `input` for a bundle that is not an object.
 
-Not checked: the DSSE signature, the signing identity, revocation and checkpoint witnesses. Those belong to `prism verify` (issue #272). Rekor v1 entries are reported as `tlog.kind`.
+Not checked: the DSSE signature, the signing identity, revocation and checkpoint witnesses. Those belong to `prism verify` (issue #272). A Rekor v1 `dsse` entry is checked by its inclusion proof and signed checkpoint; its signed entry timestamp is not used.
 
 ## Errors
 

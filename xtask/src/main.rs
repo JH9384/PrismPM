@@ -318,6 +318,7 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "sdk/npm/spec/test/schemas.test.mjs",
             "sdk/npm/verify/test/agreement.test.mjs",
             "sdk/npm/verify/test/browser.test.mjs",
+            "sdk/npm/verify/test/entry-kinds.test.mjs",
             "sdk/npm/verify/test/inspect.test.mjs",
             "sdk/npm/verify/test/transparency.test.mjs",
             "sdk/npm/verify/test/verify.test.mjs",

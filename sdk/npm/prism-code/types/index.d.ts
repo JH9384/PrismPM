@@ -51,6 +51,34 @@ export class DeterminismViolationError extends PrismError {
 export class ReplayError extends PrismError {
   static readonly code: 'replay_failed';
 }
+/** `signing_failed`: `attest` could not sign. `check` is `sign.key`, `sign.identity`, `sign.service`, `sign.config`, `sign.predicate` or `sign.subject`. */
+export class SigningError extends PrismError {
+  static readonly code: 'signing_failed';
+}
+/** `signature_invalid`: the DSSE signature, the signing key or the certificate chain of a bundle does not verify. */
+export class SignatureInvalidError extends PrismError {
+  static readonly code: 'signature_invalid';
+}
+/** `identity_mismatch`: the signer is valid but is not the certificate identity or OIDC issuer the policy names. */
+export class IdentityMismatchError extends PrismError {
+  static readonly code: 'identity_mismatch';
+}
+/** `transparency_failed`: a log entry or signed timestamp is missing, untrusted or not about this bundle. */
+export class TransparencyError extends PrismError {
+  static readonly code: 'transparency_failed';
+}
+/** `subject_mismatch`: a statement subject is not a content blob of the holo, or its digests differ from the blob's. */
+export class SubjectMismatchError extends PrismError {
+  static readonly code: 'subject_mismatch';
+}
+/** `attestation_not_found`: the holo has no attestation, or none of the requested predicate type. */
+export class AttestationNotFoundError extends PrismError {
+  static readonly code: 'attestation_not_found';
+}
+/** `trust_root_invalid`: the pinned trusted root cannot be read or does not pin what the policy needs. */
+export class TrustRootError extends PrismError {
+  static readonly code: 'trust_root_invalid';
+}
 export const ERROR_CLASSES: Readonly<Record<string, typeof PrismError>>;
 /** The class a verdict reason's check id maps to. */
 export function classForCheck(check: string): typeof PrismError;

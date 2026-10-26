@@ -13,6 +13,10 @@
  *   or the world is not the one the caller pinned (issue #278).
  * - `DeterminismViolationError`: a replay diverged from its recorded history.
  * - `ReplayError`: a replay could not be carried out or its statement failed.
+ * - `SigningError`: `attest` could not produce a signature (#272).
+ * - `SignatureInvalidError`, `IdentityMismatchError`, `TransparencyError`,
+ *   `SubjectMismatchError`, `AttestationNotFoundError`, `TrustRootError`: the
+ *   reasons `verify-attestation` can refuse a bundle (#272).
  *
  * The last five map one-to-one to the check ids of a `prism/verdict/1`
  * reason (docs/proposals/269-assurance-levels.md); `errorForReason` is the map.
@@ -73,6 +77,39 @@ DeterminismViolationError.code = 'determinism_violation';
 export class ReplayError extends PrismError {}
 ReplayError.code = 'replay_failed';
 
+/**
+ * `attest` could not produce a signature: the key is unusable, no identity token
+ * was available, or Fulcio, Rekor or the timestamp authority refused. `check`
+ * is `sign.key`, `sign.identity`, `sign.service`, `sign.config`, `sign.predicate`
+ * or `sign.subject`.
+ */
+export class SigningError extends PrismError {}
+SigningError.code = 'signing_failed';
+
+/** The DSSE signature, the signing key or the certificate chain of a bundle does not verify. */
+export class SignatureInvalidError extends PrismError {}
+SignatureInvalidError.code = 'signature_invalid';
+
+/** The signer is valid but is not the identity (or issuer) the policy names. */
+export class IdentityMismatchError extends PrismError {}
+IdentityMismatchError.code = 'identity_mismatch';
+
+/** A transparency log entry or signed timestamp is missing, untrusted or not about this bundle. `reasons` lists each one. */
+export class TransparencyError extends PrismError {}
+TransparencyError.code = 'transparency_failed';
+
+/** A statement subject is not a content blob of this holo, or its digests differ from the blob's. */
+export class SubjectMismatchError extends PrismError {}
+SubjectMismatchError.code = 'subject_mismatch';
+
+/** The holo carries no attestation, or none of the requested predicate type. */
+export class AttestationNotFoundError extends PrismError {}
+AttestationNotFoundError.code = 'attestation_not_found';
+
+/** The pinned trusted root cannot be read or is not a usable root. */
+export class TrustRootError extends PrismError {}
+TrustRootError.code = 'trust_root_invalid';
+
 /** Every class with a code of its own, by code. */
 export const ERROR_CLASSES = Object.freeze({
   [VerificationError.code]: VerificationError,
@@ -81,6 +118,13 @@ export const ERROR_CLASSES = Object.freeze({
   [WorldMismatchError.code]: WorldMismatchError,
   [DeterminismViolationError.code]: DeterminismViolationError,
   [ReplayError.code]: ReplayError,
+  [SigningError.code]: SigningError,
+  [SignatureInvalidError.code]: SignatureInvalidError,
+  [IdentityMismatchError.code]: IdentityMismatchError,
+  [TransparencyError.code]: TransparencyError,
+  [SubjectMismatchError.code]: SubjectMismatchError,
+  [AttestationNotFoundError.code]: AttestationNotFoundError,
+  [TrustRootError.code]: TrustRootError,
 });
 
 /**

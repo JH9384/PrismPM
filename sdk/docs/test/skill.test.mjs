@@ -20,7 +20,7 @@ test('the committed skill follows every rule and its generated blocks are curren
 test('the verbs cli.json lists for prism-code are the verbs the command prints in --help', () => {
   const help = spawnSync(process.execPath, [join(PRISM_CODE_DIR, 'bin', 'prism-code.mjs'), '--help'], { encoding: 'utf8' });
   assert.equal(help.status, 0);
-  const printed = [...help.stdout.matchAll(/^ {2}prism-code ([a-z]+)\b/gm)].map((m) => m[1]);
+  const printed = [...help.stdout.matchAll(/^ {2}prism-code ([a-z][a-z-]*)\b/gm)].map((m) => m[1]);
   assert.deepEqual([...cli.prismCode.verbs.map((v) => v.name)].sort(), [...new Set(printed)].sort());
 });
 
@@ -46,7 +46,7 @@ test('every page the skill points at is in the page list', () => {
 test('the skill is refused when it names a command that has not shipped', () => {
   assert.match(problems(`${good}\n\`\`\`bash\nprism build\n\`\`\`\n`).join('\n'), /prism build names a command that has not shipped/);
   assert.match(problems(`${good}\nRun \`prism check\` first.\n`).join('\n'), /prism check names a command that has not shipped/);
-  assert.match(problems(`${good}\n\`\`\`bash\nnpx prism-code attest app.holo\n\`\`\`\n`).join('\n'), /attest is not a verb/);
+  assert.match(problems(`${good}\n\`\`\`bash\nnpx prism-code sign app.holo\n\`\`\`\n`).join('\n'), /sign is not a verb/);
 });
 
 test('the skill is refused when its frontmatter is wrong', () => {

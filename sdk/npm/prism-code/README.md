@@ -11,7 +11,9 @@ runs the guest, and replays the modeled acceptance vectors. It does not
 compile, prove or produce artifacts; that stays in the SDK image, which the
 command line runs for you.
 
-Zero runtime dependencies. ESM only. Node 22 or newer, or a browser.
+No required dependencies. ESM only. Node 22 or newer, or a browser. Signing and checking
+attestations use the optional [`sigstore`](https://github.com/sigstore/sigstore-js)
+packages, which need Node 22.22.2 or newer; nothing else loads them.
 
 ```
 npm install prism-code
@@ -247,9 +249,53 @@ stripAttestations(signed);   // the unsigned archive, byte for byte
 ```
 
 The package decodes bundles and resolves each subject to a content blob by its
-`blake3` label. It does not verify signatures; that is `@prism-code/verify`
-(#273). PrismPM's Rust reader refuses the ninth row until the wire model admits
-it, so signed archives are for the JavaScript runtime only for now.
+`blake3` label. Decoding does not verify signatures; `attest` and
+`verify-attestation` below sign and check them. PrismPM's Rust reader refuses the
+ninth row until the wire model admits it, so signed archives are for the
+JavaScript runtime only for now.
+
+## Sign and check attestations (experimental, #272)
+
+```
+prism-code attest app.holo --predicate proof.json --type https://uor.foundation/prism/proof/v1
+prism-code verify-attestation app.holo \
+  --certificate-identity https://github.com/acme/app/.github/workflows/release.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+`attest` signs an in-toto Statement v1 and appends it as a Sigstore bundle v0.3
+to the attestation section; the holo is rewritten in place unless you pass
+`--output`. The subject is the guest blob with both digests (`--subject` adds or
+changes subjects: `guest`, `view`, `model`, `capabilities`, or a `blake3:` label).
+
+Keyless is the default: an OIDC token (GitHub Actions with `permissions: id-token: write`, or
+`SIGSTORE_ID_TOKEN`) buys a short-lived Fulcio certificate, and the Rekor v2 entry and RFC 3161
+timestamp of the public instance's signing configuration go into the bundle. `--key private.pem`
+signs with a local key instead and uses no network; `--signing-config` points at a private instance.
+
+`verify-attestation` checks every bundle of `--type` (default all) and passes when one
+passes everything: both digests of each subject against the blob, the DSSE signature, the
+certificate chain or the key, the log entry and the signed time, and the signer. A keyless policy needs
+`--certificate-identity` (exact, never a pattern) or `--certificate-identity-regexp`, and
+`--certificate-oidc-issuer`; without them any signer would pass, so the command refuses.
+`--key public.pem` checks a keyed bundle. `--trusted-root trusted_root.json` pins the root and keeps the
+whole check offline; without it the public instance's root is fetched over TUF. Exit codes: 0 verified,
+1 not verified, 3 signing failed, 64 bad policy.
+
+```js
+import { experimental_attest, experimental_verifyAttestations } from 'prism-code/node';
+
+const { holo } = await experimental_attest(bytes, { type, predicate, key: privatePem });
+const result = await experimental_verifyAttestations(holo, { key: publicPem });
+result.passed;   // true
+result.results;  // [{ index, predicateType, subjects, passed, signer, time, error }]
+```
+
+Errors are typed: `SigningError` (`sign.*`), `SignatureInvalidError`, `IdentityMismatchError`,
+`TransparencyError`, `SubjectMismatchError`, `AttestationNotFoundError`, `TrustRootError`; a bad policy is a
+`VerificationError` with check `policy.invalid`. The verb is `verify-attestation` because
+`prism-code verify` already runs `prismpm verify`. The design is
+[docs/proposals/272-attest-verify.md](../../../docs/proposals/272-attest-verify.md).
 
 ## In the browser
 
@@ -279,7 +325,7 @@ warning and are removed in 0.3.0.
 
 - Linux SDK image only; `build` and `verify` need the Docker socket.
 - No proof checking: `evidence` is pointers, not verdicts.
-- No `.holo` production in JavaScript.
+- No `.holo` production in JavaScript. `attest` adds to a holo; it does not build one.
 - Closure provenance can verify the adapter and the glue it was given; `model_id`
   and `view_model_id` name files outside the closure and are reported as
   unverifiable rather than assumed.

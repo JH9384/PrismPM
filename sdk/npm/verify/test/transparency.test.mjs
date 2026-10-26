@@ -106,7 +106,7 @@ test('the log, the entry kind and the counts are policy, not hints', async () =>
   assert.ok(failed(await verifyTransparency(bundle, root)).includes('tlog.log'));
 
   ({ bundle, root } = load('rekor2-dsse-happy-path'));
-  bundle.verificationMaterial.tlogEntries[0].kindVersion = { kind: 'dsse', version: '0.0.1' };
+  bundle.verificationMaterial.tlogEntries[0].kindVersion = { kind: 'intoto', version: '0.0.2' };
   assert.ok(failed(await verifyTransparency(bundle, root)).includes('tlog.kind'));
 
   ({ bundle, root } = load('rekor2-dsse-happy-path'));

@@ -1,0 +1,61 @@
+name: feature shipped
+
+# Closes the loop for whoever filed a feature request, human or agent: when an
+# issue labelled `kind/feature` is closed as completed, comment where it
+# shipped, which notifies the author and every subscriber. The UOR website
+# moves the request from open to shipped on its next sync (every 6 hours).
+#
+# "Shipped in" names, in order of preference: the issue's milestone, the pull
+# request whose merge closed it ("Closes #N"), the commit that closed it, or
+# the default branch.
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+env:
+  DOCS_BASE: https://universal-coordinate-foundation.lovable.app/docs
+
+jobs:
+  notify:
+    name: notify the requester
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: >-
+      github.event.issue.state_reason == 'completed' &&
+      contains(github.event.issue.labels.*.name, 'kind/feature') &&
+      !contains(github.event.issue.labels.*.name, 'tracking')
+    steps:
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner, repo = context.repo.repo, issue_number = issue.number;
+            const MARKER = '<!-- feature-shipped -->';
+
+            let shipped = issue.milestone?.title ? `**${issue.milestone.title}**` : '';
+            if (!shipped) {
+              const events = await github.paginate(github.rest.issues.listEventsForTimeline, { owner, repo, issue_number, per_page: 100 });
+              const closed = events.filter((e) => e.event === 'closed').at(-1);
+              const pr = events
+                .filter((e) => e.event === 'cross-referenced' && e.source?.issue?.pull_request?.merged_at)
+                .map((e) => e.source.issue).at(-1);
+              if (pr) shipped = `#${pr.number}`;
+              else if (closed?.commit_id) shipped = closed.commit_id.slice(0, 12);
+              else shipped = `\`${context.payload.repository.default_branch}\``;
+            }
+
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
+            if (comments.some((c) => (c.body ?? '').includes(MARKER))) return core.info('already notified');
+
+            const docs = process.env.DOCS_BASE;
+            await github.rest.issues.createComment({ owner, repo, issue_number, body: [
+              MARKER,
+              `Shipped in ${shipped}. Docs update within 6 hours at ${docs}/ (changelog: ${docs}/changelog.md, shipped requests: ${docs}/requests.md).`,
+              '',
+              `@${issue.user.login} thanks for the request. If the acceptance test in this issue does not pass on that release, reopen the issue with the output.`,
+            ].join('\n') });

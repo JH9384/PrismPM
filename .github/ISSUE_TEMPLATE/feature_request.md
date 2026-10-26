@@ -1,21 +1,5 @@
----
-name: Feature request
-about: Ask for a capability the Prism SDK does not have yet
-title: ""
-labels: triage/needs-information
----
+This template has moved to a form. File the request with the form instead:
 
-**What is the request?**
+https://github.com/UOR-Foundation/PrismPM/issues/new?template=feature_request.yml
 
-
-**Which component?**
-cli / engine / holo-format / verify / runtime-js / runtime-rust / runtime-py / spec / docs / site
-
-**What problem does it solve, and why is it hard today?**
-
-
-**Current workaround**
-
-
-**Additional context**
-
+Search /docs/requests.md first, and vote with a thumbs-up on an existing request rather than filing a duplicate.

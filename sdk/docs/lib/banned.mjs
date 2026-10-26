@@ -39,4 +39,6 @@ export const STYLE = [
 export const ALLOWED = [
   /https:\/\/uor\.foundation\/prism\/[a-z][a-z0-9-]*\/v[0-9]+/g,
   /universal-coordinate-foundation\.lovable\.app/g,
+  // The changelog's closing reference to the feature request it shipped.
+  /Closes \[#[0-9]+\]\(https:\/\/github\.com\/UOR-Foundation\/PrismPM\/issues\/[0-9]+\)/g,
 ];

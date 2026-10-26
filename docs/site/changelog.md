@@ -3,7 +3,7 @@ title: Changelog
 description: What each Prism release makes available, newest first.
 available_in: "0.2.0"
 ---
-Each entry gives the release date, the version, a tag of Feature or Fix, and what became available. Read the newest entry first; older entries stay for the history. A release that has not shipped says so in place of a date, and [Release status](/docs/reference/release-status) is where each feature is placed.
+Each entry gives the release date, the version, a tag of Feature or Fix, and what became available. Read the newest entry first; older entries stay for the history. A release that has not shipped says so in place of a date, and [Release status](/docs/reference/release-status) is where each feature is placed. Each feature of a shipped release links the request it closed.
 
 ## 1.1
 
@@ -97,6 +97,9 @@ Date: 2026-10-23. Tag: Feature.
 - `acceptance` replays every example the holo carries and reports how many passed.
 - `prism-code run` serves a holo, `prism-code vectors` replays its examples, and `prism-code inspect` prints what it says about itself.
 - `prism-code check` and `prism-code build` run the build inside the toolchain image pinned by `prismpm.lock`. Docker is required.
+
+Closes [#249](https://github.com/UOR-Foundation/PrismPM/issues/249).
+Closes [#250](https://github.com/UOR-Foundation/PrismPM/issues/250).
 
 ## Next steps
 

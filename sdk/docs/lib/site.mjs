@@ -229,7 +229,16 @@ export function commandProblems(text, cli) {
   return problems;
 }
 
-/** The changelog's release headings must be release titles from the release list. */
+/** The one form a changelog entry names the feature request it shipped in. */
+export const CLOSES = /^Closes \[#([0-9]+)\]\(https:\/\/github\.com\/UOR-Foundation\/PrismPM\/issues\/\1\)\.?$/;
+
+/**
+ * The changelog's release headings must be release titles from the release
+ * list. Every `###` feature of a shipped release must name each request it
+ * shipped on its own line, `Closes [#N](https://github.com/UOR-Foundation/PrismPM/issues/N)`,
+ * so the published changelog links each change to the request it closed; a
+ * release cannot be marked shipped in the release list without them.
+ */
 export function changelogProblems(text, releases) {
   const titles = new Set(releases.releases.map((r) => r.title));
   const headings = [...text.matchAll(/^## (.+)$/gm)].map((m) => m[1]).filter((h) => h !== 'Next steps');
@@ -237,6 +246,24 @@ export function changelogProblems(text, releases) {
   for (const release of releases.releases) {
     if (!headings.includes(release.title)) problems.push(`changelog has no entry for release ${release.title}`);
   }
+  const shipped = new Set(releases.releases.filter((r) => r.status === 'shipped').map((r) => r.title));
+  let release = null;
+  let feature = null;
+  const check = () => {
+    if (feature && !feature.closes) problems.push(`changelog ${release} feature "${feature.title}" names no request: add a line Closes [#N](https://github.com/UOR-Foundation/PrismPM/issues/N)`);
+  };
+  for (const line of text.split(/\r?\n/)) {
+    const h2 = /^## (.+)$/.exec(line);
+    const h3 = /^### (.+)$/.exec(line);
+    if (h2 || h3) check();
+    if (h2) { release = h2[1]; feature = null; continue; }
+    if (h3) { feature = shipped.has(release) ? { title: h3[1], closes: false } : null; continue; }
+    if (feature && line.startsWith('Closes ')) {
+      if (CLOSES.test(line.trim())) feature.closes = true;
+      else problems.push(`changelog ${release} feature "${feature.title}": ${line.trim()} is not Closes [#N](https://github.com/UOR-Foundation/PrismPM/issues/N)`);
+    }
+  }
+  check();
   return problems;
 }
 

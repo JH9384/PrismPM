@@ -11,6 +11,7 @@ import { parseArchive, resolveArchive, asBytes } from './archive.mjs';
 import { attestationSection, readAttestations } from './attestations.mjs';
 import { decodeHoloview } from './view.mjs';
 import { compileGuest, runGuest, runAcceptance } from './core.mjs';
+import { parseCapabilities, grantOf, DEFAULT_SET } from './capabilities.mjs';
 import { verifyClosure, closureDispatch, initializeGlue } from './closure.mjs';
 import { PrismCodeError, fail } from './errors.mjs';
 import { inspect } from './inspect.mjs';
@@ -42,6 +43,7 @@ export { experimental_verify, experimental_createClient, MINIMUM_LEVEL_ENV } fro
 export { parseArchive, resolveArchive, canonicalJson } from './archive.mjs';
 export { decodeHoloview, encodeHoloview } from './view.mjs';
 export { compileGuest, runGuest, runAcceptance } from './core.mjs';
+export { parseCapabilities, grantOf, CAPABILITIES_SCHEMA, CAPABILITY_KINDS, DEFAULT_SET } from './capabilities.mjs';
 export { verifyClosure, closureDispatch, initializeGlue } from './closure.mjs';
 export { blake3, blake3Hex, kappa } from './blake3.mjs';
 export { inspect, formatInspection, INSPECTION_SCHEMA } from './inspect.mjs';
@@ -104,15 +106,32 @@ function evidenceOf(provenance) {
   };
 }
 
-/** Open a `.holo` archive from bytes. */
-export async function loadArchive(source) {
+/**
+ * The grant for `options.capabilities` (a capability file as text, bytes or a
+ * parsed value) and `options.capabilitySet`. No file grants nothing (#279).
+ */
+function grantFor({ capabilities = null, capabilitySet = DEFAULT_SET } = {}) {
+  if (capabilities === null || capabilities === undefined) {
+    if (capabilitySet !== DEFAULT_SET) fail('capabilities.invalid', `capability set ${capabilitySet} was named, but no capability file was given`);
+    return grantOf(null);
+  }
+  return grantOf(parseCapabilities(capabilities), capabilitySet);
+}
+
+/**
+ * Open a `.holo` archive from bytes. `options.capabilities` is the capability
+ * file the guest runs under and `options.capabilitySet` the set to apply,
+ * `default` unless named; without a file the holo is granted nothing.
+ */
+export async function loadArchive(source, options = {}) {
   const parsed = parseArchive(asBytes(source));
   const resolved = resolveArchive(parsed);
   // A malformed attestation row fails the load; the bundles decode lazily.
   attestationSection(parsed);
   const { modelDocument, provenance, directory } = resolved;
   const application = modelDocument.application ?? fail('archive.model', 'model document has no application');
-  const module = await compileGuest(resolved.guest.content);
+  const capabilities = grantFor(options);
+  const module = await compileGuest(resolved.guest.content, capabilities);
   const limits = limitsOf(application);
   const vectors = vectorsOf(application);
   const view = decodeHoloview(resolved.view.content);
@@ -140,6 +159,8 @@ export async function loadArchive(source) {
     evidence: evidenceOf(provenance),
     view,
     archive: parsed,
+    /** The capability set in force (#279): `allows(kind, resource)`, `assert(kind, resource)`, `set`. */
+    capabilities,
     dispatch,
     attestations: () => readAttestations(parsed),
     acceptance: () => runAcceptance(vectors, dispatch),
@@ -155,8 +176,11 @@ export async function loadArchive(source) {
  * imports the wasm-bindgen glue module by file name (a file URL in Node, a
  * URL in browsers). `model` is optional and only needed to dispatch through a
  * numeric-profile closure, whose wire format lives in the model document.
+ * `capabilities` and `capabilitySet` are as for `loadArchive`; a closure's
+ * imports belong to its glue, so only `app.capabilities` carries the grant.
  */
-export async function loadClosure(files, importGlue, { model = null } = {}) {
+export async function loadClosure(files, importGlue, { model = null, capabilities = null, capabilitySet = DEFAULT_SET } = {}) {
+  const grant = grantFor({ capabilities, capabilitySet });
   const { stem, glueName, wasmName, provenance, verification } = await verifyClosure(files);
   const glue = initializeGlue(await importGlue(glueName), files.get(wasmName));
   const modelDocument = model ? (model instanceof Uint8Array ? JSON.parse(decoder.decode(model)) : model) : null;
@@ -183,6 +207,7 @@ export async function loadClosure(files, importGlue, { model = null } = {}) {
       generatedCoreSha256: provenance.generated_core_sha256 ?? null,
     },
     view,
+    capabilities: grant,
     dispatch: async (request) => dispatch(asBytes(request)),
     attestations: () => [],
     acceptance: () => runAcceptance(vectors, (r) => dispatch(r)),
@@ -198,10 +223,10 @@ export async function loadClosure(files, importGlue, { model = null } = {}) {
  */
 export async function load(source, options = {}) {
   if (source instanceof Uint8Array || source instanceof ArrayBuffer || ArrayBuffer.isView(source)) {
-    return loadArchive(source);
+    return loadArchive(source, options);
   }
   if (typeof Blob !== 'undefined' && source instanceof Blob) {
-    return loadArchive(new Uint8Array(await source.arrayBuffer()));
+    return loadArchive(new Uint8Array(await source.arrayBuffer()), options);
   }
   if (typeof source === 'string' || source instanceof URL) {
     if (isNode()) {

@@ -17,6 +17,7 @@ const ASSERTIONS = new Set([
   'required',
   'additionalProperties',
   'minProperties',
+  'propertyNames',
   'items',
   'prefixItems',
   'minItems',
@@ -77,7 +78,7 @@ export function assertSupported(schema, at = '#') {
       for (const [name, sub] of Object.entries(value)) assertSupported(sub, `${at}/${key}/${name}`);
     } else if (key === 'prefixItems' || key === 'oneOf' || key === 'anyOf' || key === 'allOf') {
       value.forEach((sub, i) => assertSupported(sub, `${at}/${key}/${i}`));
-    } else if (key === 'items' || key === 'not' || key === 'additionalProperties') {
+    } else if (key === 'items' || key === 'not' || key === 'additionalProperties' || key === 'propertyNames') {
       assertSupported(value, `${at}/${key}`);
     }
   }
@@ -144,6 +145,7 @@ function check(root, schema, value, path, errors) {
     const keys = Object.keys(value);
     if (schema.minProperties !== undefined && keys.length < schema.minProperties) fail(`fewer than ${schema.minProperties} members`);
     for (const name of schema.required ?? []) if (!(name in value)) fail(`missing member ${name}`);
+    if (schema.propertyNames !== undefined) for (const key of keys) check(root, schema.propertyNames, key, `${path}{${key}}`, errors);
     const properties = schema.properties ?? {};
     for (const key of keys) {
       if (key in properties) check(root, properties[key], value[key], `${path}.${key}`, errors);

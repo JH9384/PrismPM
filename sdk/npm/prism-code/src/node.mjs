@@ -37,17 +37,27 @@ export async function readClosureDirectory(directory) {
   return files;
 }
 
-/** Open a `.holo` file or a closure directory. */
+/**
+ * Open a `.holo` file or a closure directory. `options.capabilities` is a
+ * capability file, as a path or a parsed value, and `options.capabilitySet`
+ * the set to apply (#279); with no file the application is granted nothing.
+ */
 export async function fromFile(source, options = {}) {
   const path = toPath(source);
   const info = await stat(path).catch(() => fail('load.path', `${path} does not exist`));
+  let capabilities = options.capabilities ?? null;
+  if (typeof capabilities === 'string' || capabilities instanceof URL) {
+    const file = toPath(capabilities);
+    capabilities = new Uint8Array(await readFile(file).catch(() => fail('capabilities.path', `${file} does not exist`)));
+  }
+  const grant = { capabilities, capabilitySet: options.capabilitySet };
   if (info.isDirectory()) {
     const files = await readClosureDirectory(path);
     let model = options.model ?? null;
     if (typeof model === 'string') model = JSON.parse(await readFile(toPath(model), 'utf8'));
-    return loadClosure(files, (name) => import(pathToFileURL(join(path, name)).href), { model });
+    return loadClosure(files, (name) => import(pathToFileURL(join(path, name)).href), { model, ...grant });
   }
-  return loadArchive(new Uint8Array(await readFile(path)));
+  return loadArchive(new Uint8Array(await readFile(path)), grant);
 }
 
 const INTENT_VERSION = 1;

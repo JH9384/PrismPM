@@ -8,7 +8,8 @@
  * - `VerificationError`: no verdict could be reached, or the holo failed a
  *   check that is about the archive itself, its documents or its provenance.
  * - `ProofMismatchError`: a `proof.*` check of a verdict failed.
- * - `CapabilityDeniedError`: the declared world exceeds the granted capabilities.
+ * - `CapabilityDeniedError`: the declared world exceeds the granted capabilities,
+ *   or the runtime denied a guest import or a resource (`capabilities.*`, issue #279).
  * - `WorldMismatchError`: the guest does not have the interface of the WIT world it declares,
  *   or the world is not the one the caller pinned (issue #278).
  * - `DeterminismViolationError`: a replay diverged from its recorded history.
@@ -57,7 +58,13 @@ VerificationError.code = 'verification_failed';
 export class ProofMismatchError extends PrismError {}
 ProofMismatchError.code = 'proof_mismatch';
 
-/** The world the holo declares exceeds the capabilities granted to it. */
+/**
+ * The world the holo declares exceeds the capabilities granted to it
+ * (`world.capabilities`), or the runtime denied what the grant does not allow:
+ * a guest import (`capabilities.import`) or a resource
+ * (`capabilities.outbound-hosts`, `capabilities.key-value-stores`,
+ * `capabilities.variables`). `details` names the import or resource and the set.
+ */
 export class CapabilityDeniedError extends PrismError {}
 CapabilityDeniedError.code = 'capability_denied';
 
@@ -135,7 +142,7 @@ export const ERROR_CLASSES = Object.freeze({
  */
 export function classForCheck(check) {
   if (check.startsWith('proof.')) return ProofMismatchError;
-  if (check === 'world.capabilities') return CapabilityDeniedError;
+  if (check === 'world.capabilities' || check.startsWith('capabilities.')) return CapabilityDeniedError;
   if (check === 'world.contract' || check === 'world.hash') return WorldMismatchError;
   if (check === 'replay.divergence') return DeterminismViolationError;
   if (check.startsWith('replay.')) return ReplayError;

@@ -23,7 +23,8 @@ async function fetchBytes(url) {
  */
 export async function load(source, options = {}) {
   const base = new URL(source, typeof document !== 'undefined' ? document.baseURI : undefined);
-  if (base.pathname.endsWith('.holo')) return loadArchive(await fetchBytes(base));
+  const grant = { capabilities: options.capabilities ?? null, capabilitySet: options.capabilitySet };
+  if (base.pathname.endsWith('.holo')) return loadArchive(await fetchBytes(base), grant);
   const directory = base.href.endsWith('/') ? base : new URL(`${base.href}/`);
   const names = new Set(CLOSURE_FILES);
   let stem = options.stem ?? null;
@@ -46,7 +47,7 @@ export async function load(source, options = {}) {
       }
     }),
   );
-  return loadClosure(files, (name) => import(new URL(name, directory).href), { model: options.model ?? null });
+  return loadClosure(files, (name) => import(new URL(name, directory).href), { model: options.model ?? null, ...grant });
 }
 
 /** Place a closure's `index.html` in an iframe inside `container`; the page's own wasm does the work. */

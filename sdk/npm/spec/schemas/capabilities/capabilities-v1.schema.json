@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/capabilities/1",
+  "title": "Capabilities",
+  "description": "A capability file: the outbound hosts, key-value stores and variables an operator grants a holo. Nothing is granted unless an allow entry matches and no deny entry does. The runtime applies the set named default unless told otherwise. Design: docs/proposals/279-capability-sets.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "sets"],
+  "properties": {
+    "schema": { "const": "prism/capabilities/1" },
+    "sets": {
+      "description": "Named capability sets. default is required.",
+      "type": "object",
+      "required": ["default"],
+      "propertyNames": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": { "$ref": "#/$defs/set" }
+    }
+  },
+  "$defs": {
+    "set": {
+      "description": "One set. A missing member is an empty list. A deny entry wins over an allow entry of the same kind.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow-outbound-hosts": { "$ref": "#/$defs/hosts" },
+        "deny-outbound-hosts": { "$ref": "#/$defs/hosts" },
+        "allow-key-value-stores": { "$ref": "#/$defs/stores" },
+        "deny-key-value-stores": { "$ref": "#/$defs/stores" },
+        "allow-variables": { "$ref": "#/$defs/variables" },
+        "deny-variables": { "$ref": "#/$defs/variables" }
+      }
+    },
+    "hosts": {
+      "description": "Origins, scheme://host[:port], lower case. scheme, host and port may be *, and host may start with *. to match every subdomain. With no port only the scheme's default port matches.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^([*]|[a-z][a-z0-9+.-]*)://([*]|([*][.])?[a-z0-9]([a-z0-9-]*[a-z0-9])?([.][a-z0-9]([a-z0-9-]*[a-z0-9])?)*)(:([*]|[0-9]{1,5}))?$"
+      }
+    },
+    "stores": {
+      "description": "Key-value store labels, or * for every store.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^([*]|[a-z0-9][a-z0-9_-]*)$" }
+    },
+    "variables": {
+      "description": "Variable names, or * for every variable.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^([*]|[a-z][a-z0-9_]*)$" }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "schema": "prism/capabilities/2",
+  "sets": { "default": {} }
+}

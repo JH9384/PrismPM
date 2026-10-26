@@ -186,6 +186,24 @@ export function attestations({ spec, page }) {
     parts.push(table(HEADER, defRows(trustedRoot, name)));
   }
 
+  const provenance = spec.json(m.PROVENANCE.SCHEMA);
+  parts.push(heading(2, 'Build provenance'));
+  parts.push(
+    paragraph(
+      `Every holo that ${code('prismpm build')} produces carries one statement of predicate type ${code(m.PROVENANCE.PREDICATE_TYPE)} and build type ${code(m.PROVENANCE.BUILD_TYPE)}. Its subjects are the four content blobs. Its resolved dependencies are the lock. It is written unsigned: the envelope holds one empty signature, which no verifier accepts, until ${code('prism attest')} signs it.`,
+    ),
+  );
+  parts.push(
+    paragraph(
+      `Mode ${code(m.PROVENANCE.MODES.MIN)} is the default and holds nothing that varies between machines or runs. Mode ${code(m.PROVENANCE.MODES.MAX)} is opt-in with ${code(`${m.PROVENANCE.FLAGS.MODE}=${m.PROVENANCE.MODES.MAX}`)} because it records the build arguments, the platform, an invocation id and timestamps. ${code(m.PROVENANCE.FLAGS.DISABLE)} turns the statement off and is unsafe: a holo built with it cannot reach assurance level P1.`,
+    ),
+  );
+  parts.push(schemaSource(spec, m.PROVENANCE.SCHEMA));
+  for (const name of ['MinPredicate', 'MaxPredicate', 'ResourceDescriptor', 'Builder', 'Spec']) {
+    parts.push(heading(3, name));
+    parts.push(table(HEADER, defRows(provenance, name)));
+  }
+
   parts.push(heading(2, 'Predicate types'));
   parts.push(
     table(

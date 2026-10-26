@@ -84,5 +84,32 @@ export declare const ATTESTATION_BUNDLE: Readonly<{
   OCI_CONTENT: 'dsse-envelope';
 }>;
 
+/** Build provenance of a holo (#268). */
+export declare const PROVENANCE: Readonly<{
+  PREDICATE_TYPE: 'https://slsa.dev/provenance/v1';
+  BUILD_TYPE: 'https://uor.foundation/prism/holo-build/v1';
+  SCHEMA: 'schemas/attestation/provenance-v1.schema.json';
+  MODES: Readonly<{ MIN: 'min'; MAX: 'max' }>;
+  DEFAULT_MODE: 'min';
+  FLAGS: Readonly<{ MODE: '--provenance'; DISABLE: '--no-provenance' }>;
+  SUBJECTS: Readonly<{
+    GUEST: 'core-wasm/<cargo_name with - as _>_core_wasm.wasm';
+    VIEW: 'view/hologram/view.holoview';
+    MODEL: 'model.prism.json';
+    CAPABILITIES: 'application/capability-request.bin';
+  }>;
+  DEPENDENCIES: Readonly<{
+    LOCK: 'urn:prismpm:sdk-lock';
+    STANDARDS_LOCK: 'urn:prismpm:standards-lock';
+    TOOLCHAIN: 'urn:prismpm:toolchain:';
+    GENERATOR: 'urn:prismpm:generator:';
+    LOCK_MEDIA_TYPES: Readonly<{
+      'prismpm/sdk-lock/2': 'application/vnd.prismpm.sdk-lock.v2+json';
+      'prismpm/sdk-lock/3': 'application/vnd.prismpm.sdk-lock.v3+json';
+    }>;
+  }>;
+  UNSIGNED: Readonly<{ SIGNATURE: '' }>;
+}>;
+
 export type * from './assurance-levels.js';
 export { ASSURANCE } from './assurance-levels.js';

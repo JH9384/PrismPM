@@ -1,0 +1,9 @@
+# Fixtures whose exact bytes are hashed by a test: never convert line endings (#268).
+sdk/npm/prism-code/test/fixtures/Calculator.provenance-min.bundle.jsonl text eol=lf
+sdk/npm/spec/test/fixtures/documents/sdk-lock-v3/calculator.json text eol=lf
+# The npm packages are size-capped on bytes; a CRLF checkout on Windows must not change what is packed.
+sdk/npm/**/*.js text eol=lf
+sdk/npm/**/*.mjs text eol=lf
+sdk/npm/**/*.d.ts text eol=lf
+sdk/npm/**/*.json text eol=lf
+schemas/**/*.json text eol=lf

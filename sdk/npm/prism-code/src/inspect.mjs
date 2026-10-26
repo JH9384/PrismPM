@@ -26,6 +26,7 @@ import {
 import { blake3Hex } from './blake3.mjs';
 import { sha256Hex } from './sha256.mjs';
 import { fail } from './errors.mjs';
+import { worldOf } from './vendor/verify.mjs';
 
 export const INSPECTION_SCHEMA = 'prismpm/holo-inspection/1';
 
@@ -53,18 +54,6 @@ export const FORMAT_REVISIONS = Object.freeze({
       'prismpm/model-document/5',
       'prismpm/model-document/6',
     ]),
-  }),
-});
-
-/**
- * Worlds by guest contract. `hologram:guest/core-wasm@1` is
- * `worlds/core-wasm.wit` in `@prism-code/spec`: an import-free core module
- * that exports exactly these three items.
- */
-const WORLDS = Object.freeze({
-  'hologram:guest/core-wasm@1': Object.freeze({
-    imports: Object.freeze([]),
-    exports: Object.freeze(['holo_alloc', 'holo_run', 'memory']),
   }),
 });
 
@@ -219,7 +208,6 @@ export async function inspect(source) {
   const [capabilitySet, guest, view] = parsed.manifest.labels;
   const wasmLayer = (directory.layers ?? []).find((l) => l.kind === 'wasm');
   const contract = wasmLayer?.contract ?? provenance.core_wasm_contract ?? null;
-  const known = contract ? WORLDS[contract] : undefined;
 
   return {
     schema: INSPECTION_SCHEMA,
@@ -260,11 +248,10 @@ export async function inspect(source) {
       stdlib_semantics_id: provenance.stdlib_semantics_id ?? null,
       lexlean_commit: provenance.lexlean_commit ?? null,
     },
+    // The world comes from @prism-code/verify's one function, vendored, so the two inspections cannot disagree (issue #278).
     world: contract
       ? {
-          contract,
-          imports: known ? [...known.imports] : null,
-          exports: known ? [...known.exports] : null,
+          ...worldOf(contract, resolved.guest.content),
           capability_set: {
             label: resolved.capabilities.label,
             empty: hex(resolved.capabilities.content) === EMPTY_CAPABILITIES_HEX,
@@ -403,8 +390,11 @@ export function formatInspection(inspection) {
     ? fields(
         [
           ['Contract', w.contract],
+          ['WIT', w.package ? `${w.package} world ${w.name}, ${w.file}` : 'unknown contract'],
+          ['WIT digest', w.digest ? [`sha256:${w.digest.sha256}`, `blake3:${w.digest.blake3}`] : 'unknown contract'],
           ['Imports', list(w.imports)],
           ['Exports', list(w.exports)],
+          ['Guest', w.conforms === null ? 'not checked' : w.conforms ? 'conforms to the world' : 'DOES NOT conform to the world'],
           ['Capability set', `${w.capability_set.label}${w.capability_set.empty ? ' (requests nothing)' : ''}`],
         ],
         '  ',

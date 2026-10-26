@@ -17,7 +17,7 @@ import { VerificationError, errorFromVerdict } from './errors.mjs';
 /** The environment variable that sets the client's minimum assurance level, P0 to P3. */
 export const MINIMUM_LEVEL_ENV = 'PRISM_MINIMUM_LEVEL';
 
-const OPTION_KEYS = ['name', 'minimum', 'digests', 'throw', 'env'];
+const OPTION_KEYS = ['name', 'minimum', 'digests', 'world', 'throw', 'env'];
 
 function defined(options) {
   if (options === undefined || options === null) return {};
@@ -38,7 +38,7 @@ function environment(env) {
 /**
  * Options by precedence: the environment, then the client's options, then the
  * call's. A member given later replaces the same member given earlier whole;
- * `digests` is not merged per target.
+ * `digests` is not merged per target, and `world` replaces whole.
  */
 export function resolveOptions(client, call) {
   const merged = { ...defined(client), ...defined(call) };
@@ -73,7 +73,7 @@ async function bytesOf(source) {
  * policy) always throws a `VerificationError`.
  *
  * @param {Uint8Array | ArrayBuffer | Blob | object} source the holo as bytes, a Blob, or a holo opened with `load`
- * @param {{ name?: string, minimum?: string, digests?: object, throw?: boolean, env?: object }} [options]
+ * @param {{ name?: string, minimum?: string, digests?: object, world?: object | null, throw?: boolean, env?: object }} [options]
  */
 export async function experimental_verify(source, options = undefined, clientOptions = undefined) {
   const { policy, throwOnFail } = resolveOptions(clientOptions, options);
@@ -96,7 +96,7 @@ export async function experimental_verify(source, options = undefined, clientOpt
  * `PRISM_MINIMUM_LEVEL` environment variable; the client's options replace
  * that, and the options of one call replace the client's.
  *
- * @param {{ name?: string, minimum?: string, digests?: object, throw?: boolean, env?: object }} [options]
+ * @param {{ name?: string, minimum?: string, digests?: object, world?: object | null, throw?: boolean, env?: object }} [options]
  */
 export function experimental_createClient(options = undefined) {
   const client = Object.freeze({ ...defined(options) });

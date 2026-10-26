@@ -53,6 +53,7 @@ That change is RT-01, [#276](https://github.com/UOR-Foundation/PrismPM/issues/27
 | `schemas/attestation/` | in-toto Statement v1, the DSSE envelope and the Sigstore bundle of the attestation section. |
 | `predicates/` | Per predicate `<name>-v<N>.json` (status, owner, description), `.d.ts` and `.schema.json`; the registry schema; `registry.json`, generated and not committed. |
 | `worlds/core-wasm.wit` | The Core-Wasm guest contract `hologram:guest/core-wasm@1`. |
+| `WORLDS` (in `constants.mjs`) | One row per guest contract: WIT package, world name, file, digests of the file, imports and exports with lowered signatures (issue #278). A row is never edited; a change to a world is a new contract `@N+1` and a new row. The digests equal the lock's `inputs.world`. |
 
 The model document and lock schemas are byte-identical copies of the repository's `schemas/` folder.
 A test fails if they drift.

@@ -57,6 +57,10 @@ jobs:
       - name: Build the spec package's generated entry point
         working-directory: sdk/npm/spec
         run: npm run build
+      # The sigstore packages are optional dependencies, used by attest and
+      # verify-attestation (#272); the attest tests need them installed.
+      - name: Install the optional sigstore packages
+        run: npm install --no-package-lock --no-audit --no-fund --ignore-scripts
       - name: Unit tests
         run: node --test "test/*.test.mjs"
       - name: Package size and contents
@@ -84,6 +88,69 @@ jobs:
           set -euo pipefail
           version=$(node -p 'require("./package.json").version')
           test "refs/tags/prism-code-v${version}" = "${{ github.ref }}"
+
+  # Keyless attest and verify-attestation against the public Sigstore instance
+  # (#272). The job's own GitHub Actions OIDC token is the identity: Fulcio
+  # certifies this workflow, Rekor v2 and the timestamp authority witness the
+  # signature, and verify-attestation then names this workflow as the only
+  # acceptable signer. A pull request from a fork has no id-token, so it skips.
+  keyless:
+    name: keyless round trip on the public Sigstore instance
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+      - name: Install the optional sigstore packages
+        run: npm install --no-package-lock --no-audit --no-fund --ignore-scripts
+      - name: Attest the Calculator keyless
+        env:
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '{"run":"%s","note":"keyless attest round trip of #272"}\n' "$RUN_ID" > "$RUNNER_TEMP/predicate.json"
+          node bin/prism-code.mjs attest fixtures/Calculator.holo \
+            --predicate "$RUNNER_TEMP/predicate.json" \
+            --type https://example.com/prism/ci-round-trip/v1 \
+            --output "$RUNNER_TEMP/attested.holo"
+      - name: Verify it names this workflow, with the public root over TUF
+        env:
+          IDENTITY: https://github.com/${{ github.workflow_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node bin/prism-code.mjs verify-attestation "$RUNNER_TEMP/attested.holo" \
+            --certificate-identity "$IDENTITY" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --type https://example.com/prism/ci-round-trip/v1 --json | tee "$RUNNER_TEMP/result.json"
+          node -e 'const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); if (!r.passed || !r.results[0].time) throw new Error("not verified at a signed time")' "$RUNNER_TEMP/result.json"
+      - name: Verification refuses every other signer
+        env:
+          IDENTITY: https://github.com/${{ github.workflow_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitHub runs `bash -e`, so a command that is meant to fail must be guarded.
+          expect_failure() {
+            local want="$1"; shift
+            local out code=0
+            out=$(node bin/prism-code.mjs verify-attestation "$RUNNER_TEMP/attested.holo" "$@" --json) || code=$?
+            echo "$out"
+            test "$code" -eq 1
+            echo "$out" | grep -q "\"code\":\"$want\""
+          }
+          expect_failure identity_mismatch --certificate-identity "${IDENTITY}x" --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          expect_failure identity_mismatch --certificate-identity "$IDENTITY" --certificate-oidc-issuer https://accounts.google.com
+          expect_failure attestation_not_found --certificate-identity "$IDENTITY" --certificate-oidc-issuer https://token.actions.githubusercontent.com --type https://example.com/other
 
   publish:
     name: publish to npm

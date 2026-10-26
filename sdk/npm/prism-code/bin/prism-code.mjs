@@ -6,10 +6,14 @@
  *   prism-code vectors <app.holo | closure-dir>       replay the acceptance vectors
  *   prism-code inspect <app.holo> [--json] [--format <path>]
  *                                                     print what the holo says about itself, without running it
+ *   prism-code attest <app.holo> --predicate <file> --type <uri> [--key <private.pem>]
+ *                                                     sign a statement into the holo's attestation section
+ *   prism-code verify-attestation <app.holo> ...      check the signatures of those statements
  *   prism-code check|build|verify|conformance ...     run prismpm in the locked SDK image
  *
- * Exit codes: 0 ok, 1 vectors failed, 2 artifact refused, 64 usage,
- * 69 Docker unavailable, otherwise the delegated command's code.
+ * Exit codes: 0 ok, 1 vectors failed or an attestation did not verify,
+ * 2 artifact refused, 3 signing failed or the sigstore packages are missing,
+ * 64 usage, 69 Docker unavailable, otherwise the delegated command's code.
  */
 import { readFile, stat } from 'node:fs/promises';
 import { statSync } from 'node:fs';
@@ -19,7 +23,7 @@ import { userInfo } from 'node:os';
 import { createRequire } from 'node:module';
 import { fromFile, serve } from '../src/node.mjs';
 import { sdkImageFromLock, dockerArguments, DELEGATED } from '../src/docker.mjs';
-import { PrismCodeError } from '../src/errors.mjs';
+import { PrismCodeError, PrismError, SigningError, VerificationError } from '../src/errors.mjs';
 import { inspect, formatInspection, select } from '../src/inspect.mjs';
 import { canonicalJson } from '../src/archive.mjs';
 
@@ -34,6 +38,13 @@ Usage:
   prism-code inspect <app.holo> [--json] [--format <path>]
                                                     print sections, digests, manifest, model, world and
                                                     attestations without running the guest
+  prism-code attest <app.holo> --predicate <file> --type <uri> [--subject <s>]... [--key <private.pem>] [--output <file>]
+                                                    sign an in-toto statement into the holo; keyless unless --key
+  prism-code verify-attestation <app.holo> --certificate-identity <id> --certificate-oidc-issuer <url>
+  prism-code verify-attestation <app.holo> --key <public.pem>
+                                                    check the holo's attestations against a signer policy;
+                                                    --certificate-identity-regexp <re> in place of the exact id,
+                                                    --type <uri> to check one predicate type, --json for the result
   prism-code check [args]                           prismpm check in the SDK image named by ./prismpm.lock
   prism-code build [args]                           prismpm build (needs the Docker socket)
   prism-code verify [args]                          prismpm verify (needs the Docker socket)
@@ -42,6 +53,14 @@ Usage:
 
 Options for inspect:  --json                       the whole inspection as canonical JSON
                       --format <path>              one value, by dotted path: sections[0].digest.sha256
+Options for attest:   --subject <s>                a role (guest, view, model, capabilities) or a blob label (blake3:...), default guest;
+                                                   repeatable; name=<s> renames it in the statement
+                      --signing-config <file>      a Sigstore signing configuration (a private instance); default is the public one
+                      keyless signing takes its OIDC token from GitHub Actions (permission id-token: write) or SIGSTORE_ID_TOKEN
+Options for verify-attestation:
+                      --trusted-root <file>        pin a trusted_root.json; default is the public instance's, fetched over TUF
+                      --entries <n>, --timestamps <n>
+                                                   least verified log entries and timestamps: 1 and 1 keyless, 0 and 0 with --key
 Options for closures: --model <model.prism.json>   the model document (numeric-profile closures need it)
 `;
 
@@ -51,9 +70,36 @@ function usage(message) {
   return 64;
 }
 
+// Options that take a value. `--subject` also repeats, and collects into an array.
+const VALUE_OPTIONS = [
+  'port',
+  'host',
+  'model',
+  'format',
+  'predicate',
+  'type',
+  'subject',
+  'key',
+  'output',
+  'signing-config',
+  'trusted-root',
+  'certificate-identity',
+  'certificate-identity-regexp',
+  'certificate-oidc-issuer',
+  'entries',
+  'timestamps',
+  'tuf-mirror-url',
+  'tuf-root',
+  'tuf-cache',
+];
+
 function parse(argv) {
   const positional = [];
   const options = {};
+  const set = (name, value) => {
+    if (name === 'subject') (options.subject ??= []).push(value);
+    else options[name] = value;
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--') {
@@ -62,12 +108,17 @@ function parse(argv) {
     }
     if (a.startsWith('--') && a.length > 2) {
       const eq = a.indexOf('=');
-      if (eq > 0) options[a.slice(2, eq)] = a.slice(eq + 1);
-      else if (['port', 'host', 'model', 'format'].includes(a.slice(2))) options[a.slice(2)] = argv[++i];
+      if (eq > 0) set(a.slice(2, eq), a.slice(eq + 1));
+      else if (VALUE_OPTIONS.includes(a.slice(2))) set(a.slice(2), argv[++i]);
       else options[a.slice(2)] = true;
     } else positional.push(a);
   }
   return { positional, options };
+}
+
+/** The first value option given without a value, for a usage message. */
+function missingValue(options) {
+  return VALUE_OPTIONS.find((name) => Object.hasOwn(options, name) && (name === 'subject' ? options.subject.some((v) => !v) : typeof options[name] !== 'string' || options[name] === ''));
 }
 
 const text = (bytes) => {
@@ -135,6 +186,14 @@ async function commandInspect(positional, options) {
   else if (closure) process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
   else process.stdout.write(formatInspection(value));
   return 0;
+}
+
+// The sigstore packages are optional and large; load them only when one of these verbs runs.
+async function commandAttestation(verb, positional, options) {
+  const bad = missingValue(options);
+  if (bad) return usage(`--${bad} takes a value`);
+  const cli = await import('../src/attest-cli.mjs');
+  return verb === 'attest' ? cli.runAttest(positional, options, usage) : cli.runVerifyAttestation(positional, options, usage);
 }
 
 async function commandRun(positional, options) {
@@ -205,6 +264,9 @@ async function main(argv) {
       return commandInspect(positional, options);
     case 'run':
       return commandRun(positional, options);
+    case 'attest':
+    case 'verify-attestation':
+      return commandAttestation(command, positional, options);
     default:
       if (Object.hasOwn(DELEGATED, command)) return commandDelegate(command, rest);
       return usage(`unknown command ${command}`);
@@ -219,6 +281,12 @@ main(process.argv.slice(2)).then(
     if (error instanceof PrismCodeError) {
       process.stderr.write(`${error.code}: ${error.message}\n`);
       process.exitCode = error.code.startsWith('lock.') ? 64 : 2;
+    } else if (error instanceof PrismError) {
+      process.stderr.write(`${error.code}: ${error.message}\n`);
+      if (error.check) process.stderr.write(`check: ${error.check}\n`);
+      if (error instanceof VerificationError && error.check === 'policy.invalid') process.exitCode = 64;
+      else if (error instanceof SigningError || error.code === 'attest.unavailable') process.exitCode = 3;
+      else process.exitCode = 1;
     } else {
       process.stderr.write(`${error?.stack ?? error}\n`);
       process.exitCode = 70;

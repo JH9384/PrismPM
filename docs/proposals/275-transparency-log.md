@@ -39,7 +39,7 @@ Without them `prism verify` would have to trust the bundle's own claims about it
 
 - Whether the signing identity is acceptable (`--certificate-identity`, `--certificate-oidc-issuer`). That is #272.
 - The DSSE signature itself. That is #272; this change checks that the log and the timestamp are about this signature.
-- Rekor v1 entries (a signed entry timestamp and no checkpoint). cosign v3 writes Rekor v2, and the issue names Rekor v2.
+- Rekor v1 entries' signed entry timestamp and integrated time. A Rekor v1 entry is checked by its inclusion proof and signed checkpoint like a v2 one (see "Entry kinds"), never by its promise.
 - Checkpoint witnesses, certificate revocation, name constraints, path length and key usage other than time stamping.
 - Signing, submitting to a log, requesting a timestamp. Those need the network and a key, and belong to `prism attest`.
 - Choosing which trusted root a project pins. The root is an argument.
@@ -71,7 +71,7 @@ Every check runs, so one call lists every problem.
 | `timestamp` | A timestamp does not parse; is not signed by a certificate that chains to a pinned timestamp authority valid at the signed time; the signer lacks the time-stamping key usage; its signed attributes do not match the TSTInfo; its imprint is not the hash of the bundle's signature; or the signed time is outside the signing certificate's validity. |
 | `timestamp.count` | Fewer timestamps verified than `options.timestamps` (default 1). Rekor v2 has no integrated time, so a bundle without a verified timestamp has no clock. |
 | `certificate.chain` | The signing certificate does not chain to a self-signed pinned root, or a certificate in the chain was not valid at the signed time. |
-| `tlog.kind` | The entry is not `hashedrekord` 0.0.2. |
+| `tlog.kind` | The entry is none of `hashedrekord` 0.0.2, `dsse` 0.0.2 or `dsse` 0.0.1. |
 | `tlog.log` | The entry names a log whose `keyId` the root does not pin. |
 | `tlog.body` | The logged body is not this bundle's: digest of the DSSE pre-authentication encoding (or the message digest), signature, or certificate. |
 | `tlog.inclusion` | There is no proof, the proof is for another index, or the RFC 9162 path does not recompute the root hash from the canonicalized body. |
@@ -96,6 +96,23 @@ Rekor v2 entries omit `integratedTime`: protobuf JSON drops a zero, and the log 
 `sigstore-bundle.schema.json` required it.
 This change makes it optional, because every Rekor v2 bundle that cosign v3 writes would otherwise be rejected as a section line.
 A Rekor v1 entry still carries it, and `integratedTime` is never used as the clock here.
+
+### Entry kinds
+
+Added with #272, because the public Sigstore instance still signs attestations into Rekor v1 (its signing configuration lists `rekor.sigstore.dev`, API version 1, and no Rekor v2 log), so a keyless DSSE bundle carries a `dsse` 0.0.1 entry.
+Three kinds are read, and each body is checked against what the bundle signed:
+
+| Kind | Log | Body must record |
+| --- | --- | --- |
+| `hashedrekord` 0.0.2 | Rekor v2 | the SHA-256 of the DSSE pre-authentication encoding (or of the message), the signature, the certificate |
+| `dsse` 0.0.2 | Rekor v2 | the SHA-256 of the DSSE payload, the signature, the certificate |
+| `dsse` 0.0.1 | Rekor v1 | the SHA-256 of the DSSE payload, the signature, the certificate (as PEM) |
+
+A `dsse` entry is never accepted for a message-signature bundle.
+Two Rekor v1 differences are handled: the log is sharded, so the proof's index is within its tree and need not equal the entry's global `logIndex` (the Merkle proof still binds the body to a position); and the checkpoint's origin is `<host> - <tree id>` while its signature line names `<host>`.
+The origin must equal the pinned log's host, or that host followed by ` - `, instead of any prefix of it as before.
+The proof and the signed checkpoint are required for every kind, so a Rekor v1 signed entry timestamp is not enough.
+Evidence: production Sigstore bundles from the conformance suite (`test/fixtures/sigstore-rekor1/`) against the public trusted root; the `dsse` 0.0.2 body check has no production bundle yet and is tested on bodies built from a real envelope.
 
 ### Cryptography
 

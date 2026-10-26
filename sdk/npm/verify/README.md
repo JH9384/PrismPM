@@ -35,6 +35,7 @@ class VerifyError extends Error { code: string }
 | `policy.minimum` | `"P0"` to `"P3"` | The lowest level the policy accepts. Default `"P2"`. |
 | `policy.name` | string | The policy name shown in the verdict. Default `"default"`. |
 | `policy.digests` | object | Expected digests for `archive`, `guest`, `view`, `model` or `capabilities`. Each takes `sha256`, `blake3` or both. Every digest given must match. |
+| `policy.world` | object or `null` | The WIT world the holo must declare, in the shape of the lock's `inputs.world` (`contract`, `sha256`, `blake3`), so a project's lock is passed unchanged. Any member may be left out. `null` expects no world, which no holo satisfies. A mismatch is a `world.hash` reason. |
 
 `archive` is the whole file. The others are the content blobs the documents name.
 
@@ -71,11 +72,13 @@ What this package does check today appears as reasons that withhold P1:
 |---|---|
 | `holo.integrity` | The footer is not the BLAKE3 of the body, a content blob's `blake3:` label is not the BLAKE3 of its content, the manifest, directory and provenance name different blobs, or the model document's sha256 is not the `model_id` the provenance records. |
 | `holo.documents` | The application manifest is not the 356-byte Wire form, or the source manifest, directory, provenance or model document is not JSON valid against its schema, or names a contract or schema the format revision does not use. |
+| `world.contract` | The guest module does not have the imports and exports of the WIT world its contract names: an import the world does not list, a missing or extra export, or an export of another kind or signature (issue #278). Not checked when the guest fails its label, which `holo.integrity` already reports. |
 | `provenance.statement` | Always, until the attestation bundle exists (issues #267 and #268). |
 | `proof.statement` | Always, until the proof predicate is carried (issue #266). Withholds P2. |
 | `replay.statement` | Always, until replay arrives (issue #284). Withholds P3. |
 | `policy.level` | The level is below `policy.minimum`. Code `PP5601`. |
 | `policy.digests.<part>` | A pinned digest does not match. |
+| `world.hash` | The policy pins a world and the holo's world differs: another contract, another digest, or `null`. It withholds no level. |
 
 So until the bundle lands, read a verdict this way: no `holo.integrity` and no `holo.documents` reason means the holo is intact and well-formed. A P0 policy accepts any readable holo, tampered or not, because P0 promises nothing. Pin a digest when you need a pass or fail answer today.
 
@@ -150,7 +153,7 @@ Every check runs. A failed one is a reason with the shape of a verdict reason (`
 |---|---|
 | `timestamp` | A timestamp is not signed by a pinned authority, is outside that authority's validity, does not cover the bundle's signature, or falls outside the signing certificate's validity. |
 | `certificate.chain` | The signing certificate does not chain to a pinned certificate authority that was valid at the signed time. |
-| `tlog.kind`, `tlog.log` | The entry is not a Rekor v2 `hashedrekord` 0.0.2, or names a log the root does not pin. |
+| `tlog.kind`, `tlog.log` | The entry is none of `hashedrekord` 0.0.2, `dsse` 0.0.2 (Rekor v2) or `dsse` 0.0.1 (Rekor v1), or names a log the root does not pin. |
 | `tlog.body` | The logged body is not this bundle's digest, signature or certificate. |
 | `tlog.inclusion` | The proof is missing, is for another index, or does not recompute the root hash. |
 | `tlog.checkpoint` | The checkpoint is malformed, disagrees with the proof, or carries no valid signature from the pinned log key. |
@@ -159,7 +162,7 @@ Every check runs. A failed one is a reason with the shape of a verdict reason (`
 
 It rejects with `VerifyError` code `trustedroot.invalid` for a root that is not usable, and `input` for a bundle that is not an object.
 
-Not checked: the DSSE signature, the signing identity, revocation and checkpoint witnesses. Those belong to `prism verify` (issue #272). Rekor v1 entries are reported as `tlog.kind`.
+Not checked: the DSSE signature, the signing identity, revocation and checkpoint witnesses. Those belong to `prism verify` (issue #272). A Rekor v1 `dsse` entry is checked by its inclusion proof and signed checkpoint; its signed entry timestamp is not used.
 
 ## Errors
 
@@ -168,7 +171,7 @@ Not checked: the DSSE signature, the signing identity, revocation and checkpoint
 | `VerifyError` code | When |
 |---|---|
 | `input` | `bytes` is not a typed array, a `DataView` or an `ArrayBuffer`. |
-| `policy.invalid` | The policy has an unknown member, an unknown level, or a digest that is not 64 lowercase hex characters. |
+| `policy.invalid` | The policy has an unknown member, an unknown level, a digest or `policy.world` digest that is not 64 lowercase hex characters, or a `policy.world` with an unknown member. |
 | `trustedroot.invalid` | `verifyTransparency` only: the trusted root has the wrong media type, a missing validity period or a certificate that does not parse. |
 | `archive.magic`, `archive.version`, `archive.flags`, `archive.table` | The file is not a readable holo: wrong magic, another physical version, or a section table that does not end at the footer, as in a truncated file. |
 | `format.revision` | `verify` only: the holo is intact, but its sections or extensions match no format revision this package knows. Upgrade the package. |

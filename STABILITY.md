@@ -101,10 +101,13 @@ A flag marked planned is named here so you can plan for it; its spelling may cha
 | `inspect` on a `.holo` in the Rust CLI | [#271](https://github.com/UOR-Foundation/PrismPM/issues/271) | Planned |
 | `check` as a typed verdict, with `--json`, `--policy <file>` and exit codes 0, 1, 2 | [#270](https://github.com/UOR-Foundation/PrismPM/issues/270) | Planned |
 | `build --provenance=<min\|max>`, `build --no-provenance` | [#268](https://github.com/UOR-Foundation/PrismPM/issues/268) | Planned |
-| `attest --predicate <file> --type <uri>` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | Planned |
-| `verify --certificate-identity`, `--certificate-oidc-issuer`, `--key` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | Planned |
+| `prism-code attest <holo> --predicate <file> --type <uri>`, `--subject`, `--key`, `--output`, `--signing-config` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | On main |
+| `prism-code verify-attestation <holo>`, `--certificate-identity`, `--certificate-identity-regexp`, `--certificate-oidc-issuer`, `--key`, `--type`, `--trusted-root`, `--entries`, `--timestamps`, `--json` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | On main |
+| `attest --predicate <file> --type <uri>` in the Rust CLI | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | Planned |
+| `verify --certificate-identity`, `--certificate-oidc-issuer`, `--key` in the Rust CLI | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | Planned |
 
 Today `prismpm check` validates the model and `prismpm verify` checks the Lean proofs.
+The JavaScript CLI names the attestation verb `verify-attestation`, because `prism-code verify` already runs `prismpm verify`; the Rust name is open (`docs/proposals/272-attest-verify.md`).
 When #270 and #272 ship, both verbs judge a holo and return a verdict.
 That change is breaking and gets its changelog line.
 
@@ -114,6 +117,8 @@ That change is breaking and gets its changelog line.
 | --- | --- | --- |
 | `prism-code` | `experimental_verify`, `experimental_createClient`, `Application.experimental_verify`, `MINIMUM_LEVEL_ENV` and the `PRISM_MINIMUM_LEVEL` variable | [#276](https://github.com/UOR-Foundation/PrismPM/issues/276) |
 | `prism-code` | `PrismError`, `VerificationError`, `ProofMismatchError`, `CapabilityDeniedError`, `DeterminismViolationError`, `ReplayError`, `ERROR_CLASSES`, `classForCheck`, `errorForReason`, `errorFromVerdict` and every error `code` | [#276](https://github.com/UOR-Foundation/PrismPM/issues/276) |
+| `prism-code/node` | `experimental_attest`, `experimental_verifyAttestations`, `experimental_verifyBundle`, `GITHUB_ACTIONS_ISSUER`; the optional `sigstore` dependencies they load | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) |
+| `prism-code` | `SigningError`, `SignatureInvalidError`, `IdentityMismatchError`, `TransparencyError`, `SubjectMismatchError`, `AttestationNotFoundError`, `TrustRootError` and their `code`s | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) |
 | `prism-code` | `inspect`, `formatInspection`, `INSPECTION_SCHEMA`, `Application.inspect` | [#271](https://github.com/UOR-Foundation/PrismPM/issues/271) |
 | `prism-code` | `readAttestations`, `attestationSection`, `decodeBundle`, `appendAttestations`, `stripAttestations`, `encodeArchive`, `ATTESTATION_EXTENSION`, `BUNDLE_MEDIA_TYPE` | [#267](https://github.com/UOR-Foundation/PrismPM/issues/267) |
 | `@prism-code/verify` | `verify`, `inspect`, `verifyTransparency`, `ASSURANCE`, `VerifyError`, `FORMAT_REVISION`, `INSPECTION_SCHEMA` | [#273](https://github.com/UOR-Foundation/PrismPM/issues/273), [#275](https://github.com/UOR-Foundation/PrismPM/issues/275) |

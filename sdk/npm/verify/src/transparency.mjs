@@ -18,8 +18,10 @@
  *
  * What is not: whether the signing identity is acceptable (issue #272), the
  * DSSE signature itself, certificate extensions beyond the timestamp-signing
- * key usage, revocation, and checkpoint witnesses. Rekor v1 entries (a
- * signed entry timestamp, no checkpoint) are reported as `tlog.kind`.
+ * key usage, revocation, and checkpoint witnesses. A log entry is checked by
+ * its inclusion proof and signed checkpoint, never by a Rekor v1 signed entry
+ * timestamp or its integrated time. The entry kinds read are hashedrekord/0.0.2
+ * and dsse/0.0.2 (Rekor v2) and dsse/0.0.1 (Rekor v1); any other is `tlog.kind`.
  */
 import * as der from './asn1.mjs';
 import { sha256Hex } from './sha256.mjs';
@@ -381,32 +383,105 @@ function signedFacts(bundle) {
   if (bundle.dsseEnvelope) {
     const { payload, payloadType, signatures } = bundle.dsseEnvelope;
     const sigs = signatures.map((s) => fromBase64(s.sig));
-    return { signatures: sigs, digest: fromHex(sha256Hex(pae(payloadType, fromBase64(payload)))) };
+    const bytes = fromBase64(payload);
+    return { signatures: sigs, payload: bytes, digest: fromHex(sha256Hex(pae(payloadType, bytes))) };
   }
   const message = bundle.messageSignature;
   return { signatures: [fromBase64(message.signature)], digest: fromBase64(message.messageDigest.digest) };
 }
 
+/** The DER of a PEM certificate, or null. Rekor v1 logs the verifier as base64 of the PEM text. */
+function pemToDer(bytes) {
+  const match = /-----BEGIN [A-Z ]+-----([^-]+)-----END [A-Z ]+-----/.exec(String.fromCharCode(...bytes));
+  try {
+    return match ? fromBase64(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The signature of `logged` that is this bundle's first, with the certificate it names; null when none is. */
+function loggedSignature(facts, logged) {
+  return logged.find((l) => l.signature !== null && der.equalBytes(l.signature, facts.signatures[0])) ?? null;
+}
+
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+/**
+ * The entry kinds a bundle can carry, each with the function that checks its
+ * logged body against what the bundle signed.
+ *
+ * - `hashedrekord/0.0.2` (Rekor v2): the digest of the DSSE pre-authentication
+ *   encoding, or of the message; the signature; the certificate.
+ * - `dsse/0.0.2` (Rekor v2) and `dsse/0.0.1` (Rekor v1, what the public
+ *   instance still logs for attestations): the SHA-256 of the DSSE payload,
+ *   the signature and the certificate. A DSSE entry says nothing about a
+ *   message-signature bundle, so it never matches one.
+ */
+const ENTRY_KINDS = {
+  'hashedrekord/0.0.2': (body, facts, certificate) => {
+    const record = body.spec?.hashedRekordV002;
+    if (!record) return 'the logged body is not the entry kind it declares';
+    if (record.data?.algorithm !== 'SHA2_256' || !der.equalBytes(fromBase64(record.data.digest), facts.digest)) {
+      return 'the logged digest is not the digest of what this bundle signed';
+    }
+    const logged = fromBase64(record.signature?.content ?? '');
+    if (!facts.signatures.some((s) => der.equalBytes(s, logged))) return 'the logged signature is not this bundle\'s signature';
+    const verifier = record.signature?.verifier?.x509Certificate?.rawBytes;
+    if (certificate && (verifier === undefined || !der.equalBytes(fromBase64(verifier), certificate))) {
+      return 'the logged certificate is not this bundle\'s certificate';
+    }
+    return null;
+  },
+  'dsse/0.0.2': (body, facts, certificate) => {
+    const record = body.spec?.dsseV002;
+    if (!record) return 'the logged body is not the entry kind it declares';
+    if (!facts.payload) return 'a DSSE entry is not about a message-signature bundle';
+    if (record.payloadHash?.algorithm !== 'SHA2_256' || !der.equalBytes(fromBase64(record.payloadHash.digest), fromHex(sha256Hex(facts.payload)))) {
+      return 'the logged payload hash is not the hash of the envelope payload';
+    }
+    const logged = (record.signatures ?? []).map((s) => ({
+      signature: safeBase64(s?.content ?? ''),
+      certificate: s?.verifier?.x509Certificate?.rawBytes === undefined ? null : safeBase64(s.verifier.x509Certificate.rawBytes),
+    }));
+    const mine = loggedSignature(facts, logged);
+    if (!mine) return 'the logged signature is not this bundle\'s signature';
+    if (certificate && (mine.certificate === null || !der.equalBytes(mine.certificate, certificate))) return 'the logged certificate is not this bundle\'s certificate';
+    return null;
+  },
+  'dsse/0.0.1': (body, facts, certificate) => {
+    const record = body.spec;
+    if (!record || !Array.isArray(record.signatures)) return 'the logged body is not the entry kind it declares';
+    if (!facts.payload) return 'a DSSE entry is not about a message-signature bundle';
+    if (record.payloadHash?.algorithm !== 'sha256' || !SHA256_HEX.test(record.payloadHash.value ?? '') || record.payloadHash.value !== sha256Hex(facts.payload)) {
+      return 'the logged payload hash is not the hash of the envelope payload';
+    }
+    const logged = record.signatures.map((s) => ({
+      signature: safeBase64(s?.signature ?? ''),
+      certificate: typeof s?.verifier === 'string' ? pemToDer(safeBase64(s.verifier)) : null,
+    }));
+    const mine = loggedSignature(facts, logged);
+    if (!mine) return 'the logged signature is not this bundle\'s signature';
+    if (certificate && (mine.certificate === null || !der.equalBytes(mine.certificate, certificate))) return 'the logged certificate is not this bundle\'s certificate';
+    return null;
+  },
+};
+
 /** Null when the logged body records exactly this bundle's signature, digest and certificate. */
-function bodyProblem(entry, facts, certificate) {
+export function bodyProblem(entry, facts, certificate) {
   let body;
   try {
     body = JSON.parse(String.fromCharCode(...fromBase64(entry.canonicalizedBody)));
   } catch {
     return 'the logged body is not JSON';
   }
-  const record = body?.spec?.hashedRekordV002;
-  if (body.kind !== entry.kindVersion.kind || body.apiVersion !== entry.kindVersion.version || !record) return 'the logged body is not the entry kind it declares';
-  if (record.data?.algorithm !== 'SHA2_256' || !der.equalBytes(fromBase64(record.data.digest), facts.digest)) {
-    return 'the logged digest is not the digest of what this bundle signed';
+  const check = ENTRY_KINDS[`${entry.kindVersion.kind}/${entry.kindVersion.version}`];
+  if (!check || body?.kind !== entry.kindVersion.kind || body.apiVersion !== entry.kindVersion.version) return 'the logged body is not the entry kind it declares';
+  try {
+    return check(body, facts, certificate);
+  } catch {
+    return 'the logged body is malformed';
   }
-  const logged = fromBase64(record.signature?.content ?? '');
-  if (!facts.signatures.some((s) => der.equalBytes(s, logged))) return 'the logged signature is not this bundle\'s signature';
-  const verifier = record.signature?.verifier?.x509Certificate?.rawBytes;
-  if (certificate && (verifier === undefined || !der.equalBytes(fromBase64(verifier), certificate))) {
-    return 'the logged certificate is not this bundle\'s certificate';
-  }
-  return null;
 }
 
 const COUNT = /^(0|[1-9][0-9]{0,18})$/;
@@ -516,8 +591,8 @@ function finish(checks, signedAt) {
 /** The problems of one log entry as [check, message] pairs; empty when it verifies. */
 async function entryProblems(subtle, entry, facts, certificate, root, signedAt) {
   const out = [];
-  if (entry?.kindVersion?.kind !== 'hashedrekord' || entry.kindVersion.version !== '0.0.2') {
-    return [['tlog.kind', `the entry kind ${entry?.kindVersion?.kind}/${entry?.kindVersion?.version} is not hashedrekord/0.0.2, the Rekor v2 entry`]];
+  if (!Object.hasOwn(ENTRY_KINDS, `${entry?.kindVersion?.kind}/${entry?.kindVersion?.version}`)) {
+    return [['tlog.kind', `the entry kind ${entry?.kindVersion?.kind}/${entry?.kindVersion?.version} is none of ${Object.keys(ENTRY_KINDS).join(', ')}`]];
   }
   const keyId = (() => {
     try {
@@ -531,7 +606,10 @@ async function entryProblems(subtle, entry, facts, certificate, root, signedAt) 
 
   const proof = entry.inclusionProof;
   if (!proof) return [['tlog.inclusion', 'the entry has no inclusion proof; a Rekor v2 entry is verified by its proof, never by a promise']];
-  if (![entry.logIndex, proof.logIndex, proof.treeSize].every((v) => COUNT.test(v)) || proof.logIndex !== entry.logIndex) {
+  // A Rekor v2 log is one tree, so the proof's index is the entry's. A Rekor v1 log is sharded: `logIndex` is global
+  // across shards and the proof's index is within the tree it was proved in.
+  const sharded = entry.kindVersion.version === '0.0.1';
+  if (![entry.logIndex, proof.logIndex, proof.treeSize].every((v) => COUNT.test(v)) || (!sharded && proof.logIndex !== entry.logIndex)) {
     out.push(['tlog.inclusion', 'the proof is for a different log index than the entry']);
   }
 
@@ -559,7 +637,9 @@ async function entryProblems(subtle, entry, facts, certificate, root, signedAt) 
   if (note.size !== proof.treeSize || !der.equalBytes(note.root, safeBase64(proof.rootHash))) {
     out.push(['tlog.checkpoint', 'the checkpoint size or root hash differs from the inclusion proof']);
   }
-  if (log.baseUrl && !log.baseUrl.replace(/^https?:\/\//, '').startsWith(note.origin)) {
+  // A Rekor v2 origin is the log's host; a Rekor v1 origin is the host, ` - `, and the tree id.
+  const host = log.baseUrl?.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  if (host && note.origin !== host && !note.origin.startsWith(`${host} - `)) {
     out.push(['tlog.checkpoint', `the checkpoint origin ${note.origin} is not the pinned log ${log.baseUrl}`]);
   }
   if (signedAt !== null && !inRange(signedAt, log.validFor)) {
@@ -568,7 +648,9 @@ async function entryProblems(subtle, entry, facts, certificate, root, signedAt) 
   const key = der.keyOf(log.spki);
   const sch = key.type === der.OID.ED25519 ? { kind: 'ed25519', hash: null } : { kind: 'ecdsa', hash: key.curve === der.OID.P384 ? 'SHA-384' : 'SHA-256' };
   let signed = false;
-  for (const candidate of note.signatures.filter((s) => s.name === note.origin)) {
+  // The signer of a Rekor v2 checkpoint is named by the origin; a Rekor v1 origin is `<host> - <tree id>` and its signer is `<host>`.
+  const signedBy = (name) => name === note.origin || note.origin.startsWith(`${name} - `);
+  for (const candidate of note.signatures.filter((s) => signedBy(s.name))) {
     if (await verifySignature(subtle, log.spki, sch, null, note.signed, candidate.signature)) {
       signed = true;
       break;

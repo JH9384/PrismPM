@@ -9,10 +9,16 @@
  *   check that is about the archive itself, its documents or its provenance.
  * - `ProofMismatchError`: a `proof.*` check of a verdict failed.
  * - `CapabilityDeniedError`: the declared world exceeds the granted capabilities.
+ * - `WorldMismatchError`: the guest does not have the interface of the WIT world it declares,
+ *   or the world is not the one the caller pinned (issue #278).
  * - `DeterminismViolationError`: a replay diverged from its recorded history.
  * - `ReplayError`: a replay could not be carried out or its statement failed.
+ * - `SigningError`: `attest` could not produce a signature (#272).
+ * - `SignatureInvalidError`, `IdentityMismatchError`, `TransparencyError`,
+ *   `SubjectMismatchError`, `AttestationNotFoundError`, `TrustRootError`: the
+ *   reasons `verify-attestation` can refuse a bundle (#272).
  *
- * The last four map one-to-one to the check ids of a `prism/verdict/1`
+ * The last five map one-to-one to the check ids of a `prism/verdict/1`
  * reason (docs/proposals/269-assurance-levels.md); `errorForReason` is the map.
  */
 export class PrismError extends Error {
@@ -55,6 +61,14 @@ ProofMismatchError.code = 'proof_mismatch';
 export class CapabilityDeniedError extends PrismError {}
 CapabilityDeniedError.code = 'capability_denied';
 
+/**
+ * The guest does not have the imports and exports of its declared world
+ * (`world.contract`), or the declared world differs from the world hash the
+ * caller pinned (`world.hash`). `check` says which.
+ */
+export class WorldMismatchError extends PrismError {}
+WorldMismatchError.code = 'world_mismatch';
+
 /** A replay produced output that differs from the recorded history. */
 export class DeterminismViolationError extends PrismError {}
 DeterminismViolationError.code = 'determinism_violation';
@@ -63,13 +77,54 @@ DeterminismViolationError.code = 'determinism_violation';
 export class ReplayError extends PrismError {}
 ReplayError.code = 'replay_failed';
 
+/**
+ * `attest` could not produce a signature: the key is unusable, no identity token
+ * was available, or Fulcio, Rekor or the timestamp authority refused. `check`
+ * is `sign.key`, `sign.identity`, `sign.service`, `sign.config`, `sign.predicate`
+ * or `sign.subject`.
+ */
+export class SigningError extends PrismError {}
+SigningError.code = 'signing_failed';
+
+/** The DSSE signature, the signing key or the certificate chain of a bundle does not verify. */
+export class SignatureInvalidError extends PrismError {}
+SignatureInvalidError.code = 'signature_invalid';
+
+/** The signer is valid but is not the identity (or issuer) the policy names. */
+export class IdentityMismatchError extends PrismError {}
+IdentityMismatchError.code = 'identity_mismatch';
+
+/** A transparency log entry or signed timestamp is missing, untrusted or not about this bundle. `reasons` lists each one. */
+export class TransparencyError extends PrismError {}
+TransparencyError.code = 'transparency_failed';
+
+/** A statement subject is not a content blob of this holo, or its digests differ from the blob's. */
+export class SubjectMismatchError extends PrismError {}
+SubjectMismatchError.code = 'subject_mismatch';
+
+/** The holo carries no attestation, or none of the requested predicate type. */
+export class AttestationNotFoundError extends PrismError {}
+AttestationNotFoundError.code = 'attestation_not_found';
+
+/** The pinned trusted root cannot be read or is not a usable root. */
+export class TrustRootError extends PrismError {}
+TrustRootError.code = 'trust_root_invalid';
+
 /** Every class with a code of its own, by code. */
 export const ERROR_CLASSES = Object.freeze({
   [VerificationError.code]: VerificationError,
   [ProofMismatchError.code]: ProofMismatchError,
   [CapabilityDeniedError.code]: CapabilityDeniedError,
+  [WorldMismatchError.code]: WorldMismatchError,
   [DeterminismViolationError.code]: DeterminismViolationError,
   [ReplayError.code]: ReplayError,
+  [SigningError.code]: SigningError,
+  [SignatureInvalidError.code]: SignatureInvalidError,
+  [IdentityMismatchError.code]: IdentityMismatchError,
+  [TransparencyError.code]: TransparencyError,
+  [SubjectMismatchError.code]: SubjectMismatchError,
+  [AttestationNotFoundError.code]: AttestationNotFoundError,
+  [TrustRootError.code]: TrustRootError,
 });
 
 /**
@@ -81,6 +136,7 @@ export const ERROR_CLASSES = Object.freeze({
 export function classForCheck(check) {
   if (check.startsWith('proof.')) return ProofMismatchError;
   if (check === 'world.capabilities') return CapabilityDeniedError;
+  if (check === 'world.contract' || check === 'world.hash') return WorldMismatchError;
   if (check === 'replay.divergence') return DeterminismViolationError;
   if (check.startsWith('replay.')) return ReplayError;
   return VerificationError;
@@ -98,17 +154,19 @@ export function errorForReason(reason, verdict = undefined) {
 }
 
 /**
- * The error that explains a failed verdict, or null for one that passed. When
- * the level is below the policy's minimum, it is the first reason that
- * withholds a level up to the minimum, which is what kept the holo down;
- * otherwise it is the first reason (a pinned digest that differs). The error
- * carries the whole verdict and every reason.
+ * The error that explains a failed verdict, or null for one that passed. A
+ * rule the caller pinned and the holo broke (a digest, the world) comes
+ * first: the caller asked for that fact by name, and it holds whatever the
+ * level is. Otherwise, when the level is below the policy's minimum, it is
+ * the first reason that withholds a level up to the minimum, which is what
+ * kept the holo down. The error carries the whole verdict and every reason.
  */
 export function errorFromVerdict(verdict, ranks) {
   if (verdict.passed) return null;
   const minimum = ranks[verdict.policy.minimum];
+  const pinned = verdict.reasons.find((r) => r.withholds === null && r.check !== 'policy.level');
   const blocking = verdict.reasons.find((r) => r.withholds && ranks[r.withholds] <= minimum);
-  const reason = blocking ?? verdict.reasons.find((r) => r.check !== 'policy.level') ?? verdict.reasons[0];
+  const reason = pinned ?? blocking ?? verdict.reasons.find((r) => r.check !== 'policy.level') ?? verdict.reasons[0];
   return errorForReason(reason, verdict);
 }
 

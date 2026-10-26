@@ -7,6 +7,13 @@
   "engines": {
     "node": ">=22"
   },
+  "optionalDependencies": {
+    "@sigstore/bundle": "5.0.0",
+    "@sigstore/protobuf-specs": "0.5.2",
+    "@sigstore/sign": "5.0.0",
+    "@sigstore/tuf": "5.0.0",
+    "@sigstore/verify": "4.1.2"
+  },
   "bin": {
     "prism-code": "./bin/prism-code.mjs"
   },

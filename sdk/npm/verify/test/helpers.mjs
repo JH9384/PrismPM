@@ -84,3 +84,159 @@ export function assertVerdict(verdict) {
   const errors = validate(verdictSchema, JSON.parse(JSON.stringify(verdict)));
   if (errors.length) throw new Error(`not a prism/verdict/1 object: ${JSON.stringify(errors)}`);
 }
+
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+const hex = (b) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+const concat = (parts) => {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+};
+const leb = (n) => {
+  const out = [];
+  do {
+    let byte = n & 0x7f;
+    n >>>= 7;
+    if (n) byte |= 0x80;
+    out.push(byte);
+  } while (n);
+  return Uint8Array.from(out);
+};
+
+/** The top-level sections of a core wasm module: [{ id, payload }]. */
+export function wasmSections(wasm) {
+  const sections = [];
+  let at = 8;
+  const readLeb = () => {
+    let result = 0;
+    for (let shift = 0; ; shift += 7) {
+      const byte = wasm[at++];
+      result += (byte & 0x7f) * 2 ** shift;
+      if (byte < 0x80) return result;
+    }
+  };
+  while (at < wasm.length) {
+    const id = wasm[at++];
+    const size = readLeb();
+    sections.push({ id, payload: wasm.slice(at, at + size) });
+    at += size;
+  }
+  return sections;
+}
+
+/** A core wasm module from its sections, in the order given. */
+export function assembleWasm(sections) {
+  return concat([wasmHeader, ...sections.flatMap((s) => [Uint8Array.of(s.id), leb(s.payload.length), s.payload])]);
+}
+const wasmHeader = Uint8Array.of(0, 0x61, 0x73, 0x6d, 1, 0, 0, 0);
+
+/** The reference archive's guest module. */
+export function referenceGuest() {
+  const bytes = reference();
+  const row = table(bytes)[4];
+  return bytes.slice(row.offset + 71, row.offset + row.length);
+}
+
+/**
+ * The archive with another guest module in place of the reference guest, every
+ * fingerprint recomputed: the guest's label in the manifest, the directory and
+ * the provenance, the directory's byte length, the provenance's application
+ * kappa, the section table and the footer. The only thing wrong with the result
+ * is the guest.
+ */
+export function withGuest(wasm) {
+  const bytes = reference();
+  const rows = table(bytes);
+  const bodies = rows.map((r) => bytes.slice(r.offset, r.offset + r.length));
+  const oldLabel = dec.decode(bodies[4].subarray(0, 71));
+  const newLabel = `blake3:${hex(blake3(wasm))}`;
+  bodies[4] = concat([enc.encode(newLabel), wasm]);
+  bodies[0] = enc.encode(dec.decode(bodies[0]).replace(oldLabel, newLabel));
+  const editJson = (body, edit) => {
+    const nameLength = body[0] | (body[1] << 8);
+    const head = body.subarray(0, 2 + nameLength);
+    const json = JSON.parse(dec.decode(body.subarray(2 + nameLength)));
+    edit(json);
+    return concat([head, enc.encode(JSON.stringify(json))]);
+  };
+  bodies[2] = editJson(bodies[2], (directory) => {
+    for (const layer of directory.layers) if (layer.content_kappa === oldLabel) layer.content_kappa = newLabel;
+    for (const blob of directory.blobs) {
+      if (blob.kappa === oldLabel) {
+        blob.kappa = newLabel;
+        blob.byte_length = wasm.length;
+      }
+    }
+  });
+  bodies[3] = editJson(bodies[3], (provenance) => {
+    provenance.guest_content_kappa = newLabel;
+    provenance.application_kappa = `blake3:${hex(blake3(bodies[0]))}`;
+  });
+  const count = bodies.length;
+  const head = new Uint8Array(10 + count * 24);
+  head.set(bytes.subarray(0, 10));
+  const view = new DataView(head.buffer);
+  let offset = head.length;
+  bodies.forEach((body, i) => {
+    view.setBigUint64(10 + i * 24, BigInt(rows[i].kind), true);
+    view.setBigUint64(10 + i * 24 + 8, BigInt(offset), true);
+    view.setBigUint64(10 + i * 24 + 16, BigInt(body.length), true);
+    offset += body.length;
+  });
+  const out = concat([head, ...bodies, new Uint8Array(32)]);
+  return reseal(out);
+}
+
+/** The reference guest with one change to its interface; `kind` names the change. Only the interface stays readable, not every result is a valid module. */
+export function mutatedGuest(kind) {
+  const guest = referenceGuest();
+  const sections = wasmSections(guest);
+  const at = (id) => sections.findIndex((s) => s.id === id);
+  switch (kind) {
+    case 'extra import': {
+      // import global env.g: i32, immutable; a global import shifts no function index
+      const payload = concat([Uint8Array.of(1), leb(3), enc.encode('env'), leb(1), enc.encode('g'), Uint8Array.of(3, 0x7f, 0)]);
+      sections.splice(at(1) + 1, 0, { id: 2, payload });
+      return assembleWasm(sections);
+    }
+    case 'extra export': {
+      const s = sections[at(7)];
+      const count = s.payload[0];
+      if (count >= 127) throw new Error('unexpected export count');
+      s.payload = concat([Uint8Array.of(count + 1), s.payload.subarray(1), leb(5), enc.encode('extra'), Uint8Array.of(0, 0)]);
+      return assembleWasm(sections);
+    }
+    case 'renamed export': {
+      const s = sections[at(7)];
+      const text = dec.decode(s.payload);
+      if (!text.includes('holo_run')) throw new Error('no holo_run export');
+      s.payload = enc.encode(text.replace('holo_run', 'holo_rux'));
+      return assembleWasm(sections);
+    }
+    case 'changed signature': {
+      // holo_alloc: (i32) -> i32 becomes (i64) -> i32 in the type section
+      const s = sections[at(1)];
+      const i = s.payload.findIndex((_, k) => s.payload[k] === 0x60 && s.payload[k + 1] === 1 && s.payload[k + 2] === 0x7f && s.payload[k + 3] === 1 && s.payload[k + 4] === 0x7f);
+      if (i < 0) throw new Error('no (i32) -> i32 type');
+      s.payload = Uint8Array.from(s.payload);
+      s.payload[i + 2] = 0x7e;
+      return assembleWasm(sections);
+    }
+    case 'changed kind': {
+      // memory is exported as a global
+      const s = sections[at(7)];
+      const marker = enc.encode('memory');
+      const i = s.payload.findIndex((_, k) => marker.every((b, j) => s.payload[k + j] === b));
+      s.payload = Uint8Array.from(s.payload);
+      s.payload[i + 6] = 3;
+      return assembleWasm(sections);
+    }
+    default:
+      throw new Error(`unknown mutation ${kind}`);
+  }
+}

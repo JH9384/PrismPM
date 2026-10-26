@@ -172,6 +172,8 @@ Check ids by level:
 | P1 | `holo.integrity`, `provenance.*` | prism-code reader, #268 |
 | P2 | `proof.envelope`, `proof.statement`, `proof.subject`, `proof.model`, `proof.verifier`, `proof.verdict`, `proof.tcb`, `proof.level` | #266 |
 | P3 | `replay.*`, `world.capabilities` | #284, #283 |
+| P1 | `world.contract`: the guest does not have the imports and exports of its declared WIT world | #278 |
+| none | `world.hash`: the world differs from the world a policy pinned | #278 |
 | none | `policy.level`, and every rule a policy file adds as `policy.*` | this proposal, #285 |
 
 An absent statement fails its family's `.statement` check, for example `replay.statement`.

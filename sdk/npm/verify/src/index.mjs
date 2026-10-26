@@ -15,6 +15,7 @@ import { sha256Hex } from './sha256.mjs';
 import { readStructure } from './reader.mjs';
 import * as assurance from './vendor/assurance-levels.mjs';
 import * as transparency from './transparency.mjs';
+import { checkWorld, compareWorldPin, describeWorld } from './world.mjs';
 
 /** The newest holo format revision this package reads, from @prism-code/spec. */
 export const FORMAT_REVISION = spec.FORMAT_REVISION;
@@ -49,12 +50,13 @@ const DIGEST_TARGETS = ['archive', 'capabilities', 'guest', 'view', 'model'];
 /** Internal checks, in evaluation order. The structural ones decide whether the file is a readable holo at all. */
 const STRUCTURE_IDS = ['archive.magic', 'archive.version', 'archive.flags', 'archive.table'];
 const ARCHIVE_IDS = [...STRUCTURE_IDS, 'archive.footer', 'blob.labels'];
-const DOCUMENT_IDS = ['format.revision', 'manifest.wire', 'metadata.schema', 'directory.schema', 'provenance.schema', 'model.schema', 'references', 'model.sha256'];
+const DOCUMENT_IDS = ['format.revision', 'manifest.wire', 'metadata.schema', 'directory.schema', 'provenance.schema', 'model.schema', 'references', 'model.sha256', 'world.contract'];
 /**
  * The verdict check id each internal check reports under. `holo.integrity`
  * covers every fingerprint that must recompute or agree; `holo.documents`
- * covers the documents inside. Both withhold P1, as the integrity half of P1
- * in docs/proposals/269-assurance-levels.md.
+ * covers the documents inside. `world.contract` is the guest not having the
+ * interface its WIT world declares (issue #278). All withhold P1, as the
+ * integrity half of P1 in docs/proposals/269-assurance-levels.md.
  */
 const REPORTED_AS = Object.freeze({
   'archive.footer': 'holo.integrity',
@@ -67,6 +69,7 @@ const REPORTED_AS = Object.freeze({
   'directory.schema': 'holo.documents',
   'provenance.schema': 'holo.documents',
   'model.schema': 'holo.documents',
+  'world.contract': 'world.contract',
 });
 const HEX64 = /^[0-9a-f]{64}$/;
 const utf8 = new TextDecoder('utf-8', { fatal: true });
@@ -348,6 +351,26 @@ function analyze(bytes) {
     add('documents', 'model.sha256', problems.length === 0, problems.length === 0 ? `the model document's sha256 ${actual} equals the recorded model_id` : problems.join('; '));
   }
 
+  // world.contract: the guest module has the imports and exports its contract's WIT world declares.
+  {
+    const wasm = directory?.layers?.find((l) => l.kind === 'wasm');
+    const guestBlob = facts.roles.guest ? blobByLabel.get(facts.roles.guest) : undefined;
+    if (!wasm || !guestBlob) skip('documents', 'world.contract', 'not checked: the directory or the guest blob is missing');
+    else if (guestBlob.problem || !guestBlob.labelMatches) skip('documents', 'world.contract', 'not checked: the guest blob fails its label, which blob.labels reports');
+    else {
+      const world = checkWorld(wasm.contract, guestBlob.content);
+      if (!world.known) skip('documents', 'world.contract', `not checked: this package has no world for the contract ${wasm.contract}`);
+      else {
+        add(
+          'documents',
+          'world.contract',
+          world.conforms,
+          world.conforms ? `the guest has exactly the imports and exports of the ${wasm.contract} world` : `the guest does not match the ${wasm.contract} world: ${world.problems.join('; ')}`,
+        );
+      }
+    }
+  }
+
   // format.revision: an archive carries no date; its identifiers name the revision.
   {
     const differencesFrom = (revision) => {
@@ -411,13 +434,22 @@ function analyze(bytes) {
   return { checks, facts };
 }
 
+/**
+ * The world a guest contract names, as the `world` member of an inspection
+ * prints it (issue #278): WIT package, name, file, digests, imports, exports
+ * and whether the guest module conforms. `prism-code`'s `inspect` calls this
+ * one function, so the two cannot disagree. `guest` may be null, and then
+ * `conforms` is null.
+ *
+ * @param {string} contract for example `hologram:guest/core-wasm@1`
+ * @param {Uint8Array | null} guest the guest module
+ */
+export function worldOf(contract, guest) {
+  return describeWorld(contract, guest);
+}
+
 /** The schema of an inspection, shared with `prism-code`'s `inspect` (issue #271, PR #335). */
 export const INSPECTION_SCHEMA = 'prismpm/holo-inspection/1';
-
-/** Worlds by guest contract: `worlds/core-wasm.wit` in @prism-code/spec, an import-free module with three exports. */
-const WORLDS = Object.freeze({
-  [spec.CORE_WASM.CONTRACT]: Object.freeze({ imports: Object.freeze([]), exports: spec.CORE_WASM.EXPORTS }),
-});
 
 /** The fields of the 86-byte manifest suffix, which `manifest.wire` checks byte for byte against the Wire constant. */
 const MANIFEST_SUFFIX_FIELDS = Object.freeze({
@@ -485,7 +517,7 @@ function inspectionOf(bytes, facts, checks) {
   const capabilities = blobOf('capabilities');
   const wasm = directory?.layers?.find((l) => l.kind === 'wasm');
   const contract = wasm?.contract ?? provenance?.core_wasm_contract ?? null;
-  const world = contract ? WORLDS[contract] : undefined;
+  const guest = blobOf('guest');
 
   return {
     schema: INSPECTION_SCHEMA,
@@ -536,9 +568,7 @@ function inspectionOf(bytes, facts, checks) {
     world:
       contract && capabilities
         ? {
-            contract,
-            imports: world ? [...world.imports] : null,
-            exports: world ? [...world.exports] : null,
+            ...describeWorld(contract, guest ? guest.content : null),
             capability_set: { label: capabilities.label, empty: hex(capabilities.content) === spec.CAPABILITY_SET.EMPTY_HEX },
           }
         : null,
@@ -572,10 +602,10 @@ export function inspect(source) {
 
 function checkPolicy(policy) {
   const { LEVELS, DEFAULT_MINIMUM, DEFAULT_POLICY } = ASSURANCE;
-  if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {} };
+  if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {}, world: undefined };
   if (typeof policy !== 'object') throw new VerifyError('policy.invalid', 'the policy must be an object');
   for (const key of Object.keys(policy)) {
-    if (!['name', 'minimum', 'digests'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum or digests`);
+    if (!['name', 'minimum', 'digests', 'world'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum, digests or world`);
   }
   const name = policy.name ?? DEFAULT_POLICY;
   if (typeof name !== 'string' || name.length < 1 || name.length > 1024) throw new VerifyError('policy.invalid', 'policy.name must be a string of 1 to 1024 characters');
@@ -592,7 +622,26 @@ function checkPolicy(policy) {
       if (!HEX64.test(set[algorithm])) throw new VerifyError('policy.invalid', `policy.digests.${target}.${algorithm} is not 64 lowercase hex characters`);
     }
   }
-  return { name, minimum, digests };
+  return { name, minimum, digests, world: checkWorldPin(policy.world) };
+}
+
+/**
+ * The `world` member of a policy: the lock's `inputs.world` (issue #278), so a
+ * caller passes it unchanged. `undefined` pins nothing; `null` says no world
+ * is expected.
+ */
+function checkWorldPin(pin) {
+  if (pin === undefined || pin === null) return pin;
+  if (typeof pin !== 'object' || Array.isArray(pin)) throw new VerifyError('policy.invalid', 'policy.world must be an object, as in the inputs.world of the lock, or null');
+  for (const key of Object.keys(pin)) {
+    if (!['contract', 'blake3', 'sha256'].includes(key)) throw new VerifyError('policy.invalid', `policy.world.${key} is not one of contract, blake3, sha256`);
+  }
+  if (Object.keys(pin).length === 0) throw new VerifyError('policy.invalid', 'policy.world names nothing');
+  if (pin.contract !== undefined && (typeof pin.contract !== 'string' || pin.contract.length < 1)) throw new VerifyError('policy.invalid', 'policy.world.contract must be a string');
+  for (const algorithm of ['blake3', 'sha256']) {
+    if (pin[algorithm] !== undefined && !HEX64.test(pin[algorithm])) throw new VerifyError('policy.invalid', `policy.world.${algorithm} is not 64 lowercase hex characters`);
+  }
+  return pin;
 }
 
 /** A detail line as one plain sentence, within the verdict schema's 1024 characters. */
@@ -626,7 +675,7 @@ const STATEMENTS = Object.freeze([
  * needs WebCrypto, can join without an API change.
  *
  * @param {Uint8Array | ArrayBuffer} source the whole holo
- * @param {{ name?: string, minimum?: 'P0' | 'P1' | 'P2' | 'P3', digests?: Record<string, { sha256?: string, blake3?: string }> }} [policy]
+ * @param {{ name?: string, minimum?: 'P0' | 'P1' | 'P2' | 'P3', digests?: Record<string, { sha256?: string, blake3?: string }>, world?: { contract?: string, sha256?: string, blake3?: string } | null }} [policy]
  */
 export async function verify(source, policy) {
   const bytes = asBytes(source);
@@ -666,6 +715,15 @@ export async function verify(source, policy) {
     if (mismatches.length > 0) {
       passed = false;
       reasons.push({ check: `policy.digests.${target}`, withholds: null, message: sentence(`the ${target} does not match the policy: ${mismatches.join('; ')}`) });
+    }
+  }
+
+  if (wanted.world !== undefined) {
+    const contract = facts.documents.directory?.layers?.find((l) => l.kind === 'wasm')?.contract ?? facts.documents.provenance?.core_wasm_contract ?? null;
+    const mismatches = contract === null ? ['the holo declares no guest contract to compare with the pinned world'] : compareWorldPin(contract, wanted.world);
+    if (mismatches.length > 0) {
+      passed = false;
+      reasons.push({ check: 'world.hash', withholds: null, message: sentence(`the world does not match the policy: ${mismatches.join('; ')}`) });
     }
   }
 

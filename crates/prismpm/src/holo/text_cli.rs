@@ -225,6 +225,14 @@ pub(super) fn project(
     })
 }
 
+/// Whether a request is framed for the application's text/3 workbench.
+pub(crate) fn workbench_frame(application: &TextApplicationModel, request: &[u8]) -> bool {
+    application
+        .workbench
+        .as_ref()
+        .is_some_and(|view| view.frames(request))
+}
+
 /// Validate the closed surface against its application: tokens, bounded text,
 /// a closed and unambiguous exit-code map, and a classified response for
 /// every acceptance vector.
@@ -317,11 +325,12 @@ pub fn validate(cli: &TextCli, application: &TextApplicationModel) -> Result<(),
     if total > MAXIMUM_SURFACE_BYTES {
         return Err(invalid("text command-line surface exceeds its byte budget"));
     }
-    if application
-        .acceptance_vectors
-        .iter()
-        .any(|vector| cli.classify(&vector.response).is_none())
-    {
+    // A text/3 workbench binds its framed vectors to its JSON result protocol,
+    // which the program refuses as `ReportUnclassified`; every other response
+    // must begin with a declared outcome prefix.
+    if application.acceptance_vectors.iter().any(|vector| {
+        cli.classify(&vector.response).is_none() && !workbench_frame(application, &vector.request)
+    }) {
         return Err(invalid(
             "every acceptance response must begin with a declared command-line outcome prefix",
         ));

@@ -43,6 +43,7 @@ mod test_compiler;
 mod text_cli;
 pub mod upstream_conformance;
 mod verification;
+mod workbench;
 
 pub use controller::Controller;
 pub use error::{DiagnosticCode, PrismError};

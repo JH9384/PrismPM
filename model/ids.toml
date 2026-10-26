@@ -259,6 +259,12 @@ level = "build"
 statement = "The SDK checks OPM and UML design views against the system model, refuses an unknown component, edge, process, state or viewpoint with PP2012, and emits OPL text and PlantUML source as build artifacts."
 
 [[id]]
+id = "HO-19"
+suite = "holo"
+level = "build"
+statement = "The optional Text/3 workbench binds typed source-owned guidance, forms, examples, error recovery and mandatory no-store Wasm acquisition to real byte-guest results, six exact portable assets and cancellable browser worker execution while preserving Text/1 and Text/2 resource semantics and the text/3 command-line surface."
+
+[[id]]
 id = "HO-20"
 suite = "holo"
 level = "build"

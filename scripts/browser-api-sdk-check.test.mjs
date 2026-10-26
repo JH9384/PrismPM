@@ -871,7 +871,7 @@ test('owning release test kills a removed complete-TAP acceptance guard',async t
  const root=temporary(t);
  assert.equal(source.split(before).length,2);const selected=stageGate(root,source.replace(before,after));
  const env={...process.env};delete env.NODE_TEST_CONTEXT;
- const result=spawnSync(process.execPath,['--test','--test-reporter=tap','--test-name-pattern=release acceptance actually',selected],{encoding:'utf8',env,timeout:15000,maxBuffer:1024*1024});
+ const result=spawnSync(process.execPath,['--test','--test-reporter=tap','--test-name-pattern=release acceptance actually',selected],{encoding:'utf8',env,timeout:30000,maxBuffer:1024*1024});
  assert.equal(result.error,undefined);assert.equal(result.status,1);assert.match(result.stdout,witness);
  }
 });

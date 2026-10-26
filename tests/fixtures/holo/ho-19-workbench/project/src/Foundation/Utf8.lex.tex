@@ -1,0 +1,21 @@
+\begin{lexlean}{Foundation.Utf8}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\title{Boolean}
+\begin{semanticmodule}
+definition{
+  name: encode,
+  parameters: [value : String],
+  result: Bytes,
+  body: (prim utf8_encode value : Bytes)
+}
+
+definition{
+  name: decode,
+  parameters: [value : Bytes],
+  result: (Option String),
+  body: (prim utf8_decode value : (Option String)),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+\end{semanticmodule}
+\end{lexlean}

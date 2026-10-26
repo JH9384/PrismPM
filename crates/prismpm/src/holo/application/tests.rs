@@ -227,3 +227,59 @@ fn acceptance_tail_alias_budget_is_shared_across_list_chunks() {
     assert_eq!(error.code, "PP2001");
     assert!(error.message.contains("alias budget"));
 }
+
+#[test]
+fn workbench_bytes_append_is_closed_bounded_and_cycle_safe() {
+    let append = |left: Value, right: Value| json!({"kind":"primitive","operation":"append","result":{"kind":"bytes"},"arguments":[left,right]});
+    let literal = |bytes: &[u8]| json!({"kind":"bytes","hex":bytes.iter().map(|byte|format!("{byte:02x}")).collect::<String>()});
+    let chunk = json!({"kind":"definition","parameters":[],"result":{"kind":"bytes"},"body":literal(b"right")});
+    let cycle = json!({"kind":"definition","parameters":[],"result":{"kind":"bytes"},"body":append(literal(b"prefix"),alias("Other","cycle"))});
+    let definitions = BTreeMap::from([
+        (("Other".to_owned(), "chunk".to_owned()), &chunk),
+        (("Other".to_owned(), "cycle".to_owned()), &cycle),
+    ]);
+    let repeated = append(
+        literal(b"left"),
+        append(alias("Other", "chunk"), alias("Other", "chunk")),
+    );
+    assert_eq!(
+        metadata_bytes(&definitions, "Here", &repeated, "response").unwrap(),
+        b"leftrightright"
+    );
+    let mut large = literal(&vec![b'x'; 1024]);
+    for _ in 0..7 {
+        large = append(large.clone(), large);
+    }
+    assert_eq!(
+        metadata_bytes(&definitions, "Here", &large, "response").unwrap(),
+        vec![b'x'; 131072]
+    );
+    for bad in [
+        alias("Other", "cycle"),
+        json!({"kind":"primitive","operation":"length","result":{"kind":"bytes"},"arguments":[literal(b"x")]}),
+        json!({"kind":"primitive","operation":"append","result":{"kind":"string"},"arguments":[literal(b"x"),literal(b"y")]}),
+        json!({"kind":"call","function":{"module":"Foundation.Bytes","name":"appendBytes"},"arguments":[literal(b"x"),literal(b"y")]}),
+        json!({"kind":"bytes","hex":"FF"}),
+    ] {
+        assert_eq!(
+            metadata_bytes(&definitions, "Here", &bad, "response")
+                .unwrap_err()
+                .code,
+            "PP2001"
+        );
+    }
+    let mut deep = literal(b"x");
+    for _ in 0..129 {
+        deep = append(literal(b""), deep);
+    }
+    assert!(metadata_bytes(&definitions, "Here", &deep, "response")
+        .unwrap_err()
+        .to_string()
+        .contains("depth"));
+    let wide = literal(&vec![0; 16_777_216]);
+    let overflow = append(wide, literal(b"x"));
+    assert!(metadata_bytes(&definitions, "Here", &overflow, "response")
+        .unwrap_err()
+        .to_string()
+        .contains("16 MiB"));
+}

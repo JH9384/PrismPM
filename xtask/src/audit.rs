@@ -1540,8 +1540,10 @@ pub fn audit_errors(root: &Path, model: &Model) -> Result<(), Fail> {
 
 /// Audit the exact Holo emitter input closure and its stored semantics digest.
 pub fn audit_emitter_inputs(root: &Path, model: &Model) -> Result<(), Fail> {
-    const EXPECTED: [&str; 24] = [
+    const EXPECTED: [&str; 31] = [
+        "crates/prismpm/src/application_build.rs",
         "crates/prismpm/src/holo/application.rs",
+        "crates/prismpm/src/holo/application/workbench.rs",
         "crates/prismpm/src/holo/browser_application.rs",
         "crates/prismpm/src/holo/browser_application/model.rs",
         "crates/prismpm/src/holo/browser_application/source.rs",
@@ -1552,11 +1554,15 @@ pub fn audit_emitter_inputs(root: &Path, model: &Model) -> Result<(), Fail> {
         "crates/prismpm/src/holo/facets/standards.rs",
         "crates/prismpm/src/holo/library.rs",
         "crates/prismpm/src/holo/library/roots.rs",
-        "crates/prismpm/src/holo/model_document.rs",
         "crates/prismpm/src/holo/mod.rs",
+        "crates/prismpm/src/holo/model_document.rs",
         "crates/prismpm/src/holo/projector.rs",
         "crates/prismpm/src/holo/text_cli.rs",
         "crates/prismpm/src/holo/validate.rs",
+        "crates/prismpm/src/holo/workbench.rs",
+        "crates/prismpm/src/workbench.rs",
+        "crates/prismpm/src/workbench/runtime.js",
+        "crates/prismpm/src/workbench/style.css",
         "model/projection.toml",
         "model/standards.toml",
         "schemas/model-document-v2.schema.json",
@@ -1565,6 +1571,7 @@ pub fn audit_emitter_inputs(root: &Path, model: &Model) -> Result<(), Fail> {
         "schemas/model-document-v5.schema.json",
         "schemas/model-document-v6.schema.json",
         "schemas/model-document.schema.json",
+        "schemas/workbench-view-projection.schema.json",
     ];
     if model.emitter_inputs.spec != "prismpm/emitter-inputs/1"
         || model.emitter_inputs.inputs != EXPECTED
@@ -1654,11 +1661,16 @@ mod oracle_separation_tests {
         )
         .unwrap();
         for row in [
-            "name = 'hologram'", "name = 'uor-hologram'", "name = 'hologram-archive'",
+            "name = 'hologram'",
+            "name = 'uor-hologram'",
+            "name = 'hologram-archive'",
             "name = 'renamed-codec'\nsource = 'git+https://github.com/Hologram-Technologies/hologram?rev=abc#abc'",
             "name = 'invalid'\nsource = false",
         ] {
-            assert!(check_runtime_oracle_separation(&format!("version = 4\n[[package]]\n{row}\n")).is_err());
+            assert!(
+                check_runtime_oracle_separation(&format!("version = 4\n[[package]]\n{row}\n"))
+                    .is_err()
+            );
         }
         assert!(check_runtime_oracle_separation("version = 4").is_err());
     }

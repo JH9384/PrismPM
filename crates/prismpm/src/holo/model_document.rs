@@ -249,6 +249,14 @@ impl Application {
         }
     }
 
+    /// Modeled guided workbench, present only when a text/3 application declares one.
+    pub fn workbench(&self) -> Option<super::workbench::WorkbenchApplication> {
+        match self {
+            Self::Text(value) => value.workbench_application(),
+            _ => None,
+        }
+    }
+
     /// Modeled command-line surface, present only for text/3.
     pub fn cli(&self) -> Option<&super::text_cli::TextCli> {
         match self {
@@ -333,9 +341,46 @@ pub struct TextApplicationModel {
         deserialize_with = "present_cli"
     )]
     pub cli: Option<super::text_cli::TextCli>,
+    /// Optional modeled guided workbench, admitted only by text/3. When absent
+    /// the text/3 browser page is the unchanged Text/1 six-file page.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_workbench"
+    )]
+    pub workbench: Option<super::workbench::WorkbenchView>,
 }
 
 impl TextApplicationModel {
+    /// The guided workbench application, present only when text/3 declares one.
+    /// It is a derived view of this record, never a second application value.
+    pub fn workbench_application(&self) -> Option<super::workbench::WorkbenchApplication> {
+        let view = self.workbench.clone()?;
+        Some(super::workbench::WorkbenchApplication {
+            profile: self.profile.clone(),
+            name: self.name.clone(),
+            cargo_name: self.cargo_name.clone(),
+            cargo_version: self.cargo_version.clone(),
+            cargo_description: self.cargo_description.clone(),
+            cargo_repository: self.cargo_repository.clone(),
+            cargo_homepage: self.cargo_homepage.clone(),
+            library_roots: self.library_roots.clone(),
+            acceptance_vectors: self.acceptance_vectors.clone(),
+            entry_root: self.entry_root.clone(),
+            core_contract: self.core_contract.clone(),
+            request_maximum: self.request_maximum,
+            response_maximum: self.response_maximum,
+            guest_allocation_maximum: self.guest_allocation_maximum,
+            core_memory_pages: self.core_memory_pages?,
+            core_stack_bytes: self.core_stack_bytes?,
+            capabilities_empty: self.capabilities_empty,
+            fat_archive: self.fat_archive,
+            primary_layer: self.primary_layer,
+            view_layer: self.view_layer,
+            view,
+        })
+    }
+
     /// Whether the profile carries explicit Core-Wasm resource bounds.
     pub fn has_resource_bounds(&self) -> bool {
         matches!(
@@ -343,6 +388,12 @@ impl TextApplicationModel {
             "prismpm/text-application/2" | "prismpm/text-application/3"
         )
     }
+}
+
+fn present_workbench<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<super::workbench::WorkbenchView>, D::Error> {
+    super::workbench::WorkbenchView::deserialize(deserializer).map(Some)
 }
 
 fn present_cli<'de, D: serde::Deserializer<'de>>(

@@ -378,7 +378,7 @@ pub(crate) fn preflight_toolchain(
             return Err(PrismError::new(
                 "PP5008",
                 format!("unsupported verification architecture {architecture}"),
-            ))
+            ));
         }
     };
     let [lake, lean, rustfmt, rustc, timeout] =
@@ -709,7 +709,10 @@ fn validate_portable_target_bounds(
     response_maximum: u32,
 ) -> Result<(), PrismError> {
     if request_maximum > 64 * 1024 || response_maximum > 1024 * 1024 {
-        return Err(PrismError::new("PP5301", "application bounds exceed pinned portable View transport limits (request: 65536 bytes; response: 1048576 bytes)"));
+        return Err(PrismError::new(
+            "PP5301",
+            "application bounds exceed pinned portable View transport limits (request: 65536 bytes; response: 1048576 bytes)",
+        ));
     }
     Ok(())
 }
@@ -789,6 +792,7 @@ pub(crate) fn validate_hologram_oracle_report(
     {
         return Err(invalid());
     }
+    let workbench = application.workbench();
     let mut indexes = Vec::new();
     for (index, vector) in vectors.iter().enumerate() {
         let Ok(request) = std::str::from_utf8(&vector.request) else {
@@ -796,7 +800,12 @@ pub(crate) fn validate_hologram_oracle_report(
         };
         let applicable = match application {
             Application::Browser(_) => {
-                return crate::holo::browser_application::require_runtime(application)
+                return crate::holo::browser_application::require_runtime(application);
+            }
+            Application::Text(_) if workbench.is_some() => {
+                crate::holo::workbench::oracle_vectors(workbench.as_ref().expect("checked"))
+                    .ui
+                    .contains(&index)
             }
             Application::Text(value) => vector.request.len() <= value.request_maximum as usize,
             Application::Legacy(value) => {
@@ -822,22 +831,35 @@ pub(crate) fn validate_hologram_oracle_report(
     if indexes.is_empty() {
         return Err(invalid());
     }
-    let mut names = vec![
-        "attachment-assets",
-        "modeled-vectors",
+    let mut names = vec!["attachment-assets", "modeled-vectors"];
+    if workbench.is_some() {
+        names.extend(["workbench-direct-vectors", "workbench-ui-input-boundaries"]);
+    }
+    names.extend([
         "input-validation-recovery",
         "transport-failure-recovery",
         "pre-init-privacy",
         "delayed-init",
         "intent-boundaries",
-    ];
+    ]);
     let profile = match application {
         Application::Browser(_) => {
-            return crate::holo::browser_application::require_runtime(application)
+            return crate::holo::browser_application::require_runtime(application);
         }
         Application::Text(_) => {
             names.extend(["text-response-bounds", "text-safe-rendering"]);
-            "utf8-text"
+            if workbench.is_some() {
+                names.extend([
+                    "workbench-guided-edit",
+                    "workbench-typed-error-recovery",
+                    "workbench-cancel-retirement",
+                    "workbench-timeout-retry",
+                    "workbench-result-validation",
+                ]);
+                "utf8-workbench"
+            } else {
+                "utf8-text"
+            }
         }
         Application::Legacy(_) => "legacy-numeric",
     };
@@ -846,9 +868,16 @@ pub(crate) fn validate_hologram_oracle_report(
         .into_iter()
         .map(|name| json!({"name":name,"status":"passed","attempts":1}))
         .collect::<Vec<_>>();
-    let expected = json!({"schema":"prismpm/portable-browser-oracle/1", "profile":profile,
+    let mut expected = json!({"schema":"prismpm/portable-browser-oracle/1", "profile":profile,
         "engine":"chromium", "browser_version":"157.0.8099.0", "playwright":"1.62.1",
         "cases":cases, "vector_indexes":indexes, "skipped":0, "retries":0, "status":"passed"});
+    if let Some(value) = &workbench {
+        let selected = crate::holo::workbench::oracle_vectors(value);
+        expected["direct_vector_indexes"] = json!(selected.direct);
+        expected["ui_transport_rejected_indexes"] = json!(selected.transport_rejected);
+        expected["textarea_normalized_vector_indexes"] = json!(selected.normalized);
+        expected["unrepresentable_frame_vector_indexes"] = json!(selected.unrepresentable);
+    }
     if report["portable_browser"] != expected {
         return Err(invalid());
     }
@@ -1803,7 +1832,10 @@ fn validate_control_coverage_corpus(
     corpus: &ExecutionCorpus,
 ) -> Result<(), PrismError> {
     let invalid = || {
-        PrismError::new("PP5006", "control coverage execution counts do not match the exact modeled cases and expectations")
+        PrismError::new(
+            "PP5006",
+            "control coverage execution counts do not match the exact modeled cases and expectations",
+        )
     };
     let declarations = snapshot
         .get("modules")
@@ -3398,7 +3430,10 @@ mod tests {
             write(&root.join("lib.rs"), library).unwrap();
             let harness = application_harness(application, &module).unwrap();
             if name == "unrelated-checked-definition" {
-                assert_eq!(harness, "fn main() {\n    assert_eq!(harness_effect::dispatch(vec![7]), vec![7], \"acceptance vector 0\");\n}\n");
+                assert_eq!(
+                    harness,
+                    "fn main() {\n    assert_eq!(harness_effect::dispatch(vec![7]), vec![7], \"acceptance vector 0\");\n}\n"
+                );
             }
             write(&root.join("consumer.rs"), harness.as_bytes()).unwrap();
             let rustc = executable("rustc").unwrap();
@@ -3713,7 +3748,10 @@ mod tests {
     fn child_timeout_preserves_both_actual_progress_streams() {
         let error = limited(
             "sh",
-            &["-c", "printf 'first stdout\\nlast stdout\\n'; printf 'first stderr\\nlast stderr\\n' >&2; sleep 2"],
+            &[
+                "-c",
+                "printf 'first stdout\\nlast stdout\\n'; printf 'first stderr\\nlast stderr\\n' >&2; sleep 2",
+            ],
             "1",
             128,
         );

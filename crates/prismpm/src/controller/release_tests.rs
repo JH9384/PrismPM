@@ -527,7 +527,9 @@ fn text_command_line_system_project() -> tempfile::TempDir {
         ),
         (
             "responseError := \"Invalid response\"})})".to_owned(),
-            format!("responseError := \"Invalid response\"}}), cli := {cli}}})"),
+            format!(
+                "responseError := \"Invalid response\"}}), cli := {cli}, workbench := (ctor Option.none [{V3}::WorkbenchView])}})"
+            ),
         ),
         (
             "\\importmodule{Foundation.View.Text.V1.Model}".to_owned(),

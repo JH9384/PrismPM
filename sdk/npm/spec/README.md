@@ -48,8 +48,10 @@ That change is RT-01, [#276](https://github.com/UOR-Foundation/PrismPM/issues/27
 | `types/attestation.d.ts` | in-toto Statement v1, `PrismDigestSet`, blob and OCI manifest subjects, and the DSSE envelope. |
 | `types/attestation-bundle.d.ts` | The holo attestation section (#267): Sigstore bundle v0.3, verification material, in-holo statements, the OCI referrer layout. |
 | `types/predicates.d.ts` | `PredicateMap` and the registry types. |
+| `types/capabilities.d.ts` | The capability file `prism/capabilities/1` (#279): named sets of `allow-*` and `deny-*` entries for outbound hosts, key-value stores and variables. |
 | `schemas/holo/` | The decoded header and table, application manifest, source manifest and application directory. |
 | `schemas/documents/` | `prismpm/model-document/1` to `/6`, `prismpm/sdk-lock/1` to `/3`, `prismpm/model-provenance/1`, `prismpm/build-manifest/1`, `prismpm/browser-provenance/1`. |
+| `schemas/capabilities/` | `prism/capabilities/1`, the capability file a runtime grants a holo by; deny by default, deny wins (#279). |
 | `schemas/attestation/` | in-toto Statement v1, the DSSE envelope and the Sigstore bundle of the attestation section. |
 | `predicates/` | Per predicate `<name>-v<N>.json` (status, owner, description), `.d.ts` and `.schema.json`; the registry schema; `registry.json`, generated and not committed. |
 | `worlds/core-wasm.wit` | The Core-Wasm guest contract `hologram:guest/core-wasm@1`. |

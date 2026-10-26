@@ -32,7 +32,7 @@ export class VerificationError extends PrismError {
 export class ProofMismatchError extends PrismError {
   static readonly code: 'proof_mismatch';
 }
-/** `capability_denied`: the declared world exceeds the granted capabilities (`world.capabilities`). */
+/** `capability_denied`: the declared world exceeds the granted capabilities (`world.capabilities`), or the runtime denied a guest import or a resource (`capabilities.*`, #279). */
 export class CapabilityDeniedError extends PrismError {
   static readonly code: 'capability_denied';
 }
@@ -212,6 +212,8 @@ export interface Application {
   identities: ArchiveIdentities | ClosureIdentities;
   evidence: Evidence;
   view: View;
+  /** The capability set in force (#279). Without a capability file it grants nothing. */
+  capabilities: CapabilityGrant;
   /** Run one request through the guest on a fresh instance; bytes in, bytes out. */
   dispatch(request: Uint8Array | ArrayBuffer): Promise<Uint8Array>;
   /** Replay every acceptance vector, comparing bytes. */
@@ -344,15 +346,59 @@ export interface LoadOptions {
   /** For browser closure URLs: the `<stem>_bg.wasm` prefix when it cannot be discovered from app.js. */
   stem?: string;
   files?: string[];
+  /**
+   * A `prism/capabilities/1` file (#279): text, bytes or a parsed value, and in
+   * Node's `fromFile` a path. Without one the application is granted nothing.
+   */
+  capabilities?: Capabilities | Uint8Array | string | URL | null;
+  /** The set of `capabilities` to apply. Default `default`. */
+  capabilitySet?: string;
 }
+
+/** The three resource kinds a capability set grants. */
+export type CapabilityKind = 'outbound-hosts' | 'key-value-stores' | 'variables';
+
+/** A `prism/capabilities/1` file; see `@prism-code/spec` `schemas/capabilities/capabilities-v1.schema.json`. */
+export interface Capabilities {
+  schema: 'prism/capabilities/1';
+  sets: { default: CapabilitySet; [name: string]: CapabilitySet };
+}
+export interface CapabilitySet {
+  'allow-outbound-hosts'?: readonly string[];
+  'deny-outbound-hosts'?: readonly string[];
+  'allow-key-value-stores'?: readonly string[];
+  'deny-key-value-stores'?: readonly string[];
+  'allow-variables'?: readonly string[];
+  'deny-variables'?: readonly string[];
+}
+
+/** What a runtime enforces: one set of a capability file, or nothing. A deny entry wins over an allow entry. */
+export interface CapabilityGrant {
+  /** The set in force, or null when no capability file was given. */
+  readonly set: string | null;
+  /** True when an allow entry of `kind` matches `resource` and no deny entry does. Outbound hosts take a URL. */
+  allows(kind: CapabilityKind, resource: string): boolean;
+  /** Throws `CapabilityDeniedError` (`capabilities.<kind>`) unless `allows(kind, resource)`. */
+  assert(kind: CapabilityKind, resource: string): void;
+  /** Throws `CapabilityDeniedError` (`capabilities.import`) for a guest import the grant does not link. */
+  linkImport(entry: WebAssembly.ModuleImportDescriptor): void;
+}
+
+export const CAPABILITIES_SCHEMA: 'prism/capabilities/1';
+export const CAPABILITY_KINDS: readonly ['outbound-hosts', 'key-value-stores', 'variables'];
+export const DEFAULT_SET: 'default';
+/** Validate a capability file and return it frozen. Throws `PrismCodeError` `capabilities.invalid`; unknown members are errors. */
+export function parseCapabilities(source: Capabilities | Uint8Array | string): Capabilities;
+/** The grant of one set of a parsed file, or of nothing when `capabilities` is null. */
+export function grantOf(capabilities: Capabilities | null, setName?: string): CapabilityGrant;
 
 /** Open a `.holo` (bytes, Blob, path or URL) or a closure (directory path or URL). */
 export function load(source: Uint8Array | ArrayBuffer | Blob | string | URL, options?: LoadOptions): Promise<Application>;
-export function loadArchive(source: Uint8Array | ArrayBuffer): Promise<Application>;
+export function loadArchive(source: Uint8Array | ArrayBuffer, options?: Pick<LoadOptions, 'capabilities' | 'capabilitySet'>): Promise<Application>;
 export function loadClosure(
   files: Map<string, Uint8Array>,
   importGlue: (name: string) => Promise<Record<string, unknown>>,
-  options?: { model?: Record<string, unknown> | Uint8Array | null },
+  options?: { model?: Record<string, unknown> | Uint8Array | null } & Pick<LoadOptions, 'capabilities' | 'capabilitySet'>,
 ): Promise<Application>;
 
 export interface ParsedArchive {
@@ -386,7 +432,8 @@ export function canonicalJson(value: unknown): string;
 export function decodeHoloview(bytes: Uint8Array): View;
 export function encodeHoloview(view: View): Uint8Array;
 
-export function compileGuest(wasm: Uint8Array): Promise<WebAssembly.Module>;
+/** Compile the guest and link its imports against `grant` (default: nothing granted, so any import throws `CapabilityDeniedError`). */
+export function compileGuest(wasm: Uint8Array, grant?: CapabilityGrant): Promise<WebAssembly.Module>;
 export function runGuest(module: WebAssembly.Module, request: Uint8Array, limits?: Partial<Limits>): Uint8Array;
 export function runAcceptance(vectors: Vector[], dispatch: (request: Uint8Array) => Uint8Array | Promise<Uint8Array>): Promise<AcceptanceResult>;
 

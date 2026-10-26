@@ -6,21 +6,25 @@
  * loop PrismPM's own acceptance driver (`text_cli/acceptance.mjs`) runs.
  */
 import { fail } from './errors.mjs';
+import { NO_CAPABILITIES } from './capabilities.mjs';
 
 export const CORE_CONTRACT = 'hologram:guest/core-wasm@1';
 const REQUIRED_EXPORTS = ['memory', 'holo_alloc', 'holo_run'];
 
-export async function compileGuest(wasmBytes) {
+/**
+ * Compile the guest and link its imports against `grant` (issue #279). Deny
+ * by default: with no grant, or a grant that does not link an import, the
+ * first import fails with `CapabilityDeniedError` (`capabilities.import`)
+ * before any instance exists.
+ */
+export async function compileGuest(wasmBytes, grant = NO_CAPABILITIES) {
   let module;
   try {
     module = await WebAssembly.compile(wasmBytes);
   } catch (error) {
     fail('core.compile', `guest does not compile: ${error.message}`);
   }
-  const declaredImports = WebAssembly.Module.imports(module);
-  if (declaredImports.length !== 0) {
-    fail('core.imports', `guest declares ${declaredImports.length} imports; the Core-Wasm contract allows none`, declaredImports);
-  }
+  for (const entry of WebAssembly.Module.imports(module)) grant.linkImport(entry);
   const exportNames = WebAssembly.Module.exports(module).map((e) => e.name).sort();
   const expected = [...REQUIRED_EXPORTS].sort();
   if (exportNames.length !== expected.length || exportNames.some((n, i) => n !== expected[i])) {

@@ -41,7 +41,7 @@ Run `npx prism-code --help` for the list your installed version has. The command
 <!-- generated:commands:begin -->
 | Command                                                                                                | What it does                                                                                                        |
 | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `prism-code run <app.holo> [--port <n>] [--host <h>]`                                                  | Serve the holo's view on a local port. A POST to `/_hologram/intent` dispatches one request to the holo.            |
+| `prism-code run <app.holo> [--port <n>] [--capabilities <file>]`                                       | Serve the holo's view on a local port. A POST to `/_hologram/intent` dispatches one request to the holo.            |
 | `prism-code vectors <app.holo>`                                                                        | Replay every acceptance vector the holo carries and exit 1 on a failure.                                            |
 | `prism-code inspect <app.holo>`                                                                        | Print what the holo says about itself, without running it.                                                          |
 | `prism-code attest <app.holo> --predicate <file> --type <uri>`                                         | Sign an in-toto statement about the holo into its attestation section: keyless with an OIDC token, or with `--key`. |
@@ -55,7 +55,7 @@ Run `npx prism-code --help` for the list your installed version has. The command
 | --------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
 | 0         | ok             | The verb did what you asked.                                                                                    |
 | 1         | vectors failed | At least one acceptance vector did not replay or the holo carries none, or `verify-attestation` did not verify. |
-| 2         | refused        | The holo failed an identity check or cannot be read.                                                            |
+| 2         | refused        | The holo or capability file cannot be read, an identity check failed, or a guest import is not granted.         |
 | 3         | signing failed | `attest` could not sign, or the optional sigstore packages are not installed.                                   |
 | 64        | usage          | The arguments were wrong, or `prismpm.lock` is missing.                                                         |
 | 69        | no Docker      | Docker is not installed or not on the PATH.                                                                     |

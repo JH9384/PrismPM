@@ -1,0 +1,6 @@
+{
+  "schema": "prism/capabilities/1",
+  "sets": {
+    "default": { "allow-outbound-host": ["https://api.example.com"] }
+  }
+}

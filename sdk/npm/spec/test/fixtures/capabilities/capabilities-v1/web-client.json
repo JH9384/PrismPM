@@ -1,0 +1,15 @@
+{
+  "schema": "prism/capabilities/1",
+  "sets": {
+    "default": {
+      "allow-outbound-hosts": ["https://api.example.com", "https://*.cdn.example.com:8443"],
+      "deny-outbound-hosts": ["https://admin.cdn.example.com:8443"],
+      "allow-key-value-stores": ["default"],
+      "allow-variables": ["*"],
+      "deny-variables": ["signing_key"]
+    },
+    "offline": {
+      "allow-key-value-stores": ["default"]
+    }
+  }
+}

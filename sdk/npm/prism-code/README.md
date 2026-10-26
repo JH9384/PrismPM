@@ -66,6 +66,48 @@ npx prism-code run app.holo --port 8080
 serves the archive's portable view and answers `POST /_hologram/intent` (the
 request the view posts) by dispatching through the guest.
 
+## Capabilities (experimental, #279)
+
+A holo is granted nothing unless a capability file says otherwise.
+
+```
+npx prism-code run app.holo --capabilities caps.json [--capability-set online]
+```
+
+```json
+{
+  "schema": "prism/capabilities/1",
+  "sets": {
+    "default": {
+      "allow-outbound-hosts": ["https://api.example.com", "https://*.cdn.example.com:8443"],
+      "deny-outbound-hosts": ["https://admin.cdn.example.com:8443"],
+      "allow-key-value-stores": ["default"],
+      "allow-variables": ["*"],
+      "deny-variables": ["signing_key"]
+    }
+  }
+}
+```
+
+The runtime applies the `default` set unless `--capability-set` (or the
+`capabilitySet` option) names another. A resource is granted when an `allow-`
+entry of its kind matches it and no `deny-` entry does; deny always wins. Hosts
+are `scheme://host[:port]` with `*` wildcards and `*.` subdomains; with no port
+only the scheme's default port matches. An unknown member anywhere in the file
+is an error (`capabilities.invalid`), never a silent grant.
+
+```js
+const app = await load(bytes, { capabilities: caps });  // or fromFile(path, { capabilities: 'caps.json' })
+app.capabilities.allows('outbound-hosts', 'https://api.example.com/v1');  // true
+app.capabilities.assert('variables', 'signing_key');  // throws CapabilityDeniedError
+```
+
+The guest's world, `hologram:guest/core-wasm@1`, has no imports, so the runtime
+links none: a guest that declares an import fails to load with
+`CapabilityDeniedError` (`capabilities.import`) whatever the file grants. The
+format and its open questions are in `docs/proposals/279-capability-sets.md`;
+the JSON Schema is `@prism-code/spec`'s `schemas/capabilities/capabilities-v1.schema.json`.
+
 ```
 npx prism-code vectors app.holo       # replay every acceptance vector; exit 1 on a failure
 ```
@@ -194,7 +236,7 @@ throws.
 Every error is a `PrismError` with a stable `code`: `VerificationError`
 (`verification_failed`; `holo.*`, `provenance.*`, `policy.*` and no verdict),
 `ProofMismatchError` (`proof_mismatch`; `proof.*`), `CapabilityDeniedError`
-(`capability_denied`; `world.capabilities`), `WorldMismatchError`
+(`capability_denied`; `world.capabilities` and the runtime's `capabilities.*`), `WorldMismatchError`
 (`world_mismatch`; `world.contract`, `world.hash`), `DeterminismViolationError`
 (`determinism_violation`; `replay.divergence`) and `ReplayError` (`replay_failed`; other
 `replay.*`). `check` is the verdict reason's check id, `diagnostic` its registered

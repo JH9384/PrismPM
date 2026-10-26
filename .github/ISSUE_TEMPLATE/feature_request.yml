@@ -1,0 +1,76 @@
+name: Feature request
+description: Ask for a capability the Prism SDK does not have yet. Humans and AI agents use the same form.
+title: "[feature] "
+labels: ["kind/feature", "triage/needs-information"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before you file, search the open requests at `/docs/requests.md` (machine-readable: `/docs/requests.json`) and the [open issues](https://github.com/UOR-Foundation/PrismPM/issues?q=is%3Aissue+is%3Aopen+label%3Akind%2Ffeature). If one already covers your need, vote with a 👍 reaction on it instead of filing a duplicate: requests are ranked by 👍.
+
+        A request with an acceptance test is triaged first. When it ships, this issue is closed as completed and you are notified here.
+  - type: dropdown
+    id: submitted-by
+    attributes:
+      label: Submitted by
+      description: Who is filing this request.
+      options:
+        - Human
+        - AI agent
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: The part of the SDK the request changes.
+      options:
+        - cli
+        - engine
+        - holo-format
+        - verify
+        - runtime-js
+        - runtime-rust
+        - runtime-py
+        - spec
+        - docs
+        - site
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard today, and why.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API or behavior
+      description: A code or CLI sketch of what you want to write or run.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance test
+      description: A snippet that should pass once this ships (a test, a command and its expected output, or an assertion).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current workaround
+      description: Optional. What you do today instead.
+    validations:
+      required: false
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Searched existing requests
+      options:
+        - label: I searched `/docs/requests.md` and the open issues, and no existing request covers this.
+          required: true

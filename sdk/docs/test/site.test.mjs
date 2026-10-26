@@ -134,6 +134,30 @@ test('the changelog has exactly one entry per release, titled as the release lis
   assert.ok(problems.includes('changelog has no entry for release 0.2.0'));
 });
 
+test('every feature of a shipped release names the request it closed', () => {
+  const rows = [
+    { id: '0.2.0', title: '0.2.0', status: 'shipped' },
+    { id: '0.5', title: '0.5', status: 'planned' },
+  ];
+  const list = { releases: rows };
+  const closes = 'Closes [#249](https://github.com/UOR-Foundation/PrismPM/issues/249).';
+  const page = (shippedBody) => `## 0.5\n\n### Planned\n\nNo request yet.\n\n## 0.2.0\n\n### First\n\n${shippedBody}\n\n## Next steps\n`;
+  assert.deepEqual(changelogProblems(page(`- a\n\n${closes}`), list), []);
+  assert.deepEqual(changelogProblems(page('- a'), list), [
+    'changelog 0.2.0 feature "First" names no request: add a line Closes [#N](https://github.com/UOR-Foundation/PrismPM/issues/N)',
+  ]);
+  const wrong = changelogProblems(page('Closes #249.'), list);
+  assert.equal(wrong.length, 2);
+  assert.match(wrong[0], /Closes #249\. is not Closes/);
+  const mismatched = 'Closes [#249](https://github.com/UOR-Foundation/PrismPM/issues/250).';
+  assert.equal(changelogProblems(page(mismatched), list).length, 2);
+});
+
+test('the site changelog names a request for every shipped feature', () => {
+  const text = readFileSync(new URL('../../../docs/site/changelog.md', import.meta.url), 'utf8');
+  assert.deepEqual(changelogProblems(text, releases), []);
+});
+
 test('a broken narrative page fails the build, named by the page', async () => {
   const dir = scratchSite();
   try {

@@ -8,6 +8,7 @@ import test, {before, after} from 'node:test';
 
 const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 const template = read('crates/prismpm/src/workbench/runtime.js');
+const styleSource = read('crates/prismpm/src/workbench/style.css');
 const fixture = JSON.parse(read('tests/data/workbench-model-document.json')).application;
 const require = createRequire('/opt/prismpm/oracles/package.json');
 const {chromium} = require('playwright');
@@ -127,9 +128,24 @@ async function rawSubmit(page, value) {
   await page.locator('#raw-editor').evaluate(node => {node.open = true;});
   await page.locator('#request').fill(value);await page.locator('#submit').click();
 }
-async function expectCell(page, value) {
-  await page.waitForFunction(value => document.querySelector('#result-table td')?.textContent === value, value);
+async function expectCell(page, value, timeout = 30000) {
+  await page.waitForFunction(value => document.querySelector('#result-table td')?.textContent === value, value, {timeout});
   assert.equal(await page.locator('#result').textContent(), value);
+}
+
+// WCAG contrast helpers for the workbench page.
+function parseColor(value) {
+  const match = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)$/.exec(value);
+  if (!match) return null;
+  return {r: Number(match[1]), g: Number(match[2]), b: Number(match[3]), a: match[4] === undefined ? 1 : Number(match[4])};
+}
+function relativeLuminance({r, g, b}) {
+  const channel = value => {const c = value / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;};
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+function contrastRatio(first, second) {
+  const a = relativeLuminance(first), b = relativeLuminance(second);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
 // Closed-result tests execute the exported parser, rather than a copy of it.
@@ -547,4 +563,96 @@ test('text_v3_workbench normal HTTP cache cannot substitute a predecessor Wasm f
   const policy = 'cache:VIEW.execution.wasm_cache_policy,';assert.equal(template.split(policy).length, 2);
   await assert.rejects(httpCacheProbe(template.replace(policy, '')), error => error instanceof assert.AssertionError
     && error.actual === 'REVISION 1' && error.expected === 'REVISION 2');
+});
+
+// WCAG 2.1.1 Keyboard: every function reachable by keyboard alone.
+async function keyboardOnlyProbe(source) {
+  await withPage(async ({page}) => {
+    await enabled(page);
+    await page.locator('#example').focus();
+    assert.equal(await page.locator('#example').evaluate(node => node === document.activeElement), true, 'the example picker must be keyboard focusable');
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowDown');
+    const selected = await page.locator('#example').inputValue();
+    const example = fixture.workbench.operations[0].examples.find(item => item.id === selected);
+    assert.ok(example, 'the keyboard selection must name a modeled example');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.locator('#load-example').evaluate(node => node === document.activeElement), true, 'Tab must reach the example load control');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#field-message').inputValue(), example.values[0], 'the keyboard-loaded example must fill the guided field');
+    await page.locator('#field-message').focus();
+    await page.keyboard.type('keyboard input');
+    await page.keyboard.press('Enter');
+    await expectCell(page, 'KEYBOARD INPUT', 3000);
+    await page.locator('#raw-editor > summary').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#raw-editor').evaluate(node => node.open), true, 'Enter must open the raw disclosure');
+    await page.locator('#request').focus();
+    await page.keyboard.type('raw keyboard');
+    await page.keyboard.press('Control+Enter');
+    await expectCell(page, 'RAW KEYBOARD', 3000);
+    const forward = [];
+    for (let index = 0; index < 12; index++) {
+      await page.keyboard.press('Tab');
+      forward.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName));
+    }
+    assert.ok(new Set(forward).size >= 5, 'Tab must reach at least five distinct controls without a trap');
+    const before = await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName);
+    await page.keyboard.press('Shift+Tab');
+    const after = await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName);
+    assert.notEqual(after, before, 'Shift+Tab must move focus backward without a trap');
+  }, {source});
+}
+test('text_v3_workbench keyboard-only operation reaches and submits every control', async () => {
+  await keyboardOnlyProbe(template);
+  const broken = template.replace("form.addEventListener('submit',event=>{event.preventDefault();invoke();});", '');
+  assert.notEqual(broken, template);
+  await assert.rejects(keyboardOnlyProbe(broken), error => error instanceof Error);
+});
+
+// WCAG 2.4.3 / 3.2.2 Focus: the report must not steal focus from the submit control.
+async function focusRetainedProbe(source) {
+  await withPage(async ({page}) => {
+    await enabled(page);
+    await page.locator('#field-message').fill('focus input');
+    await page.locator('#guided-submit').focus();
+    assert.equal(await page.locator('#guided-submit').evaluate(node => node === document.activeElement), true);
+    await page.keyboard.press('Enter');
+    await expectCell(page, 'FOCUS INPUT', 3000);
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'guided-submit', 'focus must remain on the submit control after the report renders');
+  }, {source});
+}
+test('text_v3_workbench focus stays on the submit control after rendering', async () => {
+  await focusRetainedProbe(template);
+  const broken = template.replace("if(answer.status==='error'){", "byId('operation').focus();if(answer.status==='error'){");
+  assert.notEqual(broken, template);
+  await assert.rejects(focusRetainedProbe(broken), error => error instanceof assert.AssertionError);
+});
+
+// WCAG 1.4.3 Contrast (minimum): text and controls meet 4.5:1 in both color schemes.
+async function contrastProbe(source, style) {
+  await withPage(async ({page}) => {
+    await enabled(page);
+    await page.addStyleTag({content: style});
+    for (const scheme of ['light', 'dark']) {
+      await page.evaluate(scheme => { document.documentElement.dataset.scheme = scheme; }, scheme);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const samples = await page.evaluate(() => {
+        const alpha = value => {const match = /^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/.exec(value);return match ? (match[4] === undefined ? 1 : Number(match[4])) : null;};
+        const background = node => {let current = node;while (current) {const value = getComputedStyle(current).backgroundColor;const a = alpha(value);if (a !== null && a > 0) return value;current = current.parentElement;}return 'rgb(255, 255, 255)';};
+        const sample = selector => {const node = document.querySelector(selector);return {color: getComputedStyle(node).color, background: background(node)};};
+        return {heading: sample('h1'), muted: sample('.help'), report: sample('#result')};
+      });
+      for (const [name, value] of Object.entries(samples)) {
+        const ratio = contrastRatio(parseColor(value.color), parseColor(value.background));
+        assert.ok(ratio >= 4.5, `${scheme} ${name} contrast ${ratio.toFixed(2)}:1 must be at least 4.5:1`);
+      }
+    }
+  }, {source});
+}
+test('text_v3_workbench text and controls meet 4.5:1 contrast in light and dark', async () => {
+  await contrastProbe(template, styleSource);
+  const broken = styleSource.replace('--muted:#4d6272', '--muted:#e9f1f5');
+  assert.notEqual(broken, styleSource);
+  await assert.rejects(contrastProbe(template, broken), error => error instanceof assert.AssertionError);
 });

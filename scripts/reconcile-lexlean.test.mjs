@@ -7,20 +7,27 @@ import {assertCleanCheckout,packageTreeManifest,reconcile,replaceDependencyTrans
 
 test('tree manifest closes package bytes including the crate archive',t=>{
  const root=mkdtempSync(join(tmpdir(),'reconcile-manifest-')); t.after(()=>rmSync(root,{recursive:true,force:true}));
- mkdirSync(join(root,'src')); writeFileSync(join(root,'src/lib.rs'),'x\n'); writeFileSync(join(root,'lexlean-0.3.0.crate'),'crate');
- const manifest=packageTreeManifest(root,'lexlean-0.3.0.crate');
- assert.match(manifest,/  lexlean-0\.3\.0\.crate\n/); assert.match(manifest,/  src\/lib\.rs\n/);
+ mkdirSync(join(root,'src')); writeFileSync(join(root,'src/lib.rs'),'x\n'); writeFileSync(join(root,'lexlean-0.4.0.crate'),'crate');
+ const manifest=packageTreeManifest(root,'lexlean-0.4.0.crate');
+ assert.match(manifest,/  lexlean-0\.4\.0\.crate\n/); assert.match(manifest,/  src\/lib\.rs\n/);
  const lines=manifest.trimEnd().split('\n'); assert.deepEqual(lines,[...lines].sort((a,b)=>Buffer.from(a.slice(66)).compare(Buffer.from(b.slice(66)))));
 });
 
 test('dependency update changes only the lexlean identity fields',()=>{
- const source='spec = "prismpm/dependencies/1"\n\n[[dependency]]\nid = "lexlean"\nversion = "0.3.0"\nrevision = "'+'1'.repeat(40)+'"\nsource = "vendored"\n\n[[dependency.artifact]]\nkind = "tree-manifest"\npath = "vendor/lexlean/MANIFEST.sha256"\nsha256 = "'+'2'.repeat(64)+'"\ntree_root = "vendor/lexlean"\n\n[[dependency.artifact]]\nkind = "file"\npath = "vendor/lexlean/lexlean-0.3.0.crate"\nsha256 = "'+'3'.repeat(64)+'"\n\n[[dependency]]\nid = "next"\nrevision = "'+'4'.repeat(40)+'"\n';
- const out=updateDependencyRegister(source,{revision:'a'.repeat(40),version:'0.3.0',manifestSha:'b'.repeat(64),crateSha:'c'.repeat(64)});
+ const source='spec = "prismpm/dependencies/1"\n\n[[dependency]]\nid = "lexlean"\nversion = "0.4.0"\nrevision = "'+'1'.repeat(40)+'"\nsource = "vendored"\n\n[[dependency.artifact]]\nkind = "tree-manifest"\npath = "vendor/lexlean/MANIFEST.sha256"\nsha256 = "'+'2'.repeat(64)+'"\ntree_root = "vendor/lexlean"\n\n[[dependency.artifact]]\nkind = "file"\npath = "vendor/lexlean/lexlean-0.4.0.crate"\nsha256 = "'+'3'.repeat(64)+'"\n\n[[dependency]]\nid = "next"\nrevision = "'+'4'.repeat(40)+'"\n';
+ const out=updateDependencyRegister(source,{revision:'a'.repeat(40),version:'0.4.0',manifestSha:'b'.repeat(64),crateSha:'c'.repeat(64)});
  assert.match(out,/revision = "a{40}"/); assert.match(out,/sha256 = "b{64}"/); assert.match(out,/sha256 = "c{64}"/); assert.match(out,/id = "next"/);
 });
 
-const selectedIdentity={revision:'a'.repeat(40),version:'0.3.0',manifestSha:'b'.repeat(64),crateSha:'c'.repeat(64)};
-const selectedRegister='spec = "prismpm/dependencies/1"\n\n[[dependency]]\nid = "lexlean"\nversion = "0.3.0"\nrevision = "'+'a'.repeat(40)+'"\nsource = "vendored"\n\n[[dependency.artifact]]\nkind = "tree-manifest"\npath = "vendor/lexlean/MANIFEST.sha256"\nsha256 = "'+'b'.repeat(64)+'"\ntree_root = "vendor/lexlean"\n\n[[dependency.artifact]]\nkind = "file"\npath = "vendor/lexlean/lexlean-0.3.0.crate"\nsha256 = "'+'c'.repeat(64)+'"\n';
+const selectedIdentity={revision:'a'.repeat(40),version:'0.4.0',manifestSha:'b'.repeat(64),crateSha:'c'.repeat(64)};
+const selectedRegister='spec = "prismpm/dependencies/1"\n\n[[dependency]]\nid = "lexlean"\nversion = "0.4.0"\nrevision = "'+'a'.repeat(40)+'"\nsource = "vendored"\n\n[[dependency.artifact]]\nkind = "tree-manifest"\npath = "vendor/lexlean/MANIFEST.sha256"\nsha256 = "'+'b'.repeat(64)+'"\ntree_root = "vendor/lexlean"\n\n[[dependency.artifact]]\nkind = "file"\npath = "vendor/lexlean/lexlean-0.4.0.crate"\nsha256 = "'+'c'.repeat(64)+'"\n';
+
+test('an earlier registered version moves to the selected version and crate path',()=>{
+ const earlier=selectedRegister.replaceAll('0.4.0','0.3.0');
+ const out=updateDependencyRegister(earlier,selectedIdentity);
+ assert.equal(out,selectedRegister);
+ assert.throws(()=>updateDependencyRegister(earlier.replace('lexlean-0.3.0.crate','lexlean-0.2.0.crate'),selectedIdentity));
+});
 
 test('already selected dependency is byte-identical on repeated reconciliation',()=>{
  assert.equal(updateDependencyRegister(selectedRegister,selectedIdentity),selectedRegister);
@@ -36,10 +43,10 @@ test('missing malformed and duplicated identities cannot become reconciliation n
   selectedRegister.replace('b'.repeat(64),'b'.repeat(63)),
   selectedRegister.replace('c'.repeat(64),'z'.repeat(64)),
   selectedRegister.replace('vendor/lexlean/MANIFEST.sha256','vendor/lexlean/other.sha256'),
-  selectedRegister.replace('vendor/lexlean/lexlean-0.3.0.crate','vendor/lexlean/lexlean-0.3.1.crate'),
+  selectedRegister.replace('vendor/lexlean/lexlean-0.4.0.crate','vendor/lexlean/lexlean-0.4.1.crate'),
   selectedRegister.replace('revision = "'+'a'.repeat(40)+'"','revision = "'+'a'.repeat(40)+'"\nrevision = "'+'a'.repeat(40)+'"'),
   selectedRegister.replace('revision = "'+'a'.repeat(40)+'"','revision = "'+'a'.repeat(40)+'"\nrevision = "not-a-commit"'),
-  selectedRegister.replace('version = "0.3.0"','version = "0.3.0"\nversion = "other"'),
+  selectedRegister.replace('version = "0.4.0"','version = "0.4.0"\nversion = "other"'),
   selectedRegister.replace('source = "vendored"','source = "vendored"\nsource = "other"'),
   selectedRegister.replace('id = "lexlean"','id = "lexlean"\nid = "other"'),
   selectedRegister.replace('sha256 = "'+'b'.repeat(64)+'"','sha256 = "'+'b'.repeat(64)+'"\nsha256 = "bad"'),
@@ -49,7 +56,7 @@ test('missing malformed and duplicated identities cannot become reconciliation n
   selectedRegister+selectedRegister.slice(selectedRegister.indexOf('[[dependency.artifact]]')),
  ];
  for(const source of mutations) assert.throws(()=>updateDependencyRegister(source,selectedIdentity));
- assert.throws(()=>updateDependencyRegister(selectedRegister,{...selectedIdentity,version:'0.3.1'}));
+ assert.throws(()=>updateDependencyRegister(selectedRegister,{...selectedIdentity,version:'0.4.1'}));
 });
 
 // These subprocess fixtures qualify orchestration only. They never provide
@@ -82,27 +89,27 @@ function validationFixture(t, source=helperSource, exitStatus=0) {
 
 test('manifest contains actual file SHA-256, not a literal expression',t=>{
  const root=mkdtempSync(join(tmpdir(),'reconcile-digest-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
- writeFileSync(join(root,'lexlean-0.3.0.crate'),'archive');
- assert.equal(packageTreeManifest(root,'lexlean-0.3.0.crate'),`${createHash('sha256').update('archive').digest('hex')}  lexlean-0.3.0.crate\n`);
+ writeFileSync(join(root,'lexlean-0.4.0.crate'),'archive');
+ assert.equal(packageTreeManifest(root,'lexlean-0.4.0.crate'),`${createHash('sha256').update('archive').digest('hex')}  lexlean-0.4.0.crate\n`);
 });
 
 test('manifest excludes only its root output and includes nested manifest source bytes',t=>{
  const root=mkdtempSync(join(tmpdir(),'reconcile-nested-manifest-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
- mkdirSync(join(root,'src'));writeFileSync(join(root,'lexlean-0.3.0.crate'),'archive');
+ mkdirSync(join(root,'src'));writeFileSync(join(root,'lexlean-0.4.0.crate'),'archive');
  writeFileSync(join(root,'MANIFEST.sha256'),'old generated root manifest');
  const nested=Buffer.from('ordinary upstream manifest source\n');writeFileSync(join(root,'src/MANIFEST.sha256'),nested);
- const expected=`${createHash('sha256').update('archive').digest('hex')}  lexlean-0.3.0.crate\n${createHash('sha256').update(nested).digest('hex')}  src/MANIFEST.sha256\n`;
- assert.equal(packageTreeManifest(root,'lexlean-0.3.0.crate'),expected);
+ const expected=`${createHash('sha256').update('archive').digest('hex')}  lexlean-0.4.0.crate\n${createHash('sha256').update(nested).digest('hex')}  src/MANIFEST.sha256\n`;
+ assert.equal(packageTreeManifest(root,'lexlean-0.4.0.crate'),expected);
  writeFileSync(join(root,'src/MANIFEST.sha256'),'changed nested source');
- assert.notEqual(packageTreeManifest(root,'lexlean-0.3.0.crate'),expected);
+ assert.notEqual(packageTreeManifest(root,'lexlean-0.4.0.crate'),expected);
 });
 
 test('manifest rejects an absent archive or a symlink',t=>{
  const root=mkdtempSync(join(tmpdir(),'reconcile-manifest-negative-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
  writeFileSync(join(root,'file'),'bytes');
- assert.throws(()=>packageTreeManifest(root,'lexlean-0.3.0.crate'),/archive is not in/);
- symlinkSync('file',join(root,'lexlean-0.3.0.crate'));
- assert.throws(()=>packageTreeManifest(root,'lexlean-0.3.0.crate'),/symlink/);
+ assert.throws(()=>packageTreeManifest(root,'lexlean-0.4.0.crate'),/archive is not in/);
+ symlinkSync('file',join(root,'lexlean-0.4.0.crate'));
+ assert.throws(()=>packageTreeManifest(root,'lexlean-0.4.0.crate'),/symlink/);
 });
 
 test('validation command exists in the real dispatcher and includes dependency auditing',()=>{
@@ -154,7 +161,7 @@ function assertLockedAcquisition(workflow){
 
 test('reconciliation workflow pins selected source and has no repository writer',()=>{
  const workflow=readFileSync(join(repository,'.github/workflows/m0-lexlean-reconcile.yml'),'utf8');
- const selected='cee0fbade479891479e0b748aaa8b60e0a1aaf07';
+ const selected='e0b74b81e6f49c83596a957d232c8383a5db1a25';
  assert.match(workflow,/workflow_dispatch:/);
  assert.match(workflow,/branches: \[work\/compression-m0-reconcile\]/);
  assert.doesNotMatch(workflow,/pull_request_target:/);
@@ -199,7 +206,7 @@ function assertReviewableGenerationBeforeCompleteAudit(workflow) {
  });
  assert(positions.every((position,index)=>index===0 || position>positions[index-1]));
  const [generation,preservation,upload,validation,diagnostics]=positions;
- assert.equal(workflow.slice(generation,preservation),"      - name: Regenerate owned PrismPM evidence through the pinned devcontainer\n        id: generated_prefix\n        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca\n        with:\n          push: never\n          runCmd: |\n            set -euo pipefail\n            export CARGO_NET_OFFLINE=true\n            # Same acquired input cache, resolved inside this container's\n            # workspace. This is never a compiler/output or acceptance cache.\n            export CARGO_HOME=\"$PWD/target/m0-locked-cargo-inputs\"\n            mkdir -p target/m0-reconciliation-diagnostics\n            exec > target/m0-reconciliation-diagnostics/generation-step.log 2>&1\n            just codegen\n            just fixtures-write\n            just golden-write \"M0 issue #5: reconcile reviewed LexLean PR68 cee0fbade479891479e0b748aaa8b60e0a1aaf07\"\n            just stdlib-package-write\n            stage=\"$(mktemp -d)\"\n            cp -a stdlib/generated/package \"$stage/stdlib\"\n            (\n              cd \"$stage/stdlib\"\n              CARGO_NET_OFFLINE=true cargo package --locked --offline --target-dir target\n            )\n            cp \"$stage/stdlib/target/package/prism-stdlib-0.2.0.crate\" \\\n              stdlib/generated/prism-stdlib-0.2.0.crate\n            crate_sha=\"$(sha256sum stdlib/generated/prism-stdlib-0.2.0.crate | cut -d' ' -f1)\"\n            semantic_id=\"$(python3 - <<'PY'\n            import json\n            print(json.load(open(\"tests/golden/stdlib/build/model.prism.json\"))[\"provenance\"][\"semantic_id\"])\n            PY\n            )\"\n            python3 - \"$crate_sha\" \"$semantic_id\" <<'PY'\n            import json, pathlib, sys\n            crate_sha, semantic_id = sys.argv[1:]\n            value = {\n                \"crate_path\": \"stdlib/generated/prism-stdlib-0.2.0.crate\",\n                \"crate_sha256\": crate_sha,\n                \"schema\": \"prismpm/stdlib-release/1\",\n                \"semantic_id\": semantic_id,\n            }\n            pathlib.Path(\"stdlib/release.json\").write_text(\n                json.dumps(value, separators=(\",\", \":\"), sort_keys=True)\n            )\n            PY\n            just golden-check\n            just stdlib-package-check\n            just check-fixtures\n            just package-release-crates-check\n            rm -r -- \"$stage\"\n\n");
+ assert.equal(workflow.slice(generation,preservation),"      - name: Regenerate owned PrismPM evidence through the pinned devcontainer\n        id: generated_prefix\n        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca\n        with:\n          push: never\n          runCmd: |\n            set -euo pipefail\n            export CARGO_NET_OFFLINE=true\n            # Same acquired input cache, resolved inside this container's\n            # workspace. This is never a compiler/output or acceptance cache.\n            export CARGO_HOME=\"$PWD/target/m0-locked-cargo-inputs\"\n            mkdir -p target/m0-reconciliation-diagnostics\n            exec > target/m0-reconciliation-diagnostics/generation-step.log 2>&1\n            just codegen\n            just fixtures-write\n            just golden-write \"M0 issue #5: reconcile reviewed LexLean PR68 e0b74b81e6f49c83596a957d232c8383a5db1a25\"\n            just stdlib-package-write\n            stage=\"$(mktemp -d)\"\n            cp -a stdlib/generated/package \"$stage/stdlib\"\n            (\n              cd \"$stage/stdlib\"\n              CARGO_NET_OFFLINE=true cargo package --locked --offline --target-dir target\n            )\n            cp \"$stage/stdlib/target/package/prism-stdlib-0.2.0.crate\" \\\n              stdlib/generated/prism-stdlib-0.2.0.crate\n            crate_sha=\"$(sha256sum stdlib/generated/prism-stdlib-0.2.0.crate | cut -d' ' -f1)\"\n            semantic_id=\"$(python3 - <<'PY'\n            import json\n            print(json.load(open(\"tests/golden/stdlib/build/model.prism.json\"))[\"provenance\"][\"semantic_id\"])\n            PY\n            )\"\n            python3 - \"$crate_sha\" \"$semantic_id\" <<'PY'\n            import json, pathlib, sys\n            crate_sha, semantic_id = sys.argv[1:]\n            value = {\n                \"crate_path\": \"stdlib/generated/prism-stdlib-0.2.0.crate\",\n                \"crate_sha256\": crate_sha,\n                \"schema\": \"prismpm/stdlib-release/1\",\n                \"semantic_id\": semantic_id,\n            }\n            pathlib.Path(\"stdlib/release.json\").write_text(\n                json.dumps(value, separators=(\",\", \":\"), sort_keys=True)\n            )\n            PY\n            just golden-check\n            just stdlib-package-check\n            just check-fixtures\n            just package-release-crates-check\n            rm -r -- \"$stage\"\n\n");
  assert.equal(workflow.slice(validation,diagnostics),"      - name: Run the complete generated-evidence audit through the pinned devcontainer\n        # Fresh shared goldens must be reviewable before their native profiles\n        # can be regenerated. This audit remains mandatory and fail-closed;\n        # proposal preservation or upload cannot suppress it.\n        if: ${{ always() && !cancelled() && steps.generated_prefix.outcome == 'success' }}\n        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca\n        with:\n          push: never\n          runCmd: |\n            set -euo pipefail\n            export CARGO_NET_OFFLINE=true\n            export CARGO_HOME=\"$PWD/target/m0-locked-cargo-inputs\"\n            mkdir -p target/m0-reconciliation-diagnostics\n            exec > target/m0-reconciliation-diagnostics/validation-step.log 2>&1\n            node scripts/reconcile-lexlean.mjs --validate-generated\n\n");
  const proposal=workflow.slice(preservation,validation);
  assert.equal(proposal,"      - name: Preserve an inert patch and its selected-source identity\n        shell: bash\n        run: |\n          set -euo pipefail\n          evidence=\"$RUNNER_TEMP/m0-reconciliation\"\n          mkdir -p \"$evidence\"\n          git diff --check\n          # Intent-to-add includes new generated files without committing them.\n          git add -N -- .\n          git diff --binary HEAD > \"$evidence/reconciliation.patch\"\n          # A fully revalidated, already-reconciled dependency may have no diff.\n          # Empty patches are preparation outcomes, never acceptance evidence.\n          git status --short > \"$evidence/worktree-status.txt\"\n          git rev-parse HEAD > \"$evidence/prismpm-source.txt\"\n          cp \"$RUNNER_TEMP/m0-reconcile.json\" \"$evidence/dependency.json\"\n          printf '%s\\n' \\\n            'Preparation only. Complete source and installed-SDK V&V, both platforms, security, reproducibility and publication remain required.' \\\n            > \"$evidence/UNACCEPTED.txt\"\n          sha256sum \"$evidence/reconciliation.patch\" > \"$evidence/SHA256SUMS\"\n      - name: Upload the reviewable preparation patch\n        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02\n        with:\n          name: m0-lexlean-reconciliation-proposal\n          path: ${{ runner.temp }}/m0-reconciliation/\n          if-no-files-found: error\n          retention-days: 7\n\n");

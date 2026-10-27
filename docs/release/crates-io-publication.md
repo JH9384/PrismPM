@@ -19,7 +19,7 @@ None of `prism-stdlib`, `prismpm`, `lexlean`, `prod-ir`, `prod-codegen` or
 | --- | --- | --- | --- | --- |
 | 1 | `prod-ir` | 0.1.0 | this repository, `vendor/lean4-prod/rust/prod-ir` | `vendor/lean4-prod/crates/prod-ir-0.1.0.crate`, sha256 `7cffc025…cdc21` |
 | 2 | `prod-codegen` | 0.1.0 | this repository, `vendor/lean4-prod/rust/prod-codegen` | `vendor/lean4-prod/crates/prod-codegen-0.1.0.crate`, sha256 `29270825…09148` |
-| 3 | `lexlean` | 0.3.0 | the LexLean repository ([LexLean#260](https://github.com/UOR-Foundation/LexLean/issues/260)) | `vendor/lexlean/lexlean-0.3.0.crate`, sha256 `6d235250…3e248`, cut from LexLean `cee0fbade` |
+| 3 | `lexlean` | 0.4.0 | the LexLean repository ([LexLean#260](https://github.com/UOR-Foundation/LexLean/issues/260)) | `vendor/lexlean/lexlean-0.4.0.crate`, sha256 `f2d57928…a0a18`, cut from LexLean `e0b74b81e` (the `v0.4.0` tag); already public on crates.io with these bytes |
 | 4 | `prism-stdlib` | 0.2.0 | this repository, `stdlib/generated/package` | `stdlib/generated/prism-stdlib-0.2.0.crate`, sha256 `58f398f5…52bca` |
 | 5 | `prismpm` | 0.3.0 | this repository, `crates/prismpm` | none: nothing embeds it; it is packaged again once 1 to 4 are public |
 
@@ -84,19 +84,16 @@ CARGO_REGISTRY_TOKEN=<token> ./scripts/package-release-crates.sh --publish
 
 It repeats every check above, refuses a dirty tree, uploads `prod-ir`,
 `prod-codegen` and `prism-stdlib` after waiting for each to appear on crates.io
-with the same SHA-256, requires `lexlean 0.3.0` to be public with the digest of
+with the same SHA-256, requires `lexlean 0.4.0` to be public with the digest of
 the vendored copy, and then packages and uploads `prismpm`. A version that is
 already public with the same bytes is skipped; with other bytes the run stops.
 
-`lexlean` comes first from the LexLean repository, and that has an open
-question. PrismPM embeds the crate cut from LexLean `cee0fbade`, which is
-version 0.3.0. The head of LexLean's `release/v0.4` has moved on and still says
-0.3.0, so uploading from the head would claim `0.3.0` for bytes that this SDK
-does not embed, and `--publish` refuses. The owner chooses between uploading
-that exact crate (`git checkout cee0fbade`, then `cargo publish -p lexlean` in
-the LexLean repository), or skipping `0.3.0`, importing a pre-release of LexLean
-below, and uploading PrismPM against that. The second matches how LexLean#260
-plans to number its crates, and is the recommendation.
+`lexlean` comes first from the LexLean repository. PrismPM embeds the crate cut
+from LexLean `e0b74b81e`, the commit of the annotated `v0.4.0` tag, which is
+version 0.4.0. LexLean's release workflow uploaded it to crates.io on
+2026-10-26 (GitHub release `v0.4.0`, `release-identity.json` `crate_sha256`
+`f2d57928…a0a18`). The crates.io checksum equals the vendored copy, so
+`--publish` finds it public with the same bytes and continues.
 
 After the uploads, configure trusted publishing for the five names, set
 `CRATES_IO_TRUSTED_PUBLISHING`, and delete the token.
@@ -118,7 +115,7 @@ published pre-release. This is a proposal, not something the code enforces.
   cargo ignores build metadata when it matches a requirement, so a consumer could
   not pin the commit with it. The commit is recoverable from the crate itself:
   cargo records it in `.cargo_vcs_info.json` inside every packaged crate, as in
-  the `lexlean-0.3.0.crate` above.
+  the `lexlean-0.4.0.crate` above.
 - **Where the version must live.** In the bytes. `prism-stdlib` is embedded by the
   SDK, so the SDK must embed the pre-release-numbered archive, which means the
   stdlib generator takes the version, and `m0-lexlean-reconcile.yml` takes the

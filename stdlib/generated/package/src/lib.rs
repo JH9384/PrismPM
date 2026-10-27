@@ -12669,12 +12669,12 @@ pub fn publicationLinkagePublicationServicesValid(items: &crate::PublicationServ
     } })
 }
 
-pub fn publicationLinkageRecordCompareAt(records: &crate::PublicationRecords, id: alloc::string::String, index: u64) -> Option<u64> {
-    __prod_borrowed_publicationLinkageRecordCompareAt(records, id.as_ref(), index)
+pub fn publicationLinkageRecordCompareAt(records: &crate::PublicationRecords, recordId: alloc::string::String, index: u64) -> Option<u64> {
+    __prod_borrowed_publicationLinkageRecordCompareAt(records, recordId.as_ref(), index)
 }
 
-fn __prod_borrowed_publicationLinkageRecordCompareAt(records: &crate::PublicationRecords, id: &str, index: u64) -> Option<u64> {
-    { let _x_1 = &(records).chunks; { let _x_2 = 256; { let _x_5 = __prod_borrowed_publicationLinkageRecordCompareChunks(&(_x_1), (id).as_ref(), index, _x_2); _x_5 } } }
+fn __prod_borrowed_publicationLinkageRecordCompareAt(records: &crate::PublicationRecords, recordId: &str, index: u64) -> Option<u64> {
+    { let _x_1 = &(records).chunks; { let _x_2 = 256; { let _x_5 = __prod_borrowed_publicationLinkageRecordCompareChunks(&(_x_1), (recordId).as_ref(), index, _x_2); _x_5 } } }
 }
 
 pub fn publicationLinkageRecordCompareChunks(x_1: &[crate::PublicationRecordsChunk], x_2: alloc::string::String, x_3: u64, x_4: u64) -> Option<u64> {

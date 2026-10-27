@@ -234,11 +234,11 @@ case "$mode" in
         upload prod-codegen 0.1.0 "$stage/lean4-prod" "$stage/packages/prod-codegen-0.1.0.crate" \
             --package prod-codegen --target-dir target
         # lexlean is published from the LexLean repository (LexLean#260). The
-        # SDK embeds vendor/lexlean/lexlean-0.3.0.crate, so crates.io must serve
+        # SDK embeds vendor/lexlean/lexlean-0.4.0.crate, so crates.io must serve
         # exactly those bytes before anything that depends on it is uploaded.
-        vendored=$(sha256sum "$root/vendor/lexlean/lexlean-0.3.0.crate" | cut -d' ' -f1)
-        if ! observed=$(public_checksum lexlean 0.3.0) || [ "$observed" != "$vendored" ]; then
-            printf 'lexlean 0.3.0 must be public with sha256 %s (the crate the SDK embeds); upload it from LexLean first\n' \
+        vendored=$(sha256sum "$root/vendor/lexlean/lexlean-0.4.0.crate" | cut -d' ' -f1)
+        if ! observed=$(public_checksum lexlean 0.4.0) || [ "$observed" != "$vendored" ]; then
+            printf 'lexlean 0.4.0 must be public with sha256 %s (the crate the SDK embeds); upload it from LexLean first\n' \
                 "$vendored" >&2
             exit 1
         fi

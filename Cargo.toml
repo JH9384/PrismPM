@@ -21,7 +21,7 @@ categories = ["compilers", "development-tools"]
 repo-model = { version = "0.3.0", path = "crates/model" }
 repo-conformance = { version = "0.3.0", path = "crates/conformance" }
 prismpm = { version = "0.3.0", path = "crates/prismpm" }
-lexlean = { version = "0.3.0", path = "vendor/lexlean" }
+lexlean = { version = "0.4.0", path = "vendor/lexlean" }
 prod-codegen = { version = "0.1.0", path = "vendor/lean4-prod/rust/prod-codegen" }
 prod-ir = { version = "0.1.0", path = "vendor/lean4-prod/rust/prod-ir" }
 prism-stdlib = { version = "=0.2.0", path = "stdlib/generated/package" }

@@ -7,6 +7,9 @@ import {dirname, join, relative, resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
+// The LexLean package version this repository selects (the v0.4.0 tag).
+export const LEXLEAN_VERSION='0.4.0';
+
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const run = (command,args,cwd) => {
   const result=spawnSync(command,args,{cwd,env:{...process.env,CARGO_NET_OFFLINE:'true'},encoding:'utf8',maxBuffer:64*1024*1024,stdio:['ignore','pipe','pipe']});
@@ -101,7 +104,7 @@ export function packageTreeManifest(root, crateName) {
 }
 
 export function updateDependencyRegister(source,{revision,version,manifestSha,crateSha}) {
-  assert.equal(version,'0.3.0','unsupported LexLean package version');
+  assert.equal(version,LEXLEAN_VERSION,'unsupported LexLean package version');
   assert.match(revision,/^[0-9a-f]{40}$/);
   assert.match(manifestSha,/^[0-9a-f]{64}$/);
   assert.match(crateSha,/^[0-9a-f]{64}$/);
@@ -111,7 +114,10 @@ export function updateDependencyRegister(source,{revision,version,manifestSha,cr
   const next=source.indexOf('\n[[dependency]]',start+1);
   const end=next<0?source.length:next;
   const old=source.slice(start,end);
-  assert.match(old,/^version = "0\.3\.0"$/m);
+  // The register may still name the previous release; its crate path must match it.
+  const registered=old.match(/^version = "(\d+\.\d+\.\d+)"$/m)?.[1];
+  assert.ok(registered,'LexLean dependency row has no exact version');
+  const registeredPattern=registered.replaceAll('.','\\.');
   assert.match(old,/^source = "vendored"$/m);
   const blocks=old.trim().split(/\n(?=\[\[dependency\.artifact\]\])/);
   assert.equal(blocks.length,3,'expected the closed LexLean dependency and two artifacts');
@@ -120,18 +126,18 @@ export function updateDependencyRegister(source,{revision,version,manifestSha,cr
     assert.equal(lines.length,patterns.length,'unexpected or duplicate LexLean identity field');
     patterns.forEach((pattern,index)=>assert.match(lines[index],pattern));
   };
-  canonicalBlock(blocks[0],[/^\[\[dependency\]\]$/,/^id = "lexlean"$/,/^version = "0\.3\.0"$/,/^revision = "[0-9a-f]{40}"$/,/^source = "vendored"$/]);
+  canonicalBlock(blocks[0],[/^\[\[dependency\]\]$/,/^id = "lexlean"$/,new RegExp(`^version = "${registeredPattern}"$`),/^revision = "[0-9a-f]{40}"$/,/^source = "vendored"$/]);
   canonicalBlock(blocks[1],[/^\[\[dependency\.artifact\]\]$/,/^kind = "tree-manifest"$/,/^path = "vendor\/lexlean\/MANIFEST\.sha256"$/,/^sha256 = "[0-9a-f]{64}"$/,/^tree_root = "vendor\/lexlean"$/]);
-  canonicalBlock(blocks[2],[/^\[\[dependency\.artifact\]\]$/,/^kind = "file"$/,/^path = "vendor\/lexlean\/lexlean-0\.3\.0\.crate"$/,/^sha256 = "[0-9a-f]{64}"$/]);
+  canonicalBlock(blocks[2],[/^\[\[dependency\.artifact\]\]$/,/^kind = "file"$/,new RegExp(`^path = "vendor/lexlean/lexlean-${registeredPattern}\\.crate"$`),/^sha256 = "[0-9a-f]{64}"$/]);
   let changed=old;
   const replaceRequired=(pattern,replacement,label)=>{
     assert.equal([...changed.matchAll(new RegExp(pattern.source,pattern.flags+'g'))].length,1,`expected exactly one valid ${label}`);
     changed=changed.replace(pattern,replacement);
   };
-  replaceRequired(/^version = "0\.3\.0"$/m,`version = "${version}"`,'LexLean version');
+  replaceRequired(new RegExp(`^version = "${registeredPattern}"$`,'m'),`version = "${version}"`,'LexLean version');
   replaceRequired(/^revision = "[0-9a-f]{40}"$/m,`revision = "${revision}"`,'LexLean revision');
   replaceRequired(/(path = "vendor\/lexlean\/MANIFEST\.sha256"\nsha256 = ")[0-9a-f]{64}(")/,`$1${manifestSha}$2`,'LexLean manifest digest');
-  replaceRequired(/(path = "vendor\/lexlean\/lexlean-0\.3\.0\.crate"\nsha256 = ")[0-9a-f]{64}(")/,`$1${crateSha}$2`,'LexLean crate digest');
+  replaceRequired(new RegExp(`path = "vendor/lexlean/lexlean-${registeredPattern}\\.crate"\\nsha256 = "[0-9a-f]{64}"`),`path = "vendor/lexlean/lexlean-${version}.crate"\nsha256 = "${crateSha}"`,'LexLean crate digest');
   // A reproducibly packaged, already-selected dependency is a valid no-op.
   // Closed canonical identity blocks reject even mixed-validity duplicate keys.
   return source.slice(0,start)+changed+source.slice(end);
@@ -154,7 +160,7 @@ export function reconcile(repoRoot, lexRoot, revision) {
   const identity=JSON.parse(readFileSync(join(lexRoot,'release/release-identity.json'),'utf8'));
   assert.equal(identity.spec,'lexlean/release-identity/1');
   assert.equal(identity.package,'lexlean');
-  assert.equal(identity.version,'0.3.0');
+  assert.equal(identity.version,LEXLEAN_VERSION);
   assert.equal(identity.lean_toolchain,'leanprover/lean4:v4.32.1');
   const version=identity.version, crateName=`lexlean-${version}.crate`;
   const crateBytes=readFileSync(join(lexRoot,'release/lexlean.crate'));

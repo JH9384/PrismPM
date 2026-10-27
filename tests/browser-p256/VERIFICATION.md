@@ -1,7 +1,7 @@
 # P-256 validation
 
 Current integration selects compiler `991956fe` and LexLean
-`cee0fbade479891479e0b748aaa8b60e0a1aaf07` from the dependency register.
+`e0b74b81e6f49c83596a957d232c8383a5db1a25` from the dependency register.
 Its normal private lock refresh includes wasmparser; the complete owner retains
 all 1,505 vectors, 22 source mutants and three engines. Two real static-closure
 tests and a coherent-manifest regression extended the original 15-test owner to

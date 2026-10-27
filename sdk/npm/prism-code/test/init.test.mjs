@@ -150,3 +150,29 @@ test('npm create prism-code is prism-code init', () => {
   assert.deepEqual(a, walk(join(root, 'proj2')));
   for (const path of a) assert.ok(readFileSync(join(root, 'proj', path)).equals(readFileSync(join(root, 'proj2', path))), path);
 });
+
+test('a bound project points at build --check, the model check, not the deprecated bare check (#368)', { skip: process.platform === 'win32' && 'the docker stub is a POSIX shell script' }, () => {
+  // A stub docker on PATH: `cat` of the image standards.lock prints a fixed file; `prismpm update` writes prismpm.lock.
+  const stubDir = scratch();
+  const stub = join(stubDir, 'docker');
+  writeFileSync(
+    stub,
+    [
+      '#!/bin/sh',
+      'case "$*" in',
+      '  *"--entrypoint cat"*) printf \'{"stub":"standards"}\' ;;',
+      '  *"prismpm update --toolchain"*) prev=; for a in "$@"; do [ "$prev" = --workdir ] && d="$a"; prev="$a"; done; printf \'{"stub":"lock"}\' > "$d/prismpm.lock" ;;',
+      '  *) exit 9 ;;',
+      'esac',
+      '',
+    ].join('\n'),
+    { mode: 0o755 },
+  );
+  const dir = join(scratch(), 'bound');
+  const r = run(bin, ['init', dir, '--sdk-image', IMAGE], { env: { ...process.env, PATH: `${stubDir}:${process.env.PATH}` } });
+  assert.equal(r.code, 0, r.err);
+  assert.equal(readFileSync(join(dir, 'standards.lock'), 'utf8'), '{"stub":"standards"}');
+  assert.ok(existsSync(join(dir, 'prismpm.lock')));
+  assert.match(r.out, /Done\. Next: cd .* && npx prism-code build --check\n$/);
+  assert.doesNotMatch(r.out, /prism-code check\n/);
+});

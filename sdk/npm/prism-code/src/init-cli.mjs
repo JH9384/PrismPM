@@ -142,6 +142,6 @@ export async function runInit(argv, { out = process.stdout, err = process.stderr
     err.write(`init.bind: prismpm update --toolchain exited ${update.code}; the project is scaffolded but prismpm.lock was not written\n`);
     return update.code === 69 ? 69 : 2;
   }
-  out.write(`  prismpm.lock       ${options['sdk-image']}\nDone. Next: cd ${positional[0] ?? '.'} && npx prism-code check\n`);
+  out.write(`  prismpm.lock       ${options['sdk-image']}\nDone. Next: cd ${positional[0] ?? '.'} && npx prism-code build --check\n`);
   return 0;
 }

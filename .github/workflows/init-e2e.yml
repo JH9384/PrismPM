@@ -1,7 +1,7 @@
 name: init end to end
 
 # Issue #281's acceptance, measured: `npm create prism-code` to a passing
-# check, on a clean GitHub runner with the SDK image pulled first. It is
+# model check (`prism-code build --check`), on a clean GitHub runner with the SDK image pulled first. It is
 # manual (workflow_dispatch) because it pulls a multi-gigabyte SDK image and
 # because no PrismPM SDK release exists yet (#194): the image is an input.
 # Once a release exists, the release's image becomes the default and this
@@ -10,7 +10,7 @@ name: init end to end
 # Steps, each timed:
 #   1. pull the SDK image (not counted; the issue says "with the SDK image cached")
 #   2. npm create prism-code app -- --sdk-image <image>   (scaffold and bind)
-#   3. npx prism-code check                                (prismpm check in the image)
+#   3. npx prism-code build --check                        (prismpm check in the image; #368 moved it from `check`)
 # The job fails when 2 + 3 exceed the issue's two minutes.
 
 on:
@@ -76,7 +76,10 @@ jobs:
           npx --no-install create-prism-code app --sdk-image "$SDK_IMAGE"
           scaffolded=$(date +%s)
           cd app
-          npx --no-install prism-code check
+          npx --no-install prism-code build --check 2> check.err
+          cat check.err >&2
+          # The deprecated spelling prints a warning; the current one must not.
+          ! grep -q deprecated check.err
           checked=$(date +%s)
           total=$((checked - start))
           {

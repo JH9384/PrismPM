@@ -143,7 +143,8 @@ the repository's own gate checks; edit it from there. Existing files are never o
 
 `--sdk-image` binds the project to an SDK image: it copies the image's `standards.lock` and runs
 `prismpm update --toolchain <image>` in it, which writes `prismpm.lock`. Then `npx prism-code
-check` runs in that image. No PrismPM SDK release exists yet, so there is no default image.
+build --check` checks the model in that image, and `npx prism-code check <app.holo>` judges a built
+holo. No PrismPM SDK release exists yet, so there is no default image.
 
 ## The prism.toml manifest (experimental, #280)
 

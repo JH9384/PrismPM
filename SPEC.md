@@ -17,7 +17,7 @@ reproduce a standard, grant certification, or prove facts asserted by a
 standard. ISO/IEC 25019, ISO/IEC 27034 parts other than 1 and 5, quality-in-use
 outcomes, and organizational certification are outside the Holo/1 baseline.
 
-The normative PrismPM 0.3.0 interface is the digest-pinned Linux SDK OCI index
+The normative PrismPM 0.4.0 interface is the digest-pinned Linux SDK OCI index
 for `linux/amd64` and `linux/arm64`. Native archives support
 `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`; other hosts use the
 SDK through Docker and the Development Container Specification. Rust 1.97.1
@@ -3760,9 +3760,10 @@ model output so PrismPM cannot author the sole policy that authorizes itself.
 
 ## 18. Version and compatibility policy
 
-Holo/1 is frozen. PrismPM 0.3.0 adds the production-system SDK and lifecycle;
-prism-stdlib 0.2.0 adds compatible system profiles while preserving every
-0.1.x application API and Calculator artifact contract. Public JSON schemas and
+Holo/1 is frozen. PrismPM 0.4.0 is the current production-system SDK release and
+carries the SDK and lifecycle added by 0.3.0; prism-stdlib 0.2.0 adds compatible
+system profiles while preserving every 0.1.x application API and Calculator
+artifact contract. Public JSON schemas and
 media types have exact major compatibility; only contracts explicitly marked
 `exact-major-additive-minor` may add optional minor-version fields. Unknown
 fields in a `/1` value remain errors. An incompatible Holo change requires

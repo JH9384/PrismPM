@@ -35,7 +35,7 @@ function releaseFixture(sbom = rawSpdx(), architecture = 'amd64', imageName = 's
     'org.opencontainers.image.created': '1970-01-01T00:00:00Z',
     'org.opencontainers.image.revision': revision,
     'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/PrismPM',
-    'org.opencontainers.image.version': '0.3.0'}}});
+    'org.opencontainers.image.version': '0.4.0'}}});
   const child = encode({schemaVersion: 2, mediaType: manifestType,
     config: {mediaType: 'application/vnd.oci.image.config.v1+json', digest: digest(config), size: config.length}, layers: []});
   const subject = {mediaType: manifestType, digest: digest(child), size: child.length};

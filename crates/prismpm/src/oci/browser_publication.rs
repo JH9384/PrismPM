@@ -153,7 +153,7 @@ impl Transport {
             "--header",
             "Cache-Control: no-cache",
             "--user-agent",
-            "PrismPM-browser-publication/0.3.0",
+            "PrismPM-browser-publication/0.4.0",
             "--max-filesize",
             &size.max(1).to_string(),
             "--output",

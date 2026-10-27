@@ -23,7 +23,7 @@ const standardsFixture = () => {
 const config = () => ({architecture: 'amd64', os: 'linux', rootfs: {type: 'layers', diff_ids: []},
   config: {Labels: {'org.opencontainers.image.revision': revision,
     'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/PrismPM',
-    'org.opencontainers.image.version': '0.3.0',
+    'org.opencontainers.image.version': '0.4.0',
     'org.opencontainers.image.created': '1970-01-01T00:00:00Z'}}});
 
 test('final runtime inventory is canonical after appending measured browser artifacts', () => {

@@ -24,7 +24,7 @@ function fixture(t){
  const layer=execFileSync('/usr/bin/tar',['--format=ustar','-cf','-','-C',layerRoot,'unit-only'],{timeout:5000,maxBuffer:1048576});
  const config=Buffer.from(JSON.stringify({os:'linux',architecture:arch,rootfs:{type:'layers',diff_ids:[sha(layer)]},config:{Labels:{
   'org.opencontainers.image.revision':source,'org.opencontainers.image.source':'https://github.com/UOR-Foundation/PrismPM',
-  'org.opencontainers.image.version':'0.3.0','org.opencontainers.image.created':'1970-01-01T00:00:00Z'}}}));
+  'org.opencontainers.image.version':'0.4.0','org.opencontainers.image.created':'1970-01-01T00:00:00Z'}}}));
  const manifest=Buffer.from(JSON.stringify({schemaVersion:2,mediaType:'application/vnd.oci.image.manifest.v1+json',
   config:{...put(config),mediaType:'application/vnd.oci.image.config.v1+json'},
   layers:[{...put(layer),mediaType:'application/vnd.oci.image.layer.v1.tar'}]}));

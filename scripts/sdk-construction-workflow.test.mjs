@@ -59,7 +59,7 @@ function validate(text){
  // remains covered by the hash and explicit assertions above.
  const protectedBody=(name)=>{const body=structuredClone(w.jobs[name]);if(name==='policy'){delete body.needs;delete body['timeout-minutes'];}if(name==='build')delete body.strategy['max-parallel'];return body;};
  // Complete original protected owners, captured before this additive change.
- for(const [name,expected] of Object.entries({policy:'33851cff53bf24eb20eb90e17edac1181d71ed1527dbe18735f1038788ad05e2',build:'fc01189810bbbb18f7e30c232bf81a10d510689c08f7621bbebbb47f7cffc4cd',publish:'341a4964415efc121c469d7f1a609771f91816471e3decb8fea51fe3f8f7a5f3'})){
+  for(const [name,expected] of Object.entries({policy:'33851cff53bf24eb20eb90e17edac1181d71ed1527dbe18735f1038788ad05e2',build:'35aeaa947a3dce79868519fde4edb2ad1ccde35ec85fe0f3a75e678ab2787ad8',publish:'341a4964415efc121c469d7f1a609771f91816471e3decb8fea51fe3f8f7a5f3'})){
   const original=protectedBody(name);
   assert.equal(createHash('sha256').update(canonical(original)).digest('hex'),expected,'protected publication owner changed: '+name);
  }

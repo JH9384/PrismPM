@@ -328,9 +328,9 @@ const expectedMatrices = {
 const candidateJobs = {
   'input-policy': [30, '1a2606aed5c40be2c5fd6ade291d4d8cc8f48b265ec77346e886d7e429331b1c'],
   policy: [30, 'd8c166a9586b9ecf4e6852352218bdeec51b918562604c920fea38db8e13d499'],
-  build: [180, '54a93dd0777745bc3e2d455e06019b4971bce7fc4c3b2baed1451fbc796f143d'],
+  build: [180, 'ceb7c095142feabc8764b446bfe74f6b2648236091dfd7f0e18eed004ef1a9ce'],
   publish: [60, 'eed34aecea86d7fb123167999bb1a0048f62609f6fc91d6979eeb0dcb8340128'],
-  'unpublished-construction': [180, '1d3f4bfbee8ab48dcb68a2a754be821358dcd5658ea7993ad4e32aee7c023254'],
+  'unpublished-construction': [180, '41becc11023405b4a03aef46605180df69124b5ebdcc3a90c572b3716c492999'],
   'construction-integrity': [90, '6cf032e9b0febd74a52489ce4f06439f93ddebb3e13910e503e9f68f90fc3fa7'],
   'unpublished-prerequisites': [360, 'eaa51e906cb16a3b390033e524e84548554ce7fbdb38a9148fbdeb80d02e2938'],
   'unpublished-installed': [360, 'fb575ed29295c2c233a4ca401e6915c35994ed2a8e805845fe293304c567f86c'],

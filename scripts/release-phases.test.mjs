@@ -18,12 +18,12 @@ const workflow = () => load(source);
 const revision = 'a'.repeat(40);
 const sha = bytes => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const policy = () => ({repository: 'UOR-Foundation/PrismPM', ref: 'refs/heads/main',
-  event: 'workflow_dispatch', version: '0.3.0', publishCrates: false, revision});
+  event: 'workflow_dispatch', version: '0.4.0', publishCrates: false, revision});
 const prerequisites = names => Object.fromEntries(names.map(name => [name, {result: 'success'}]));
 const ociNeeds = ['gate', 'images', 'native', 'reproducibility', 'installed-sdk'];
 const buildkit = 'moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa';
 const environment = () => ({GITHUB_REPOSITORY: 'UOR-Foundation/PrismPM', GITHUB_REF: 'refs/heads/main',
-  GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_SHA: revision, DISPATCH_VERSION: '0.3.0', PUBLISH_CRATES: 'false',
+  GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_SHA: revision, DISPATCH_VERSION: '0.4.0', PUBLISH_CRATES: 'false',
   GITHUB_ACTIONS: 'true', GITHUB_RUN_ID: '123456789', GITHUB_RUN_ATTEMPT: '1'});
 const publicationTag = `sdk-oci-${revision}-123456789-1`;
 
@@ -285,7 +285,7 @@ test('Cargo publication target selection binds the exact package and version arc
     ['prod-ir', '0.1.0', '/release sources/lean4-prod/target'],
     ['prod-codegen', '0.1.0', '/release sources/lean4-prod/target'],
     ['prism-stdlib', '0.2.0', '/release sources/stdlib/target'],
-    ['prismpm', '0.3.0', '/workspace/target'],
+    ['prismpm', '0.4.0', '/workspace/target'],
   ]) {
     assert.equal(select(name, version, `${target}/package/${name}-${version}.crate`), `${target}\n`);
     for (const archive of [`${target}/${name}-${version}.crate`,
@@ -296,12 +296,12 @@ test('Cargo publication target selection binds the exact package and version arc
 });
 
 test('explicit OCI-only dispatch is distinct from Cargo publication and rejects foreign refs', () => {
-  assert.deepEqual(publicationPolicy(policy()), {version: '0.3.0', publishCrates: false});
+  assert.deepEqual(publicationPolicy(policy()), {version: '0.4.0', publishCrates: false});
   assert.equal(publicationPolicy({...policy(), publishCrates: true}).publishCrates, true);
-  assert.equal(publicationPolicy({...policy(), event: 'push', ref: 'refs/tags/v0.3.0', publishCrates: null}).publishCrates, true);
+  assert.equal(publicationPolicy({...policy(), event: 'push', ref: 'refs/tags/v0.4.0', publishCrates: null}).publishCrates, true);
   for (const change of [{publishCrates: 'false'}, {publishCrates: null}, {repository: 'other/PrismPM'},
     {ref: 'refs/heads/feature'}, {ref: 'refs/tags/v0.3.0'}, {event: 'pull_request'},
-    {version: '0.4.0'}, {revision: 'main'}, {extra: true}]) {
+    {version: '0.5.0'}, {revision: 'main'}, {extra: true}]) {
     assert.throws(() => publicationPolicy({...policy(), ...change}));
   }
 });
@@ -309,7 +309,7 @@ test('explicit OCI-only dispatch is distinct from Cargo publication and rejects 
 test('image-index signatures require the exact current source, ref, trigger, name, issuer and repository', () => {
   const imageDigest = `sha256:${'b'.repeat(64)}`;
   for (const name of ['sdk', 'runtime', 'adapter-compose', 'adapter-kubernetes', 'adapter-github-pages', 'oracles']) {
-    for (const ref of ['refs/heads/main', 'refs/tags/v0.3.0']) {
+    for (const ref of ['refs/heads/main', 'refs/tags/v0.4.0']) {
       const image = `ghcr.io/uor-foundation/prismpm-${name}@${imageDigest}`;
       assert.deepEqual(imageVerificationArguments(image, revision, ref, '/trusted-root'), [
         'verify', '--trusted-root', '/trusted-root', '--certificate-identity',
@@ -329,7 +329,7 @@ test('image-index signatures require the exact current source, ref, trigger, nam
     [image.replace(imageDigest, 'latest'), revision, 'refs/heads/main'],
     [`${image}@${imageDigest}`, revision, 'refs/heads/main'],
     [image, 'main', 'refs/heads/main'], [image, revision, 'refs/heads/feature'],
-    [image, revision, 'refs/tags/v0.4.0'],
+    [image, revision, 'refs/tags/v0.3.0'],
   ]) assert.throws(() => imageVerificationArguments(subject, source, ref, '/trusted-root'));
 });
 
@@ -415,7 +415,7 @@ function layout(directory, architecture, marker = 'same') {
     'org.opencontainers.image.created': '1970-01-01T00:00:00Z',
     'org.opencontainers.image.revision': revision,
     'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/PrismPM',
-    'org.opencontainers.image.version': '0.3.0', marker}}}), mediaType: 'application/vnd.oci.image.config.v1+json'};
+    'org.opencontainers.image.version': '0.4.0', marker}}}), mediaType: 'application/vnd.oci.image.config.v1+json'};
   const layers = [Buffer.alloc(200_003, 97), Buffer.from('second layer\n')].map(bytes =>
     ({...putBytes(bytes), mediaType: 'application/vnd.oci.image.layer.v1.tar'}));
   const manifest = put({schemaVersion: 2, mediaType: 'application/vnd.oci.image.manifest.v1+json', config, layers});
@@ -563,7 +563,7 @@ test('existing source-addressed publication is reusable only with exact metadata
   const check = (value = release, actual = files, commit = revision) =>
     verifyExistingRelease(value, {tag, revision, notes, files}, actual, commit);
   check();
-  for (const change of [{tag_name: 'v0.3.0'}, {target_commitish: 'main'}, {draft: true},
+  for (const change of [{tag_name: 'v0.4.0'}, {target_commitish: 'main'}, {draft: true},
     {prerelease: false}, {body: 'accepted'}, {assets: []},
     {assets: [...release.assets, ...release.assets]}, {assets: [{...release.assets[0], size: 4}]}]) {
     assert.throws(() => check({...release, ...change}));
@@ -790,7 +790,7 @@ test('pinned Buildx pushes a genuine two-platform OCI index by digest without cr
       '--build-arg', 'SOURCE_DATE_EPOCH=0', '--label', 'org.opencontainers.image.created=1970-01-01T00:00:00Z',
       '--label', `org.opencontainers.image.revision=${revision}`, '--label',
       'org.opencontainers.image.source=https://github.com/UOR-Foundation/PrismPM',
-      '--label', 'org.opencontainers.image.version=0.3.0'];
+      '--label', 'org.opencontainers.image.version=0.4.0'];
     const metadata = join(directory, 'metadata.json');
     docker([...args, '--platform', 'linux/amd64,linux/arm64', '--metadata-file', metadata, '--output',
       `type=registry,name=${endpoint}/fixture/sdk,push-by-digest=true,name-canonical=true,rewrite-timestamp=true,oci-mediatypes=true,registry.insecure=true`, context]);

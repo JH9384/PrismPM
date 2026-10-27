@@ -5,7 +5,7 @@ All notable changes to PrismPM will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-10-27
 
 ### Added
 - Feature and user-journey declarations: `Foundation.Arch::Feature` (statement, realizing calls, accepting acceptance rows) and `Foundation.Arch::Journey` (stakeholder actor, ordered feature steps), checked by `prismpm check` and `build` with registered diagnostics PP2014 to PP2018, and the normalized validator `Foundation.Holo.validateNormalizedFeatures` with empty-axiom soundness and completeness theorems (FT-12, FT-13, ST-19).
@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A guest that declares an import now fails to load with `CapabilityDeniedError` (`capability_denied`, check `capabilities.import`) instead of `PrismCodeError` `core.imports` (#279); the `prism-code` exit code stays 2.
 - `prism-code inspect` on a `.holo` prints the human inspection instead of the 0.2.0 JSON summary, and `--json` prints `prismpm/holo-inspection/1`. A closure directory keeps the 0.2.0 summary.
 - `prism-code check <holo>` judges the holo and returns a verdict instead of running `prismpm check` in the SDK image; the Docker-backed check is now `prism-code build --check` (#270).
+
+### Compatibility
+- Holo/1 and accepted Prism application inputs remain stable. Additive contracts use new registered schemas; an incompatible schema change requires a new schema identifier and an explicit migration.
+- Security disclosures and vulnerability reporting: `security@uor.foundation`.
 
 ## [0.3.0] - 2026-09-21
 

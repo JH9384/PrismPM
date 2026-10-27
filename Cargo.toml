@@ -9,7 +9,7 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.97"
 license = "MIT OR Apache-2.0"
@@ -18,9 +18,9 @@ keywords = ["prismpm", "lean", "latex", "architecture", "security"]
 categories = ["compilers", "development-tools"]
 
 [workspace.dependencies]
-repo-model = { version = "0.3.0", path = "crates/model" }
-repo-conformance = { version = "0.3.0", path = "crates/conformance" }
-prismpm = { version = "0.3.0", path = "crates/prismpm" }
+repo-model = { version = "0.4.0", path = "crates/model" }
+repo-conformance = { version = "0.4.0", path = "crates/conformance" }
+prismpm = { version = "0.4.0", path = "crates/prismpm" }
 lexlean = { version = "0.4.0", path = "vendor/lexlean" }
 prod-codegen = { version = "0.1.0", path = "vendor/lean4-prod/rust/prod-codegen" }
 prod-ir = { version = "0.1.0", path = "vendor/lean4-prod/rust/prod-ir" }

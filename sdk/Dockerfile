@@ -306,7 +306,7 @@ RUN mkdir -p /opt/prismpm/cargo-home \
     && rm -rf /usr/local/cargo/registry /usr/local/cargo/git /opt/prismpm/source
 
 FROM build AS cli-archive-package
-ARG SDK_VERSION=0.3.0
+ARG SDK_VERSION=0.4.0
 ARG TARGETARCH
 COPY --from=source_inputs /prepared/source/LICENSE-APACHE /prepared/source/LICENSE-MIT /prepared/source/README.md /tmp/native-licenses/
 RUN set -eu; \

@@ -23,7 +23,7 @@ function fixture(arch='amd64',wrongDiff=false,codec='gzip',damage){
  if(damage==='truncated')layer=layer.subarray(0,Math.floor(layer.length/2));
  else if(damage==='corrupt'){layer=Buffer.from(layer);layer[0]^=0xff;}
  else assert.equal(damage,undefined);
- const config=json({architecture:arch,os:'linux',config:{Labels:{'org.opencontainers.image.revision':revision,'org.opencontainers.image.source':'https://github.com/UOR-Foundation/PrismPM','org.opencontainers.image.version':'0.3.0','org.opencontainers.image.created':'1970-01-01T00:00:00Z'}},rootfs:{type:'layers',diff_ids:[wrongDiff?'sha256:'+'0'.repeat(64):sha(expanded)]}});
+ const config=json({architecture:arch,os:'linux',config:{Labels:{'org.opencontainers.image.revision':revision,'org.opencontainers.image.source':'https://github.com/UOR-Foundation/PrismPM','org.opencontainers.image.version':'0.4.0','org.opencontainers.image.created':'1970-01-01T00:00:00Z'}},rootfs:{type:'layers',diff_ids:[wrongDiff?'sha256:'+'0'.repeat(64):sha(expanded)]}});
  const manifest=json({schemaVersion:2,mediaType:imageType,config:{mediaType:'application/vnd.oci.image.config.v1+json',digest:sha(config),size:config.length},layers:[{mediaType:'application/vnd.oci.image.layer.v1.tar'+(codec==='tar'?'':'+'+codec),digest:sha(layer),size:layer.length}]});
  const child={mediaType:imageType,digest:sha(manifest),size:manifest.length,platform:{os:'linux',architecture:arch}};
  const blobs=[layer,config,manifest];

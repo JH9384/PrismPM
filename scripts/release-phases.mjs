@@ -18,7 +18,7 @@ const ociNeeds = ['gate', 'images', 'native', 'reproducibility', 'installed-sdk'
 export function publicationPolicy(value) {
   assert.deepEqual(Object.keys(value).sort(), ['event', 'publishCrates', 'ref', 'repository', 'revision', 'version']);
   assert.equal(value.repository, repository);
-  assert.equal(value.version, '0.3.0');
+  assert.equal(value.version, '0.4.0');
   assert.match(value.revision, /^[0-9a-f]{40}$/);
   let publishCrates;
   if (value.event === 'workflow_dispatch') {
@@ -27,7 +27,7 @@ export function publicationPolicy(value) {
     publishCrates = value.publishCrates;
   } else {
     assert.equal(value.event, 'push');
-    assert.equal(value.ref, 'refs/tags/v0.3.0');
+    assert.equal(value.ref, 'refs/tags/v0.4.0');
     assert.equal(value.publishCrates, null);
     publishCrates = true;
   }
@@ -289,8 +289,8 @@ export function assetNames() {
       `sdk-${architecture}-browser-sdk.log`, `sdk-${architecture}-library-sdk.log`,
     ]),
     ...['x86_64', 'aarch64'].flatMap(architecture => [
-      `prismpm-0.3.0-${architecture}-unknown-linux-gnu.tar.gz`,
-      `prismpm-0.3.0-${architecture}-unknown-linux-gnu.tar.gz.sha256`,
+      `prismpm-0.4.0-${architecture}-unknown-linux-gnu.tar.gz`,
+      `prismpm-0.4.0-${architecture}-unknown-linux-gnu.tar.gz.sha256`,
     ]),
     ...imageNames.flatMap(name => [
       `${name}-image.txt`, `${name}-image-index.json`, `${name}-provenance.sigstore.json`,

@@ -115,7 +115,7 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain)"
-          test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)" = 0.3.0
+          test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)" = 0.4.0
           bash -n scripts/sdk-candidate.sh
           node --test scripts/sdk-candidate.test.mjs
           mkdir -p "$RUNNER_TEMP/candidate"
@@ -130,7 +130,7 @@ jobs:
             --label org.opencontainers.image.created=1970-01-01T00:00:00Z \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
-            --label org.opencontainers.image.version=0.3.0
+            --label org.opencontainers.image.version=0.4.0
       - name: Test the exact OCI artifact without publication credentials
         id: smoke
         env:
@@ -315,7 +315,7 @@ jobs:
             --label org.opencontainers.image.created=1970-01-01T00:00:00Z \
             --label "org.opencontainers.image.revision=$SOURCE_REVISION" \
             --label org.opencontainers.image.source=https://github.com/UOR-Foundation/PrismPM \
-            --label org.opencontainers.image.version=0.3.0
+            --label org.opencontainers.image.version=0.4.0
           node --test scripts/sdk-construction-record.test.mjs
           node scripts/sdk-construction-record.mjs "$RUNNER_TEMP/construction"
           test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"

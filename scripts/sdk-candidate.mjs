@@ -17,7 +17,7 @@ export function validateConfig(config, architecture, revision) {
   const labels = config.config.Labels;
   assert.equal(labels['org.opencontainers.image.revision'], revision);
   assert.equal(labels['org.opencontainers.image.source'], 'https://github.com/UOR-Foundation/PrismPM');
-  assert.equal(labels['org.opencontainers.image.version'], '0.3.0');
+  assert.equal(labels['org.opencontainers.image.version'], '0.4.0');
   assert.equal(labels['org.opencontainers.image.created'], '1970-01-01T00:00:00Z');
 }
 

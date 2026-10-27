@@ -1,6 +1,6 @@
 # Publication phases
 
-`release.yml` accepts an exact `main` dispatch or the `v0.3.0` tag. Source
+`release.yml` accepts an exact `main` dispatch or the `v0.4.0` tag. Source
 verification runs `just vv` twice without cleanup. All existing image, native,
 package, oracle, bootstrap and reproducibility gates remain required.
 
@@ -52,7 +52,7 @@ Buildx 0.28.0 uses digest-pinned BuildKit 0.26.2 and its `docker-container`
 driver; the default Docker driver does not support digest-only exports.
 
 Cargo publication is a separate explicit phase. Only its success permits the
-existing versioned discovery aliases and `v0.3.0` publication job. Neither phase
+existing versioned discovery aliases and `v0.4.0` publication job. Neither phase
 substitutes for the independent ecosystem acceptance contract.
 
 Each platform's full Syft 1.51.1 SPDX bytes are a layer in an OCI 1.1 artifact

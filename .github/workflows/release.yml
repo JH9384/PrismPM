@@ -6,7 +6,7 @@ on:
       version:
         description: Exact SemVer without a leading v
         required: true
-        default: 0.3.0
+        default: 0.4.0
         type: string
       publish-crates:
         description: Publish the already packaged crates through crates.io trusted publishing
@@ -15,7 +15,7 @@ on:
         type: boolean
   push:
     tags:
-      - v0.3.0
+      - v0.4.0
 
 # Never cancel a release in flight: partial publication is worse than queueing.
 concurrency:
@@ -51,7 +51,7 @@ jobs:
           set -euo pipefail
           node scripts/release-phases.mjs policy >> "$GITHUB_OUTPUT"
           test "$(git status --porcelain)" = ""
-          test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)" = 0.3.0
+          test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)" = 0.4.0
       - uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca
         with:
           push: never
@@ -943,8 +943,8 @@ jobs:
                 "$release_sources/stdlib/Cargo.toml" \
                 "$release_sources/stdlib/target/package/prism-stdlib-0.2.0.crate" \
                 "$PWD/stdlib/generated/prism-stdlib-0.2.0.crate"
-              publish_exact prismpm 0.3.0 crates/prismpm/Cargo.toml \
-                "$PWD/target/package/prismpm-0.3.0.crate" -
+              publish_exact prismpm 0.4.0 crates/prismpm/Cargo.toml \
+                "$PWD/target/package/prismpm-0.4.0.crate" -
               rm -rf "$release_parent"
             '
 

@@ -512,7 +512,7 @@ fn download_https(url: &str, destination: &Path, maximum_bytes: u64) -> Result<(
             "=https",
             "--tlsv1.2",
             "--user-agent",
-            "PrismPM-authority-fetch/0.3.0",
+            "PrismPM-authority-fetch/0.4.0",
         ])
         .arg("--output")
         .arg(destination)

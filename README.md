@@ -9,13 +9,13 @@ handwritten Lean or target-specific application code.
 
 The historical `v0.1.0` release is a systems-modeling prototype; `v0.2.0`
 introduced portable applications. The production-system SDK candidate is
-`v0.3.0`, and it is releasable only when the generated
+`v0.4.0`, and it is releasable only when the generated
 `prism-stdlib` and `prism-calculator` crates, `Calculator.holo`, the independent
 Hologram execution evidence, and the public `calculator-example` Pages
 application and complete CalculatorSystem reference all pass the atomic release
 contract in [SPEC.md](SPEC.md).
 
-Version 0.3.0 is not an accepted production-system release. Component tests,
+Version 0.4.0 is not an accepted production-system release. Component tests,
 contract fixtures and a successful Pages upload do not establish that acceptance.
 [Release status](RELEASE-STATUS.md) records the remaining release boundaries.
 

@@ -53,17 +53,36 @@ The same flag works on `run`. Keep the policy file in the repository and point C
 
 ## Read the verdict in CI
 
-Every verb takes `--json`. The verdict becomes one object with the level and the reasons:
+Every verb takes `--json`. The verdict becomes one `prism/verdict/1` object: the archive fingerprint, the computed level, the policy, whether it passed, and the reason for every check that did not:
 
 ```bash
-prism check --json
+prism check calculator@sha256:3f9c… --json
 ```
 
 ```json
-{"ref": "calculator@sha256:3f9c…", "verdict": "pass", "level": "P3", "policy": "default", "reasons": []}
+{"holo":"blake3:8408…","level":"P2","passed":true,"policy":{"minimum":"P2","name":"default"},"reasons":[{"check":"replay.statement","message":"The holo carries no replay statement.","withholds":"P3"}],"schema":"prism/verdict/1"}
 ```
 
-Exit codes are the contract. 0 is pass. 1 is fail, and `reasons` says why. 2 means `check` could not finish, for example when the toolchain image or the attestation bundle could not be read. Treat 2 as a fail in CI. It is not a pass you have not looked at yet.
+Exit codes are the contract. 0 is pass. 1 is fail, and `reasons` says why. 2 means `check` reached no verdict, for example when the file is not a holo, the policy cannot be read, or the format revision is unknown. Treat 2 as a fail in CI. It is not a pass you have not looked at yet. On exit 2, stdout is empty and the cause is on stderr.
+
+A GitHub Actions job gates the deploy on the exit code and keeps the verdict when the check fails:
+
+```yaml
+- name: Check the holo
+  run: prism check dist/calculator.holo --policy policy --json > verdict.json
+- name: Keep the verdict
+  if: failure()
+  uses: actions/upload-artifact@v4
+  with:
+    name: verdict
+    path: verdict.json
+```
+
+Today the same verdict comes from `prism-code`, with no Docker and no `prism` binary:
+
+```bash
+npx prism-code check dist/calculator.holo --policy policy.json --json
+```
 
 ## Assurance levels in practice
 

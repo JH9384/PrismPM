@@ -78,7 +78,8 @@ jobs:
           node -e '
             const pack = JSON.parse(require("fs").readFileSync("pack.json", "utf8"))[0];
             console.log(`unpacked size: ${pack.unpackedSize} bytes, ${pack.entryCount} files`);
-            if (pack.unpackedSize > 425984) throw new Error("package exceeds 416 KiB");
+            // 448 KiB: src/ and its single-file build browser.js, plus the proof statement checks and the proof schema (#270).
+            if (pack.unpackedSize > 458752) throw new Error("package exceeds 448 KiB");
             const paths = pack.files.map((f) => f.path);
             const stray = paths.filter((p) => /^(test|scripts)\//.test(p));
             if (stray.length) throw new Error(`tests or scripts in the package: ${stray}`);

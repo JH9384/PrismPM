@@ -166,9 +166,13 @@ It rejects with `VerifyError` code `trustedroot.invalid` for a root that is not 
 
 Not checked: the DSSE signature, the signing identity, revocation and checkpoint witnesses. Those belong to `prism verify` (issue #272). A Rekor v1 `dsse` entry is checked by its inclusion proof and signed checkpoint; its signed entry timestamp is not used.
 
+## Proof statement checks
+
+`src/statements.mjs` holds the eight checks of a `prism/proof/v1` statement against the holo it travels in (issue #266): `proof.envelope`, `proof.statement`, `proof.subject`, `proof.model`, `proof.verifier`, `proof.verdict` and `proof.tcb`, diagnostics `PP5501` to `PP5507`, each withholding P2. `proof.level` is a shape failure since #269 and reports as `proof.statement`. `verify` joins them when a format revision admits the attestation section (#267's wire model change); until then a holo that carries one has no verdict, and `prism-code check` exits 2 on it. The module is not exported.
+
 ## Errors
 
-`verify` rejects, and `inspect` throws, only when there is no verdict to give. `prism check` exits 2 in the same cases.
+`verify` rejects, and `inspect` throws, only when there is no verdict to give. `prism-code check` (and later `prism check`) exits 2 in the same cases.
 
 | `VerifyError` code | When |
 |---|---|

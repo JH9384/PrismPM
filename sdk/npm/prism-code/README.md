@@ -326,17 +326,64 @@ Every error is a `PrismError` with a stable `code`: `VerificationError`
 code, `verdict` and `reasons` the whole result. Load and archive failures remain
 `PrismCodeError`, a `PrismError` whose `code` is the check (`archive.magic`, ...).
 
+## Check one in CI (experimental)
+
+`prism-code check <app.holo>` judges a holo against a policy and prints the
+verdict: the assurance level, whether the policy passed, and every reason. It
+runs the same checks as `experimental_verify`, offline, with no Docker.
+
+```
+npx prism-code check Calculator.holo
+npx prism-code check Calculator.holo --policy policy.json --json
+```
+
+| Exit | Meaning | stdout with `--json` |
+| --- | --- | --- |
+| 0 | A verdict was reached and the policy passed. | one verdict |
+| 1 | A verdict was reached and the policy failed. | one verdict |
+| 2 | No verdict: not a holo, an unreadable policy, an unknown format revision. | nothing |
+
+The policy is a verify-time input, never read from the holo. A policy file is
+one JSON object with `name`, `minimum` (`P0` to `P3`), `digests` and `world`,
+the options of `experimental_verify`. Without `--policy` the default policy
+asks for `P2` or above; `PRISM_MINIMUM_LEVEL` sets the minimum when the policy
+does not. Without a `name`, the verdict names the policy by its path.
+
+A CI job gates on the exit code and keeps the verdict when it fails:
+
+```yaml
+- name: Check the holo
+  run: npx prism-code check dist/app.holo --policy prism-policy.json --json > verdict.json
+- name: Keep the verdict
+  if: failure()
+  uses: actions/upload-artifact@v4
+  with:
+    name: verdict
+    path: verdict.json
+```
+
+Treat exit 2 as a failure: it means nothing was judged. Today every holo is
+`P0`, because no build writes a provenance or proof statement into the holo
+yet, so the default policy fails it; a holo that carries an attestation
+section exits 2 until the format revision that admits it lands with #267's
+wire model change. From `P2` up, the text form also prints what the check
+trusts the signer for.
+
+`prism-code check` with no holo is the 0.2.0 spelling of `build --check`. It
+still runs, prints a deprecation warning, and is removed in 0.4.0.
+
 ## Build one
 
-`check`, `build`, `verify` and `conformance` run `prismpm` inside the
+`build`, `build --check`, `verify` and `conformance` run `prismpm` inside the
 digest-pinned SDK image named by `prismpm.lock` in the current directory, with
 the same `docker run` invocation the UOR template uses. Docker is required;
 the image is Linux (amd64 and arm64). `build` and `verify` also mount the
-Docker socket.
+Docker socket. `build --check` runs `prismpm check`: it validates the model
+and writes nothing.
 
 ```
 cd my-prism-project
-npx prism-code check
+npx prism-code build --check
 npx prism-code build
 ```
 

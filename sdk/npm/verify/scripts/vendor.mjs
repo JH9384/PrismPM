@@ -29,6 +29,13 @@ const header = (origin, note) =>
 /** The holo section schemas the reader checks, by their key in HOLO_SCHEMAS. */
 const HOLO_KEYS = ['ARCHIVE', 'APP_MANIFEST', 'SOURCE_MANIFEST', 'APPLICATION_DIRECTORY'];
 
+/**
+ * The predicate schemas the statement checks validate against (src/statements.mjs, #266).
+ * A file of their own, so the browser build and prism-code's copy carry them only once
+ * `verify` reads statements.
+ */
+const PREDICATE_PATHS = ['predicates/proof-v1.schema.json'];
+
 /** The `schema` names of the documents a reader of the spec's format revisions checks. */
 function documentNames(spec) {
   const names = new Set();
@@ -78,6 +85,14 @@ function specIndex(spec) {
   );
 }
 
+function predicateModule() {
+  const lines = PREDICATE_PATHS.map((path) => `  ${JSON.stringify(path)}: ${JSON.stringify(JSON.parse(read(`../../spec/${path}`)))},`);
+  return (
+    header('sdk/npm/spec/predicates', 'The predicate schemas the statement checks need, keyed by their path in @prism-code/spec, whitespace removed.') +
+    `export const PREDICATE_SCHEMAS = Object.freeze({\n${lines.join('\n')}\n});\n`
+  );
+}
+
 const spec = await loadSpec();
 
 const outputs = {
@@ -94,6 +109,7 @@ const outputs = {
       'Published here as the validator for the documents inside a holo; it rejects any keyword it does not implement.',
     ) + read('../../spec/test/json-schema.mjs'),
   'src/vendor/schemas.mjs': await schemaModule(spec),
+  'src/vendor/predicates.mjs': predicateModule(),
 };
 
 let stale = 0;

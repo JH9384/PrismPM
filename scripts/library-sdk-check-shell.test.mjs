@@ -1,6 +1,6 @@
 // Recording Docker boundary tests only: no SDK execution/acceptance is claimed.
 import assert from 'node:assert/strict';
-import {execFile} from 'node:child_process';
+import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {chmodSync,copyFileSync,cpSync,existsSync,mkdtempSync,mkdirSync,readFileSync,rmSync,symlinkSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -66,9 +66,26 @@ function fixture(t){
  writeFileSync(join(bin,'git'),'#!/usr/bin/env node\nconst args=process.argv.slice(2);if(args.includes("rev-parse"))console.log(process.env.RECORDED_REVISION);else if(!args.includes("status"))process.exit(64);\n');chmodSync(join(bin,'git'),0o755);
  return{work,root,env:{...process.env,DOCKER_CONFIG:join(work,'absent-credentials'),PATH:bin+':'+process.env.PATH,RECORDED_SOURCE:root,RECORDED_CALLS:join(work,'calls.jsonl'),RECORDED_IMAGE:image,RECORDED_REVISION:revision,RECORDED_LOCK:join(work,'lock.json'),RECORDED_ACQUISITION:join(work,'acquisition.json'),RECORDED_INVENTORY:join(work,'inventory.json'),RECORDED_COMPILER:join(work,'compiler.json'),RECORDED_RESULT:join(work,'result.json')}};
 }
+// execFile's timeout destroys the child's pipes before killing it; when the
+// deadline timer and an already-exited child are handled in the same event-loop
+// turn, the callback reports exit 0 with the unread tail of stdout discarded.
+// Here a deadline or an output overflow is always an error and never truncates.
+function bounded(file,args,{env,timeout,maxBuffer}){
+ return new Promise(resolve=>{
+  const child=spawn(file,args,{env,stdio:['pipe','pipe','pipe']});
+  const stdout=[],stderr=[];let bytes=0,error;
+  const stop=reason=>{error??=new Error(reason);child.kill('SIGKILL');};
+  const take=chunks=>chunk=>{bytes+=chunk.length;if(bytes>maxBuffer)stop('output exceeded '+maxBuffer+' bytes');else chunks.push(chunk);};
+  child.stdout.on('data',take(stdout));child.stderr.on('data',take(stderr));
+  const timer=setTimeout(()=>stop('deadline of '+timeout+' ms exceeded'),timeout);
+  child.on('error',reason=>{error??=reason;});
+  child.on('close',(code,signal)=>{clearTimeout(timer);child.stdin.destroy();
+   resolve({status:code,signal,error,stdout:Buffer.concat(stdout).toString('utf8'),stderr:Buffer.concat(stderr).toString('utf8')});});
+ });
+}
 async function execute(context){
  try{
-  const result=await new Promise(resolve=>execFile('bash',[join(context.root,'scripts/library-sdk-check.sh'),image,revision],{encoding:'utf8',env:context.env,timeout:30000,maxBuffer:1024*1024},(error,stdout,stderr)=>resolve({status:error?.code??0,signal:error?.signal??null,error:error&&typeof error.code!=='number'?error:undefined,stdout,stderr})));
+  const result=await bounded('bash',[join(context.root,'scripts/library-sdk-check.sh'),image,revision],{env:context.env,timeout:30000,maxBuffer:1024*1024});
   assert.equal(result.error,undefined,'shell transport must complete within its resource bounds');assert.equal(result.signal,null,'shell transport must exit without a signal');
   const calls=readFileSync(context.env.RECORDED_CALLS,'utf8').trim().split('\n').map(JSON.parse);
   const retainedPath=join(context.root,'target/library-sdk-evidence/linux-'+(process.arch==='x64'?'amd64':'arm64'));

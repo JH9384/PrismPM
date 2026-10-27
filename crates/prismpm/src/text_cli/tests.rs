@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::OnceLock;
 
-const CORE: &str = "pub fn dispatch(request: Vec<u8>) -> Vec<u8> {\n    match request.first() {\n        Some(b'a') => b\"accepted\\n\".to_vec(),\n        Some(b'r') => b\"rejected\\n\".to_vec(),\n        Some(b'z') => b\"zz\\n\".to_vec(),\n        Some(b'u') => b\"{\\\"ui\\\":1}\\n\".to_vec(),\n        _ => b\"error: bad request\\n\".to_vec(),\n    }\n}\n";
+const CORE: &str = "pub fn dispatch(request: Vec<u8>) -> Vec<u8> {\n    match request.first() {\n        Some(b'a') => b\"accepted\\n\".to_vec(),\n        Some(b'r') => b\"rejected\\n\".to_vec(),\n        Some(b'u') => b\"{\\\"ui\\\":1}\\n\".to_vec(),\n        Some(b'z') => b\"zz\\n\".to_vec(),\n        _ => b\"error: bad request\\n\".to_vec(),\n    }\n}\n";
 
 fn model() -> TextApplicationModel {
     serde_json::from_value(json!({

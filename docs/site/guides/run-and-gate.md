@@ -24,19 +24,20 @@ The runtime API does the same. `holo.instantiate(capabilities)` throws `Verifica
 
 ## Declare the capability set
 
-The capability set lives in `prism.toml`. It names the hosts, stores and environment variables the holo may touch. Deny is the default. Calculator touches nothing, so its set is empty. Here is a version that fetches exchange rates and keeps a cache:
+The capability set lives in `prism.toml`. It names the hosts, stores and variables the holo may touch. Deny is the default. Calculator touches nothing, so it has no `[capabilities]` table. Here is a version that fetches exchange rates and keeps a cache:
 
 ```toml
 [capabilities]
-allowed_outbound_hosts = ["api.exchange.example"]
-stores = ["rates"]
-environment = ["LOG_LEVEL"]
+allow-outbound-hosts = ["https://api.exchange.example"]
+allow-key-value-stores = ["rates"]
+allow-variables = ["log_level", "exchange_api_key"]
 
 [variables]
-EXCHANGE_API_KEY = { secret = true }
+log_level = "info"
+exchange_api_key = { secret = true }
 ```
 
-A variable with `secret = true` resolves from the environment at run time through `env(NAME)`. A literal value in the manifest is rejected at build. The secret never enters the holo and never enters the history.
+A variable with `secret = true` resolves from the environment at run time: `exchange_api_key` reads `EXCHANGE_API_KEY`, and `{ value = "env(NAME)", secret = true }` reads `NAME`. An unset name is an error. A secret written as a literal is rejected when the manifest is read, and so is any string shaped like a credential. The secret never enters the holo and never enters the history. Instead of listing the set inline, `file = "capabilities.json"` and `set = "<name>"` name a capability file.
 
 `check` compares the holo's world against this set. A world that imports a host, a store or a variable the set does not name fails the check. The instance can only touch what both the world and the set agree on.
 
@@ -47,15 +48,15 @@ An overlay file changes `prism.toml` for one target. `prism.browser.toml` applie
 ```toml
 # prism.browser.toml
 [capabilities]
-allowed_outbound_hosts = []
-stores = []
+allow-outbound-hosts = []
+allow-key-value-stores = []
 ```
 
 ```bash
 prism build --target browser
 ```
 
-With this overlay the browser build of the exchange-rate calculator fetches nothing and keeps no cache. The holo digest changes, because the manifest section is part of it. The [Manifest reference](/docs/reference/manifest) gives the overlay rules when the manifest schema ships.
+With this overlay the browser build of the exchange-rate calculator fetches nothing and keeps no cache. The holo digest changes, because the manifest section is part of it. A table in the overlay merges into the main manifest key by key, and an array replaces the array it overrides, so `allow-variables` stays as `prism.toml` set it. The [Manifest reference](/docs/reference/manifest) has every key.
 
 ## When a call leaves the set
 

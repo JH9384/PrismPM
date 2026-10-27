@@ -41,17 +41,16 @@ add is commutative.
 The result never exceeds 32 bits.
 ```
 
-`prism.toml` names the application. The capability set is empty, so the holo touches nothing:
+`prism.toml` names the application:
 
 ```toml
 [application]
 name = "calculator"
 version = "0.1.0"
 description = "Adds two numbers."
-
-[capabilities]
-allowed_outbound_hosts = []
 ```
+
+There is no `[capabilities]` table, and without one the holo is granted nothing.
 
 ## Build the holo
 

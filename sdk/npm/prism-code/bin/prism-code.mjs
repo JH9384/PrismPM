@@ -5,6 +5,8 @@
  *   prism-code run <app.holo> [--port N] [--host H] [--capabilities <file>] [--capability-set <name>]
  *                                                     serve the view and the intent endpoint
  *   prism-code vectors <app.holo | closure-dir>       replay the acceptance vectors
+ *   prism-code manifest [<dir>] [--target browser|node] [--json]
+ *                                                     check and lint prism.toml, with its overlay merged
  *   prism-code inspect <app.holo> [--json] [--format <path>]
  *                                                     print what the holo says about itself, without running it
  *   prism-code attest <app.holo> --predicate <file> --type <uri> [--key <private.pem>]
@@ -13,7 +15,7 @@
  *   prism-code check|build|verify|conformance ...     run prismpm in the locked SDK image
  *
  * Exit codes: 0 ok, 1 vectors failed or an attestation did not verify,
- * 2 artifact refused (a guest import no capability set grants included), 3 signing failed or the sigstore packages are missing,
+ * 2 artifact refused (a guest import no capability set grants, or a manifest that fails its checks, included), 3 signing failed or the sigstore packages are missing,
  * 64 usage, 69 Docker unavailable, otherwise the delegated command's code.
  */
 import { readFile, stat } from 'node:fs/promises';
@@ -22,7 +24,7 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { userInfo } from 'node:os';
 import { createRequire } from 'node:module';
-import { fromFile, serve } from '../src/node.mjs';
+import { fromFile, serve, readManifest } from '../src/node.mjs';
 import { sdkImageFromLock, dockerArguments, DELEGATED } from '../src/docker.mjs';
 import { CapabilityDeniedError, PrismCodeError, PrismError, SigningError, VerificationError } from '../src/errors.mjs';
 import { inspect, formatInspection, select } from '../src/inspect.mjs';
@@ -37,6 +39,9 @@ Usage:
   prism-code run <app.holo> [--port N] [--host H] [--capabilities <file>] [--capability-set <name>]
                                                     serve the application's view; POST /_hologram/intent dispatches
   prism-code vectors <app.holo | closure-dir>       replay every acceptance vector through the guest
+  prism-code manifest [<dir>] [--target <browser|node>] [--json]
+                                                    check and lint prism.toml, with prism.<target>.toml merged;
+                                                    a secret written as a literal is an error
   prism-code inspect <app.holo> [--json] [--format <path>]
                                                     print sections, digests, manifest, model, world and
                                                     attestations without running the guest
@@ -65,6 +70,8 @@ Options for verify-attestation:
                                                    least verified log entries and timestamps: 1 and 1 keyless, 0 and 0 with --key
 Options for run:      --capabilities <file>        a prism/capabilities/1 file; without one the holo is granted nothing
                       --capability-set <name>      the set to apply, default "default"
+Options for manifest: --target <browser|node>      merge prism.browser.toml or prism.node.toml over prism.toml
+                      --json                       the merged manifest and the warnings as canonical JSON
 Options for closures: --model <model.prism.json>   the model document (numeric-profile closures need it)
 `;
 
@@ -97,6 +104,7 @@ const VALUE_OPTIONS = [
   'tuf-cache',
   'capabilities',
   'capability-set',
+  'target',
 ];
 
 function parse(argv) {
@@ -223,6 +231,27 @@ async function commandRun(positional, options) {
   return 0;
 }
 
+async function commandManifest(positional, options) {
+  if (positional.length > 1) return usage('manifest takes at most one project directory');
+  const bad = missingValue(options);
+  if (bad) return usage(`--${bad} takes a value`);
+  if (options.target !== undefined && !['browser', 'node'].includes(options.target)) return usage('--target is browser or node');
+  const result = await readManifest(resolve(positional[0] ?? '.'), { target: options.target ?? null });
+  const { manifest, warnings, files, grant } = result;
+  if (options.json) {
+    process.stdout.write(`${canonicalJson({ files, target: result.target, manifest, warnings })}\n`);
+    return 0;
+  }
+  const app = manifest.application;
+  const granted = grant.capabilities === null ? 'none granted' : `set ${grant.capabilitySet}${manifest.capabilities?.file ? ` of ${manifest.capabilities.file}` : ' (inline)'}`;
+  const variables = Object.entries(manifest.variables ?? {}).map(([name, entry]) => (typeof entry === 'object' && entry.secret ? `${name} (secret)` : name));
+  process.stdout.write(`${app.name} ${app.version} from ${files.join(' + ')}\n`);
+  process.stdout.write(`capabilities: ${granted}\n`);
+  process.stdout.write(`variables: ${variables.length ? variables.join(', ') : 'none'}\n`);
+  for (const w of warnings) process.stderr.write(`warning: ${w.rule}: ${w.message}\n`);
+  return 0;
+}
+
 async function commandDelegate(command, args) {
   const cwd = process.cwd();
   let lock;
@@ -278,6 +307,8 @@ async function main(argv) {
       return commandInspect(positional, options);
     case 'run':
       return commandRun(positional, options);
+    case 'manifest':
+      return commandManifest(positional, options);
     case 'attest':
     case 'verify-attestation':
       return commandAttestation(command, positional, options);

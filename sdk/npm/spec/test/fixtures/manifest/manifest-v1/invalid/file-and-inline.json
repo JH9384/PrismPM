@@ -1,0 +1,12 @@
+{
+  "application": {
+    "name": "calculator",
+    "version": "0.1.0"
+  },
+  "capabilities": {
+    "file": "caps.json",
+    "allow-variables": [
+      "x"
+    ]
+  }
+}

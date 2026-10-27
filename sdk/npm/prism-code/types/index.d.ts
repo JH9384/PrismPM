@@ -392,6 +392,52 @@ export function parseCapabilities(source: Capabilities | Uint8Array | string): C
 /** The grant of one set of a parsed file, or of nothing when `capabilities` is null. */
 export function grantOf(capabilities: Capabilities | null, setName?: string): CapabilityGrant;
 
+/** `prism.toml` after the overlay for the target is merged in; see `@prism-code/spec` `schemas/manifest/manifest-v1.schema.json` (#280). */
+export interface Manifest {
+  manifest_version?: 1;
+  application: { name: string; version: string; description?: string; authors?: readonly string[] };
+  model?: { source?: string; build?: string; watch?: readonly string[] };
+  /** A capability file and set, or the members of one capability set inline. Absent grants nothing. */
+  capabilities?: { file: string; set?: string } | CapabilitySet;
+  variables?: Readonly<Record<string, string | { value?: string; secret?: boolean }>>;
+}
+export type ManifestTarget = 'browser' | 'node';
+/** A lint finding: `secret-literal` and `credential` are errors, `variable-not-granted` a warning. */
+export interface ManifestFinding {
+  rule: 'secret-literal' | 'credential' | 'variable-not-granted';
+  /** The dotted path of the member, such as `variables.api_key.value`. */
+  at: string;
+  message: string;
+}
+export interface ParsedManifest {
+  readonly manifest: Manifest;
+  readonly target: ManifestTarget | null;
+  readonly warnings: readonly ManifestFinding[];
+}
+export const MANIFEST_FILE: 'prism.toml';
+export const MANIFEST_TARGETS: readonly ['browser', 'node'];
+export const MANIFEST_VERSION: 1;
+/**
+ * Parse `prism.toml`, merge `overlay` (the text of `prism.<target>.toml`) when given, validate and lint.
+ * Throws `PrismCodeError` `manifest.toml` (not TOML this reader takes), `manifest.invalid`, `manifest.overlay`,
+ * `manifest.secret` (a lint error: a literal secret or a credential) or `capabilities.invalid`.
+ */
+export function parseManifest(
+  source: string | Uint8Array | Record<string, unknown>,
+  options?: { target?: ManifestTarget | null; overlay?: string | Uint8Array | Record<string, unknown> | null },
+): ParsedManifest;
+/** Throws `PrismCodeError` `manifest.invalid` naming the first member the schema rejects. */
+export function validateManifest(manifest: unknown): Manifest;
+export function lintManifest(manifest: Manifest): { errors: ManifestFinding[]; warnings: ManifestFinding[] };
+/** Tables merge key by key; any other value, arrays included, replaces the one it overrides. */
+export function mergeOverlay(base: Record<string, unknown>, overlay: Record<string, unknown>): Record<string, unknown>;
+/** The grant a manifest makes: an inline set as a parsed capability file, or the file it names, unread. */
+export function manifestCapabilities(manifest: Manifest): { capabilities: Capabilities | null; capabilitySet: string; file: string | null };
+/** Variable name to value; `env(NAME)` reads `env`. An unset name throws `PrismCodeError` `manifest.env`. */
+export function resolveVariables(manifest: Manifest, env: Record<string, string | undefined>): Readonly<Record<string, string>>;
+/** The strict TOML subset a manifest uses. Throws `PrismCodeError` `manifest.toml` naming the line. */
+export function parseToml(source: string | Uint8Array): Record<string, unknown>;
+
 /** Open a `.holo` (bytes, Blob, path or URL) or a closure (directory path or URL). */
 export function load(source: Uint8Array | ArrayBuffer | Blob | string | URL, options?: LoadOptions): Promise<Application>;
 export function loadArchive(source: Uint8Array | ArrayBuffer, options?: Pick<LoadOptions, 'capabilities' | 'capabilitySet'>): Promise<Application>;

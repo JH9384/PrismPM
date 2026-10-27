@@ -31,7 +31,13 @@ That is the whole file. A reader who knows the input, the output and the two sen
 
 The `[model]` table of `prism.toml` says where the model comes from and what `dev` watches. Its `source` key names your `model/` directory instead of the examples, and its `watch` key lists the files that trigger a rebuild.
 
-Status: the manifest schema is not published yet. The [Manifest reference](/docs/reference/manifest) gains the exact keys and values when it ships.
+```toml
+[model]
+source = "model"
+watch = ["model/**/*.lex.tex", "intent.md", "examples/*.json"]
+```
+
+The [Manifest reference](/docs/reference/manifest) has every key.
 
 `build` now compiles `model/` as it is. It still reads `intent.md` and fails if a sentence there has no theorem of the same name in the model. It still reads `examples/` and replays each one. Nothing about the holo, the lockfile or `check` changes.
 

@@ -108,6 +108,52 @@ links none: a guest that declares an import fails to load with
 format and its open questions are in `docs/proposals/279-capability-sets.md`;
 the JSON Schema is `@prism-code/spec`'s `schemas/capabilities/capabilities-v1.schema.json`.
 
+## The prism.toml manifest (experimental, #280)
+
+A project names its application, its model and its grant in `prism.toml`:
+
+```toml
+[application]
+name = "exchange"
+version = "0.1.0"
+
+[model]
+source = "model"
+watch = ["model/**/*.lex.tex", "examples/*.json"]
+
+[capabilities]
+allow-outbound-hosts = ["https://api.exchange.example"]
+allow-variables = ["log_level", "exchange_api_key"]
+
+[variables]
+log_level = "info"
+exchange_api_key = { secret = true }   # read from EXCHANGE_API_KEY at run time
+```
+
+```
+npx prism-code manifest [<dir>] [--target browser|node] [--json]
+```
+
+`manifest` checks and lints the file and exits 2 when it fails. A secret
+written as a literal (`{ value = "...", secret = true }`) or any string shaped
+like a credential is an error (`manifest.secret`), and the message never echoes
+the value. `--target` merges `prism.browser.toml` or `prism.node.toml` over
+`prism.toml`: tables merge key by key, and arrays and other values replace.
+`[capabilities]` is one capability set written inline, or `file` and `set`
+naming a capability file.
+
+```js
+import { parseManifest, manifestCapabilities, resolveVariables } from 'prism-code';
+import { readManifest } from 'prism-code/node';
+
+const { manifest, grant } = await readManifest('.', { target: 'node' });
+const app = await fromFile('app.holo', grant);               // the manifest's grant
+const vars = resolveVariables(manifest, process.env);        // env(NAME) unset: throws manifest.env
+```
+
+The schema is `@prism-code/spec`'s `schemas/manifest/manifest-v1.schema.json`;
+the design is `docs/proposals/280-prism-toml.md`.
+
 ```
 npx prism-code vectors app.holo       # replay every acceptance vector; exit 1 on a failure
 ```

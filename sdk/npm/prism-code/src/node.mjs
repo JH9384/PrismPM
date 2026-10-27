@@ -10,6 +10,8 @@ import { resolve, join, extname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { loadArchive, loadClosure } from './index.mjs';
 import { fail } from './errors.mjs';
+import { parseManifest, manifestCapabilities, MANIFEST_FILE } from './manifest.mjs';
+import { parseCapabilities } from './capabilities.mjs';
 
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -58,6 +60,42 @@ export async function fromFile(source, options = {}) {
     return loadClosure(files, (name) => import(pathToFileURL(join(path, name)).href), { model, ...grant });
   }
   return loadArchive(new Uint8Array(await readFile(path)), grant);
+}
+
+/**
+ * Read `prism.toml` from a project directory (#280), with the overlay
+ * `prism.<target>.toml` merged when `options.target` is given and that file
+ * exists. A capability file the manifest names is read relative to the
+ * directory. Resolves to the result of `parseManifest` plus `directory`,
+ * `files` (the manifest files read, in merge order) and `grant`, the
+ * `{ capabilities, capabilitySet }` options `fromFile` and `load` take.
+ */
+export async function readManifest(directory = '.', options = {}) {
+  const root = toPath(directory);
+  const target = options.target ?? null;
+  const main = join(root, MANIFEST_FILE);
+  const text = await readFile(main).catch(() => fail('manifest.path', `${main} does not exist`));
+  const files = [MANIFEST_FILE];
+  let overlay = null;
+  if (target !== null) {
+    const name = `prism.${target}.toml`;
+    overlay = await readFile(join(root, name)).then(
+      (bytes) => {
+        files.push(name);
+        return new Uint8Array(bytes);
+      },
+      () => null,
+    );
+  }
+  const parsed = parseManifest(new Uint8Array(text), { target, overlay });
+  const { capabilities, capabilitySet, file } = manifestCapabilities(parsed.manifest);
+  let grant = { capabilities, capabilitySet };
+  if (file !== null) {
+    const path = join(root, file);
+    const bytes = await readFile(path).catch(() => fail('capabilities.path', `${path} does not exist; capabilities.file in ${MANIFEST_FILE} names it`));
+    grant = { capabilities: parseCapabilities(new Uint8Array(bytes)), capabilitySet };
+  }
+  return Object.freeze({ ...parsed, directory: root, files: Object.freeze(files), grant: Object.freeze(grant) });
 }
 
 const INTENT_VERSION = 1;

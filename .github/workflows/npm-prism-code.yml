@@ -13,6 +13,9 @@ on:
       - sdk/npm/spec/constants.mjs
       # src/vendor/verify.mjs is a copy of this file; test/verify.test.mjs checks it.
       - sdk/npm/verify/browser.js
+      # test/manifest.test.mjs and test/capabilities.test.mjs run the spec's schema fixtures through the runtime.
+      - sdk/npm/spec/test/fixtures/manifest/**
+      - sdk/npm/spec/test/fixtures/capabilities/**
       - .github/workflows/npm-prism-code.yml
   push:
     branches: [main]
@@ -20,6 +23,9 @@ on:
       - sdk/npm/prism-code/**
       - sdk/npm/spec/constants.mjs
       - sdk/npm/verify/browser.js
+      # test/manifest.test.mjs and test/capabilities.test.mjs run the spec's schema fixtures through the runtime.
+      - sdk/npm/spec/test/fixtures/manifest/**
+      - sdk/npm/spec/test/fixtures/capabilities/**
       - .github/workflows/npm-prism-code.yml
     tags:
       - prism-code-v*

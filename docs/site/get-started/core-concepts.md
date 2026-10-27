@@ -54,11 +54,11 @@ The default policy requires P2 or above and a world within the granted capabilit
 
 The world is the holo's declared contract: what it imports from the host and what it exports. Calculator imports nothing and exports `calculate`.
 
-The capability set is what a holo may touch: hosts, stores, variables. You declare it in `prism.toml`. Deny is the default, so an empty set means the holo talks to nothing:
+The capability set is what a holo may touch: hosts, stores, variables. You declare it in `prism.toml`. Deny is the default: with no `[capabilities]` table, or an empty one, the holo talks to nothing. This one lets it call one host:
 
 ```toml
 [capabilities]
-allowed_outbound_hosts = []
+allow-outbound-hosts = ["https://api.exchange.example"]
 ```
 
 `check` fails when the world imports more than the capability set allows. `run` grants exactly the set, never more.

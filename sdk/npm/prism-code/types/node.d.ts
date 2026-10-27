@@ -1,5 +1,5 @@
 import type { Server } from 'node:http';
-import type { Application, LoadOptions, PrismError } from './index.js';
+import type { Application, Capabilities, LoadOptions, ManifestTarget, ParsedManifest, PrismError } from './index.js';
 
 /** Open a `.holo` file or a closure directory. */
 export function fromFile(source: string | URL, options?: LoadOptions): Promise<Application>;
@@ -7,6 +7,16 @@ export function fromFile(source: string | URL, options?: LoadOptions): Promise<A
 export function readClosureDirectory(directory: string): Promise<Map<string, Uint8Array>>;
 /** Serve `app.view` as static files and answer `POST /_hologram/intent` with `app.dispatch`. */
 export function serve(app: Application, options?: { port?: number; host?: string }): Promise<{ server: Server; url: string; close(): Promise<void> }>;
+
+/**
+ * Read `prism.toml` from a project directory (default the current one), merging `prism.<target>.toml` when
+ * `target` is given and that file exists, and opening a capability file the manifest names (#280).
+ * `grant` is the `{ capabilities, capabilitySet }` that `fromFile` and `load` take.
+ */
+export function readManifest(
+  directory?: string | URL,
+  options?: { target?: ManifestTarget | null },
+): Promise<ParsedManifest & { directory: string; files: readonly string[]; grant: { capabilities: Capabilities | null; capabilitySet: string } }>;
 
 /** The OIDC issuer of GitHub Actions workflows: `https://token.actions.githubusercontent.com`. */
 export const GITHUB_ACTIONS_ISSUER: 'https://token.actions.githubusercontent.com';

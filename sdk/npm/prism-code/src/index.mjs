@@ -44,6 +44,18 @@ export { parseArchive, resolveArchive, canonicalJson } from './archive.mjs';
 export { decodeHoloview, encodeHoloview } from './view.mjs';
 export { compileGuest, runGuest, runAcceptance } from './core.mjs';
 export { parseCapabilities, grantOf, CAPABILITIES_SCHEMA, CAPABILITY_KINDS, DEFAULT_SET } from './capabilities.mjs';
+export {
+  parseManifest,
+  validateManifest,
+  lintManifest,
+  mergeOverlay,
+  manifestCapabilities,
+  resolveVariables,
+  MANIFEST_FILE,
+  MANIFEST_TARGETS,
+  MANIFEST_VERSION,
+} from './manifest.mjs';
+export { parseToml } from './toml.mjs';
 export { verifyClosure, closureDispatch, initializeGlue } from './closure.mjs';
 export { blake3, blake3Hex, kappa } from './blake3.mjs';
 export { inspect, formatInspection, INSPECTION_SCHEMA } from './inspect.mjs';

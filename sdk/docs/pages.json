@@ -51,7 +51,7 @@
           "title": "Manifest reference",
           "description": "Every table and key in prism.toml.",
           "available_in": "0.6",
-          "status": "no manifest schema exists in the spec package at this revision. This page is generated from it once one does.",
+          "status": "experimental. prism-code reads and checks this manifest today (prism-code manifest); the prism CLI reads it from 0.6.",
           "next": ["reference/lockfile", "reference/cli", "reference/holo-format"]
         },
         {

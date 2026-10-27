@@ -218,11 +218,46 @@ export function attestations({ spec, page }) {
   return { parts, sources: [spec.source()] };
 }
 
+/** The manifest schema. Found by path: it describes prism.toml, not a document with a `schema` member. */
+const MANIFEST_SCHEMA = 'schemas/manifest/manifest-v1.schema.json';
+
 export function manifest({ spec, page }) {
+  const schema = spec.json(MANIFEST_SCHEMA);
+  const [fileForm, inlineForm] = schema.$defs.capabilities.oneOf;
   const parts = [];
-  parts.push(paragraph(`Source: ${code(spec.name)} ${spec.module.FORMAT_REVISION}.`));
-  parts.push(heading(2, 'Fields'));
-  parts.push(status(page.status));
+  parts.push(paragraph(`Source: ${code(spec.name)} ${spec.module.FORMAT_REVISION}, ${code(MANIFEST_SCHEMA)}.`));
+  if (page.status) parts.push(status(page.status));
+  parts.push(schemaSource(spec, MANIFEST_SCHEMA));
+  parts.push(
+    paragraph(
+      `${code('prism.toml')} is TOML. The tables below are the manifest after the overlay for the build target, ${code('prism.browser.toml')} or ${code('prism.node.toml')}, is merged in: a table merges key by key, and any other value, arrays included, replaces the one it overrides. An overlay may not set ${code('manifest_version')}.`,
+    ),
+  );
+  parts.push(heading(2, 'Top level'));
+  parts.push(table(HEADER, tableRows({ ...schema, properties: { manifest_version: schema.properties.manifest_version } })));
+  parts.push(heading(2, code('[application]')));
+  parts.push(table(HEADER, defRows(schema, 'application')));
+  parts.push(heading(2, code('[model]')));
+  parts.push(table(HEADER, defRows(schema, 'model')));
+  parts.push(paragraph(`Every path is relative to the project, uses forward slashes and has no ${code('..')} segment.`));
+  parts.push(heading(2, code('[capabilities]')));
+  parts.push(paragraph(`Without this table the holo is granted nothing. It takes one of two forms: a capability file and the set of it to apply, or the members of one ${code('prism/capabilities/1')} set written inline, which become its ${code('default')} set.`));
+  parts.push(heading(3, 'A capability file'));
+  parts.push(table(HEADER, tableRows(fileForm)));
+  parts.push(heading(3, 'Inline'));
+  parts.push(table(HEADER, tableRows({ ...inlineForm, properties: Object.fromEntries(Object.entries(inlineForm.properties).map(([k, v]) => [k, schema.$defs[v.$ref.replace('#/$defs/', '')]])) })));
+  parts.push(heading(2, code('[variables]')));
+  parts.push(
+    paragraph(
+      `Each key is a variable name matching ${code(schema.properties.variables.propertyNames.pattern)}. Its value is a string, ${code('env(NAME)')} to read the environment at run time, or a table ${code('{ value, secret }')}. A secret takes its value from ${code('env(NAME)')}, or from the variable's name in upper case when it has no ${code('value')}. A secret written as a literal is an error, and so is any string shaped like a credential.`,
+    ),
+  );
+  parts.push(
+    fence(
+      'toml',
+      ['[variables]', 'log_level = "info"', 'region = "env(REGION)"', 'exchange_api_key = { secret = true }', 'signing_key = { value = "env(SIGNING_KEY)", secret = true }'].join('\n'),
+    ),
+  );
   return { parts, sources: [spec.source()] };
 }
 

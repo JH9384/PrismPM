@@ -1,0 +1,42 @@
+{
+  "manifest_version": 1,
+  "application": {
+    "name": "exchange",
+    "version": "1.2.0-rc.1",
+    "description": "Converts currencies.",
+    "authors": [
+      "Ada <ada@example.com>"
+    ]
+  },
+  "model": {
+    "source": "model",
+    "build": "prism build",
+    "watch": [
+      "model/**/*.lex.tex",
+      "examples/*.json",
+      "intent.md"
+    ]
+  },
+  "capabilities": {
+    "allow-outbound-hosts": [
+      "https://api.exchange.example"
+    ],
+    "allow-key-value-stores": [
+      "rates"
+    ],
+    "allow-variables": [
+      "log_level",
+      "exchange_api_key"
+    ]
+  },
+  "variables": {
+    "log_level": "info",
+    "exchange_api_key": {
+      "secret": true
+    },
+    "region": {
+      "value": "env(REGION)",
+      "secret": true
+    }
+  }
+}

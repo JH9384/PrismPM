@@ -900,6 +900,7 @@ fn verify_examples(root: &Path, _write: bool) -> Result<(), Fail> {
         verify_res.attestation_id
     );
 
+    let mut outputs: Vec<(&str, ApplicationOutputs)> = Vec::new();
     for example in &EXAMPLES {
         let name = example.name;
         let application_root = root.join(example.project);
@@ -930,6 +931,20 @@ fn verify_examples(root: &Path, _write: bool) -> Result<(), Fail> {
             .join("build")
             .join(&first_verify.build_id);
         check_command_line(example, &build_root, &acceptance)?;
+        let observed = application_outputs(&build_root, &acceptance)?;
+        if let Some(reference) = example.same_outputs_as {
+            let (_, expected) = outputs
+                .iter()
+                .find(|(other, _)| *other == reference)
+                .ok_or_else(|| format!("verify-examples: {name} names no earlier {reference}"))?;
+            if let Some(path) = first_difference(expected, &observed) {
+                return Err(format!(
+                    "verify-examples: {name} differs from {reference} in {path} (provenance masked)"
+                )
+                .into());
+            }
+        }
+        outputs.push((name, observed));
         println!(
             "verify-examples: {name} model {} reproduced build {} and verified attestation {}{}",
             check.model_id,
@@ -952,6 +967,56 @@ struct Example {
     /// The command line the verified build must publish and accept, or `None`
     /// when the project's model declares no command line.
     command_line: Option<CommandLine>,
+    /// An earlier example whose generated application outputs and acceptance
+    /// result this one must equal, provenance masked.
+    same_outputs_as: Option<&'static str>,
+}
+
+/// The generated browser files and the acceptance result of one verified
+/// build, keyed by path, with provenance masked: `provenance.json` and the
+/// acceptance fields that identify the source, the build, the LexLean
+/// attestation and the holo archives (which hash the source manifest).
+type ApplicationOutputs = std::collections::BTreeMap<String, Vec<u8>>;
+
+const PROVENANCE_ACCEPTANCE_FIELDS: [&str; 4] =
+    ["build_id", "holo", "lexlean_attestation_id", "source_id"];
+
+fn application_outputs(
+    build_root: &Path,
+    acceptance: &serde_json::Value,
+) -> Result<ApplicationOutputs, Fail> {
+    let mut outputs = ApplicationOutputs::new();
+    for entry in std::fs::read_dir(build_root.join("view/browser"))? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name != "provenance.json" && entry.file_type()?.is_file() {
+            outputs.insert(format!("view/browser/{name}"), std::fs::read(entry.path())?);
+        }
+    }
+    let mut masked = acceptance.clone();
+    let fields = masked
+        .as_object_mut()
+        .ok_or("application acceptance is not an object")?;
+    for field in PROVENANCE_ACCEPTANCE_FIELDS {
+        fields.remove(field);
+    }
+    outputs.insert(
+        "application-acceptance.json".to_owned(),
+        serde_json::to_vec(&masked)?,
+    );
+    Ok(outputs)
+}
+
+/// The first path whose bytes differ, or that only one side has.
+fn first_difference(
+    expected: &ApplicationOutputs,
+    observed: &ApplicationOutputs,
+) -> Option<String> {
+    expected
+        .keys()
+        .chain(observed.keys())
+        .find(|path| expected.get(*path) != observed.get(*path))
+        .cloned()
 }
 
 /// A modeled text/3 command line and the acceptance partition its
@@ -969,17 +1034,26 @@ const COMMAND_LINE_TARGETS: [&str; 2] = ["aarch64-unknown-linux-musl", "x86_64-u
 
 /// Every project `verify-examples` builds and verifies. The text/3 project
 /// makes V&V produce a generated command line and accept it over vectors
-/// within and beyond its request maximum.
-const EXAMPLES: [Example; 3] = [
+/// within and beyond its request maximum. Calculator is built in both LexLean
+/// languages; the 1.2 copy is `lexlean migrate --to 1.2` of the 1.1 example.
+const EXAMPLES: [Example; 4] = [
     Example {
         name: "Calculator",
         project: "examples/Calculator",
         command_line: None,
+        same_outputs_as: None,
+    },
+    Example {
+        name: "Calculator (language 1.2)",
+        project: "tests/fixtures/controller/ct-02-calculator-language-1-2/project",
+        command_line: None,
+        same_outputs_as: Some("Calculator"),
     },
     Example {
         name: "Text Request",
         project: "tests/fixtures/holo/ho-11-text-application/project",
         command_line: None,
+        same_outputs_as: None,
     },
     Example {
         name: "Text Check",
@@ -991,6 +1065,7 @@ const EXAMPLES: [Example; 3] = [
             oversized_vectors: 2,
             examples: 2,
         }),
+        same_outputs_as: None,
     },
 ];
 
@@ -2055,6 +2130,7 @@ mod verify_examples_tests {
             name: example.name,
             project: example.project,
             command_line: None,
+            same_outputs_as: None,
         };
         assert!(check_command_line(&unexpected, build.path(), &acceptance).is_err());
         assert!(check_command_line(&unexpected, build.path(), &serde_json::json!({})).is_err());
@@ -2089,6 +2165,7 @@ mod verify_examples_tests {
                 oversized_vectors: 0,
                 examples: expected.examples,
             }),
+            same_outputs_as: None,
         };
         assert!(check_command_line(&one_sided, build.path(), &acceptance).is_err());
 

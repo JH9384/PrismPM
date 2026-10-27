@@ -1,0 +1,7 @@
+spec = "prismpm/test-case/1"
+command = "check"
+expected_exit = 0
+normalization = "none"
+capabilities = ["CT-02"]
+expected_artifacts = []
+expected_diagnostics = []

@@ -195,10 +195,14 @@ test('fromFile reads a capability file by path', async () => {
   await assert.rejects(fromFile(fixture, { capabilities: join(dir, 'missing.json') }), (e) => e.code === 'capabilities.path');
 });
 
+const P0_POLICY = join(mkdtempSync(join(tmpdir(), 'prism-code-p0-')), 'p0.json');
+writeFileSync(P0_POLICY, JSON.stringify({ minimum: 'P0' }));
+
 /** Start `prism-code run`, collect its first two lines, then stop it. */
 function runServer(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [bin, 'run', ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
+    // run gates on check (#282) and every holo is P0 today; this test is about the grant, so it runs under a P0 policy.
+    const child = spawn(process.execPath, [bin, 'run', '--policy', P0_POLICY, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
     let err = '';
     child.stdout.on('data', (chunk) => {
@@ -222,13 +226,14 @@ test('prism-code run says what it grants; a bad file or a denied import exits 2'
 
   const bad = join(dir, 'bad.json');
   writeFileSync(bad, JSON.stringify(file({ default: { 'allow-outbound-host': [] } })));
-  const refused = spawnSync(process.execPath, [bin, 'run', fixture, '--capabilities', bad], { encoding: 'utf8' });
+  const refused = spawnSync(process.execPath, [bin, 'run', fixture, '--policy', P0_POLICY, '--capabilities', bad], { encoding: 'utf8' });
   assert.equal(refused.status, 2);
   assert.match(refused.stderr, /^capabilities\.invalid: set default has an unknown member allow-outbound-host/);
 
   const holo = join(dir, 'import.holo');
   writeFileSync(holo, importGuest());
-  const denied = spawnSync(process.execPath, [bin, 'run', holo], { encoding: 'utf8' });
+  // The import guest's labels no longer match its provenance, so check fails it; the link refusal is what this asserts.
+  const denied = spawnSync(process.execPath, [bin, 'run', holo, '--allow-unverified'], { encoding: 'utf8' });
   assert.equal(denied.status, 2);
   assert.match(denied.stderr, /^capability_denied: guest import .* is denied/m);
   assert.match(denied.stderr, /^check: capabilities\.import$/m);

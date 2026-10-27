@@ -2,8 +2,8 @@
 /**
  * prism-code — command line.
  *
- *   prism-code run <app.holo> [--port N] [--host H] [--capabilities <file>] [--capability-set <name>]
- *                                                     serve the view and the intent endpoint
+ *   prism-code run <app.holo> [--policy F] [--allow-unverified] [--capabilities <file>] [--capability-set <name>] [--port N] [--host H]
+ *                                                     check the holo (#282), then serve the view and the intent endpoint
  *   prism-code vectors <app.holo | closure-dir>       replay the acceptance vectors
  *   prism-code init [<dir>] [--name N] [--template T] [--sdk-image REF] [--force]
  *                                                     scaffold a project; with --sdk-image, bind it (standards.lock, prismpm.lock)
@@ -47,8 +47,10 @@ const { version } = require('../package.json');
 const USAGE = `prism-code ${version}
 
 Usage:
-  prism-code run <app.holo> [--port N] [--host H] [--capabilities <file>] [--capability-set <name>]
-                                                    serve the application's view; POST /_hologram/intent dispatches
+  prism-code run <app.holo> [--policy <file>] [--capabilities <file>] [--capability-set <name>] [--port N] [--host H]
+                                                    check the holo, then serve its view; POST /_hologram/intent
+                                                    dispatches. A holo that fails check is refused (exit 1, 2 for
+                                                    no verdict) unless --allow-unverified, which warns every start
   prism-code vectors <app.holo | closure-dir>       replay every acceptance vector through the guest
   prism-code init [<dir>] [--name <name>] [--template <name>] [--sdk-image <ref>] [--force]
                                                     scaffold a project: prism.toml, a language-1.2 model and its
@@ -87,7 +89,9 @@ Options for verify-attestation:
                       --trusted-root <file>        pin a trusted_root.json; default is the public instance's, fetched over TUF
                       --entries <n>, --timestamps <n>
                                                    least verified log entries and timestamps: 1 and 1 keyless, 0 and 0 with --key
-Options for run:      --capabilities <file>        a prism/capabilities/1 file; without one the holo is granted nothing
+Options for run:      --policy <file>              the policy check judges the holo by, as for check; effects [] is the pure-world policy
+                      --allow-unverified           run a holo that fails check, or a closure; prints a warning, never the default
+                      --capabilities <file>        a prism/capabilities/1 file; without one the holo is granted nothing
                       --capability-set <name>      the set to apply, default "default"
 Options for check:    --policy <file>              a JSON policy: name, minimum (P0 to P3), digests, world;
                                                    default: P2 or above, or PRISM_MINIMUM_LEVEL
@@ -269,11 +273,51 @@ async function commandCheck(positional, options) {
   return exitCodeOf(verdict);
 }
 
+/**
+ * `run` gates on `check` (issue #282): the holo is judged against the policy,
+ * with the capability set it will run under, before it is opened. A verdict
+ * that fails refuses to start (exit 1) and prints the verdict, as `check`
+ * does; no verdict refuses with exit 2. `--allow-unverified` starts it anyway,
+ * with a warning on every start; it is never the default. A closure has no
+ * section table, so it cannot be judged: it runs only with the flag.
+ */
+async function gateRun(path, options) {
+  const allow = options['allow-unverified'] === true;
+  const isHolo = (await stat(resolve(path)).catch(() => null))?.isFile() ?? false;
+  if (!isHolo) {
+    if (allow) return { verdict: null, warning: `${path} is a closure, which check cannot judge; running it unverified (--allow-unverified)` };
+    process.stderr.write(`run.unverified: ${path} is a closure, which check cannot judge; build a .holo, or pass --allow-unverified to run it anyway\n`);
+    return { refuse: CHECK_EXIT.NO_VERDICT };
+  }
+  let capabilities = null;
+  if (options.capabilities) {
+    const { parseCapabilities, grantOf } = await import('../src/capabilities.mjs');
+    capabilities = grantOf(parseCapabilities(new Uint8Array(await readFile(resolve(options.capabilities)))), options['capability-set'] ?? 'default').members;
+  }
+  let verdict;
+  try {
+    verdict = await check(path, { policy: options.policy, capabilities });
+  } catch (error) {
+    if (!(error instanceof PrismError)) throw error;
+    if (allow) return { verdict: null, warning: `no verdict (${error.check ?? error.code}: ${error.message}); running it unverified (--allow-unverified)` };
+    process.stderr.write(`no verdict: ${error.check ?? error.code}: ${error.message}\nrun refused: pass --allow-unverified to run a holo check cannot judge\n`);
+    return { refuse: CHECK_EXIT.NO_VERDICT };
+  }
+  if (verdict.passed) return { verdict, warning: null };
+  if (allow) return { verdict, warning: `the holo failed check (${verdict.level}, policy ${verdict.policy.name} requires ${verdict.policy.minimum}): ${verdict.reasons.filter((r) => r.check !== 'policy.level').map((r) => r.check).join(', ') || 'policy.level'}; running it unverified (--allow-unverified)` };
+  process.stderr.write(formatVerdict(verdict, path));
+  process.stderr.write('run refused: the holo did not pass check. Raise its evidence, run it under a policy that accepts it (--policy), or pass --allow-unverified.\n');
+  return { refuse: exitCodeOf(verdict) };
+}
+
 async function commandRun(positional, options) {
   if (positional.length !== 1) return usage('run takes one artifact');
-  for (const name of ['capabilities', 'capability-set']) {
+  for (const name of ['capabilities', 'capability-set', 'policy']) {
     if (Object.hasOwn(options, name) && (typeof options[name] !== 'string' || options[name] === '')) return usage(`--${name} takes a value`);
   }
+  const gate = await gateRun(positional[0], options);
+  if (gate.refuse !== undefined) return gate.refuse;
+  if (gate.warning) process.stderr.write(`warning: ${gate.warning}\n`);
   const app = await open(positional[0], options);
   const port = options.port === undefined ? 0 : Number(options.port);
   if (!Number.isInteger(port) || port < 0 || port > 65535) return usage('--port must be 0..65535');
@@ -281,6 +325,7 @@ async function commandRun(positional, options) {
   process.stdout.write(`${app.name ?? 'application'} (${app.kind}) at ${url}\n`);
   process.stdout.write(app.capabilities.set === null ? 'capabilities: none granted\n' : `capabilities: set ${app.capabilities.set} of ${options.capabilities}\n`);
   if (app.world?.contract) process.stdout.write(`world: ${app.world.contract} within the grant, ${app.world.pure ? 'pure' : `impure (${app.world.effects.join(', ')})`}\n`);
+  process.stdout.write(gate.verdict?.passed ? `check: passed, ${gate.verdict.level}, policy ${gate.verdict.policy.name}\n` : 'check: NOT PASSED, running unverified\n');
   await new Promise((done) => {
     for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => close().then(done));
   });

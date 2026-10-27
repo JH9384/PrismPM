@@ -125,6 +125,8 @@ export interface VerifyOptions {
    * the set the holo was loaded with.
    */
   capabilities?: CapabilitySet | null;
+  /** The impure effects the policy allows the world (#282). Absent allows any; `[]` is the pure-world policy (`policy.effects`). */
+  effects?: Array<'clock' | 'random' | 'socket' | 'filesystem' | 'unknown'>;
   /** Throw the typed error for a verdict that did not pass. Default false. */
   throw?: boolean;
   /** Where `PRISM_MINIMUM_LEVEL` is read. Default `process.env`. */

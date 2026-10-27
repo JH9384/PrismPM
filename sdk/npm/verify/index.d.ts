@@ -32,6 +32,12 @@ export interface Policy {
    * `PP5602`: it withholds P3 and fails the policy at every level. Default null.
    */
   capabilities?: CapabilitySet | null;
+  /**
+   * The impure effects the policy allows the world (issue #282). Absent, the default, allows any. `[]` is the
+   * pure-world policy: a world importing a clock, random, socket, filesystem or unknown interface fails it with a
+   * `policy.effects` reason, which withholds no level. List an effect to grant it, such as `['clock']`.
+   */
+  effects?: Array<'clock' | 'random' | 'socket' | 'filesystem' | 'unknown'>;
 }
 
 /** One set of a `prism/capabilities/1` file (issue #279). */
@@ -55,7 +61,7 @@ export interface WorldPolicyResult {
 
 /** One check that did not pass. */
 export interface VerdictReason {
-  /** `holo.integrity`, `holo.documents`, `provenance.statement`, `proof.statement`, `replay.statement`, `world.contract`, `world.capabilities`, `world.hash`, `policy.level` or `policy.digests.<target>`. */
+  /** `holo.integrity`, `holo.documents`, `provenance.statement`, `proof.statement`, `replay.statement`, `world.contract`, `world.capabilities`, `world.hash`, `policy.level`, `policy.effects` or `policy.digests.<target>`. */
   check: string;
   /** The registered diagnostic, when one exists: `PP5601` for `policy.level`, `PP5602` for `world.capabilities`. */
   code?: string;

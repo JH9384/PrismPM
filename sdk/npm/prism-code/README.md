@@ -60,11 +60,25 @@ not check proofs.
 ## Run it
 
 ```
-npx prism-code run app.holo --port 8080
+npx prism-code run app.holo --port 8080 [--policy policy.json] [--allow-unverified]
 ```
 
 serves the archive's portable view and answers `POST /_hologram/intent` (the
 request the view posts) by dispatching through the guest.
+
+`run` gates on `check` (#282): it judges the holo against the policy, with the
+capability set it will run under, before anything is instantiated. A holo
+that fails is refused with exit 1 and its verdict on stderr; no verdict (an
+unreadable policy, a file that is not a holo) is exit 2. Every holo is P0
+until holos carry signed statements, so under the default policy (P2) every
+`run` is refused today: pass a policy that accepts the holo, such as
+`{"minimum": "P0"}`, or `--allow-unverified`, which runs it anyway and prints a
+warning on every start. A closure cannot be judged and runs only with the flag.
+
+A policy's `effects` lists the impure effects the world may import: `[]` is
+the pure-world policy, which refuses a world importing a clock, random,
+socket, filesystem or unknown interface (`policy.effects`); `["clock"]` grants
+the clock.
 
 ## Capabilities (experimental, #279)
 

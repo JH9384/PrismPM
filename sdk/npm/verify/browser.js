@@ -2153,6 +2153,19 @@ const __world = (() => {
   }
 
   /**
+   * The impure effects a world imports that a policy does not allow (#282).
+   * `allowed` null allows any; `[]` is the pure-world policy. Returns the
+   * effects outside the policy, empty when the world is within it.
+   *
+   * @param {string[]} effects the world's impure effects, as `worldPurity` reports them
+   * @param {string[] | null} allowed
+   */
+  function effectsOutsidePolicy(effects, allowed) {
+    if (allowed === null || allowed === undefined) return [];
+    return effects.filter((e) => !allowed.includes(e));
+  }
+
+  /**
    * `worldWithinGrant` for a holo's contract. `known` is false, and nothing is
    * claimed, when this reader has no world for the contract.
    *
@@ -2164,7 +2177,7 @@ const __world = (() => {
     if (!world) return { known: false, within: null, problems: [], pure: null, effects: null };
     return { known: true, ...worldWithinGrant(world, set) };
   }
-  return Object.freeze({ readInterface, checkWorld, describeWorld, compareWorldPin, IMPURE_EFFECTS, classifyImport, worldPurity, capabilitySetProblem, worldWithinGrant, checkWorldPolicy });
+  return Object.freeze({ readInterface, checkWorld, describeWorld, compareWorldPin, IMPURE_EFFECTS, classifyImport, worldPurity, capabilitySetProblem, worldWithinGrant, effectsOutsidePolicy, checkWorldPolicy });
 })();
 
 // src/index.mjs
@@ -2177,7 +2190,7 @@ const __index = (() => {
   const { readStructure } = __reader;
   const assurance = __vendor_assurance_levels;
   const transparency = __transparency;
-  const { checkWorld, checkWorldPolicy, capabilitySetProblem, compareWorldPin, describeWorld } = __world;
+  const { checkWorld, checkWorldPolicy, capabilitySetProblem, compareWorldPin, describeWorld, effectsOutsidePolicy, IMPURE_EFFECTS } = __world;
   /**
    * @prism-code/verify: check a `.holo` offline, without the runtime.
    *
@@ -2790,10 +2803,10 @@ const __index = (() => {
 
   function checkPolicy(policy) {
     const { LEVELS, DEFAULT_MINIMUM, DEFAULT_POLICY } = ASSURANCE;
-    if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {}, world: undefined, capabilities: null };
+    if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {}, world: undefined, capabilities: null, effects: null };
     if (typeof policy !== 'object') throw new VerifyError('policy.invalid', 'the policy must be an object');
     for (const key of Object.keys(policy)) {
-      if (!['name', 'minimum', 'digests', 'world', 'capabilities'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum, digests, world or capabilities`);
+      if (!['name', 'minimum', 'digests', 'world', 'capabilities', 'effects'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum, digests, world, capabilities or effects`);
     }
     const name = policy.name ?? DEFAULT_POLICY;
     if (typeof name !== 'string' || name.length < 1 || name.length > 1024) throw new VerifyError('policy.invalid', 'policy.name must be a string of 1 to 1024 characters');
@@ -2815,7 +2828,13 @@ const __index = (() => {
       const problem = capabilitySetProblem(capabilities);
       if (problem) throw new VerifyError('policy.invalid', `policy.capabilities: ${problem}`);
     }
-    return { name, minimum, digests, world: checkWorldPin(policy.world), capabilities };
+    // effects (#282): the impure effects the policy allows the world. Absent allows any; [] is the pure-world policy.
+    const effects = policy.effects ?? null;
+    if (effects !== null) {
+      if (!Array.isArray(effects) || effects.some((e) => !IMPURE_EFFECTS.includes(e))) throw new VerifyError('policy.invalid', `policy.effects must be an array of ${IMPURE_EFFECTS.join(', ')}`);
+      if (new Set(effects).size !== effects.length) throw new VerifyError('policy.invalid', 'policy.effects repeats an effect');
+    }
+    return { name, minimum, digests, world: checkWorldPin(policy.world), capabilities, effects };
   }
 
   /**
@@ -2916,6 +2935,15 @@ const __index = (() => {
       if (mismatches.length > 0) {
         passed = false;
         reasons.push({ check: `policy.digests.${target}`, withholds: null, message: sentence(`the ${target} does not match the policy: ${mismatches.join('; ')}`) });
+      }
+    }
+
+    if (wanted.effects !== null && worldPolicy?.known) {
+      const outside = effectsOutsidePolicy(worldPolicy.effects, wanted.effects);
+      if (outside.length > 0) {
+        passed = false;
+        const allowed = wanted.effects.length === 0 ? 'the policy allows a pure world only' : `the policy allows ${wanted.effects.join(', ')}`;
+        reasons.push({ check: 'policy.effects', withholds: null, message: sentence(`the world imports ${outside.join(', ')}, and ${allowed}`) });
       }
     }
 

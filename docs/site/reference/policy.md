@@ -48,6 +48,8 @@ calculator@sha256:3f9c…
 Verdict: FAIL  Level: P2  (policy: pure)
 ```
 
+A policy can also list the impure effects the holo's world may import, as `effects`: any of `clock`, `random`, `socket`, `filesystem` and `unknown`. Without it any effect is allowed. `"effects": []` is the pure-world policy: a world that imports anything impure fails it, and so does a world importing an interface nothing describes. Add an effect to grant it, such as `"effects": ["clock"]`.
+
 With `--json` the same result is one object with `verdict`, `level`, `policy` and a `reasons` list, one entry per failed rule. `prism run` prints the same report and refuses to instantiate. `prism run --allow-unverified` instantiates anyway and prints a warning on every start.
 
 When `check` cannot evaluate a rule, because a registry or the transparency log is unreachable, it exits 2 and names the rule it could not evaluate. That is not a pass. `--offline` makes `check` contact neither, so any data it would fetch is missing and it exits 2.

@@ -36,7 +36,7 @@ export const LIMITS = Object.freeze([
 ]);
 
 /** The members a policy file may hold. Signer trust and attestation rules arrive with #285. */
-const POLICY_MEMBERS = ['name', 'minimum', 'digests', 'world'];
+const POLICY_MEMBERS = ['name', 'minimum', 'digests', 'world', 'effects'];
 
 const noVerdict = (check, message, cause) => new VerificationError(message, { check, cause });
 
@@ -96,10 +96,12 @@ function attestationBlocker(bytes) {
  * when no verdict was reached.
  *
  * @param {string} path the holo
- * @param {{ policy?: string, env?: object }} [options] `policy` is a policy file path
+ * @param {{ policy?: string, capabilities?: object | null, env?: object }} [options] `policy` is a policy file path; `capabilities` the granted set
  */
 export async function check(path, options = {}) {
   const policy = options.policy === undefined ? {} : await readPolicy(options.policy);
+  // The capability set the caller grants (run, #282); a policy file never grants.
+  if (options.capabilities !== undefined) policy.capabilities = options.capabilities;
   const bytes = await holoBytes(path);
   const blocked = attestationBlocker(bytes);
   if (blocked) throw blocked;

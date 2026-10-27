@@ -36,6 +36,7 @@ class VerifyError extends Error { code: string }
 | `policy.name` | string | The policy name shown in the verdict. Default `"default"`. |
 | `policy.digests` | object | Expected digests for `archive`, `guest`, `view`, `model` or `capabilities`. Each takes `sha256`, `blake3` or both. Every digest given must match. |
 | `policy.capabilities` | object or `null` | The capability set granted to the holo: one set of a `prism/capabilities/1` file (`allow-` and `deny-` lists of outbound hosts, key-value stores and variables), or `null`, the default, for nothing. A world that imports a kind the set grants none of is a `world.capabilities` reason (issue #283). |
+| `policy.effects` | array | The impure effects the world may import (issue #282): any of `clock`, `random`, `socket`, `filesystem`, `unknown`. Absent allows any; `[]` is the pure-world policy. A world importing an effect not listed is a `policy.effects` reason. |
 | `policy.world` | object or `null` | The WIT world the holo must declare, in the shape of the lock's `inputs.world` (`contract`, `sha256`, `blake3`), so a project's lock is passed unchanged. Any member may be left out. `null` expects no world, which no holo satisfies. A mismatch is a `world.hash` reason. |
 
 `archive` is the whole file. The others are the content blobs the documents name.
@@ -80,6 +81,7 @@ What this package does check today appears as reasons that withhold P1:
 | `policy.level` | The level is below `policy.minimum`. Code `PP5601`. |
 | `policy.digests.<part>` | A pinned digest does not match. |
 | `world.capabilities` | The world the contract names imports a capability kind `policy.capabilities` grants nothing of, or an import that names no kind. Code `PP5602`. It withholds P3, and it fails the policy at every level: the default policy requires the world within the grant (issue #283). `worldPolicy(contract, set)` runs the same check alone and also reports whether the world is pure. |
+| `policy.effects` | The policy lists the effects it allows and the world imports another (issue #282). It withholds no level. |
 | `world.hash` | The policy pins a world and the holo's world differs: another contract, another digest, or `null`. It withholds no level. |
 
 So until the bundle lands, read a verdict this way: no `holo.integrity` and no `holo.documents` reason means the holo is intact and well-formed. A P0 policy accepts any readable holo, tampered or not, because P0 promises nothing. Pin a digest when you need a pass or fail answer today.

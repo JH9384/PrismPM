@@ -107,6 +107,7 @@ A flag marked planned is named here so you can plan for it; its spelling may cha
 | `prism-code attest <holo> --predicate <file> --type <uri>`, `--subject`, `--key`, `--output`, `--signing-config` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | On main |
 | `prism-code verify-attestation <holo>`, `--certificate-identity`, `--certificate-identity-regexp`, `--certificate-oidc-issuer`, `--key`, `--type`, `--trusted-root`, `--entries`, `--timestamps`, `--json` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | On main |
 | `prism-code run --capabilities <file>`, `--capability-set <name>` | [#279](https://github.com/UOR-Foundation/PrismPM/issues/279) | On main |
+| `prism-code run <holo>` gated on `check`, `--policy <file>`, `--allow-unverified`; the policy member `effects` and the `policy.effects` reason | [#282](https://github.com/UOR-Foundation/PrismPM/issues/282) | On main |
 | `prism-code init [<dir>]`, `--name`, `--template`, `--sdk-image`, `--force`; `npm create prism-code` | [#281](https://github.com/UOR-Foundation/PrismPM/issues/281) | On main |
 | `prism-code manifest [<dir>]`, `--target <browser\|node>`, `--json` | [#280](https://github.com/UOR-Foundation/PrismPM/issues/280) | On main |
 | The `prism.toml` manifest and its `prism.browser.toml` and `prism.node.toml` overlays, read by the Rust CLI | [#280](https://github.com/UOR-Foundation/PrismPM/issues/280) | Planned |

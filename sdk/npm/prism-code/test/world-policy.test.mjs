@@ -2,6 +2,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { spawn } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load, CapabilityDeniedError, classForCheck, errorFromVerdict } from '../src/index.mjs';
 import { worldPolicy, ASSURANCE } from '../src/vendor/verify.mjs';
@@ -56,7 +59,10 @@ test('world.capabilities maps to CapabilityDeniedError, and a failed verdict nam
 });
 
 test('prism-code run prints the world line', async () => {
-  const child = spawn(process.execPath, [bin, 'run', fileURLToPath(new URL('../fixtures/Calculator.holo', import.meta.url))], { stdio: ['ignore', 'pipe', 'pipe'] });
+  // run gates on check (#282); every holo is P0 today, so this runs under a P0 policy to reach the world line.
+  const p0 = join(mkdtempSync(join(tmpdir(), 'prism-world-p0-')), 'p0.json');
+  writeFileSync(p0, JSON.stringify({ minimum: 'P0' }));
+  const child = spawn(process.execPath, [bin, 'run', '--policy', p0, fileURLToPath(new URL('../fixtures/Calculator.holo', import.meta.url))], { stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '';
   await new Promise((done, fail) => {
     child.stdout.on('data', (chunk) => {

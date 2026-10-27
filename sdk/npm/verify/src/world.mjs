@@ -327,6 +327,19 @@ export function worldWithinGrant(world, set) {
 }
 
 /**
+ * The impure effects a world imports that a policy does not allow (#282).
+ * `allowed` null allows any; `[]` is the pure-world policy. Returns the
+ * effects outside the policy, empty when the world is within it.
+ *
+ * @param {string[]} effects the world's impure effects, as `worldPurity` reports them
+ * @param {string[] | null} allowed
+ */
+export function effectsOutsidePolicy(effects, allowed) {
+  if (allowed === null || allowed === undefined) return [];
+  return effects.filter((e) => !allowed.includes(e));
+}
+
+/**
  * `worldWithinGrant` for a holo's contract. `known` is false, and nothing is
  * claimed, when this reader has no world for the contract.
  *

@@ -99,7 +99,7 @@ A flag marked planned is named here so you can plan for it; its spelling may cha
 | `update`, `update --toolchain`, `update --standards-lock`, `update --dry-run` | [#265](https://github.com/UOR-Foundation/PrismPM/issues/265) | On main |
 | `build --update` | [#264](https://github.com/UOR-Foundation/PrismPM/issues/264) | On main |
 | `prism-code inspect <holo>`, `--json`, `--format <path>` | [#271](https://github.com/UOR-Foundation/PrismPM/issues/271) | On main |
-| `inspect` on a `.holo` in the Rust CLI | [#271](https://github.com/UOR-Foundation/PrismPM/issues/271) | Planned |
+| `inspect <path.holo>`, `--json`, `--format <path>` in the Rust CLI | [#271](https://github.com/UOR-Foundation/PrismPM/issues/271) | On main |
 | `prism-code check <holo>`, `--policy <file>`, `--json` and exit codes 0, 1, 2 | [#270](https://github.com/UOR-Foundation/PrismPM/issues/270) | On main |
 | `prism-code build --check` | [#270](https://github.com/UOR-Foundation/PrismPM/issues/270) | On main |
 | `check` as a typed verdict in the Rust CLI, with `--json`, `--policy <file>` and exit codes 0, 1, 2 | [#270](https://github.com/UOR-Foundation/PrismPM/issues/270) | Planned |

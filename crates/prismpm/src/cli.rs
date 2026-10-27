@@ -99,10 +99,13 @@ pub enum Commands {
         /// Project context (defaults to --project or the current directory).
         context: Option<PathBuf>,
     },
-    /// Inspect an immutable local product release without executing it.
+    /// Inspect an immutable local product release or a `.holo` file without executing it.
     Inspect {
-        /// Registry-qualified digest reference.
+        /// Registry-qualified digest reference, or the path of a `.holo` file.
         reference: String,
+        /// One value of a holo inspection by dotted path, such as sections[0].digest.sha256.
+        #[arg(long)]
+        format: Option<String>,
     },
     /// Export unchanged browser artifacts after source-free release integrity replay.
     ExportBrowser {
@@ -698,9 +701,37 @@ fn execute(cli: &Cli) -> Result<(serde_json::Value, String), PrismError> {
                 ))
             }
         }
-        Commands::Inspect { reference } => {
-            let result = crate::oci::inspect(&controller.root, reference)?;
-            Ok((result, format!("verified local release: {reference}")))
+        Commands::Inspect { reference, format } => {
+            if is_holo_argument(reference) {
+                let bytes = std::fs::read(reference).map_err(|error| {
+                    PrismError::new(
+                        "PP3001",
+                        format!("cannot read the .holo file {reference}: {error}"),
+                    )
+                })?;
+                let inspection = crate::inspect::inspect(&bytes)?;
+                match format {
+                    Some(selector) => {
+                        let selected =
+                            crate::inspect::select(&inspection, selector)?.ok_or_else(|| {
+                                PrismError::new(
+                                    "PP1101",
+                                    format!("no value at {selector} in {reference}"),
+                                )
+                            })?;
+                        let canonical = encode_value(selected)?;
+                        let human = String::from_utf8_lossy(&canonical).trim_end().to_owned();
+                        Ok((selected.clone(), human))
+                    }
+                    None => {
+                        let human = inspection_summary(&inspection);
+                        Ok((inspection, human))
+                    }
+                }
+            } else {
+                let result = crate::oci::inspect(&controller.root, reference)?;
+                Ok((result, format!("verified local release: {reference}")))
+            }
         }
         Commands::ExportBrowser { reference, output } => {
             let result = controller.export_browser(ExportBrowserRequest {
@@ -1013,6 +1044,34 @@ fn execute(cli: &Cli) -> Result<(serde_json::Value, String), PrismError> {
             ))
         }
     }
+}
+
+/// A `.holo` path is inspected as an archive; anything else is a
+/// registry-qualified product-release reference.
+fn is_holo_argument(argument: &str) -> bool {
+    argument.ends_with(".holo") || Path::new(argument).is_file()
+}
+
+/// One line describing a holo inspection, for a person at a terminal. The
+/// canonical value is what `--json` prints.
+fn inspection_summary(inspection: &serde_json::Value) -> String {
+    let name = inspection["name"].as_str().unwrap_or("unnamed holo");
+    let revision = inspection["revision"]
+        .as_str()
+        .unwrap_or("unrecognized revision");
+    let size = inspection["size"].as_u64().unwrap_or_default();
+    let sections = inspection["sections"].as_array().map_or(0, Vec::len);
+    let world = inspection["world"]["contract"]
+        .as_str()
+        .unwrap_or("no registered world");
+    let conforms = match inspection["world"]["conforms"].as_bool() {
+        Some(true) => "conforming",
+        Some(false) => "not conforming",
+        None => "conformance unchecked",
+    };
+    format!(
+        "holo {name}: revision {revision}, {size} bytes, {sections} sections, {world} ({conforms})"
+    )
 }
 
 /// Parse process arguments, execute one command, and emit stable output.

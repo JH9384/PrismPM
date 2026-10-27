@@ -25,6 +25,7 @@ mod exporter;
 mod features;
 pub mod holo;
 mod input_lock;
+pub mod inspect;
 mod lean_project;
 mod library_build;
 mod library_verification;

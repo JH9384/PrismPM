@@ -122,7 +122,7 @@ Attestations
   replay      1 history, 1 call
 ```
 
-Every section has a sha256 and a BLAKE3 digest over the same bytes. `--json` prints both. Pass `--format world` or `--format attestations` to print one part. Pass `--audit` for the security view, which [Audit a holo](/docs/guides/audit) walks through.
+Every section has a sha256 and a BLAKE3 digest over the same bytes. `--json` prints both. Pass `--format world` or `--format attestations` to print one part. The Rust CLI inspects a holo file with the same value: `prismpm inspect Calculator.holo --json` prints `prismpm/holo-inspection/1` for the archive, and `prismpm inspect Calculator.holo --format sections[0].digest.sha256` prints one value. Pass `--audit` for the security view, which [Audit a holo](/docs/guides/audit) walks through.
 
 ## Next steps
 

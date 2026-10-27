@@ -127,6 +127,24 @@ pure. The check is `@prism-code/verify`'s `worldPolicy`, vendored, so the
 runtime, `holo.verify()` and the browser verifier cannot disagree. Design:
 `docs/proposals/283-world-within-policy.md`.
 
+## Start a project (experimental, #281)
+
+```
+npx prism-code init calculator                       # or: npm create prism-code calculator
+npx prism-code init calculator --sdk-image ghcr.io/uor-foundation/prismpm-sdk@sha256:<digest> --force
+```
+
+`init` writes `prism.toml` (application `calculator` 0.1.0, nothing granted) and the
+`text-request` template: a language-1.2 text application, its `prism.arch` lexicon, its Lean
+workspace and the `lexlean.lock` that binds them. The template is a byte-for-byte copy of the
+reviewed fixture `tests/fixtures/holo/ho-11-text-application`, so the project starts from a model
+the repository's own gate checks; edit it from there. Existing files are never overwritten without
+`--force`.
+
+`--sdk-image` binds the project to an SDK image: it copies the image's `standards.lock` and runs
+`prismpm update --toolchain <image>` in it, which writes `prismpm.lock`. Then `npx prism-code
+check` runs in that image. No PrismPM SDK release exists yet, so there is no default image.
+
 ## The prism.toml manifest (experimental, #280)
 
 A project names its application, its model and its grant in `prism.toml`:

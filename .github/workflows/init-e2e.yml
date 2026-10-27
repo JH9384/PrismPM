@@ -1,0 +1,91 @@
+name: init end to end
+
+# Issue #281's acceptance, measured: `npm create prism-code` to a passing
+# check, on a clean GitHub runner with the SDK image pulled first. It is
+# manual (workflow_dispatch) because it pulls a multi-gigabyte SDK image and
+# because no PrismPM SDK release exists yet (#194): the image is an input.
+# Once a release exists, the release's image becomes the default and this
+# runs on every change to sdk/npm/prism-code/src/init*.mjs or the templates.
+#
+# Steps, each timed:
+#   1. pull the SDK image (not counted; the issue says "with the SDK image cached")
+#   2. npm create prism-code app -- --sdk-image <image>   (scaffold and bind)
+#   3. npx prism-code check                                (prismpm check in the image)
+# The job fails when 2 + 3 exceed the issue's two minutes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sdk_image:
+        description: SDK image to bind, NAME@sha256:DIGEST (a candidate until the first release)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: init-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  create-to-check:
+    name: npm create prism-code to check, under two minutes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+      - name: Admit only an immutable image reference
+        env:
+          SDK_IMAGE: ${{ inputs.sdk_image }}
+        run: |
+          [[ "$SDK_IMAGE" =~ ^[a-z0-9.-]+(:[0-9]{1,5})?/[a-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]]
+      - name: Log in to GHCR (read only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - name: Cache the SDK image (not timed)
+        env:
+          SDK_IMAGE: ${{ inputs.sdk_image }}
+        run: docker pull "$SDK_IMAGE"
+      - name: Pack prism-code and create-prism-code as a consumer gets them
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/pkgs"
+          (cd sdk/npm/prism-code && npm pack --pack-destination "$RUNNER_TEMP/pkgs")
+          (cd sdk/npm/create-prism-code && npm pack --pack-destination "$RUNNER_TEMP/pkgs")
+          ls -l "$RUNNER_TEMP/pkgs"
+      - name: npm create prism-code, then check, timed
+        env:
+          SDK_IMAGE: ${{ inputs.sdk_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/clean"
+          mkdir -p "$work" && cd "$work"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/pkgs/prism-code-*.tgz "$RUNNER_TEMP"/pkgs/create-prism-code-*.tgz > /dev/null
+          start=$(date +%s)
+          npx --no-install create-prism-code app --sdk-image "$SDK_IMAGE"
+          scaffolded=$(date +%s)
+          cd app
+          npx --no-install prism-code check
+          checked=$(date +%s)
+          total=$((checked - start))
+          {
+            echo "### npm create prism-code to check"
+            echo "| Step | Seconds |"
+            echo "| --- | --- |"
+            echo "| scaffold and bind | $((scaffolded - start)) |"
+            echo "| check | $((checked - scaffolded)) |"
+            echo "| total (limit 120) | $total |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "total ${total}s"
+          test "$total" -le 120

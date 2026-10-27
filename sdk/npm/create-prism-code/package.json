@@ -1,0 +1,35 @@
+{
+  "name": "create-prism-code",
+  "version": "0.1.0",
+  "description": "npm create prism-code: scaffold a Prism SDK project with prism-code init (prism.toml, a language-1.2 model, and optionally the SDK lock).",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "create-prism-code": "./bin/create-prism-code.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "prism-code": "0.2.0"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UOR-Foundation/PrismPM",
+    "directory": "sdk/npm/create-prism-code"
+  },
+  "homepage": "https://github.com/UOR-Foundation/PrismPM/tree/main/sdk/npm/create-prism-code",
+  "bugs": "https://github.com/UOR-Foundation/PrismPM/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

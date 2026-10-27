@@ -30,6 +30,9 @@
       "types": "./types/browser.d.ts",
       "import": "./src/browser.mjs"
     },
+    "./init": {
+      "import": "./src/init-cli.mjs"
+    },
     "./canonical": {
       "types": "./src/canonical/index.d.ts",
       "import": "./src/canonical/index.js"
@@ -40,6 +43,7 @@
     "bin",
     "src",
     "types",
+    "templates",
     "fixtures/Calculator.holo",
     "README.md",
     "LICENSE"

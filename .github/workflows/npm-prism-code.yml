@@ -16,6 +16,9 @@ on:
       # test/manifest.test.mjs and test/capabilities.test.mjs run the spec's schema fixtures through the runtime.
       - sdk/npm/spec/test/fixtures/manifest/**
       - sdk/npm/spec/test/fixtures/capabilities/**
+      # templates/text-request is a byte copy of this fixture (#281); sync-templates --check holds them equal.
+      - tests/fixtures/holo/ho-11-text-application/project/**
+      - sdk/npm/create-prism-code/**
       - .github/workflows/npm-prism-code.yml
   push:
     branches: [main]
@@ -26,6 +29,9 @@ on:
       # test/manifest.test.mjs and test/capabilities.test.mjs run the spec's schema fixtures through the runtime.
       - sdk/npm/spec/test/fixtures/manifest/**
       - sdk/npm/spec/test/fixtures/capabilities/**
+      # templates/text-request is a byte copy of this fixture (#281); sync-templates --check holds them equal.
+      - tests/fixtures/holo/ho-11-text-application/project/**
+      - sdk/npm/create-prism-code/**
       - .github/workflows/npm-prism-code.yml
     tags:
       - prism-code-v*
@@ -68,6 +74,11 @@ jobs:
       - name: Install the optional sigstore packages
         run: npm install --no-package-lock --no-audit --no-fund --ignore-scripts
       - name: Unit tests
+        run: node --test "test/*.test.mjs"
+      - name: The init templates are their fixtures
+        run: node scripts/sync-templates.mjs --check
+      - name: create-prism-code
+        working-directory: sdk/npm/create-prism-code
         run: node --test "test/*.test.mjs"
       - name: Package size and contents
         shell: bash

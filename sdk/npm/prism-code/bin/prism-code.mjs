@@ -5,6 +5,8 @@
  *   prism-code run <app.holo> [--port N] [--host H] [--capabilities <file>] [--capability-set <name>]
  *                                                     serve the view and the intent endpoint
  *   prism-code vectors <app.holo | closure-dir>       replay the acceptance vectors
+ *   prism-code init [<dir>] [--name N] [--template T] [--sdk-image REF] [--force]
+ *                                                     scaffold a project; with --sdk-image, bind it (standards.lock, prismpm.lock)
  *   prism-code manifest [<dir>] [--target browser|node] [--json]
  *                                                     check and lint prism.toml, with its overlay merged
  *   prism-code inspect <app.holo> [--json] [--format <path>]
@@ -39,6 +41,10 @@ Usage:
   prism-code run <app.holo> [--port N] [--host H] [--capabilities <file>] [--capability-set <name>]
                                                     serve the application's view; POST /_hologram/intent dispatches
   prism-code vectors <app.holo | closure-dir>       replay every acceptance vector through the guest
+  prism-code init [<dir>] [--name <name>] [--template <name>] [--sdk-image <ref>] [--force]
+                                                    scaffold a project: prism.toml, a language-1.2 model and its
+                                                    Lean workspace; --sdk-image also writes standards.lock and
+                                                    prismpm.lock from that SDK image (needs Docker)
   prism-code manifest [<dir>] [--target <browser|node>] [--json]
                                                     check and lint prism.toml, with prism.<target>.toml merged;
                                                     a secret written as a literal is an error
@@ -310,6 +316,10 @@ async function main(argv) {
       return commandRun(positional, options);
     case 'manifest':
       return commandManifest(positional, options);
+    case 'init': {
+      const { runInit } = await import('../src/init-cli.mjs');
+      return runInit(rest);
+    }
     case 'attest':
     case 'verify-attestation':
       return commandAttestation(command, positional, options);

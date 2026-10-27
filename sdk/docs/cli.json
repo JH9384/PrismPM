@@ -32,6 +32,7 @@
     ],
     "verbs": [
       { "name": "run", "usage": "prism-code run <app.holo> [--port <n>] [--capabilities <file>]", "summary": "Serve the holo's view on a local port. A POST to `/_hologram/intent` dispatches one request to the holo." },
+      { "name": "init", "usage": "prism-code init [<dir>] [--sdk-image <ref>]", "summary": "Scaffold a project: `prism.toml`, a language-1.2 model and its Lean workspace. With `--sdk-image`, also copy that image's `standards.lock` and write `prismpm.lock` (needs Docker). `npm create prism-code` runs the same command." },
       { "name": "manifest", "usage": "prism-code manifest [<dir>] [--target <target>]", "summary": "Check and lint the project's `prism.toml`, with the overlay for the target merged in, and print the application, the grant and the variables." },
       { "name": "vectors", "usage": "prism-code vectors <app.holo>", "summary": "Replay every acceptance vector the holo carries and exit 1 on a failure." },
       { "name": "inspect", "usage": "prism-code inspect <app.holo>", "summary": "Print what the holo says about itself, without running it." },

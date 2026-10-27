@@ -395,6 +395,7 @@ export function formatInspection(inspection) {
           ['Imports', list(w.imports)],
           ['Exports', list(w.exports)],
           ['Guest', w.conforms === null ? 'not checked' : w.conforms ? 'conforms to the world' : 'DOES NOT conform to the world'],
+          ['Purity', w.pure === null || w.pure === undefined ? 'unknown contract' : w.pure ? 'pure: no clock, random, socket or filesystem import' : `impure: ${w.effects.join(', ')}`],
           ['Capability set', `${w.capability_set.label}${w.capability_set.empty ? ' (requests nothing)' : ''}`],
         ],
         '  ',

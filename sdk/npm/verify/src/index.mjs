@@ -15,7 +15,7 @@ import { sha256Hex } from './sha256.mjs';
 import { readStructure } from './reader.mjs';
 import * as assurance from './vendor/assurance-levels.mjs';
 import * as transparency from './transparency.mjs';
-import { checkWorld, compareWorldPin, describeWorld } from './world.mjs';
+import { checkWorld, checkWorldPolicy, capabilitySetProblem, compareWorldPin, describeWorld } from './world.mjs';
 
 /** The newest holo format revision this package reads, from @prism-code/spec. */
 export const FORMAT_REVISION = spec.FORMAT_REVISION;
@@ -448,6 +448,23 @@ export function worldOf(contract, guest) {
   return describeWorld(contract, guest);
 }
 
+/**
+ * Is the world a contract names within a granted capability set, and is it
+ * pure (issue #283)? Read from the world's declared imports alone; nothing is
+ * instantiated. `set` is one set of a `prism/capabilities/1` file, or null
+ * when nothing is granted. Returns `{ known, within, problems, pure, effects }`;
+ * `known` is false, and nothing is claimed, for a contract this reader has no
+ * world for. `prism-code` calls this one function before it compiles a guest.
+ *
+ * @param {string} contract
+ * @param {object | null} set
+ */
+export function worldPolicy(contract, set) {
+  const problem = set === null || set === undefined ? null : capabilitySetProblem(set);
+  if (problem) throw new VerifyError('policy.invalid', `capabilities: ${problem}`);
+  return checkWorldPolicy(contract, set ?? null);
+}
+
 /** The schema of an inspection, shared with `prism-code`'s `inspect` (issue #271, PR #335). */
 export const INSPECTION_SCHEMA = 'prismpm/holo-inspection/1';
 
@@ -602,10 +619,10 @@ export function inspect(source) {
 
 function checkPolicy(policy) {
   const { LEVELS, DEFAULT_MINIMUM, DEFAULT_POLICY } = ASSURANCE;
-  if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {}, world: undefined };
+  if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {}, world: undefined, capabilities: null };
   if (typeof policy !== 'object') throw new VerifyError('policy.invalid', 'the policy must be an object');
   for (const key of Object.keys(policy)) {
-    if (!['name', 'minimum', 'digests', 'world'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum, digests or world`);
+    if (!['name', 'minimum', 'digests', 'world', 'capabilities'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum, digests, world or capabilities`);
   }
   const name = policy.name ?? DEFAULT_POLICY;
   if (typeof name !== 'string' || name.length < 1 || name.length > 1024) throw new VerifyError('policy.invalid', 'policy.name must be a string of 1 to 1024 characters');
@@ -622,7 +639,12 @@ function checkPolicy(policy) {
       if (!HEX64.test(set[algorithm])) throw new VerifyError('policy.invalid', `policy.digests.${target}.${algorithm} is not 64 lowercase hex characters`);
     }
   }
-  return { name, minimum, digests, world: checkWorldPin(policy.world) };
+  const capabilities = policy.capabilities ?? null;
+  if (capabilities !== null) {
+    const problem = capabilitySetProblem(capabilities);
+    if (problem) throw new VerifyError('policy.invalid', `policy.capabilities: ${problem}`);
+  }
+  return { name, minimum, digests, world: checkWorldPin(policy.world), capabilities };
 }
 
 /**
@@ -694,11 +716,19 @@ export async function verify(source, policy) {
   }
   for (const statement of STATEMENTS) reasons.push({ ...statement });
 
+  // world.capabilities (#283): the declared world's imports within the granted set. It withholds P3, and the default policy requires it at every level.
+  const contract = facts.documents.directory?.layers?.find((l) => l.kind === 'wasm')?.contract ?? facts.documents.provenance?.core_wasm_contract ?? null;
+  const worldPolicy = contract === null ? null : checkWorldPolicy(contract, wanted.capabilities);
+  const outsideGrant = worldPolicy?.known && !worldPolicy.within;
+  if (outsideGrant) {
+    reasons.push({ check: 'world.capabilities', code: 'PP5602', withholds: 'P3', message: sentence(`the world exceeds the granted capabilities: ${worldPolicy.problems.join('; ')}`) });
+  }
+
   const { LEVELS, RANK } = ASSURANCE;
   const lowestWithheld = Math.min(...reasons.filter((r) => r.withholds).map((r) => RANK[r.withholds]), LEVELS.length);
   const level = LEVELS[lowestWithheld - 1];
 
-  let passed = true;
+  let passed = !outsideGrant;
   if (RANK[level] < RANK[wanted.minimum]) {
     passed = false;
     reasons.push({ check: 'policy.level', code: 'PP5601', withholds: null, message: `The level is ${level}; the policy requires ${wanted.minimum} or above.` });
@@ -719,7 +749,6 @@ export async function verify(source, policy) {
   }
 
   if (wanted.world !== undefined) {
-    const contract = facts.documents.directory?.layers?.find((l) => l.kind === 'wasm')?.contract ?? facts.documents.provenance?.core_wasm_contract ?? null;
     const mismatches = contract === null ? ['the holo declares no guest contract to compare with the pinned world'] : compareWorldPin(contract, wanted.world);
     if (mismatches.length > 0) {
       passed = false;

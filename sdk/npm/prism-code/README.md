@@ -108,6 +108,25 @@ links none: a guest that declares an import fails to load with
 format and its open questions are in `docs/proposals/279-capability-sets.md`;
 the JSON Schema is `@prism-code/spec`'s `schemas/capabilities/capabilities-v1.schema.json`.
 
+### The world within the grant (experimental, #283)
+
+Before the guest is compiled, the runtime compares the imports of the world
+its contract names with the granted set. A world that imports a capability
+kind the set grants none of never loads: `CapabilityDeniedError`
+(`world.capabilities`, the verdict's `PP5602`). `app.world` reports the
+result, and whether the world is pure: no clock, random, socket, filesystem or
+unknown import, so its runs replay.
+
+```js
+app.world;  // { contract: 'hologram:guest/core-wasm@1', within: true, pure: true, effects: [] }
+await app.experimental_verify();  // judges world.capabilities against the set the holo was loaded with
+```
+
+`hologram:guest/core-wasm@1` imports nothing, so it is within every grant and
+pure. The check is `@prism-code/verify`'s `worldPolicy`, vendored, so the
+runtime, `holo.verify()` and the browser verifier cannot disagree. Design:
+`docs/proposals/283-world-within-policy.md`.
+
 ## The prism.toml manifest (experimental, #280)
 
 A project names its application, its model and its grant in `prism.toml`:

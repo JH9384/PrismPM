@@ -15,7 +15,7 @@
  *   prism-code check|build|verify|conformance ...     run prismpm in the locked SDK image
  *
  * Exit codes: 0 ok, 1 vectors failed or an attestation did not verify,
- * 2 artifact refused (a guest import no capability set grants, or a manifest that fails its checks, included), 3 signing failed or the sigstore packages are missing,
+ * 2 artifact refused (a guest import no capability set grants, a world outside the grant, or a manifest that fails its checks, included), 3 signing failed or the sigstore packages are missing,
  * 64 usage, 69 Docker unavailable, otherwise the delegated command's code.
  */
 import { readFile, stat } from 'node:fs/promises';
@@ -225,6 +225,7 @@ async function commandRun(positional, options) {
   const { url, close } = await serve(app, { port, host: options.host ?? '127.0.0.1' });
   process.stdout.write(`${app.name ?? 'application'} (${app.kind}) at ${url}\n`);
   process.stdout.write(app.capabilities.set === null ? 'capabilities: none granted\n' : `capabilities: set ${app.capabilities.set} of ${options.capabilities}\n`);
+  if (app.world?.contract) process.stdout.write(`world: ${app.world.contract} within the grant, ${app.world.pure ? 'pure' : `impure (${app.world.effects.join(', ')})`}\n`);
   await new Promise((done) => {
     for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => close().then(done));
   });

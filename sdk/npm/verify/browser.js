@@ -2015,6 +2015,7 @@ const __world = (() => {
    */
   function describeWorld(contract, guest) {
     const world = Object.hasOwn(WORLDS, contract) ? WORLDS[contract] : undefined;
+    const purity = world ? worldPurity(world) : null;
     return {
       contract,
       package: world ? world.package : null,
@@ -2024,6 +2025,8 @@ const __world = (() => {
       imports: world ? world.imports.map((i) => `${i.module}.${i.name}`) : null,
       exports: world ? world.exports.map((e) => e.name) : null,
       conforms: world && guest ? checkWorld(contract, guest).conforms : null,
+      pure: purity ? purity.pure : null,
+      effects: purity ? purity.effects : null,
     };
   }
 
@@ -2047,7 +2050,121 @@ const __world = (() => {
     }
     return problems;
   }
-  return Object.freeze({ readInterface, checkWorld, describeWorld, compareWorldPin });
+
+  /*
+   * Issue #283, docs/proposals/283-world-within-policy.md: is the world within
+   * the granted capabilities, and is it pure? Both are read from the world's
+   * declared imports alone, before anything is instantiated.
+   */
+
+  /** The effects that make a world impure: a guest importing one can see something a replay cannot reproduce. */
+  const IMPURE_EFFECTS = Object.freeze(['clock', 'random', 'socket', 'filesystem', 'unknown']);
+  const CAPABILITY_KINDS = Object.freeze(['outbound-hosts', 'key-value-stores', 'variables']);
+  const SET_MEMBERS = Object.freeze(CAPABILITY_KINDS.flatMap((kind) => [`allow-${kind}`, `deny-${kind}`]));
+  const WASI_INTERFACES = Object.freeze([
+    ['wasi:clocks/', 'clock'],
+    ['wasi:random/', 'random'],
+    ['wasi:sockets/', 'socket'],
+    ['wasi:http/', 'socket'],
+    ['wasi:filesystem/', 'filesystem'],
+  ]);
+  const WASI_PREVIEW1 = Object.freeze([
+    [/^clock_/, 'clock'],
+    [/^random_get$/, 'random'],
+    [/^(sock_|poll_oneoff$)/, 'socket'],
+    [/^(fd_|path_)/, 'filesystem'],
+    [/^(proc_exit|proc_raise|sched_yield|args_get|args_sizes_get|environ_get|environ_sizes_get)$/, 'none'],
+  ]);
+
+  /**
+   * The effect of one import: `clock`, `random`, `socket`, `filesystem`,
+   * `none` for an import known to be deterministic, or `unknown`. A WASI 0.2
+   * interface is classified by its package and interface name, a WASI 0.1
+   * import by its function name; anything else is `unknown`, because nothing
+   * says what the host behind it returns.
+   *
+   * @param {{ module: string, name: string }} entry
+   */
+  function classifyImport(entry) {
+    for (const [prefix, effect] of WASI_INTERFACES) if (entry.module.startsWith(prefix)) return effect;
+    if (entry.module === 'wasi_snapshot_preview1' || entry.module === 'wasi_unstable') {
+      for (const [pattern, effect] of WASI_PREVIEW1) if (pattern.test(entry.name)) return effect;
+    }
+    return 'unknown';
+  }
+
+  /**
+   * Whether a world is pure, and which effects stop it. A world is pure when
+   * none of its imports is a clock, random, socket or filesystem import, nor an
+   * import whose effect is unknown. Pure worlds are replayable (VER-09).
+   *
+   * @param {{ imports: { module: string, name: string }[] }} world a `WORLDS` row
+   */
+  function worldPurity(world) {
+    const effects = [...new Set(world.imports.map(classifyImport).filter((e) => IMPURE_EFFECTS.includes(e)))].sort();
+    return { pure: effects.length === 0, effects };
+  }
+
+  /**
+   * Check the shape of one capability set, the members of a set of a
+   * `prism/capabilities/1` file (issue #279). The entries' syntax is the
+   * runtime's to check; here only the shape matters. Returns a problem, or null.
+   */
+  function capabilitySetProblem(set) {
+    if (set === null || typeof set !== 'object' || Array.isArray(set)) return 'a capability set is an object of allow- and deny- lists';
+    for (const [member, entries] of Object.entries(set)) {
+      if (!SET_MEMBERS.includes(member)) return `a capability set has no member ${member}; it has ${SET_MEMBERS.join(', ')}`;
+      if (!Array.isArray(entries) || entries.some((e) => typeof e !== 'string')) return `${member} must be an array of strings`;
+    }
+    return null;
+  }
+
+  /**
+   * Whether a set grants any resource of a kind: an allow entry that no deny
+   * entry names, and no deny entry that matches everything. This is the link
+   * rule of #279: an import of a kind is linked when the grant allows at least
+   * one resource of that kind.
+   */
+  function grantsKind(set, kind) {
+    const allow = set?.[`allow-${kind}`] ?? [];
+    const deny = set?.[`deny-${kind}`] ?? [];
+    const everything = kind === 'outbound-hosts' ? ['*://*', '*://*:*'] : ['*'];
+    if (deny.some((d) => everything.includes(d))) return false;
+    return allow.some((a) => !deny.includes(a));
+  }
+
+  /**
+   * Is the world within the granted capability set? Every import must name the
+   * capability kind it uses (a `capability` member of its row in `WORLDS`), and
+   * the set must grant some resource of that kind. `set` is one capability set,
+   * or null when nothing is granted. Returns `{ within, problems, pure, effects }`.
+   *
+   * @param {{ imports: { module: string, name: string, kind: string, capability?: string }[] }} world a `WORLDS` row
+   * @param {object | null} set
+   */
+  function worldWithinGrant(world, set) {
+    const problems = [];
+    for (const entry of world.imports) {
+      const name = `${entry.module}.${entry.name}`;
+      if (!CAPABILITY_KINDS.includes(entry.capability)) problems.push(`the world imports ${name}, which names no capability kind, so no capability set can grant it`);
+      else if (!grantsKind(set, entry.capability)) problems.push(`the world imports ${name}, which needs ${entry.capability}, and ${set ? 'the capability set grants none' : 'no capability set was granted'}`);
+    }
+    return { within: problems.length === 0, problems, ...worldPurity(world) };
+  }
+
+  /**
+   * `worldWithinGrant` for a holo's contract. `known` is false, and nothing is
+   * claimed, when this reader has no world for the contract.
+   *
+   * @param {string} contract
+   * @param {object | null} set
+   */
+  function checkWorldPolicy(contract, set) {
+    const world = Object.hasOwn(WORLDS, contract) ? WORLDS[contract] : undefined;
+    if (!world) return { known: false, within: null, problems: [], pure: null, effects: null };
+    return { known: true, ...worldWithinGrant(world, set) };
+  }
+  return Object.freeze({ readInterface, checkWorld, describeWorld, compareWorldPin, IMPURE_EFFECTS, classifyImport, worldPurity, capabilitySetProblem, worldWithinGrant, checkWorldPolicy });
 })();
 
 // src/index.mjs
@@ -2060,7 +2177,7 @@ const __index = (() => {
   const { readStructure } = __reader;
   const assurance = __vendor_assurance_levels;
   const transparency = __transparency;
-  const { checkWorld, compareWorldPin, describeWorld } = __world;
+  const { checkWorld, checkWorldPolicy, capabilitySetProblem, compareWorldPin, describeWorld } = __world;
   /**
    * @prism-code/verify: check a `.holo` offline, without the runtime.
    *
@@ -2502,6 +2619,23 @@ const __index = (() => {
     return describeWorld(contract, guest);
   }
 
+  /**
+   * Is the world a contract names within a granted capability set, and is it
+   * pure (issue #283)? Read from the world's declared imports alone; nothing is
+   * instantiated. `set` is one set of a `prism/capabilities/1` file, or null
+   * when nothing is granted. Returns `{ known, within, problems, pure, effects }`;
+   * `known` is false, and nothing is claimed, for a contract this reader has no
+   * world for. `prism-code` calls this one function before it compiles a guest.
+   *
+   * @param {string} contract
+   * @param {object | null} set
+   */
+  function worldPolicy(contract, set) {
+    const problem = set === null || set === undefined ? null : capabilitySetProblem(set);
+    if (problem) throw new VerifyError('policy.invalid', `capabilities: ${problem}`);
+    return checkWorldPolicy(contract, set ?? null);
+  }
+
   /** The schema of an inspection, shared with `prism-code`'s `inspect` (issue #271, PR #335). */
   const INSPECTION_SCHEMA = 'prismpm/holo-inspection/1';
 
@@ -2656,10 +2790,10 @@ const __index = (() => {
 
   function checkPolicy(policy) {
     const { LEVELS, DEFAULT_MINIMUM, DEFAULT_POLICY } = ASSURANCE;
-    if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {}, world: undefined };
+    if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {}, world: undefined, capabilities: null };
     if (typeof policy !== 'object') throw new VerifyError('policy.invalid', 'the policy must be an object');
     for (const key of Object.keys(policy)) {
-      if (!['name', 'minimum', 'digests', 'world'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum, digests or world`);
+      if (!['name', 'minimum', 'digests', 'world', 'capabilities'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum, digests, world or capabilities`);
     }
     const name = policy.name ?? DEFAULT_POLICY;
     if (typeof name !== 'string' || name.length < 1 || name.length > 1024) throw new VerifyError('policy.invalid', 'policy.name must be a string of 1 to 1024 characters');
@@ -2676,7 +2810,12 @@ const __index = (() => {
         if (!HEX64.test(set[algorithm])) throw new VerifyError('policy.invalid', `policy.digests.${target}.${algorithm} is not 64 lowercase hex characters`);
       }
     }
-    return { name, minimum, digests, world: checkWorldPin(policy.world) };
+    const capabilities = policy.capabilities ?? null;
+    if (capabilities !== null) {
+      const problem = capabilitySetProblem(capabilities);
+      if (problem) throw new VerifyError('policy.invalid', `policy.capabilities: ${problem}`);
+    }
+    return { name, minimum, digests, world: checkWorldPin(policy.world), capabilities };
   }
 
   /**
@@ -2748,11 +2887,19 @@ const __index = (() => {
     }
     for (const statement of STATEMENTS) reasons.push({ ...statement });
 
+    // world.capabilities (#283): the declared world's imports within the granted set. It withholds P3, and the default policy requires it at every level.
+    const contract = facts.documents.directory?.layers?.find((l) => l.kind === 'wasm')?.contract ?? facts.documents.provenance?.core_wasm_contract ?? null;
+    const worldPolicy = contract === null ? null : checkWorldPolicy(contract, wanted.capabilities);
+    const outsideGrant = worldPolicy?.known && !worldPolicy.within;
+    if (outsideGrant) {
+      reasons.push({ check: 'world.capabilities', code: 'PP5602', withholds: 'P3', message: sentence(`the world exceeds the granted capabilities: ${worldPolicy.problems.join('; ')}`) });
+    }
+
     const { LEVELS, RANK } = ASSURANCE;
     const lowestWithheld = Math.min(...reasons.filter((r) => r.withholds).map((r) => RANK[r.withholds]), LEVELS.length);
     const level = LEVELS[lowestWithheld - 1];
 
-    let passed = true;
+    let passed = !outsideGrant;
     if (RANK[level] < RANK[wanted.minimum]) {
       passed = false;
       reasons.push({ check: 'policy.level', code: 'PP5601', withholds: null, message: `The level is ${level}; the policy requires ${wanted.minimum} or above.` });
@@ -2773,7 +2920,6 @@ const __index = (() => {
     }
 
     if (wanted.world !== undefined) {
-      const contract = facts.documents.directory?.layers?.find((l) => l.kind === 'wasm')?.contract ?? facts.documents.provenance?.core_wasm_contract ?? null;
       const mismatches = contract === null ? ['the holo declares no guest contract to compare with the pinned world'] : compareWorldPin(contract, wanted.world);
       if (mismatches.length > 0) {
         passed = false;
@@ -2813,7 +2959,7 @@ const __index = (() => {
       throw error;
     }
   }
-  return Object.freeze({ FORMAT_REVISION, ASSURANCE, VerifyError, worldOf, INSPECTION_SCHEMA, inspect, verify, verifyTransparency });
+  return Object.freeze({ FORMAT_REVISION, ASSURANCE, VerifyError, worldOf, worldPolicy, INSPECTION_SCHEMA, inspect, verify, verifyTransparency });
 })();
 
-export const { FORMAT_REVISION, ASSURANCE, VerifyError, worldOf, INSPECTION_SCHEMA, inspect, verify, verifyTransparency } = __index;
+export const { FORMAT_REVISION, ASSURANCE, VerifyError, worldOf, worldPolicy, INSPECTION_SCHEMA, inspect, verify, verifyTransparency } = __index;

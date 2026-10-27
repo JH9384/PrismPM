@@ -119,6 +119,12 @@ export interface VerifyOptions {
    * `world.hash` reason, never changes the level, and throws `WorldMismatchError` with `throw: true`.
    */
   world?: { contract?: string; blake3?: string; sha256?: string } | null;
+  /**
+   * The capability set granted (#283): one set of a `prism/capabilities/1` file, or null. A world importing a kind
+   * the set grants none of is a `world.capabilities` reason (`PP5602`). `holo.experimental_verify` defaults it to
+   * the set the holo was loaded with.
+   */
+  capabilities?: CapabilitySet | null;
   /** Throw the typed error for a verdict that did not pass. Default false. */
   throw?: boolean;
   /** Where `PRISM_MINIMUM_LEVEL` is read. Default `process.env`. */
@@ -214,6 +220,18 @@ export interface Application {
   view: View;
   /** The capability set in force (#279). Without a capability file it grants nothing. */
   capabilities: CapabilityGrant;
+  /**
+   * The declared world against the grant, checked before the guest compiled (#283). A world outside the grant
+   * never loads: it throws `CapabilityDeniedError` (`world.capabilities`). `pure` is true when the world imports no
+   * clock, random, socket, filesystem or unknown interface, so its runs replay. Every member but `contract` is null
+   * for a contract this reader has no world for; all are null for a closure.
+   */
+  world: {
+    readonly contract: string | null;
+    readonly within: boolean | null;
+    readonly pure: boolean | null;
+    readonly effects: ReadonlyArray<'clock' | 'random' | 'socket' | 'filesystem' | 'unknown'> | null;
+  };
   /** Run one request through the guest on a fresh instance; bytes in, bytes out. */
   dispatch(request: Uint8Array | ArrayBuffer): Promise<Uint8Array>;
   /** Replay every acceptance vector, comparing bytes. */
@@ -327,6 +345,10 @@ export interface Inspection {
     exports: string[] | null;
     /** Whether the guest module has exactly the imports and exports of the world. */
     conforms: boolean | null;
+    /** No clock, random, socket, filesystem or unknown import, so the world is replayable (issue #283, VER-09). */
+    pure: boolean | null;
+    /** The impure effects the world imports, sorted: `clock`, `filesystem`, `random`, `socket`, `unknown`. */
+    effects: Array<'clock' | 'random' | 'socket' | 'filesystem' | 'unknown'> | null;
     capability_set: { label: string; empty: boolean };
   } | null;
   /** Empty until holos carry an attestation section (#267). */
@@ -376,6 +398,8 @@ export interface CapabilitySet {
 export interface CapabilityGrant {
   /** The set in force, or null when no capability file was given. */
   readonly set: string | null;
+  /** The members of that set, or null when no capability file was given. */
+  readonly members: CapabilitySet | null;
   /** True when an allow entry of `kind` matches `resource` and no deny entry does. Outbound hosts take a URL. */
   allows(kind: CapabilityKind, resource: string): boolean;
   /** Throws `CapabilityDeniedError` (`capabilities.<kind>`) unless `allows(kind, resource)`. */

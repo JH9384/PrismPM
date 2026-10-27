@@ -13,9 +13,10 @@ import { decodeHoloview } from './view.mjs';
 import { compileGuest, runGuest, runAcceptance } from './core.mjs';
 import { parseCapabilities, grantOf, DEFAULT_SET } from './capabilities.mjs';
 import { verifyClosure, closureDispatch, initializeGlue } from './closure.mjs';
-import { PrismCodeError, fail } from './errors.mjs';
+import { CapabilityDeniedError, PrismCodeError, fail } from './errors.mjs';
 import { inspect } from './inspect.mjs';
 import { experimental_verify } from './verify.mjs';
+import { worldPolicy } from './vendor/verify.mjs';
 import * as canonical from './canonical/index.js';
 
 export {
@@ -131,6 +132,29 @@ function grantFor({ capabilities = null, capabilitySet = DEFAULT_SET } = {}) {
 }
 
 /**
+ * The static world-within-policy check (issue #283): the world the guest's
+ * contract names, compared with the granted set before anything is compiled
+ * or instantiated. A world that imports a capability kind the grant gives
+ * none of fails with `CapabilityDeniedError` (`world.capabilities`). The same
+ * function decides `world.capabilities` in `experimental_verify`, so the two
+ * cannot disagree. Returns `{ contract, within, pure, effects }`, frozen;
+ * `within`, `pure` and `effects` are null for a contract this reader has no
+ * world for.
+ */
+function worldWithinGrant(directory, grant) {
+  const contract = directory?.layers?.find((l) => l.kind === 'wasm')?.contract ?? null;
+  if (contract === null) return Object.freeze({ contract: null, within: null, pure: null, effects: null });
+  const result = worldPolicy(contract, grant.members);
+  if (result.known && !result.within) {
+    throw new CapabilityDeniedError(`the world ${contract} exceeds the granted capabilities: ${result.problems.join('; ')}`, {
+      check: 'world.capabilities',
+      details: { contract, problems: result.problems, set: grant.set },
+    });
+  }
+  return Object.freeze({ contract, within: result.within, pure: result.pure, effects: result.effects === null ? null : Object.freeze([...result.effects]) });
+}
+
+/**
  * Open a `.holo` archive from bytes. `options.capabilities` is the capability
  * file the guest runs under and `options.capabilitySet` the set to apply,
  * `default` unless named; without a file the holo is granted nothing.
@@ -143,6 +167,7 @@ export async function loadArchive(source, options = {}) {
   const { modelDocument, provenance, directory } = resolved;
   const application = modelDocument.application ?? fail('archive.model', 'model document has no application');
   const capabilities = grantFor(options);
+  const world = worldWithinGrant(resolved.directory, capabilities);
   const module = await compileGuest(resolved.guest.content, capabilities);
   const limits = limitsOf(application);
   const vectors = vectorsOf(application);
@@ -173,13 +198,19 @@ export async function loadArchive(source, options = {}) {
     archive: parsed,
     /** The capability set in force (#279): `allows(kind, resource)`, `assert(kind, resource)`, `set`. */
     capabilities,
+    /** The declared world against the grant, checked before the guest compiled (#283): contract, within, pure, effects. */
+    world,
     dispatch,
     attestations: () => readAttestations(parsed),
     acceptance: () => runAcceptance(vectors, dispatch),
     /** What the holo says about itself, read from the section table; the guest is not run. */
     inspect: () => (inspection ??= inspect(parsed.bytes)),
-    /** The verdict `prism check` returns for this holo; see `experimental_verify`. */
-    experimental_verify: (options) => experimental_verify(parsed.bytes, options),
+    /**
+     * The verdict `prism check` returns for this holo; see `experimental_verify`.
+     * The capability set the holo was loaded with is the default `capabilities`
+     * option, so `world.capabilities` judges the grant it runs under (#283).
+     */
+    experimental_verify: (options) => experimental_verify(parsed.bytes, { capabilities: capabilities.members, ...(options ?? {}) }),
   });
 }
 
@@ -220,6 +251,8 @@ export async function loadClosure(files, importGlue, { model = null, capabilitie
     },
     view,
     capabilities: grant,
+    /** A closure names no guest contract, so there is no world to check (#283). */
+    world: Object.freeze({ contract: null, within: null, pure: null, effects: null }),
     dispatch: async (request) => dispatch(asBytes(request)),
     attestations: () => [],
     acceptance: () => runAcceptance(vectors, (r) => dispatch(r)),

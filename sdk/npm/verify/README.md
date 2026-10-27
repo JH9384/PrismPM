@@ -35,6 +35,7 @@ class VerifyError extends Error { code: string }
 | `policy.minimum` | `"P0"` to `"P3"` | The lowest level the policy accepts. Default `"P2"`. |
 | `policy.name` | string | The policy name shown in the verdict. Default `"default"`. |
 | `policy.digests` | object | Expected digests for `archive`, `guest`, `view`, `model` or `capabilities`. Each takes `sha256`, `blake3` or both. Every digest given must match. |
+| `policy.capabilities` | object or `null` | The capability set granted to the holo: one set of a `prism/capabilities/1` file (`allow-` and `deny-` lists of outbound hosts, key-value stores and variables), or `null`, the default, for nothing. A world that imports a kind the set grants none of is a `world.capabilities` reason (issue #283). |
 | `policy.world` | object or `null` | The WIT world the holo must declare, in the shape of the lock's `inputs.world` (`contract`, `sha256`, `blake3`), so a project's lock is passed unchanged. Any member may be left out. `null` expects no world, which no holo satisfies. A mismatch is a `world.hash` reason. |
 
 `archive` is the whole file. The others are the content blobs the documents name.
@@ -78,6 +79,7 @@ What this package does check today appears as reasons that withhold P1:
 | `replay.statement` | Always, until replay arrives (issue #284). Withholds P3. |
 | `policy.level` | The level is below `policy.minimum`. Code `PP5601`. |
 | `policy.digests.<part>` | A pinned digest does not match. |
+| `world.capabilities` | The world the contract names imports a capability kind `policy.capabilities` grants nothing of, or an import that names no kind. Code `PP5602`. It withholds P3, and it fails the policy at every level: the default policy requires the world within the grant (issue #283). `worldPolicy(contract, set)` runs the same check alone and also reports whether the world is pure. |
 | `world.hash` | The policy pins a world and the holo's world differs: another contract, another digest, or `null`. It withholds no level. |
 
 So until the bundle lands, read a verdict this way: no `holo.integrity` and no `holo.documents` reason means the holo is intact and well-formed. A P0 policy accepts any readable holo, tampered or not, because P0 promises nothing. Pin a digest when you need a pass or fail answer today.
@@ -171,7 +173,7 @@ Not checked: the DSSE signature, the signing identity, revocation and checkpoint
 | `VerifyError` code | When |
 |---|---|
 | `input` | `bytes` is not a typed array, a `DataView` or an `ArrayBuffer`. |
-| `policy.invalid` | The policy has an unknown member, an unknown level, a digest or `policy.world` digest that is not 64 lowercase hex characters, or a `policy.world` with an unknown member. |
+| `policy.invalid` | The policy has an unknown member, an unknown level, a digest or `policy.world` digest that is not 64 lowercase hex characters, a `policy.world` with an unknown member, or a `policy.capabilities` with an unknown member or a list that is not strings. |
 | `trustedroot.invalid` | `verifyTransparency` only: the trusted root has the wrong media type, a missing validity period or a certificate that does not parse. |
 | `archive.magic`, `archive.version`, `archive.flags`, `archive.table` | The file is not a readable holo: wrong magic, another physical version, or a section table that does not end at the footer, as in a truncated file. |
 | `format.revision` | `verify` only: the holo is intact, but its sections or extensions match no format revision this package knows. Upgrade the package. |

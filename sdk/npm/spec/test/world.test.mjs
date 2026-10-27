@@ -66,3 +66,11 @@ test('CORE_WASM agrees with the registry row', () => {
   assert.equal(spec.CORE_WASM.WORLD, world.file);
   assert.deepEqual([...spec.CORE_WASM.EXPORTS], world.exports.map((e) => e.name));
 });
+
+test('every import of every world names the capability kind it uses (#279, #283)', () => {
+  // core-wasm@1 imports nothing. A world with imports must say which capability kind grants each one, or no set can.
+  const KINDS = ['outbound-hosts', 'key-value-stores', 'variables'];
+  for (const [contract, row] of Object.entries(spec.WORLDS)) {
+    for (const entry of row.imports) assert.ok(KINDS.includes(entry.capability), `${contract} imports ${entry.module}.${entry.name} with no capability kind`);
+  }
+});

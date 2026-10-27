@@ -138,6 +138,8 @@ export function grantOf(capabilities, setName = DEFAULT_SET) {
   return Object.freeze({
     /** The set in force, or null when no capability file was given. */
     set: name,
+    /** The members of that set (frozen), or null when no capability file was given (#283 compares the world with them). */
+    members: capabilities ? set : null,
     allows,
     /** Throws `CapabilityDeniedError` (`capabilities.<kind>`) unless `allows(kind, resource)`. */
     assert(kind, resource) {

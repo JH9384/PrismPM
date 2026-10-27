@@ -62,6 +62,7 @@ World:
   Imports:         none
   Exports:         holo_alloc, holo_run, memory
   Guest:           conforms to the world
+  Purity:          pure: no clock, random, socket or filesystem import
   Capability set:  blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c (requests nothing)
 
 Attestations:

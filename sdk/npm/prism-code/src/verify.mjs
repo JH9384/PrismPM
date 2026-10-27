@@ -17,7 +17,7 @@ import { VerificationError, errorFromVerdict } from './errors.mjs';
 /** The environment variable that sets the client's minimum assurance level, P0 to P3. */
 export const MINIMUM_LEVEL_ENV = 'PRISM_MINIMUM_LEVEL';
 
-const OPTION_KEYS = ['name', 'minimum', 'digests', 'world', 'throw', 'env'];
+const OPTION_KEYS = ['name', 'minimum', 'digests', 'world', 'capabilities', 'throw', 'env'];
 
 function defined(options) {
   if (options === undefined || options === null) return {};

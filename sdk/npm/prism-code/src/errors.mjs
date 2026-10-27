@@ -164,7 +164,8 @@ export function errorForReason(reason, verdict = undefined) {
  * The error that explains a failed verdict, or null for one that passed. A
  * rule the caller pinned and the holo broke (a digest, the world) comes
  * first: the caller asked for that fact by name, and it holds whatever the
- * level is. Otherwise, when the level is below the policy's minimum, it is
+ * level is. A world outside the granted capabilities (`world.capabilities`)
+ * comes next: the default policy requires it at every level (#283). Otherwise, when the level is below the policy's minimum, it is
  * the first reason that withholds a level up to the minimum, which is what
  * kept the holo down. The error carries the whole verdict and every reason.
  */
@@ -172,8 +173,10 @@ export function errorFromVerdict(verdict, ranks) {
   if (verdict.passed) return null;
   const minimum = ranks[verdict.policy.minimum];
   const pinned = verdict.reasons.find((r) => r.withholds === null && r.check !== 'policy.level');
+  // The default policy requires the world within the grant at every level (#269, #283), so it is named before a level shortfall.
+  const outside = verdict.reasons.find((r) => r.check === 'world.capabilities');
   const blocking = verdict.reasons.find((r) => r.withholds && ranks[r.withholds] <= minimum);
-  const reason = pinned ?? blocking ?? verdict.reasons.find((r) => r.check !== 'policy.level') ?? verdict.reasons[0];
+  const reason = pinned ?? outside ?? blocking ?? verdict.reasons.find((r) => r.check !== 'policy.level') ?? verdict.reasons[0];
   return errorForReason(reason, verdict);
 }
 

@@ -39,6 +39,8 @@ test('the reference archive declares its world, with the digests of the WIT file
     imports: [],
     exports: ['holo_alloc', 'holo_run', 'memory'],
     conforms: true,
+    pure: true,
+    effects: [],
     capability_set: { label: world.capability_set.label, empty: true },
   });
 });
@@ -133,7 +135,7 @@ test('a contract this package has no world for: documents fail, conformance is n
 
 test('a world the registry lacks prints null members and pins nothing', () => {
   const world = worldOf('hologram:guest/core-wasm@2', referenceGuest());
-  assert.deepEqual(world, { contract: 'hologram:guest/core-wasm@2', package: null, name: null, file: null, digest: null, imports: null, exports: null, conforms: null });
+  assert.deepEqual(world, { contract: 'hologram:guest/core-wasm@2', package: null, name: null, file: null, digest: null, imports: null, exports: null, conforms: null, pure: null, effects: null });
   assert.deepEqual(checkWorld('hologram:guest/core-wasm@2', referenceGuest()), { known: false, conforms: null, problems: [] });
 });
 

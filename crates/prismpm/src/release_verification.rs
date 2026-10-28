@@ -1386,8 +1386,14 @@ fn application_binding(
             &digests,
         )?;
     }
+    // `browser_timing` is a measurement, not a modeled fact: exclude it from
+    // the deterministic acceptance comparison, as the verify owner does.
+    let mut comparable_acceptance = acceptance.clone();
+    if let Some(object) = comparable_acceptance.as_object_mut() {
+        object.remove("browser_timing");
+    }
     ensure(
-        acceptance == modeled_acceptance,
+        comparable_acceptance == modeled_acceptance,
         "application acceptance differs from actual model or artifacts",
     )?;
     let mut expected = PREFLIGHT.to_vec();

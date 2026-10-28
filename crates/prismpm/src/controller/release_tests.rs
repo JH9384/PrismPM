@@ -1269,8 +1269,15 @@ fn assert_receipt(root: &Path, receipt: &VerifyResult, build: &BuildResult) {
         content_id(&std::fs::read(root.join(&build.model_path)).unwrap())
     );
     let acceptance_bytes = std::fs::read(verified.join("application-acceptance.json")).unwrap();
-    assert_eq!(manifest["acceptance_sha256"], content_id(&acceptance_bytes));
     let acceptance: Value = serde_json::from_slice(&acceptance_bytes).unwrap();
+    let mut acceptance_for_hash = acceptance.clone();
+    if let Some(object) = acceptance_for_hash.as_object_mut() {
+        object.remove("browser_timing");
+    }
+    assert_eq!(
+        manifest["acceptance_sha256"],
+        content_id(&encode_value(&acceptance_for_hash).unwrap())
+    );
     assert_eq!(acceptance["build_id"], build.build_id);
     assert_eq!(acceptance["source_id"], build.source_id);
     assert_eq!(acceptance["status"], "verified");

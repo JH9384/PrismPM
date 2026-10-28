@@ -265,6 +265,10 @@ const directVectorIndexes = [];
 const transportRejectedIndexes = [];
 const textareaNormalizedIndexes = [];
 const unrepresentableFrameIndexes = [];
+// Measured dispatch and rendering time per accepted vector. The Rust owner
+// excludes this block from identity comparisons, so it never changes a build's
+// attestation identity or its byte-identical regeneration.
+const browserTimings = [];
 let activeJourney = 'setup';
 browser = await chromium.launch({headless: true, executablePath: browserExecutable});
 assert.equal(browser.browserType().name(), 'chromium');
@@ -477,6 +481,7 @@ async function submit(vector, target = page, keyboard = false, {fillInputs = tru
     phase = 'fill';
     if (fillInputs) await fill(vector, target);
     phase = 'submission';
+    const submissionStarted = performance.now();
     // Match the request object observed after arming this submission, rather
     // than accepting any response that happens to share the endpoint URL.
     const response = target.waitForResponse(reply => reply.request() === invocation).then(async reply => {
@@ -514,6 +519,16 @@ async function submit(vector, target = page, keyboard = false, {fillInputs = tru
     check = null;
     phase = 'rendered-result';
     await shows(displayed(vector), target);
+    // Measure dispatch-to-render for this accepted vector. The Rust owner
+    // removes this block before identity comparison and hashing, so it never
+    // changes a build's attestation identity or its byte-identical regeneration.
+    const submissionEnded = performance.now();
+    browserTimings.push({
+      vector_index: app.acceptance_vectors.indexOf(vector),
+      duration_milliseconds: submissionEnded - submissionStarted,
+      engine: browser.browserType().name(),
+      engine_version: browser.version(),
+    });
     if (workbench) {
       const expected = JSON.parse(decode.decode(Uint8Array.from(vector.response)));
       if (expected.status === 'ok') {
@@ -933,6 +948,7 @@ async function journey(name, work) {
     engine: browser.browserType().name(), browser_version: browser.version(), playwright: '1.62.1', cases, vector_indexes: vectorIndexes,
     ...(workbench ? {direct_vector_indexes: directVectorIndexes, ui_transport_rejected_indexes: transportRejectedIndexes,
       textarea_normalized_vector_indexes: textareaNormalizedIndexes, unrepresentable_frame_vector_indexes: unrepresentableFrameIndexes} : {}),
+    browser_timing: browserTimings,
     skipped: 0, retries: 0, status: 'passed'})}\n`);
 } catch (error) {
   primaryFailure = sanitizedFailure(error, 'session');

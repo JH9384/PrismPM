@@ -2070,6 +2070,9 @@ pub(crate) fn validate_release_native_evidence(
 // Summarize raw dispatch-to-render samples per vector as the issue requests:
 // median and maximum over repetitions, plus the engine and its version. The
 // summary is a measurement and never participates in an identity comparison.
+// The browser reports fractional milliseconds; the summary is written in whole
+// microseconds because `application-acceptance.json` is canonical JSON, which
+// forbids floats (PP4004).
 fn summarize_browser_timing(report: &Value) -> Option<Value> {
     let entries = report
         .get("portable_browser")
@@ -2081,27 +2084,31 @@ fn summarize_browser_timing(report: &Value) -> Option<Value> {
     let engine_version = report["portable_browser"]["browser_version"]
         .as_str()
         .unwrap_or("");
-    let mut groups: BTreeMap<u64, Vec<f64>> = BTreeMap::new();
+    let mut groups: BTreeMap<u64, Vec<u64>> = BTreeMap::new();
     for entry in entries {
         let index = entry.get("vector_index").and_then(Value::as_u64);
-        let duration = entry.get("duration_milliseconds").and_then(Value::as_f64);
+        let duration = entry
+            .get("duration_milliseconds")
+            .and_then(Value::as_f64)
+            .filter(|milliseconds| milliseconds.is_finite() && *milliseconds >= 0.0)
+            .map(|milliseconds| (milliseconds * 1000.0).round() as u64);
         if let (Some(index), Some(duration)) = (index, duration) {
             groups.entry(index).or_default().push(duration);
         }
     }
     let mut summary = Vec::with_capacity(groups.len());
     for (index, mut durations) in groups {
-        durations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        durations.sort_unstable();
         let repetitions = durations.len();
         let median = if repetitions % 2 == 0 {
-            (durations[repetitions / 2 - 1] + durations[repetitions / 2]) / 2.0
+            (durations[repetitions / 2 - 1] + durations[repetitions / 2]) / 2
         } else {
             durations[repetitions / 2]
         };
         summary.push(json!({
             "vector_index": index,
-            "median_milliseconds": median,
-            "maximum_milliseconds": durations[repetitions - 1],
+            "median_microseconds": median,
+            "maximum_microseconds": durations[repetitions - 1],
             "repetitions": repetitions,
             "engine": engine,
             "engine_version": engine_version,
@@ -4227,12 +4234,32 @@ mod tests {
         assert_eq!(
             summary,
             json!([
-                {"vector_index": 0, "median_milliseconds": 20.0, "maximum_milliseconds": 30.0,
+                {"vector_index": 0, "median_microseconds": 20000, "maximum_microseconds": 30000,
                  "repetitions": 3, "engine": "chromium", "engine_version": "157.0.8099.0"},
-                {"vector_index": 1, "median_milliseconds": 5.0, "maximum_milliseconds": 5.0,
+                {"vector_index": 1, "median_microseconds": 5000, "maximum_microseconds": 5000,
                  "repetitions": 1, "engine": "chromium", "engine_version": "157.0.8099.0"}
             ])
         );
+    }
+
+    #[test]
+    fn browser_timing_summary_is_canonical_json() {
+        // `performance.now()` yields fractional milliseconds; the summary must
+        // still encode, because the acceptance file is canonical (no floats).
+        let report = json!({
+            "portable_browser": {
+                "engine": "chromium",
+                "browser_version": "157.0.8099.0",
+                "browser_timing": [
+                    {"vector_index": 0, "duration_milliseconds": 12.3456},
+                    {"vector_index": 0, "duration_milliseconds": 7.0004}
+                ]
+            }
+        });
+        let summary = summarize_browser_timing(&report).unwrap();
+        assert_eq!(summary[0]["median_microseconds"], json!(9673));
+        assert_eq!(summary[0]["maximum_microseconds"], json!(12346));
+        encode_value(&json!({"browser_timing": summary})).unwrap();
     }
 
     #[test]
@@ -4248,8 +4275,8 @@ mod tests {
             }
         });
         let summary = summarize_browser_timing(&report).unwrap();
-        assert_eq!(summary[0]["median_milliseconds"], json!(15.0));
-        assert_eq!(summary[0]["maximum_milliseconds"], json!(20.0));
+        assert_eq!(summary[0]["median_microseconds"], json!(15000));
+        assert_eq!(summary[0]["maximum_microseconds"], json!(20000));
         assert_eq!(summary[0]["repetitions"], json!(2));
     }
 

@@ -42,7 +42,16 @@
       { "name": "build", "usage": "prism-code build [--check]", "summary": "Build the project into a holo inside the toolchain image the lockfile pins. With `--check`, validate the model and write nothing." },
       { "name": "verify", "usage": "prism-code verify", "summary": "Run verify in the toolchain image the lockfile pins." },
       { "name": "conformance", "usage": "prism-code conformance", "summary": "Run the conformance suite in the toolchain image the lockfile pins." }
-    ]
+    ],
+    "plugins": {
+      "$comment": "CLI plugins (#293, experimental). `--help` prints them under a Plugins heading, apart from the verbs above.",
+      "discovery": "An executable named `prism-<name>` on the PATH runs as `prism-code <name>`, and `prism <name>` once the CLI is renamed. On Windows the first `PATHEXT` extension found in a directory wins and names are case-insensitive. The first PATH directory that has the plugin wins, and a built-in verb always wins over a plugin.",
+      "contract": "A plugin answers `prism-<name> prism-cli-plugin-metadata` with JSON: `schemaVersion` \"1\", `vendor`, `version`, `shortDescription` and optional `errorHooks`, a list of verbs. A plugin that does not answer is listed as invalid and never runs. Arguments reach the plugin unchanged and its exit code is the command's.",
+      "hooks": "When a verb a plugin names in `errorHooks` exits non-zero, prism-code runs `prism-<name> prism-cli-plugin-hooks` with `{\"schemaVersion\":\"1\",\"command\",\"args\",\"exitCode\"}` on stdin and prints the `messages` it returns under What's next, at most ten lines. Set `PRISM_CODE_NO_HOOKS=1` to turn hooks off.",
+      "firstParty": [
+        { "name": "doctor", "binary": "prism-doctor", "usage": "prism-code doctor", "summary": "Check Node.js, Docker, `./prismpm.lock` and the optional sigstore packages; exit 1 when a check fails. Ships in the prism-code package, and its error hook points at it when check, build, verify, conformance or export-browser exit 64 or 69." }
+      ]
+    }
   },
   "verbs": [
     {

@@ -17,13 +17,14 @@
  *   prism-code check <app.holo> [--policy <file>] [--json]
  *                                                     judge the holo against a policy and print its verdict
  *   prism-code build [--check]|verify|conformance ... run prismpm in the locked SDK image
+ *   prism-code <plugin> [args]                        run prism-<plugin> from the PATH (experimental)
  *
  * Exit codes: 0 ok or the policy passed, 1 vectors failed, an attestation did
  * not verify or the policy failed, 2 artifact refused (a guest import no
  * capability set grants, a world outside the grant, or a manifest that fails
  * its checks, included) or no verdict, 3 signing failed or the sigstore
  * packages are missing, 64 usage, 69 Docker unavailable, otherwise the
- * delegated command's code.
+ * delegated command's or the plugin's code.
  *
  * `check` without a holo is the 0.2.0 spelling of `build --check`. It still
  * runs, with a warning, and is removed in 0.4.0 (STABILITY.md, Deprecated).
@@ -40,6 +41,7 @@ import { CapabilityDeniedError, PrismCodeError, PrismError, SigningError, Verifi
 import { inspect, formatInspection, select } from '../src/inspect.mjs';
 import { canonicalJson } from '../src/archive.mjs';
 import { check, formatVerdict, verdictJson, exitCodeOf, EXIT as CHECK_EXIT } from '../src/check.mjs';
+import { discover, errorHookMessages, listPlugins, pluginHelp, readMetadata, runPlugin } from '../src/plugins.mjs';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
@@ -77,6 +79,7 @@ Usage:
   prism-code build [args]                           prismpm build (needs the Docker socket)
   prism-code verify [args]                          prismpm verify (needs the Docker socket)
   prism-code conformance [args]                     prismpm conformance
+  prism-code <plugin> [args]                        run prism-<plugin> from the PATH; a built-in verb always wins
   prism-code --version | --help
 
 Options for inspect:  --json                       the whole inspection as canonical JSON
@@ -101,6 +104,9 @@ Options for manifest: --target <browser|node>      merge prism.browser.toml or p
                       --json                       the merged manifest and the warnings as canonical JSON
 Options for closures: --model <model.prism.json>   the model document (numeric-profile closures need it)
 `;
+
+// The built-in verbs are the ones the usage text names and the delegated ones, so a new verb shadows a plugin of its name.
+const BUILTINS = new Set([...[...USAGE.matchAll(/^ {2}prism-code ([a-z][a-z-]*)/gm)].map((m) => m[1]), ...Object.keys(DELEGATED), 'help', 'version']);
 
 function usage(message) {
   if (message) process.stderr.write(`${message}\n\n`);
@@ -390,10 +396,22 @@ async function commandDelegate(command, args) {
   });
 }
 
+// Set once a verb or a plugin runs; error hooks run only after one did.
+let ran = null;
+
+async function commandPlugin(command, args) {
+  const file = BUILTINS.has(command) ? null : discover().get(command);
+  if (!file) return usage(`unknown command ${command}`);
+  const { problem } = readMetadata(file);
+  if (problem) return usage(`prism-${command} is not a valid plugin: ${problem}`);
+  ran = command;
+  return runPlugin(file, args);
+}
+
 async function main(argv) {
   const [command, ...rest] = argv;
   if (!command || command === '--help' || command === '-h' || command === 'help') {
-    process.stdout.write(USAGE);
+    process.stdout.write(command ? USAGE + pluginHelp(listPlugins({ builtins: BUILTINS })) : USAGE);
     return command ? 0 : 64;
   }
   if (command === '--version' || command === '-v' || command === 'version') {
@@ -401,6 +419,7 @@ async function main(argv) {
     return 0;
   }
   const { positional, options } = parse(rest);
+  if (BUILTINS.has(command)) ran = command;
   switch (command) {
     case 'vectors':
       return commandVectors(positional, options);
@@ -426,11 +445,12 @@ async function main(argv) {
       return commandDelegate('build', rest);
     default:
       if (Object.hasOwn(DELEGATED, command)) return commandDelegate(command, rest);
-      return usage(`unknown command ${command}`);
+      return commandPlugin(command, rest);
   }
 }
 
-main(process.argv.slice(2)).then(
+const argv = process.argv.slice(2);
+main(argv).then(
   (code) => {
     process.exitCode = code;
   },
@@ -450,4 +470,9 @@ main(process.argv.slice(2)).then(
       process.exitCode = 70;
     }
   },
-);
+).then(() => {
+  // A plugin may have something to say about a verb that failed, as Docker's error-hooks do.
+  if (!ran || !process.exitCode) return;
+  const messages = errorHookMessages({ command: ran, args: argv.slice(1), exitCode: process.exitCode, builtins: BUILTINS });
+  if (messages.length > 0) process.stderr.write(`\nWhat's next:\n${messages.map((m) => `  ${m}\n`).join('')}`);
+});

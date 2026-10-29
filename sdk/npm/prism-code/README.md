@@ -405,6 +405,44 @@ npx prism-code build
 Nothing in this package can produce a `.holo` without the image, and no
 native `prismpm` binary ships in this release.
 
+## Plugins (experimental, #293)
+
+An executable named `prism-<name>` on the PATH runs as `prism-code <name>`,
+with its arguments unchanged and its exit code returned, the way Docker runs
+`docker-<name>`. The same binary will run as `prism <name>` once the CLI is
+renamed. A built-in verb always wins over a plugin, and the first PATH
+directory that has the plugin wins. On Windows the first `PATHEXT` extension
+found wins (`.exe` before `.cmd` by default), names are case-insensitive, and
+`.cmd` and `.bat` plugins get their arguments quoted for `cmd.exe`, so npm
+shims work. `prism-code --help` lists plugins under their own heading.
+
+A plugin answers one call with JSON on stdout, and is listed as invalid and
+never run when it does not:
+
+```
+$ prism-doctor prism-cli-plugin-metadata
+{"schemaVersion":"1","vendor":"UOR Foundation","version":"0.2.0","shortDescription":"...","errorHooks":["check","build"]}
+```
+
+`errorHooks` names the verbs whose failures the plugin wants to hear about,
+as Docker's `error-hooks` do since Engine 29.3.0. When one of them exits
+non-zero, prism-code runs `prism-<name> prism-cli-plugin-hooks` with
+`{"schemaVersion":"1","command":"build","args":[...],"exitCode":69}` on stdin,
+and prints the returned `{"messages":[...]}` (at most ten lines) to stderr
+under "What's next:". A hook that fails, times out (5 s) or prints something
+else says nothing. `PRISM_CODE_NO_HOOKS=1` turns hooks off.
+
+The first-party plugin is `prism-doctor`, a second binary in this package:
+
+```
+npx prism-code doctor
+```
+
+It checks Node.js, Docker, `./prismpm.lock` and the optional sigstore
+packages, and exits 1 when a check fails. Its error hook suggests it when
+`check`, `build`, `verify`, `conformance` or `export-browser` exit 64 (no
+lockfile) or 69 (no Docker).
+
 ## What is in a `.holo`
 
 Little-endian: `HOLO`, u16 version 4, u16 flags, u16 section count, a table of

@@ -29,6 +29,7 @@ test('a verb or a flag that prism-code does not have is named', () => {
   assert.equal(shippedCommandProblem('prism-code@0.2.0 vectors app.holo', cli), null);
   assert.equal(shippedCommandProblem('npx prism-code --version', cli), null);
   assert.equal(shippedCommandProblem('npm install prism-code', cli), null);
+  assert.equal(shippedCommandProblem('npx prism-code doctor', cli), null);
   assert.match(shippedCommandProblem('npx prism-code deploy', cli), /deploy is not a verb/);
   assert.match(shippedCommandProblem('prism-code run app.holo --tls', cli), /no flag --tls/);
   assert.match(shippedCommandProblem('prism-code inspect app.holo --json', cli), /no flag --json/);

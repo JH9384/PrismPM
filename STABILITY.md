@@ -77,6 +77,7 @@ Nothing is Stable today.
 | Holo build provenance: the `https://uor.foundation/prism/holo-build/v1` statement, its `min` and `max` modes, and `provenanceStatement`, `attachProvenance`, `readProvenance` in `prism-code` | [docs/proposals/268-build-provenance.md](docs/proposals/268-build-provenance.md) | Experimental |
 | `prism-code` `experimental_verify`, `experimental_createClient`, `Application.experimental_verify` and the `PrismError` hierarchy with its stable codes | `sdk/npm/prism-code` | Experimental |
 | SDK image contract: the digest-pinned OCI index for `linux/amd64` and `linux/arm64` | [SPEC.md](SPEC.md) section 1 | Experimental |
+| `prism-code` CLI plugins ([#293](https://github.com/UOR-Foundation/PrismPM/issues/293)): `prism-<name>` on the PATH runs as `prism-code <name>`, the `prism-cli-plugin-metadata` and `prism-cli-plugin-hooks` calls (schema version 1), `errorHooks`, `PRISM_CODE_NO_HOOKS`, and the first-party `prism-doctor` | `sdk/npm/prism-code` | Experimental |
 
 The CLI binary will be renamed `prism`.
 `prismpm` stays as an alias through every 1.x release.

@@ -170,8 +170,8 @@ const SHIPPED_GLOBAL_FLAGS = new Set(['--help', '--version', '-h', '-v']);
  * One command segment against the `prism-code` command that ships today, as
  * cli.json describes it under `prismCode`. `npx prism-code run app.holo` and
  * `prism-code@0.2.0 run app.holo` both count; a segment that is not a
- * `prism-code` command returns null. A verb or a flag the description does not
- * have returns a message.
+ * `prism-code` command returns null. A verb, first-party plugin or flag the
+ * description does not have returns a message.
  * @returns {string | null}
  */
 export function shippedCommandProblem(segment, cli) {
@@ -179,7 +179,7 @@ export function shippedCommandProblem(segment, cli) {
   if (!command) return null;
   const [, verb, rest = ''] = command;
   if (verb === undefined || SHIPPED_GLOBAL_FLAGS.has(verb)) return null;
-  const shipped = new Map(cli.prismCode.verbs.map((v) => [v.name, new Set([...v.usage.matchAll(/--[a-z][a-z-]*/g)].map((m) => m[0]))]));
+  const shipped = new Map([...cli.prismCode.verbs, ...(cli.prismCode.plugins?.firstParty ?? [])].map((v) => [v.name, new Set([...v.usage.matchAll(/--[a-z][a-z-]*/g)].map((m) => m[0]))]));
   if (!shipped.has(verb)) return `prism-code ${verb} is not a verb in the prismCode list of sdk/docs/cli.json`;
   const words = rest.replace(/'[^']*'|"[^"]*"/g, ' ').split(/\s+/);
   for (const word of words.filter((w) => w.startsWith('-'))) {

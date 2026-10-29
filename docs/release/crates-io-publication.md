@@ -21,7 +21,7 @@ None of `prism-stdlib`, `prismpm`, `lexlean`, `prod-ir`, `prod-codegen` or
 | 2 | `prod-codegen` | 0.1.0 | this repository, `vendor/lean4-prod/rust/prod-codegen` | `vendor/lean4-prod/crates/prod-codegen-0.1.0.crate`, sha256 `29270825…09148` |
 | 3 | `lexlean` | 0.4.0 | the LexLean repository ([LexLean#260](https://github.com/UOR-Foundation/LexLean/issues/260)) | `vendor/lexlean/lexlean-0.4.0.crate`, sha256 `f2d57928…a0a18`, cut from LexLean `e0b74b81e` (the `v0.4.0` tag); already public on crates.io with these bytes |
 | 4 | `prism-stdlib` | 0.2.0 | this repository, `stdlib/generated/package` | `stdlib/generated/prism-stdlib-0.2.0.crate`, sha256 `58f398f5…52bca` |
-| 5 | `prismpm` | 0.3.0 | this repository, `crates/prismpm` | none: nothing embeds it; it is packaged again once 1 to 4 are public |
+| 5 | `prismpm` | 0.4.0 | this repository, `crates/prismpm` | none: nothing embeds it; it is packaged again once 1 to 4 are public |
 
 The order is the dependency order: `prod-codegen` depends on `prod-ir`, and
 `prismpm` depends on the other four. `prism-calculator` is not a crate of this
@@ -70,7 +70,7 @@ upload.
 | `CARGO_REGISTRY_TOKEN` secret in the `crates.io` environment | the same, then uploads in order and waits until crates.io serves the same bytes |
 | repository variable `CRATES_IO_TRUSTED_PUBLISHING` = `true` | the same, with a short-lived token from trusted publishing; for use once the owner has configured it for all five names |
 
-With a credential the job also waits for `lexlean 0.3.0` before the crates that
+With a credential the job also waits for `lexlean 0.4.0` before the crates that
 need it, as before.
 
 ## What the owner runs

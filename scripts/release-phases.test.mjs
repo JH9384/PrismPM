@@ -66,7 +66,7 @@ function validateWorkflow(value) {
   // without the secret or the trusted-publishing switch (#214).
   assert.ok(cargoPublication.indexOf('return 0', cargoPublication.indexOf('if [ "$UPLOAD" != true ]; then'))
     < cargoPublication.indexOf('cargo publish --locked --manifest-path'), 'the skip must return before the upload');
-  assert.match(cargoPublication, /if \[ "\$UPLOAD" = true \]; then\n\s+wait_for_crate lexlean 0\.3\.0\n\s+fi/);
+  assert.match(cargoPublication, /if \[ "\$UPLOAD" = true \]; then\n\s+wait_for_crate lexlean 0\.4\.0\n\s+fi/);
   assert.match(cargoPublication, /release_cargo\(\) \{\n\s+name=\$1\n\s+shift\n\s+if \[ "\$UPLOAD" = true \]; then\n\s+cargo "\$@"\n\s+elif \[ "\$name" = prod-codegen \]/);
   for (const dependency of ['lexlean', 'prod-ir', 'prod-codegen', 'prism-stdlib']) {
     assert.ok(cargoPublication.includes(`--config "patch.crates-io.${dependency}.path=`), `${dependency} must resolve from the reviewed copy before upload`);
@@ -208,7 +208,7 @@ test('publication phases preserve all gates and decouple OCI/native from optiona
       run => run.replace('test "$(sha256sum "$archive" | cut -d" " -f1)" = "$local_checksum"\n', ''),
       run => run.replace('./scripts/crate-metadata-check.sh "$archive"\n', ''),
       run => run.replace('if [ "$UPLOAD" != true ]; then', 'if false; then'),
-      run => run.replace(/if \[ "\$UPLOAD" = true \]; then\s+wait_for_crate lexlean 0\.3\.0\s+fi/, 'wait_for_crate lexlean 0.3.0'),
+      run => run.replace(/if \[ "\$UPLOAD" = true \]; then\s+wait_for_crate lexlean 0\.4\.0\s+fi/, 'wait_for_crate lexlean 0.4.0'),
       run => run.replace(/\s*--config "patch\.crates-io\.lexlean\.path=[^\n]*\n/, '\n'),
     ].map(mutate => value => {
       const step = value.jobs.crates.steps.find(step => step.run?.includes('publish_exact()'));

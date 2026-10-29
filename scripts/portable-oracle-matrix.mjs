@@ -10,7 +10,7 @@ import {fileURLToPath} from 'node:url';
 import {snapshotTree} from '../sdk/exporter-seed.mjs';
 import {capture, refuseCargoAncestorConfiguration, snapshotSourceTree, privateGitObjects, privateRegistryDownloads, reportChildFailure} from './portable-oracle-custody.mjs';
 import {PortableDiagnosticBundle,readDiagnosticFile,probeSummary,retainDiagnostic} from './portable-oracle-diagnostics.mjs';
-import {observationSummary,observationDriver} from './portable-oracle-observation.mjs';
+import {acceptanceReport,observationSummary,observationDriver} from './portable-oracle-observation.mjs';
 import {retirementFaults,retirementDriver,retirementSummary} from './portable-oracle-retirement.mjs';
 import {createHash} from 'node:crypto';
 
@@ -309,10 +309,10 @@ try {
       executable.verify();
       for (const input of captured) input.verify();
     }
-    assert.deepEqual(pair[0].report, pair[1].report, 'read-only observations must not change any real oracle acceptance');
+    assert.deepEqual(acceptanceReport(pair[0].report), acceptanceReport(pair[1].report), 'read-only observations must not change any real oracle acceptance');
     assert.equal(pair[0].submissions, pair[1].submissions);
     assert.equal(pair[0].keyboard_submissions, pair[1].keyboard_submissions);
-    assert.deepEqual(pair[2].report,pair[1].report,'actual nonjoining observer schedule must not change any real oracle acceptance');
+    assert.deepEqual(acceptanceReport(pair[2].report),acceptanceReport(pair[1].report),'actual nonjoining observer schedule must not change any real oracle acceptance');
     assert.equal(pair[2].submissions,pair[1].submissions);
     assert.equal(pair[2].keyboard_submissions,pair[1].keyboard_submissions);
     observationPairs.push({profile: profile.profile, trigger, status: 'passed', runs: pair});

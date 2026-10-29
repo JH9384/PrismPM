@@ -7,7 +7,7 @@ import {resolve, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {capture} from './portable-oracle-custody.mjs';
-import {expectedObservationSubmissions, observationFailureDiagnostics, observationSummary} from './portable-oracle-observation.mjs';
+import {acceptanceReport, expectedObservationSubmissions, observationFailureDiagnostics, observationSummary} from './portable-oracle-observation.mjs';
 
 export const retirementFaults = Object.freeze([
   'pending-detach', 'rejected-detach', 'primary-body-failure',
@@ -266,7 +266,7 @@ function main() {
   assert(!(result.stderr ?? '').includes('private-retirement-control'), 'diagnostics cannot publish raw injected errors');
   if (positive.has(fault)) {
     assert.equal(faults.submission_failures.length,0);assert.equal(faults.cleanup_failures.length,0);
-    assert.deepEqual(JSON.parse(result.stdout.trim()), baseline.report, 'fault cannot change any actual full-profile acceptance');
+    assert.deepEqual(acceptanceReport(JSON.parse(result.stdout.trim())), acceptanceReport(baseline.report), 'fault cannot change any actual full-profile acceptance');
     assert.equal(witness.primary_failure, false); assert.equal(witness.cleanup_failure, false);
     assert.equal(witness.active_detaches,0);assert.equal(witness.settled_detaches,witness.detaches);
     assert.equal(witness.unresolved_acquisitions,0);assert.equal(witness.unresolved_detaches,0);

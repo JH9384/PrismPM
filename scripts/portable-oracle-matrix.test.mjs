@@ -10,7 +10,7 @@ import {capture, requireBoundaryCheck, requireRequestCompletion, refuseCargoAnce
 import {PortableDiagnosticBundle,diagnosticLimits,readDiagnosticFile,probeSummary,retainDiagnostic} from './portable-oracle-diagnostics.mjs';
 import {createHash} from 'node:crypto';
 import {EventEmitter} from 'node:events';
-import {observationDriver,requireObservationWitnesses,expectedObservationSubmissions,observationSummary,observationFailureDiagnostics} from './portable-oracle-observation.mjs';
+import {acceptanceReport,observationDriver,requireObservationWitnesses,expectedObservationSubmissions,observationSummary,observationFailureDiagnostics} from './portable-oracle-observation.mjs';
 import {retirementFaults,retirementDriver,retirementSummary,requirePrimaryBodyFault,requireAcquisitionRefusal,requireRegistryRefusal} from './portable-oracle-retirement.mjs';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
@@ -323,9 +323,20 @@ test('live observation qualification transforms only diagnostics and retains all
  const owner=read('scripts/portable-oracle-matrix.mjs');
  assert(owner.includes("'scripts/portable-oracle-observation.mjs'"));
  assert(owner.includes("assert.equal(observationPairs.length, 4"));
- assert(owner.includes('assert.deepEqual(pair[0].report, pair[1].report'));
+ assert(owner.includes('assert.deepEqual(acceptanceReport(pair[0].report), acceptanceReport(pair[1].report)'));
  assert(owner.includes("for (const mode of ['observed', 'unobserved', 'ordinary'])"));
- assert(owner.includes('assert.deepEqual(pair[2].report,pair[1].report'));
+ assert(owner.includes('assert.deepEqual(acceptanceReport(pair[2].report),acceptanceReport(pair[1].report)'));
+ // Only the per-run timing samples are exempt; every other report field stays strict.
+ const timed=(duration,status='passed')=>({schema:'prismpm/hologram-oracle/2',direct_vectors:22,
+  portable_browser:{status,cases:[{name:'modeled-vectors',status:'passed',attempts:1}],
+   browser_timing:[{vector_index:0,duration_milliseconds:duration,engine:'chromium',engine_version:'157.0.8099.0'}]}});
+ assert.deepEqual(acceptanceReport(timed(54.86)),acceptanceReport(timed(54.29)));
+ assert.equal(acceptanceReport(timed(54.86)).portable_browser.browser_timing,undefined);
+ assert.equal(timed(54.86).portable_browser.browser_timing.length,1,'the measurement itself is not removed');
+ assert.throws(()=>assert.deepEqual(acceptanceReport(timed(54.86,'failed')),acceptanceReport(timed(54.29))));
+ assert.throws(()=>assert.deepEqual(acceptanceReport({...timed(1),direct_vectors:21}),acceptanceReport(timed(1))));
+ assert.deepEqual(acceptanceReport({schema:'x'}),{schema:'x'});
+ assert(read('scripts/portable-oracle-retirement.mjs').includes('assert.deepEqual(acceptanceReport(JSON.parse(result.stdout.trim())), acceptanceReport(baseline.report)'));
  assert(owner.includes('assert.equal(outcomes.length, 78'));
  assert(owner.includes('assert.equal(negativeControls.length, 12'));
  assert.equal(retirementFaults.length,14);assert.equal(new Set(retirementFaults).size,14);

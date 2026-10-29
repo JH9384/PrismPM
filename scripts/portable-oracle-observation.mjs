@@ -29,6 +29,12 @@ export function expectedObservationSubmissions(profile,trigger){
  }
  return expected.map((row,index)=>({submission:index+1,...row}));
 }
+// Raw dispatch-to-render samples (#392) vary on every real run; they are a
+// measurement, not acceptance. Compare the oracle report without them.
+export function acceptanceReport(report){
+ const {browser_timing:_timing,...portable}=report?.portable_browser??{};
+ return report?.portable_browser===undefined?report:{...report,portable_browser:portable};
+}
 export function observationSummary(value){
  const integer=(number,maximum)=>Number.isSafeInteger(number)&&number>=0&&number<=maximum?number:null;
  const digest=number=>typeof number==='string'&&/^[a-f0-9]{64}$/.test(number)?number:null;

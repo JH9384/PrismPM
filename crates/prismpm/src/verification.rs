@@ -2117,6 +2117,35 @@ fn summarize_browser_timing(report: &Value) -> Option<Value> {
     Some(json!(summary))
 }
 
+// The oracle's raw dispatch-to-render samples vary per run; the acceptance
+// summary carries them. Retain the oracle report without them, so the
+// manifest, and with it the attestation id, is the same on every run.
+fn retained_processes(processes: &[ProcessRecord]) -> Result<Value, PrismError> {
+    let mut value = serde_json::to_value(processes)
+        .map_err(|error| PrismError::new("PP9001", error.to_string()))?;
+    for row in value.as_array_mut().into_iter().flatten() {
+        if row["tool"] != "hologram-oracle" {
+            continue;
+        }
+        let Some(mut report) = row["stdout"]
+            .as_str()
+            .and_then(|stdout| serde_json::from_str::<Value>(stdout.trim()).ok())
+        else {
+            continue;
+        };
+        let removed = report
+            .get_mut("portable_browser")
+            .and_then(Value::as_object_mut)
+            .and_then(|browser| browser.remove("browser_timing"));
+        if removed.is_some() {
+            let line = serde_json::to_string(&report)
+                .map_err(|error| PrismError::new("PP9001", error.to_string()))?;
+            row["stdout"] = json!(format!("{line}\n"));
+        }
+    }
+    Ok(value)
+}
+
 // `browser_timing` is a measurement: it varies per run. Compare the
 // deterministic projection of `application-acceptance.json` so a repeated
 // verification that reuses its attestation id accepts the differing timing.
@@ -2744,8 +2773,7 @@ fn run_application(
             .map_err(|error| PrismError::new("PP3014", format!("Holo identities: {error}")))?,
     )
     .map_err(|error| PrismError::new("PP3014", format!("Holo identities: {error}")))?;
-    let process_value = serde_json::to_value(&processes)
-        .map_err(|error| PrismError::new("PP9001", error.to_string()))?;
+    let process_value = retained_processes(&processes)?;
     let mut acceptance = json!({
         "application": application.name(),
         "artifact_closure": "verified",
@@ -4278,6 +4306,43 @@ mod tests {
         assert_eq!(summary[0]["median_microseconds"], json!(15000));
         assert_eq!(summary[0]["maximum_microseconds"], json!(20000));
         assert_eq!(summary[0]["repetitions"], json!(2));
+    }
+
+    #[test]
+    fn retained_oracle_process_omits_per_run_browser_timing() {
+        let oracle = |duration: f64, skipped: u64| ProcessRecord {
+            tool: "hologram-oracle".to_owned(),
+            argv: Vec::new(),
+            executable_sha256: "0".repeat(64),
+            exit_code: 0,
+            stdout: format!(
+                "{}\n",
+                json!({"schema":"prismpm/hologram-oracle/2","portable_browser":{
+                    "skipped":skipped,
+                    "browser_timing":[{"vector_index":0,"duration_milliseconds":duration}]}})
+            ),
+            stderr: String::new(),
+            exporter: None,
+        };
+        let first = retained_processes(&[oracle(54.86, 0)]).unwrap();
+        assert_eq!(first, retained_processes(&[oracle(54.29, 0)]).unwrap());
+        assert_ne!(first, retained_processes(&[oracle(54.86, 1)]).unwrap());
+        let report: Value =
+            serde_json::from_str(first[0]["stdout"].as_str().unwrap().trim()).unwrap();
+        assert_eq!(report["portable_browser"], json!({"skipped":0}));
+        // The in-memory record still feeds the acceptance summary.
+        assert!(summarize_browser_timing(
+            &serde_json::from_str(oracle(54.86, 0).stdout.trim()).unwrap()
+        )
+        .is_some());
+        let other = ProcessRecord {
+            tool: "core-wasm-validate".to_owned(),
+            ..oracle(54.86, 0)
+        };
+        assert_eq!(
+            retained_processes(std::slice::from_ref(&other)).unwrap()[0]["stdout"],
+            json!(other.stdout)
+        );
     }
 
     #[test]

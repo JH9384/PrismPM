@@ -1303,6 +1303,38 @@ fn process_platform(rows: &[Value]) -> Result<&'static str, PrismError> {
     Ok(platform)
 }
 
+// The per-vector summary `verify` writes from the oracle's dispatch-to-render
+// samples, in whole microseconds so the acceptance document stays canonical.
+fn browser_timing(value: &Value) -> Result<(), PrismError> {
+    for row in array(value)? {
+        keys(
+            row,
+            &[
+                "engine",
+                "engine_version",
+                "maximum_microseconds",
+                "median_microseconds",
+                "repetitions",
+                "vector_index",
+            ],
+        )?;
+        ensure(
+            [
+                "maximum_microseconds",
+                "median_microseconds",
+                "repetitions",
+                "vector_index",
+            ]
+            .iter()
+            .all(|field| row[*field].is_u64())
+                && row["engine"].is_string()
+                && row["engine_version"].is_string(),
+            "application browser timing differs from its summary shape",
+        )?;
+    }
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 fn application_binding(
     manifest: &Value,
@@ -1331,11 +1363,22 @@ fn application_binding(
         owned || manifest["schema"] == "prismpm/application-verification-manifest/1",
         "application verification family differs",
     )?;
+    // `browser_timing` is a per-run measurement, not a modeled fact: `verify`
+    // binds `acceptance_sha256` to the acceptance document without it, so two
+    // runs of one build share an attestation id. Bind the same projection here
+    // and hold the unbound timing to its closed summary shape.
+    let acceptance = canonical_json(file(files, "application-acceptance.json")?, false)?;
+    let mut comparable_acceptance = acceptance.clone();
+    if let Some(timing) = comparable_acceptance
+        .as_object_mut()
+        .and_then(|object| object.remove("browser_timing"))
+    {
+        browser_timing(&timing)?;
+    }
+    let comparable_bytes =
+        encode_value(&comparable_acceptance).map_err(|error| invalid(error.message))?;
     for (key, bytes) in [
-        (
-            "acceptance_sha256",
-            file(files, "application-acceptance.json")?,
-        ),
+        ("acceptance_sha256", comparable_bytes.as_slice()),
         (
             "lexlean_attestation_sha256",
             file(files, "lexlean-attestation.json")?,
@@ -1356,7 +1399,6 @@ fn application_binding(
     let guest_name = format!("core-wasm/{stem}_core_wasm.wasm");
     let guest = file(build_files, &guest_name)?;
     let identities = application_archive(application, model, build_files, guest)?;
-    let acceptance = canonical_json(file(files, "application-acceptance.json")?, false)?;
     let mut modeled_acceptance = json!({
         "application":application.name(), "artifact_closure":"verified", "browser_projection":"verified",
         "build_id":build_id, "cargo_package":{"name":application.cargo_name(),"sha256":hex(file(build_files, &crate_name)?),"version":application.cargo_version()},
@@ -1385,12 +1427,6 @@ fn application_binding(
                 .ok_or_else(|| invalid("application command-line host architecture is absent"))?,
             &digests,
         )?;
-    }
-    // `browser_timing` is a measurement, not a modeled fact: exclude it from
-    // the deterministic acceptance comparison, as the verify owner does.
-    let mut comparable_acceptance = acceptance.clone();
-    if let Some(object) = comparable_acceptance.as_object_mut() {
-        object.remove("browser_timing");
     }
     ensure(
         comparable_acceptance == modeled_acceptance,

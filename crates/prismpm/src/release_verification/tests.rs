@@ -205,6 +205,16 @@ fn native_export_framing_is_the_imported_named_export_format() {
     assert!(named_export_json(b"{\n  \"a\": [],\n  \"a\": []\n}\n").is_err());
 }
 
+/// `acceptance_sha256` binds the acceptance document without its per-run
+/// `browser_timing` measurement.
+fn acceptance_digest(acceptance: &Value) -> String {
+    let mut comparable = acceptance.clone();
+    if let Some(object) = comparable.as_object_mut() {
+        object.remove("browser_timing");
+    }
+    hex(&encode_value(&comparable).unwrap())
+}
+
 /// The owning runtime test supplies genuinely produced evidence. No synthetic
 /// record can establish the baseline used by these coherent mutations.
 pub(crate) fn reject_mutations(
@@ -565,7 +575,7 @@ pub(crate) fn reject_mutations(
             let acceptance_bytes = encode_value(&acceptance).unwrap();
             let mut verified = canonical_json(&evidence["manifest.json"], false).unwrap();
             verified["build_id"] = json!(new_build_id);
-            verified["acceptance_sha256"] = json!(hex(&acceptance_bytes));
+            verified["acceptance_sha256"] = json!(acceptance_digest(&acceptance));
             evidence.insert("application-acceptance.json".into(), acceptance_bytes);
             evidence.insert("manifest.json".into(), encode_value(&verified).unwrap());
             let error = validate(&encode_value(&build).unwrap(), &files, &evidence).unwrap_err();
@@ -580,10 +590,34 @@ pub(crate) fn reject_mutations(
             canonical_json(&changed["application-acceptance.json"], false).unwrap();
         acceptance["modeled_vectors"] = json!(0);
         let bytes = encode_value(&acceptance).unwrap();
-        manifest["acceptance_sha256"] = json!(hex(&bytes));
+        manifest["acceptance_sha256"] = json!(acceptance_digest(&acceptance));
         changed.insert("application-acceptance.json".into(), bytes);
         changed.insert("manifest.json".into(), encode_value(&manifest).unwrap());
         rejected(&changed, "application acceptance");
+
+        // Browser timing is an unbound per-run measurement: another run's
+        // summary keeps the binding, but only in the closed summary shape.
+        let mut changed = verification_files.clone();
+        let mut acceptance =
+            canonical_json(&changed["application-acceptance.json"], false).unwrap();
+        acceptance["browser_timing"] = json!([{
+            "engine":"chromium", "engine_version":"0", "maximum_microseconds":2,
+            "median_microseconds":1, "repetitions":2, "vector_index":0
+        }]);
+        changed.insert(
+            "application-acceptance.json".into(),
+            encode_value(&acceptance).unwrap(),
+        );
+        assert_eq!(
+            validate(build_manifest, build_files, &changed).unwrap(),
+            binding
+        );
+        acceptance["browser_timing"][0]["median_microseconds"] = json!("1");
+        changed.insert(
+            "application-acceptance.json".into(),
+            encode_value(&acceptance).unwrap(),
+        );
+        rejected(&changed, "browser timing");
 
         let mut changed = verification_files.clone();
         let mut manifest = canonical_json(&changed["manifest.json"], false).unwrap();

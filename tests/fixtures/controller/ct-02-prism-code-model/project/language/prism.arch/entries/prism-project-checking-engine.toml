@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-project-checking-engine"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Engine"
+component = "Outcome"
+
+[[form]]
+id = "prism-project-checking-engine"
+channel = "text"
+surface = "Project checking engine"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-policy-compliance"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Compliance"
+component = "Finding"
+
+[[form]]
+id = "prism-policy-compliance"
+channel = "text"
+surface = "Policy compliance"
+canonical_source = true
+features = ["sentence-case", "singular"]

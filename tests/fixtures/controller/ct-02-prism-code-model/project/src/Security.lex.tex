@@ -1,0 +1,694 @@
+\begin{lexlean}{Security}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\useglossary{prism.sec@1.0.0}
+\importmodule{Foundation.Sec}
+\importmodule{Foundation.View.Text.V3.Model}
+\importmodule{Production.BrowserSystem}
+\importmodule{Architecture}
+\importmodule{Specification}
+\importmodule{System}
+\title{Prism-code threat model}
+\begin{semanticmodule}
+inductive{
+  name: Stride,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Spoofing, fields: []},
+    {name: Tampering, fields: []},
+    {name: Repudiation, fields: []},
+    {name: InformationDisclosure, fields: []},
+    {name: DenialOfService, fields: []},
+    {name: ElevationOfPrivilege, fields: []}
+  ]
+}
+
+inductive{
+  name: ControlStatus,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Declared, fields: []}, {name: Pending, fields: [String]}]
+}
+
+inductive{
+  name: EvidenceKind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Gate, fields: []}, {name: Proof, fields: []}, {name: Review, fields: []}]
+}
+
+structure{
+  name: Named,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: index, type: Nat}, {name: name, type: String}, {name: text, type: String}]
+}
+
+structure{
+  name: ThreatClass,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: threat, type: Nat}, {name: category, type: Stride}]
+}
+
+structure{
+  name: ControlBinding,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: control, type: Nat},
+    {name: systemControl, type: String},
+    {name: status, type: ControlStatus}
+  ]
+}
+
+structure{
+  name: Evidence,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: control, type: Nat},
+    {name: kind, type: EvidenceKind},
+    {name: reference, type: String}
+  ]
+}
+
+structure{
+  name: Acceptance,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: risk, type: Nat}, {name: rationale, type: String}]
+}
+
+definition{
+  name: assetProjectScript,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 1, componentIndex := 3})
+}
+
+definition{
+  name: assetReport,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 3, componentIndex := 1})
+}
+
+definition{
+  name: assetPagesArtifact,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 0, componentIndex := 4})
+}
+
+definition{
+  name: assetReleaseBinary,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 2, componentIndex := 6})
+}
+
+definition{
+  name: threatTamperedArtifact,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 6})
+}
+
+definition{
+  name: threatScriptExfiltration,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 5})
+}
+
+definition{
+  name: threatGuestExhaustion,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 1})
+}
+
+definition{
+  name: threatBinarySubstitution,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 0})
+}
+
+definition{
+  name: threatReportScripting,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 3})
+}
+
+definition{
+  name: threatResultDisowned,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 4})
+}
+
+definition{
+  name: threatHostSubstitution,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 2})
+}
+
+definition{
+  name: riskTamperedArtifact,
+  parameters: [],
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 6, assetIndex := 0, threatIndex := 6, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.major)})
+}
+
+definition{
+  name: riskScriptExfiltration,
+  parameters: [],
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 5, assetIndex := 1, threatIndex := 5, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.critical)})
+}
+
+definition{
+  name: riskGuestExhaustion,
+  parameters: [],
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 1, assetIndex := 3, threatIndex := 1, likelihood := (ctor Foundation.Sec::Likelihood.medium), impact := (ctor Foundation.Sec::Impact.minor)})
+}
+
+definition{
+  name: riskBinarySubstitution,
+  parameters: [],
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 0, assetIndex := 2, threatIndex := 0, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.critical)})
+}
+
+definition{
+  name: riskReportScripting,
+  parameters: [],
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 3, assetIndex := 3, threatIndex := 3, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.major)})
+}
+
+definition{
+  name: riskResultDisowned,
+  parameters: [],
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 4, assetIndex := 3, threatIndex := 4, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.minor)})
+}
+
+definition{
+  name: riskHostSubstitution,
+  parameters: [],
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 2, assetIndex := 0, threatIndex := 2, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.major)})
+}
+
+definition{
+  name: controlArtifactClosure,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 1, riskIndex := 6})
+}
+
+definition{
+  name: controlApplicationAcceptance,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 0, riskIndex := 6})
+}
+
+definition{
+  name: controlNoEgress,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 3, riskIndex := 5})
+}
+
+definition{
+  name: controlBoundedIo,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 2, riskIndex := 1})
+}
+
+definition{
+  name: controlSourceProof,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 5, riskIndex := 1})
+}
+
+definition{
+  name: controlReleaseChecksums,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 4, riskIndex := 0})
+}
+
+definition{
+  name: controlSpdx,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 6, riskIndex := 0})
+}
+
+definition{
+  name: controlTextOnlyRendering,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 7, riskIndex := 3})
+}
+
+definition{
+  name: assetRecords,
+  parameters: [],
+  result: (List Foundation.Sec::Asset),
+  body: (cons (assetPagesArtifact) (cons (assetProjectScript) (cons (assetReleaseBinary) (cons (assetReport) (nil Foundation.Sec::Asset)))))
+}
+
+definition{
+  name: threatRecords,
+  parameters: [],
+  result: (List Foundation.Sec::Threat),
+  body: (cons (threatBinarySubstitution) (cons (threatGuestExhaustion) (cons (threatHostSubstitution) (cons (threatReportScripting) (cons (threatResultDisowned) (cons (threatScriptExfiltration) (cons (threatTamperedArtifact) (nil Foundation.Sec::Threat))))))))
+}
+
+definition{
+  name: riskRecords,
+  parameters: [],
+  result: (List Foundation.Sec::Risk),
+  body: (cons (riskBinarySubstitution) (cons (riskGuestExhaustion) (cons (riskHostSubstitution) (cons (riskReportScripting) (cons (riskResultDisowned) (cons (riskScriptExfiltration) (cons (riskTamperedArtifact) (nil Foundation.Sec::Risk))))))))
+}
+
+definition{
+  name: controlRecords,
+  parameters: [],
+  result: (List Foundation.Sec::ApplicationSecurityControl),
+  body: (cons (controlApplicationAcceptance) (cons (controlArtifactClosure) (cons (controlBoundedIo) (cons (controlNoEgress) (cons (controlReleaseChecksums) (cons (controlSourceProof) (cons (controlSpdx) (cons (controlTextOnlyRendering) (nil Foundation.Sec::ApplicationSecurityControl)))))))))
+}
+
+definition{
+  name: assetNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "Pages artifact", text := "The static artifact published to GitHub Pages: page, loader and Core-Wasm guest."}) (cons (record Named {index := 1, name := "Project script", text := "The Prism dataflow script the author submits. It can name nodes, memory limits and the PII to encrypt."}) (cons (record Named {index := 2, name := "Release binary", text := "The command-line binary published with each release."}) (cons (record Named {index := 3, name := "Report", text := "The accepted or refused report shown on the page and printed by the command line."}) (nil Named)))))
+}
+
+definition{
+  name: threatNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "Supply-chain substitution of the CLI binary", text := "A counterfeit binary is installed in place of the released one."}) (cons (record Named {index := 1, name := "Malicious input exhausting the guest", text := "A crafted request consumes memory or time until the check cannot answer."}) (cons (record Named {index := 2, name := "Compromised Pages host", text := "The host serves a self-consistent altered artifact whose digests match."}) (cons (record Named {index := 3, name := "Cross-site scripting through the report", text := "Script-bearing text in a report runs in the page."}) (cons (record Named {index := 4, name := "Disowned result", text := "A user or a third party disputes what a check reported."}) (cons (record Named {index := 5, name := "Script exfiltration", text := "The page or guest sends the submitted script to a third party."}) (cons (record Named {index := 6, name := "Tampered Pages artifact", text := "An attacker alters the published page or guest so it misreports findings."}) (nil Named))))))))
+}
+
+definition{
+  name: riskNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "Counterfeit binary installed", text := "A user runs code that is not the released build."}) (cons (record Named {index := 1, name := "Check cannot answer", text := "One request denies the answer to its own sender; no other user is affected."}) (cons (record Named {index := 2, name := "Host serves altered artifact", text := "Digest checks served by the same host do not detect a consistent substitution."}) (cons (record Named {index := 3, name := "Report runs as code", text := "Report text is interpreted as markup in the page."}) (cons (record Named {index := 4, name := "Result disputed", text := "Nobody can show later what a given check reported."}) (cons (record Named {index := 5, name := "Script leaves the device", text := "A submitted script, which may name sensitive data flows, is disclosed."}) (cons (record Named {index := 6, name := "Altered artifact reaches users", text := "Users run a page whose guest differs from the proven source."}) (nil Named))))))))
+}
+
+definition{
+  name: controlNames,
+  parameters: [],
+  result: (List Named),
+  body: (cons (record Named {index := 0, name := "Application acceptance", text := "The built application is accepted only against the application model digest bound in the system model."}) (cons (record Named {index := 1, name := "Artifact closure", text := "Every file of the Pages artifact is listed with its digest; a file outside the closure fails the build."}) (cons (record Named {index := 2, name := "Request, response and allocation bounds", text := "A request over 4096 bytes is refused, a response over 16384 bytes is replaced by an error, the guest allocates at most 4097 lines."}) (cons (record Named {index := 3, name := "No egress, no storage", text := "capabilitiesEmpty is true, externalServices is none and persistentStorage is none, so the guest has no channel out and keeps nothing."}) (cons (record Named {index := 4, name := "Release checksums", text := "Each release binary is published with a checksum so a downloaded binary can be compared with the release."}) (cons (record Named {index := 5, name := "Source proof", text := "dispatch and its callees are kernel-checked, so the refusal paths for oversize and malformed input are proved, not tested."}) (cons (record Named {index := 6, name := "SPDX SBOM", text := "An SPDX 3.0.1 document lists the components of each shipped artifact."}) (cons (record Named {index := 7, name := "Text-only rendering", text := "The report is written to the page as text, never as markup."}) (nil Named)))))))))
+}
+
+definition{
+  name: threatClasses,
+  parameters: [],
+  result: (List ThreatClass),
+  body: (cons (record ThreatClass {threat := 0, category := (ctor Stride.Spoofing)}) (cons (record ThreatClass {threat := 1, category := (ctor Stride.DenialOfService)}) (cons (record ThreatClass {threat := 2, category := (ctor Stride.Tampering)}) (cons (record ThreatClass {threat := 3, category := (ctor Stride.ElevationOfPrivilege)}) (cons (record ThreatClass {threat := 4, category := (ctor Stride.Repudiation)}) (cons (record ThreatClass {threat := 5, category := (ctor Stride.InformationDisclosure)}) (cons (record ThreatClass {threat := 6, category := (ctor Stride.Tampering)}) (nil ThreatClass))))))))
+}
+
+definition{
+  name: bindings,
+  parameters: [],
+  result: (List ControlBinding),
+  body: (cons (record ControlBinding {control := 0, systemControl := "application-acceptance", status := (ctor ControlStatus.Declared)}) (cons (record ControlBinding {control := 1, systemControl := "artifact-closure", status := (ctor ControlStatus.Declared)}) (cons (record ControlBinding {control := 2, systemControl := "bounded-io", status := (ctor ControlStatus.Pending "Not in System.controls; the bounds are stated in Specification.application and proved here")}) (cons (record ControlBinding {control := 3, systemControl := "no-egress", status := (ctor ControlStatus.Pending "The system manifest control list is SDK-bound; registering this control name changes it, which the SDK binding (#4) owns")}) (cons (record ControlBinding {control := 4, systemControl := "release-checksums", status := (ctor ControlStatus.Pending "Binaries are published by #20; the control is registered when that workflow exists")}) (cons (record ControlBinding {control := 5, systemControl := "source-proof", status := (ctor ControlStatus.Declared)}) (cons (record ControlBinding {control := 6, systemControl := "spdx", status := (ctor ControlStatus.Declared)}) (cons (record ControlBinding {control := 7, systemControl := "text-only-rendering", status := (ctor ControlStatus.Pending "Not in System.controls; a property of the SDK-generated text view, checked in #13")}) (nil ControlBinding)))))))))
+}
+
+definition{
+  name: evidence,
+  parameters: [],
+  result: (List Evidence),
+  body: (cons (record Evidence {control := 0, kind := (ctor EvidenceKind.Gate), reference := "just vv application acceptance against System.applicationModelDigest"}) (cons (record Evidence {control := 1, kind := (ctor EvidenceKind.Gate), reference := "just vv artifact closure gate over the built Pages artifact"}) (cons (record Evidence {control := 2, kind := (ctor EvidenceKind.Proof), reference := "boundsAreDeclared in Security and Quality"}) (cons (record Evidence {control := 3, kind := (ctor EvidenceKind.Proof), reference := "scriptStaysLocal and guestHasNoCapabilities in Security"}) (cons (record Evidence {control := 4, kind := (ctor EvidenceKind.Gate), reference := "checksum file attached to each release by #20"}) (cons (record Evidence {control := 5, kind := (ctor EvidenceKind.Gate), reference := "lexlean verify attestation over Specification.dispatch"}) (cons (record Evidence {control := 6, kind := (ctor EvidenceKind.Gate), reference := "just vv spdx gate over the release SBOM"}) (cons (record Evidence {control := 7, kind := (ctor EvidenceKind.Review), reference := "generated text view assigns the response as text content"}) (nil Evidence)))))))))
+}
+
+definition{
+  name: acceptances,
+  parameters: [],
+  result: (List Acceptance),
+  body: (cons (record Acceptance {risk := 2, rationale := "The page cannot defend against its own host. A user who needs more than GitHub Pages can compare a release checksum (#20) or build from the tagged source. Hosting on a different origin is out of scope for v0.1."}) (cons (record Acceptance {risk := 4, rationale := "The report is advisory and carries no signature. Re-running the same request reproduces the same report, because dispatch is a proved pure function, so a dispute is settled by running the check again."}) (nil Acceptance)))
+}
+
+definition{
+  name: natMember,
+  parameters: [value : Nat, values : (List Nat)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head rest => ((value =? head) || (natMember value rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: allMembers,
+  parameters: [wanted : (List Nat), values : (List Nat)],
+  result: Bool,
+  body: (match wanted
+    | List.nil => true
+    | List.cons head rest => ((natMember head values) && (allMembers rest values))),
+  recursive_argument: wanted
+}
+
+definition{
+  name: sameNats,
+  parameters: [left : (List Nat), right : (List Nat)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons other more => false)
+    | List.cons head rest => (match right
+      | List.nil => false
+      | List.cons other more => ((head =? other) && (sameNats rest more)))),
+  recursive_argument: left
+}
+
+definition{
+  name: stringMember,
+  parameters: [value : String, values : (List String)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head rest => ((prim equal value head : Bool) || (stringMember value rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: allStringMembers,
+  parameters: [wanted : (List String), values : (List String)],
+  result: Bool,
+  body: (match wanted
+    | List.nil => true
+    | List.cons head rest => ((stringMember head values) && (allStringMembers rest values))),
+  recursive_argument: wanted
+}
+
+definition{
+  name: nonEmpty,
+  parameters: [text : String],
+  result: Bool,
+  body: (if (prim equal text "" : Bool) then false else true)
+}
+
+definition{
+  name: namedIndexes,
+  parameters: [records : (List Named)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (namedIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: assetIndexes,
+  parameters: [records : (List Foundation.Sec::Asset)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (assetIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: assetComponents,
+  parameters: [records : (List Foundation.Sec::Asset)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head componentIndex) (assetComponents rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: threatIndexes,
+  parameters: [records : (List Foundation.Sec::Threat)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (threatIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: riskIndexes,
+  parameters: [records : (List Foundation.Sec::Risk)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (riskIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: riskAssets,
+  parameters: [records : (List Foundation.Sec::Risk)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head assetIndex) (riskAssets rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: riskThreats,
+  parameters: [records : (List Foundation.Sec::Risk)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head threatIndex) (riskThreats rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: controlIndexes,
+  parameters: [records : (List Foundation.Sec::ApplicationSecurityControl)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (controlIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: controlRisks,
+  parameters: [records : (List Foundation.Sec::ApplicationSecurityControl)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head riskIndex) (controlRisks rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: classThreats,
+  parameters: [records : (List ThreatClass)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head threat) (classThreats rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: bindingControls,
+  parameters: [records : (List ControlBinding)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head control) (bindingControls rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: bindingNames,
+  parameters: [records : (List ControlBinding)],
+  result: (List String),
+  body: (match records
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head systemControl) (bindingNames rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: evidenceControls,
+  parameters: [records : (List Evidence)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head control) (evidenceControls rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: acceptedRisks,
+  parameters: [records : (List Acceptance)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head risk) (acceptedRisks rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: risksCovered,
+  parameters: [risks : (List Foundation.Sec::Risk)],
+  result: Bool,
+  body: (match risks
+    | List.nil => true
+    | List.cons head rest => (((natMember (project head index) (controlRisks (controlRecords))) || (natMember (project head index) (acceptedRisks (acceptances)))) && (risksCovered rest))),
+  recursive_argument: risks
+}
+
+definition{
+  name: threatCovered,
+  parameters: [threat : Nat, risks : (List Foundation.Sec::Risk)],
+  result: Bool,
+  body: (match risks
+    | List.nil => false
+    | List.cons head rest => ((((project head threatIndex) =? threat) && ((natMember (project head index) (controlRisks (controlRecords))) || (natMember (project head index) (acceptedRisks (acceptances))))) || (threatCovered threat rest))),
+  recursive_argument: risks
+}
+
+definition{
+  name: threatsCovered,
+  parameters: [threats : (List Foundation.Sec::Threat)],
+  result: Bool,
+  body: (match threats
+    | List.nil => true
+    | List.cons head rest => ((threatCovered (project head index) (riskRecords)) && (threatsCovered rest))),
+  recursive_argument: threats
+}
+
+definition{
+  name: bindingHonest,
+  parameters: [binding : ControlBinding, declared : (List String)],
+  result: Bool,
+  body: (match (project binding status)
+    | ControlStatus.Declared => (stringMember (project binding systemControl) declared)
+    | ControlStatus.Pending reason => ((if (stringMember (project binding systemControl) declared) then false else true) && (nonEmpty reason)))
+}
+
+definition{
+  name: bindingsHonest,
+  parameters: [records : (List ControlBinding), declared : (List String)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((bindingHonest head declared) && (bindingsHonest rest declared))),
+  recursive_argument: records
+}
+
+definition{
+  name: evidenceNamed,
+  parameters: [records : (List Evidence)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((nonEmpty (project head reference)) && (evidenceNamed rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: rationaleNamed,
+  parameters: [records : (List Acceptance)],
+  result: Bool,
+  body: (match records
+    | List.nil => true
+    | List.cons head rest => ((nonEmpty (project head rationale)) && (rationaleNamed rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: pendingNames,
+  parameters: [records : (List ControlBinding)],
+  result: (List String),
+  body: (match records
+    | List.nil => (nil String)
+    | List.cons head rest => (match (project head status)
+      | ControlStatus.Declared => (pendingNames rest)
+      | ControlStatus.Pending reason => (cons (project head systemControl) (pendingNames rest)))),
+  recursive_argument: records
+}
+
+definition{
+  name: declaredControls,
+  parameters: [],
+  result: (List String),
+  body: (project (System::systemModel) controls)
+}
+
+definition{
+  name: guestHasNoCapabilities,
+  parameters: [],
+  result: Bool,
+  body: (project (Specification::application) capabilitiesEmpty)
+}
+
+definition{
+  name: securityValid,
+  parameters: [],
+  result: Bool,
+  body: ((sameNats (namedIndexes (assetNames)) (assetIndexes (assetRecords))) && ((sameNats (namedIndexes (threatNames)) (threatIndexes (threatRecords))) && ((sameNats (namedIndexes (riskNames)) (riskIndexes (riskRecords))) && ((sameNats (namedIndexes (controlNames)) (controlIndexes (controlRecords))) && ((allMembers (assetComponents (assetRecords)) (Architecture::componentIndexes (Architecture::componentRecords))) && ((allMembers (riskAssets (riskRecords)) (assetIndexes (assetRecords))) && ((allMembers (riskThreats (riskRecords)) (threatIndexes (threatRecords))) && ((allMembers (controlRisks (controlRecords)) (riskIndexes (riskRecords))) && ((sameNats (classThreats (threatClasses)) (threatIndexes (threatRecords))) && ((sameNats (bindingControls (bindings)) (controlIndexes (controlRecords))) && ((sameNats (evidenceControls (evidence)) (controlIndexes (controlRecords))) && ((evidenceNamed (evidence)) && ((allMembers (acceptedRisks (acceptances)) (riskIndexes (riskRecords))) && ((rationaleNamed (acceptances)) && ((risksCovered (riskRecords)) && ((threatsCovered (threatRecords)) && ((bindingsHonest (bindings) (declaredControls)) && (allStringMembers (declaredControls) (bindingNames (bindings))))))))))))))))))))
+}
+
+theorem{
+  name: securityModelHolds,
+  parameters: [],
+  statement: ((securityValid) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: pendingControls,
+  parameters: [],
+  statement: ((pendingNames (bindings)) = (cons "bounded-io" (cons "no-egress" (cons "release-checksums" (cons "text-only-rendering" (nil String)))))),
+  proof: decide{}
+}
+
+theorem{
+  name: scriptStaysLocal,
+  parameters: [],
+  statement: ((Architecture::systemBoundary (System::systemModel)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: guestIsCapabilityFree,
+  parameters: [],
+  statement: ((guestHasNoCapabilities) = true),
+  proof: decide{}
+}
+
+definition{
+  name: boundsDeclared,
+  parameters: [],
+  result: Bool,
+  body: ((prim equal (project (Specification::application) requestMaximum) (4096 : UInt32) : Bool) && ((prim equal (project (Specification::application) responseMaximum) (16384 : UInt32) : Bool) && (prim equal (project (Specification::application) guestAllocationMaximum) (4097 : UInt32) : Bool)))
+}
+
+theorem{
+  name: boundsAreDeclared,
+  parameters: [],
+  statement: ((boundsDeclared) = true),
+  proof: decide{}
+}
+\end{semanticmodule}
+\end{lexlean}

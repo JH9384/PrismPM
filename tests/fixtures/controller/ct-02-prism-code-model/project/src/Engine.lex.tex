@@ -1,0 +1,212 @@
+\begin{lexlean}{Engine}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Compliance}
+\importmodule{Core}
+\importmodule{Interaction}
+\title{Project checking engine}
+\begin{semanticmodule}
+inductive{
+  name: StepError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Parse, fields: [Interaction::ParseError]},
+    {name: Refused, fields: [Core::Violation]},
+    {name: LineOverflow, fields: []}
+  ]
+}
+
+structure{
+  name: LineFailure,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: line, type: UInt32}, {name: error, type: StepError}]
+}
+
+inductive{
+  name: Outcome,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Accepted, fields: [Core::Project]},
+    {name: Rejected, fields: [Core::Project, (List Compliance::Finding)]},
+    {name: Failed, fields: [LineFailure]}
+  ]
+}
+
+definition{
+  name: runLines,
+  parameters: [lines : (List String), project : Core::Project, line : UInt32],
+  result: (Result Core::Project LineFailure),
+  body: (match lines
+    | List.nil => (ctor Result.ok [Core::Project, LineFailure] var{name: project})
+    | List.cons text rest => (match (prim checked_add line (1 : UInt32) : (Option UInt32))
+      | Option.none => (ctor Result.error [Core::Project, LineFailure] (record LineFailure {line := line, error := (ctor StepError.LineOverflow)}))
+      | Option.some next => (if (prim equal text "" : Bool) then (runLines rest var{
+        name: project
+      } next) else (match (Interaction::parseLine text)
+        | Result.error problem => (ctor Result.error [Core::Project, LineFailure] (record LineFailure {line := next, error := (ctor StepError.Parse problem)}))
+        | Result.ok intent => (match (Interaction::applyIntent var{name: project} intent)
+          | Result.error violation => (ctor Result.error [Core::Project, LineFailure] (record LineFailure {line := next, error := (ctor StepError.Refused violation)}))
+          | Result.ok updated => (runLines rest updated next)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  recursive_argument: lines
+}
+
+definition{
+  name: certifyWith,
+  parameters: [project : Core::Project, found : (List Compliance::Finding)],
+  result: Outcome,
+  body: (match found
+    | List.nil => (ctor Outcome.Accepted var{name: project})
+    | List.cons head rest => (ctor Outcome.Rejected var{name: project} (cons head rest)))
+}
+
+definition{
+  name: certify,
+  parameters: [project : Core::Project],
+  result: Outcome,
+  body: (certifyWith var{name: project} (project (Compliance::findings var{name: project}) items)),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: conclude,
+  parameters: [run : (Result Core::Project LineFailure)],
+  result: Outcome,
+  body: match{
+    branches: [
+      {body: (ctor Outcome.Failed failure), binders: [failure], constructor: Result.error},
+      {body: (certify var{name: project}), binders: [project], constructor: Result.ok}
+    ],
+    scrutinee: run
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: isAccepted,
+  parameters: [outcome : Outcome],
+  result: Bool,
+  body: match{
+    branches: [
+      {body: true, binders: [project], constructor: Outcome.Accepted},
+      {body: false, binders: [project, found], constructor: Outcome.Rejected},
+      {body: false, binders: [failure], constructor: Outcome.Failed}
+    ],
+    scrutinee: outcome
+  }
+}
+
+theorem{
+  name: certifyWithAcceptsExactly,
+  parameters: [project : Core::Project, found : (List Compliance::Finding)],
+  statement: ((isAccepted (certifyWith var{name: project} found)) = (Compliance::noFindings found)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: nil},
+      {proof: reflexivity{}, binders: [head, rest], constructor: cons}
+    ],
+    scrutinee: found
+  }
+}
+
+theorem{
+  name: certifyRequiresCompliance,
+  parameters: [project : Core::Project],
+  statement: ((isAccepted (certify var{
+    name: project
+  })) = (Compliance::compliant var{name: project})),
+  proof: apply{
+    arguments: [var{name: project}, (project (Compliance::findings var{name: project}) items)],
+    theorem: certifyWithAcceptsExactly
+  },
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: failedRunNeverAccepted,
+  parameters: [failure : LineFailure],
+  statement: ((isAccepted (conclude (ctor Result.error [Core::Project, LineFailure] failure))) = false),
+  proof: reflexivity{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: completedRunAcceptedOnlyIfCompliant,
+  parameters: [project : Core::Project],
+  statement: ((isAccepted (conclude (ctor Result.ok [Core::Project, LineFailure] var{
+    name: project
+  }))) = (Compliance::compliant var{name: project})),
+  proof: apply{arguments: [var{name: project}], theorem: certifyRequiresCompliance},
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: violationCode,
+  parameters: [violation : Core::Violation],
+  result: String,
+  body: (match violation
+    | Core::Violation.DuplicateNode => "duplicate-node"
+    | Core::Violation.UnknownNode => "unknown-node"
+    | Core::Violation.SelfEdge => "self-edge"
+    | Core::Violation.DuplicateEdge => "duplicate-edge"
+    | Core::Violation.OutputSource => "output-source"
+    | Core::Violation.InputTarget => "input-target"
+    | Core::Violation.NotAnInput => "not-an-input"
+    | Core::Violation.DuplicatePii => "duplicate-pii"
+    | Core::Violation.DuplicatePolicy => "duplicate-policy")
+}
+
+definition{
+  name: parseErrorCode,
+  parameters: [problem : Interaction::ParseError],
+  result: String,
+  body: (match problem
+    | Interaction::ParseError.UnknownCommand => "unknown-command"
+    | Interaction::ParseError.WrongArity => "wrong-arity"
+    | Interaction::ParseError.EmptyField => "empty-field"
+    | Interaction::ParseError.UnknownKind => "unknown-kind"
+    | Interaction::ParseError.InvalidNumber => "invalid-number")
+}
+
+definition{
+  name: stepErrorCode,
+  parameters: [error : StepError],
+  result: String,
+  body: (match error
+    | StepError.Parse problem => (parseErrorCode problem)
+    | StepError.Refused violation => (violationCode violation)
+    | StepError.LineOverflow => "line-overflow")
+}
+
+definition{
+  name: outcomeText,
+  parameters: [outcome : Outcome],
+  result: String,
+  body: match{
+    branches: [
+      {
+        body: (prim join (cons "status accepted" (cons (Core::canonicalText var{name: project}) (nil String))) "" : String),
+        binders: [project],
+        constructor: Outcome.Accepted
+      },
+      {
+        body: (prim join (cons "status rejected" (cons (Compliance::findingsText (project (Compliance::sortFindings found) items)) (cons (Core::canonicalText var{name: project}) (nil String)))) "" : String),
+        binders: [project, found],
+        constructor: Outcome.Rejected
+      },
+      {
+        body: (prim join (cons "status error\n" (cons (prim join (cons "line" (cons (prim format_decimal (project failure line) : String) (cons (stepErrorCode (project failure error)) (nil String)))) " " : String) (nil String))) "" : String),
+        binders: [failure],
+        constructor: Outcome.Failed
+      }
+    ],
+    scrutinee: outcome
+  },
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+\end{semanticmodule}
+\end{lexlean}

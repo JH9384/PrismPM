@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-request-dispatch"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Specification"
+component = "dispatch"
+
+[[form]]
+id = "prism-request-dispatch"
+channel = "text"
+surface = "Prism-code request dispatch"
+canonical_source = true
+features = ["sentence-case", "singular"]

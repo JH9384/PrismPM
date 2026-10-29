@@ -1036,7 +1036,8 @@ const COMMAND_LINE_TARGETS: [&str; 2] = ["aarch64-unknown-linux-musl", "x86_64-u
 /// makes V&V produce a generated command line and accept it over vectors
 /// within and beyond its request maximum. Calculator is built in both LexLean
 /// languages; the 1.2 copy is `lexlean migrate --to 1.2` of the 1.1 example.
-const EXAMPLES: [Example; 4] = [
+/// The prism-code model is the first downstream language-1.2 project (#203).
+const EXAMPLES: [Example; 5] = [
     Example {
         name: "Calculator",
         project: "examples/Calculator",
@@ -1064,6 +1065,18 @@ const EXAMPLES: [Example; 4] = [
             within_request_maximum: 4,
             oversized_vectors: 2,
             examples: 2,
+        }),
+        same_outputs_as: None,
+    },
+    Example {
+        name: "prism-code model (language 1.2)",
+        project: "tests/fixtures/controller/ct-02-prism-code-model/project",
+        command_line: Some(CommandLine {
+            program: "dataflow-policy",
+            vectors: 30,
+            within_request_maximum: 29,
+            oversized_vectors: 1,
+            examples: 3,
         }),
         same_outputs_as: None,
     },

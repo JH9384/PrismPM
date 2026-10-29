@@ -1,0 +1,339 @@
+\begin{lexlean}{Interaction}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Core}
+\title{Project script statements}
+\begin{semanticmodule}
+inductive{
+  name: Intent,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: AddNode, fields: [Core::Node]},
+    {name: AddEdge, fields: [Core::Edge]},
+    {name: MarkPii, fields: [String]},
+    {name: RequireMemory, fields: [UInt64]},
+    {name: RequirePiiEncryption, fields: []}
+  ]
+}
+
+inductive{
+  name: ParseError,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: UnknownCommand, fields: []},
+    {name: WrongArity, fields: []},
+    {name: EmptyField, fields: []},
+    {name: UnknownKind, fields: []},
+    {name: InvalidNumber, fields: []}
+  ]
+}
+
+definition{
+  name: hasEmptyField,
+  parameters: [fields : (List String)],
+  result: Bool,
+  body: (match fields
+    | List.nil => false
+    | List.cons head rest => (if (prim equal head "" : Bool) then true else (hasEmptyField rest))),
+  recursive_argument: fields
+}
+
+definition{
+  name: parseNode,
+  parameters: [name : String, kind : String, memory : String],
+  result: (Result Intent ParseError),
+  body: (match (Core::parseKind kind)
+    | Option.none => (ctor Result.error [Intent, ParseError] (ctor ParseError.UnknownKind))
+    | Option.some nodeKind => (match (prim parse_decimal memory : (Option UInt64))
+      | Option.none => (ctor Result.error [Intent, ParseError] (ctor ParseError.InvalidNumber))
+      | Option.some bytes => (ctor Result.ok [Intent, ParseError] (ctor Intent.AddNode (record Core::Node {name := name, kind := nodeKind, memory := bytes}))))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: parseNodeFields,
+  parameters: [fields : (List String)],
+  result: (Result Intent ParseError),
+  body: (match fields
+    | List.nil => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))
+    | List.cons name tail1 => (match tail1
+      | List.nil => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))
+      | List.cons kind tail2 => (match tail2
+        | List.nil => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))
+        | List.cons memory tail3 => (match tail3
+          | List.nil => (parseNode name kind memory)
+          | List.cons extra3 more3 => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity)))))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: parseEdgeFields,
+  parameters: [fields : (List String)],
+  result: (Result Intent ParseError),
+  body: (match fields
+    | List.nil => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))
+    | List.cons source tail1 => (match tail1
+      | List.nil => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))
+      | List.cons target tail2 => (match tail2
+        | List.nil => (ctor Result.ok [Intent, ParseError] (ctor Intent.AddEdge (record Core::Edge {source := source, target := target})))
+        | List.cons extra2 more2 => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity)))))
+}
+
+definition{
+  name: parsePiiFields,
+  parameters: [fields : (List String)],
+  result: (Result Intent ParseError),
+  body: (match fields
+    | List.nil => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))
+    | List.cons name tail1 => (match tail1
+      | List.nil => (ctor Result.ok [Intent, ParseError] (ctor Intent.MarkPii name))
+      | List.cons extra1 more1 => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))))
+}
+
+definition{
+  name: parseMemoryPolicy,
+  parameters: [fields : (List String)],
+  result: (Result Intent ParseError),
+  body: (match fields
+    | List.nil => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))
+    | List.cons limit tail1 => (match tail1
+      | List.nil => (match (prim parse_decimal limit : (Option UInt64))
+        | Option.none => (ctor Result.error [Intent, ParseError] (ctor ParseError.InvalidNumber))
+        | Option.some bytes => (ctor Result.ok [Intent, ParseError] (ctor Intent.RequireMemory bytes)))
+      | List.cons extra1 more1 => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity)))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: parsePolicyFields,
+  parameters: [fields : (List String)],
+  result: (Result Intent ParseError),
+  body: (match fields
+    | List.nil => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))
+    | List.cons policy rest => (if (prim equal policy "memory" : Bool) then (parseMemoryPolicy rest) else (if (prim equal policy "encrypt-pii" : Bool) then (match rest
+      | List.nil => (ctor Result.ok [Intent, ParseError] (ctor Intent.RequirePiiEncryption))
+      | List.cons extra more => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))) else (ctor Result.error [Intent, ParseError] (ctor ParseError.UnknownCommand))))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: parseFields,
+  parameters: [fields : (List String)],
+  result: (Result Intent ParseError),
+  body: (match fields
+    | List.nil => (ctor Result.error [Intent, ParseError] (ctor ParseError.UnknownCommand))
+    | List.cons command rest => (if (prim equal command "node" : Bool) then (parseNodeFields rest) else (if (prim equal command "edge" : Bool) then (parseEdgeFields rest) else (if (prim equal command "pii" : Bool) then (parsePiiFields rest) else (if (prim equal command "policy" : Bool) then (parsePolicyFields rest) else (ctor Result.error [Intent, ParseError] (ctor ParseError.UnknownCommand))))))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: parseLine,
+  parameters: [line : String],
+  result: (Result Intent ParseError),
+  body: (match (prim split_exact line " " (5 : UInt32) : (Option (List String)))
+    | Option.none => (ctor Result.error [Intent, ParseError] (ctor ParseError.WrongArity))
+    | Option.some fields => (if (hasEmptyField fields) then (ctor Result.error [Intent, ParseError] (ctor ParseError.EmptyField)) else (parseFields fields))),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: admitNode,
+  parameters: [project : Core::Project, node : Core::Node],
+  result: Core::Admission,
+  body: (if (Core::hasNode var{
+    name: project
+  } (project node name)) then (ctor Core::Admission.Refuse (ctor Core::Violation.DuplicateNode)) else (ctor Core::Admission.Admit))
+}
+
+definition{
+  name: withNode,
+  parameters: [project : Core::Project, node : Core::Node],
+  result: Core::Project,
+  body: (record Core::Project {policies := (project var{
+    name: project
+  } policies), nodes := (cons node (project var{
+    name: project
+  } nodes)), edges := (project var{name: project} edges), pii := (project var{name: project} pii)})
+}
+
+definition{
+  name: admitEdge,
+  parameters: [project : Core::Project, edge : Core::Edge],
+  result: Core::Admission,
+  body: (match (Core::findNode (project var{name: project} nodes) (project edge source))
+    | Option.none => (ctor Core::Admission.Refuse (ctor Core::Violation.UnknownNode))
+    | Option.some source => (match (Core::findNode (project var{
+        name: project
+      } nodes) (project edge target))
+      | Option.none => (ctor Core::Admission.Refuse (ctor Core::Violation.UnknownNode))
+      | Option.some target => (if (prim equal (project edge source) (project edge target) : Bool) then (ctor Core::Admission.Refuse (ctor Core::Violation.SelfEdge)) else (if (Core::hasEdge (project var{
+        name: project
+      } edges) (project edge source) (project edge target)) then (ctor Core::Admission.Refuse (ctor Core::Violation.DuplicateEdge)) else (if (Core::isOutput (project source kind)) then (ctor Core::Admission.Refuse (ctor Core::Violation.OutputSource)) else (if (Core::isInput (project target kind)) then (ctor Core::Admission.Refuse (ctor Core::Violation.InputTarget)) else (ctor Core::Admission.Admit)))))))
+}
+
+definition{
+  name: withEdge,
+  parameters: [project : Core::Project, edge : Core::Edge],
+  result: Core::Project,
+  body: (record Core::Project {policies := (project var{
+    name: project
+  } policies), nodes := (project var{
+    name: project
+  } nodes), edges := (cons edge (project var{
+    name: project
+  } edges)), pii := (project var{name: project} pii)})
+}
+
+definition{
+  name: admitPii,
+  parameters: [project : Core::Project, name : String],
+  result: Core::Admission,
+  body: (match (Core::findNode (project var{name: project} nodes) name)
+    | Option.none => (ctor Core::Admission.Refuse (ctor Core::Violation.UnknownNode))
+    | Option.some node => (if (Core::isInput (project node kind)) then (if (Core::listsName (project var{
+      name: project
+    } pii) name) then (ctor Core::Admission.Refuse (ctor Core::Violation.DuplicatePii)) else (ctor Core::Admission.Admit)) else (ctor Core::Admission.Refuse (ctor Core::Violation.NotAnInput))))
+}
+
+definition{
+  name: withPii,
+  parameters: [project : Core::Project, name : String],
+  result: Core::Project,
+  body: (record Core::Project {policies := (project var{
+    name: project
+  } policies), nodes := (project var{
+    name: project
+  } nodes), edges := (project var{
+    name: project
+  } edges), pii := (cons name (project var{name: project} pii))})
+}
+
+definition{
+  name: admitMemoryPolicy,
+  parameters: [project : Core::Project],
+  result: Core::Admission,
+  body: (match (project (project var{name: project} policies) memoryLimit)
+    | Option.none => (ctor Core::Admission.Admit)
+    | Option.some limit => (ctor Core::Admission.Refuse (ctor Core::Violation.DuplicatePolicy)))
+}
+
+definition{
+  name: withMemoryPolicy,
+  parameters: [project : Core::Project, limit : UInt64],
+  result: Core::Project,
+  body: (record Core::Project {policies := (record Core::Policies {memoryLimit := (ctor Option.some [UInt64] limit), piiEncryption := (project (project var{
+    name: project
+  } policies) piiEncryption)}), nodes := (project var{
+    name: project
+  } nodes), edges := (project var{name: project} edges), pii := (project var{name: project} pii)})
+}
+
+definition{
+  name: admitPiiPolicy,
+  parameters: [project : Core::Project],
+  result: Core::Admission,
+  body: (if (project (project var{
+    name: project
+  } policies) piiEncryption) then (ctor Core::Admission.Refuse (ctor Core::Violation.DuplicatePolicy)) else (ctor Core::Admission.Admit))
+}
+
+definition{
+  name: withPiiPolicy,
+  parameters: [project : Core::Project],
+  result: Core::Project,
+  body: (record Core::Project {policies := (record Core::Policies {memoryLimit := (project (project var{
+    name: project
+  } policies) memoryLimit), piiEncryption := true}), nodes := (project var{
+    name: project
+  } nodes), edges := (project var{name: project} edges), pii := (project var{name: project} pii)})
+}
+
+definition{
+  name: applyIntent,
+  parameters: [project : Core::Project, intent : Intent],
+  result: (Result Core::Project Core::Violation),
+  body: (match intent
+    | Intent.AddNode node => (Core::gate (admitNode var{
+      name: project
+    } node) (withNode var{name: project} node))
+    | Intent.AddEdge edge => (Core::gate (admitEdge var{
+      name: project
+    } edge) (withEdge var{name: project} edge))
+    | Intent.MarkPii name => (Core::gate (admitPii var{
+      name: project
+    } name) (withPii var{name: project} name))
+    | Intent.RequireMemory limit => (Core::gate (admitMemoryPolicy var{
+      name: project
+    }) (withMemoryPolicy var{name: project} limit))
+    | Intent.RequirePiiEncryption => (Core::gate (admitPiiPolicy var{
+      name: project
+    }) (withPiiPolicy var{name: project})))
+}
+
+theorem{
+  name: addNodeAdmission,
+  parameters: [project : Core::Project, node : Core::Node],
+  statement: ((Core::admitted (applyIntent var{
+    name: project
+  } (ctor Intent.AddNode node))) = (Core::admits (admitNode var{name: project} node))),
+  proof: apply{
+    arguments: [(admitNode var{name: project} node), (withNode var{name: project} node)],
+    theorem: Core::gateAdmitsExactly
+  }
+}
+
+theorem{
+  name: addEdgeAdmission,
+  parameters: [project : Core::Project, edge : Core::Edge],
+  statement: ((Core::admitted (applyIntent var{
+    name: project
+  } (ctor Intent.AddEdge edge))) = (Core::admits (admitEdge var{name: project} edge))),
+  proof: apply{
+    arguments: [(admitEdge var{name: project} edge), (withEdge var{name: project} edge)],
+    theorem: Core::gateAdmitsExactly
+  }
+}
+
+theorem{
+  name: markPiiAdmission,
+  parameters: [project : Core::Project, name : String],
+  statement: ((Core::admitted (applyIntent var{
+    name: project
+  } (ctor Intent.MarkPii name))) = (Core::admits (admitPii var{name: project} name))),
+  proof: apply{
+    arguments: [(admitPii var{name: project} name), (withPii var{name: project} name)],
+    theorem: Core::gateAdmitsExactly
+  }
+}
+
+theorem{
+  name: requireMemoryAdmission,
+  parameters: [project : Core::Project, limit : UInt64],
+  statement: ((Core::admitted (applyIntent var{
+    name: project
+  } (ctor Intent.RequireMemory limit))) = (Core::admits (admitMemoryPolicy var{name: project}))),
+  proof: apply{
+    arguments: [
+      (admitMemoryPolicy var{name: project}),
+      (withMemoryPolicy var{name: project} limit)
+    ],
+    theorem: Core::gateAdmitsExactly
+  }
+}
+
+theorem{
+  name: requirePiiEncryptionAdmission,
+  parameters: [project : Core::Project],
+  statement: ((Core::admitted (applyIntent var{
+    name: project
+  } (ctor Intent.RequirePiiEncryption))) = (Core::admits (admitPiiPolicy var{name: project}))),
+  proof: apply{
+    arguments: [(admitPiiPolicy var{name: project}), (withPiiPolicy var{name: project})],
+    theorem: Core::gateAdmitsExactly
+  }
+}
+\end{semanticmodule}
+\end{lexlean}

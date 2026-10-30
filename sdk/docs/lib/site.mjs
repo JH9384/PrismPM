@@ -17,7 +17,7 @@ export const RELEASES_FILE = 'release-status.json';
 export const FRONTMATTER_KEYS = ['title', 'description', 'available_in'];
 
 /** The top level of the published site: exactly these entries, nothing else. */
-export const LAYOUT = ['api', 'changelog.md', 'get-started', 'guides', 'index.md', 'llms-full.md', 'llms.txt', 'reference', RELEASES_FILE, 'sdks'];
+export const LAYOUT = ['api', 'changelog.md', 'get-started', 'guides', 'index.md', 'llms-full.md', 'llms.txt', 'migration', 'reference', RELEASES_FILE, 'sdks'];
 
 /** Read and check the release list. @returns {{ releases: object[], distribution: object[], features: object[], ids: Set<string> }} */
 export function readReleases(dir = SITE_DIR) {

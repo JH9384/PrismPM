@@ -31,7 +31,7 @@ node sdk/docs/skill.mjs smoke              install prism-code from npm and run e
 | `Calculator.holo` | `sdk/npm/prism-code/fixtures` | the input every example runs against |
 | `cli.json` | this directory | the CLI page and the exit codes; the verbs and flags a narrative page may show |
 | `pages.json` | this directory | the page list in site order: every page's path, and for a generated page its title, description, `available_in`, next steps and status line; `llms.txt` |
-| narrative pages | `docs/site/**/*.md` | Get started, Guides, SDKs, Changelog, and the policy and release status reference pages |
+| narrative pages | `docs/site/**/*.md` | Get started, Guides, SDKs, Changelog, Migration, and the policy and release status reference pages |
 | `release-status.json` | `docs/site/` | the releases every `available_in` must name, and the tables of the release status page |
 
 ### Narrative pages

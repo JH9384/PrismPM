@@ -27,6 +27,7 @@ The CLI and the runtime API are Stable. From this release, anything Stable gets 
 
 - The sixteen verbs, their flags, `--json` on every verb and the exit codes 0, 1 and 2 are Stable.
 - `load`, `inspect`, `verify`, `instantiate`, `dispatch`, `history`, `replay` and `asTool` are Stable; experimental calls carry the `experimental_` prefix.
+- [Migrate from 0.x to 1.0](/docs/migration/v1) lists what you rewrite.
 
 ## 1.0-rc
 
@@ -104,4 +105,5 @@ Closes [#250](https://github.com/UOR-Foundation/PrismPM/issues/250).
 ## Next steps
 
 - [Release status](/docs/reference/release-status)
+- [Migrate from 0.x to 1.0](/docs/migration/v1)
 - [Quickstart](/docs/get-started/quickstart)

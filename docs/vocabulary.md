@@ -27,6 +27,7 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | build tree | `<build_root>/build/<prism-build-id>/`, keyed by the SHA-256 Prism build ID ([SPEC §6](../SPEC.md#6-build-artifacts-and-identities)). | build cache entry |
 | world | Planned. The WIT contract the guest imports and exports. | none; nearest is the image's `ENTRYPOINT` and `EXPOSE` contract |
 | capability set | Planned as deny-by-default permissions. Today a holo carries a canonical capability-set blob, empty for text applications ([SPEC §3](../SPEC.md#3-canonical-holo-contract)). | `--cap-add`, seccomp profile |
+| provider | An executable, `prism-provider-<type>` on the PATH, that provisions what a capability in `prism.toml` declares and returns `<NAME>_<VAR>` variables ([proposal](proposals/294-provider-services.md)). | Compose provider service |
 | attestation | Planned for the holo: an in-toto statement about it. Product releases already carry in-toto and SLSA referrers ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | BuildKit attestation |
 | proof | Planned. The `prism/proof/v1` in-toto predicate: which theorems the Lean kernel checked for the shipped guest ([proposal](proposals/266-proof-predicate.md)). | none |
 | history | Planned. Recorded dispatches that can be replayed. | none; nearest is `docker logs` |

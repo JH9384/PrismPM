@@ -189,8 +189,8 @@ All of it is listed in `STABILITY.md` section 6 and moves up a tier with the res
 
 ## Graduation criteria
 
-- Experimental (M4): this change is merged and a holo can read the variables (unresolved question 1).
-- Frozen: one provider outside this repository has been written against the protocol with no change to it.
+- Experimental (M4): this change is merged.
+- Frozen: a holo can read the variables (unresolved question 1), and one provider outside this repository has been written against the protocol with no change to it.
 - Stable (1.0 or later): the protocol, the kind and the error codes are final.
 
 ## Precedent

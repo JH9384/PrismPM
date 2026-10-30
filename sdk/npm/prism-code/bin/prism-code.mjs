@@ -41,6 +41,7 @@ import { fromFile, serve, readManifest, resolveProviders, releaseProviders } fro
 import { sdkImageFromLock, dockerArguments, DELEGATED } from '../src/docker.mjs';
 import { CapabilityDeniedError, PrismCodeError, PrismError, ProviderError, SigningError, VerificationError } from '../src/errors.mjs';
 import { inspect, formatInspection, select } from '../src/inspect.mjs';
+import { manifestProviders } from '../src/manifest.mjs';
 import { canonicalJson } from '../src/archive.mjs';
 import { check, formatVerdict, verdictJson, exitCodeOf, EXIT as CHECK_EXIT } from '../src/check.mjs';
 import { discover, errorHookMessages, listPlugins, pluginHelp, readMetadata, runPlugin } from '../src/plugins.mjs';
@@ -362,6 +363,8 @@ async function commandManifest(positional, options) {
   process.stdout.write(`${app.name} ${app.version} from ${files.join(' + ')}\n`);
   process.stdout.write(`capabilities: ${granted}\n`);
   process.stdout.write(`variables: ${variables.length ? variables.join(', ') : 'none'}\n`);
+  const declared = manifestProviders(manifest);
+  if (declared.length > 0) process.stdout.write(`providers: ${declared.map((p) => `${p.name} (${p.type})`).join(', ')}\n`);
   for (const w of warnings) process.stderr.write(`warning: ${w.rule}: ${w.message}\n`);
   return 0;
 }

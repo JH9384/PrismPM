@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -153,7 +153,7 @@ test('up runs with the flags in order, in the project directory, and returns <NA
   const messages = [];
   const { env, providers, withheld } = await resolveProviders(p, { env: withPath([path], { PROVIDER_TEST_INHERITED: 'yes' }), onMessage: (m) => messages.push(m) });
   assert.deepEqual(JSON.parse(env.RATES_ARGS), ['--project-name', 'exchange', 'up', '--on=true', '--set=x=1', '--set=y=2', '--size=3', '--store=r', `--tricky=${tricky}`, 'rates']);
-  assert.equal(env.RATES_CWD, p.directory);
+  assert.equal(realpathSync(env.RATES_CWD), realpathSync(p.directory));
   assert.equal(env.RATES_MESSAGES, 'info,error,debug,setenv');
   assert.equal(env.RATES_INHERITED, 'yes');
   assert.equal(env.RATES_EQUALS, 'a=b=c', 'split at the first =');
@@ -455,7 +455,7 @@ test('prism-provider-kv works end to end through prism-code providers', () => {
   assert.equal(json.code, 0, json.err);
   const result = JSON.parse(json.out);
   assert.equal(result.env.RATES_STORE, 'rates');
-  assert.equal(fileURLToPath(result.env.RATES_URL), file);
+  assert.equal(realpathSync(fileURLToPath(result.env.RATES_URL)), realpathSync(file));
   assert.deepEqual(result.withheld, []);
   assert.deepEqual(result.providers.map((p) => p.variables), [['RATES_URL', 'RATES_STORE']]);
   assert.deepEqual(JSON.parse(readFileSync(fileURLToPath(result.env.RATES_URL), 'utf8')), { base: 'GBP', extra: 'kept', quote: 'USD' }, 'a missing key is added, an existing key is not overwritten');
@@ -508,6 +508,13 @@ test('prism-code providers checks its arguments, runs in the current directory a
   writeFileSync(join(dir, 'prism.browser.toml'), '[capabilities]\ndeny-providers = ["kv"]\n');
   assert.equal(run(['providers', 'up', dir, '--target', 'browser'], env).code, 2);
   assert.equal(run(['providers', 'up', dir, '--target', 'node'], env).code, 0);
+});
+
+test('prism-code manifest names the declared providers, and only when there are any', () => {
+  const { dir, env } = kvProject();
+  assert.match(run(['manifest', dir], env).out, /^providers: rates \(kv\)$/m);
+  const empty = kvProject('[application]\nname = "a"\nversion = "1.0.0"\n');
+  assert.ok(!run(['manifest', empty.dir], empty.env).out.includes('providers'));
 });
 
 test('prism-provider-kv takes a store, a directory and keys with = in them, and replies in the protocol', () => {

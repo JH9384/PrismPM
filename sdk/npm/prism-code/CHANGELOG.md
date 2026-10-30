@@ -4,7 +4,7 @@ Every release of `prism-code` from 0.2.0 on has an entry here, newest first.
 Entries use the four headers [STABILITY.md](../../../STABILITY.md) section 2 sets.
 Version 0.1.0 was a canonicalization library with no entry here; its API lives on at `prism-code/canonical`.
 
-To move to 1.0, read the [migration guide](../../../docs/site/migration/v1.md).
+To move to 1.0, read the [migration guide](../../../docs/site/migration/to-1-0.md).
 
 ## [0.3.0] - 2026-10-27
 

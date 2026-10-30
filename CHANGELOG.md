@@ -8,7 +8,7 @@ Breaking Changes is the per-version breaking log.
 Before 1.0 a minor bump may break you and a patch bump never does; from 1.0 on, versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 The 0.1.0 entry predates this rule and keeps its original headers.
 
-To move to 1.0, read the [migration guide](docs/site/migration/v1.md).
+To move to 1.0, read the [migration guide](docs/site/migration/to-1-0.md).
 
 ## Policy
 

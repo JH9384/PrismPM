@@ -211,7 +211,7 @@
     {
       "title": "Migration",
       "pages": [
-        { "path": "migration/v1", "narrative": true }
+        { "path": "migration/to-1-0", "narrative": true }
       ]
     }
   ]

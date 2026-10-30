@@ -18,6 +18,41 @@ export function readManifest(
   options?: { target?: ManifestTarget | null },
 ): Promise<ParsedManifest & { directory: string; files: readonly string[]; grant: { capabilities: Capabilities | null; capabilitySet: string } }>;
 
+/** How `resolveProviders` and `releaseProviders` run a provider (#294). */
+export interface ProviderCallOptions {
+  /** The environment the provider inherits and the PATH it is found on. Default `process.env`. */
+  env?: Record<string, string | undefined>;
+  platform?: NodeJS.Platform;
+  /** Per call. Default 120000. */
+  timeoutMs?: number;
+  /** Every `info`, `debug` and `error` message, as it arrives. A `setenv` is never passed here. */
+  onMessage?: (message: { capability: string; type: 'info' | 'debug' | 'error'; message: string }) => void;
+}
+
+/** What `resolveProviders` and `releaseProviders` take: the result of `readManifest`. */
+export type ProviderProject = Pick<Awaited<ReturnType<typeof readManifest>>, 'manifest' | 'grant' | 'directory'>;
+
+/**
+ * Run `up` for every provider `prism.toml` declares, in order of capability name, and produce the environment.
+ * Every declaration is checked against the capability set and the PATH before any provider starts. Sets the
+ * environment on no process. Throws `CapabilityDeniedError` or a `ProviderError`.
+ */
+export function resolveProviders(
+  project: ProviderProject,
+  options?: ProviderCallOptions,
+): Promise<{
+  /** The granted `<NAME>_<VAR>` variables. */
+  readonly env: Readonly<Record<string, string>>;
+  readonly providers: readonly { readonly name: string; readonly type: string; readonly file: string; readonly variables: readonly string[] }[];
+  /** Returned variables the capability set does not allow, by name. */
+  readonly withheld: readonly { readonly capability: string; readonly name: string; readonly variable: string }[];
+}>;
+/** Run `down` for every declared provider, in reverse order, attempting all of them. */
+export function releaseProviders(project: ProviderProject, options?: ProviderCallOptions): Promise<{ readonly providers: readonly string[] }>;
+export const PROVIDER_MESSAGES: readonly ['info', 'error', 'debug', 'setenv'];
+export const PROVIDER_MESSAGES_ENV: 'PRISM_PROVIDER_MESSAGES';
+export const PROVIDER_TIMEOUT_MS: 120000;
+
 /** The OIDC issuer of GitHub Actions workflows: `https://token.actions.githubusercontent.com`. */
 export const GITHUB_ACTIONS_ISSUER: 'https://token.actions.githubusercontent.com';
 

@@ -18,6 +18,8 @@
  * - `SignatureInvalidError`, `IdentityMismatchError`, `TransparencyError`,
  *   `SubjectMismatchError`, `AttestationNotFoundError`, `TrustRootError`: the
  *   reasons `verify-attestation` can refuse a bundle (#272).
+ * - `ProviderNotFoundError`, `ProviderReplyError`, `ProviderFailedError`: the
+ *   ways running a provider service can fail (#294). `ProviderError` is their base.
  *
  * The last five map one-to-one to the check ids of a `prism/verdict/1`
  * reason (docs/proposals/269-assurance-levels.md); `errorForReason` is the map.
@@ -117,6 +119,26 @@ AttestationNotFoundError.code = 'attestation_not_found';
 export class TrustRootError extends PrismError {}
 TrustRootError.code = 'trust_root_invalid';
 
+/** Running a provider service failed (#294). `details` names the capability and the provider type. */
+export class ProviderError extends PrismError {}
+ProviderError.code = 'provider_error';
+
+/** No `prism-provider-<type>` is on the PATH. Check `provider.not-found`. */
+export class ProviderNotFoundError extends ProviderError {}
+ProviderNotFoundError.code = 'provider_not_found';
+
+/**
+ * A provider broke the protocol (`provider.reply`), or a variable it returned
+ * has a second source (`provider.collision`). The message never quotes the
+ * reply, because a reply may hold a secret.
+ */
+export class ProviderReplyError extends ProviderError {}
+ProviderReplyError.code = 'provider_reply_invalid';
+
+/** A provider exited non-zero or sent an `error` message (`provider.failed`), would not start (`provider.spawn`) or ran out of time (`provider.timeout`). */
+export class ProviderFailedError extends ProviderError {}
+ProviderFailedError.code = 'provider_failed';
+
 /** Every class with a code of its own, by code. */
 export const ERROR_CLASSES = Object.freeze({
   [VerificationError.code]: VerificationError,
@@ -132,6 +154,9 @@ export const ERROR_CLASSES = Object.freeze({
   [SubjectMismatchError.code]: SubjectMismatchError,
   [AttestationNotFoundError.code]: AttestationNotFoundError,
   [TrustRootError.code]: TrustRootError,
+  [ProviderNotFoundError.code]: ProviderNotFoundError,
+  [ProviderReplyError.code]: ProviderReplyError,
+  [ProviderFailedError.code]: ProviderFailedError,
 });
 
 /**

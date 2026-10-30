@@ -75,6 +75,22 @@ export class SubjectMismatchError extends PrismError {
 export class AttestationNotFoundError extends PrismError {
   static readonly code: 'attestation_not_found';
 }
+/** Running a provider service failed (#294). `details` names the capability and the provider type. */
+export class ProviderError extends PrismError {
+  static readonly code: 'provider_error' | 'provider_not_found' | 'provider_reply_invalid' | 'provider_failed';
+}
+/** No `prism-provider-<type>` is on the PATH. */
+export class ProviderNotFoundError extends ProviderError {
+  static readonly code: 'provider_not_found';
+}
+/** A provider broke the protocol (`provider.reply`), or a variable it returned has a second source (`provider.collision`). */
+export class ProviderReplyError extends ProviderError {
+  static readonly code: 'provider_reply_invalid';
+}
+/** A provider failed (`provider.failed`), would not start (`provider.spawn`) or ran out of time (`provider.timeout`). */
+export class ProviderFailedError extends ProviderError {
+  static readonly code: 'provider_failed';
+}
 /** `trust_root_invalid`: the pinned trusted root cannot be read or does not pin what the policy needs. */
 export class TrustRootError extends PrismError {
   static readonly code: 'trust_root_invalid';
@@ -379,8 +395,8 @@ export interface LoadOptions {
   capabilitySet?: string;
 }
 
-/** The three resource kinds a capability set grants. */
-export type CapabilityKind = 'outbound-hosts' | 'key-value-stores' | 'variables';
+/** The resource kinds a capability set grants. */
+export type CapabilityKind = 'outbound-hosts' | 'key-value-stores' | 'variables' | 'providers';
 
 /** A `prism/capabilities/1` file; see `@prism-code/spec` `schemas/capabilities/capabilities-v1.schema.json`. */
 export interface Capabilities {
@@ -394,6 +410,8 @@ export interface CapabilitySet {
   'deny-key-value-stores'?: readonly string[];
   'allow-variables'?: readonly string[];
   'deny-variables'?: readonly string[];
+  'allow-providers'?: readonly string[];
+  'deny-providers'?: readonly string[];
 }
 
 /** What a runtime enforces: one set of a capability file, or nothing. A deny entry wins over an allow entry. */
@@ -411,7 +429,7 @@ export interface CapabilityGrant {
 }
 
 export const CAPABILITIES_SCHEMA: 'prism/capabilities/1';
-export const CAPABILITY_KINDS: readonly ['outbound-hosts', 'key-value-stores', 'variables'];
+export const CAPABILITY_KINDS: readonly ['outbound-hosts', 'key-value-stores', 'variables', 'providers'];
 export const DEFAULT_SET: 'default';
 /** Validate a capability file and return it frozen. Throws `PrismCodeError` `capabilities.invalid`; unknown members are errors. */
 export function parseCapabilities(source: Capabilities | Uint8Array | string): Capabilities;
@@ -423,11 +441,21 @@ export interface Manifest {
   manifest_version?: 1;
   application: { name: string; version: string; description?: string; authors?: readonly string[] };
   model?: { source?: string; build?: string; watch?: readonly string[] };
-  /** A capability file and set, or the members of one capability set inline. Absent grants nothing. */
-  capabilities?: { file: string; set?: string } | CapabilitySet;
+  /** A capability file and set, or the members of one capability set inline, and any capabilities a provider provisions. Absent grants nothing. */
+  capabilities?: ({ file: string; set?: string } | CapabilitySet) & { [name: string]: unknown };
   variables?: Readonly<Record<string, string | { value?: string; secret?: boolean }>>;
 }
 export type ManifestTarget = 'browser' | 'node';
+
+/** One provider a manifest declares (#294). `flags` are its options as `--<key>=<value>` arguments, sorted by key. */
+export interface ManifestProviderDeclaration {
+  readonly name: string;
+  readonly type: string;
+  readonly options: Readonly<Record<string, string | number | boolean | readonly (string | number | boolean)[]>>;
+  readonly flags: readonly string[];
+}
+/** The providers a manifest declares, in order of capability name. */
+export function manifestProviders(manifest: Manifest): readonly ManifestProviderDeclaration[];
 /** A lint finding: `secret-literal` and `credential` are errors, `variable-not-granted` a warning. */
 export interface ManifestFinding {
   rule: 'secret-literal' | 'credential' | 'variable-not-granted';

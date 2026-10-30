@@ -16,7 +16,8 @@
   },
   "bin": {
     "prism-code": "./bin/prism-code.mjs",
-    "prism-doctor": "./bin/prism-doctor.mjs"
+    "prism-doctor": "./bin/prism-doctor.mjs",
+    "prism-provider-kv": "./bin/prism-provider-kv.mjs"
   },
   "exports": {
     ".": {

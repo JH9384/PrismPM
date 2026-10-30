@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.uor.foundation/prism/capabilities/1",
   "title": "Capabilities",
-  "description": "A capability file: the outbound hosts, key-value stores and variables an operator grants a holo. Nothing is granted unless an allow entry matches and no deny entry does. The runtime applies the set named default unless told otherwise. Design: docs/proposals/279-capability-sets.md.",
+  "description": "A capability file: the outbound hosts, key-value stores, variables and providers an operator grants a holo. Nothing is granted unless an allow entry matches and no deny entry does. The runtime applies the set named default unless told otherwise. Design: docs/proposals/279-capability-sets.md and docs/proposals/294-provider-services.md.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "sets"],
@@ -27,7 +27,9 @@
         "allow-key-value-stores": { "$ref": "#/$defs/stores" },
         "deny-key-value-stores": { "$ref": "#/$defs/stores" },
         "allow-variables": { "$ref": "#/$defs/variables" },
-        "deny-variables": { "$ref": "#/$defs/variables" }
+        "deny-variables": { "$ref": "#/$defs/variables" },
+        "allow-providers": { "$ref": "#/$defs/providers" },
+        "deny-providers": { "$ref": "#/$defs/providers" }
       }
     },
     "hosts": {
@@ -50,6 +52,12 @@
       "type": "array",
       "uniqueItems": true,
       "items": { "type": "string", "pattern": "^([*]|[a-z][a-z0-9_]*)$" }
+    },
+    "providers": {
+      "description": "Provider types, or * for every provider. A provider is the executable prism-provider-<type>, which runs as the user, outside the holo.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^([*]|[a-z][a-z0-9-]*)$" }
     }
   }
 }

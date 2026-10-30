@@ -1,12 +1,12 @@
 # PrismPM 0.4.0
 
-PrismPM 0.4.0 retains the production-system SDK released as 0.3.0 — locked
+PrismPM 0.4.0 retains the production-system SDK released as 0.3.0: locked
 product-release construction, OCI distribution, Compose and Kubernetes 1.36.4
 targets, lifecycle and recovery operations, supply-chain policy, immutable
-standards/oracle imports, and the UOR template/action SDK entrypoint — and adds
-the 0.4.0 capabilities listed in [CHANGELOG.md](CHANGELOG.md): language-1.2
-notation sources beside language 1.1, the `prism.toml` manifest, holo
-inspection and verification surfaces, capability sets, and the right-sized CI.
+standards/oracle imports, and the UOR template/action SDK entrypoint. This file
+is the GitHub Release body and says how to verify the release. What changed is
+recorded only in the 0.4.0 entry of
+[CHANGELOG.md](https://github.com/UOR-Foundation/PrismPM/blob/v0.4.0/CHANGELOG.md).
 The Holo/1 application profile is retained.
 
 The exact adopted editions, acquired source hashes, executable oracle hashes,

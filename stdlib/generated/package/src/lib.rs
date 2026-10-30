@@ -6983,6 +6983,19 @@ pub fn appManifest(requires: alloc::vec::Vec<u8>, guest: alloc::vec::Vec<u8>, vi
     } }
 }
 
+pub fn archiveAttestation(value: alloc::vec::Vec<u8>) -> Result<Option<alloc::vec::Vec<u8>>, crate::ComputeError> {
+    Ok({ let _x_20 = validArchiveFrame((value).as_ref())?; match _x_20 {
+        false => { let _y_25 = _x_20; match _y_25 {
+        false => None,
+        true => { let _x_90 = 8; { let _x_91 = wireSectionBytesUnchecked(value.clone(), _x_90)?; { let _x_93 = wireAttestationPrefix(); { let _x_94 = (_x_93).len() as u64; { let _x_96 = (_x_91).len() as u64; { let _x_97 = core::convert::identity::<u64>(_x_96).saturating_sub(_x_94); { let _x_98 = wireSlice(_x_91, _x_94, _x_97); { let _x_99 = Some(_x_98); _x_99 } } } } } } } },
+    } },
+        true => { let _x_86 = __prod_borrowed_wireRowCount((value).as_ref())?; { let _x_87 = 9; { let _x_88 = (_x_86 == _x_87); { let prod_local_0 = _x_88; match prod_local_0 {
+        false => None,
+        true => { let prod_local_2 = 8; { let prod_local_3 = wireSectionBytesUnchecked(value.clone(), prod_local_2)?; { let prod_local_5 = wireAttestationPrefix(); { let prod_local_6 = (prod_local_5).len() as u64; { let prod_local_7 = (prod_local_3).len() as u64; { let prod_local_8 = core::convert::identity::<u64>(prod_local_7).saturating_sub(prod_local_6); { let prod_local_9 = wireSlice(prod_local_3, prod_local_6, prod_local_8); { let prod_local_10 = Some(prod_local_9); prod_local_10 } } } } } } } },
+    } } } } },
+    } })
+}
+
 pub fn archiveBody(manifest: alloc::vec::Vec<u8>, metadata: alloc::vec::Vec<u8>, directory: alloc::vec::Vec<u8>, provenance: alloc::vec::Vec<u8>, blob0: alloc::vec::Vec<u8>, blob1: alloc::vec::Vec<u8>, blob2: alloc::vec::Vec<u8>, blob3: alloc::vec::Vec<u8>) -> Result<Option<alloc::vec::Vec<u8>>, crate::ComputeError> {
     Ok({ let _x_1 = wirePayloadsValid((manifest).as_ref(), (blob0).as_ref(), (blob1).as_ref(), (blob2).as_ref(), (blob3).as_ref()); match _x_1 {
         false => None,
@@ -6994,6 +7007,25 @@ pub fn archiveBodyBytes(value: alloc::vec::Vec<u8>) -> Result<Option<alloc::vec:
     Ok({ let _x_1 = validArchiveFrame((value).as_ref())?; match _x_1 {
         false => None,
         true => { let _x_44 = 0; { let _x_47 = (value).len() as u64; { let _x_48 = 32; { let _x_49 = core::convert::identity::<u64>(_x_47).saturating_sub(_x_48); { let _x_50 = wireSlice(value.clone(), _x_44, _x_49); { let _x_51 = Some(_x_50); _x_51 } } } } } },
+    } })
+}
+
+pub fn archiveBodyWithAttestation(body: alloc::vec::Vec<u8>, attestation: alloc::vec::Vec<u8>) -> Result<Option<alloc::vec::Vec<u8>>, crate::ComputeError> {
+    Ok({ let _x_36 = validArchiveBody((body).as_ref())?; match _x_36 {
+        false => { let _y_41 = _x_36; match _y_41 {
+        false => None,
+        true => { let _x_320 = 0; { let _x_325 = 4; { let _x_341 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![72, 79, 76, 79, 4, 0, 0, 0, 9, 0]); __value }; { let _x_342 = 24; { let _x_343 = wireTableRowShifted(body.clone(), _x_320, _x_342)?; { let _x_344 = { let mut __append = (_x_341, _x_343); __append.0.extend(__append.1); __append.0 }; { let _x_345 = 1; { let _x_346 = wireTableRowShifted(body.clone(), _x_345, _x_342)?; { let _x_347 = { let mut __append = (_x_344, _x_346); __append.0.extend(__append.1); __append.0 }; { let _x_348 = 2; { let _x_349 = wireTableRowShifted(body.clone(), _x_348, _x_342)?; { let _x_350 = { let mut __append = (_x_347, _x_349); __append.0.extend(__append.1); __append.0 }; { let _x_351 = 3; { let _x_352 = wireTableRowShifted(body.clone(), _x_351, _x_342)?; { let _x_353 = { let mut __append = (_x_350, _x_352); __append.0.extend(__append.1); __append.0 }; { let _x_354 = wireTableRowShifted(body.clone(), _x_325, _x_342)?; { let _x_355 = { let mut __append = (_x_353, _x_354); __append.0.extend(__append.1); __append.0 }; { let _x_356 = 5; { let _x_357 = wireTableRowShifted(body.clone(), _x_356, _x_342)?; { let _x_358 = { let mut __append = (_x_355, _x_357); __append.0.extend(__append.1); __append.0 }; { let _x_359 = 6; { let _x_360 = wireTableRowShifted(body.clone(), _x_359, _x_342)?; { let _x_361 = { let mut __append = (_x_358, _x_360); __append.0.extend(__append.1); __append.0 }; { let _x_362 = 7; { let _x_363 = wireTableRowShifted(body.clone(), _x_362, _x_342)?; { let _x_364 = { let mut __append = (_x_361, _x_363); __append.0.extend(__append.1); __append.0 }; { let _x_365 = 8; { let _x_367 = (body).len() as u64; { let _x_368 = core::convert::identity::<u64>(_x_367).checked_add(_x_342).ok_or(crate::ComputeError::AddOverflow)?; { let _x_369 = wireAttestationPrefix(); { let _x_370 = (_x_369).len() as u64; { let _x_371 = (attestation).len() as u64; { let _x_372 = core::convert::identity::<u64>(_x_370).checked_add(_x_371).ok_or(crate::ComputeError::AddOverflow)?; { let _x_373 = wireTableRow(_x_365, _x_368, _x_372); { let _x_374 = { let mut __append = (_x_364, _x_373); __append.0.extend(__append.1); __append.0 }; { let _x_375 = 202; { let _x_377 = core::convert::identity::<u64>(_x_367).saturating_sub(_x_375); { let _x_378 = wireSlice(body.clone(), _x_375, _x_377); { let _x_379 = { let mut __append = (_x_374, _x_378); __append.0.extend(__append.1); __append.0 }; { let _x_380 = { let mut __append = (alloc::vec::Vec::<u8>::new(), _x_369); __append.0.extend(__append.1); __append.0 }; { let _x_381 = { let mut __value = _x_380; __value.extend_from_slice(&attestation); __value }; { let _x_382 = { let mut __append = (_x_379, _x_381); __append.0.extend(__append.1); __append.0 }; { let _x_383 = Some(_x_382); _x_383 } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } },
+    } },
+        true => { let _x_298 = __prod_borrowed_wireRowCount((body).as_ref())?; { let _x_299 = 8; { let _x_300 = (_x_298 == _x_299); match _x_300 {
+        false => { let prod_local_0 = _x_300; match prod_local_0 {
+        false => None,
+        true => { let prod_local_5 = 0; { let prod_local_10 = 4; { let prod_local_15 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![72, 79, 76, 79, 4, 0, 0, 0, 9, 0]); __value }; { let prod_local_16 = 24; { let prod_local_17 = wireTableRowShifted(body.clone(), prod_local_5, prod_local_16)?; { let prod_local_18 = { let mut __append = (prod_local_15, prod_local_17); __append.0.extend(__append.1); __append.0 }; { let prod_local_19 = 1; { let prod_local_20 = wireTableRowShifted(body.clone(), prod_local_19, prod_local_16)?; { let prod_local_21 = { let mut __append = (prod_local_18, prod_local_20); __append.0.extend(__append.1); __append.0 }; { let prod_local_22 = 2; { let prod_local_23 = wireTableRowShifted(body.clone(), prod_local_22, prod_local_16)?; { let prod_local_24 = { let mut __append = (prod_local_21, prod_local_23); __append.0.extend(__append.1); __append.0 }; { let prod_local_25 = 3; { let prod_local_26 = wireTableRowShifted(body.clone(), prod_local_25, prod_local_16)?; { let prod_local_27 = { let mut __append = (prod_local_24, prod_local_26); __append.0.extend(__append.1); __append.0 }; { let prod_local_28 = wireTableRowShifted(body.clone(), prod_local_10, prod_local_16)?; { let prod_local_29 = { let mut __append = (prod_local_27, prod_local_28); __append.0.extend(__append.1); __append.0 }; { let prod_local_30 = 5; { let prod_local_31 = wireTableRowShifted(body.clone(), prod_local_30, prod_local_16)?; { let prod_local_32 = { let mut __append = (prod_local_29, prod_local_31); __append.0.extend(__append.1); __append.0 }; { let prod_local_33 = 6; { let prod_local_34 = wireTableRowShifted(body.clone(), prod_local_33, prod_local_16)?; { let prod_local_35 = { let mut __append = (prod_local_32, prod_local_34); __append.0.extend(__append.1); __append.0 }; { let prod_local_36 = 7; { let prod_local_37 = wireTableRowShifted(body.clone(), prod_local_36, prod_local_16)?; { let prod_local_38 = { let mut __append = (prod_local_35, prod_local_37); __append.0.extend(__append.1); __append.0 }; { let prod_local_39 = 8; { let prod_local_41 = (body).len() as u64; { let prod_local_42 = core::convert::identity::<u64>(prod_local_41).checked_add(prod_local_16).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_43 = wireAttestationPrefix(); { let prod_local_44 = (prod_local_43).len() as u64; { let prod_local_45 = (attestation).len() as u64; { let prod_local_46 = core::convert::identity::<u64>(prod_local_44).checked_add(prod_local_45).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_47 = wireTableRow(prod_local_39, prod_local_42, prod_local_46); { let prod_local_48 = { let mut __append = (prod_local_38, prod_local_47); __append.0.extend(__append.1); __append.0 }; { let prod_local_49 = 202; { let prod_local_50 = core::convert::identity::<u64>(prod_local_41).saturating_sub(prod_local_49); { let prod_local_51 = wireSlice(body.clone(), prod_local_49, prod_local_50); { let prod_local_52 = { let mut __append = (prod_local_48, prod_local_51); __append.0.extend(__append.1); __append.0 }; { let prod_local_53 = { let mut __append = (alloc::vec::Vec::<u8>::new(), prod_local_43); __append.0.extend(__append.1); __append.0 }; { let prod_local_54 = { let mut __value = prod_local_53; __value.extend_from_slice(&attestation); __value }; { let prod_local_55 = { let mut __append = (prod_local_52, prod_local_54); __append.0.extend(__append.1); __append.0 }; { let prod_local_56 = Some(prod_local_55); prod_local_56 } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } },
+    } },
+        true => { let _x_309 = wireAttestationPrefix(); { let _x_310 = { let mut __append = (alloc::vec::Vec::<u8>::new(), _x_309); __append.0.extend(__append.1); __append.0 }; { let _x_311 = { let mut __value = _x_310; __value.extend_from_slice(&attestation); __value }; { let _x_312 = wireAttestationRowValid((_x_311).as_ref())?; { let prod_local_57 = _x_312; match prod_local_57 {
+        false => None,
+        true => { let prod_local_62 = 0; { let prod_local_67 = 4; { let prod_local_72 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![72, 79, 76, 79, 4, 0, 0, 0, 9, 0]); __value }; { let prod_local_73 = 24; { let prod_local_74 = wireTableRowShifted(body.clone(), prod_local_62, prod_local_73)?; { let prod_local_75 = { let mut __append = (prod_local_72, prod_local_74); __append.0.extend(__append.1); __append.0 }; { let prod_local_76 = 1; { let prod_local_77 = wireTableRowShifted(body.clone(), prod_local_76, prod_local_73)?; { let prod_local_78 = { let mut __append = (prod_local_75, prod_local_77); __append.0.extend(__append.1); __append.0 }; { let prod_local_79 = 2; { let prod_local_80 = wireTableRowShifted(body.clone(), prod_local_79, prod_local_73)?; { let prod_local_81 = { let mut __append = (prod_local_78, prod_local_80); __append.0.extend(__append.1); __append.0 }; { let prod_local_82 = 3; { let prod_local_83 = wireTableRowShifted(body.clone(), prod_local_82, prod_local_73)?; { let prod_local_84 = { let mut __append = (prod_local_81, prod_local_83); __append.0.extend(__append.1); __append.0 }; { let prod_local_85 = wireTableRowShifted(body.clone(), prod_local_67, prod_local_73)?; { let prod_local_86 = { let mut __append = (prod_local_84, prod_local_85); __append.0.extend(__append.1); __append.0 }; { let prod_local_87 = 5; { let prod_local_88 = wireTableRowShifted(body.clone(), prod_local_87, prod_local_73)?; { let prod_local_89 = { let mut __append = (prod_local_86, prod_local_88); __append.0.extend(__append.1); __append.0 }; { let prod_local_90 = 6; { let prod_local_91 = wireTableRowShifted(body.clone(), prod_local_90, prod_local_73)?; { let prod_local_92 = { let mut __append = (prod_local_89, prod_local_91); __append.0.extend(__append.1); __append.0 }; { let prod_local_93 = 7; { let prod_local_94 = wireTableRowShifted(body.clone(), prod_local_93, prod_local_73)?; { let prod_local_95 = { let mut __append = (prod_local_92, prod_local_94); __append.0.extend(__append.1); __append.0 }; { let prod_local_96 = 8; { let prod_local_98 = (body).len() as u64; { let prod_local_99 = core::convert::identity::<u64>(prod_local_98).checked_add(prod_local_73).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_100 = wireAttestationPrefix(); { let prod_local_101 = (prod_local_100).len() as u64; { let prod_local_102 = (attestation).len() as u64; { let prod_local_103 = core::convert::identity::<u64>(prod_local_101).checked_add(prod_local_102).ok_or(crate::ComputeError::AddOverflow)?; { let prod_local_104 = wireTableRow(prod_local_96, prod_local_99, prod_local_103); { let prod_local_105 = { let mut __append = (prod_local_95, prod_local_104); __append.0.extend(__append.1); __append.0 }; { let prod_local_106 = 202; { let prod_local_107 = core::convert::identity::<u64>(prod_local_98).saturating_sub(prod_local_106); { let prod_local_108 = wireSlice(body.clone(), prod_local_106, prod_local_107); { let prod_local_109 = { let mut __append = (prod_local_105, prod_local_108); __append.0.extend(__append.1); __append.0 }; { let prod_local_110 = { let mut __append = (alloc::vec::Vec::<u8>::new(), prod_local_100); __append.0.extend(__append.1); __append.0 }; { let prod_local_111 = { let mut __value = prod_local_110; __value.extend_from_slice(&attestation); __value }; { let prod_local_112 = { let mut __append = (prod_local_109, prod_local_111); __append.0.extend(__append.1); __append.0 }; { let prod_local_113 = Some(prod_local_112); prod_local_113 } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } },
+    } } } } } },
+    } } } },
     } })
 }
 
@@ -7024,15 +7056,28 @@ pub fn archiveFooter(value: alloc::vec::Vec<u8>) -> Result<Option<alloc::vec::Ve
 }
 
 pub fn archiveSection(value: alloc::vec::Vec<u8>, index: u64) -> Result<Option<alloc::vec::Vec<u8>>, crate::ComputeError> {
-    Ok({ let _x_19 = validArchiveFrame((value).as_ref())?; match _x_19 {
-        false => { let _y_24 = _x_19; match _y_24 {
+    Ok({ let _x_17 = validArchiveFrame((value).as_ref())?; match _x_17 {
+        false => { let _y_22 = _x_17; match _y_22 {
         false => None,
-        true => { let _x_69 = wireSectionBytesUnchecked(value.clone(), index)?; { let _x_70 = Some(_x_69); _x_70 } },
+        true => { let _x_66 = wireSectionBytesUnchecked(value.clone(), index)?; { let _x_67 = Some(_x_66); _x_67 } },
     } },
-        true => { let _x_66 = 8; { let _x_67 = (index < _x_66); { let prod_local_0 = _x_67; match prod_local_0 {
+        true => { let _x_63 = __prod_borrowed_wireRowCount((value).as_ref())?; { let _x_64 = (index < _x_63); { let prod_local_0 = _x_64; match prod_local_0 {
         false => None,
         true => { let prod_local_2 = wireSectionBytesUnchecked(value.clone(), index)?; { let prod_local_3 = Some(prod_local_2); prod_local_3 } },
     } } } },
+    } })
+}
+
+pub fn archiveStripAttestation(value: alloc::vec::Vec<u8>) -> Result<Option<alloc::vec::Vec<u8>>, crate::ComputeError> {
+    Ok({ let _x_20 = validArchiveFrame((value).as_ref())?; match _x_20 {
+        false => { let _y_25 = _x_20; match _y_25 {
+        false => None,
+        true => { let _x_236 = 0; { let _x_241 = 4; { let _x_243 = 8; { let _x_258 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![72, 79, 76, 79, 4, 0, 0, 0, 8, 0]); __value }; { let _x_259 = 24; { let _x_260 = wireTableRowUnshifted(value.clone(), _x_236, _x_259)?; { let _x_261 = { let mut __append = (_x_258, _x_260); __append.0.extend(__append.1); __append.0 }; { let _x_262 = 1; { let _x_263 = wireTableRowUnshifted(value.clone(), _x_262, _x_259)?; { let _x_264 = { let mut __append = (_x_261, _x_263); __append.0.extend(__append.1); __append.0 }; { let _x_265 = 2; { let _x_266 = wireTableRowUnshifted(value.clone(), _x_265, _x_259)?; { let _x_267 = { let mut __append = (_x_264, _x_266); __append.0.extend(__append.1); __append.0 }; { let _x_268 = 3; { let _x_269 = wireTableRowUnshifted(value.clone(), _x_268, _x_259)?; { let _x_270 = { let mut __append = (_x_267, _x_269); __append.0.extend(__append.1); __append.0 }; { let _x_271 = wireTableRowUnshifted(value.clone(), _x_241, _x_259)?; { let _x_272 = { let mut __append = (_x_270, _x_271); __append.0.extend(__append.1); __append.0 }; { let _x_273 = 5; { let _x_274 = wireTableRowUnshifted(value.clone(), _x_273, _x_259)?; { let _x_275 = { let mut __append = (_x_272, _x_274); __append.0.extend(__append.1); __append.0 }; { let _x_276 = 6; { let _x_277 = wireTableRowUnshifted(value.clone(), _x_276, _x_259)?; { let _x_278 = { let mut __append = (_x_275, _x_277); __append.0.extend(__append.1); __append.0 }; { let _x_279 = 7; { let _x_280 = wireTableRowUnshifted(value.clone(), _x_279, _x_259)?; { let _x_281 = { let mut __append = (_x_278, _x_280); __append.0.extend(__append.1); __append.0 }; { let _x_282 = 226; { let _x_284 = __prod_borrowed_wireRowOffset((value).as_ref(), _x_243)?; { let _x_285 = core::convert::identity::<u64>(_x_284).saturating_sub(_x_282); { let _x_286 = wireSlice(value.clone(), _x_282, _x_285); { let _x_287 = { let mut __append = (_x_281, _x_286); __append.0.extend(__append.1); __append.0 }; { let _x_288 = Some(_x_287); _x_288 } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } },
+    } },
+        true => { let _x_228 = __prod_borrowed_wireRowCount((value).as_ref())?; { let _x_229 = 9; { let _x_230 = (_x_228 == _x_229); { let prod_local_0 = _x_230; match prod_local_0 {
+        false => None,
+        true => { let prod_local_5 = 0; { let prod_local_10 = 4; { let prod_local_12 = 8; { let prod_local_16 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![72, 79, 76, 79, 4, 0, 0, 0, 8, 0]); __value }; { let prod_local_17 = 24; { let prod_local_18 = wireTableRowUnshifted(value.clone(), prod_local_5, prod_local_17)?; { let prod_local_19 = { let mut __append = (prod_local_16, prod_local_18); __append.0.extend(__append.1); __append.0 }; { let prod_local_20 = 1; { let prod_local_21 = wireTableRowUnshifted(value.clone(), prod_local_20, prod_local_17)?; { let prod_local_22 = { let mut __append = (prod_local_19, prod_local_21); __append.0.extend(__append.1); __append.0 }; { let prod_local_23 = 2; { let prod_local_24 = wireTableRowUnshifted(value.clone(), prod_local_23, prod_local_17)?; { let prod_local_25 = { let mut __append = (prod_local_22, prod_local_24); __append.0.extend(__append.1); __append.0 }; { let prod_local_26 = 3; { let prod_local_27 = wireTableRowUnshifted(value.clone(), prod_local_26, prod_local_17)?; { let prod_local_28 = { let mut __append = (prod_local_25, prod_local_27); __append.0.extend(__append.1); __append.0 }; { let prod_local_29 = wireTableRowUnshifted(value.clone(), prod_local_10, prod_local_17)?; { let prod_local_30 = { let mut __append = (prod_local_28, prod_local_29); __append.0.extend(__append.1); __append.0 }; { let prod_local_31 = 5; { let prod_local_32 = wireTableRowUnshifted(value.clone(), prod_local_31, prod_local_17)?; { let prod_local_33 = { let mut __append = (prod_local_30, prod_local_32); __append.0.extend(__append.1); __append.0 }; { let prod_local_34 = 6; { let prod_local_35 = wireTableRowUnshifted(value.clone(), prod_local_34, prod_local_17)?; { let prod_local_36 = { let mut __append = (prod_local_33, prod_local_35); __append.0.extend(__append.1); __append.0 }; { let prod_local_37 = 7; { let prod_local_38 = wireTableRowUnshifted(value.clone(), prod_local_37, prod_local_17)?; { let prod_local_39 = { let mut __append = (prod_local_36, prod_local_38); __append.0.extend(__append.1); __append.0 }; { let prod_local_40 = 226; { let prod_local_41 = __prod_borrowed_wireRowOffset((value).as_ref(), prod_local_12)?; { let prod_local_42 = core::convert::identity::<u64>(prod_local_41).saturating_sub(prod_local_40); { let prod_local_43 = wireSlice(value.clone(), prod_local_40, prod_local_42); { let prod_local_44 = { let mut __append = (prod_local_39, prod_local_43); __append.0.extend(__append.1); __append.0 }; { let prod_local_45 = Some(prod_local_44); prod_local_45 } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } },
+    } } } } },
     } })
 }
 
@@ -7109,17 +7154,59 @@ pub fn validAppManifest(value: &[u8]) -> bool {
 pub fn validArchiveBody(body: &[u8]) -> Result<bool, crate::ComputeError> {
     Ok({ let _x_46 = 202; { let _x_50 = (body).len() as u64; { let _x_51 = (_x_46 <= _x_50); match _x_51 {
         false => { let _y_56 = _x_51; match _y_56 {
-        false => _y_56,
-        true => { let _x_178 = 0; { let _x_179 = 8; { let _x_180 = wireRowsValid((body).as_ref(), _x_178, _x_46, _x_179)?; match _x_180 {
-        false => _x_180,
-        true => { let _x_181 = wireBodyPayloadsValid((body).as_ref())?; _x_181 },
+        false => { let _x_459 = 226; { let _x_460 = (_x_459 <= _x_50); match _x_460 {
+        false => { let _y_462 = _x_460; match _y_462 {
+        false => _y_462,
+        true => { let _x_494 = 0; { let _x_495 = 9; { let _x_496 = wireRowsValid((body).as_ref(), _x_494, _x_459, _x_495)?; match _x_496 {
+        false => _x_496,
+        true => { let _x_502 = wireBodyPayloadsValid((body).as_ref())?; match _x_502 {
+        false => _x_502,
+        true => { let _x_503 = 8; { let _x_504 = wireSectionBytesUnchecked(alloc::borrow::ToOwned::to_owned(body), _x_503)?; { let _x_505 = wireAttestationRowValid((_x_504).as_ref())?; _x_505 } } },
+    } },
     } } } },
     } },
-        true => { let _x_154 = 0; { let _x_155 = 10; { let _x_176 = wireWindowEquals((body).as_ref(), _x_154, _x_155, &[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]); { let prod_local_0 = _x_176; match prod_local_0 {
+        true => { let _x_472 = 0; { let _x_473 = 10; { let _x_493 = wireWindowEquals((body).as_ref(), _x_472, _x_473, &[72, 79, 76, 79, 4, 0, 0, 0, 9, 0]); { let prod_local_0 = _x_493; match prod_local_0 {
         false => prod_local_0,
-        true => { let prod_local_1 = 0; { let prod_local_2 = 8; { let prod_local_3 = wireRowsValid((body).as_ref(), prod_local_1, _x_46, prod_local_2)?; match prod_local_3 {
+        true => { let prod_local_1 = 0; { let prod_local_2 = 9; { let prod_local_3 = wireRowsValid((body).as_ref(), prod_local_1, _x_459, prod_local_2)?; match prod_local_3 {
         false => prod_local_3,
-        true => { let prod_local_4 = wireBodyPayloadsValid((body).as_ref())?; prod_local_4 },
+        true => { let prod_local_4 = wireBodyPayloadsValid((body).as_ref())?; match prod_local_4 {
+        false => prod_local_4,
+        true => { let prod_local_5 = 8; { let prod_local_6 = wireSectionBytesUnchecked(alloc::borrow::ToOwned::to_owned(body), prod_local_5)?; { let prod_local_7 = wireAttestationRowValid((prod_local_6).as_ref())?; prod_local_7 } } },
+    } },
+    } } } },
+    } } } } },
+    } } },
+        true => { let _x_506 = 0; { let _x_507 = 8; { let _x_508 = wireRowsValid((body).as_ref(), _x_506, _x_46, _x_507)?; match _x_508 {
+        false => _x_508,
+        true => { let _x_509 = wireBodyPayloadsValid((body).as_ref())?; _x_509 },
+    } } } },
+    } },
+        true => { let _x_435 = 0; { let _x_436 = 10; { let _x_457 = wireWindowEquals((body).as_ref(), _x_435, _x_436, &[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]); { let prod_local_8 = _x_457; match prod_local_8 {
+        false => { let prod_local_9 = 226; { let prod_local_10 = (prod_local_9 <= _x_50); match prod_local_10 {
+        false => { let prod_local_12 = prod_local_10; match prod_local_12 {
+        false => prod_local_12,
+        true => { let prod_local_13 = 0; { let prod_local_14 = 9; { let prod_local_15 = wireRowsValid((body).as_ref(), prod_local_13, prod_local_9, prod_local_14)?; match prod_local_15 {
+        false => prod_local_15,
+        true => { let prod_local_16 = wireBodyPayloadsValid((body).as_ref())?; match prod_local_16 {
+        false => prod_local_16,
+        true => { let prod_local_17 = 8; { let prod_local_18 = wireSectionBytesUnchecked(alloc::borrow::ToOwned::to_owned(body), prod_local_17)?; { let prod_local_19 = wireAttestationRowValid((prod_local_18).as_ref())?; prod_local_19 } } },
+    } },
+    } } } },
+    } },
+        true => { let prod_local_20 = 0; { let prod_local_21 = 10; { let prod_local_30 = wireWindowEquals((body).as_ref(), prod_local_20, prod_local_21, &[72, 79, 76, 79, 4, 0, 0, 0, 9, 0]); { let prod_local_31 = prod_local_30; match prod_local_31 {
+        false => prod_local_31,
+        true => { let prod_local_32 = 0; { let prod_local_33 = 9; { let prod_local_34 = wireRowsValid((body).as_ref(), prod_local_32, prod_local_9, prod_local_33)?; match prod_local_34 {
+        false => prod_local_34,
+        true => { let prod_local_35 = wireBodyPayloadsValid((body).as_ref())?; match prod_local_35 {
+        false => prod_local_35,
+        true => { let prod_local_36 = 8; { let prod_local_37 = wireSectionBytesUnchecked(alloc::borrow::ToOwned::to_owned(body), prod_local_36)?; { let prod_local_38 = wireAttestationRowValid((prod_local_37).as_ref())?; prod_local_38 } } },
+    } },
+    } } } },
+    } } } } },
+    } } },
+        true => { let prod_local_39 = 0; { let prod_local_40 = 8; { let prod_local_41 = wireRowsValid((body).as_ref(), prod_local_39, _x_46, prod_local_40)?; match prod_local_41 {
+        false => prod_local_41,
+        true => { let prod_local_42 = wireBodyPayloadsValid((body).as_ref())?; prod_local_42 },
     } } } },
     } } } } },
     } } } })
@@ -7130,6 +7217,26 @@ pub fn validArchiveFrame(value: &[u8]) -> Result<bool, crate::ComputeError> {
         false => _x_6,
         true => { let _x_46 = 0; { let _x_48 = 32; { let _x_49 = core::convert::identity::<u64>(_x_5).saturating_sub(_x_48); { let _x_50 = wireSlice(alloc::borrow::ToOwned::to_owned(value), _x_46, _x_49); { let _x_51 = validArchiveBody((_x_50).as_ref())?; _x_51 } } } } },
     } } } })
+}
+
+pub fn wireAttestationPrefix() -> alloc::vec::Vec<u8> {
+    { let _x_5 = 54; { let _x_8 = wireEncodeLe16(_x_5); { let _x_9 = { let mut __append = (alloc::vec::Vec::<u8>::new(), _x_8); __append.0.extend(__append.1); __append.0 }; { let _x_117 = { let mut __value = _x_9; __value.extend_from_slice(&alloc::vec![104, 116, 116, 112, 115, 58, 47, 47, 117, 111, 114, 46, 102, 111, 117, 110, 100, 97, 116, 105, 111, 110, 47, 101, 120, 116, 101, 110, 115, 105, 111, 110, 47, 97, 116, 116, 101, 115, 116, 97, 116, 105, 111, 110, 45, 98, 117, 110, 100, 108, 101, 47, 118, 49]); __value }; _x_117 } } } }
+}
+
+pub fn wireAttestationRowValid(row: &[u8]) -> Result<bool, crate::ComputeError> {
+    Ok({ let _x_87 = wireAttestationPrefix(); { let _x_88 = (_x_87).len() as u64; { let _x_89 = 2; { let _x_135 = core::convert::identity::<u64>(_x_88).checked_add(_x_89).ok_or(crate::ComputeError::AddOverflow)?; { let _x_93 = (row).len() as u64; { let _x_94 = (_x_135 <= _x_93); match _x_94 {
+        false => _x_94,
+        true => { let _x_196 = 0; { let _x_198 = wireAttestationPrefix(); { let _x_199 = (_x_198).len() as u64; { let _x_200 = wireWindowEquals((row).as_ref(), _x_196, _x_199, (_x_198).as_ref()); match _x_200 {
+        false => _x_200,
+        true => { let _x_239 = (row).len() as u64; { let _x_240 = 1; { let _x_241 = core::convert::identity::<u64>(_x_239).saturating_sub(_x_240); { let _x_248 = wireWindowEquals((row).as_ref(), _x_241, _x_240, &[10]); match _x_248 {
+        false => _x_248,
+        true => { let _x_258 = wireAttestationPrefix(); { let _x_259 = (_x_258).len() as u64; { let _x_260 = 1; { let _x_267 = wireWindowEquals((row).as_ref(), _x_259, _x_260, &[10]); match _x_267 {
+        false => { let _x_302 = (row).len() as u64; { let _x_303 = wireNoBlankLines((row).as_ref(), _x_302); _x_303 } },
+        true => { let _x_300 = false; _x_300 },
+    } } } } },
+    } } } } },
+    } } } } },
+    } } } } } } })
 }
 
 pub fn wireBlobContent(value: alloc::vec::Vec<u8>) -> alloc::vec::Vec<u8> {
@@ -7280,6 +7387,14 @@ pub fn wireCapabilitiesPresent(label: &[u8], blob0: &[u8], blob1: &[u8], blob2: 
 
 pub fn wireComposeBodyUnchecked(manifest: alloc::vec::Vec<u8>, metadata: alloc::vec::Vec<u8>, directory: alloc::vec::Vec<u8>, provenance: alloc::vec::Vec<u8>, blob0: alloc::vec::Vec<u8>, blob1: alloc::vec::Vec<u8>, blob2: alloc::vec::Vec<u8>, blob3: alloc::vec::Vec<u8>) -> Result<alloc::vec::Vec<u8>, crate::ComputeError> {
     Ok({ let _x_5 = 0; { let _x_13 = 4; { let _x_29 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![72, 79, 76, 79, 4, 0, 0, 0, 8, 0]); __value }; { let _x_32 = 202; { let _x_36 = (manifest).len() as u64; { let _x_37 = wireTableRow(_x_5, _x_32, _x_36); { let _x_38 = { let mut __append = (_x_29, _x_37); __append.0.extend(__append.1); __append.0 }; { let _x_39 = 1; { let _x_121 = core::convert::identity::<u64>(_x_32).checked_add(_x_36).ok_or(crate::ComputeError::AddOverflow)?; { let _x_46 = (metadata).len() as u64; { let _x_47 = wireTableRow(_x_39, _x_121, _x_46); { let _x_48 = { let mut __append = (_x_38, _x_47); __append.0.extend(__append.1); __append.0 }; { let _x_49 = 2; { let _x_126 = core::convert::identity::<u64>(_x_121).checked_add(_x_46).ok_or(crate::ComputeError::AddOverflow)?; { let _x_53 = (directory).len() as u64; { let _x_54 = wireTableRow(_x_49, _x_126, _x_53); { let _x_55 = { let mut __append = (_x_48, _x_54); __append.0.extend(__append.1); __append.0 }; { let _x_56 = 3; { let _x_131 = core::convert::identity::<u64>(_x_126).checked_add(_x_53).ok_or(crate::ComputeError::AddOverflow)?; { let _x_60 = (provenance).len() as u64; { let _x_61 = wireTableRow(_x_56, _x_131, _x_60); { let _x_62 = { let mut __append = (_x_55, _x_61); __append.0.extend(__append.1); __append.0 }; { let _x_136 = core::convert::identity::<u64>(_x_131).checked_add(_x_60).ok_or(crate::ComputeError::AddOverflow)?; { let _x_66 = (blob0).len() as u64; { let _x_67 = wireTableRow(_x_13, _x_136, _x_66); { let _x_68 = { let mut __append = (_x_62, _x_67); __append.0.extend(__append.1); __append.0 }; { let _x_69 = 5; { let _x_141 = core::convert::identity::<u64>(_x_136).checked_add(_x_66).ok_or(crate::ComputeError::AddOverflow)?; { let _x_73 = (blob1).len() as u64; { let _x_74 = wireTableRow(_x_69, _x_141, _x_73); { let _x_75 = { let mut __append = (_x_68, _x_74); __append.0.extend(__append.1); __append.0 }; { let _x_76 = 6; { let _x_146 = core::convert::identity::<u64>(_x_141).checked_add(_x_73).ok_or(crate::ComputeError::AddOverflow)?; { let _x_80 = (blob2).len() as u64; { let _x_81 = wireTableRow(_x_76, _x_146, _x_80); { let _x_82 = { let mut __append = (_x_75, _x_81); __append.0.extend(__append.1); __append.0 }; { let _x_83 = 7; { let _x_151 = core::convert::identity::<u64>(_x_146).checked_add(_x_80).ok_or(crate::ComputeError::AddOverflow)?; { let _x_87 = (blob3).len() as u64; { let _x_88 = wireTableRow(_x_83, _x_151, _x_87); { let _x_89 = { let mut __append = (_x_82, _x_88); __append.0.extend(__append.1); __append.0 }; { let _x_90 = { let mut __append = (_x_89, manifest); __append.0.extend(__append.1); __append.0 }; { let _x_91 = { let mut __append = (_x_90, metadata); __append.0.extend(__append.1); __append.0 }; { let _x_92 = { let mut __append = (_x_91, directory); __append.0.extend(__append.1); __append.0 }; { let _x_93 = { let mut __append = (_x_92, provenance); __append.0.extend(__append.1); __append.0 }; { let _x_94 = { let mut __append = (_x_93, blob0); __append.0.extend(__append.1); __append.0 }; { let _x_95 = { let mut __append = (_x_94, blob1); __append.0.extend(__append.1); __append.0 }; { let _x_96 = { let mut __append = (_x_95, blob2); __append.0.extend(__append.1); __append.0 }; { let _x_97 = { let mut __append = (_x_96, blob3); __append.0.extend(__append.1); __append.0 }; _x_97 } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } })
+}
+
+pub fn wireDecodeLe16(value: alloc::vec::Vec<u8>) -> Result<u64, crate::ComputeError> {
+    __prod_borrowed_wireDecodeLe16(value.as_ref())
+}
+
+fn __prod_borrowed_wireDecodeLe16(value: &[u8]) -> Result<u64, crate::ComputeError> {
+    Ok({ let _x_4 = 0; { let _x_8 = 1; { let _x_11 = wireSlice(alloc::borrow::ToOwned::to_owned(value), _x_4, _x_8); { let _x_12 = __prod_borrowed_wireDecodeOctet((_x_11).as_ref()); { let _x_13 = core::convert::identity::<u64>(_x_12).checked_mul(_x_8).ok_or(crate::ComputeError::MulOverflow)?; { let _x_15 = wireSlice(alloc::borrow::ToOwned::to_owned(value), _x_8, _x_8); { let _x_16 = __prod_borrowed_wireDecodeOctet((_x_15).as_ref()); { let _x_17 = 256; { let _x_20 = core::convert::identity::<u64>(_x_16).checked_mul(_x_17).ok_or(crate::ComputeError::MulOverflow)?; { let _x_35 = core::convert::identity::<u64>(_x_13).checked_add(_x_20).ok_or(crate::ComputeError::AddOverflow)?; _x_35 } } } } } } } } } })
 }
 
 pub fn wireDecodeLe64(value: alloc::vec::Vec<u8>) -> Result<u64, crate::ComputeError> {
@@ -7459,6 +7574,16 @@ pub fn wireManifestSuffix() -> alloc::vec::Vec<u8> {
     { let _x_15 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![82, 0, 0, 0]); __value }; { let _x_36 = { let mut __value = alloc::vec::Vec::<u8>::new(); __value.extend_from_slice(&alloc::vec![0, 0, 0, 0, 2, 0, 0, 0, 0, 8, 0, 0, 0]); __value }; { let _x_61 = { let mut __value = _x_36; __value.extend_from_slice(&alloc::vec![104, 111, 108, 111, 95, 114, 117, 110]); __value }; { let _x_67 = { let mut __value = _x_61; __value.extend_from_slice(&alloc::vec![26, 0, 0, 0]); __value }; { let _x_122 = { let mut __value = _x_67; __value.extend_from_slice(&alloc::vec![104, 111, 108, 111, 103, 114, 97, 109, 58, 103, 117, 101, 115, 116, 47, 99, 111, 114, 101, 45, 119, 97, 115, 109, 64, 49]); __value }; { let _x_131 = { let mut __value = _x_122; __value.extend_from_slice(&alloc::vec![3, 10, 0, 0, 0]); __value }; { let _x_152 = { let mut __value = _x_131; __value.extend_from_slice(&alloc::vec![105, 110, 100, 101, 120, 46, 104, 116, 109, 108]); __value }; { let _x_156 = { let mut __value = _x_152; __value.extend_from_slice(&alloc::vec![8, 0, 0, 0]); __value }; { let _x_171 = { let mut __value = _x_156; __value.extend_from_slice(&alloc::vec![112, 111, 114, 116, 97, 98, 108, 101]); __value }; { let _x_178 = { let mut __value = _x_171; __value.extend_from_slice(&alloc::vec![0, 0, 0, 0]); __value }; { let _x_179 = { let mut __append = (_x_15, _x_178); __append.0.extend(__append.1); __append.0 }; _x_179 } } } } } } } } } } }
 }
 
+pub fn wireNoBlankLines(x_1: &[u8], mut x_2: u64) -> bool {
+    loop { return match x_2 {
+        0 => true,
+        _ => { let n_27 = (x_2).saturating_sub(1); { let _x_49 = 2; { let _x_57 = wireWindowEquals((x_1).as_ref(), n_27, _x_49, &[10, 10]); match _x_57 {
+        false => { (x_2,) = (n_27,); continue; },
+        true => false,
+    } } } },
+    }; }
+}
+
 pub fn wirePayloadsValid(manifest: &[u8], blob0: &[u8], blob1: &[u8], blob2: &[u8], blob3: &[u8]) -> bool {
     { let _x_64 = validAppManifest((manifest).as_ref()); match _x_64 {
         false => _x_64,
@@ -7492,6 +7617,14 @@ pub fn wireReferencePresent(label: &[u8], blob0: &[u8], blob1: &[u8], blob2: &[u
     } } }
 }
 
+pub fn wireRowCount(body: alloc::vec::Vec<u8>) -> Result<u64, crate::ComputeError> {
+    __prod_borrowed_wireRowCount(body.as_ref())
+}
+
+fn __prod_borrowed_wireRowCount(body: &[u8]) -> Result<u64, crate::ComputeError> {
+    Ok({ let _x_1 = 8; { let _x_4 = 2; { let _x_7 = wireSlice(alloc::borrow::ToOwned::to_owned(body), _x_1, _x_4); { let _x_8 = __prod_borrowed_wireDecodeLe16((_x_7).as_ref())?; _x_8 } } } })
+}
+
 pub fn wireRowLength(body: alloc::vec::Vec<u8>, index: u64) -> Result<u64, crate::ComputeError> {
     __prod_borrowed_wireRowLength(body.as_ref(), index)
 }
@@ -7517,7 +7650,7 @@ fn __prod_borrowed_wireRowOffset(body: &[u8], index: u64) -> Result<u64, crate::
 pub fn wireRowsValid(x_1: &[u8], mut x_2: u64, mut x_3: u64, mut x_4: u64) -> Result<bool, crate::ComputeError> {
     loop { return Ok(match x_4 {
         0 => { let _x_314 = (x_1).len() as u64; (x_3 == _x_314) },
-        _ => { let n_154 = (x_4).saturating_sub(1); { let _x_321 = 8; { let _x_322 = (x_2 < _x_321); match _x_322 {
+        _ => { let n_154 = (x_4).saturating_sub(1); { let _x_321 = 9; { let _x_322 = (x_2 < _x_321); match _x_322 {
         false => { let _y_324 = _x_322; match _y_324 {
         false => _y_324,
         true => { let _x_466 = 10; { let _x_468 = 24; { let _x_469 = core::convert::identity::<u64>(x_2).checked_mul(_x_468).ok_or(crate::ComputeError::MulOverflow)?; { let _x_470 = core::convert::identity::<u64>(_x_466).checked_add(_x_469).ok_or(crate::ComputeError::AddOverflow)?; { let _x_471 = 1; { let _x_472 = wireSectionKind(x_2); { let _x_473 = wireWindowEquals((x_1).as_ref(), _x_470, _x_471, (_x_472).as_ref()); match _x_473 {
@@ -7577,12 +7710,15 @@ pub fn wireSectionBytesUnchecked(body: alloc::vec::Vec<u8>, index: u64) -> Resul
 }
 
 pub fn wireSectionKind(index: u64) -> alloc::vec::Vec<u8> {
-    { let _x_1 = 8; { let _x_4 = (index < _x_1); match _x_4 {
+    { let _x_1 = 9; { let _x_4 = (index < _x_1); match _x_4 {
         false => alloc::vec::Vec::<u8>::new(),
-        true => { let _x_276 = 0; { let _x_277 = (index == _x_276); match _x_277 {
-        false => { let _x_308 = 1; { let _x_309 = (index == _x_308); match _x_309 {
-        false => { let _x_331 = 4; { let _x_332 = (index < _x_331); match _x_332 {
-        false => alloc::vec![16],
+        true => { let _x_389 = 0; { let _x_390 = (index == _x_389); match _x_390 {
+        false => { let _x_430 = 1; { let _x_431 = (index == _x_430); match _x_431 {
+        false => { let _x_462 = 4; { let _x_463 = (index < _x_462); match _x_463 {
+        false => { let _x_485 = 8; { let _x_486 = (index < _x_485); match _x_486 {
+        false => alloc::vec![14],
+        true => alloc::vec![16],
+    } } },
         true => alloc::vec![14],
     } } },
         true => alloc::vec![8],
@@ -7601,6 +7737,14 @@ pub fn wireSlice(value: alloc::vec::Vec<u8>, start: u64, count: u64) -> alloc::v
 
 pub fn wireTableRow(index: u64, offset: u64, length: u64) -> alloc::vec::Vec<u8> {
     { let _x_5 = wireSectionKind(index); { let _x_6 = { let mut __append = (alloc::vec::Vec::<u8>::new(), _x_5); __append.0.extend(__append.1); __append.0 }; { let _x_18 = { let mut __value = _x_6; __value.extend_from_slice(&alloc::vec![0, 0, 0, 0, 0, 0, 0]); __value }; { let _x_19 = wireEncodeLe64(offset); { let _x_20 = { let mut __append = (_x_18, _x_19); __append.0.extend(__append.1); __append.0 }; { let _x_21 = wireEncodeLe64(length); { let _x_22 = { let mut __append = (_x_20, _x_21); __append.0.extend(__append.1); __append.0 }; _x_22 } } } } } } }
+}
+
+pub fn wireTableRowShifted(body: alloc::vec::Vec<u8>, index: u64, shift: u64) -> Result<alloc::vec::Vec<u8>, crate::ComputeError> {
+    Ok({ let _x_4 = __prod_borrowed_wireRowOffset((body).as_ref(), index)?; { let _x_14 = core::convert::identity::<u64>(_x_4).checked_add(shift).ok_or(crate::ComputeError::AddOverflow)?; { let _x_6 = __prod_borrowed_wireRowLength((body).as_ref(), index)?; { let _x_7 = wireTableRow(index, _x_14, _x_6); _x_7 } } } })
+}
+
+pub fn wireTableRowUnshifted(body: alloc::vec::Vec<u8>, index: u64, shift: u64) -> Result<alloc::vec::Vec<u8>, crate::ComputeError> {
+    Ok({ let _x_2 = __prod_borrowed_wireRowOffset((body).as_ref(), index)?; { let _x_3 = core::convert::identity::<u64>(_x_2).saturating_sub(shift); { let _x_4 = __prod_borrowed_wireRowLength((body).as_ref(), index)?; { let _x_5 = wireTableRow(index, _x_3, _x_4); _x_5 } } } })
 }
 
 pub fn wireWindowEquals(value: &[u8], start: u64, count: u64, expected: &[u8]) -> bool {

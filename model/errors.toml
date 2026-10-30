@@ -246,6 +246,20 @@ exit = 1
 statement = "The closed Prism model-provenance extension is malformed or disagrees with embedded evidence."
 
 [[error]]
+code = "PP3016"
+title = "Attestation section disagreement"
+class = "holo"
+exit = 1
+statement = "The attestation section of a Holo archive holds no bundle, an empty or unterminated line, or a bundle that is already present."
+
+[[error]]
+code = "PP3017"
+title = "Attestation bundle disagreement"
+class = "holo"
+exit = 1
+statement = "An attestation bundle is not a Sigstore bundle v0.3 with a DSSE envelope over an in-toto Statement v1 whose subjects carry exactly sha256 and blake3, or it names the OCI manifest."
+
+[[error]]
 code = "PP4001"
 title = "Artifact checksum mismatch"
 class = "artifact"

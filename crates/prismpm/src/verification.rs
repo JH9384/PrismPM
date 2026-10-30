@@ -86,7 +86,7 @@ fn package_export_roots(source: &str, runtime: &RuntimeRoots) -> Result<Vec<Stri
         || register.spec != "prismpm/stdlib-exports/1"
         || register.lean_module != runtime.lean_module
         || register.ir_module != runtime.ir_module
-        || names.len() != 66
+        || names.len() != 69
         || names.windows(2).any(|pair| pair[0] >= pair[1])
         || symbols.len() != names.len()
         || [
@@ -3652,7 +3652,7 @@ mod tests {
     fn package_exports_are_closed_and_do_not_change_runtime_accounting() {
         let (runtime, corpus, _) = corpus();
         let package = package_export_roots(STDLIB_EXPORTS_SOURCE, &runtime).unwrap();
-        assert_eq!(package.len(), 66);
+        assert_eq!(package.len(), 69);
         let union = runtime
             .roots
             .iter()

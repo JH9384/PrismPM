@@ -271,6 +271,36 @@ level = "build"
 statement = "The JavaScript runtime in sdk/npm/prism-code opens a composed .holo archive and an exported browser closure without the Rust SDK, verifies the footer, every content-blob label and the manifest cross-references with its own BLAKE3, decodes and re-encodes the HOLOVIEW bundle byte for byte, dispatches requests through the Core-Wasm guest on fresh instances, and replays every modeled acceptance vector byte-identically, so a change to the archive, bundle or model-document layout fails this case in the same change."
 
 [[id]]
+id = "HO-23"
+suite = "holo"
+level = "build"
+statement = "A holo without the attestation section loads and verifies with the same bytes and identities as before the section existed, and reports no attestations."
+
+[[id]]
+id = "HO-24"
+suite = "holo"
+level = "build"
+statement = "An attestation section is an Extension row named https://uor.foundation/extension/attestation-bundle/v1, is the last row, appears at most once, and the footer is BLAKE3 of the body including it."
+
+[[id]]
+id = "HO-25"
+suite = "holo"
+level = "build"
+statement = "Removing the attestation section yields the unsigned archive byte for byte; rows 0 to 7, every blob label and application_kappa are unchanged by adding it, and the Rust and JavaScript writers produce the same bytes."
+
+[[id]]
+id = "HO-26"
+suite = "holo"
+level = "build"
+statement = "Every attestation line is one Sigstore bundle v0.3 with a DSSE envelope over an in-toto Statement v1, and every subject names a content blob of the archive with matching sha256 and blake3."
+
+[[id]]
+id = "HO-27"
+suite = "holo"
+level = "build"
+statement = "A blank line, a v0.2 bundle, a messageSignature, a single-digest subject and an oci-manifest subject inside the holo are each refused with a registered diagnostic."
+
+[[id]]
 id = "CT-01"
 suite = "controller"
 level = "build"

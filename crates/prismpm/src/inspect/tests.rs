@@ -2,7 +2,7 @@
 
 use super::{inspect, select, INSPECTION_SCHEMA};
 use prism_stdlib as wire;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 /// The reference archive and the inspection `prism-code inspect` prints for
 /// it (`sdk/npm/prism-code/test/fixtures/Calculator.inspect.json`, golden of
@@ -20,12 +20,147 @@ fn reference() -> (Vec<u8>, Value) {
     )
 }
 
+/// The reference archive signed by the JavaScript appender with the two
+/// committed bundle lines (`attestation-interop.test.mjs`, issue #267): a
+/// proof statement over the guest, then a provenance statement over the guest
+/// and the view.
+fn signed() -> Vec<u8> {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    std::fs::read(root.join("sdk/npm/prism-code/test/fixtures/attestation/Calculator.signed.holo"))
+        .expect("signed reference archive")
+}
+
 #[test]
 fn the_reference_archive_inspects_exactly_as_the_javascript_half_reports_it() {
     let (bytes, golden) = reference();
     let inspected = inspect(&bytes).unwrap();
     assert_eq!(inspected, golden);
     assert_eq!(inspected["schema"], INSPECTION_SCHEMA);
+    // Eight rows and no attestation section: the table ends at the archive's
+    // own row count, although the wire model names a ninth row.
+    assert_eq!(inspected["sections"].as_array().unwrap().len(), 8);
+    assert_eq!(inspected["attestations"], json!([]));
+}
+
+#[test]
+fn the_signed_archive_lists_each_statement_with_its_subjects() {
+    let (unsigned, _) = reference();
+    let inspected = inspect(&signed()).unwrap();
+    let statements = inspected["attestations"].as_array().unwrap();
+    assert_eq!(statements.len(), 2);
+    // The row shape is the JavaScript half's `InspectedAttestation`: the
+    // predicate type and the subjects, each with its name and digest set.
+    assert_eq!(
+        statements[0]["predicate_type"],
+        "https://uor.foundation/prism/proof/v1"
+    );
+    assert_eq!(
+        statements[1]["predicate_type"],
+        "https://slsa.dev/provenance/v1"
+    );
+    let names = |statement: &Value| -> Vec<String> {
+        statement["subjects"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|subject| subject["name"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    assert_eq!(
+        names(&statements[0]),
+        ["core-wasm/prism_calculator_core_wasm.wasm"]
+    );
+    assert_eq!(
+        names(&statements[1]),
+        [
+            "core-wasm/prism_calculator_core_wasm.wasm",
+            "view/prism_calculator.holoview"
+        ]
+    );
+    // Every subject's digest set is the content digest of a blob of this
+    // archive, as the inspection reports it under `sections[].content`.
+    let sections = inspected["sections"].as_array().unwrap();
+    for statement in statements {
+        assert_eq!(statement.as_object().unwrap().len(), 2);
+        for subject in statement["subjects"].as_array().unwrap() {
+            assert_eq!(subject.as_object().unwrap().len(), 2);
+            assert_eq!(subject["digest"].as_object().unwrap().len(), 2);
+            assert!(
+                sections
+                    .iter()
+                    .any(|section| section["content"]["digest"] == subject["digest"]),
+                "subject {} names no blob of the archive",
+                subject["name"]
+            );
+        }
+    }
+    let guest = sections
+        .iter()
+        .find(|section| section["role"] == "guest")
+        .unwrap();
+    assert_eq!(
+        statements[0]["subjects"][0]["digest"],
+        guest["content"]["digest"]
+    );
+    // The section is the ninth row, an extension named for the bundle, and the
+    // footer covers it.
+    assert_eq!(sections.len(), 9);
+    assert_eq!(sections[8]["kind"], 14);
+    assert_eq!(sections[8]["role"], "extension");
+    assert_eq!(
+        sections[8]["name"],
+        "https://uor.foundation/extension/attestation-bundle/v1"
+    );
+    assert_eq!(inspected["verification"]["footer"], true);
+    assert_eq!(inspected["verification"]["labels"], true);
+    assert_eq!(inspected["verification"]["cross_references"], true);
+    // Signing moves the file, not the application: rows 0 to 7 and every
+    // identity are the unsigned archive's.
+    let reference = inspect(&unsigned).unwrap();
+    assert_eq!(inspected["provenance"], reference["provenance"]);
+    assert_eq!(inspected["model"], reference["model"]);
+    assert_eq!(inspected["manifest"], reference["manifest"]);
+    assert_eq!(inspected["world"], reference["world"]);
+    for (index, section) in reference["sections"].as_array().unwrap().iter().enumerate() {
+        assert_eq!(sections[index]["digest"], section["digest"]);
+        assert_eq!(sections[index]["role"], section["role"]);
+    }
+    assert_ne!(inspected["footer"], reference["footer"]);
+    // No dated revision admits the section yet, so none is recognized.
+    assert_eq!(inspected["revision"], Value::Null);
+    assert_eq!(
+        select(&inspected, "attestations[1].subjects[1].name")
+            .unwrap()
+            .unwrap(),
+        "view/prism_calculator.holoview"
+    );
+}
+
+#[test]
+fn a_scratched_signed_archive_still_lists_its_statements() {
+    let signed = signed();
+    let clean = inspect(&signed).unwrap();
+    // A byte inside the model document, the blob the provenance statement
+    // does not name; the statements still list, the damage still reports.
+    let at = clean["sections"][7]["offset"].as_u64().unwrap() as usize + 100;
+    let mut damaged = signed.clone();
+    damaged[at] ^= 0xff;
+    let inspected = inspect(&damaged).unwrap();
+    assert_eq!(inspected["verification"]["footer"], false);
+    assert_eq!(inspected["verification"]["cross_references"], false);
+    assert_eq!(inspected["attestations"], clean["attestations"]);
+}
+
+#[test]
+fn a_line_that_is_not_a_bundle_is_refused() {
+    let mut broken = signed();
+    let needle = b"vnd.dev.sigstore.bundle";
+    let at = broken
+        .windows(needle.len())
+        .position(|window| window == needle)
+        .expect("the first line names its media type");
+    broken[at] ^= 0x20;
+    assert_eq!(inspect(&broken).unwrap_err().code, "PP3017");
 }
 
 #[test]

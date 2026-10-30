@@ -215,6 +215,18 @@ The closed Prism model-provenance extension is malformed or disagrees with embed
 
 Class: `holo`. Exit code: 1.
 
+## `PP3016` --- Attestation section disagreement
+
+The attestation section of a Holo archive holds no bundle, an empty or unterminated line, or a bundle that is already present.
+
+Class: `holo`. Exit code: 1.
+
+## `PP3017` --- Attestation bundle disagreement
+
+An attestation bundle is not a Sigstore bundle v0.3 with a DSSE envelope over an in-toto Statement v1 whose subjects carry exactly sha256 and blake3, or it names the OCI manifest.
+
+Class: `holo`. Exit code: 1.
+
 ## `PP4001` --- Artifact checksum mismatch
 
 An artifact does not match its manifest digest.

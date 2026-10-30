@@ -62,6 +62,28 @@ const PROBES: &[&str] = &[
     "probeShortContentBlob",
     "probeInvalidBlobLabel",
     "probeEmptyBlobContentRepresentable",
+    "probeAttestationAttachExact",
+    "probeSignedFrameValid",
+    "probeSignedSection8",
+    "probeSignedSectionsUnchanged",
+    "probeSignedSection9",
+    "probeAttestationRead",
+    "probeAttestationAbsent",
+    "probeAttestationStripExact",
+    "probeAttestationStripFrameExact",
+    "probeAttestationStripUnsigned",
+    "probeAttachToSignedRejected",
+    "probeAttachEmptyRejected",
+    "probeAttachBlankLineRejected",
+    "probeAttachLeadingBlankRejected",
+    "probeAttachNoLineFeedRejected",
+    "probeSignedForeignNameRejected",
+    "probeSignedKindRejected",
+    "probeSignedCount10Rejected",
+    "probeSignedCount8Rejected",
+    "probeSignedOffsetRejected",
+    "probeSignedBlankLineRejected",
+    "probeSignedNoLineFeedRejected",
 ];
 
 #[derive(Clone, Debug, PartialEq)]
@@ -239,6 +261,14 @@ fn generated_call(name: &str, arguments: &[TestValue]) -> TestValue {
         "archiveSection" => TestValue::Optional(wire::archiveSection(b(0), n(1)).unwrap()),
         "archiveExtension" => TestValue::Optional(wire::archiveExtension(b(0), n(1)).unwrap()),
         "archiveBodyBytes" => TestValue::Optional(wire::archiveBodyBytes(b(0)).unwrap()),
+        "archiveAttestation" => TestValue::Optional(wire::archiveAttestation(b(0)).unwrap()),
+        "archiveStripAttestation" => {
+            TestValue::Optional(wire::archiveStripAttestation(b(0)).unwrap())
+        }
+        "archiveBodyWithAttestation" => {
+            TestValue::Optional(wire::archiveBodyWithAttestation(b(0), b(1)).unwrap())
+        }
+        "wireAttestationPrefix" => TestValue::Bytes(wire::wireAttestationPrefix()),
         "archiveFooter" => TestValue::Optional(wire::archiveFooter(b(0)).unwrap()),
         "contentBlob" => TestValue::Optional(wire::contentBlob(b(0), b(1))),
         "contentBlobLabel" => TestValue::Optional(wire::contentBlobLabel(b(0))),
@@ -250,7 +280,7 @@ fn generated_call(name: &str, arguments: &[TestValue]) -> TestValue {
     }
 }
 #[test]
-fn all_57_modeled_wire_cases_execute_generated_code() {
+fn all_79_modeled_wire_cases_execute_generated_code() {
     let corpus = Corpus::load();
     let expected: BTreeSet<_> = PROBES.iter().copied().collect();
     let actual: BTreeSet<_> = corpus
@@ -259,7 +289,7 @@ fn all_57_modeled_wire_cases_execute_generated_code() {
         .filter(|name| name.starts_with("probe"))
         .map(String::as_str)
         .collect();
-    assert_eq!(PROBES.len(), 57);
+    assert_eq!(PROBES.len(), 79);
     assert_eq!(expected.len(), PROBES.len(), "duplicate execution mapping");
     assert_eq!(actual, expected, "complete corpus-to-execution bijection");
     for name in PROBES {
@@ -281,6 +311,11 @@ fn corpus_bytes_are_bound_to_independent_upstream_vectors() {
         ("oracleBody", &fixture["archive"]["body_hex"]),
         ("oracleFrame", &fixture["archive"]["bytes_hex"]),
         ("oracleFooter", &fixture["archive"]["footer_hex"]),
+        // Hologram's own writer appends the Extension row; Prism's wire model must agree byte for byte.
+        ("oracleAttestation", &fixture["attestation"]["lines_hex"]),
+        ("oracleSignedBody", &fixture["attestation"]["body_hex"]),
+        ("oracleSignedFooter", &fixture["attestation"]["footer_hex"]),
+        ("signedFrame", &fixture["attestation"]["bytes_hex"]),
     ] {
         assert_eq!(
             corpus.call(name, &[]).bytes(),

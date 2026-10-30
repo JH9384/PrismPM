@@ -277,6 +277,8 @@ probes!(
     ("PP3013", "extension-disagreement", Complete),
     ("PP3014", "source-manifest-disagreement", Exact),
     ("PP3015", "prism-provenance-disagreement", Exact),
+    ("PP3016", "attestation-section-disagreement", Exact),
+    ("PP3017", "attestation-bundle-disagreement", Exact),
     ("PP4001", "artifact-checksum-mismatch", ArtifactIntegrity),
     ("PP4002", "missing-published-artifact", Required),
     ("PP4003", "emitter-input-digest-drift", Digest),

@@ -9,7 +9,7 @@
 | Bundle | Sigstore bundle v0.3, `application/vnd.dev.sigstore.bundle.v0.3+json`, one per line |
 | Depends on | #263 (`@prism-code/spec`), #274 (ADR-015 dual digests), #266 (proof predicate) |
 | Blocks | #268 (provenance at build), #271 (`prism inspect`), #272 (`prism attest`, `prism verify`), #273 (`@prism-code/verify`) |
-| Reference implementation | JavaScript: `sdk/npm/prism-code/src/attestations.mjs` (this change). Rust and LexLean: the follow-up named under "Wire model change". |
+| Reference implementation | JavaScript: `sdk/npm/prism-code/src/attestations.mjs`. Wire model: `Foundation.Holo.V1.Wire`. Rust: `crates/prismpm/src/holo/archive.rs` and `attestation.rs`. |
 
 ## Summary
 
@@ -185,9 +185,8 @@ A reader of the new revision accepts both shapes, and reports an empty list of a
 ### Readers that predate the section
 
 `prism-code` 0.2.0 already accepts any number of extension rows, so it loads a signed archive and ignores the bundle.
-`hologram-archive` accepts Extension rows by design; its application loader still needs one oracle test with a nine-row archive, listed in the follow-up.
-PrismPM's Rust reader, through `Foundation.Holo.V1.Wire.validArchiveBody`, requires exactly eight rows today and refuses a signed archive.
-That refusal is correct for revision `2026-10-23` and is lifted by the wire model change.
+`hologram-archive` accepts Extension rows by design: `tests/holo-codec-oracle` assembles the nine-row calculator with Hologram's own `HoloWriter`, loads it with `HoloLoader` and reads the bundle back through `extensions()`.
+PrismPM's Rust reader, through `Foundation.Holo.V1.Wire.validArchiveBody`, accepts eight rows or nine; before the wire model change it required exactly eight and refused a signed archive.
 
 ### OCI referrers on push
 
@@ -226,41 +225,31 @@ optionalTrailingExtensions: ['https://uor.foundation/extension/attestation-bundl
 `sectionOrder` stays the order of the required rows.
 Every archive valid under `2026-10-23` stays valid under the new revision.
 
-### Wire model change (follow-up, needs the toolchain image)
+### Wire model change
 
-This change ships the design and the JavaScript reference implementation.
-The Rust reader and writer are generated from LexLean, which does not run on the machine that wrote this change.
-The follow-up issue makes these edits, in this order.
+The Rust reader and writer are generated from LexLean. The wire model change below landed with the Rust half of #267.
 
 `stdlib/src/Foundation/Holo/V1/Wire.lex.tex`:
 
-- Add `wireAttestationPrefix`: `wireEncodeLe16 54` followed by the name bytes, beside `wireProvenancePrefix`.
-- `wireSectionKind`: map index 8 to `0x0e`; keep 0 to 7.
-- `validArchiveBody`: accept header `484f4c4f 0400 0000 0800` with `wireRowsValid body 0 202 8`, or header count `0900` with `wireRowsValid body 0 226 9`.
-- `wireRowsValid`: raise the index bound from `index <? 8` to the row count it is called with.
-- `wireBodyPayloadsValid`: when the count is 9, require row 8 to start with `wireAttestationPrefix`.
-- `wireComposeBodyUnchecked` and `archiveBody`: keep them as the unsigned constructors; add `archiveBodyWithAttestation`, which takes the eight payloads plus the JSON Lines payload and writes a nine-row table from offset 226.
-- `archiveSection`: bound the index by the archive's row count instead of 8.
-- Add `archiveAttestation : Bytes -> Option Bytes`, returning row 8's payload without the prefix, or none for an eight-row archive.
-- Add `archiveStripAttestation : Bytes -> Option Bytes`, returning the unsigned body.
+- `wireAttestationPrefix`: `wireEncodeLe16 54` followed by the name bytes, beside `wireProvenancePrefix`.
+- `wireSectionKind`: index 8 is `0x0e`; 0 to 7 are unchanged.
+- `validArchiveBody` accepts header `484f4c4f 0400 0000 0800` with `wireRowsValid body 0 202 8`, or header count `0900` with `wireRowsValid body 0 226 9` and a valid row 8. `wireRowsValid` bounds the index by 9.
+- `wireAttestationRowValid` is the row 8 rule: it starts with `wireAttestationPrefix`, holds at least one byte of payload, ends with LF, does not start with LF and has no empty line (`wireNoBlankLines`). The model checks the line framing; reading a line as a bundle is the host's.
+- `archiveBodyWithAttestation(body, attestation)` takes a valid eight-row body and the JSON Lines payload, and writes the nine-row body from offset 226. It refuses a body that already has nine rows, so the host strips before it extends.
+- `archiveAttestation` returns row 8's payload without the prefix, or none for an eight-row archive.
+- `archiveStripAttestation` returns the unsigned body of a nine-row archive, or none for an eight-row one.
+- `archiveSection` bounds the index by the archive's row count.
+- `archiveBody`, `wireComposeBodyUnchecked` and `frameArchive` are unchanged: they are the unsigned constructors and the framing.
 
-`stdlib/src/Foundation/Holo/V1/WireCorpus.lex.tex`:
+`WireCorpus.lex.tex` adds 22 probes: the nine-row calculator body built by Hologram's writer (`oracleSignedBody`, bound to `tests/data/holo-codec-v1.json`), attach and strip byte-exact, the section read back, an unsigned archive reporting none, and refusals of a signed body attached again, an empty, blank-line, leading-blank or unterminated payload, a foreign extension name, a ninth row of kind 16, count 8 and count 10, a shifted offset, a blank line and a missing final LF in a nine-row body.
 
-- `probeWrongSectionCount` writes count 9 over eight rows; keep it rejected and add probes for a valid nine-row archive, a ninth row with a foreign extension name, a ninth row of kind 16, and count 10.
-- Add `probeAttestationStripExact`: stripping the nine-row calculator yields the eight-row calculator.
-
-Generated and checked artifacts:
-
-- `stdlib/generated/package/src/lib.rs`: regenerated; `wireSectionKind`, `wireRowsValid`, `validArchiveBody`, `archiveSection` change, and `archiveBodyWithAttestation`, `archiveAttestation`, `archiveStripAttestation` appear.
-- `tests/golden/stdlib/verified/` (`roots.json`, `coverage.json`, `lexlean-attestation.json`) and the native goldens: regenerated.
-- `tests/holo-wire-generated.rs`: register the new probes.
-- `crates/prismpm/src/holo/archive.rs`: `decode_wire_archive` reads `archiveAttestation`; add `attach_attestations(bytes, bundles)` and `strip_attestations(bytes)` over the generated functions; `compose_application` is unchanged.
-- `tests/holo-codec-oracle/`: one test that `hologram::archive::HoloLoader` loads the nine-row calculator and returns the bundle through `extensions()`.
+`crates/prismpm/src/holo/archive.rs` adds `read_attestations`, `attach_attestations` and `strip_attestations` over the generated functions, and `attestation.rs` decodes each line (`PP3016` for the section and its lines, `PP3017` for a bundle).
+Attaching to a signed archive strips first and writes the old and new lines in order; an identical line is refused.
+The stdlib package, its crate, `stdlib/release.json`, the shared goldens and `sdk/stdlib-sources.tar` are regenerated.
 
 This moves the stdlib semantic identity.
-Every newly built holo then carries a new `stdlib_semantics_id` and `prism_stdlib_crate_sha256` in its provenance extension, so the calculator reference archive and ADR-012's receipt identity are regenerated in the same change.
-
-Estimate: about 120 lines of LexLean and 80 lines of Rust, two to three working days with the toolchain image, most of it regeneration and golden refresh.
+Every newly built holo carries a new `stdlib_semantics_id` and `prism_stdlib_crate_sha256` in its provenance extension.
+The Calculator reference archive is a published artifact of `calculator-example` built by an earlier SDK; it is not rebuilt here and stays a valid revision `2026-10-23` archive.
 
 ### Test plan
 
@@ -269,7 +258,7 @@ In this change, run with `node --test`:
 - `sdk/npm/prism-code/test/attestations.test.mjs`: the calculator without the section loads, dispatches and has no attestations; appending adds one last kind-14 row with rows 0 to 7 byte-identical; the footer is BLAKE3 of the whole body and breaks when a bundle byte flips; application identities do not move; the bundle reads back with its exact bytes; stripping returns the original; appending twice extends one section in order; the signed archive loads and replays all 22 vectors; malformed bundles, misplaced, repeated, empty and blank-line sections are refused with their check ids.
 - `sdk/npm/spec/test/attestation-bundle.test.mjs`: the calculator fixture statement validates and both digests equal the guest blob; the bundle schema's envelope equals `dsse-envelope.schema.json`; keyed and keyless bundles validate; v0.2 shapes, `messageSignature`, both or neither key forms and numeric int64 fields are rejected; prism-code's constants equal the spec's; bundles appended by prism-code read back schema-valid.
 
-Conformance scenario, one Gherkin scenario per ID in `features/suites/holo.feature`, registered in `model/ids.toml` with the wire model change.
+Conformance scenario, one Gherkin scenario per ID in `features/suites/holo.feature`, registered in `model/ids.toml`. HO-23 to HO-27 landed with the Rust half and run `crates/prismpm/src/holo/attestation_tests.rs` plus the JavaScript files above; HO-28 stays reserved for `prism push`.
 HO-21 and HO-22 are taken by PR #246, so these start at HO-23.
 The refusal check ids are the error codes `prism-code` raises today; `attestation.absent`, `attestation.strip` and `attestation.referrer` name positive checks.
 
@@ -320,6 +309,6 @@ Diagnostics with `PP` codes are registered in `ERRORS.md` together with the IDs.
 
 1. Should `prism pull` fold registry referrers back into the archive's attestation section? This proposal only writes them out. Recommendation: no by default, so a pulled file keeps the footer it was pushed with; offer a flag.
 2. Which trust root does a verifier pin: the Sigstore public-good instance, a private instance, or keys in `prismpm.lock`? #266 expected #267 to pin it; this proposal leaves it to #272, because the bundle already carries the verification material and the choice is policy.
-3. Does Hologram's application loader, as opposed to the archive loader, accept a third extension row? The follow-up's oracle test answers it; if not, the extension name is proposed upstream.
+3. Answered. Hologram's `HoloLoader` loads the nine-row archive and returns the bundle through `extensions()` (`tests/holo-codec-oracle`). Its higher application layer is not exercised by this change.
 4. Should the new format revision also allow a thin holo, one without content blobs, to carry the section? Then subjects would name blobs that are not in the file. Recommendation: not until thin holos are in a revision.
 5. Is there a size bound for the section? A keyless bundle is a few kilobytes plus its statement. Recommendation: 1 MiB, enforced by readers, stated with the wire change.

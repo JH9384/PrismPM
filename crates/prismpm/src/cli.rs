@@ -1069,9 +1069,36 @@ fn inspection_summary(inspection: &serde_json::Value) -> String {
         Some(false) => "not conforming",
         None => "conformance unchecked",
     };
-    format!(
-        "holo {name}: revision {revision}, {size} bytes, {sections} sections, {world} ({conforms})"
-    )
+    let statements = inspection["attestations"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let attestations = match statements.len() {
+        0 => "no attestations".to_owned(),
+        1 => "1 attestation".to_owned(),
+        count => format!("{count} attestations"),
+    };
+    let mut summary = format!(
+        "holo {name}: revision {revision}, {size} bytes, {sections} sections, {world} ({conforms}), {attestations}"
+    );
+    // One line per statement (#267): its predicate type, then the subjects it
+    // names, as `prism-code inspect` tabulates them.
+    for statement in &statements {
+        let predicate = statement["predicate_type"]
+            .as_str()
+            .unwrap_or("unknown predicate");
+        let subjects: Vec<&str> = statement["subjects"]
+            .as_array()
+            .map(|subjects| {
+                subjects
+                    .iter()
+                    .filter_map(|subject| subject["name"].as_str())
+                    .collect()
+            })
+            .unwrap_or_default();
+        summary.push_str(&format!("\n  {predicate}: {}", subjects.join(", ")));
+    }
+    summary
 }
 
 /// Parse process arguments, execute one command, and emit stable output.
@@ -1136,8 +1163,32 @@ pub fn run() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use super::{Cli, Commands};
+    use super::{inspection_summary, Cli, Commands};
     use clap::Parser;
+
+    #[test]
+    fn the_inspect_summary_names_each_statement_of_a_signed_archive() {
+        let unsigned = include_bytes!("../../../sdk/npm/prism-code/fixtures/Calculator.holo");
+        let signed = include_bytes!(
+            "../../../sdk/npm/prism-code/test/fixtures/attestation/Calculator.signed.holo"
+        );
+        let plain = inspection_summary(&crate::inspect::inspect(unsigned).unwrap());
+        assert_eq!(plain.lines().count(), 1);
+        assert!(plain.ends_with(", no attestations"), "{plain}");
+        let summary = inspection_summary(&crate::inspect::inspect(signed).unwrap());
+        let lines: Vec<&str> = summary.lines().collect();
+        assert_eq!(lines.len(), 3, "{summary}");
+        assert!(lines[0].contains("9 sections"), "{summary}");
+        assert!(lines[0].ends_with(", 2 attestations"), "{summary}");
+        assert_eq!(
+            lines[1],
+            "  https://uor.foundation/prism/proof/v1: core-wasm/prism_calculator_core_wasm.wasm"
+        );
+        assert_eq!(
+            lines[2],
+            "  https://slsa.dev/provenance/v1: core-wasm/prism_calculator_core_wasm.wasm, view/prism_calculator.holoview"
+        );
+    }
 
     #[test]
     fn build_update_rewrites_inputs_only_for_a_plain_build() {

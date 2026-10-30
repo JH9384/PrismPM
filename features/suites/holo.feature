@@ -1,5 +1,40 @@
 Feature: holo
 
+  @HO-27 @build
+  Scenario: A blank line, a v0.2 bundle, a messageSignature, a single-digest subject and an oci-manifest subject inside the holo are each refused with a registered diagnostic.
+    Given malformed attestation lines and statements
+    When the Rust writer is asked to attach them
+    Then each is refused with PP3016 or PP3017 before any byte is written
+    And a valid bundle is accepted
+
+  @HO-26 @build
+  Scenario: Every attestation line is one Sigstore bundle v0.3 with a DSSE envelope over an in-toto Statement v1, and every subject names a content blob of the archive with matching sha256 and blake3.
+    Given a signed archive whose two bundles name archive blobs with both digests
+    When the Rust reader decodes every line
+    Then each predicate type and subject is reported with the blob it names and whether sha256 agrees
+    And a subject naming no blob or a wrong sha256 is reported as not resolved
+
+  @HO-25 @build
+  Scenario: Removing the attestation section yields the unsigned archive byte for byte; rows 0 to 7, every blob label and application_kappa are unchanged by adding it, and the Rust and JavaScript writers produce the same bytes.
+    Given the Calculator reference archive and the bundle lines the JavaScript appender signed into it
+    When the Rust writer attaches the same lines and strips them again
+    Then the Rust bytes equal the JavaScript bytes and stripping returns the reference archive
+    And no row of the unsigned archive moves other than by one table row
+
+  @HO-24 @build
+  Scenario: An attestation section is an Extension row named https://uor.foundation/extension/attestation-bundle/v1, is the last row, appears at most once, and the footer is BLAKE3 of the body including it.
+    Given an archive signed by the Rust writer and by the JavaScript appender
+    When the modeled wire codec and both runtimes read the table and the footer
+    Then the section is a kind 14 row named by the extension URI and last in a nine-row table, and the footer covers the bundles
+    And a foreign name, another kind, a tenth row, a blank line, a missing final LF and a flipped bundle byte are each refused
+
+  @HO-23 @build
+  Scenario: A holo without the attestation section loads and verifies with the same bytes and identities as before the section existed, and reports no attestations.
+    Given an unsigned Calculator archive with eight rows and a signed one with nine
+    When the Rust reader loads, strips and reads attestations of both
+    Then the unsigned archive is unchanged byte for byte and reports none, and the signed one keeps every application identity
+    And only the archive fingerprint and archive kappa differ
+
   @HO-20 @build
   Scenario: The JavaScript runtime in sdk/npm/prism-code opens a composed .holo archive and an exported browser closure without the Rust SDK, verifies the footer, every content-blob label and the manifest cross-references with its own BLAKE3, decodes and re-encodes the HOLOVIEW bundle byte for byte, dispatches requests through the Core-Wasm guest on fresh instances, and replays every modeled acceptance vector byte-identically, so a change to the archive, bundle or model-document layout fails this case in the same change.
     Given the released Calculator archive and its exported browser closure committed under sdk/npm/prism-code, and no Rust SDK on the path

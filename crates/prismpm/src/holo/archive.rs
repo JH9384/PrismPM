@@ -1,6 +1,7 @@
 //! Modeled physical-v4 application composition and strict Holo/1 validation.
 
 use crate::error::PrismError;
+use crate::holo::attestation::{self, Attestation};
 use crate::holo::canonical::{content_id, encode_value};
 use prism_stdlib as wire;
 use serde::{Deserialize, Serialize};
@@ -434,8 +435,101 @@ pub fn compose_application(input: &ApplicationArchiveInput) -> Result<GeneratedH
 }
 
 /// Strictly validate the closed Holo/1 Calculator/portable-app archive profile.
+///
+/// The archive has eight rows, or nine when it carries the attestation section
+/// (`docs/proposals/267-attestation-bundle.md`). Both shapes validate.
 pub fn validate_application(bytes: &[u8]) -> Result<(), PrismError> {
     parse_application(bytes).map(|_| ())
+}
+
+/// Frame a body with the BLAKE3 footer over every byte before it.
+fn seal_body(body: Vec<u8>) -> Result<Vec<u8>, PrismError> {
+    let fingerprint = blake3::hash(&body);
+    required(
+        modeled(wire::frameArchive(body, fingerprint.as_bytes().to_vec()))?,
+        "PP3001",
+        "modeled archive framing rejected body or footer",
+    )
+}
+
+/// The attestation section's payload, absent for an eight-row archive. The
+/// wire model has already checked the row, its name, its position and its line
+/// framing.
+fn attestation_payload(bytes: &[u8]) -> Result<Option<Vec<u8>>, PrismError> {
+    modeled(wire::archiveAttestation(bytes.to_vec()))
+}
+
+/// Every bundle of the archive's attestation section, in section order. An
+/// archive without the section reports none. Nothing is verified here: a
+/// bundle is decoded, its signature is not checked.
+pub fn read_attestations(bytes: &[u8]) -> Result<Vec<Attestation>, PrismError> {
+    let parsed = parse_application(bytes)?;
+    match attestation_payload(bytes)? {
+        None => Ok(Vec::new()),
+        Some(payload) => attestation::decode_section(&payload, &parsed.blobs),
+    }
+}
+
+/// A new archive with `bundles` added to the attestation section, creating it
+/// as the last row when absent. Rows 0 to 7 keep their bytes, offsets shift by
+/// one table row and the footer is recomputed. The input must already
+/// validate, and every bundle must be a well-formed line of its own.
+pub fn attach_attestations(bytes: &[u8], bundles: &[Vec<u8>]) -> Result<Vec<u8>, PrismError> {
+    if bundles.is_empty() {
+        return Err(PrismError::new(
+            "PP3016",
+            "attaching attestations takes at least one bundle",
+        ));
+    }
+    let parsed = parse_application(bytes)?;
+    let mut lines: Vec<Vec<u8>> = match attestation_payload(bytes)? {
+        None => Vec::new(),
+        Some(payload) => attestation::decode_section(&payload, &parsed.blobs)?
+            .into_iter()
+            .map(|bundle| bundle.line)
+            .collect(),
+    };
+    for line in bundles {
+        attestation::decode_bundle(lines.len(), line, &parsed.blobs)?;
+        if lines.contains(line) {
+            return Err(PrismError::new(
+                "PP3016",
+                "the same bundle bytes are already in the archive",
+            ));
+        }
+        lines.push(line.clone());
+    }
+    let unsigned = match modeled(wire::archiveStripAttestation(bytes.to_vec()))? {
+        Some(body) => body,
+        None => required(
+            modeled(wire::archiveBodyBytes(bytes.to_vec()))?,
+            "PP3003",
+            "archive structure is not the closed Holo/1 profile",
+        )?,
+    };
+    let body = required(
+        modeled(wire::archiveBodyWithAttestation(
+            unsigned,
+            attestation::join_lines(&lines),
+        ))?,
+        "PP3016",
+        "modeled archive composer rejected the attestation section",
+    )?;
+    let signed = seal_body(body)?;
+    validate_application(&signed)?;
+    Ok(signed)
+}
+
+/// The archive without its attestation section. For an archive produced by
+/// [`attach_attestations`] from a validated one this is byte-identical to the
+/// original, so reproducibility checks compare it rather than the signed file.
+/// An archive without the section is returned unchanged.
+pub fn strip_attestations(bytes: &[u8]) -> Result<Vec<u8>, PrismError> {
+    validate_application(bytes)?;
+    match modeled(wire::archiveStripAttestation(bytes.to_vec()))? {
+        None => Ok(bytes.to_vec()),
+        Some(body) => seal_body(body),
+    }
 }
 
 /// Already validated owned wire values shared by archive and release validation.

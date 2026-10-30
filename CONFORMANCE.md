@@ -126,6 +126,11 @@ The three honesty levels:
 | `HO-18` | `build` | The SDK checks OPM and UML design views against the system model, refuses an unknown component, edge, process, state or viewpoint with PP2012, and emits OPL text and PlantUML source as build artifacts. |
 | `HO-19` | `build` | The optional Text/3 workbench binds typed source-owned guidance, forms, examples, error recovery and mandatory no-store Wasm acquisition to real byte-guest results, six exact portable assets and cancellable browser worker execution while preserving Text/1 and Text/2 resource semantics and the text/3 command-line surface. |
 | `HO-20` | `build` | The JavaScript runtime in sdk/npm/prism-code opens a composed .holo archive and an exported browser closure without the Rust SDK, verifies the footer, every content-blob label and the manifest cross-references with its own BLAKE3, decodes and re-encodes the HOLOVIEW bundle byte for byte, dispatches requests through the Core-Wasm guest on fresh instances, and replays every modeled acceptance vector byte-identically, so a change to the archive, bundle or model-document layout fails this case in the same change. |
+| `HO-23` | `build` | A holo without the attestation section loads and verifies with the same bytes and identities as before the section existed, and reports no attestations. |
+| `HO-24` | `build` | An attestation section is an Extension row named https://uor.foundation/extension/attestation-bundle/v1, is the last row, appears at most once, and the footer is BLAKE3 of the body including it. |
+| `HO-25` | `build` | Removing the attestation section yields the unsigned archive byte for byte; rows 0 to 7, every blob label and application_kappa are unchanged by adding it, and the Rust and JavaScript writers produce the same bytes. |
+| `HO-26` | `build` | Every attestation line is one Sigstore bundle v0.3 with a DSSE envelope over an in-toto Statement v1, and every subject names a content blob of the archive with matching sha256 and blake3. |
+| `HO-27` | `build` | A blank line, a v0.2 bundle, a messageSignature, a single-digest subject and an oci-manifest subject inside the holo are each refused with a registered diagnostic. |
 
 ## lifecycle
 

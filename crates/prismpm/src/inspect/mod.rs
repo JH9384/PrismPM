@@ -18,6 +18,7 @@
 
 use crate::error::PrismError;
 use crate::holo::archive::{content_kappa, parse_application};
+use crate::holo::attestation::{self, ATTESTATION_EXTENSION};
 use prism_stdlib as wire;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -287,8 +288,12 @@ fn section_role(
     }
 }
 
-/// Read every row of the table. The modeled kind accessor returns no kind past
-/// the last row, which is the bound here.
+/// Read every row of the table. The bound is the archive's own row count
+/// (`wireRowCount`, the header's `u16`), as the JavaScript reader bounds it:
+/// the modeled kind accessor answers for every row a revision may have, nine
+/// since the attestation section (#267), and an eight-row archive has no
+/// ninth. The accessor returns no kind past the last modeled row, so a
+/// foreign count ends the table there.
 fn read_sections(
     body: &[u8],
     manifest_labels: &[String],
@@ -297,8 +302,7 @@ fn read_sections(
     let directory_prefix = wire::wireDirectoryPrefix();
     let provenance_prefix = wire::wireProvenancePrefix();
     let mut sections = Vec::new();
-    loop {
-        let index = sections.len() as u64;
+    for index in 0..modeled(wire::wireRowCount(body.to_vec()))? {
         let Ok([kind]) = <[u8; 1]>::try_from(wire::wireSectionKind(index).as_slice()) else {
             break;
         };
@@ -653,12 +657,15 @@ fn world_member(
     })
 }
 
-/// The rows of every section of one kind.
+/// The rows of every section of one kind, bounded as `read_sections` is.
 fn sections_of_kind(bytes: &[u8], body: &[u8], kind: u8) -> Result<Vec<Section>, PrismError> {
     let mut found = Vec::new();
-    let mut index = 0u64;
     let _ = bytes;
-    while let Ok([section_kind]) = <[u8; 1]>::try_from(wire::wireSectionKind(index).as_slice()) {
+    for index in 0..modeled(wire::wireRowCount(body.to_vec()))? {
+        let Ok([section_kind]) = <[u8; 1]>::try_from(wire::wireSectionKind(index).as_slice())
+        else {
+            break;
+        };
         if section_kind == kind {
             found.push(Section {
                 index,
@@ -672,9 +679,53 @@ fn sections_of_kind(bytes: &[u8], body: &[u8], kind: u8) -> Result<Vec<Section>,
                 role: "unknown",
             });
         }
-        index += 1;
     }
     Ok(found)
+}
+
+/// The statements of the attestation section (#267), in section order, each
+/// as the JavaScript half types `InspectedAttestation`: the statement's
+/// predicate type and every subject with its name and ADR-015 digest set,
+/// which name a content blob of this archive. An archive without the section
+/// lists none. Nothing is verified here: a bundle is decoded, its signature is
+/// not checked. A line that is not a Sigstore bundle over a Prism statement is
+/// refused with its registered code (`PP3016`, `PP3017`), as `readAttestations`
+/// refuses it.
+///
+/// The section is read through the modeled accessor and decoded against the
+/// blobs already read, not through `read_attestations`, which validates the
+/// whole archive first: an archive with a scratched blob still inspects, and
+/// still lists its statements.
+fn attestations_member(bytes: &[u8], sections: &[Section]) -> Result<Vec<Value>, PrismError> {
+    let signed = sections.last().is_some_and(|section| {
+        section.kind == KIND_EXTENSION && section.name.as_deref() == Some(ATTESTATION_EXTENSION)
+    });
+    let payload = match modeled(wire::archiveAttestation(bytes.to_vec()))? {
+        Some(payload) if signed => payload,
+        _ => return Ok(Vec::new()),
+    };
+    let blobs: BTreeMap<String, Vec<u8>> = sections
+        .iter()
+        .filter_map(|section| Some((section.label.clone()?, section.content.clone()?)))
+        .collect();
+    Ok(attestation::decode_section(&payload, &blobs)?
+        .iter()
+        .map(|statement| {
+            json!({
+                "predicate_type": statement.predicate_type,
+                "subjects": statement
+                    .subjects
+                    .iter()
+                    .map(|subject| {
+                        json!({
+                            "name": subject.name,
+                            "digest": { "sha256": subject.sha256, "blake3": subject.blake3 },
+                        })
+                    })
+                    .collect::<Vec<Value>>(),
+            })
+        })
+        .collect())
 }
 
 /// One extension payload, as the modeled accessor exposes it.
@@ -729,6 +780,7 @@ pub fn inspect(bytes: &[u8]) -> Result<Value, PrismError> {
         .map(str::to_owned);
     let sections = read_sections(&body, &manifest_labels, model_label.as_deref())?;
     let section_values: Vec<Value> = sections.iter().map(Section::value).collect();
+    let attestations = attestations_member(bytes, &sections)?;
 
     let blob = |label: Option<&String>| -> Option<&Section> {
         let label = label?;
@@ -855,9 +907,7 @@ pub fn inspect(bytes: &[u8]) -> Result<Value, PrismError> {
             guest_section.and_then(|section| section.content.as_deref()),
             capabilities_section,
         ),
-        // Statements inside the archive arrive with the attestation section
-        // (#267). Until then no holo carries any, and the list is empty.
-        "attestations": Vec::<Value>::new(),
+        "attestations": attestations,
         "verification": {
             "footer": blake3::hash(&body).as_bytes().as_slice() == footer.as_slice(),
             "labels": labels_consistent,

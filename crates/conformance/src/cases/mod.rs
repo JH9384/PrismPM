@@ -394,6 +394,9 @@ pub fn run_at(root: &Path, id: &str) {
             verify_holo(root, id);
         }
         "HO-13" => holo_browser::verify(root),
+        // The attestation section (#267): the Rust reader and writer over the modeled
+        // wire codec, bound to the JavaScript appender by the committed signed archive.
+        "HO-23" | "HO-24" | "HO-25" | "HO-26" | "HO-27" => verify_attestation(root, id),
         // The JavaScript runtime reads the composed archive, the HOLOVIEW
         // bundle and the exported closure without the Rust SDK; its complete
         // owning suite is the acceptance, file by file.
@@ -3463,6 +3466,68 @@ fn verify_portable_view_report(root: &Path) {
                 .to_string()
                 .contains("application bounds exceed pinned portable View"));
         }
+    }
+}
+
+/// HO-23 to HO-27: run the named Rust regressions with their exact inventory and, where the
+/// JavaScript reference implementation owns the same rule, its complete Node file.
+fn verify_attestation(root: &Path, id: &str) {
+    let (filter, expected) = match id {
+        "HO-23" => ("holo::attestation::tests::ho_23_", 2),
+        "HO-24" => ("holo::attestation::tests::ho_24_", 4),
+        "HO-25" => ("holo::attestation::tests::ho_25_", 3),
+        "HO-26" => ("holo::attestation::tests::ho_26_", 2),
+        "HO-27" => ("holo::attestation::tests::ho_27_", 3),
+        _ => unreachable!("HO-23 to HO-27 only"),
+    };
+    let output = Command::new("cargo")
+        .args([
+            "test",
+            "--locked",
+            "--offline",
+            "-p",
+            "prismpm",
+            "--lib",
+            filter,
+            "--",
+            "--nocapture",
+        ])
+        .env(
+            "CARGO_TARGET_DIR",
+            root.join("target/conformance-attestation"),
+        )
+        .current_dir(root)
+        .output()
+        .unwrap_or_else(|error| panic!("{id} executes its Rust regressions: {error}"));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "{id} Rust regressions: {stdout}\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let summaries = stdout
+        .lines()
+        .filter(|line| line.starts_with("test result: ok. "))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        summaries.len(),
+        1,
+        "{id} requires one complete summary: {stdout}"
+    );
+    assert!(
+        summaries[0].starts_with(&format!(
+            "test result: ok. {expected} passed; 0 failed; 0 ignored; 0 measured; "
+        )),
+        "{id} requires every registered regression without omissions: {stdout}"
+    );
+    let owned: &[(&str, usize)] = match id {
+        "HO-24" => &[("sdk/npm/prism-code/test/attestations.test.mjs", 11)],
+        "HO-25" => &[("sdk/npm/prism-code/test/attestation-interop.test.mjs", 2)],
+        "HO-26" => &[("sdk/npm/spec/test/attestation-bundle.test.mjs", 6)],
+        _ => &[],
+    };
+    if !owned.is_empty() {
+        node_suite::verify_exact(root, id, owned, "600000");
     }
 }
 

@@ -9,8 +9,8 @@ export function exactNativeInventory(output, rows) {
   assert.equal(output, rows.map(row => 'PASS ' + row.id + '\n').join('')
     + 'PASS ' + rows.length + ' recovery frame vectors twice\n');
 }
-export function verifyBaseline() {
-  const build = prepareFrames(), vectors = corpus(), results = {};
+export function verifyBaseline(compilerOwner) {
+  const build = prepareFrames(compilerOwner), vectors = corpus(), results = {};
   assert.deepEqual(Object.fromEntries(Object.entries(vectors).map(([name, rows]) => [name, rows.length])),
     {layout: 1467, tail: 365, parity: 36, composition: 23});
   const source = join(build.work, 'generated/src/lib.rs'), original = readFileSync(source);
@@ -28,7 +28,7 @@ export function verifyBaseline() {
   const evidence = {scope: 'private-recovery-frames-baseline-only', accepted: false,
     source: build.verified.source_id, attestation: build.verified.attestation_id,
     ir: build.generation.ir_sha256, inputs: build.inputs, results, native: build.nativeEvidence(),
-    generatedPackages: build.generatedPackages, cacheRetirement: build.cacheRetirement};
+    generatedPackages: build.generatedPackages, compiler: build.compilerOwner.identity};
   writeFileSync(join(build.work, 'baseline-evidence.json'), JSON.stringify(evidence, null, 2) + '\n', {flag: 'wx'});
   return {build, evidence};
 }

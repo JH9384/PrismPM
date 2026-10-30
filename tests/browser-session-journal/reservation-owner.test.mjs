@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {chmodSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {prepareReservation, frozenInputs, run, sha, repository} from './reservation-compile.mjs';
+import {prepareReservation, frozenInputs, compilerInputs, run, sha, repository} from './reservation-compile.mjs';
+import {createCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {verifyCompilerOwnerSubstitutions} from '../browser-view/compiler-owner-checks.mjs';
 import {reservationCorpus} from './reservation-corpus.mjs';
 import {reservationMutations} from './reservation-mutations.mjs';
 import {reservationMaximumCorpus} from './reservation-maxima.mjs';
@@ -33,7 +35,11 @@ function archive(build, destination, additional) {
 
 test('source-owned complete journal reservation and real guard mutants', {timeout: 3500000}, async t => {
   const inputs = frozenInputs(), inputSubstitutions = verifyReservationInputSubstitutions(inputs);
-  const baseline = prepareReservation(null, null, inputs);
+  // One fresh pinned driver/exporter for this serial owner; every program below
+  // is still independently verified, generated and compiled from its source.
+  const compiler = createCompilerOwner('session-journal-reservation', compilerInputs(inputs));
+  const compilerSubstitutions = verifyCompilerOwnerSubstitutions(compiler);
+  const baseline = prepareReservation(compiler, null, null, inputs);
   let complete = false;
   t.after(() => {
     if (complete) rmSync(baseline.work, {recursive: true, force: true});
@@ -106,11 +112,12 @@ test('source-owned complete journal reservation and real guard mutants', {timeou
   const directory = join(repository, 'target/reservation-verification'); mkdirSync(directory, {recursive: true});
   const evidence = mkdtempSync(join(directory, 'run-'));
   writeFileSync(join(evidence, 'inputs.json'), JSON.stringify(inputs) + '\n', {flag: 'wx'});
+  writeFileSync(join(evidence, 'compiler.json'), JSON.stringify(compiler.evidence) + '\n', {flag: 'wx'});
   const positiveArchive = archive(baseline, join(evidence, 'positive-artifacts.tar.gz'), ['positive.tsv']);
   const receipt = {scope: 'reservation-component-only', source: baseline.verified.source_id,
     attestation: baseline.verified.attestation_id, ir: baseline.generation.ir_sha256,
     wasm: sha(baseline.wasm.reservation), corpus: rows.length, maxima, ...wasm,
-    native: baseline.nativeEvidence(), cacheRetirement: baseline.cacheRetirement,
+    native: baseline.nativeEvidence(), compiler: compiler.identity, compilerSubstitutions,
     preparationMs: baseline.preparationMs,
     generatedPackages: baseline.generatedPackages,
     wasmArtifacts: baseline.wasmArtifacts,
@@ -121,7 +128,7 @@ test('source-owned complete journal reservation and real guard mutants', {timeou
   const mutants = [];
   for (const mutation of reservationMutations) await prerequisite(t, 'actual source mutant ' + mutation.id, () => {
     const startedAt = performance.now();
-    const build = prepareReservation(mutation.id, baseline, inputs); let killed = false;
+    const build = prepareReservation(compiler, mutation.id, baseline, inputs); let killed = false;
     try {
       const row = rows.find(row => row.id === mutation.probe); assert.ok(row);
       assert.notEqual(build.verified.source_id, baseline.verified.source_id);
@@ -138,7 +145,7 @@ test('source-owned complete journal reservation and real guard mutants', {timeou
         source: build.verified.source_id, attestation: build.verified.attestation_id, ir: build.generation.ir_sha256,
         wasm: sha(build.wasm.reservation), native: build.nativeEvidence(), generatedPackages: build.generatedPackages,
         wasmArtifacts: build.wasmArtifacts,
-        archive: archiveHash, cacheRetirement: build.cacheRetirement,
+        archive: archiveHash, compiler: build.compilerOwner.identity,
         preparationMs: build.preparationMs, elapsedMs: performance.now() - startedAt};
       writeFileSync(join(evidence, mutation.id + '.json'), JSON.stringify(observed) + '\n', {flag: 'wx'});
       t.diagnostic(JSON.stringify({id: mutation.id, probe: row.id, elapsedMs: observed.elapsedMs,
@@ -151,6 +158,10 @@ test('source-owned complete journal reservation and real guard mutants', {timeou
   });
   assert.equal(mutants.length, 21, 'all changed source programs actually compiled and counterexamples executed');
   baseline.unchanged(); assert.deepEqual(frozenInputs(), inputs);
-  writeFileSync(join(evidence, 'owner.json'), JSON.stringify({...receipt, mutants, complete: true}) + '\n', {flag: 'wx'});
+  const compilerCacheRetirement = compiler.close();
+  assert.throws(() => compiler.runDriver(['--help'], baseline.work), /compiler owner closed/);
+  assert.throws(() => compiler.close(), /compiler owner closed/);
+  assert.deepEqual(frozenInputs(), inputs);
+  writeFileSync(join(evidence, 'owner.json'), JSON.stringify({...receipt, mutants, compilerCacheRetirement, complete: true}) + '\n', {flag: 'wx'});
   complete = true;
 });

@@ -21,6 +21,10 @@ test('driver substitution lookup includes P256 and rejects missing or ambiguous 
     const path = 'tests/' + directory + '/driver/src/main.rs';
     assert.equal(compilerDriverDirectory({[path]: 'not-authority'}), 'tests/' + directory + '/driver');
   }
+  assert.equal(compilerDriverDirectory({'tests/browser-session-journal/reservation-driver/src/main.rs': 'not-authority'}),
+    'tests/browser-session-journal/reservation-driver');
+  assert.throws(() => compilerDriverDirectory({'tests/browser-session-journal/other-driver/src/main.rs': 'not-authority'}),
+    /one source-bound family driver/);
   for (const paths of [[], ['tests/browser-p123/driver/src/main.rs'],
     ['tests/browser-p256/driver/src/main.rs', 'tests/browser-session/driver/src/main.rs']])
     assert.throws(() => compilerDriverDirectory(Object.fromEntries(paths.map(path => [path, 'not-authority']))),
@@ -357,14 +361,14 @@ test('fresh independent drivers pin hash optimization without changing construct
     ...['budget','custody','dynamic-choice','effects','operation-journal','semantic-presentation']
       .map(family=>({path:'tests/browser-'+family+'/compile.mjs',manifest:'/captured-compiler/Cargo.toml',cwd:'/actual-work'})),
     {path:'tests/browser-journal/compile.mjs',manifest:'/actual-draft/driver/Cargo.toml',cwd:'/actual-source'},
-    ...['session-journal','session-payloads','session-recovery-frames']
+    ...['session-journal','session-payloads']
       .map(family=>({path:'tests/browser-'+family+'/compile.mjs',manifest:'/captured-manifest/Cargo.toml',cwd:'/actual-work'})),
-    {path:'tests/browser-session-journal/reservation-compile.mjs',manifest:'/captured-manifest/Cargo.toml',cwd:'/actual-work'},
     {path:'tests/browser-session-journal-recovery/compile.mjs',manifest:'/captured-manifest/Cargo.toml',cwd:'/actual-work',program:'/pinned-cargo',target:'/actual-owned-target'},
     {path:'sdk/browser/workspace-model-test.mjs',manifest:'/actual-source/tests/browser-workspace/Cargo.toml',cwd:'/actual-source'},
     {path:'sdk/browser/envelope-model-test.mjs',manifest:'/actual-fixture/driver/Cargo.toml',cwd:'/actual-source'},
   ];
-  assert.equal(remaining.length,14);assert.equal(new Set(remaining.map(row=>row.path)).size,14);
+  // Reservation and Recovery Frames borrow registered owners; their build is pinned above.
+  assert.equal(remaining.length,12);assert.equal(new Set(remaining.map(row=>row.path)).size,12);
   for(const row of remaining){
     const source=fs.readFileSync(new URL('../../'+row.path,import.meta.url),'utf8');
     const check = text => {
@@ -490,7 +494,7 @@ test('product preservation detects generated source proof package native Wasm an
 });
 
 test('compiler owner refuses malformed or incomplete input closures before building', () => {
-  const families = ['view', 'effects', 'presentation', 'session', 'operation-journal', 'budget', 'custody', 'p256', 'signed-context', 'session-operation', 'pkce', 'holo-primary-component', 'session-retention', 'publication-linkage', 'account-genesis', 'publication'];
+  const families = ['view', 'effects', 'presentation', 'session', 'operation-journal', 'budget', 'custody', 'p256', 'signed-context', 'session-operation', 'pkce', 'holo-primary-component', 'session-retention', 'session-journal-reservation', 'session-recovery-frames', 'publication-linkage', 'account-genesis', 'publication'];
   const source = fs.readFileSync(new URL('./compiler-owner.mjs', import.meta.url), 'utf8');
   const begin = source.indexOf('const families = Object.freeze({');
   const end = source.indexOf('\nconst owners = ', begin);

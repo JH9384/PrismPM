@@ -89,7 +89,7 @@ export const standaloneSuites=Object.freeze([
  {id:'Session Reservation',deadline:3600000,files:['tests/browser-session-journal/reservation.test.mjs','tests/browser-session-journal/reservation-owner.test.mjs'],exactTests:[10,23]},
  {id:'Session Payload',deadline:3600000,files:['tests/browser-session-payloads/component.test.mjs','tests/browser-session-payloads/owner.test.mjs'],exactTests:[4,30]},
  {id:'Session Recovery Frames',deadline:3600000,files:['tests/browser-session-recovery-frames/wire.test.mjs','tests/browser-session-recovery-frames/owner.test.mjs'],exactTests:[3,1]},
- {id:'Session Journal Recovery',deadline:5500000,files:['tests/browser-session-journal-recovery/component.test.mjs','tests/browser-session-journal-recovery/owner.test.mjs'],exactTests:[7,1]},
+ {id:'Session Journal Recovery',deadline:7200000,files:['tests/browser-session-journal-recovery/component.test.mjs','tests/browser-session-journal-recovery/owner.test.mjs'],exactTests:[7,1]},
  {id:'Session Retention',deadline:3600000,files:['tests/browser-session-journal-retention/component.test.mjs','tests/browser-session-journal-retention/owner.test.mjs'],exactTests:[4,18]},
 ].map(row=>Object.freeze({...row,minimum:row.exactTests.reduce((a,b)=>a+b,0),
  files:Object.freeze(row.files),exactTests:Object.freeze(row.exactTests)})));

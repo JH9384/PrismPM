@@ -5,8 +5,8 @@ import {chmodSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {createPrivateDriverTarget, ensureProdExport, run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
-import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
+import {run, sha, stageLeanRuntime, ownedAttestations} from '../browser-view/compile.mjs';
+import {compilerInputPaths, captureCompilerInputs, requireCompilerOwner} from '../browser-view/compiler-owner.mjs';
 import {localModuleInputs} from '../browser-view/local-module-inputs.mjs';
 import {captureGeneratedPackage} from '../browser-view/generated-package.mjs';
 import {mutateFramesSource} from './mutations.mjs';
@@ -33,6 +33,7 @@ export function sourceClosure() {
   add(frames);
   return new Map([...sources].sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0));
 }
+const family = 'session-recovery-frames';
 export function frozenInputs() {
   const files = new Set([...sourceClosure().keys()].map(modulePath));
   for (const path of ['compile.mjs', 'corpus.mjs', 'checks.mjs', 'full-checks.mjs', 'maxima.mjs', 'mutations.mjs',
@@ -64,9 +65,26 @@ export function frozenInputs() {
       const input = tree + '/' + relative; assert.equal(sha(read(input)), digest); files.add(input);
     }
   }
+  // Hash, never parse: the registered compiler closure includes vendored test fixtures.
+  for (const path of compilerInputPaths(family)) files.add(path);
   const inputs = Object.freeze(Object.fromEntries([...files].sort().map(path => [path, sha(read(path))])));
   for (const [path, bytes] of modules) assert.equal(sha(bytes), inputs[path], 'captured static module ' + path);
   return inputs;
+}
+function assertCompilerSubset(compilerInputs, inputs) {
+  for (const [path, digest] of Object.entries(compilerInputs))
+    assert.equal(inputs[path], digest, 'actual compiler input belongs to complete recovery-frame snapshot ' + path);
+}
+export function compilerInputs(inputs) {
+  assert.deepEqual(frozenInputs(), inputs, 'actual complete captured recovery-frame inputs required');
+  const captured = captureCompilerInputs(family);
+  assertCompilerSubset(captured, inputs);
+  return captured;
+}
+function boundCompiler(owner, inputs) {
+  const compiler = requireCompilerOwner(owner, family);
+  assertCompilerSubset(compiler.evidence.inputs, inputs);
+  return compiler;
 }
 export function assertCapturedFramesSources(inputs, sources) {
   assert.deepEqual([...sources.keys()].map(modulePath).sort(),
@@ -75,10 +93,11 @@ export function assertCapturedFramesSources(inputs, sources) {
   for (const [name, bytes] of sources) assert.equal(sha(bytes), inputs[modulePath(name)],
     'actual captured source must match original snapshot ' + name);
 }
-export function prepareFrames(mutationId = null, expectedInputs = null) {
+export function prepareFrames(compilerOwner, mutationId = null, expectedInputs = null) {
   for (const name of Object.keys(process.env)) assert.ok(!name.startsWith('PRISMPM_RECOVERY_FRAMES_'), 'no owner bypass');
   const inputs = frozenInputs(), sources = sourceClosure();
   if (expectedInputs) assert.deepEqual(inputs, expectedInputs, 'one immutable complete projection owner closure');
+  const compiler = boundCompiler(compilerOwner, inputs);
   assertCapturedFramesSources(inputs, sources);
   const mutation = mutationId === null ? null : mutateFramesSource(sources, mutationId);
   const captured = path => { const bytes = read(path); assert.equal(sha(bytes), inputs[path], 'frozen input ' + path); return bytes; };
@@ -91,18 +110,9 @@ export function prepareFrames(mutationId = null, expectedInputs = null) {
   let complete = false;
   try {
     stage('rust-toolchain.toml', captured('rust-toolchain.toml'));
-    // This verifies registered compiler trees before any captured driver runs.
-    const exporter = ensureProdExport(repository, work);
-    for (const path of Object.keys(inputs).filter(path => path.startsWith('vendor/lexlean/') || path.startsWith('vendor/lean4-prod/rust/')))
-      stage(path, captured(path));
-    for (const name of ['Cargo.toml', 'Cargo.lock', 'src/main.rs']) {
-      const path = 'tests/browser-session-recovery-frames/driver/' + name; stage(path, captured(path));
-    }
-    const driverTarget = createPrivateDriverTarget(work);
-    const manifest = join(work, 'tests/browser-session-recovery-frames/driver/Cargo.toml');
-    run('cargo', ['build', '--locked', '--offline', '--jobs', '1', '--config', 'profile.dev.debug=0',
-      '--config', 'build.incremental=false', '--config', 'profile.dev.package.sha2.opt-level=3', '--manifest-path', manifest], work, {CARGO_TARGET_DIR: driverTarget});
-    const driver = join(driverTarget, 'debug/browser-session-recovery-frames-driver');
+    // Only the compiler tools (driver, exporter) are reused, built once per
+    // serial owner. This new model project, kernel evidence, generated
+    // Lean/IR/native/Wasm packages are rebuilt for every mutation.
     for (const [name, bytes] of sources) stage('project/src/' + name.replaceAll('.', '/') + '.lex.tex', bytes);
     const project = join(work, 'project');
     for (const path of lexiconPaths(repository)) stage('project/' + path, captured(path));
@@ -113,7 +123,7 @@ export function prepareFrames(mutationId = null, expectedInputs = null) {
     stage('project/lean-toolchain', captured('lean-toolchain'));
     stage('project/lakefile.toml', 'name = "session_journal_conformance"\nversion = "0.1.0"\n');
     run('lake', ['update'], project);
-    const verified = JSON.parse(run(driver, ['verify', join(project, 'lexlean.toml')], work));
+    const verified = JSON.parse(compiler.runDriver(['verify', join(project, 'lexlean.toml')], work));
     assert.deepEqual(verified.modules, [...sources.keys()]);
     const attestationBytes = readFileSync(join(verified.root, 'attestation.json'));
     const buildManifest = readFileSync(join(verified.root, 'build-manifest.json'));
@@ -145,12 +155,12 @@ export function prepareFrames(mutationId = null, expectedInputs = null) {
       'PrismPM.' + frames + '.sourceRecoveryFrameTailBytes',
       'PrismPM.' + recovery + '.sourceRecoveryWireBytes',
     ].sort();
-    run(exporter.bin, ['--module', 'PrismPM.' + frames, ...roots.flatMap(name => ['--root', name]),
-      '--ir-module', 'SessionRecoveryFrames', '--out', exported], exporter.dir, {LEAN_PATH: join(lean, '.lake/build/lib/lean')});
+    compiler.runExporter(['--module', 'PrismPM.' + frames, ...roots.flatMap(name => ['--root', name]),
+      '--ir-module', 'SessionRecoveryFrames', '--out', exported], join(lean, '.lake/build/lib/lean'));
     const ir = join(exported, 'kernel.ir'), generated = join(work, 'generated');
     for (const name of ['LICENSE-MIT', 'LICENSE-APACHE']) stage('licenses/' + name, captured(name));
     const licenses = join(work, 'licenses');
-    const generation = JSON.parse(run(driver, ['native', ir, generated, licenses], work));
+    const generation = JSON.parse(compiler.runDriver(['native', ir, generated, licenses], work));
     const generatedPackages = [captureGeneratedPackage(generated,
       {kind: 'native', inputIrSha256: generation.ir_sha256})];
     const wasm = {}, wasmRecords = [];
@@ -158,7 +168,7 @@ export function prepareFrames(mutationId = null, expectedInputs = null) {
       const guests = [];
       for (const label of ['a', 'b']) {
         const output = join(work, entry + '-' + label);
-        assert.deepEqual(JSON.parse(run(driver, [entry, ir, output, licenses], work)), generation);
+        assert.deepEqual(JSON.parse(compiler.runDriver([entry, ir, output, licenses], work)), generation);
         const capturedPackage = captureGeneratedPackage(output, {kind: 'wasm', inputIrSha256: generation.ir_sha256});
         generatedPackages.push(capturedPackage); capturedPackage.verify();
         const target = join(work, entry + '-' + label + '-target');
@@ -222,14 +232,15 @@ export function prepareFrames(mutationId = null, expectedInputs = null) {
       }
       for (const record of nativePrograms.values()) checkedNative(record);
       assert.deepEqual(frozenInputs(), inputs);
+      boundCompiler(compiler, inputs);
       for (const [path, digest] of staged) assert.equal(sha(readFileSync(join(work, path))), digest, 'immutable captured input ' + path);
       assert.deepEqual(readFileSync(join(verified.root, 'attestation.json')), attestationBytes);
       assert.deepEqual(readFileSync(join(verified.root, 'build-manifest.json')), buildManifest);
       assert.equal(sha(readFileSync(ir)), generation.ir_sha256);
     }
-    unchanged(); const cacheRetirement = retireCompletedCompilerCaches(work, 'session-recovery-frames'); unchanged();
+    unchanged();
     complete = true;
-    return {work, sources, verified, generation, wasm, compileNative, runNative, nativeEvidence, unchanged, inputs, cacheRetirement, mutation,
+    return {work, sources, verified, generation, wasm, compileNative, runNative, nativeEvidence, unchanged, inputs, compilerOwner: compiler, mutation,
       generatedPackages: generatedPackages.map(({directory, kind, files}) => ({path: directory.slice(work.length + 1), kind, files}))};
   } finally { if (!complete) process.stderr.write('Retained incomplete session-recovery-frames diagnostic build ' + work + '\n'); }
 }

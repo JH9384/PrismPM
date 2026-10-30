@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {prepareFrames, run, sha, draft} from './compile.mjs';
+import {prepareFrames, frozenInputs, compilerInputs, run, sha, draft} from './compile.mjs';
+import {createCompilerOwner} from '../browser-view/compiler-owner.mjs';
+import {verifyCompilerOwnerSubstitutions} from '../browser-view/compiler-owner-checks.mjs';
 import {verifyBaseline, exactNativeInventory} from './checks.mjs';
 import {corpus, MAXIMUM} from './corpus.mjs';
 import {maxima} from './maxima.mjs';
@@ -118,7 +120,7 @@ async function verifyMaxima(build) {
 function verifySourceDefect(mutation, baseline) {
   baseline.unchanged();
   const row = corpus()[mutation.entry].find(value => value.id === mutation.probe); assert.ok(row);
-  const build = prepareFrames(mutation.id, baseline.inputs);
+  const build = prepareFrames(baseline.compilerOwner, mutation.id, baseline.inputs);
   assert.notEqual(build.verified.source_id, baseline.verified.source_id);
   assert.notEqual(build.verified.attestation_id, baseline.verified.attestation_id);
   assert.notEqual(build.generation.ir_sha256, baseline.generation.ir_sha256);
@@ -134,12 +136,16 @@ function verifySourceDefect(mutation, baseline) {
     mutation: build.mutation, work: build.work, source: build.verified.source_id, attestation: build.verified.attestation_id,
     ir: build.generation.ir_sha256, wasm: sha(build.wasm[mutation.entry]), native: build.nativeEvidence(),
     probe: {id: row.id, request: sha(row.request), expected: sha(row.response)},
-    cacheRetirement: build.cacheRetirement, generatedPackages: build.generatedPackages});
+    compiler: build.compilerOwner.identity, generatedPackages: build.generatedPackages});
   console.log(JSON.stringify({mutation: mutation.id, work: build.work})); return evidence;
 }
 
 export async function verifyOwner() {
-  const {build, evidence} = verifyBaseline();
+  // One fresh pinned driver/exporter for this serial owner; every program below
+  // is still independently verified, generated and compiled from its source.
+  const compiler = createCompilerOwner('session-recovery-frames', compilerInputs(frozenInputs()));
+  const compilerSubstitutions = verifyCompilerOwnerSubstitutions(compiler);
+  const {build, evidence} = verifyBaseline(compiler);
   for (const standard of [true, false]) {
     const path = build.compileNative(standard), original = readFileSync(path);
     try {writeFileSync(path, Buffer.concat([original, Buffer.from([0])]));
@@ -176,9 +182,12 @@ export async function verifyOwner() {
   const browser = await verifyBrowsers(build), actualMaxima = await verifyMaxima(build);
   const sourceDefects = mutations.map(mutation => verifySourceDefect(mutation, build));
   assert.equal(sourceDefects.length, 18); build.unchanged();
+  const compilerCacheRetirement = compiler.close();
+  assert.throws(() => compiler.runDriver(['--help'], build.work), /compiler owner closed/);
   const complete = {...evidence, scope: 'private-separate-frame-recovery-component', componentAccepted: true,
     publicApplicationAccepted: false, authorityAndJournalAccepted: false, browser, actualMaxima, sourceDefects,
-    executableSubstitutionRejected: ['std', 'no-std', 'wasm'], native: build.nativeEvidence()};
+    executableSubstitutionRejected: ['std', 'no-std', 'wasm'], native: build.nativeEvidence(),
+    compilerSubstitutions, compilerCacheRetirement};
   delete complete.accepted;
   record(join(build.work, 'frames-owner-evidence.json'), complete);
   return {build, evidence: complete};

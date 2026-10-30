@@ -269,6 +269,81 @@ test('keyless attest reports an unusable signing configuration and a refusing se
   }
 });
 
+/**
+ * A Fulcio and a Rekor v1 on one local port. `rekor(n, request)` answers the n-th log request. Resolves to what
+ * the run saw: the bodies the log received, how many certificates were asked for, and the outcome of `attest`.
+ */
+async function keylessAgainst(rekor) {
+  const entries = [];
+  let certificates = 0;
+  const pem = `-----BEGIN CERTIFICATE-----\n${Buffer.from('not a real certificate').toString('base64')}\n-----END CERTIFICATE-----\n`;
+  const server = createServer((request, response) => {
+    const chunks = [];
+    request.on('data', (chunk) => chunks.push(chunk));
+    request.on('end', async () => {
+      const json = (status, value, headers = {}) => response.writeHead(status, { 'content-type': 'application/json', ...headers }).end(JSON.stringify(value));
+      if (request.url === '/api/v2/signingCert') {
+        certificates += 1;
+        return json(200, { signedCertificateEmbeddedSct: { chain: { certificates: [pem] } } });
+      }
+      entries.push(Buffer.concat(chunks).toString('utf8'));
+      const [status, value, headers] = await rekor(entries.length);
+      return json(status, value, headers);
+    });
+  });
+  await new Promise((done) => server.listen(0, '127.0.0.1', done));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const service = { url, majorApiVersion: 1, validFor: { start: '2020-01-01T00:00:00Z' }, operator: 'test' };
+  const signingConfig = { ...FULCIO_ONLY, caUrls: [service], rekorTlogUrls: [service], rekorTlogConfig: { selector: 'ANY' } };
+  try {
+    const outcome = await attest(holo, { type: PROOF, predicate: {}, signingConfig, identityToken: TOKEN }).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    );
+    return { entries, certificates, ...outcome };
+  } finally {
+    await new Promise((done) => server.close(done));
+  }
+}
+
+const LOG_ENTRY = [201, { 'aa11': { logID: 'bb22', logIndex: 7, integratedTime: 1700000000, body: Buffer.from(JSON.stringify({ kind: 'dsse', apiVersion: '0.0.1' })).toString('base64'), verification: {} } }];
+const LOG_DUPLICATE = [409, { code: 409, message: 'an equivalent entry already exists in the transparency log' }, { location: '/api/v1/log/entries/aa11' }];
+
+test('keyless attest survives a log that stored the entry and lost the answer', async () => {
+  // The sequence behind the CI flake: stored but answered 500, the same request re-sent and refused, then a new signature.
+  const { entries, certificates, value, error } = await keylessAgainst((n) => (n === 1 ? [500, { code: 500, message: 'lost' }] : n === 2 ? LOG_DUPLICATE : LOG_ENTRY));
+  assert.equal(error, undefined);
+  assert.equal(entries.length, 3);
+  assert.equal(entries[1], entries[0], 'the retry re-sends the same entry');
+  assert.notEqual(entries[2], entries[0], 'signing again makes a new entry');
+  assert.equal(certificates, 2);
+  assert.equal(value.attestations, 1);
+  assert.equal(value.bundle.verificationMaterial.tlogEntries[0].logIndex, '7');
+});
+
+test('keyless attest signs again only once, and only for a duplicate', async () => {
+  const twice = await keylessAgainst(() => LOG_DUPLICATE);
+  assert.ok(twice.error instanceof SigningError);
+  assert.equal(twice.error.check, 'sign.service');
+  assert.match(twice.error.message, /409/);
+  assert.equal(twice.entries.length, 2);
+
+  const refused = await keylessAgainst(() => [400, { code: 400, message: 'bad entry' }]);
+  assert.ok(refused.error instanceof SigningError);
+  assert.equal(refused.entries.length, 1);
+  assert.equal(refused.certificates, 1);
+});
+
+test('keyless attest waits for a log that answers after sigstore\'s default 5 s timeout', async () => {
+  const { entries, value, error } = await keylessAgainst(async () => {
+    await new Promise((done) => setTimeout(done, 5500));
+    return LOG_ENTRY;
+  });
+  assert.equal(error, undefined);
+  assert.equal(entries.length, 1, 'nothing was re-sent');
+  assert.equal(value.attestations, 1);
+});
+
 // The Sigstore conformance bundle #275 vendors: a DSSE bundle signed by a GitHub Actions identity, with a Rekor v2 entry
 // and an RFC 3161 timestamp, against the staging trusted root. Its signer is the identity below.
 const FIXTURE = '../../verify/test/fixtures/sigstore-conformance/rekor2-dsse-happy-path/';

@@ -1,6 +1,6 @@
 /**
  * The `prism.toml` manifest, `prism/manifest/1` (issue #280).
- * Design: docs/proposals/280-prism-toml.md.
+ * Design: docs/proposals/280-prism-toml.md and docs/proposals/294-provider-services.md.
  * Schema: `schemas/manifest/manifest-v1.schema.json`.
  *
  * This is the manifest as a TOML reader returns it, after the overlay for the
@@ -40,6 +40,27 @@ export interface ManifestInlineCapabilities {
   'deny-key-value-stores'?: string[];
   'allow-variables'?: string[];
   'deny-variables'?: string[];
+  'allow-providers'?: string[];
+  'deny-providers'?: string[];
+}
+
+/** One option value. A string holds no control character and is not `env(NAME)`. */
+export type ManifestProviderOptionValue = string | number | boolean;
+
+/**
+ * Prism runs `prism-provider-<type>` from the PATH with the options as flags,
+ * and produces the key/values it returns as `<NAME>_<VAR>` environment variables.
+ */
+export interface ManifestProvider {
+  /** `^[a-z][a-z0-9-]*$`. */
+  type: string;
+  /** Keys match `^[a-z][a-z0-9_-]*$`. An array repeats the flag. */
+  options?: Record<string, ManifestProviderOptionValue | ManifestProviderOptionValue[]>;
+}
+
+/** A table under `[capabilities]`, named `^[a-z][a-z0-9_]*$` other than `file` and `set`. */
+export interface ManifestProviderCapability {
+  provider: ManifestProvider;
 }
 
 /**
@@ -55,7 +76,7 @@ export interface Manifest {
   application: ManifestApplication;
   model?: ManifestModel;
   /** Absent means nothing is granted. */
-  capabilities?: ManifestCapabilityFile | ManifestInlineCapabilities;
+  capabilities?: (ManifestCapabilityFile | ManifestInlineCapabilities) & { [name: string]: unknown };
   /** Variable names match `^[a-z][a-z0-9_]*$`. */
   variables?: Record<string, ManifestVariable>;
 }

@@ -2060,7 +2060,8 @@ const __world = (() => {
   /** The effects that make a world impure: a guest importing one can see something a replay cannot reproduce. */
   const IMPURE_EFFECTS = Object.freeze(['clock', 'random', 'socket', 'filesystem', 'unknown']);
   const CAPABILITY_KINDS = Object.freeze(['outbound-hosts', 'key-value-stores', 'variables']);
-  const SET_MEMBERS = Object.freeze(CAPABILITY_KINDS.flatMap((kind) => [`allow-${kind}`, `deny-${kind}`]));
+  // A set also grants providers (#294). They run outside the holo, so no world import names that kind.
+  const SET_MEMBERS = Object.freeze([...CAPABILITY_KINDS, 'providers'].flatMap((kind) => [`allow-${kind}`, `deny-${kind}`]));
   const WASI_INTERFACES = Object.freeze([
     ['wasi:clocks/', 'clock'],
     ['wasi:random/', 'random'],

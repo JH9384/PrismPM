@@ -246,6 +246,62 @@ export function manifest({ spec, page }) {
   parts.push(table(HEADER, tableRows(fileForm)));
   parts.push(heading(3, 'Inline'));
   parts.push(table(HEADER, tableRows({ ...inlineForm, properties: Object.fromEntries(Object.entries(inlineForm.properties).map(([k, v]) => [k, schema.$defs[v.$ref.replace('#/$defs/', '')]])) })));
+  parts.push(heading(2, 'Provider services'));
+  parts.push(
+    paragraph(
+      `Any other table under ${code('[capabilities]')} declares a capability that a provider provisions, beside either form above. Its name matches ${code('^[a-z][a-z0-9_]*$')}, and ${code('file')} and ${code('set')} are reserved. A declaration grants nothing: the set must allow the provider's type, and must allow each variable before it is produced.`,
+    ),
+  );
+  parts.push(
+    fence(
+      'toml',
+      ['[capabilities]', 'allow-providers = ["kv"]', 'allow-variables = ["rates_url", "rates_store"]', '', '[capabilities.rates]', 'provider = { type = "kv", options = { store = "rates", set = ["base=EUR"] } }'].join('\n'),
+    ),
+  );
+  parts.push(table(HEADER, defRows(schema, 'provider')));
+  parts.push(
+    paragraph(
+      `An option key matches ${code(schema.$defs.provider.properties.options.propertyNames.pattern)}. A value is a string, an integer, a boolean or an array of those. A string may hold no control character and may not be ${code('env(NAME)')}, because every process on the machine can read a command line. A provider reads its secrets from its own environment.`,
+    ),
+  );
+  parts.push(heading(3, 'The wire protocol'));
+  parts.push(
+    paragraph(
+      `${code('prism-code providers up')} finds ${code('prism-provider-<type>')} on the PATH the way a plugin is found, and runs it in the project directory with the caller's environment and stdin closed. ${code('down')} takes the same arguments and releases what ${code('up')} provisioned. ${code('up')} must be safe to run again.`,
+    ),
+  );
+  parts.push(fence('text', ['prism-provider-<type> --project-name <application> up   [--<option>=<value> ...] <name>', 'prism-provider-<type> --project-name <application> down [--<option>=<value> ...] <name>'].join('\n')));
+  parts.push(
+    paragraph(
+      `Each option is one argument, sorted by option. An array repeats the flag. A provider replies on stdout with one JSON object per line, with exactly the members ${code('type')} and ${code('message')}. Exit 0 with no ${code('error')} message is success. Any other exit fails the call, and so does any other line. ${code('PRISM_PROVIDER_MESSAGES')} lists the accepted types. stderr is passed through and never parsed.`,
+    ),
+  );
+  parts.push(
+    table(
+      ['Type', 'Meaning'],
+      [
+        [code('info'), 'Progress, printed on stderr.'],
+        [code('debug'), `Detail, given to the ${code('onMessage')} option of the API.`],
+        [code('error'), 'Why it failed. The call fails with this text, even on exit 0.'],
+        [code('setenv'), `${code('VAR=value')}, split at the first ${code('=')}. ${code('VAR')} matches ${code('^[A-Z][A-Z0-9_]*$')}. It becomes ${code('<NAME>_<VAR>')}, and the variable ${code('<name>_<var>')} must be allowed.`],
+      ],
+    ),
+  );
+  parts.push(
+    table(
+      ['Failure', 'Error', 'Check'],
+      [
+        ['The set does not allow the type', code('CapabilityDeniedError'), code('capabilities.providers')],
+        ['Not on the PATH', code('ProviderNotFoundError'), code('provider.not-found')],
+        ['A line that breaks the protocol', code('ProviderReplyError'), code('provider.reply')],
+        ['Two sources for one variable', code('ProviderReplyError'), code('provider.collision')],
+        [`A non-zero exit or an ${code('error')} message`, code('ProviderFailedError'), code('provider.failed')],
+        ['Would not start', code('ProviderFailedError'), code('provider.spawn')],
+        ['Ran out of time', code('ProviderFailedError'), code('provider.timeout')],
+      ],
+    ),
+  );
+  parts.push(paragraph(`A variable the set does not allow is withheld and reported by name. Today nothing inside a holo can read the result: the guest world imports nothing, and ${code('prism-code run')} does not read this manifest.`));
   parts.push(heading(2, code('[variables]')));
   parts.push(
     paragraph(

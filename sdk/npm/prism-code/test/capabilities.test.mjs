@@ -26,7 +26,7 @@ const SPEC_FIXTURES = fileURLToPath(new URL('../../spec/test/fixtures/capabiliti
 
 const file = (sets) => ({ schema: 'prism/capabilities/1', sets });
 const grant = (set, name = 'default') => grantOf(parseCapabilities(file({ default: {}, ...set })), name);
-const SAMPLES = { 'outbound-hosts': 'https://api.example.com', 'key-value-stores': 'default', variables: 'api_token' };
+const SAMPLES = { 'outbound-hosts': 'https://api.example.com', 'key-value-stores': 'default', variables: 'api_token', providers: 'kv' };
 
 /**
  * The reference archive whose guest also imports a table, env.host. A table
@@ -68,7 +68,7 @@ test('an empty default set and a deny-only default set grant nothing', () => {
 });
 
 test('allow grants exactly what it names, for each kind', () => {
-  const g = grant({ default: { 'allow-outbound-hosts': ['https://api.example.com'], 'allow-key-value-stores': ['default'], 'allow-variables': ['api_token'] } });
+  const g = grant({ default: { 'allow-outbound-hosts': ['https://api.example.com'], 'allow-key-value-stores': ['default'], 'allow-variables': ['api_token'], 'allow-providers': ['kv'] } });
   for (const kind of CAPABILITY_KINDS) assert.equal(g.allows(kind, SAMPLES[kind]), true, kind);
   assert.equal(g.allows('key-value-stores', 'cache'), false);
   assert.equal(g.allows('variables', 'api_token2'), false);

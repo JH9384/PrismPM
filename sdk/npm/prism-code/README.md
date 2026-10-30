@@ -443,6 +443,70 @@ packages, and exits 1 when a check fails. Its error hook suggests it when
 `check`, `build`, `verify`, `conformance` or `export-browser` exit 64 (no
 lockfile) or 69 (no Docker).
 
+## Provider services (experimental, #294)
+
+A capability in `prism.toml` can name a provider: an executable that provisions
+something the application needs and says how to reach it, after Docker Compose
+provider services. Nothing runs unless the capability set allows the type, and
+a returned variable is produced only when the set allows its name.
+
+```toml
+[capabilities]
+allow-providers = ["kv"]
+allow-variables = ["rates_url", "rates_store"]
+
+[capabilities.rates]
+provider = { type = "kv", options = { set = ["base=EUR"] } }
+```
+
+```
+$ npx prism-code providers up
+rates: created store rates
+rates (kv): RATES_URL, RATES_STORE
+$ npx prism-code providers up --json    # the same, with the values
+$ npx prism-code providers down         # release it; kv deletes the store
+```
+
+```js
+import { readManifest, resolveProviders, releaseProviders } from 'prism-code/node';
+
+const project = await readManifest('.');
+const { env, providers, withheld } = await resolveProviders(project);
+// env.RATES_URL, env.RATES_STORE; withheld lists what the set does not allow, by name
+```
+
+`resolveProviders` sets the environment on no process. A host passes it on.
+Today nothing inside a holo can read it: the guest world imports nothing, and
+`prism-code run` does not read `prism.toml`.
+
+Writing a provider takes one small protocol. Prism runs it in the project
+directory, with the options as flags and the capability's name last:
+
+```
+prism-provider-<type> --project-name <application> up [--<option>=<value> ...] <name>
+prism-provider-<type> --project-name <application> down [--<option>=<value> ...] <name>
+```
+
+It replies on stdout with one JSON object per line:
+
+```
+{"type":"info","message":"created store rates"}
+{"type":"setenv","message":"URL=file:///home/ada/exchange/.prism/kv/exchange/rates.json"}
+```
+
+The types are `info`, `debug`, `error` and `setenv`. `setenv` `URL=...` from the
+capability `rates` becomes `RATES_URL`. Exit 0 with no `error` message is
+success, and anything else fails with a typed error: `CapabilityDeniedError`,
+`ProviderNotFoundError`, `ProviderReplyError` or `ProviderFailedError`. No error
+quotes a reply line, because a reply may hold a secret. The provider inherits
+the caller's environment and runs as the user, outside the holo, so the capability
+set bounds whether it runs, not what it does.
+
+`prism-provider-kv` is the reference provider, a third binary in this package. It
+keeps a store as one JSON file, `.prism/kv/<application>/<store>.json`, and takes
+`store`, `dir` and repeated `set = ["key=value"]`. The protocol and its reasons
+are in `docs/proposals/294-provider-services.md`.
+
 ## What is in a `.holo`
 
 Little-endian: `HOLO`, u16 version 4, u16 flags, u16 section count, a table of

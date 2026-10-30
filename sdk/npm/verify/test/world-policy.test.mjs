@@ -12,6 +12,15 @@ const checks = (verdict) => verdict.reasons.map((r) => r.check);
 /** A world row with these imports and the core-wasm exports; no such contract exists yet, so the rows are built here. */
 const world = (...imports) => ({ imports: imports.map(([module, name, capability]) => ({ module, name, kind: 'func', ...(capability ? { capability } : {}) })) });
 
+test('a capability set may allow providers, and no world import can name that kind (#294)', () => {
+  assert.equal(capabilitySetProblem({ 'allow-providers': ['kv'], 'deny-providers': ['*'] }), null);
+  assert.match(capabilitySetProblem({ 'allow-provider': ['kv'] }), /has no member allow-provider/);
+  const world = { imports: [{ module: 'env', name: 'provision', kind: 'function', capability: 'providers' }] };
+  const { within, problems } = worldWithinGrant(world, { 'allow-providers': ['*'] });
+  assert.equal(within, false);
+  assert.match(problems[0], /names no capability kind/);
+});
+
 test('imports are classified by WASI interface or WASI 0.1 function, and anything else is unknown', () => {
   const cases = [
     [['wasi:clocks/wall-clock@0.2.0', 'now'], 'clock'],

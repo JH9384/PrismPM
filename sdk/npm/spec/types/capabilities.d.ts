@@ -8,8 +8,8 @@
  * the set named `default` unless the caller names another.
  */
 
-/** The three resource kinds a set can grant. */
-export type CapabilityKind = 'outbound-hosts' | 'key-value-stores' | 'variables';
+/** The resource kinds a set can grant. */
+export type CapabilityKind = 'outbound-hosts' | 'key-value-stores' | 'variables' | 'providers';
 
 /**
  * `scheme://host[:port]`, lower case. `scheme`, `host` and `port` may be `*`;
@@ -21,6 +21,8 @@ export type OutboundHostEntry = string;
 export type KeyValueStoreEntry = string;
 /** A variable name, or `*`. */
 export type VariableEntry = string;
+/** A provider type (the executable `prism-provider-<type>`), or `*`. */
+export type ProviderEntry = string;
 
 /** One set. A missing member is an empty list. */
 export interface CapabilitySet {
@@ -30,6 +32,8 @@ export interface CapabilitySet {
   'deny-key-value-stores'?: KeyValueStoreEntry[];
   'allow-variables'?: VariableEntry[];
   'deny-variables'?: VariableEntry[];
+  'allow-providers'?: ProviderEntry[];
+  'deny-providers'?: ProviderEntry[];
 }
 
 export interface Capabilities {

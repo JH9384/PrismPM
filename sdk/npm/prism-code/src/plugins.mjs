@@ -15,6 +15,9 @@
  * is listed as invalid and never runs. Error hooks run after a verb a plugin
  * names in `errorHooks` exits non-zero, as Docker's `error-hooks` do since
  * Engine 29.3.0; their messages are printed under "What's next:".
+ *
+ * Providers (#294) are found the same way under `prism-provider-<type>`, and
+ * are not plugins: the plugin scan skips the `provider-` prefix.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { accessSync, constants, readdirSync, statSync } from 'node:fs';
@@ -22,6 +25,7 @@ import { constants as os } from 'node:os';
 import { basename, extname, join } from 'node:path';
 
 export const PLUGIN_PREFIX = 'prism-';
+export const PROVIDER_PREFIX = 'prism-provider-';
 export const METADATA_COMMAND = 'prism-cli-plugin-metadata';
 export const HOOK_COMMAND = 'prism-cli-plugin-hooks';
 export const PLUGIN_SCHEMA_VERSION = '1';
@@ -34,8 +38,8 @@ const CALL_TIMEOUT_MS = 5000;
 const MAX_MESSAGES = 10;
 const DEFAULT_PATHEXT = '.COM;.EXE;.BAT;.CMD';
 
-/** @returns {Map<string, string>} plugin name to executable path; the first PATH entry wins */
-export function discover({ env = process.env, platform = process.platform } = {}) {
+// The name after the prefix; the first PATH entry wins.
+function scan(prefix, accepts, { env = process.env, platform = process.platform } = {}) {
   const windows = platform === 'win32';
   const path = (windows ? env.Path ?? env.PATH : env.PATH) ?? '';
   const extensions = windows ? (env.PATHEXT || DEFAULT_PATHEXT).split(';').filter(Boolean).map((e) => e.toLowerCase()) : null;
@@ -51,7 +55,7 @@ export function discover({ env = process.env, platform = process.platform } = {}
     const here = new Map();
     for (const entry of entries) {
       const lower = entry.toLowerCase();
-      if (!lower.startsWith(PLUGIN_PREFIX)) continue;
+      if (!lower.startsWith(prefix)) continue;
       let name = entry;
       let rank = 0;
       if (windows) {
@@ -60,8 +64,8 @@ export function discover({ env = process.env, platform = process.platform } = {}
         if (rank < 0) continue;
         name = basename(lower, extname(lower));
       }
-      name = name.slice(PLUGIN_PREFIX.length);
-      if (!NAME.test(name) || RESERVED.has(name) || found.has(name)) continue;
+      name = name.slice(prefix.length);
+      if (!NAME.test(name) || !accepts(name) || found.has(name)) continue;
       const file = join(dir, entry);
       if (!executable(file, windows)) continue;
       if (!here.has(name) || rank < here.get(name).rank) here.set(name, { file, rank });
@@ -70,6 +74,12 @@ export function discover({ env = process.env, platform = process.platform } = {}
   }
   return found;
 }
+
+/** @returns {Map<string, string>} plugin name to executable path; the first PATH entry wins */
+export const discover = (context) => scan(PLUGIN_PREFIX, (name) => !RESERVED.has(name) && !name.startsWith('provider-'), context);
+
+/** @returns {Map<string, string>} provider type to executable path; the first PATH entry wins */
+export const discoverProviders = (context) => scan(PROVIDER_PREFIX, () => true, context);
 
 function executable(file, windows) {
   try {
@@ -98,7 +108,8 @@ export function escapeCmdArgument(arg, doubleEscape = false) {
 export function invocation(file, args, { env = process.env, platform = process.platform } = {}) {
   if (platform === 'win32' && /\.(cmd|bat)$/i.test(file)) {
     const line = [file.replace(CMD_META, '^$1'), ...args.map((a) => escapeCmdArgument(a, true))].join(' ');
-    return { command: env.ComSpec || 'cmd.exe', args: ['/d', '/s', '/c', `"${line}"`], options: { windowsVerbatimArguments: true } };
+    // Only process.env is case-insensitive; a plain env object may spell it COMSPEC, or restrict the PATH cmd.exe is on.
+    return { command: env.ComSpec || env.COMSPEC || process.env.ComSpec || 'cmd.exe', args: ['/d', '/s', '/c', `"${line}"`], options: { windowsVerbatimArguments: true } };
   }
   return { command: file, args, options: {} };
 }

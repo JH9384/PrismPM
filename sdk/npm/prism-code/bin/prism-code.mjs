@@ -9,6 +9,8 @@
  *                                                     scaffold a project; with --sdk-image, bind it (standards.lock, prismpm.lock)
  *   prism-code manifest [<dir>] [--target browser|node] [--json]
  *                                                     check and lint prism.toml, with its overlay merged
+ *   prism-code providers <up|down> [<dir>] [--target browser|node] [--json]
+ *                                                     run the providers prism.toml declares (experimental)
  *   prism-code inspect <app.holo> [--json] [--format <path>]
  *                                                     print what the holo says about itself, without running it
  *   prism-code attest <app.holo> --predicate <file> --type <uri> [--key <private.pem>]
@@ -21,8 +23,8 @@
  *
  * Exit codes: 0 ok or the policy passed, 1 vectors failed, an attestation did
  * not verify or the policy failed, 2 artifact refused (a guest import no
- * capability set grants, a world outside the grant, or a manifest that fails
- * its checks, included) or no verdict, 3 signing failed or the sigstore
+ * capability set grants, a world outside the grant, a manifest that fails
+ * its checks, or a provider that failed, included) or no verdict, 3 signing failed or the sigstore
  * packages are missing, 64 usage, 69 Docker unavailable, otherwise the
  * delegated command's or the plugin's code.
  *
@@ -35,10 +37,11 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { userInfo } from 'node:os';
 import { createRequire } from 'node:module';
-import { fromFile, serve, readManifest } from '../src/node.mjs';
+import { fromFile, serve, readManifest, resolveProviders, releaseProviders } from '../src/node.mjs';
 import { sdkImageFromLock, dockerArguments, DELEGATED } from '../src/docker.mjs';
-import { CapabilityDeniedError, PrismCodeError, PrismError, SigningError, VerificationError } from '../src/errors.mjs';
+import { CapabilityDeniedError, PrismCodeError, PrismError, ProviderError, SigningError, VerificationError } from '../src/errors.mjs';
 import { inspect, formatInspection, select } from '../src/inspect.mjs';
+import { manifestProviders } from '../src/manifest.mjs';
 import { canonicalJson } from '../src/archive.mjs';
 import { check, formatVerdict, verdictJson, exitCodeOf, EXIT as CHECK_EXIT } from '../src/check.mjs';
 import { discover, errorHookMessages, listPlugins, pluginHelp, readMetadata, runPlugin } from '../src/plugins.mjs';
@@ -61,6 +64,9 @@ Usage:
   prism-code manifest [<dir>] [--target <browser|node>] [--json]
                                                     check and lint prism.toml, with prism.<target>.toml merged;
                                                     a secret written as a literal is an error
+  prism-code providers <up|down> [<dir>] [--target <browser|node>] [--json]
+                                                    run the prism-provider-<type> each capability declares;
+                                                    the capability set must allow the type and each variable
   prism-code inspect <app.holo> [--json] [--format <path>]
                                                     print sections, digests, manifest, model, world and
                                                     attestations without running the guest
@@ -102,6 +108,8 @@ Options for check:    --policy <file>              a JSON policy: name, minimum 
                       deprecated: check without a holo runs build --check; removed in 0.4.0
 Options for manifest: --target <browser|node>      merge prism.browser.toml or prism.node.toml over prism.toml
                       --json                       the merged manifest and the warnings as canonical JSON
+Options for providers: --target <browser|node>     merge prism.browser.toml or prism.node.toml over prism.toml
+                      --json                       the result as canonical JSON, with the values; text output never prints one
 Options for closures: --model <model.prism.json>   the model document (numeric-profile closures need it)
 `;
 
@@ -355,7 +363,37 @@ async function commandManifest(positional, options) {
   process.stdout.write(`${app.name} ${app.version} from ${files.join(' + ')}\n`);
   process.stdout.write(`capabilities: ${granted}\n`);
   process.stdout.write(`variables: ${variables.length ? variables.join(', ') : 'none'}\n`);
+  const declared = manifestProviders(manifest);
+  if (declared.length > 0) process.stdout.write(`providers: ${declared.map((p) => `${p.name} (${p.type})`).join(', ')}\n`);
   for (const w of warnings) process.stderr.write(`warning: ${w.rule}: ${w.message}\n`);
+  return 0;
+}
+
+async function commandProviders(positional, options) {
+  const [verb, directory, ...extra] = positional;
+  if ((verb !== 'up' && verb !== 'down') || extra.length > 0) return usage('providers takes up or down, and at most one project directory');
+  const bad = missingValue(options);
+  if (bad) return usage(`--${bad} takes a value`);
+  if (options.target !== undefined && !['browser', 'node'].includes(options.target)) return usage('--target is browser or node');
+  const project = await readManifest(resolve(directory ?? '.'), { target: options.target ?? null });
+  for (const w of project.warnings) process.stderr.write(`warning: ${w.rule}: ${w.message}\n`);
+  const onMessage = ({ capability, type, message }) => {
+    if (type === 'info') process.stderr.write(`${capability}: ${message}\n`);
+  };
+  if (verb === 'down') {
+    const { providers } = await releaseProviders(project, { onMessage });
+    if (options.json) process.stdout.write(`${canonicalJson({ providers })}\n`);
+    else process.stdout.write(`released: ${providers.length ? providers.join(', ') : 'none'}\n`);
+    return 0;
+  }
+  const { env, providers, withheld } = await resolveProviders(project, { onMessage });
+  for (const w of withheld) process.stderr.write(`warning: capability ${w.capability} returned ${w.name}, and the capability set does not allow the variable ${w.variable}; it is withheld\n`);
+  if (options.json) {
+    process.stdout.write(`${canonicalJson({ env, providers, withheld })}\n`);
+    return 0;
+  }
+  if (providers.length === 0) process.stdout.write('providers: none declared\n');
+  for (const p of providers) process.stdout.write(`${p.name} (${p.type}): ${p.variables.length ? p.variables.join(', ') : 'no variables'}\n`);
   return 0;
 }
 
@@ -429,6 +467,8 @@ async function main(argv) {
       return commandRun(positional, options);
     case 'manifest':
       return commandManifest(positional, options);
+    case 'providers':
+      return commandProviders(positional, options);
     case 'init': {
       const { runInit } = await import('../src/init-cli.mjs');
       return runInit(rest);
@@ -462,7 +502,7 @@ main(argv).then(
       process.stderr.write(`${error.code}: ${error.message}\n`);
       if (error.check) process.stderr.write(`check: ${error.check}\n`);
       if (error instanceof VerificationError && error.check === 'policy.invalid') process.exitCode = 64;
-      else if (error instanceof CapabilityDeniedError) process.exitCode = 2;
+      else if (error instanceof CapabilityDeniedError || error instanceof ProviderError) process.exitCode = 2;
       else if (error instanceof SigningError || error.code === 'attest.unavailable') process.exitCode = 3;
       else process.exitCode = 1;
     } else {

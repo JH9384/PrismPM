@@ -13,6 +13,8 @@ import { fail } from './errors.mjs';
 import { parseManifest, manifestCapabilities, MANIFEST_FILE } from './manifest.mjs';
 import { parseCapabilities } from './capabilities.mjs';
 
+export { resolveProviders, releaseProviders, PROVIDER_MESSAGES, PROVIDER_MESSAGES_ENV, PROVIDER_TIMEOUT_MS } from './providers.mjs';
+
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',

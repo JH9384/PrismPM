@@ -2,7 +2,7 @@
  * Capability sets, deny by default (issue #279, docs/proposals/279-capability-sets.md).
  *
  * A capability file, `prism/capabilities/1`, grants a holo outbound hosts,
- * key-value stores and variables. Nothing is granted unless an `allow-` entry
+ * key-value stores, variables and providers (#294). Nothing is granted unless an `allow-` entry
  * of the resource's kind matches it and no `deny-` entry does. The runtime
  * applies the set named `default` unless the caller names another; with no
  * file at all, every resource and every guest import is denied.
@@ -15,13 +15,14 @@ import { CapabilityDeniedError, fail } from './errors.mjs';
 
 export const CAPABILITIES_SCHEMA = 'prism/capabilities/1';
 export const DEFAULT_SET = 'default';
-export const CAPABILITY_KINDS = Object.freeze(['outbound-hosts', 'key-value-stores', 'variables']);
+export const CAPABILITY_KINDS = Object.freeze(['outbound-hosts', 'key-value-stores', 'variables', 'providers']);
 
 const SET_NAME = /^[a-z][a-z0-9-]*$/;
 const ENTRY = Object.freeze({
   'outbound-hosts': /^([*]|[a-z][a-z0-9+.-]*):\/\/([*]|([*][.])?[a-z0-9]([a-z0-9-]*[a-z0-9])?([.][a-z0-9]([a-z0-9-]*[a-z0-9])?)*)(:([*]|[0-9]{1,5}))?$/,
   'key-value-stores': /^([*]|[a-z0-9][a-z0-9_-]*)$/,
   variables: /^([*]|[a-z][a-z0-9_]*)$/,
+  providers: /^([*]|[a-z][a-z0-9-]*)$/,
 });
 const MEMBERS = CAPABILITY_KINDS.flatMap((kind) => [`allow-${kind}`, `deny-${kind}`]);
 const DEFAULT_PORTS = Object.freeze({ http: '80', https: '443', ws: '80', wss: '443' });

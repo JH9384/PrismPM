@@ -1,0 +1,29 @@
+{
+  "application": {
+    "name": "exchange",
+    "version": "0.1.0"
+  },
+  "capabilities": {
+    "allow-providers": [
+      "kv"
+    ],
+    "allow-variables": [
+      "rates_url",
+      "rates_store"
+    ],
+    "rates": {
+      "provider": {
+        "type": "kv",
+        "options": {
+          "store": "rates",
+          "set": [
+            "base=EUR",
+            "quote=USD"
+          ],
+          "size": 256,
+          "durable": true
+        }
+      }
+    }
+  }
+}

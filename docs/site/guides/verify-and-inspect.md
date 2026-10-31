@@ -63,23 +63,33 @@ prism check calculator@sha256:3f9c… --json
 
 Exit codes are the contract. 0 is pass. 1 is fail, and `reasons` says why. 2 means `check` reached no verdict, for example when the file is not a holo, the policy cannot be read, or the format revision is unknown. Treat 2 as a fail in CI. It is not a pass you have not looked at yet. On exit 2, stdout is empty and the cause is on stderr.
 
+The exit code is all a CI step needs, and `prism-code` runs it today with no Docker and no `prism` binary. The sample holo is unsigned, so it is P0. These three runs were captured here, each on the same file. The default policy fails it with exit 1, `pure-only` accepts P0 and exits 0, and `provenance-only` asks for P1 and exits 1:
+
+{{example:check-in-ci}}
+
+A holo reaches P1 and P2 only through signed statements it carries, and `check` believes a signature only from the signer you name. Pass the public key that signs your releases, or the identity and issuer of your keyless signer:
+
+```bash
+npx prism-code check dist/calculator.holo --key release.pub.pem --json > verdict.json
+npx prism-code check dist/calculator.holo \
+  --certificate-identity-regexp '^https://github.com/acme/calculator/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --trusted-root trusted_root.json --json > verdict.json
+```
+
+Without a signer a signed holo is P0, because a signature nobody checked is no evidence. The provenance statement supports P1, the proof statement P2. A proof statement that is about another guest, or a guest changed after signing, fails with `ProofMismatch` (`proof.subject`, `PP5503`) and exits 1.
+
 A GitHub Actions job gates the deploy on the exit code and keeps the verdict when the check fails:
 
 ```yaml
 - name: Check the holo
-  run: prism check dist/calculator.holo --policy policy --json > verdict.json
+  run: npx prism-code check dist/calculator.holo --key release.pub.pem --json > verdict.json
 - name: Keep the verdict
   if: failure()
   uses: actions/upload-artifact@v4
   with:
     name: verdict
     path: verdict.json
-```
-
-Today the same verdict comes from `prism-code`, with no Docker and no `prism` binary:
-
-```bash
-npx prism-code check dist/calculator.holo --policy policy.json --json
 ```
 
 ## Assurance levels in practice

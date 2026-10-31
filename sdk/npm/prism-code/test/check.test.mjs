@@ -7,7 +7,9 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArchive, appendAttestations } from '../src/index.mjs';
+import { generateKeyPairSync } from 'node:crypto';
+import { parseArchive, resolveArchive, appendAttestations } from '../src/index.mjs';
+import { experimental_attest, signStatement } from '../src/attest.mjs';
 import { formatVerdict, titleOf, LIMITS, EXIT } from '../src/check.mjs';
 
 const here = (relative) => fileURLToPath(new URL(relative, import.meta.url));
@@ -99,9 +101,6 @@ test('no verdict exits 2, says why on stderr, and prints nothing on stdout', () 
   const notJson = file('policy.txt', 'minimum: P0');
   const unknown = file('unknown.json', JSON.stringify({ minimum: 'P0', signer: 'me' }));
   const badLevel = file('p4.json', JSON.stringify({ minimum: 'P4' }));
-  const statement = readFileSync(here('../../spec/test/fixtures/attestation/statement/calculator.json'));
-  const bundle = { mediaType: 'application/vnd.dev.sigstore.bundle.v0.3+json', verificationMaterial: { publicKey: { hint: 'x' } }, dsseEnvelope: { payload: statement.toString('base64'), payloadType: 'application/vnd.in-toto+json', signatures: [{ sig: 'AA==' }] } };
-  const signed = file('signed.holo', appendAttestations(new Uint8Array(readFileSync(fixture)), [bundle]));
   const cases = [
     [[join(dir, 'missing.holo')], /^no verdict: load\.path: /],
     [[notHolo], /^no verdict: archive\.magic: /],
@@ -109,7 +108,6 @@ test('no verdict exits 2, says why on stderr, and prints nothing on stdout', () 
     [[fixture, '--policy', notJson], /^no verdict: policy\.invalid: .* is not JSON/],
     [[fixture, '--policy', unknown], /^no verdict: policy\.invalid: .*unknown members signer/],
     [[fixture, '--policy', badLevel], /^no verdict: policy\.invalid: policy\.minimum "P4"/],
-    [[signed], /^no verdict: format\.revision: the holo carries an attestation section .*#267/],
   ];
   for (const [args, message] of cases) {
     const { code, out, err } = run(['check', ...args, '--json']);
@@ -117,6 +115,102 @@ test('no verdict exits 2, says why on stderr, and prints nothing on stdout', () 
     assert.equal(out, '', args.join(' '));
     assert.match(err, message);
   }
+});
+
+// P2 (#270). The statements are signed at test time with a throwaway key, which is the only way a test can have a
+// signer the verifier accepts; the proof predicate is a stand-in that claims no Lean run. What these tests show is
+// that the verdict follows the signature, the subjects and the signer the caller names, and nothing else.
+const PROOF_TYPE = 'https://uor.foundation/prism/proof/v1';
+const SLSA_TYPE = 'https://slsa.dev/provenance/v1';
+const signing = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const stranger = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const privatePem = signing.privateKey.export({ type: 'pkcs8', format: 'pem' });
+const publicKey = file('signer.pem', signing.publicKey.export({ type: 'spki', format: 'pem' }));
+const strangerKey = file('stranger.pem', stranger.publicKey.export({ type: 'spki', format: 'pem' }));
+const calculatorProof = JSON.parse(readFileSync(here('../../spec/test/fixtures/attestation/statement/calculator.json'), 'utf8')).predicate;
+
+/** The proof predicate of the Calculator, with the model ids of the archive it is about. */
+function proofPredicateFor(bytes) {
+  const resolved = resolveArchive(parseArchive(bytes));
+  const { provenance } = resolved;
+  const predicate = structuredClone(calculatorProof);
+  predicate.model.document = { sha256: provenance.model_id, blake3: resolved.identities.modelKappa.slice('blake3:'.length) };
+  Object.assign(predicate.model, { sourceId: provenance.source_id, semanticId: provenance.semantic_id, snapshotId: provenance.snapshot_id, compilerSemanticsId: provenance.compiler_semantics_id, leanManifestSha256: provenance.lean_manifest_sha256 });
+  return predicate;
+}
+
+/** The holo with a provenance statement over its four blobs and a proof statement over its guest, both signed. */
+async function signedHolo(path, { proof = true, provenance = true, predicate } = {}) {
+  let bytes = new Uint8Array(readFileSync(path));
+  const original = bytes;
+  if (provenance) {
+    bytes = (await experimental_attest(bytes, { type: SLSA_TYPE, predicate: { buildDefinition: { buildType: 'https://uor.foundation/prism/holo-build/v1' } }, subjects: ['guest', 'view', 'model', 'capabilities'], key: privatePem })).holo;
+  }
+  if (proof) bytes = (await experimental_attest(bytes, { type: PROOF_TYPE, predicate: predicate ?? proofPredicateFor(original), subjects: ['guest'], key: privatePem })).holo;
+  return bytes;
+}
+
+test('both reference archives pass at P2 when signed by the key the policy trusts: exit 0', async () => {
+  for (const [name, path] of [['Calculator', fixture], ['PaymentApproval', paymentApproval]]) {
+    const signed = file(`${name}.signed.holo`, await signedHolo(path));
+    const { code, out, err } = run(['check', signed, '--key', publicKey, '--json']);
+    assert.equal(code, EXIT.PASSED, `${name}: ${out}${err}`);
+    const verdict = JSON.parse(out);
+    assert.deepEqual([verdict.level, verdict.passed], ['P2', true], name);
+    assert.deepEqual(checks(verdict), ['replay.statement'], 'only the replay statement, which withholds P3, is missing');
+    assert.equal(verdict.holo, `blake3:${readFileSync(signed).subarray(-32).toString('hex')}`, 'the holo member is the footer of the file given');
+    assert.match(run(['check', signed, '--key', publicKey]).out, /^PASSED {2}P2 proof checked/);
+  }
+});
+
+test('the same signed holo is P0 until the caller names a signer: an unchecked signature is no evidence', async () => {
+  const signed = file('unnamed.holo', await signedHolo(fixture));
+  for (const args of [[], ['--key', strangerKey]]) {
+    const { code, out } = run(['check', signed, ...args, '--json']);
+    assert.equal(code, EXIT.FAILED, args.join(' '));
+    const verdict = JSON.parse(out);
+    assert.equal(verdict.level, 'P0');
+    assert.deepEqual(checks(verdict), ['provenance.envelope', 'proof.envelope', 'replay.statement', 'policy.level']);
+    assert.equal(verdict.reasons[1].code, 'PP5501');
+  }
+  assert.match(run(['check', signed, '--key', strangerKey]).out, /does not verify/);
+  assert.equal(run(['check', signed, '--policy', P0]).code, EXIT.PASSED, 'a policy of P0 accepts it');
+});
+
+test('a signer that cannot be read or is half named is no verdict: exit 2', async () => {
+  const signed = file('signer-errors.holo', await signedHolo(fixture));
+  const { code, out, err } = run(['check', signed, '--key', join(dir, 'missing.pem'), '--json']);
+  assert.deepEqual([code, out], [EXIT.NO_VERDICT, '']);
+  assert.match(err, /^no verdict: policy\.unreadable: /);
+  const keyless = run(['check', signed, '--certificate-identity', 'ci@example.org', '--json']);
+  assert.equal(keyless.code, EXIT.NO_VERDICT);
+  assert.match(keyless.err, /certificateOidcIssuer|issuer/);
+});
+
+test('a tampered wasm blob in a signed holo fails with ProofMismatch: exit 1', async () => {
+  const bytes = await signedHolo(fixture);
+  const guest = parseArchive(bytes).blobs.find((b) => b.label === 'blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380');
+  bytes[guest.content.byteOffset + 100] ^= 0xff;
+  const tampered = file('signed-tampered.holo', bytes);
+  const { code, out } = run(['check', tampered, '--key', publicKey, '--json']);
+  assert.equal(code, EXIT.FAILED);
+  const verdict = JSON.parse(out);
+  assert.equal(verdict.level, 'P0');
+  assert.ok(checks(verdict).includes('holo.integrity') && checks(verdict).includes('proof.subject'), checks(verdict).join());
+  assert.equal(verdict.reasons.find((r) => r.check === 'proof.subject').code, 'PP5503');
+  assert.match(run(['check', tampered, '--key', publicKey]).out, /^ {2}proof\.subject \(PP5503, ProofMismatch, withholds P2\)$/m);
+});
+
+test('a proof statement signed for another build fails with ProofMismatch at P1: exit 1', async () => {
+  // The Calculator's own statement, validly signed, attached to Payment Approval: the signature holds and the subject does not.
+  const other = await signedHolo(paymentApproval, { proof: false });
+  const bundle = await signStatement(readFileSync(here('../../spec/test/fixtures/attestation/statement/calculator.json')), { key: privatePem });
+  const { code, out } = run(['check', file('mismatch.holo', appendAttestations(other, [bundle])), '--key', publicKey, '--json']);
+  assert.equal(code, EXIT.FAILED);
+  const verdict = JSON.parse(out);
+  assert.equal(verdict.level, 'P1');
+  assert.deepEqual(checks(verdict), ['proof.subject', 'proof.model', 'replay.statement', 'policy.level']);
+  assert.equal(verdict.reasons[0].code, 'PP5503');
 });
 
 test('a directory named like a holo is not one: no verdict', () => {

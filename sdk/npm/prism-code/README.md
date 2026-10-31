@@ -412,7 +412,7 @@ const { statement, divergenceCount } = await app.experimental_replay([history, r
 
 A divergence rejects with `DeterminismViolationError` (`replay.divergence`), and every divergence is in its `details`. With `throw: false` the result comes back instead. A replay that cannot be carried out always rejects with `ReplayError`.
 
-`statement` is an in-toto Statement v1 of type `https://uor.foundation/prism/replay/v1`: the guest as its subject, the model, every history by its sha256 and BLAKE3, the divergence count and the runtime. It holds no clock, so the same replay writes the same bytes. Sign it with `prism-code attest`. `check <holo> --replay <file>` judges a statement from beside the holo, which can withhold P3 and never support it because it is unsigned. Reading signed statements from the holo waits on #270, and until then every holo is P0. The design is `docs/proposals/284-histories-replay.md`.
+`statement` is an in-toto Statement v1 of type `https://uor.foundation/prism/replay/v1`: the guest as its subject, the model, every history by its sha256 and BLAKE3, the divergence count and the runtime. It holds no clock, so the same replay writes the same bytes. Sign it with `prism-code attest`. `check <holo> --replay <file>` judges a statement from beside the holo, which can withhold P3 and never support it because it is unsigned. `check` reads signed statements from the holo when you name the signer (#270). The design is `docs/proposals/284-histories-replay.md`.
 
 ## Generate a typed client (experimental)
 
@@ -484,6 +484,18 @@ which adjust the default policy. Without `--policy` the default policy asks for
 applies to a Rego policy, which states its own. A file is named in the verdict by
 its path, unless JSON names itself. The format is in
 [docs/proposals/285-policy-file.md](../../../docs/proposals/285-policy-file.md).
+
+A holo reaches P1 and P2 through the signed statements in its attestation
+section: a provenance statement for P1 and a proof statement for P2. `check`
+believes a signature only from the signer you name, with `--key <public.pem>`, or
+`--certificate-identity` (or `--certificate-identity-regexp`) with
+`--certificate-oidc-issuer`, and `--trusted-root <file>`. Without a signer a signed
+holo is P0. A proof statement about another guest, or a guest changed after
+signing, fails `proof.subject`, `ProofMismatch`, and exits 1.
+
+```
+npx prism-code check Calculator.signed.holo --key release.pub.pem --json
+```
 
 A Rego policy is in the package `prism.policy` and decides with `minimum` and `deny`:
 

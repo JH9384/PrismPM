@@ -110,7 +110,7 @@ jobs:
         with: { name: verdict, path: verdict.json }
 ```
 
-With `ci/policy.json` as `{ "minimum": "P2" }`, the job passes only for a holo whose provenance and proof statements verify. Until #272 lands in the Rust CLI no holo reaches P2 here; a pipeline that wants the integrity check alone today uses `{ "minimum": "P0" }` and reads the reasons.
+With `ci/policy.json` as `{ "minimum": "P2" }`, the job passes only for a holo whose provenance and proof statements verify. Until the Rust verdict verifies signatures (`prism-code check --key` does, #270) no holo reaches P2 here; a pipeline that wants the integrity check alone today uses `{ "minimum": "P0" }` and reads the reasons.
 
 ## Conformance
 

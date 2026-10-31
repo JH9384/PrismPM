@@ -119,6 +119,45 @@ export function checkProofStatement(statement, holo, envelope) {
   return reasons;
 }
 
+export const PROVENANCE_PREDICATE_TYPE = ASSURANCE.PREDICATES.provenance;
+
+/**
+ * Check one build provenance statement (SLSA provenance v1, #268) against the
+ * holo it travels in. Returns the reasons; an empty list means it supports P1.
+ * Both reasons withhold P1: `provenance.envelope` when the signature did not
+ * verify against the trust root the caller holds, and `provenance.subject`
+ * when a subject is not a content blob of this holo with both digests equal.
+ *
+ * @param {object} statement the decoded in-toto Statement
+ * @param {{ blobs: Array<{ digests: { sha256: string, blake3: string } | null }> }} holo the content blobs of the archive
+ * @param {{ verified: boolean, message?: string }} envelope the outcome of the DSSE signature check
+ */
+export function checkProvenanceStatement(statement, holo, envelope) {
+  const reasons = [];
+  const withheld = (check, message) => ({ check, withholds: 'P1', message });
+  if (!envelope?.verified) reasons.push(withheld('provenance.envelope', envelope?.message ?? 'The provenance statement signature does not verify against the trust root.'));
+  const subjects = isObject(statement) && Array.isArray(statement.subject) ? statement.subject : null;
+  const shape = [];
+  if (!isObject(statement)) shape.push('the statement is not an object');
+  else {
+    if (statement._type !== STATEMENT_TYPE) shape.push(`_type is ${JSON.stringify(statement._type)}`);
+    if (statement.predicateType !== PROVENANCE_PREDICATE_TYPE) shape.push(`predicateType is ${JSON.stringify(statement.predicateType)}`);
+    if (!subjects || subjects.length === 0) shape.push('the statement has no subject');
+  }
+  if (shape.length > 0) {
+    reasons.push(withheld('provenance.subject', `The provenance statement has the wrong shape: ${shape.join('; ')}.`));
+    return reasons;
+  }
+  const unmatched = subjects.filter((subject) => {
+    const digest = subject?.digest;
+    return !isObject(digest) || !holo.blobs.some((blob) => blob.digests && blob.digests.sha256 === digest.sha256 && blob.digests.blake3 === digest.blake3);
+  });
+  if (unmatched.length > 0) {
+    reasons.push(withheld('provenance.subject', `The provenance statement names ${unmatched.map((s) => s?.name ?? '(unnamed)').join(', ')}, which this holo does not contain with those digests.`));
+  }
+  return reasons;
+}
+
 export const REPLAY_PREDICATE_TYPE = ASSURANCE.PREDICATES.replay;
 export const REPLAY_SCHEMA = 'predicates/replay-v1.schema.json';
 

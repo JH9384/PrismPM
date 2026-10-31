@@ -98,3 +98,52 @@ test('a TCB without one of the seven components fails proof.tcb', () => {
   assert.deepEqual(checks(reasons), ['proof.tcb']);
   assert.match(reasons[0].message, /lacks leanchecker/);
 });
+
+// verify() with statements (#270): the caller hands in decoded statements and the outcome of their signature check.
+import { verify } from '../src/index.mjs';
+import { checkProvenanceStatement } from '../src/statements.mjs';
+
+const provenanceOf = (subject) => ({ _type: 'https://in-toto.io/Statement/v1', predicateType: 'https://slsa.dev/provenance/v1', subject: [{ name: 'guest', digest: subject }], predicate: {} });
+
+test('verify reaches P2 from a verified provenance statement and a verified proof statement, and no lower than they allow', async () => {
+  const provenance = provenanceOf(ADR_015.guest);
+  const statements = (envelope, proof = STATEMENT) => ({ provenance: { statement: provenance, envelope }, proof: { statement: proof, envelope } });
+  const passed = await verify(reference(), { statements: statements(SIGNED) });
+  assert.deepEqual([passed.level, passed.passed], ['P2', true]);
+  assert.deepEqual(checks(passed.reasons), ['replay.statement']);
+
+  const unverified = await verify(reference(), { statements: statements({ verified: false }) });
+  assert.equal(unverified.level, 'P0');
+  assert.deepEqual(checks(unverified.reasons), ['provenance.envelope', 'proof.envelope', 'replay.statement', 'policy.level']);
+
+  const other = statement((s) => (s.subject[0].digest.blake3 = 'e'.repeat(64)));
+  const mismatch = await verify(reference(), { statements: statements(SIGNED, other) });
+  assert.equal(mismatch.level, 'P1');
+  assert.deepEqual(checks(mismatch.reasons), ['proof.subject', 'replay.statement', 'policy.level']);
+  assert.equal(mismatch.reasons[0].code, 'PP5503');
+});
+
+test('the policy input shows a statement as verified only when its envelope was', async () => {
+  const { policyInput } = await import('../src/index.mjs');
+  const proof = { statement: STATEMENT, envelope: SIGNED };
+  const input = await policyInput(reference(), { statements: { proof } });
+  assert.deepEqual([input.predicates.proof.verified, input.predicates.provenance], [true, null]);
+  const unsigned = await policyInput(reference(), { statements: { proof: { ...proof, envelope: { verified: false } } } });
+  assert.equal(unsigned.predicates.proof.verified, false);
+});
+
+test('statements that are not { statement, envelope } are an invalid policy, not a pass', async () => {
+  for (const statements of [[], { replay: {} }, { proof: { statement: STATEMENT } }, { proof: { statement: STATEMENT, envelope: { verified: 'yes' } } }]) {
+    await assert.rejects(verify(reference(), { statements }), (error) => error.code === 'policy.invalid');
+  }
+});
+
+test('a provenance statement fails provenance.subject when a subject is not a blob of the holo, or is the wrong shape', () => {
+  const holo = { blobs: [{ digests: ADR_015.guest }] };
+  assert.deepEqual(checkProvenanceStatement(provenanceOf(ADR_015.guest), holo, SIGNED), []);
+  const wrongBlob = checkProvenanceStatement(provenanceOf({ ...ADR_015.guest, sha256: '0'.repeat(64) }), holo, SIGNED);
+  assert.deepEqual(wrongBlob.map((r) => [r.check, r.withholds]), [['provenance.subject', 'P1']]);
+  const wrongType = checkProvenanceStatement({ ...provenanceOf(ADR_015.guest), predicateType: 'https://example.org/x' }, holo, SIGNED);
+  assert.deepEqual(wrongType.map((r) => r.check), ['provenance.subject']);
+  assert.deepEqual(checkProvenanceStatement(provenanceOf(ADR_015.guest), holo, { verified: false }).map((r) => r.check), ['provenance.envelope']);
+});

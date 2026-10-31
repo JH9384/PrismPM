@@ -168,6 +168,10 @@ Options for check:    --policy <file>              a Rego file (.rego), the name
                                                    the grant. Exit 1 when it denies, 2 when it cannot be evaluated
                       --replay <file>              a prism/replay/v1 statement to judge with the holo; unsigned, so it
                                                    can withhold P3 and never support it
+                      --key <public.pem>           trust statements signed by this key; or name a keyless signer with
+                      --certificate-identity <id> (or --certificate-identity-regexp <re>) and
+                      --certificate-oidc-issuer <url>, and pin --trusted-root <file>. Without a signer a signed
+                                                   holo is P0: the provenance statement supports P1, the proof statement P2
                       --json                       the verdict as one canonical JSON object
                       deprecated: check without a holo runs build --check; removed in 0.4.0
 Options for push:     --key <private.pem>          sign a statement naming the manifest, per predicate in the holo, for cosign verify-attestation
@@ -471,7 +475,7 @@ async function commandTransfer(verb, positional, options) {
   return verb === 'push' ? cli.runPush(positional, options, usage) : cli.runPull(positional, options, usage);
 }
 
-const CHECK_OPTIONS = ['policy', 'replay', 'json'];
+const CHECK_OPTIONS = ['policy', 'replay', 'json', 'key', 'certificate-identity', 'certificate-identity-regexp', 'certificate-oidc-issuer', 'trusted-root'];
 
 /** True when `check` was given a holo, a path ending in `.holo` or a file; otherwise it is the deprecated `build --check`. */
 function namesHolo(positional) {
@@ -485,6 +489,31 @@ function namesHolo(positional) {
   }
 }
 
+/**
+ * The signer policy of `check` (#270): a PEM public key, or a certificate identity and issuer, and optionally
+ * a pinned trusted root. Undefined when none is named, and then no signature counts.
+ */
+async function signerOf(options) {
+  const named = ['key', 'certificate-identity', 'certificate-identity-regexp', 'certificate-oidc-issuer', 'trusted-root'].filter((name) => Object.hasOwn(options, name));
+  if (named.length === 0) return undefined;
+  for (const name of named) if (typeof options[name] !== 'string' || options[name] === '') throw new VerificationError(`--${name} takes a value`, { check: 'policy.invalid' });
+  let key;
+  if (options.key !== undefined) {
+    try {
+      key = await readFile(resolve(options.key), 'utf8');
+    } catch (cause) {
+      throw new VerificationError(`the key ${options.key} cannot be read: ${cause.code ?? cause.message}`, { check: 'policy.unreadable', cause });
+    }
+  }
+  return {
+    key,
+    certificateIdentity: options['certificate-identity'],
+    certificateIdentityRegexp: options['certificate-identity-regexp'],
+    certificateOidcIssuer: options['certificate-oidc-issuer'],
+    trustedRoot: options['trusted-root'] === undefined ? undefined : resolve(options['trusted-root']),
+  };
+}
+
 async function commandCheck(positional, options) {
   const unknown = Object.keys(options).find((name) => !CHECK_OPTIONS.includes(name));
   if (unknown) return usage(`check has no option --${unknown}`);
@@ -493,7 +522,7 @@ async function commandCheck(positional, options) {
   if (positional.length !== 1) return usage('check takes one holo');
   let verdict;
   try {
-    verdict = await check(positional[0], { policy: options.policy, replay: options.replay });
+    verdict = await check(positional[0], { policy: options.policy, replay: options.replay, signer: await signerOf(options) });
   } catch (error) {
     if (!(error instanceof PrismError)) throw error;
     process.stderr.write(`no verdict: ${error.check ?? error.code}: ${error.message}\n`);

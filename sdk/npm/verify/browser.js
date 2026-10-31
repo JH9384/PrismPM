@@ -2015,6 +2015,45 @@ const __statements = (() => {
     return reasons;
   }
 
+  const PROVENANCE_PREDICATE_TYPE = ASSURANCE.PREDICATES.provenance;
+
+  /**
+   * Check one build provenance statement (SLSA provenance v1, #268) against the
+   * holo it travels in. Returns the reasons; an empty list means it supports P1.
+   * Both reasons withhold P1: `provenance.envelope` when the signature did not
+   * verify against the trust root the caller holds, and `provenance.subject`
+   * when a subject is not a content blob of this holo with both digests equal.
+   *
+   * @param {object} statement the decoded in-toto Statement
+   * @param {{ blobs: Array<{ digests: { sha256: string, blake3: string } | null }> }} holo the content blobs of the archive
+   * @param {{ verified: boolean, message?: string }} envelope the outcome of the DSSE signature check
+   */
+  function checkProvenanceStatement(statement, holo, envelope) {
+    const reasons = [];
+    const withheld = (check, message) => ({ check, withholds: 'P1', message });
+    if (!envelope?.verified) reasons.push(withheld('provenance.envelope', envelope?.message ?? 'The provenance statement signature does not verify against the trust root.'));
+    const subjects = isObject(statement) && Array.isArray(statement.subject) ? statement.subject : null;
+    const shape = [];
+    if (!isObject(statement)) shape.push('the statement is not an object');
+    else {
+      if (statement._type !== STATEMENT_TYPE) shape.push(`_type is ${JSON.stringify(statement._type)}`);
+      if (statement.predicateType !== PROVENANCE_PREDICATE_TYPE) shape.push(`predicateType is ${JSON.stringify(statement.predicateType)}`);
+      if (!subjects || subjects.length === 0) shape.push('the statement has no subject');
+    }
+    if (shape.length > 0) {
+      reasons.push(withheld('provenance.subject', `The provenance statement has the wrong shape: ${shape.join('; ')}.`));
+      return reasons;
+    }
+    const unmatched = subjects.filter((subject) => {
+      const digest = subject?.digest;
+      return !isObject(digest) || !holo.blobs.some((blob) => blob.digests && blob.digests.sha256 === digest.sha256 && blob.digests.blake3 === digest.blake3);
+    });
+    if (unmatched.length > 0) {
+      reasons.push(withheld('provenance.subject', `The provenance statement names ${unmatched.map((s) => s?.name ?? '(unnamed)').join(', ')}, which this holo does not contain with those digests.`));
+    }
+    return reasons;
+  }
+
   const REPLAY_PREDICATE_TYPE = ASSURANCE.PREDICATES.replay;
   const REPLAY_SCHEMA = 'predicates/replay-v1.schema.json';
 
@@ -2078,7 +2117,7 @@ const __statements = (() => {
     }
     return reasons;
   }
-  return Object.freeze({ STATEMENT_TYPE, PROOF_PREDICATE_TYPE, PROOF_SCHEMA, TCB_COMPONENTS, PROOF_CODES, checkProofStatement, REPLAY_PREDICATE_TYPE, REPLAY_SCHEMA, REPLAY_CODES, checkReplayStatement });
+  return Object.freeze({ STATEMENT_TYPE, PROOF_PREDICATE_TYPE, PROOF_SCHEMA, TCB_COMPONENTS, PROOF_CODES, checkProofStatement, PROVENANCE_PREDICATE_TYPE, checkProvenanceStatement, REPLAY_PREDICATE_TYPE, REPLAY_SCHEMA, REPLAY_CODES, checkReplayStatement });
 })();
 
 // src/world.mjs
@@ -3585,7 +3624,7 @@ const __index = (() => {
   const assurance = __vendor_assurance_levels;
   const transparency = __transparency;
   const { levelOf } = __level;
-  const { checkReplayStatement } = __statements;
+  const { checkReplayStatement, checkProofStatement, checkProvenanceStatement } = __statements;
   const { checkWorld, checkWorldPolicy, capabilitySetProblem, compareWorldPin, declaredImports, describeWorld, effectsOutsidePolicy, IMPURE_EFFECTS } = __world;
   const { parseRego, RegoError } = __rego;
   const policies = __policy;
@@ -4256,13 +4295,13 @@ const __index = (() => {
     if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, program: policies.shippedPolicy(DEFAULT_POLICY), minimum: null, digests: {}, world: undefined, capabilities: null, effects: null };
     if (typeof policy !== 'object') throw new VerifyError('policy.invalid', 'the policy must be an object');
     for (const key of Object.keys(policy)) {
-      if (!['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects', 'replay'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, rego, minimum, digests, world, capabilities or effects`);
+      if (!['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects', 'replay', 'statements'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, rego, minimum, digests, world, capabilities or effects`);
     }
     if (policy.rego !== undefined) {
       // A policy file is the whole policy. What it decides, a level or a pin, it says in Rego, where a reader can see it.
-      const other = Object.keys(policy).find((key) => !['name', 'rego', 'capabilities', 'replay'].includes(key));
+      const other = Object.keys(policy).find((key) => !['name', 'rego', 'capabilities', 'replay', 'statements'].includes(key));
       if (other) throw new VerifyError('policy.invalid', `policy.${other} cannot be given with policy.rego; a Rego policy states it itself`);
-      return { name: checkName(policy.name ?? 'policy'), program: parsePolicy(policy.rego), minimum: null, digests: {}, world: undefined, capabilities: checkCapabilities(policy.capabilities), effects: null, replay: policy.replay };
+      return { name: checkName(policy.name ?? 'policy'), program: parsePolicy(policy.rego), minimum: null, digests: {}, world: undefined, capabilities: checkCapabilities(policy.capabilities), effects: null, replay: policy.replay, statements: policy.statements };
     }
     const name = checkName(policy.name ?? DEFAULT_POLICY);
     const minimum = policy.minimum ?? null;
@@ -4285,7 +4324,7 @@ const __index = (() => {
       if (!Array.isArray(effects) || effects.some((e) => !IMPURE_EFFECTS.includes(e))) throw new VerifyError('policy.invalid', `policy.effects must be an array of ${IMPURE_EFFECTS.join(', ')}`);
       if (new Set(effects).size !== effects.length) throw new VerifyError('policy.invalid', 'policy.effects repeats an effect');
     }
-    return { name, program: policies.shippedPolicy(DEFAULT_POLICY), minimum, digests, world: checkWorldPin(policy.world), capabilities, effects, replay: policy.replay };
+    return { name, program: policies.shippedPolicy(DEFAULT_POLICY), minimum, digests, world: checkWorldPin(policy.world), capabilities, effects, replay: policy.replay, statements: policy.statements };
   }
 
   /**
@@ -4334,10 +4373,31 @@ const __index = (() => {
   const DETACHED = Object.freeze({ verified: false, message: "The replay statement came from beside the holo and is unsigned; only a signed statement in the holo's attestation section can support P3 (issues #267 and #270)." });
 
   /**
+   * The `statements` option: `{ provenance, proof }`, each `{ statement, envelope }`
+   * where `statement` is the decoded in-toto Statement and `envelope` is
+   * `{ verified, message? }`, the outcome of the DSSE signature check against a
+   * trust root the caller holds. This package verifies no signature itself; a
+   * statement whose `envelope.verified` is not true fails its envelope check and
+   * supports nothing.
+   */
+  function checkedStatements(statements) {
+    if (statements === undefined) return {};
+    if (statements === null || typeof statements !== 'object' || Array.isArray(statements)) throw new VerifyError('policy.invalid', 'policy.statements must be an object');
+    for (const [kind, entry] of Object.entries(statements)) {
+      if (!['provenance', 'proof'].includes(kind)) throw new VerifyError('policy.invalid', `policy.statements.${kind} is not provenance or proof`);
+      if (entry === undefined) continue;
+      if (entry === null || typeof entry !== 'object' || typeof entry.envelope?.verified !== 'boolean' || !('statement' in entry)) {
+        throw new VerifyError('policy.invalid', `policy.statements.${kind} must be { statement, envelope: { verified } }`);
+      }
+    }
+    return { provenance: statements.provenance, proof: statements.proof };
+  }
+
+  /**
    * What a holo's bytes show, before any policy judges them. Rejects with
    * VerifyError when there is nothing to judge.
    */
-  function evidenceOf(bytes, capabilities, replay) {
+  function evidenceOf(bytes, capabilities, replay, statements) {
     const { checks, facts } = analyze(bytes);
 
     const unreadable = checks.find((c) => c.status === 'fail' && STRUCTURE_IDS.includes(c.id));
@@ -4350,12 +4410,19 @@ const __index = (() => {
     for (const check of checks) {
       if (check.status === 'fail' && REPORTED_AS[check.id]) reasons.push({ check: REPORTED_AS[check.id], withholds: 'P1', message: sentence(check.detail) });
     }
+    // proof.* and provenance.* (#266, #268): a statement the caller has already decoded and whose signature it has checked.
+    const attested = checkedStatements(statements);
+    const digests = (role) => facts.sections.find((s) => s.label === facts.roles[role])?.digests ?? null;
     for (const statement of STATEMENTS) {
-      if (replay === undefined || statement.check !== 'replay.statement') reasons.push({ ...statement });
+      if (statement.check === 'replay.statement' && replay !== undefined) continue;
+      if (statement.check === 'provenance.statement' && attested.provenance) {
+        reasons.push(...checkProvenanceStatement(attested.provenance.statement, { blobs: facts.sections.filter((s) => s.label && s.digests) }, attested.provenance.envelope));
+      } else if (statement.check === 'proof.statement' && attested.proof) {
+        reasons.push(...checkProofStatement(attested.proof.statement, { guest: digests('guest'), model: digests('model'), provenance: facts.documents.provenance }, attested.proof.envelope));
+      } else reasons.push({ ...statement });
     }
     // replay.* (#284): the replay check's own reasons replace the one that says no statement is there.
     if (replay !== undefined) {
-      const digests = (role) => facts.sections.find((s) => s.label === facts.roles[role])?.digests ?? null;
       reasons.push(...checkReplayStatement(replay, { guest: digests('guest'), model: digests('model') }, DETACHED));
     }
 
@@ -4366,12 +4433,19 @@ const __index = (() => {
       reasons.push({ check: 'world.capabilities', code: 'PP5602', withholds: 'P3', message: sentence(`the world exceeds the granted capabilities: ${world.problems.join('; ')}`) });
     }
 
-    return { facts, reasons, contract, world, replay, level: levelOf(reasons) };
+    return { facts, reasons, contract, world, replay, attested, level: levelOf(reasons) };
+  }
+
+  /** A checked statement as the policy input shows it: null when absent or when a check of its kind other than the envelope failed. */
+  function predicateOf(entry, reasons, prefix) {
+    if (!entry || reasons.some((r) => r.check.startsWith(prefix) && r.check !== `${prefix}envelope`)) return null;
+    const statement = entry.statement;
+    return { predicateType: statement.predicateType, verified: entry.envelope.verified === true && !reasons.some((r) => r.check === `${prefix}envelope`), predicate: statement.predicate };
   }
 
   /** The `prism/policy-input/1` document of a holo's evidence (issue #285). */
   function inputOf(bytes, evidence, capabilities) {
-    const { facts, reasons, contract, world, replay, level } = evidence;
+    const { facts, reasons, contract, world, replay, attested, level } = evidence;
     const blob = (role) => (facts.roles[role] ? facts.sections.find((s) => s.label === facts.roles[role]) : undefined);
     const digests = { archive: digestsOf(bytes) };
     for (const role of ['capabilities', 'guest', 'view', 'model']) {
@@ -4399,8 +4473,8 @@ const __index = (() => {
       capabilities,
       // Statements join with the format revision that admits the attestation section (#267). Until then a holo carries none, and only a replay statement can come from beside it.
       predicates: {
-        provenance: null,
-        proof: null,
+        provenance: predicateOf(attested.provenance, reasons, 'provenance.'),
+        proof: predicateOf(attested.proof, reasons, 'proof.'),
         replay: replay === undefined || reasons.some((r) => r.check === 'replay.statement') ? null : { predicateType: replay.predicateType, verified: DETACHED.verified, predicate: replay.predicate },
       },
     };
@@ -4416,7 +4490,7 @@ const __index = (() => {
   async function policyInput(source, options) {
     const bytes = asBytes(source);
     const capabilities = checkCapabilities(options?.capabilities);
-    return inputOf(bytes, evidenceOf(bytes, capabilities, options?.replay), capabilities);
+    return inputOf(bytes, evidenceOf(bytes, capabilities, options?.replay, options?.statements), capabilities);
   }
 
   /**
@@ -4442,7 +4516,7 @@ const __index = (() => {
   async function verify(source, policy) {
     const bytes = asBytes(source);
     const wanted = checkPolicy(policy);
-    const evidence = evidenceOf(bytes, wanted.capabilities, wanted.replay);
+    const evidence = evidenceOf(bytes, wanted.capabilities, wanted.replay, wanted.statements);
     const { facts, level, contract, world: worldPolicy } = evidence;
     const reasons = [...evidence.reasons];
 

@@ -25,13 +25,16 @@ export function exampleSource(name) {
 /**
  * Run each line of a `.sh` example, every one a `prism-code` command with no
  * quoting, against the command in this repository. Each line's output is
- * captured in turn, and a line that exits non-zero fails the example.
+ * captured in turn, and a line that exits with a status other than the one it
+ * expects fails the example. A line expects 0 unless it ends in `# exit N`,
+ * which is for a command whose exit code is the point, such as `check`.
  */
 function runCommands(name, { cwd }) {
   const source = exampleSource(name);
   let output = '';
   for (const line of source.split('\n').filter(Boolean)) {
-    const [command, ...args] = line.split(/\s+/);
+    const [text, expected] = line.split(/\s+#\s+exit\s+/);
+    const [command, ...args] = text.split(/\s+/);
     if (command !== 'prism-code') throw new Error(`example ${name}: ${line} is not a prism-code command`);
     const result = spawnSync(process.execPath, ['--no-warnings', join(PRISM_CODE_DIR, 'bin', 'prism-code.mjs'), ...args], {
       cwd,
@@ -39,7 +42,7 @@ function runCommands(name, { cwd }) {
       env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0', PRISM_MINIMUM_LEVEL: '' },
       maxBuffer: 16 * 1024 * 1024,
     });
-    if (result.status !== 0) throw new Error(`example ${name}: ${line} exited with ${result.status}:\n${result.stderr}`);
+    if (result.status !== Number(expected ?? 0)) throw new Error(`example ${name}: ${text} exited with ${result.status}, expected ${expected ?? 0}:\n${result.stderr}`);
     output += result.stdout.replace(/\r\n/g, '\n');
   }
   return { name, source, output, language: 'bash' };

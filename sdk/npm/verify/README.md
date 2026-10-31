@@ -66,7 +66,7 @@ Damage after the section table is reported, not thrown. A document that does not
 
 ## Levels today
 
-The levels are P0 unverified, P1 provenance, P2 proof checked and P3 proof, replay and world. P1 needs the archive to recompute and a signed provenance statement. No holo carries signed statements yet, so every holo is P0 today, and the default policy, P2, fails.
+The levels are P0 unverified, P1 provenance, P2 proof checked and P3 proof, replay and world. P1 needs the archive to recompute and a signed provenance statement. `verify` verifies no signature. A caller that has checked the signatures of the statements in a holo's attestation section hands them in as the `statements` option, `{ provenance, proof }`, each `{ statement, envelope: { verified } }`; `prism-code check` does this with `--key` or a certificate identity. A provenance statement whose envelope verified and whose subjects are blobs of the holo supports P1, and a proof statement that passes the proof checks supports P2. A holo with no statements handed in is P0 today, and the default policy, P2, fails it.
 
 What this package does check today appears as reasons that withhold P1:
 
@@ -178,7 +178,7 @@ Not checked: the DSSE signature, the signing identity, revocation and checkpoint
 
 ## Proof statement checks
 
-`src/statements.mjs` holds the eight checks of a `prism/proof/v1` statement against the holo it travels in (issue #266): `proof.envelope`, `proof.statement`, `proof.subject`, `proof.model`, `proof.verifier`, `proof.verdict` and `proof.tcb`, diagnostics `PP5501` to `PP5507`, each withholding P2. `proof.level` is a shape failure since #269 and reports as `proof.statement`. `verify` joins them when a format revision admits the attestation section (#267's wire model change); until then a holo that carries one has no verdict, and `prism-code check` exits 2 on it. The module is not exported.
+`src/statements.mjs` holds the eight checks of a `prism/proof/v1` statement against the holo it travels in (issue #266): `proof.envelope`, `proof.statement`, `proof.subject`, `proof.model`, `proof.verifier`, `proof.verdict` and `proof.tcb`, diagnostics `PP5501` to `PP5507`, each withholding P2. `proof.level` is a shape failure since #269 and reports as `proof.statement`. `verify` joins them through the `statements` option (#270): the caller has decoded the statement and checked its DSSE signature, and says so in `envelope.verified`. `checkProvenanceStatement` adds `provenance.envelope` and `provenance.subject`, each withholding P1. The module is not exported.
 
 ## Errors
 

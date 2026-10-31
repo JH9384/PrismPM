@@ -123,7 +123,7 @@ test('verify names every page that shows an example the runtime cannot run', asy
     const { files: rendered, problems } = await renderSite({ spec, runtime: { ...runtime, url: pathToFileURL(entry).href } });
     assert.deepEqual(
       problems.map((p) => `${p.page} ${p.kind}`).sort(),
-      ['api/history-and-replay example', 'api/dispatch example', 'api/index example', 'api/load example', 'api/verify example', 'examples/call-a-holo example', 'examples/check-a-holo example', 'examples/inspect-a-holo example', 'examples/replay-examples example', 'guides/run-a-holo example', 'sdks/typescript example'].sort(),
+      ['api/history-and-replay example', 'api/dispatch example', 'api/index example', 'api/load example', 'api/verify example', 'examples/call-a-holo example', 'examples/check-a-holo example', 'examples/inspect-a-holo example', 'examples/replay-examples example', 'guides/run-a-holo example', 'guides/write-a-middleware example', 'sdks/typescript example'].sort(),
     );
     assert.ok(rendered.has('reference/holo-format.md'), 'pages that run nothing still render');
     assert.ok(!rendered.has('llms.txt'), 'the site index is not written from a partial site');

@@ -139,6 +139,14 @@ export class ReferenceInvalidError extends PrismError {
 export class ExportMismatchError extends PrismError {
   static readonly code: 'export_mismatch';
 }
+/**
+ * `middleware_failed`: a middleware threw something that is not a `PrismError` (#295).
+ * `details` names it and `cause` is what it threw; a `PrismError` a middleware throws passes through as it is.
+ */
+export class MiddlewareError extends PrismError {
+  static readonly code: 'middleware_failed';
+  details: { name: string | null; step: MiddlewareStep; tags: string[] };
+}
 export const ERROR_CLASSES: Readonly<Record<string, typeof PrismError>>;
 /** The class a verdict reason's check id maps to. */
 export function classForCheck(check: string): typeof PrismError;
@@ -406,7 +414,95 @@ export interface Application {
   experimental_verify(options?: VerifyOptions): Promise<Verdict>;
   /** The bundles of the attestation section (#267), in order; empty without the section and for closures. Signatures are not verified. */
   attestations(): Attestation[];
+  /** Experimental. The middleware around this application's verify, instantiate, dispatch and record steps (#295). */
+  experimental_middleware: MiddlewareStack;
 }
+
+/** The steps the runtime performs, in order. A closure instantiates once at load and runs no `instantiate` step. */
+export type MiddlewareStep = 'verify' | 'instantiate' | 'dispatch' | 'record';
+export const MIDDLEWARE_STEPS: readonly ['verify', 'instantiate', 'dispatch', 'record'];
+
+/** What each step takes and returns. */
+export interface MiddlewareSteps {
+  verify: { args: { options: VerifyOptions | undefined }; result: Verdict };
+  instantiate: { args: { module: WebAssembly.Module; imports: WebAssembly.Imports }; result: WebAssembly.Instance };
+  /** `instance` is absent for a closure. */
+  dispatch: { args: { request: Uint8Array; instance?: WebAssembly.Instance }; result: Uint8Array };
+  record: { args: { request: Uint8Array; response: Uint8Array }; result: Uint8Array };
+}
+
+export interface MiddlewareContext {
+  step: MiddlewareStep;
+  application: Application;
+}
+
+export type MiddlewareHandler<S extends MiddlewareStep = MiddlewareStep> = (
+  args: MiddlewareSteps[S]['args'],
+) => Promise<MiddlewareSteps[S]['result']>;
+
+/** `(next, context) => handler`. Call `next(args)` to run the rest of the step; the first middleware of a step is the outermost. */
+export type Middleware<S extends MiddlewareStep = MiddlewareStep> = (next: MiddlewareHandler<S>, context: MiddlewareContext) => MiddlewareHandler<S>;
+
+export interface MiddlewareOptions {
+  /** Unique on the stack. Needed to place another middleware relative to this one, or to remove it by name. */
+  name?: string;
+  tags?: string[];
+  /** Replace a middleware of the same name instead of refusing with `middleware.name`. */
+  override?: boolean;
+}
+
+export interface AbsoluteMiddlewareOptions<S extends MiddlewareStep = MiddlewareStep> extends MiddlewareOptions {
+  step: S;
+  /** Within a step: `high` first, then `normal` (the default), then `low`; ties in the order added. */
+  priority?: 'high' | 'normal' | 'low';
+}
+
+export interface RelativeMiddlewareOptions extends MiddlewareOptions {
+  relation: 'before' | 'after';
+  /** The name of the middleware to sit next to, at its step. It must be on the stack when the step runs (`middleware.relative`). */
+  toMiddleware: string;
+}
+
+/** Anything that adds middleware: `stack.use(pluggable)`. */
+export interface Pluggable {
+  applyToStack(stack: MiddlewareStack): void;
+}
+
+export interface MiddlewareStack {
+  add<S extends MiddlewareStep>(middleware: Middleware<S>, options: AbsoluteMiddlewareOptions<S>): this;
+  addRelativeTo(middleware: Middleware, options: RelativeMiddlewareOptions): this;
+  /** By name or by the function itself; true when something was removed. */
+  remove(nameOrMiddleware: string | Middleware): boolean;
+  removeByTag(tag: string): boolean;
+  use(pluggable: Pluggable): this;
+  clone(): MiddlewareStack;
+  /** Every entry in the order it runs: by step, then outermost first. */
+  identify(): { step: MiddlewareStep; name: string | null; tags: string[] }[];
+  /** The handler for one step: every middleware at that step around `terminal`. */
+  resolve<S extends MiddlewareStep>(
+    step: S,
+    terminal: (args: MiddlewareSteps[S]['args']) => MiddlewareSteps[S]['result'] | Promise<MiddlewareSteps[S]['result']>,
+    context?: Partial<MiddlewareContext>,
+  ): MiddlewareHandler<S>;
+}
+
+/** The part of an OpenTelemetry `Tracer` tracing uses; `trace.getTracer()` from `@opentelemetry/api` is one. */
+export interface TracerLike {
+  startActiveSpan<T>(name: string, options: { kind?: number; attributes?: Record<string, unknown> }, fn: (span: SpanLike) => T): T;
+}
+export interface SpanLike {
+  setAttribute(key: string, value: unknown): unknown;
+  setAttributes(attributes: Record<string, unknown>): unknown;
+  recordException(exception: unknown): unknown;
+  setStatus(status: { code: number; message?: string }): unknown;
+  end(): void;
+}
+
+/**
+ * Experimental. One span per step, named `prism.<step>`, from the tracer you pass; the package depends on no tracing library.
+ * Adds `tracing.<step>` middleware, tagged `tracing`, first in each step.
+ */
+export function experimental_tracing(options: { tracer: TracerLike; steps?: MiddlewareStep[] }): Pluggable;
 
 /** sha256 and BLAKE3, lowercase hex, over the same bytes (ADR-015). */
 export interface DigestSet {

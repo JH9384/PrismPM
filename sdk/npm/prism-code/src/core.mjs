@@ -33,16 +33,22 @@ export async function compileGuest(wasmBytes, grant = NO_CAPABILITIES) {
   return module;
 }
 
-/**
- * Run one request on a fresh instance of the compiled guest and return a copy
- * of the response bytes.
- */
-export function runGuest(module, request, limits = {}) {
+/** Refuse a request the guest cannot take, before any instance exists. */
+export function checkRequest(request, limits = {}) {
   if (!(request instanceof Uint8Array)) fail('core.request', 'request must be a Uint8Array');
   if (limits.guestAllocation !== undefined && request.length > limits.guestAllocation) {
     fail('core.allocation', `request of ${request.length} bytes exceeds the guest allocation maximum ${limits.guestAllocation}`);
   }
-  const { exports } = new WebAssembly.Instance(module, {});
+}
+
+/** A fresh instance of the compiled guest. The middleware `instantiate` step wraps this. */
+export function instantiateGuest(module, imports = {}) {
+  return new WebAssembly.Instance(module, imports);
+}
+
+/** Run one request on an instance and return a copy of the response bytes. */
+export function runInstance(instance, request) {
+  const { exports } = instance;
   const at = exports.holo_alloc(request.length) >>> 0;
   new Uint8Array(exports.memory.buffer, at, request.length).set(request);
   const packed = BigInt.asUintN(64, exports.holo_run(at, request.length));
@@ -52,6 +58,15 @@ export function runGuest(module, request, limits = {}) {
     fail('core.response', `guest response ${offset}+${length} lies outside its memory`);
   }
   return new Uint8Array(exports.memory.buffer.slice(offset, offset + length));
+}
+
+/**
+ * Run one request on a fresh instance of the compiled guest and return a copy
+ * of the response bytes.
+ */
+export function runGuest(module, request, limits = {}) {
+  checkRequest(request, limits);
+  return runInstance(instantiateGuest(module), request);
 }
 
 function equalBytes(a, b) {

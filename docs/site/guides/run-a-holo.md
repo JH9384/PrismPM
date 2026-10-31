@@ -140,6 +140,7 @@ A container exits 0 on success. Otherwise the code follows the typed error that 
 | 2 | `ProviderReplyError` | A provider broke the protocol. |
 | 2 | `ProviderFailedError` | A provider failed. |
 | 2 | `ExportMismatchError` | A browser export differs from its release. |
+| 1 | `MiddlewareError` | A middleware threw something untyped. |
 | 1 | `PrismError` | Any other typed error. |
 | 70 | anything else | Dispatch threw something untyped: a guest trap, or a bug in the runtime. |
 

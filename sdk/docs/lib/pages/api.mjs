@@ -120,6 +120,7 @@ const CLASSES = [
   ['WorldMismatchError', '`world.contract`, `world.hash`'],
   ['DeterminismViolationError', '`replay.divergence`'],
   ['ReplayError', 'every other `replay.*`'],
+  ['MiddlewareError', 'none: a middleware threw something that is not a `PrismError`'],
 ];
 
 export function apiErrors({ runtime, page }) {

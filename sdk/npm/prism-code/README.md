@@ -388,6 +388,49 @@ Every error is a `PrismError` with a stable `code`: `VerificationError`
 code, `verdict` and `reasons` the whole result. Load and archive failures remain
 `PrismCodeError`, a `PrismError` whose `code` is the check (`archive.magic`, ...).
 
+## Generate a typed client (experimental)
+
+`prism-code generate` writes bindings and a typed client from the holo's WIT
+world and its model into a directory you name. There is no default directory,
+and nothing is written into `node_modules`.
+
+```
+npx prism-code generate Calculator.holo --out src/calculator
+```
+
+For the Calculator it writes four files, ES modules with TypeScript
+declarations beside them, that import nothing:
+
+- `world.js`, `world.d.ts`: the world `hologram:guest/core-wasm@1`, read from
+  its WIT file. `instantiate(module)` checks the guest's exports, and
+  `dispatch(module, request)` runs one request on a fresh instance.
+- `calculator.js`, `calculator.d.ts`: the `Calculator` class, with one method
+  per operation of the model, `CalculatorError` with the guest's error codes,
+  and `MODEL`, `OPERATIONS`.
+
+```js
+import { load } from 'prism-code';
+import { Calculator, CalculatorError } from './calculator/calculator.js';
+
+const app = await load('Calculator.holo');
+const calculator = new Calculator(app.dispatch);
+await calculator.add(20, 22);      // 42n
+await calculator.divide(1, 0);     // rejects: CalculatorError, code 'division-by-zero'
+```
+
+A model without typed operations gets a client with `invoke(bytes)`.
+
+Beside the files, `prism-generate.json` records the language, the generator
+(version and the sha256 of its source), the world and the model the files came
+from, and the sha256 of each file. The world and the model are shaped like
+`inputs.world` and `inputs.model` of `prismpm.lock`. A second run with the same
+inputs and intact files writes nothing and says the directory is up to date. An
+edited generated file is written again; a file in the directory that
+`generate` did not write is never overwritten.
+
+`--lang js` is the only writer today. Rust and Python writers follow on the
+same code model (#289).
+
 ## Check one in CI (experimental)
 
 `prism-code check <app.holo>` judges a holo against a policy and prints the

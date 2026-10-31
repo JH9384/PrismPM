@@ -21,6 +21,7 @@
  *   prism-code verify-attestation <app.holo> ...      check the signatures of those statements
  *   prism-code export <NAME@sha256:DIGEST> [--out <dir> | --tar <file>]
  *                                                     write a verified release's six-file browser export
+ *   prism-code generate <app.holo> --out <dir>        write bindings and a typed client from the world
  *   prism-code check <app.holo> [--policy <file>] [--json]
  *                                                     judge the holo against a policy and print its verdict
  *   prism-code dev [<dir>] [--port N] [--no-open] [--policy <file>] [--build <command>] [--holo <path>]
@@ -59,6 +60,7 @@ import { ASSURANCE } from '../src/vendor/verify.mjs';
 import { inspect, formatInspection, select } from '../src/inspect.mjs';
 import { manifestProviders } from '../src/manifest.mjs';
 import { canonicalJson } from '../src/archive.mjs';
+import { generate, WRITERS } from '../src/generate/index.mjs';
 import { check, readPolicy, formatVerdict, verdictJson, exitCodeOf, EXIT as CHECK_EXIT } from '../src/check.mjs';
 import { discover, errorHookMessages, listPlugins, pluginHelp, readMetadata, runPlugin } from '../src/plugins.mjs';
 
@@ -105,6 +107,9 @@ Usage:
                                                     <project>/.prism/oci, or one tarball, with the holo's
                                                     attestations beside it; every byte is checked against
                                                     the build manifest
+  prism-code generate <app.holo> --out <dir> [--lang js]
+                                                    write bindings and a typed client from the holo's WIT world
+                                                    and model into <dir>; writes nothing when nothing changed
   prism-code check <app.holo> [--policy <file>] [--json]
                                                     judge the holo against a policy and print its verdict:
                                                     exit 0 passed, 1 failed, 2 no verdict
@@ -199,6 +204,7 @@ const VALUE_OPTIONS = [
   'out',
   'tar',
   'project',
+  'lang',
   'signing-config',
   'trusted-root',
   'certificate-identity',
@@ -367,6 +373,20 @@ async function commandAttestation(verb, positional, options) {
   if (bad) return usage(`--${bad} takes a value`);
   const cli = await import('../src/attest-cli.mjs');
   return verb === 'attest' ? cli.runAttest(positional, options, usage) : cli.runVerifyAttestation(positional, options, usage);
+}
+
+async function commandGenerate(positional, options) {
+  if (positional.length !== 1) return usage('generate takes one artifact');
+  if (typeof options.out !== 'string' || options.out === '') return usage('generate needs --out <dir>; it never writes to a default place');
+  const language = options.lang ?? 'js';
+  if (typeof language !== 'string' || !Object.hasOwn(WRITERS, language)) {
+    return usage(`--lang takes ${Object.keys(WRITERS).join(', ')}; rust and python are not written yet (#289)`);
+  }
+  const holo = new Uint8Array(await readFile(resolve(positional[0])));
+  const { status, out, files, record } = await generate({ holo, out: options.out, language });
+  const what = `${language}, ${record.world.contract}, model blake3:${record.model.blake3.slice(0, 12)}`;
+  process.stdout.write(status === 'unchanged' ? `${out} is up to date (${what})\n` : `wrote ${files.length} of ${Object.keys(record.files).length} files to ${out} (${what})\n`);
+  return 0;
 }
 
 async function commandExport(positional, options) {
@@ -644,6 +664,8 @@ async function main(argv) {
       return commandInspect(positional, options);
     case 'run':
       return commandRun(positional, options);
+    case 'generate':
+      return commandGenerate(positional, options);
     case 'export':
       return commandExport(positional, options);
     case 'rm':

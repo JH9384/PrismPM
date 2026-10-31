@@ -87,6 +87,21 @@ pub enum Commands {
         /// JSON policy file for a holo check: name, minimum (P0 to P3), digests, world, effects.
         #[arg(long, requires = "holo")]
         policy: Option<PathBuf>,
+        /// PEM public key that signed the holo's statements (#270). Without a signer, a signed holo is P0.
+        #[arg(long, requires = "holo")]
+        key: Option<PathBuf>,
+        /// The signer's certificate identity, compared exactly.
+        #[arg(long, requires = "holo")]
+        certificate_identity: Option<String>,
+        /// A regular expression the signer's certificate identity must match.
+        #[arg(long, requires = "holo")]
+        certificate_identity_regexp: Option<String>,
+        /// The OIDC issuer of the signer's certificate.
+        #[arg(long, requires = "holo")]
+        certificate_oidc_issuer: Option<String>,
+        /// Pinned Sigstore `trusted_root.json`.
+        #[arg(long, requires = "holo")]
+        trusted_root: Option<PathBuf>,
     },
     /// Build project artifacts or a locked verified OCI product release.
     Build {
@@ -510,12 +525,78 @@ fn confined_input(root: &Path, relative: &Path) -> Result<PathBuf, PrismError> {
     Ok(resolved)
 }
 
+/// The signer policy of `check` (#270): a PEM public key, or a certificate
+/// identity and issuer, and optionally a pinned trusted root. `None` when none
+/// is named, and then no signature counts. A key or root that cannot be read
+/// is no verdict, as in `prism-code check`.
+fn check_signer(
+    key: Option<&Path>,
+    certificate_identity: &Option<String>,
+    certificate_identity_regexp: &Option<String>,
+    certificate_oidc_issuer: &Option<String>,
+    trusted_root: Option<&Path>,
+) -> Result<Option<crate::attest::VerifyPolicy>, crate::inspect::verdict::NoVerdict> {
+    use crate::inspect::verdict::NoVerdict;
+    if key.is_none()
+        && certificate_identity.is_none()
+        && certificate_identity_regexp.is_none()
+        && certificate_oidc_issuer.is_none()
+        && trusted_root.is_none()
+    {
+        return Ok(None);
+    }
+    let key = match key {
+        None => None,
+        Some(path) => Some(std::fs::read_to_string(path).map_err(|error| {
+            NoVerdict::new(
+                "policy.unreadable",
+                format!("the key {} cannot be read: {error}", path.display()),
+            )
+        })?),
+    };
+    let trusted_root = match trusted_root {
+        None => None,
+        Some(path) => {
+            let text = std::fs::read(path).map_err(|error| {
+                NoVerdict::new(
+                    "policy.unreadable",
+                    format!(
+                        "the trusted root {} cannot be read: {error}",
+                        path.display()
+                    ),
+                )
+            })?;
+            Some(serde_json::from_slice(&text).map_err(|error| {
+                NoVerdict::new(
+                    "policy.invalid",
+                    format!("the trusted root {} is not JSON: {error}", path.display()),
+                )
+            })?)
+        }
+    };
+    Ok(Some(crate::attest::VerifyPolicy {
+        predicate_type: None,
+        certificate_identity: certificate_identity.clone(),
+        certificate_identity_regexp: certificate_identity_regexp.clone(),
+        certificate_oidc_issuer: certificate_oidc_issuer.clone(),
+        key,
+        trusted_root,
+        entries: None,
+        timestamps: None,
+    }))
+}
+
 /// `check <path.holo>` (#270): print the verdict and exit 0 when the policy
 /// passes, 1 when it fails, 2 when no verdict was reached. With `--json`,
 /// stdout holds exactly one canonical verdict on 0 and 1 and nothing on 2; the
 /// diagnostic goes to stderr (docs/proposals/269-assurance-levels.md). The
 /// holo is judged on its own, without a project root.
-fn holo_check(holo: &Path, policy: Option<&Path>, json: bool) -> ExitCode {
+fn holo_check(
+    holo: &Path,
+    policy: Option<&Path>,
+    signer: Result<Option<crate::attest::VerifyPolicy>, crate::inspect::verdict::NoVerdict>,
+    json: bool,
+) -> ExitCode {
     use crate::inspect::verdict;
     if let Err(error) = crate::process_resources::configure()
         .and_then(|()| crate::sdk::verify_environment().map(|_| ()))
@@ -524,7 +605,14 @@ fn holo_check(holo: &Path, policy: Option<&Path>, json: bool) -> ExitCode {
         return ExitCode::from(error.exit_code());
     }
     let minimum = std::env::var(verdict::MINIMUM_LEVEL_ENV).ok();
-    match verdict::check_path(holo, policy, minimum.as_deref()) {
+    let signer = match signer {
+        Ok(signer) => signer,
+        Err(no_verdict) => {
+            let _ = writeln!(std::io::stderr().lock(), "{}", no_verdict.diagnostic());
+            return ExitCode::from(verdict::EXIT_NO_VERDICT);
+        }
+    };
+    match verdict::check_path_with(holo, policy, minimum.as_deref(), signer) {
         Ok(verdict) => {
             let written = if json {
                 canonical(&verdict.value())
@@ -1452,9 +1540,21 @@ pub fn run() -> ExitCode {
     if let Commands::Check {
         holo: Some(holo),
         policy,
+        key,
+        certificate_identity,
+        certificate_identity_regexp,
+        certificate_oidc_issuer,
+        trusted_root,
     } = &cli.command
     {
-        return holo_check(holo, policy.as_deref(), cli.json);
+        let signer = check_signer(
+            key.as_deref(),
+            certificate_identity,
+            certificate_identity_regexp,
+            certificate_oidc_issuer,
+            trusted_root.as_deref(),
+        );
+        return holo_check(holo, policy.as_deref(), signer, cli.json);
     }
 
     match crate::process_resources::configure().and_then(|()| execute(&cli)) {
@@ -1501,7 +1601,8 @@ mod tests {
             model.command,
             Commands::Check {
                 holo: None,
-                policy: None
+                policy: None,
+                ..
             }
         ));
         let holo = Cli::try_parse_from(["prismpm", "check", "app.holo", "--json"]).unwrap();
@@ -1510,7 +1611,8 @@ mod tests {
             holo.command,
             Commands::Check {
                 holo: Some(_),
-                policy: None
+                policy: None,
+                ..
             }
         ));
         let policy =
@@ -1519,7 +1621,8 @@ mod tests {
             policy.command,
             Commands::Check {
                 holo: Some(_),
-                policy: Some(_)
+                policy: Some(_),
+                ..
             }
         ));
         assert!(Cli::try_parse_from(["prismpm", "check", "--policy", "ci.json"]).is_err());

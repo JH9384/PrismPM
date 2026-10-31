@@ -212,3 +212,64 @@ minimum := \"P0\"
     assert_eq!(usage.code, Some(2));
     assert!(usage.out.is_empty());
 }
+
+/// The signer flags (#270): the signed reference archives pass at P2 with the key that signed them, are P0 without
+/// one, and a key that cannot be read is no verdict. The verdicts are the goldens `prism-code check` prints.
+#[test]
+fn check_with_a_signer_reaches_p2_exactly_as_the_javascript_cli_does() {
+    let dir = tempfile::tempdir().unwrap();
+    let fixtures = root().join("sdk/npm/prism-code/test/fixtures/signed");
+    let signer = fixtures.join("signer.pub.pem");
+    for (holo, golden) in [
+        ("Calculator.signed.holo", "calculator.trusted.json"),
+        (
+            "PaymentApproval.signed.holo",
+            "payment-approval.trusted.json",
+        ),
+    ] {
+        let holo = fixtures.join(holo);
+        let run = prismpm(
+            &[
+                "check",
+                holo.to_str().unwrap(),
+                "--key",
+                signer.to_str().unwrap(),
+                "--json",
+            ],
+            dir.path(),
+        );
+        assert_eq!(run.code, Some(0), "{}{}", run.out, run.err);
+        let verdict: Value = serde_json::from_str(&run.out).unwrap();
+        let expected: Value =
+            serde_json::from_slice(&std::fs::read(fixtures.join(golden)).unwrap()).unwrap();
+        assert_eq!(verdict["level"], "P2");
+        assert_eq!(verdict["holo"], expected["holo"]);
+        assert_eq!(verdict["passed"], expected["passed"]);
+    }
+
+    let holo = fixtures.join("Calculator.signed.holo");
+    let unnamed = prismpm(&["check", holo.to_str().unwrap(), "--json"], dir.path());
+    assert_eq!(unnamed.code, Some(1), "{}", unnamed.err);
+    let verdict: Value = serde_json::from_str(&unnamed.out).unwrap();
+    assert_eq!(verdict["level"], "P0");
+
+    let missing = prismpm(
+        &[
+            "check",
+            holo.to_str().unwrap(),
+            "--key",
+            dir.path().join("missing.pem").to_str().unwrap(),
+            "--json",
+        ],
+        dir.path(),
+    );
+    assert_eq!(missing.code, Some(2));
+    assert_eq!(missing.out, "");
+    assert!(
+        missing
+            .err
+            .starts_with("PP5603: no verdict: policy.unreadable: "),
+        "{}",
+        missing.err
+    );
+}

@@ -1,0 +1,1 @@
+{"holo":"blake3:b426b7743046005cdc75d2752a0e42ab4858f63bd64c307e1ebe724a24cb578c","level":"P2","passed":true,"policy":{"minimum":"P2","name":"default"},"reasons":[{"check":"replay.statement","message":"The holo carries no replay statement (issue #284).","withholds":"P3"}],"schema":"prism/verdict/1"}

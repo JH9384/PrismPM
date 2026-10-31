@@ -770,6 +770,87 @@ fn al_06_the_rust_verdicts_equal_the_javascript_goldens_in_every_member_but_the_
     }
 }
 
+/// The signer policy of `check --key <public.pem>`.
+fn signed_by(pem: &str) -> Policy {
+    Policy {
+        signer: Some(crate::attest::VerifyPolicy {
+            key: Some(pem.to_owned()),
+            ..crate::attest::VerifyPolicy::default()
+        }),
+        ..Policy::default()
+    }
+}
+
+/// Parity (#270): the signed fixtures `prism-code check` prints its goldens for, with signatures verified for
+/// real by both CLIs against `signer.pub.pem`, give the same verdict here in every member but the messages.
+#[test]
+fn parity_the_rust_verdicts_for_the_signed_fixtures_equal_the_javascript_goldens() {
+    let dir = "sdk/npm/prism-code/test/fixtures/signed";
+    let read = |name: &str| std::fs::read(root().join(dir).join(name)).unwrap();
+    let text = |name: &str| String::from_utf8(read(name)).unwrap();
+    let trusted = text("signer.pub.pem");
+    let stranger = text("stranger.pub.pem");
+    let calculator = read("Calculator.signed.holo");
+    let mut damaged = calculator.clone();
+    let at = guest_content_offset(&damaged) + 100;
+    damaged[at] ^= 0xff;
+    let cases = [
+        (
+            "calculator.trusted.json",
+            calculator.clone(),
+            signed_by(&trusted),
+        ),
+        (
+            "payment-approval.trusted.json",
+            read("PaymentApproval.signed.holo"),
+            signed_by(&trusted),
+        ),
+        (
+            "calculator.no-signer.json",
+            calculator.clone(),
+            Policy::default(),
+        ),
+        (
+            "calculator.stranger.json",
+            calculator.clone(),
+            signed_by(&stranger),
+        ),
+        (
+            "payment-approval.mismatch.json",
+            read("PaymentApproval.mismatch.holo"),
+            signed_by(&trusted),
+        ),
+        ("calculator.tampered.json", damaged, signed_by(&trusted)),
+    ];
+    for (name, bytes, policy) in cases {
+        let verdict = verify(&bytes, &policy).unwrap();
+        let golden: Value = serde_json::from_str(&text(name)).unwrap();
+        assert_eq!(
+            without_messages(assert_valid(&verdict)),
+            without_messages(golden),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn a_signer_policy_that_is_unusable_is_no_verdict() {
+    let bytes = std::fs::read(
+        root().join("sdk/npm/prism-code/test/fixtures/signed/Calculator.signed.holo"),
+    )
+    .unwrap();
+    // A keyless policy that names no issuer: the same refusal `prism-code check` gives (exit 2).
+    let policy = Policy {
+        signer: Some(crate::attest::VerifyPolicy {
+            certificate_identity: Some("ci@example.org".to_owned()),
+            ..crate::attest::VerifyPolicy::default()
+        }),
+        ..Policy::default()
+    };
+    let error = verify(&bytes, &policy).unwrap_err();
+    assert_eq!(error.check, "policy.invalid");
+}
+
 #[test]
 fn the_no_verdict_diagnostic_is_registered_with_exit_two() {
     let error = NoVerdict {

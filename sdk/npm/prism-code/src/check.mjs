@@ -100,13 +100,13 @@ async function readReplay(path) {
 /**
  * The footer of the file as given covers the attestation section, and the verdict judges the archive without it, whose
  * footer is recomputed. So a file whose own footer does not match its bytes would read as intact: this puts the damage
- * back as `holo.integrity`, which withholds P1, and moves the level and the policy result with it.
+ * back as the first `holo.integrity` reason, which withholds P1, and moves the level and the policy result with it.
  */
-function withoutIntegrity(verdict) {
+function withoutIntegrity(verdict, { footer, fingerprint }) {
   const { RANK } = ASSURANCE;
-  const message = 'The footer of the file does not match its bytes: the holo was changed after it was written, or its attestation section was.';
+  const message = `The footer ${footer} does not equal the BLAKE3 of everything before it, ${fingerprint}.`;
   const kept = verdict.reasons.filter((r) => r.check !== 'policy.level');
-  const reasons = kept.some((r) => r.check === 'holo.integrity') ? kept : [{ check: 'holo.integrity', withholds: 'P1', message }, ...kept];
+  const reasons = [{ check: 'holo.integrity', withholds: 'P1', message }, ...kept];
   const level = 'P0';
   let passed = !kept.some((r) => r.withholds === null);
   if (RANK[level] < RANK[verdict.policy.minimum]) {
@@ -153,7 +153,7 @@ async function attestedEvidence(bytes, signer) {
       if (statements[kind] === undefined || (envelope.verified && !statements[kind].envelope.verified)) statements[kind] = { statement: attestation.statement, envelope };
     }
   }
-  return { unsigned: stripAttestations(parsed), statements, footerMatches: parsed.verification.footer, fingerprint: `blake3:${Buffer.from(bytes.subarray(bytes.length - 32)).toString('hex')}` };
+  return { unsigned: stripAttestations(parsed), statements, footerMatches: parsed.verification.footer, footer: Buffer.from(bytes.subarray(bytes.length - 32)).toString('hex'), computed: parsed.fingerprint, fingerprint: `blake3:${parsed.fingerprint}` };
 }
 
 async function signatureOutcome(attestation, signer) {
@@ -177,7 +177,7 @@ async function signatureOutcome(attestation, signer) {
  * provenance statement supports P1 and the proof statement P2, each only when
  * its signature verifies against `signer`. Without `signer` a signed holo is
  * P0, because an unchecked signature is no evidence. The verdict's `holo`
- * member is the footer of the file as given.
+ * member is the fingerprint of the file as given, computed over its body.
  *
  * @param {string} path the holo
  * @param {{ policy?: string, capabilities?: object | null, replay?: string, env?: object, signer?: object }} [options] `policy` is a shipped policy's name or a file path; `capabilities` the granted set; `replay` the path of a `prism/replay/v1` statement; `signer` the signer policy of `experimental_verifyBundle` (`key`, or `certificateIdentity` or `certificateIdentityRegexp` with `certificateOidcIssuer`, and `trustedRoot`)
@@ -192,7 +192,7 @@ export async function check(path, options = {}) {
   try {
     if (!attested) return await experimental_verify(bytes, { ...policy, env: options.env });
     const verdict = await experimental_verify(attested.unsigned, { ...policy, statements: attested.statements, env: options.env });
-    return { ...verdict, ...(attested.footerMatches ? {} : withoutIntegrity(verdict)), holo: attested.fingerprint };
+    return { ...verdict, ...(attested.footerMatches ? {} : withoutIntegrity(verdict, { footer: attested.footer, fingerprint: attested.computed })), holo: attested.fingerprint };
   } catch (error) {
     if (error instanceof PrismError) throw error;
     throw noVerdict('verify.input', error.message, error);

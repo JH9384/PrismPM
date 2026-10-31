@@ -30,7 +30,8 @@ fn cli_subcommand_coverage_and_parsing_boundaries() {
         check_cli.command,
         Commands::Check {
             holo: None,
-            policy: None
+            policy: None,
+            ..
         }
     ));
 

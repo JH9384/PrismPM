@@ -158,7 +158,7 @@ test('both reference archives pass at P2 when signed by the key the policy trust
     const verdict = JSON.parse(out);
     assert.deepEqual([verdict.level, verdict.passed], ['P2', true], name);
     assert.deepEqual(checks(verdict), ['replay.statement'], 'only the replay statement, which withholds P3, is missing');
-    assert.equal(verdict.holo, `blake3:${readFileSync(signed).subarray(-32).toString('hex')}`, 'the holo member is the footer of the file given');
+    assert.equal(verdict.holo, `blake3:${parseArchive(new Uint8Array(readFileSync(signed))).fingerprint}`, 'the holo member is the fingerprint of the file given');
     assert.match(run(['check', signed, '--key', publicKey]).out, /^PASSED {2}P2 proof checked/);
   }
 });
@@ -211,6 +211,27 @@ test('a proof statement signed for another build fails with ProofMismatch at P1:
   assert.equal(verdict.level, 'P1');
   assert.deepEqual(checks(verdict), ['proof.subject', 'proof.model', 'replay.statement', 'policy.level']);
   assert.equal(verdict.reasons[0].code, 'PP5503');
+});
+
+test('the committed signed fixtures are what check prints, signatures verified for real; the Rust CLI holds its verdicts against them (parity, #270)', () => {
+  const signedDir = here('../test/fixtures/signed/');
+  const damaged = new Uint8Array(readFileSync(join(signedDir, 'Calculator.signed.holo')));
+  const guest = parseArchive(damaged).blobs.find((b) => b.label === 'blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380');
+  damaged[guest.content.byteOffset + 100] ^= 0xff;
+  const tamperedSigned = file('signed-golden-tampered.holo', damaged);
+  const signer = join(signedDir, 'signer.pub.pem');
+  for (const [name, args, code] of [
+    ['calculator.trusted.json', [join(signedDir, 'Calculator.signed.holo'), '--key', signer], EXIT.PASSED],
+    ['payment-approval.trusted.json', [join(signedDir, 'PaymentApproval.signed.holo'), '--key', signer], EXIT.PASSED],
+    ['calculator.no-signer.json', [join(signedDir, 'Calculator.signed.holo')], EXIT.FAILED],
+    ['calculator.stranger.json', [join(signedDir, 'Calculator.signed.holo'), '--key', join(signedDir, 'stranger.pub.pem')], EXIT.FAILED],
+    ['payment-approval.mismatch.json', [join(signedDir, 'PaymentApproval.mismatch.holo'), '--key', signer], EXIT.FAILED],
+    ['calculator.tampered.json', [tamperedSigned, '--key', signer], EXIT.FAILED],
+  ]) {
+    const { code: actual, out } = run(['check', ...args, '--json']);
+    assert.equal(actual, code, name);
+    assert.equal(out, readFileSync(join(signedDir, name), 'utf8'), name);
+  }
 });
 
 test('a directory named like a holo is not one: no verdict', () => {

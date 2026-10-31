@@ -51,7 +51,7 @@ The Rust CLI sits on the wire model of #267 (PR 369), which admits the attestati
 
 - A holo that carries the section has a verdict here. The JavaScript `check` still refuses it with `format.revision` until `@prism-code/spec` dates the revision that admits the row; that is the one holo the two CLIs answer differently, and it resolves when the spec package moves.
 - The statements in the section are decoded (`holo::attestation`) and checked against the archive: the proof statement with the checks of #266 (`proof.statement` PP5502, `proof.subject` PP5503, `proof.model` PP5504, `proof.verdict` PP5506, `proof.tcb` PP5507), the provenance statement's subjects (`provenance.subject`). `proof.verifier` (PP5505) compares the statement with the project lock, which a holo on its own has not; it is registered and not yet raised.
-- Signatures are not verified: the Rust CLI has no trust root until #272 lands. A present statement therefore fails `proof.envelope` (PP5501) or `provenance.envelope`, and the level stays at P0. An unverified statement is no evidence, and the level is never raised by a claim: a `verifiedLevels` other than `["P2"]` is a shape failure (AL-05).
+- Signatures are verified with the verifier of `verify-attestation` (#272) against the signer the caller names: `--key <public.pem>`, or `--certificate-identity` / `--certificate-identity-regexp` with `--certificate-oidc-issuer`, and `--trusted-root <file>`. A statement whose signature does not verify, or when no signer is named, fails `proof.envelope` (PP5501) or `provenance.envelope`, and the level stays at P0; a signer policy that cannot be used is no verdict (exit 2). With a signer, both reference archives reach P2, held to the signed fixtures `prism-code check` prints goldens for. An unverified statement is no evidence, and the level is never raised by a claim: a `verifiedLevels` other than `["P2"]` is a shape failure (AL-05).
 
 ### Where it differs in detail, not in verdict
 
@@ -110,7 +110,7 @@ jobs:
         with: { name: verdict, path: verdict.json }
 ```
 
-With `ci/policy.json` as `{ "minimum": "P2" }`, the job passes only for a holo whose provenance and proof statements verify. Until the Rust verdict verifies signatures (`prism-code check --key` does, #270) no holo reaches P2 here; a pipeline that wants the integrity check alone today uses `{ "minimum": "P0" }` and reads the reasons.
+With `ci/policy.json` as `{ "minimum": "P2" }`, the job passes only for a holo whose provenance and proof statements verify. Without a signer (`--key`) no holo reaches P2 here; a pipeline that wants the integrity check alone today uses `{ "minimum": "P0" }` and reads the reasons.
 
 ## Conformance
 

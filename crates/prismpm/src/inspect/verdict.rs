@@ -334,7 +334,8 @@ pub struct NoVerdict {
 }
 
 impl NoVerdict {
-    fn new(check: &'static str, message: impl Into<String>) -> Self {
+    /// A step that could not be carried out, named as `prism-code` names it.
+    pub fn new(check: &'static str, message: impl Into<String>) -> Self {
         Self {
             check,
             message: message.into(),
@@ -383,6 +384,11 @@ pub struct Policy {
     /// The granted capability set, one set of a `prism/capabilities/1` file.
     /// `None` grants nothing. A policy file never grants; `run` does (#282).
     pub capabilities: Option<Value>,
+    /// The signer the caller trusts (`--key`, or a certificate identity and
+    /// issuer, and `--trusted-root`). A policy file never names one: like
+    /// `capabilities` it is the caller's. Without it no signature counts and a
+    /// signed holo is P0 (#270).
+    pub signer: Option<crate::attest::VerifyPolicy>,
 }
 
 fn hex64(text: &str) -> bool {
@@ -644,11 +650,23 @@ pub fn check_path(
     policy: Option<&Path>,
     minimum: Option<&str>,
 ) -> Result<Verdict, NoVerdict> {
-    let policy = match policy {
+    check_path_with(holo, policy, minimum, None)
+}
+
+/// [`check_path`] with the signer the caller trusts (#270): the statements of
+/// the attestation section count only when their signatures verify against it.
+pub fn check_path_with(
+    holo: &Path,
+    policy: Option<&Path>,
+    minimum: Option<&str>,
+    signer: Option<crate::attest::VerifyPolicy>,
+) -> Result<Verdict, NoVerdict> {
+    let mut policy = match policy {
         Some(path) => read_policy(path)?,
         None => Policy::default(),
     }
     .with_environment(minimum)?;
+    policy.signer = signer;
     let shown = holo.display();
     let metadata = std::fs::metadata(holo)
         .map_err(|_| NoVerdict::new("load.path", format!("{shown} does not exist")))?;
@@ -1706,14 +1724,17 @@ fn proof_reason(check: &str, code: &'static str, message: String) -> Reason {
 
 /// The checks of one proof statement against the holo it travels in (#266,
 /// "How the statement is checked offline"). Each failure withholds P2. The
-/// envelope check fails until the Rust CLI has a trust root (#272); the
-/// verifier check needs the project lock, which a holo on its own has not.
-fn proof_reasons(statement: &Value, analysis: &Analysis) -> Vec<Reason> {
-    let mut reasons = vec![proof_reason(
-        "proof.envelope",
-        PROOF_ENVELOPE,
-        "The proof statement signature is not verified: this CLI has no trust root yet (#272), and an unverified statement is no evidence.".to_owned(),
-    )];
+/// envelope check fails unless the signature verified against the signer the
+/// caller named (`--key` and the other signer flags); the verifier check needs the project lock, which a holo on its own has not.
+fn proof_reasons(statement: &Value, analysis: &Analysis, envelope: &Envelope) -> Vec<Reason> {
+    let mut reasons = Vec::new();
+    if let Err(message) = envelope {
+        reasons.push(proof_reason(
+            "proof.envelope",
+            PROOF_ENVELOPE,
+            message.clone(),
+        ));
+    }
     let mut shape = Vec::new();
     if statement.get("_type").and_then(Value::as_str) != Some(attestation::STATEMENT_TYPE) {
         shape.push(format!(
@@ -1932,7 +1953,11 @@ fn proof_reasons(statement: &Value, analysis: &Analysis) -> Vec<Reason> {
 /// The reasons the statements of the attestation section add: an absent
 /// statement withholds its level; a present one is checked as far as this CLI
 /// can check it.
-fn statement_reasons(analysis: &Analysis, reasons: &mut Vec<Reason>) {
+fn statement_reasons(
+    analysis: &Analysis,
+    signer: Option<&crate::attest::VerifyPolicy>,
+    reasons: &mut Vec<Reason>,
+) -> Result<(), NoVerdict> {
     let attestations = match &analysis.attestations {
         Ok(attestations) => attestations.as_slice(),
         Err(problem) => {
@@ -1947,46 +1972,28 @@ fn statement_reasons(analysis: &Analysis, reasons: &mut Vec<Reason>) {
             &[]
         }
     };
-    let first = |predicate: &str| {
-        attestations
-            .iter()
-            .find(|attestation| attestation.predicate_type == predicate)
-    };
 
-    match first(PROVENANCE_PREDICATE) {
+    match chosen(attestations, PROVENANCE_PREDICATE, signer)? {
         None => reasons.push(Reason::new(
             "provenance.statement",
             None,
             Some(Level::P1),
             "The holo carries no provenance statement.".to_owned(),
         )),
-        Some(statement) => {
-            reasons.push(Reason::new(
-                "provenance.envelope",
-                None,
-                Some(Level::P1),
-                "The provenance statement signature is not verified: this CLI has no trust root yet (#272), and an unverified statement is no evidence.".to_owned(),
-            ));
-            if !statement.resolved() {
-                reasons.push(Reason::new(
-                    "provenance.subject",
-                    None,
-                    Some(Level::P1),
-                    "The provenance statement names a blob this holo does not contain, or one whose sha256 differs.".to_owned(),
-                ));
-            }
+        Some((attestation, envelope)) => {
+            reasons.extend(provenance_reasons(attestation, &envelope, analysis));
         }
     }
 
-    match first(PROOF_PREDICATE) {
+    match chosen(attestations, PROOF_PREDICATE, signer)? {
         None => reasons.push(Reason::new(
             "proof.statement",
             None,
             Some(Level::P2),
             "The holo carries no proof statement.".to_owned(),
         )),
-        Some(attestation) => match attestation.statement() {
-            Some(statement) => reasons.extend(proof_reasons(&statement, analysis)),
+        Some((attestation, envelope)) => match attestation.statement() {
+            Some(statement) => reasons.extend(proof_reasons(&statement, analysis, &envelope)),
             None => reasons.push(proof_reason(
                 "proof.statement",
                 PROOF_STATEMENT,
@@ -1995,21 +2002,164 @@ fn statement_reasons(analysis: &Analysis, reasons: &mut Vec<Reason>) {
         },
     }
 
-    reasons.push(match first(REPLAY_PREDICATE) {
-        None => Reason::new(
-            "replay.statement",
-            None,
-            Some(Level::P3),
-            "The holo carries no replay statement.".to_owned(),
-        ),
-        Some(_) => Reason::new(
-            "replay.statement",
-            None,
-            Some(Level::P3),
+    let replay = attestations
+        .iter()
+        .any(|attestation| attestation.predicate_type == REPLAY_PREDICATE);
+    reasons.push(Reason::new(
+        "replay.statement",
+        None,
+        Some(Level::P3),
+        if replay {
             "The holo carries a replay statement, which no checker verifies before #284."
-                .to_owned(),
-        ),
-    });
+        } else {
+            "The holo carries no replay statement."
+        }
+        .to_owned(),
+    ));
+    Ok(())
+}
+
+/// Why a signature counts for nothing when the caller named no signer.
+const NO_SIGNER: &str = "The signature was not checked: name the signer with a key or a certificate identity and issuer (check --key, --certificate-identity and --certificate-oidc-issuer), and an unchecked signature is no evidence.";
+
+/// Did a statement's signature verify? `Err` says why it counts for nothing.
+type Envelope = Result<(), String>;
+
+/// The outcome of one attestation's signature against the signer the caller
+/// named. A signer policy that is itself unusable is no verdict, as in
+/// `prism-code check`; every other refusal is an unverified envelope.
+fn signature_outcome(
+    attestation: &Attestation,
+    signer: Option<&crate::attest::VerifyPolicy>,
+) -> Result<Envelope, NoVerdict> {
+    let bundle: Value = serde_json::from_slice(&attestation.line).unwrap_or(Value::Null);
+    let signed = bundle["dsseEnvelope"]["signatures"]
+        .as_array()
+        .is_some_and(|signatures| {
+            signatures
+                .iter()
+                .any(|signature| signature["sig"].as_str().is_some_and(|sig| !sig.is_empty()))
+        });
+    if !signed {
+        return Ok(Err("The statement is an unsigned placeholder: its signature is empty, and no verifier accepts it.".to_owned()));
+    }
+    let Some(signer) = signer else {
+        return Ok(Err(NO_SIGNER.to_owned()));
+    };
+    match crate::attest::verify_bundle(&bundle, signer) {
+        Ok(_) => Ok(Ok(())),
+        Err(error) if error.code == "PP1001" => {
+            Err(NoVerdict::new("policy.invalid", error.message))
+        }
+        Err(error) => Ok(Err(format!(
+            "The signature does not verify: {}",
+            error.message
+        ))),
+    }
+}
+
+/// The attestation of a predicate type that counts: the first whose signature
+/// verifies, else the first, so the verdict can say why it does not count.
+fn chosen<'a>(
+    attestations: &'a [Attestation],
+    predicate: &str,
+    signer: Option<&crate::attest::VerifyPolicy>,
+) -> Result<Option<(&'a Attestation, Envelope)>, NoVerdict> {
+    let mut best: Option<(&Attestation, Envelope)> = None;
+    for attestation in attestations
+        .iter()
+        .filter(|attestation| attestation.predicate_type == predicate)
+    {
+        let envelope = signature_outcome(attestation, signer)?;
+        let replace = match &best {
+            None => true,
+            Some((_, kept)) => kept.is_err() && envelope.is_ok(),
+        };
+        if replace {
+            best = Some((attestation, envelope));
+        }
+    }
+    Ok(best)
+}
+
+/// The checks of the provenance statement (#268): its signature, and that
+/// every subject is a content blob of this holo with both digests equal. Both
+/// withhold P1.
+fn provenance_reasons(
+    attestation: &Attestation,
+    envelope: &Envelope,
+    analysis: &Analysis,
+) -> Vec<Reason> {
+    let withheld =
+        |check: &str, message: String| Reason::new(check, None, Some(Level::P1), message);
+    let mut reasons = Vec::new();
+    if let Err(message) = envelope {
+        reasons.push(withheld("provenance.envelope", message.clone()));
+    }
+    let statement = attestation.statement();
+    let subjects = statement
+        .as_ref()
+        .and_then(|statement| statement.get("subject"))
+        .and_then(Value::as_array)
+        .filter(|subjects| !subjects.is_empty());
+    let mut shape = Vec::new();
+    match &statement {
+        None => shape.push("the statement is not an object".to_owned()),
+        Some(statement) => {
+            if statement.get("_type").and_then(Value::as_str) != Some(attestation::STATEMENT_TYPE) {
+                shape.push(format!(
+                    "_type is {}",
+                    statement.get("_type").cloned().unwrap_or(Value::Null)
+                ));
+            }
+            if subjects.is_none() {
+                shape.push("the statement has no subject".to_owned());
+            }
+        }
+    }
+    let (true, Some(subjects)) = (shape.is_empty(), subjects) else {
+        reasons.push(withheld(
+            "provenance.subject",
+            format!(
+                "The provenance statement has the wrong shape: {}.",
+                shape.join("; ")
+            ),
+        ));
+        return reasons;
+    };
+    let blobs = analysis
+        .rows
+        .iter()
+        .filter(|row| row.kind == KIND_CONTENT_BLOB && row.label.is_some())
+        .map(Row::content_digests)
+        .collect::<Vec<_>>();
+    let unmatched = subjects
+        .iter()
+        .filter(|subject| {
+            let digest = subject.get("digest").and_then(Value::as_object);
+            let text = |name: &str| digest.and_then(|d| d.get(name)).and_then(Value::as_str);
+            !blobs.iter().any(|(sha256, blake3)| {
+                text("sha256") == Some(sha256) && text("blake3") == Some(blake3)
+            })
+        })
+        .map(|subject| {
+            subject
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or("(unnamed)")
+                .to_owned()
+        })
+        .collect::<Vec<_>>();
+    if !unmatched.is_empty() {
+        reasons.push(withheld(
+            "provenance.subject",
+            format!(
+                "The provenance statement names {}, which this holo does not contain with those digests.",
+                unmatched.join(", ")
+            ),
+        ));
+    }
+    reasons
 }
 
 // ------------------------------------------------------------------ the world
@@ -2119,7 +2269,7 @@ pub fn verify(bytes: &[u8], policy: &Policy) -> Result<Verdict, NoVerdict> {
             }
         }
     }
-    statement_reasons(&analysis, &mut reasons);
+    statement_reasons(&analysis, policy.signer.as_ref(), &mut reasons)?;
 
     // world.capabilities (#283): the declared world's imports within the granted
     // set. It withholds P3, and the default policy requires it at every level.

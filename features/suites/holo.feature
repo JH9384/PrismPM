@@ -1,5 +1,26 @@
 Feature: holo
 
+  @HO-30 @build
+  Scenario: Every refusal of attest and verify-attestation is a registered diagnostic with its check: PP3101 signing, PP3102 signature, PP3103 identity, PP3104 transparency, PP3105 subject, PP3106 no attestation, PP3107 trusted root, and PP1001 for a policy that would let any signer pass.
+    Given a holo signed with a local key, the other key, a forged subject digest and every unusable policy
+    When verify-attestation and attest are asked to act on them
+    Then each refusal is the registered diagnostic with its check and the holo is untouched
+    And a holo without the requested attestation reports PP3106 inside the result
+
+  @HO-29 @build
+  Scenario: attest signs an in-toto Statement v1 about the holo's content blobs with a local P-256 or Ed25519 key into the attestation section as a Sigstore bundle v0.3 in the shape the JavaScript signer writes, leaves the input holo untouched, strips back to it byte for byte, and verifies offline with the public key.
+    Given the Calculator reference archive and test-only P-256 and Ed25519 keys
+    When attest signs the proof and provenance statements over its blobs
+    Then the section holds the bundle as signed, stripping returns the reference archive, and verify-attestation passes with the public key
+    And a type selects which bundles are checked
+
+  @HO-28 @build
+  Scenario: verify-attestation checks every attestation of the requested type in the oracle's order: subjects against the holo's blobs, the DSSE signature under the signing certificate or the given key with the chain and its signed certificate timestamps at a signed time, the exact certificate identity and OIDC issuer, and the transparency evidence with Rekor v1 dsse 0.0.1, Rekor v2 dsse 0.0.2 and hashedrekord 0.0.2 bodies checked against the envelope, offline against a pinned trusted root; the bundles the JavaScript signer writes verify, and the Sigstore conformance bundles pass and fail as they do there.
+    Given the bundles the JavaScript signer wrote, the Sigstore conformance bundles and their pinned trusted roots
+    When the Rust verifier checks them offline
+    Then the keyed bundles verify, the keyless signer, log entry and signed time verify, and every refusal names its check
+    And the identity is compared exactly, never as a prefix, a suffix or a pattern
+
   @HO-27 @build
   Scenario: A blank line, a v0.2 bundle, a messageSignature, a single-digest subject and an oci-manifest subject inside the holo are each refused with a registered diagnostic.
     Given malformed attestation lines and statements

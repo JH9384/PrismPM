@@ -98,12 +98,16 @@ blake3 = { workspace = true }
 camino = { workspace = true }
 clap = { workspace = true }
 ctrlc = { workspace = true }
+ed25519-dalek = { workspace = true }
 fs4 = { workspace = true }
 jsonschema = { workspace = true }
 lexlean = { workspace = true }
+p256 = { workspace = true }
+p384 = { workspace = true }
 prod-codegen = { workspace = true }
 prod-ir = { workspace = true }
 prism-stdlib = { workspace = true }
+regex = { workspace = true }
 same-file = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }

@@ -7,6 +7,12 @@ requires_digest = true
 result_schema = "prismpm/backup-snapshot/1"
 
 [[command]]
+name = "attest"
+mutates = "attested-holo-file"
+requires_digest = false
+result_schema = "prismpm/attest-result/1"
+
+[[command]]
 name = "authority"
 mutates = "resolve-and-fetch-only"
 requires_digest = false
@@ -171,6 +177,12 @@ name = "verify"
 mutates = "local-evidence"
 requires_digest = false
 result_schema = "prismpm/verify-result/1"
+
+[[command]]
+name = "verify-attestation"
+mutates = "never"
+requires_digest = false
+result_schema = "prismpm/attestation-verification-result/1"
 
 [[command]]
 name = "verify-browser-publication"

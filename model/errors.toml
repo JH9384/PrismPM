@@ -260,6 +260,55 @@ exit = 1
 statement = "An attestation bundle is not a Sigstore bundle v0.3 with a DSSE envelope over an in-toto Statement v1 whose subjects carry exactly sha256 and blake3, or it names the OCI manifest."
 
 [[error]]
+code = "PP3101"
+title = "Attestation signing failure"
+class = "attestation"
+exit = 3
+statement = "An attestation could not be signed: the key, the predicate, its type or a subject cannot be used."
+
+[[error]]
+code = "PP3102"
+title = "Attestation signature invalid"
+class = "attestation"
+exit = 1
+statement = "The DSSE signature of an attestation bundle does not verify under the signing certificate or the given key, or the certificate does not chain to the pinned root at a signed time with a verified signed certificate timestamp."
+
+[[error]]
+code = "PP3103"
+title = "Attestation identity mismatch"
+class = "attestation"
+exit = 1
+statement = "The signer of an attestation is not the certificate identity or OIDC issuer the policy names; identities are compared exactly."
+
+[[error]]
+code = "PP3104"
+title = "Attestation transparency failure"
+class = "attestation"
+exit = 1
+statement = "A log entry or timestamp of an attestation bundle is missing, is not about this bundle, or does not verify against the pinned trusted root."
+
+[[error]]
+code = "PP3105"
+title = "Attestation subject mismatch"
+class = "attestation"
+exit = 1
+statement = "A statement subject names a blob that is not in the holo, or its digests are not the blob's."
+
+[[error]]
+code = "PP3106"
+title = "Attestation not found"
+class = "attestation"
+exit = 1
+statement = "The holo has no attestation section, or none of its attestations has the requested predicate type."
+
+[[error]]
+code = "PP3107"
+title = "Trusted root invalid"
+class = "attestation"
+exit = 1
+statement = "The Sigstore trusted root cannot be read, is not pinned, or pins none of what the policy relies on."
+
+[[error]]
 code = "PP4001"
 title = "Artifact checksum mismatch"
 class = "artifact"

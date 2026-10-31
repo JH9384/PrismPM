@@ -122,13 +122,14 @@ A flag marked planned is named here so you can plan for it; its spelling may cha
 | `prism-code providers <up\|down> [<dir>]`, `--target <browser\|node>`, `--json`; the `prism-provider-kv` binary, its flags and file layout | [#294](https://github.com/UOR-Foundation/PrismPM/issues/294) | On main |
 | The provider wire protocol: `prism-provider-<type>` on the PATH, its arguments, the `info`, `debug`, `error` and `setenv` messages, `PRISM_PROVIDER_MESSAGES`; the `provider-` prefix reserved from plugin names | [#294](https://github.com/UOR-Foundation/PrismPM/issues/294) | On main |
 | The `prism.toml` manifest and its `prism.browser.toml` and `prism.node.toml` overlays, read by the Rust CLI | [#280](https://github.com/UOR-Foundation/PrismPM/issues/280) | Planned |
-| `attest --predicate <file> --type <uri>` in the Rust CLI | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | Planned |
-| `verify --certificate-identity`, `--certificate-oidc-issuer`, `--key` in the Rust CLI | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | Planned |
+| `attest <path.holo> --predicate <file> --type <uri> --key <pem>`, `--subject`, `--output` in the Rust CLI | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | On main |
+| `verify-attestation <path.holo>`, `--certificate-identity`, `--certificate-identity-regexp`, `--certificate-oidc-issuer`, `--key`, `--type`, `--trusted-root`, `--entries`, `--timestamps`, `--json` in the Rust CLI | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | On main |
+| Keyless (OIDC) signing in the Rust `attest`; fetching the trusted root over TUF in the Rust `verify-attestation` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | Planned |
 
 Today `prismpm check` validates the model and `prismpm verify` checks the Lean proofs.
 In the JavaScript CLI `check` already judges a holo and returns a verdict (#270), and the model check is `prism-code build --check`; the Rust CLI follows when it reads the attestation section (#267).
-The JavaScript CLI names the attestation verb `verify-attestation`, because `prism-code verify` already runs `prismpm verify`; the Rust name is open (`docs/proposals/272-attest-verify.md`).
-When #270 and #272 ship in the Rust CLI, both verbs judge a holo and return a verdict.
+Both CLIs name the attestation verb `verify-attestation`, because `prism-code verify` already runs `prismpm verify`, which is build verification (`docs/proposals/272-attest-verify.md`).
+`prismpm verify-attestation` judges a holo and returns a verdict, `prismpm/attestation-verification-result/1`, on exit 0 and 1 alike; `check` follows when #270 ships in the Rust CLI.
 That change is breaking and gets its changelog line.
 
 ### 6.1.1 Deprecated

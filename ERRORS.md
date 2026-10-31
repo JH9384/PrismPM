@@ -227,6 +227,48 @@ An attestation bundle is not a Sigstore bundle v0.3 with a DSSE envelope over an
 
 Class: `holo`. Exit code: 1.
 
+## `PP3101` --- Attestation signing failure
+
+An attestation could not be signed: the key, the predicate, its type or a subject cannot be used.
+
+Class: `attestation`. Exit code: 3.
+
+## `PP3102` --- Attestation signature invalid
+
+The DSSE signature of an attestation bundle does not verify under the signing certificate or the given key, or the certificate does not chain to the pinned root at a signed time with a verified signed certificate timestamp.
+
+Class: `attestation`. Exit code: 1.
+
+## `PP3103` --- Attestation identity mismatch
+
+The signer of an attestation is not the certificate identity or OIDC issuer the policy names; identities are compared exactly.
+
+Class: `attestation`. Exit code: 1.
+
+## `PP3104` --- Attestation transparency failure
+
+A log entry or timestamp of an attestation bundle is missing, is not about this bundle, or does not verify against the pinned trusted root.
+
+Class: `attestation`. Exit code: 1.
+
+## `PP3105` --- Attestation subject mismatch
+
+A statement subject names a blob that is not in the holo, or its digests are not the blob's.
+
+Class: `attestation`. Exit code: 1.
+
+## `PP3106` --- Attestation not found
+
+The holo has no attestation section, or none of its attestations has the requested predicate type.
+
+Class: `attestation`. Exit code: 1.
+
+## `PP3107` --- Trusted root invalid
+
+The Sigstore trusted root cannot be read, is not pinned, or pins none of what the policy relies on.
+
+Class: `attestation`. Exit code: 1.
+
 ## `PP4001` --- Artifact checksum mismatch
 
 An artifact does not match its manifest digest.

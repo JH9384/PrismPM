@@ -486,6 +486,26 @@ extension_policy = "closed"
 compatibility = "exact-major-additive-minor"
 
 [[contract]]
+schema = "prismpm/attest-result/1"
+path = "schemas/attest-result.schema.json"
+media_type = "application/vnd.prismpm.attest-result.v1+json"
+identity = "sha256-canonical-json"
+maximum_bytes = 1048576
+maximum_items = 4096
+extension_policy = "closed"
+compatibility = "exact-major-additive-minor"
+
+[[contract]]
+schema = "prismpm/attestation-verification-result/1"
+path = "schemas/attestation-verification-result.schema.json"
+media_type = "application/vnd.prismpm.attestation-verification-result.v1+json"
+identity = "sha256-canonical-json"
+maximum_bytes = 1048576
+maximum_items = 4096
+extension_policy = "closed"
+compatibility = "exact-major-additive-minor"
+
+[[contract]]
 schema = "prismpm/promotion-policy/1"
 path = "schemas/promotion-policy.schema.json"
 media_type = "application/vnd.prismpm.promotion-policy.v1+json"

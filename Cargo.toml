@@ -51,6 +51,11 @@ toml = "0.8"
 unicode-normalization = "0.1"
 walkdir = "2"
 x509-parser = "=0.18.0"
+# Attestation verification and local-key signing (#272): ECDSA P-256 and P-384, Ed25519, and the identity pattern.
+p256 = { version = "=0.14.0", default-features = false, features = ["ecdsa", "pkcs8", "pem", "std"] }
+p384 = { version = "=0.14.0", default-features = false, features = ["ecdsa", "std"] }
+ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["pem"] }
+regex = "1"
 
 [workspace.lints.rust]
 missing_docs = "deny"

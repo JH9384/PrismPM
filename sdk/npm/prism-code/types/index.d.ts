@@ -135,6 +135,10 @@ export class PullVerificationError extends PrismError {
 export class ReferenceInvalidError extends PrismError {
   static readonly code: 'reference_invalid';
 }
+/** `export_mismatch`: a browser export's bytes differ from the release. `check` is `export.manifest`, `export.layer`, `export.files` or `export.tree`. */
+export class ExportMismatchError extends PrismError {
+  static readonly code: 'export_mismatch';
+}
 export const ERROR_CLASSES: Readonly<Record<string, typeof PrismError>>;
 /** The class a verdict reason's check id maps to. */
 export function classForCheck(check: string): typeof PrismError;

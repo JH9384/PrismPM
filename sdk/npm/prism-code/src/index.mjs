@@ -47,6 +47,7 @@ export {
   ProviderNotFoundError,
   ProviderReplyError,
   ProviderFailedError,
+  ExportMismatchError,
   ERROR_CLASSES,
   PolicyParseError,
   PolicyEvaluationError,

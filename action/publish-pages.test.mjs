@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 
@@ -298,8 +298,10 @@ function verifyPublication(result, f) {
   assert.deepEqual(exported, [...isolation(), ...sdkArguments, 'prismpm', '--project', project, '--json',
     'export-browser', `registry.example.test:5000/team/product@${f.releaseDigest}`, '--output', f.output]);
   const actionPath = fileURLToPath(new URL('./', import.meta.url)).replace(/\/$/, '');
+  // The whole checkout, read-only: the check imports prism-code's export module from it.
+  const actionRoot = dirname(actionPath);
   assert.deepEqual(checked, [...isolation(), '--network', 'none',
-    '--volume', `${f.workspace}:${f.workspace}:ro`, '--volume', `${actionPath}:${actionPath}:ro`, sdk,
+    '--volume', `${f.workspace}:${f.workspace}:ro`, '--volume', `${actionRoot}:${actionRoot}:ro`, sdk,
     'node', `${actionPath}/pages-closure.mjs`, project, f.releaseDigest, f.output, f.treeDigest]);
   for (const projection of [digest, tree, ...result.calls.slice(5)]) {
     assert.equal(projection[projection.indexOf('--network') + 1], 'none');
@@ -386,10 +388,14 @@ test('owning publication assertions reject a skipped closure check and a skipped
   const validator = readFileSync(closure, 'utf8');
   const guard = 'if (target.kind !== PAGES_TARGET_KIND || target.api_version !== PAGES_TARGET_API)';
   assert.equal(validator.split(guard).length, 2, 'mutation must change exactly one owning statement');
-  const skipped = join(refusing.root, 'pages-closure.mjs');
+  // Beside the original, so the mutant resolves the same prism-code export module.
+  const skipped = join(dirname(closure), `.pages-closure-mutant-${process.pid}.mjs`);
+  t.after(() => rmSync(skipped, {force: true}));
   writeFileSync(skipped, validator.replace(guard, 'if (false)'));
   const result = spawnSync(process.execPath, [skipped, refusing.project, refusing.releaseDigest, refusing.output,
     refusing.treeDigest], {encoding: 'utf8', timeout: 10000});
+  assert.equal(result.error, undefined);
+  assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND/, 'the mutant must run, not fail to load');
   assert.notEqual(result.status, 3, 'the mutant must no longer refuse, proving the guard owns the refusal');
 });
 

@@ -246,3 +246,4 @@ export {
   ANNOTATION,
   CREATED,
 } from './oci-manifest.mjs';
+export { exportBrowser as experimental_exportBrowser, checkExport as experimental_checkExport } from './export.mjs';

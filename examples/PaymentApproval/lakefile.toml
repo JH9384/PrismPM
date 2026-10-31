@@ -1,0 +1,6 @@
+name = "PrismPaymentApproval"
+version = "0.1.0"
+defaultTargets = ["PrismPaymentApproval"]
+
+[[lean_lib]]
+name = "PrismPaymentApproval"

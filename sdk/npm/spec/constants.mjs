@@ -173,6 +173,28 @@ export const ATTESTATION_BUNDLE = freeze({
 });
 
 /**
+ * A holo as an OCI artifact, issue #292 (docs/proposals/292-push-pull-oci.md). The manifest is a pure
+ * function of the holo's bytes (ADR-015), so these values are part of its digest. Descriptors are `sha256`;
+ * BLAKE3 travels in annotations, because registries refuse `blake3:` digests.
+ */
+export const OCI = freeze({
+  /** The artifact type of the manifest and the media type of its one layer, the whole `.holo` file. */
+  HOLO_MEDIA_TYPE: 'application/vnd.uor.prism.holo.v1',
+  /** Every manifest's `org.opencontainers.image.created`. Fixed, so no clock enters the digest. */
+  CREATED: '1970-01-01T00:00:00Z',
+  ANNOTATIONS: freeze({
+    /** On the manifest: `blake3:<footer>`, the archive fingerprint. */
+    FINGERPRINT: 'foundation.uor.prism.holo.fingerprint',
+    /** On the manifest: `application_kappa`, the identity that survives signing. */
+    APPLICATION: 'foundation.uor.prism.holo.application',
+    /** On the layer: BLAKE3 of the same bytes as the layer's `sha256`. Not the footer. */
+    BLAKE3: 'foundation.uor.prism.digest.blake3',
+  }),
+  /** The tag a fingerprint is reachable through: this prefix and the 64 hex characters. */
+  FINGERPRINT_TAG_PREFIX: 'blake3-',
+});
+
+/**
  * Every format revision, mapped to the identifiers a reader uses to recognize
  * it. An archive does not carry its revision date, so each new revision must
  * change at least one of these identifiers.
@@ -237,6 +259,23 @@ export const PROVENANCE = freeze({
    * `publicKey`. No verifier accepts it; `prism attest` replaces it.
    */
   UNSIGNED: freeze({ SIGNATURE: '' }),
+});
+
+/**
+ * The policy file of `prism check --policy` (issue #285, docs/proposals/285-policy-file.md). A policy never
+ * lives in a holo. `SHIPPED` names the policies this package carries as files, and `default` is the one a
+ * check uses when it is given none.
+ */
+export const POLICY = freeze({
+  INPUT: 'prism/policy-input/1',
+  INPUT_SCHEMA: 'schemas/policy/policy-input-v1.schema.json',
+  LANGUAGE: 'rego',
+  PACKAGE: 'prism.policy',
+  SHIPPED: freeze({
+    default: 'policies/default.rego',
+    'pure-only': 'policies/pure-only.rego',
+    'provenance-only': 'policies/provenance-only.rego',
+  }),
 });
 
 export { ASSURANCE } from './assurance-levels.mjs';

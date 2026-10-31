@@ -9,6 +9,7 @@
 
 pub mod acceptance;
 mod application_build;
+pub mod attest;
 pub mod authority;
 mod binary_cli;
 mod browser_build;

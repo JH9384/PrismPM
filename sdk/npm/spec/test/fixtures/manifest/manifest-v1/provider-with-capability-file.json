@@ -1,0 +1,15 @@
+{
+  "application": {
+    "name": "exchange",
+    "version": "0.1.0"
+  },
+  "capabilities": {
+    "file": "capabilities.json",
+    "set": "online",
+    "cache": {
+      "provider": {
+        "type": "kv"
+      }
+    }
+  }
+}

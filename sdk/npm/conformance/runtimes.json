@@ -1,0 +1,19 @@
+{
+  "runtimes": {
+    "js": {
+      "title": "JavaScript",
+      "command": ["node", "sdk/npm/prism-code/conformance/shim.mjs"],
+      "declaration": "sdk/npm/prism-code/conformance/declaration.json"
+    },
+    "rust": {
+      "title": "Rust",
+      "command": null,
+      "declaration": null
+    },
+    "python": {
+      "title": "Python",
+      "command": null,
+      "declaration": null
+    }
+  }
+}

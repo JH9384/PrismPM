@@ -1,0 +1,160 @@
+{
+  "feature": "world",
+  "title": "The world contract",
+  "checks": [
+    {
+      "id": "world.reference.inspected",
+      "title": "Inspection names the world, its digests and its interface, and says the guest conforms.",
+      "op": "inspect",
+      "archive": "reference",
+      "expect": {
+        "ok": true,
+        "result": {
+          "world": {
+            "contract": "hologram:guest/core-wasm@1",
+            "package": "hologram:guest@1.0.0",
+            "name": "core-wasm",
+            "conforms": true,
+            "pure": true,
+            "effects": [],
+            "imports": [],
+            "exports": ["holo_alloc", "holo_run", "memory"],
+            "digest": {
+              "blake3": "0774a8ecbfa945a427712ee7d7ad406195b2d07492ceae15cca0067276c9ced8",
+              "sha256": "a566c87a359cadf98f652747f1b3574aa307ff5f652a190c6d99c350db9cf369"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "world.reference.loaded",
+      "title": "A load reports the world within the grant and pure, with no capability file.",
+      "op": "load",
+      "archive": "reference",
+      "expect": {
+        "ok": true,
+        "result": { "world": { "contract": "hologram:guest/core-wasm@1", "within": true, "pure": true, "effects": [] } }
+      }
+    },
+    {
+      "id": "world.mismatch.extra-import",
+      "title": "A guest with an import the world does not declare fails the contract and withholds P1.",
+      "op": "verify",
+      "archive": "guest-extra-import",
+      "input": { "policy": { "minimum": "P1" } },
+      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "world.contract", "withholds": "P1" }] } } }
+    },
+    {
+      "id": "world.mismatch.extra-export",
+      "title": "A guest with an export the world does not declare fails the contract.",
+      "op": "verify",
+      "archive": "guest-extra-export",
+      "input": { "policy": { "minimum": "P1" } },
+      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "world.contract", "withholds": "P1" }] } } }
+    },
+    {
+      "id": "world.mismatch.renamed-export",
+      "title": "A guest missing an export the world declares fails the contract.",
+      "op": "verify",
+      "archive": "guest-renamed-export",
+      "input": { "policy": { "minimum": "P1" } },
+      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "world.contract", "withholds": "P1" }] } } }
+    },
+    {
+      "id": "world.mismatch.changed-signature",
+      "title": "A guest export with another signature fails the contract.",
+      "op": "verify",
+      "archive": "guest-changed-signature",
+      "input": { "policy": { "minimum": "P1" } },
+      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "world.contract", "withholds": "P1" }] } } }
+    },
+    {
+      "id": "world.mismatch.changed-kind",
+      "title": "A guest export of another kind fails the contract.",
+      "op": "verify",
+      "archive": "guest-changed-kind",
+      "input": { "policy": { "minimum": "P1" } },
+      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "world.contract", "withholds": "P1" }] } } }
+    },
+    {
+      "id": "world.mismatch.inspected",
+      "title": "Inspection reports that a changed guest does not conform, with every fingerprint correct.",
+      "op": "inspect",
+      "archive": "guest-extra-export",
+      "expect": { "ok": true, "result": { "verification": { "footer": true, "labels": true }, "world": { "conforms": false } } }
+    },
+    {
+      "id": "world.load.refuses-wrong-exports",
+      "title": "A load refuses a guest whose export names differ from the contract.",
+      "op": "load",
+      "archive": "guest-renamed-export",
+      "expect": { "ok": false, "error": { "code": "core.exports" } }
+    },
+    {
+      "id": "world.pin.match",
+      "title": "A world pin that holds passes.",
+      "op": "verify",
+      "archive": "reference",
+      "input": {
+        "policy": {
+          "minimum": "P0",
+          "world": {
+            "contract": "hologram:guest/core-wasm@1",
+            "blake3": "0774a8ecbfa945a427712ee7d7ad406195b2d07492ceae15cca0067276c9ced8",
+            "sha256": "a566c87a359cadf98f652747f1b3574aa307ff5f652a190c6d99c350db9cf369"
+          }
+        }
+      },
+      "expect": { "ok": true, "result": { "passed": true } }
+    },
+    {
+      "id": "world.pin.hash-mismatch",
+      "title": "A world hash that differs fails the policy and withholds no level.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "minimum": "P0", "world": { "sha256": "0000000000000000000000000000000000000000000000000000000000000000" } } },
+      "expect": { "ok": true, "result": { "level": "P0", "passed": false, "reasons": { "$contains": [{ "check": "world.hash", "withholds": null }] } } }
+    },
+    {
+      "id": "world.pin.contract-mismatch",
+      "title": "A pin on another contract fails the policy.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "minimum": "P0", "world": { "contract": "hologram:guest/core-wasm@2" } } },
+      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "world.hash" }] } } }
+    },
+    {
+      "id": "world.pin.null",
+      "title": "A null pin fails the policy instead of passing silently.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "minimum": "P0", "world": null } },
+      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "world.hash" }] } } }
+    },
+    {
+      "id": "world.pin.invalid",
+      "title": "A world pin that is not hex is an invalid policy.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "world": { "sha256": "xyz" } } },
+      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+    },
+    {
+      "id": "world.effects.pure-passes",
+      "title": "A pure world passes a policy that allows no effects.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "minimum": "P0", "effects": [] } },
+      "expect": { "ok": true, "result": { "passed": true } }
+    },
+    {
+      "id": "world.effects.invalid",
+      "title": "An effect nobody defined is an invalid policy.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "effects": ["teleport"] } },
+      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+    }
+  ]
+}

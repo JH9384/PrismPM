@@ -7,7 +7,8 @@
  *   [application]  name, version (semver), description, authors
  *   [model]        source, build, watch
  *   [capabilities] the members of one `prism/capabilities/1` set, inline,
- *                  or `file` (and `set`) naming a capability file
+ *                  or `file` (and `set`) naming a capability file; any other
+ *                  table declares a capability a provider provisions (#294)
  *   [variables]    name = "literal" | "env(NAME)" | { value, secret }
  *
  * Per-target overlays, `prism.browser.toml` and `prism.node.toml`, are merged
@@ -36,6 +37,12 @@ const VARIABLE = /^[a-z][a-z0-9_]*$/;
 const SET_NAME = /^[a-z][a-z0-9-]*$/;
 const ENV_REFERENCE = /^env\(([A-Za-z_][A-Za-z0-9_]*)\)$/;
 const SET_MEMBERS = CAPABILITY_KINDS.flatMap((kind) => [`allow-${kind}`, `deny-${kind}`]);
+const CAPABILITY_MEMBERS = Object.freeze(['file', 'set', ...SET_MEMBERS]);
+// No hyphen: a misspelt allow-variables stays an error, and a name maps to one environment prefix.
+const CAPABILITY_NAME = /^[a-z][a-z0-9_]*$/;
+const PROVIDER_TYPE = /^[a-z][a-z0-9-]*$/;
+const PROVIDER_OPTION = /^[a-z][a-z0-9_-]*$/;
+const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/;
 
 /**
  * Literals that are credentials whatever key holds them. Each pattern is
@@ -97,9 +104,38 @@ function checkModel(value) {
   if (value.watch !== undefined) stringList('model.watch', value.watch, projectPath);
 }
 
+function checkProviderOption(where, value) {
+  if (typeof value === 'boolean' || Number.isInteger(value)) return;
+  if (typeof value !== 'string') invalid(`${where} must be a string, an integer, a boolean or an array of those`, { at: where });
+  // cmd.exe ends a command line at a newline, and an npm shim on Windows is cmd.exe.
+  if (CONTROL_CHARACTER.test(value)) invalid(`${where} holds a control character, which a command line cannot carry safely`, { at: where });
+  if (ENV_REFERENCE.test(value)) invalid(`${where} is env(NAME), and every process on the machine can read a command line; the provider reads its secrets from its own environment`, { at: where });
+}
+
+function checkProviderCapability(name, value) {
+  const where = `capabilities.${name}`;
+  if (!CAPABILITY_NAME.test(name)) invalid(`capabilities has an unknown member ${name}; it has ${CAPABILITY_MEMBERS.join(', ')}, or a capability named ${CAPABILITY_NAME.source}`, { at: where, member: name });
+  if (!isTable(value)) invalid(`${where} must be a table with a provider`, { at: where });
+  onlyMembers(where, value, ['provider']);
+  if (!isTable(value.provider)) invalid(`${where} has no provider = { type, options }`, { at: `${where}.provider` });
+  onlyMembers(`${where}.provider`, value.provider, ['type', 'options']);
+  string(`${where}.provider.type`, value.provider.type, { pattern: PROVIDER_TYPE, describe: `a provider type, ${PROVIDER_TYPE.source}` });
+  const { options } = value.provider;
+  if (options === undefined) return;
+  if (!isTable(options)) invalid(`${where}.provider.options must be a table`, { at: `${where}.provider.options` });
+  for (const [key, option] of Object.entries(options)) {
+    const at = `${where}.provider.options.${key}`;
+    if (!PROVIDER_OPTION.test(key)) invalid(`${at} must be named ${PROVIDER_OPTION.source}, because it becomes a flag`, { at });
+    if (Array.isArray(option)) option.forEach((item, i) => checkProviderOption(`${at}[${i}]`, item));
+    else checkProviderOption(at, option);
+  }
+}
+
 function checkCapabilities(value) {
   if (!isTable(value)) invalid('[capabilities] must be a table', { at: 'capabilities' });
-  onlyMembers('capabilities', value, ['file', 'set', ...SET_MEMBERS]);
+  for (const [name, entry] of Object.entries(value)) {
+    if (!CAPABILITY_MEMBERS.includes(name)) checkProviderCapability(name, entry);
+  }
   const inline = SET_MEMBERS.filter((m) => Object.hasOwn(value, m));
   if (value.file !== undefined) {
     projectPath('capabilities.file', value.file);
@@ -165,6 +201,8 @@ function* strings(value, path) {
  * - `variable-not-granted`: a declared variable the capability set does not
  *   allow, so the holo can never read it. Only checked for inline sets; a
  *   capability file is read at run time.
+ * - `provider-not-granted`: a declared provider the capability set does not
+ *   allow, so it can never run. Also only checked for inline sets.
  */
 export function lintManifest(manifest) {
   const errors = [];
@@ -180,9 +218,12 @@ export function lintManifest(manifest) {
     }
   }
   const caps = manifest.capabilities;
-  if (manifest.variables && (!caps || caps.file === undefined)) {
+  if (!caps || caps.file === undefined) {
     const grant = grantOf(capabilitiesOfInline(caps), DEFAULT_SET);
-    for (const name of Object.keys(manifest.variables)) {
+    for (const { name, type } of manifestProviders(manifest)) {
+      if (!grant.allows('providers', type)) warnings.push({ rule: 'provider-not-granted', at: `capabilities.${name}`, message: `capabilities.${name} needs provider ${type}, and [capabilities] does not allow it, so it cannot run` });
+    }
+    for (const name of Object.keys(manifest.variables ?? {})) {
       if (!grant.allows('variables', name)) warnings.push({ rule: 'variable-not-granted', at: `variables.${name}`, message: `variables.${name} is declared but [capabilities] does not allow it, so the holo cannot read it` });
     }
   }
@@ -265,6 +306,28 @@ export function manifestCapabilities(manifest) {
   if (!caps) return { capabilities: null, capabilitySet: DEFAULT_SET, file: null };
   if (caps.file !== undefined) return { capabilities: null, capabilitySet: caps.set ?? DEFAULT_SET, file: caps.file };
   return { capabilities: parseCapabilities(capabilitiesOfInline(caps)), capabilitySet: DEFAULT_SET, file: null };
+}
+
+/**
+ * The providers a manifest declares, in order of capability name: `{ name,
+ * type, options, flags }`. `flags` are the options as command-line arguments,
+ * `--<key>=<value>`, sorted by key; an array repeats the flag. Running them is
+ * `resolveProviders` in `prism-code/node`.
+ *
+ * @param {object} manifest a validated manifest
+ */
+export function manifestProviders(manifest) {
+  const caps = manifest.capabilities ?? {};
+  const names = Object.keys(caps).filter((name) => !CAPABILITY_MEMBERS.includes(name)).sort();
+  return Object.freeze(
+    names.map((name) => {
+      const { type, options = {} } = caps[name].provider;
+      const flags = Object.keys(options)
+        .sort()
+        .flatMap((key) => [options[key]].flat().map((value) => `--${key}=${value}`));
+      return Object.freeze({ name, type, options, flags: Object.freeze(flags) });
+    }),
+  );
 }
 
 /**

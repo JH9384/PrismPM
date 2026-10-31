@@ -163,6 +163,11 @@ rust_name = "appManifest"
 rust_signature = "fn(Vec<u8>, Vec<u8>, Vec<u8>) -> Option<Vec<u8>>"
 
 [[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.archiveAttestation"
+rust_name = "archiveAttestation"
+rust_signature = "fn(Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"
+
+[[export]]
 lean_name = "PrismPM.Foundation.Holo.V1.Wire.archiveBody"
 rust_name = "archiveBody"
 rust_signature = "fn(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"
@@ -171,6 +176,11 @@ rust_signature = "fn(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u
 lean_name = "PrismPM.Foundation.Holo.V1.Wire.archiveBodyBytes"
 rust_name = "archiveBodyBytes"
 rust_signature = "fn(Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"
+
+[[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.archiveBodyWithAttestation"
+rust_name = "archiveBodyWithAttestation"
+rust_signature = "fn(Vec<u8>, Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"
 
 [[export]]
 lean_name = "PrismPM.Foundation.Holo.V1.Wire.archiveExtension"
@@ -186,6 +196,11 @@ rust_signature = "fn(Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"
 lean_name = "PrismPM.Foundation.Holo.V1.Wire.archiveSection"
 rust_name = "archiveSection"
 rust_signature = "fn(Vec<u8>, u64) -> Result<Option<Vec<u8>>, ComputeError>"
+
+[[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.archiveStripAttestation"
+rust_name = "archiveStripAttestation"
+rust_signature = "fn(Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"
 
 [[export]]
 lean_name = "PrismPM.Foundation.Holo.V1.Wire.contentBlob"

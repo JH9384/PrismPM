@@ -34,8 +34,10 @@ export function normalize(text) {
   return text.replace(/\r\n/g, '\n').replace(/ at [0-9a-f]{40}\.\n/g, ' at <commit>.\n');
 }
 
-function copyNormalized(from, to) {
+function copyNormalized(from, to, ignore = null) {
+  mkdirSync(to, { recursive: true });
   for (const rel of listFiles(from)) {
+    if (ignore && rel.startsWith(ignore)) continue;
     mkdirSync(dirname(join(to, rel)), { recursive: true });
     writeFileSync(join(to, rel), normalize(readFileSync(join(from, rel), 'utf8')));
   }
@@ -44,17 +46,19 @@ function copyNormalized(from, to) {
 /**
  * @param {string} baseDir the site generated for the base branch
  * @param {string} headDir the site generated for the change
+ * @param {{ ignore?: string | null }} [options] a path prefix to leave out of the comparison
  * @returns {{ added: string[], removed: string[], changed: string[], diff: string }}
  */
-export function changedPages(baseDir, headDir) {
-  const baseFiles = new Set(listFiles(baseDir));
-  const headFiles = new Set(listFiles(headDir));
+export function changedPages(baseDir, headDir, { ignore = null } = {}) {
+  const kept = (dir) => new Set(listFiles(dir).filter((f) => !(ignore && f.startsWith(ignore))));
+  const baseFiles = kept(baseDir);
+  const headFiles = kept(headDir);
   const added = [...headFiles].filter((f) => !baseFiles.has(f));
   const removed = [...baseFiles].filter((f) => !headFiles.has(f));
   const temp = mkdtempSync(join(tmpdir(), 'prism-docs-changed-'));
   try {
-    copyNormalized(baseDir, join(temp, 'a'));
-    copyNormalized(headDir, join(temp, 'b'));
+    copyNormalized(baseDir, join(temp, 'a'), ignore);
+    copyNormalized(headDir, join(temp, 'b'), ignore);
     const changed = [...headFiles].filter(
       (f) => baseFiles.has(f) && readFileSync(join(temp, 'a', f), 'utf8') !== readFileSync(join(temp, 'b', f), 'utf8'),
     );
@@ -108,7 +112,8 @@ function main(argv) {
   }
   if (positional.length !== 2) throw new Error('usage: changed.mjs <base-dir> <head-dir> [--markdown <file>] [--diff <file>]');
   const [base, head] = positional.map((p) => resolve(process.cwd(), p));
-  const result = changedPages(base, head);
+  // The Mintlify tree repeats every page; a reviewer needs each page once.
+  const result = changedPages(base, head, { ignore: 'mintlify/' });
   const text = summary(result);
   if (markdown) writeFileSync(markdown, text);
   else process.stdout.write(text);

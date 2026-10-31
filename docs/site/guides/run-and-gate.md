@@ -7,7 +7,7 @@ This guide shows you how `run` gates on `check`, how to declare what a holo may 
 
 ## The gate
 
-`run` never starts an instance it has not checked. It runs `check` at the policy's level first. On exit code 0 it instantiates the holo and grants exactly the capability set. On 1 or 2 it stops and prints the verdict. Pass a stricter policy the same way you do for `check`:
+`run` never starts an instance it has not checked. It runs `check` at the policy's level first. On exit code 0 it instantiates the holo and grants exactly the capability set. On 1 or 2 it stops and prints the verdict, and `run` exits with the [code of the reason](/docs/guides/run-a-holo). Pass a stricter policy the same way you do for `check`:
 
 ```bash
 prism run calculator --input '{"op": "add", "a": 2, "b": 3}' --policy policy
@@ -88,6 +88,7 @@ The history is marked unverified and `replay` refuses it as evidence. Never pass
 
 ## Next steps
 
+- [Run a holo](/docs/guides/run-a-holo)
 - [Ship a holo](/docs/guides/ship)
 - [Verify and inspect](/docs/guides/verify-and-inspect)
 - [Manifest reference](/docs/reference/manifest)

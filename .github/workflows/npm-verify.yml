@@ -49,9 +49,14 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      # Pull requests test every OS on Node 24 and Node 22 on Linux only; main
+      # pushes and tags run the full OS x Node matrix.
       matrix:
         os: [ubuntu-24.04, macos-15, windows-2025]
-        node: ['22', '24']
+        node: ${{ fromJSON(github.event_name == 'pull_request' && '["24"]' || '["22", "24"]') }}
+        include:
+          - os: ubuntu-24.04
+            node: '22'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -64,6 +69,18 @@ jobs:
       - name: Build the spec package's generated entry point
         working-directory: sdk/npm/spec
         run: npm run build
+      # test/rego-opa.test.mjs holds the Rego evaluator to OPA's answers. It skips with no opa on the PATH;
+      # REQUIRE_OPA makes a missing binary fail here. One job is enough: the answers do not depend on the host.
+      - name: Install a digest-pinned OPA for the differential test
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/opa" https://github.com/open-policy-agent/opa/releases/download/v1.22.0/opa_linux_amd64_static
+          echo "791790254c598a942eb140959bcec9a47f844535a632fd01d11d870ba2a47047  $RUNNER_TEMP/opa" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/opa"
+          echo "OPA_BIN=$RUNNER_TEMP/opa" >> "$GITHUB_ENV"
+          echo "REQUIRE_OPA=1" >> "$GITHUB_ENV"
       - name: Unit tests
         run: node --test "test/*.test.mjs"
       - name: Vendored copies are current
@@ -78,8 +95,9 @@ jobs:
           node -e '
             const pack = JSON.parse(require("fs").readFileSync("pack.json", "utf8"))[0];
             console.log(`unpacked size: ${pack.unpackedSize} bytes, ${pack.entryCount} files`);
-            // 448 KiB: src/ and its single-file build browser.js, plus the proof statement checks and the proof schema (#270).
-            if (pack.unpackedSize > 458752) throw new Error("package exceeds 448 KiB");
+            // 576 KiB: src/ and its single-file build browser.js, plus the proof statement checks and the proof schema (#270),
+            // and the Rego evaluator, the shipped policies and the policy input schema (#285).
+            if (pack.unpackedSize > 589824) throw new Error("package exceeds 576 KiB");
             const paths = pack.files.map((f) => f.path);
             const stray = paths.filter((p) => /^(test|scripts)\//.test(p));
             if (stray.length) throw new Error(`tests or scripts in the package: ${stray}`);

@@ -304,6 +304,8 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "scripts/installed-exporter-concurrency.test.mjs",
             "sdk/migration-qualification.test.mjs",
             "sdk/npm/prism-code/test/archive.test.mjs",
+            "sdk/npm/prism-code/test/attestation-interop.test.mjs",
+            "sdk/npm/prism-code/test/attestations.test.mjs",
             "sdk/npm/prism-code/test/blake3.test.mjs",
             "sdk/npm/prism-code/test/canonical.test.mjs",
             "sdk/npm/prism-code/test/cli.test.mjs",
@@ -313,6 +315,7 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "sdk/npm/prism-code/test/node.test.mjs",
             "sdk/npm/prism-code/test/verify.test.mjs",
             "sdk/npm/spec/test/agreement.test.mjs",
+            "sdk/npm/spec/test/attestation-bundle.test.mjs",
             "sdk/npm/spec/test/package.test.mjs",
             "sdk/npm/spec/test/reference.test.mjs",
             "sdk/npm/spec/test/schemas.test.mjs",
@@ -1037,7 +1040,8 @@ const COMMAND_LINE_TARGETS: [&str; 2] = ["aarch64-unknown-linux-musl", "x86_64-u
 /// within and beyond its request maximum. Calculator is built in both LexLean
 /// languages; the 1.2 copy is `lexlean migrate --to 1.2` of the 1.1 example.
 /// The prism-code model is the first downstream language-1.2 project (#203).
-const EXAMPLES: [Example; 5] = [
+/// Payment Approval is the second reference archive, a text/1 application (#278).
+const EXAMPLES: [Example; 6] = [
     Example {
         name: "Calculator",
         project: "examples/Calculator",
@@ -1049,6 +1053,12 @@ const EXAMPLES: [Example; 5] = [
         project: "tests/fixtures/controller/ct-02-calculator-language-1-2/project",
         command_line: None,
         same_outputs_as: Some("Calculator"),
+    },
+    Example {
+        name: "Payment Approval",
+        project: "examples/PaymentApproval",
+        command_line: None,
+        same_outputs_as: None,
     },
     Example {
         name: "Text Request",

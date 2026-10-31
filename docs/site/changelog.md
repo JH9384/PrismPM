@@ -64,6 +64,7 @@ A holo declares what it imports and exports, and runs with exactly the capabilit
 - `init` scaffolds `prism.toml`, `examples/`, `intent.md`, a default capability set and the lockfile; `npm create prism-code` does the same from npm.
 - `build` writes the model from examples and intent through an agent, and fails by name on an unproved sentence.
 - `run` starts an instance only after `check` passes at the policy's level; `--allow-unverified` prints a warning. `check` and `run` take a policy file.
+- One run of a holo is a container, `created`, `running` or `exited`, with an exit code that follows the typed error and its output, kept until `--rm` or `rm` removes it. `prism.containers` is the same in the SDK.
 - `replay <history>` re-executes recorded inputs and fails on divergence; `dev` watches, rebuilds, re-checks and serves the local studio.
 - `generate` writes JS, Rust and Python bindings and the typed client from the world.
 - `export` writes the six-file browser export or a tarball.
@@ -79,7 +80,7 @@ Every build carries a proof and a provenance attestation, and `check` verifies b
 
 - `check` verifies digest, provenance, proof and lockfile pins and prints a verdict with its assurance level and reasons.
 - `build` always emits provenance and the proof attestation and caches by spec digest.
-- `lock` writes the lockfile; `update` bumps the toolchain image and prints old and new digests.
+- `lock` writes the lockfile; `update` bumps the SDK image and prints old and new digests.
 - `attest` adds a signed statement and `verify` checks it, keyless by default with `--key` for air-gapped use.
 - `inspect` prints manifest, section digests, format revision and attestations without running.
 - `holo.verify()` returns a verdict, and the runtime throws typed errors.
@@ -97,7 +98,7 @@ Date: 2026-10-23. Tag: Feature.
 - `dispatch` sends one request to the program on a fresh instance and returns the response bytes.
 - `acceptance` replays every example the holo carries and reports how many passed.
 - `prism-code run` serves a holo, `prism-code vectors` replays its examples, and `prism-code inspect` prints what it says about itself.
-- `prism-code check` and `prism-code build` run the build inside the toolchain image pinned by `prismpm.lock`. Docker is required.
+- `prism-code check` and `prism-code build` run the build inside the SDK image pinned by `prismpm.lock`. Docker is required.
 
 Closes [#249](https://github.com/UOR-Foundation/PrismPM/issues/249).
 Closes [#250](https://github.com/UOR-Foundation/PrismPM/issues/250).

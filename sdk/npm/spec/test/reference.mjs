@@ -18,13 +18,19 @@ export const schema = (packagePath) => readJson(`../${packagePath}`);
  * the same file.
  */
 export const REFERENCE_ARCHIVE = '../../prism-code/fixtures/Calculator.holo';
+
+/** Every reference archive (#278), by name: the Calculator and the Payment Approval text application. */
+export const REFERENCE_ARCHIVES = Object.freeze({
+  Calculator: REFERENCE_ARCHIVE,
+  PaymentApproval: '../../prism-code/fixtures/PaymentApproval.holo',
+});
 export const REFERENCE_SHA256 = '84371aaac82af6b2a81a25a81d43d4097892985f55ae4919cfdcfa8b6e3486e7';
 
 const hex = (bytes) => Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('hex');
 const utf8 = new TextDecoder('utf-8', { fatal: true });
 
-export function loadReference() {
-  const bytes = readFileSync(here(REFERENCE_ARCHIVE));
+export function loadReference(path = REFERENCE_ARCHIVE) {
+  const bytes = readFileSync(here(path));
   const parsed = parseArchive(bytes);
   const resolved = resolveArchive(parsed);
   const extension = (name) => JSON.parse(parsed.extensions.find((e) => e.name === name).text);

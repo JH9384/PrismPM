@@ -1,0 +1,42 @@
+name: conformance gate
+
+# A change to the .holo format cannot merge without a scenario (#287). This has no
+# path filter: it must report on every pull request, because a required check that
+# a path filter skips leaves the pull request waiting for ever. It reads nothing
+# but the two commits and finishes in seconds. The rules are in
+# sdk/npm/conformance/format-gate.json and are read from the base commit, so a
+# change cannot loosen the gate that judges it. How to satisfy it: "The
+# format-change gate" in sdk/npm/conformance/README.md.
+
+on:
+  pull_request:
+  merge_group:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conformance-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format-gate:
+    name: A format change needs a scenario
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          # The merge base of the two commits has to be in the clone.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+      - name: Compare the change with the format rules
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+        run: node sdk/npm/conformance/bin/prism-conformance.mjs gate --base "$BASE" --head "$HEAD"

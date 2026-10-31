@@ -9,6 +9,13 @@ import {
   CapabilityDeniedError,
   DeterminismViolationError,
   ReplayError,
+  RegistryError,
+  RegistryAuthError,
+  ReferrersUnsupportedError,
+  ManifestNotFoundError,
+  DigestMismatchError,
+  PullVerificationError,
+  ReferenceInvalidError,
   ERROR_CLASSES,
   classForCheck,
   errorForReason,
@@ -30,6 +37,26 @@ test('every class is a PrismError with its own stable code', () => {
     assert.equal(ERROR_CLASSES[C.code], C);
   }
   assert.equal(new PrismError('x').code, 'prism_error');
+});
+
+test('the errors of push and pull each have their own stable code (#292)', () => {
+  const expected = [
+    [RegistryError, 'registry_failed'],
+    [RegistryAuthError, 'registry_auth_failed'],
+    [ReferrersUnsupportedError, 'referrers_unsupported'],
+    [ManifestNotFoundError, 'manifest_not_found'],
+    [DigestMismatchError, 'digest_mismatch'],
+    [PullVerificationError, 'pull_verification_failed'],
+    [ReferenceInvalidError, 'reference_invalid'],
+  ];
+  for (const [Class, code] of expected) {
+    const error = new Class('message', { check: 'x.y' });
+    assert.ok(error instanceof PrismError);
+    assert.equal(error.code, code);
+    assert.equal(error.check, 'x.y');
+    assert.equal(error.name, Class.name);
+    assert.equal(ERROR_CLASSES[code], Class);
+  }
 });
 
 test('PrismCodeError keeps its code-first signature and is a PrismError', () => {

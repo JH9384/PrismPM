@@ -1,0 +1,10 @@
+{
+  "schema": "prism/capabilities/1",
+  "sets": {
+    "default": {
+      "allow-providers": [
+        "Key Value"
+      ]
+    }
+  }
+}

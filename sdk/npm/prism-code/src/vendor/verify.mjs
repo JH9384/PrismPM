@@ -240,6 +240,28 @@ const __vendor_spec = (() => {
   });
 
   /**
+   * A holo as an OCI artifact, issue #292 (docs/proposals/292-push-pull-oci.md). The manifest is a pure
+   * function of the holo's bytes (ADR-015), so these values are part of its digest. Descriptors are `sha256`;
+   * BLAKE3 travels in annotations, because registries refuse `blake3:` digests.
+   */
+  const OCI = freeze({
+    /** The artifact type of the manifest and the media type of its one layer, the whole `.holo` file. */
+    HOLO_MEDIA_TYPE: 'application/vnd.uor.prism.holo.v1',
+    /** Every manifest's `org.opencontainers.image.created`. Fixed, so no clock enters the digest. */
+    CREATED: '1970-01-01T00:00:00Z',
+    ANNOTATIONS: freeze({
+      /** On the manifest: `blake3:<footer>`, the archive fingerprint. */
+      FINGERPRINT: 'foundation.uor.prism.holo.fingerprint',
+      /** On the manifest: `application_kappa`, the identity that survives signing. */
+      APPLICATION: 'foundation.uor.prism.holo.application',
+      /** On the layer: BLAKE3 of the same bytes as the layer's `sha256`. Not the footer. */
+      BLAKE3: 'foundation.uor.prism.digest.blake3',
+    }),
+    /** The tag a fingerprint is reachable through: this prefix and the 64 hex characters. */
+    FINGERPRINT_TAG_PREFIX: 'blake3-',
+  });
+
+  /**
    * Every format revision, mapped to the identifiers a reader uses to recognize
    * it. An archive does not carry its revision date, so each new revision must
    * change at least one of these identifiers.
@@ -306,6 +328,23 @@ const __vendor_spec = (() => {
     UNSIGNED: freeze({ SIGNATURE: '' }),
   });
 
+  /**
+   * The policy file of `prism check --policy` (issue #285, docs/proposals/285-policy-file.md). A policy never
+   * lives in a holo. `SHIPPED` names the policies this package carries as files, and `default` is the one a
+   * check uses when it is given none.
+   */
+  const POLICY = freeze({
+    INPUT: 'prism/policy-input/1',
+    INPUT_SCHEMA: 'schemas/policy/policy-input-v1.schema.json',
+    LANGUAGE: 'rego',
+    PACKAGE: 'prism.policy',
+    SHIPPED: freeze({
+      default: 'policies/default.rego',
+      'pure-only': 'policies/pure-only.rego',
+      'provenance-only': 'policies/provenance-only.rego',
+    }),
+  });
+
   const ASSURANCE = assuranceLevels.ASSURANCE;
 
   /** The documents this reader checks, by their `schema` member. The spec's SCHEMAS lists every document. */
@@ -324,7 +363,7 @@ const __vendor_spec = (() => {
     "SOURCE_MANIFEST": "schemas/holo/source-manifest.schema.json",
     "APPLICATION_DIRECTORY": "schemas/holo/application-directory.schema.json",
   });
-  return Object.freeze({ FORMAT_REVISION, MAGIC, PHYSICAL_VERSION, FLAGS, HEADER_LENGTH, TABLE_ENTRY_LENGTH, SECTION_COUNT, BODY_OFFSET, FOOTER_LENGTH, SECTION_KIND, SECTION_ORDER, LABEL_PREFIX, LABEL_LENGTH, APP_MANIFEST, CAPABILITY_SET, EXTENSION, CORE_WASM, WORLDS, HOLOVIEW, ATTESTATION, ATTESTATION_BUNDLE, FORMAT_REVISIONS, PROVENANCE, ASSURANCE, SCHEMAS, HOLO_SCHEMAS });
+  return Object.freeze({ FORMAT_REVISION, MAGIC, PHYSICAL_VERSION, FLAGS, HEADER_LENGTH, TABLE_ENTRY_LENGTH, SECTION_COUNT, BODY_OFFSET, FOOTER_LENGTH, SECTION_KIND, SECTION_ORDER, LABEL_PREFIX, LABEL_LENGTH, APP_MANIFEST, CAPABILITY_SET, EXTENSION, CORE_WASM, WORLDS, HOLOVIEW, ATTESTATION, ATTESTATION_BUNDLE, OCI, FORMAT_REVISIONS, PROVENANCE, POLICY, ASSURANCE, SCHEMAS, HOLO_SCHEMAS });
 })();
 
 // src/vendor/blake3.mjs
@@ -2032,6 +2071,12 @@ const __world = (() => {
     };
   }
 
+  /** The imports a contract's world declares, or null when this reader has no world for it. */
+  function declaredImports(contract) {
+    if (!Object.hasOwn(WORLDS, contract)) return null;
+    return WORLDS[contract].imports.map(({ module, name, kind, capability }) => ({ module, name, kind, ...(capability === undefined ? {} : { capability }) }));
+  }
+
   /**
    * Compare a pinned world, in the shape of the lock's `inputs.world`, with the
    * world a holo's contract names. Returns the differences, empty when it matches.
@@ -2062,7 +2107,8 @@ const __world = (() => {
   /** The effects that make a world impure: a guest importing one can see something a replay cannot reproduce. */
   const IMPURE_EFFECTS = Object.freeze(['clock', 'random', 'socket', 'filesystem', 'unknown']);
   const CAPABILITY_KINDS = Object.freeze(['outbound-hosts', 'key-value-stores', 'variables']);
-  const SET_MEMBERS = Object.freeze(CAPABILITY_KINDS.flatMap((kind) => [`allow-${kind}`, `deny-${kind}`]));
+  // A set also grants providers (#294). They run outside the holo, so no world import names that kind.
+  const SET_MEMBERS = Object.freeze([...CAPABILITY_KINDS, 'providers'].flatMap((kind) => [`allow-${kind}`, `deny-${kind}`]));
   const WASI_INTERFACES = Object.freeze([
     ['wasi:clocks/', 'clock'],
     ['wasi:random/', 'random'],
@@ -2179,7 +2225,1135 @@ const __world = (() => {
     if (!world) return { known: false, within: null, problems: [], pure: null, effects: null };
     return { known: true, ...worldWithinGrant(world, set) };
   }
-  return Object.freeze({ readInterface, checkWorld, describeWorld, compareWorldPin, IMPURE_EFFECTS, classifyImport, worldPurity, capabilitySetProblem, worldWithinGrant, effectsOutsidePolicy, checkWorldPolicy });
+  return Object.freeze({ readInterface, checkWorld, describeWorld, declaredImports, compareWorldPin, IMPURE_EFFECTS, classifyImport, worldPurity, capabilitySetProblem, worldWithinGrant, effectsOutsidePolicy, checkWorldPolicy });
+})();
+
+// src/rego.mjs
+const __rego = (() => {
+  /**
+   * A closed subset of Rego v1, the policy language of `prism check --policy`
+   * (issue #285, docs/proposals/285-policy-file.md).
+   *
+   * Why it is here: this package has no dependencies and runs in a browser, and
+   * no npm package evaluates Rego source without a compile step. The rule that
+   * keeps a hand-written evaluator honest is that it refuses, and never guesses:
+   * a construct outside the subset is a parse error that names it, so a policy
+   * that both this file and OPA accept gets the same answer from each. Where
+   * OPA would turn a mistake into `undefined`, such as `count(1)`, this file
+   * stops with an evaluation error, so a mistake cannot read as a pass. There is
+   * no type checker here: OPA refuses `1 == "1"` when it compiles, and this file
+   * answers false.
+   *
+   * The subset, which the OPA differential test in test/rego-corpus.mjs pins:
+   *
+   *   module    `package prism.policy`, optionally `import rego.v1`, then rules
+   *   rules     `x := term`, `x := term if body`, `x if body`, `default x := term`,
+   *             `x contains term`, `x contains term if body`
+   *   literals  `some v in c`, `some k, v in c`, `every v in c { }`, `not expr`,
+   *             `x := term`, and an expression
+   *   exprs     a term; `== != < <= > >=`; `x in c`
+   *   terms     strings, numbers, true, false, null, arrays, objects, sets,
+   *             comprehensions, references, and the functions in BUILTINS
+   *
+   * Refused: functions, partial objects, `else`, `with`, `=`, arithmetic and set
+   * operators, `_` and unbound variables in a reference, `data`, and other imports.
+   * Nothing here reads a clock, the network or randomness.
+   */
+
+  /** `kind` is `parse` or `evaluation`; the caller turns it into its typed error. */
+  class RegoError extends Error {
+    constructor(kind, message) {
+      super(message);
+      this.name = 'RegoError';
+      this.kind = kind;
+    }
+  }
+
+  const UNDEFINED = Symbol('undefined');
+  const MAX_SOURCE = 256 * 1024;
+  const MAX_DEPTH = 64;
+  const STEP_BUDGET = 2_000_000;
+  const PACKAGE = 'prism.policy';
+  /** The rules that make the decision. Everything else exists to serve them. */
+  const DECISIONS = Object.freeze(['minimum', 'deny']);
+  const RESERVED = new Set(['as', 'default', 'else', 'every', 'false', 'if', 'import', 'in', 'not', 'null', 'package', 'some', 'true', 'with']);
+  const COMPARE = new Set(['==', '!=', '<', '<=', '>', '>=']);
+  const PUNCTUATION = [':=', '==', '!=', '<=', '>=', '{', '}', '[', ']', '(', ')', ',', '.', ':', ';', '|', '<', '>', '='];
+  const NUMBER = /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/y;
+  const IDENTIFIER = /[A-Za-z_][A-Za-z0-9_]*/y;
+
+  const at = (token) => `line ${token.line}, column ${token.column}`;
+  const parseError = (token, message) => new RegoError('parse', `${at(token)}: ${message}`);
+
+  /* ------------------------------------------------------------------ lexer */
+
+  function lex(source) {
+    const tokens = [];
+    let i = 0;
+    let line = 1;
+    let lineStart = 0;
+    const here = () => ({ line, column: i - lineStart + 1 });
+    const push = (type, value, position, length) => {
+      tokens.push({ type, value, ...position });
+      i += length;
+    };
+    while (i < source.length) {
+      const c = source[i];
+      if (c === '\n') {
+        if (tokens.at(-1)?.type !== 'newline') tokens.push({ type: 'newline', ...here() });
+        i++;
+        line++;
+        lineStart = i;
+      } else if (c === ' ' || c === '\t' || c === '\r' || c === '﻿') {
+        i++;
+      } else if (c === '#') {
+        while (i < source.length && source[i] !== '\n') i++;
+      } else if (c === '"') {
+        const position = here();
+        let end = i + 1;
+        while (end < source.length && source[end] !== '"' && source[end] !== '\n') end += source[end] === '\\' ? 2 : 1;
+        if (source[end] !== '"') throw parseError(position, 'a string is not closed on its line');
+        let value;
+        try {
+          value = JSON.parse(source.slice(i, end + 1));
+        } catch {
+          throw parseError(position, 'a string has an escape Rego does not have');
+        }
+        push('string', value, position, end + 1 - i);
+      } else if (c === '`') {
+        const position = here();
+        const end = source.indexOf('`', i + 1);
+        if (end < 0) throw parseError(position, 'a raw string is not closed');
+        const text = source.slice(i + 1, end);
+        push('string', text, position, end + 1 - i);
+        const breaks = text.split('\n').length - 1;
+        if (breaks > 0) {
+          line += breaks;
+          lineStart = i - (text.length - text.lastIndexOf('\n') - 1) - 1;
+        }
+      } else if (/[0-9]/.test(c) || (c === '-' && /[0-9]/.test(source[i + 1] ?? ''))) {
+        NUMBER.lastIndex = i;
+        const text = NUMBER.exec(source)[0];
+        push('number', Number(text), here(), text.length);
+      } else if (/[A-Za-z_]/.test(c)) {
+        IDENTIFIER.lastIndex = i;
+        const text = IDENTIFIER.exec(source)[0];
+        push('identifier', text, here(), text.length);
+      } else {
+        const mark = PUNCTUATION.find((p) => source.startsWith(p, i));
+        if (!mark) {
+          if ('+-*/%&'.includes(c)) throw parseError(here(), `the operator ${c} is outside the subset this evaluator accepts`);
+          throw parseError(here(), `unexpected character ${JSON.stringify(c)}`);
+        }
+        push('punctuation', mark, here(), mark.length);
+      }
+    }
+    tokens.push({ type: 'end', ...here() });
+    return tokens;
+  }
+
+  /* ----------------------------------------------------------------- parser */
+
+  class Parser {
+    constructor(tokens) {
+      this.tokens = tokens;
+      this.index = 0;
+      this.depth = 0;
+    }
+
+    get token() {
+      return this.tokens[this.index];
+    }
+
+    is(type, value) {
+      return this.token.type === type && (value === undefined || this.token.value === value);
+    }
+
+    punctuation(value) {
+      return this.is('punctuation', value);
+    }
+
+    word(value) {
+      return this.is('identifier', value);
+    }
+
+    next() {
+      return this.tokens[this.index++];
+    }
+
+    skipNewlines() {
+      while (this.is('newline')) this.index++;
+    }
+
+    describe() {
+      const { type, value } = this.token;
+      if (type === 'end') return 'the end of the file';
+      if (type === 'newline') return 'the end of the line';
+      return type === 'string' ? JSON.stringify(value) : String(value);
+    }
+
+    expect(value) {
+      if (!this.punctuation(value)) throw parseError(this.token, `expected ${value}, found ${this.describe()}`);
+      return this.next();
+    }
+
+    expectWord(value) {
+      if (!this.word(value)) throw parseError(this.token, `expected ${value}, found ${this.describe()}`);
+      return this.next();
+    }
+
+    name(what) {
+      if (!this.is('identifier')) throw parseError(this.token, `expected ${what}, found ${this.describe()}`);
+      if (RESERVED.has(this.token.value)) throw parseError(this.token, `${this.token.value} is a keyword and cannot be ${what}`);
+      return this.next();
+    }
+
+    endOfStatement() {
+      if (this.is('end')) return;
+      if (this.word('else')) throw parseError(this.token, 'else is outside the subset this evaluator accepts');
+      if (!this.is('newline')) throw parseError(this.token, `expected the end of the line, found ${this.describe()}`);
+      this.skipNewlines();
+    }
+
+    module() {
+      this.skipNewlines();
+      if (!this.word('package')) throw parseError(this.token, `a policy starts with package ${PACKAGE}`);
+      const start = this.next();
+      const parts = [this.name('a package name').value];
+      while (this.punctuation('.')) {
+        this.next();
+        parts.push(this.name('a package name').value);
+      }
+      if (parts.join('.') !== PACKAGE) throw parseError(start, `the package must be ${PACKAGE}, not ${parts.join('.')}`);
+      this.endOfStatement();
+      while (this.word('import')) {
+        const token = this.next();
+        const parts2 = [this.name('an import').value];
+        while (this.punctuation('.')) {
+          this.next();
+          parts2.push(this.name('an import').value);
+        }
+        if (parts2.join('.') !== 'rego.v1') throw parseError(token, `only rego.v1 may be imported, not ${parts2.join('.')}`);
+        this.endOfStatement();
+      }
+      const rules = [];
+      while (!this.is('end')) rules.push(this.rule());
+      return rules;
+    }
+
+    rule() {
+      if (this.word('default')) {
+        this.next();
+        const name = this.name('a rule name');
+        this.expect(':=');
+        const head = this.term();
+        this.endOfStatement();
+        return { kind: 'default', name: name.value, at: name, head, body: [] };
+      }
+      const name = this.name('a rule name');
+      let rule;
+      if (this.punctuation('(')) throw parseError(this.token, `${name.value} is a function, and functions are outside the subset this evaluator accepts`);
+      if (this.punctuation('[')) throw parseError(this.token, `${name.value} is a partial object, which is outside the subset this evaluator accepts; use a set or an object literal`);
+      if (this.punctuation('=')) throw parseError(this.token, `write ${name.value} := with :=, because = is outside the subset this evaluator accepts`);
+      if (this.word('contains')) {
+        this.next();
+        const head = this.term();
+        rule = { kind: 'set', name: name.value, at: name, head, body: this.optionalBody() };
+      } else if (this.punctuation(':=')) {
+        this.next();
+        const head = this.term();
+        rule = { kind: 'complete', name: name.value, at: name, head, body: this.optionalBody() };
+      } else if (this.word('if')) {
+        rule = { kind: 'complete', name: name.value, at: name, head: { t: 'value', value: true }, body: this.optionalBody() };
+      } else {
+        throw parseError(this.token, `expected :=, contains or if after ${name.value}, found ${this.describe()}`);
+      }
+      this.endOfStatement();
+      return rule;
+    }
+
+    optionalBody() {
+      if (!this.word('if')) return [];
+      this.next();
+      if (!this.punctuation('{')) return [this.literal()];
+      this.next();
+      const body = this.body('}');
+      this.expect('}');
+      return body;
+    }
+
+    body(closer) {
+      const literals = [];
+      for (;;) {
+        while (this.is('newline') || this.punctuation(';')) this.next();
+        if (this.punctuation(closer)) break;
+        literals.push(this.literal());
+        if (!this.is('newline') && !this.punctuation(';') && !this.punctuation(closer)) {
+          throw parseError(this.token, `expected the end of a statement, found ${this.describe()}`);
+        }
+      }
+      if (literals.length === 0) throw parseError(this.token, 'a body is empty');
+      return literals;
+    }
+
+    variables() {
+      const names = [this.name('a variable')];
+      if (this.punctuation(',')) {
+        this.next();
+        names.push(this.name('a variable'));
+      }
+      return names;
+    }
+
+    literal() {
+      const start = this.token;
+      if (this.word('some')) {
+        this.next();
+        const names = this.variables();
+        if (!this.word('in')) throw parseError(this.token, 'write some x in collection; a bare some is outside the subset this evaluator accepts');
+        this.next();
+        return { l: 'some', at: start, names, domain: this.term() };
+      }
+      if (this.word('every')) {
+        this.next();
+        const names = this.variables();
+        this.expectWord('in');
+        const domain = this.term();
+        this.expect('{');
+        const body = this.body('}');
+        this.expect('}');
+        return { l: 'every', at: start, names, domain, body };
+      }
+      if (this.word('not')) {
+        this.next();
+        return { l: 'not', at: start, expr: this.expression() };
+      }
+      if (this.is('identifier') && !RESERVED.has(start.value) && this.tokens[this.index + 1].type === 'punctuation' && this.tokens[this.index + 1].value === ':=') {
+        this.index += 2;
+        return { l: 'assign', at: start, name: start, term: this.term() };
+      }
+      return { l: 'expr', at: start, expr: this.expression() };
+    }
+
+    expression() {
+      const left = this.term();
+      const token = this.token;
+      if (token.type === 'punctuation' && COMPARE.has(token.value)) {
+        this.next();
+        return { e: 'compare', at: token, op: token.value, left, right: this.term() };
+      }
+      if (this.word('in')) {
+        this.next();
+        return { e: 'in', at: token, left, right: this.term() };
+      }
+      if (this.punctuation('=')) throw parseError(token, 'write == or :=, because = is outside the subset this evaluator accepts');
+      if (this.punctuation(',')) throw parseError(token, 'k, v in collection as an expression is outside the subset this evaluator accepts; use some k, v in collection');
+      if (this.word('with')) throw parseError(token, 'with is outside the subset this evaluator accepts');
+      if (this.word('as')) throw parseError(token, 'as is outside the subset this evaluator accepts');
+      return { e: 'term', at: left.at ?? token, term: left };
+    }
+
+    term() {
+      if (++this.depth > MAX_DEPTH) throw parseError(this.token, `terms nest deeper than ${MAX_DEPTH}`);
+      let term = this.primary();
+      for (;;) {
+        if (this.punctuation('.')) {
+          this.next();
+          if (!this.is('identifier')) throw parseError(this.token, `expected a member name, found ${this.describe()}`);
+          const token = this.next();
+          term = this.indexed(term, { t: 'value', value: token.value });
+        } else if (this.punctuation('[')) {
+          const token = this.next();
+          if (this.word('_')) throw parseError(this.token, 'a wildcard in a reference is outside the subset this evaluator accepts; use some x in collection');
+          const key = this.term();
+          this.expect(']');
+          term = this.indexed(term, key, token);
+        } else {
+          break;
+        }
+      }
+      this.depth--;
+      return term;
+    }
+
+    indexed(term, key, token) {
+      return term.t === 'ref' ? { ...term, path: [...term.path, key] } : { t: 'ref', at: term.at ?? token, base: term, path: [key] };
+    }
+
+    primary() {
+      const token = this.token;
+      if (token.type === 'string' || token.type === 'number') {
+        this.next();
+        return { t: 'value', at: token, value: token.value };
+      }
+      if (token.type === 'identifier') {
+        if (token.value === 'true' || token.value === 'false' || token.value === 'null') {
+          this.next();
+          return { t: 'value', at: token, value: token.value === 'null' ? null : token.value === 'true' };
+        }
+        if (RESERVED.has(token.value)) throw parseError(token, `${token.value} cannot start a term`);
+        return this.nameOrCall();
+      }
+      if (this.punctuation('(')) {
+        this.next();
+        this.skipNewlines();
+        const inner = this.term();
+        this.skipNewlines();
+        this.expect(')');
+        return inner;
+      }
+      if (this.punctuation('[')) return this.arrayTerm();
+      if (this.punctuation('{')) return this.braceTerm();
+      throw parseError(token, `expected a term, found ${this.describe()}`);
+    }
+
+    nameOrCall() {
+      const token = this.next();
+      // A dotted name followed by ( is a function; anything else is a variable and its reference.
+      let lookahead = this.index;
+      let name = token.value;
+      while (this.tokens[lookahead].type === 'punctuation' && this.tokens[lookahead].value === '.' && this.tokens[lookahead + 1].type === 'identifier') {
+        name += `.${this.tokens[lookahead + 1].value}`;
+        lookahead += 2;
+      }
+      if (this.tokens[lookahead].type === 'punctuation' && this.tokens[lookahead].value === '(') {
+        this.index = lookahead + 1;
+        const args = this.commaSeparated(')');
+        this.expect(')');
+        const builtin = Object.hasOwn(BUILTINS, name) ? BUILTINS[name] : undefined;
+        if (!builtin) throw parseError(token, `the function ${name} is outside the subset this evaluator accepts; it has ${Object.keys(BUILTINS).join(', ')}`);
+        if (builtin.arity !== args.length) throw parseError(token, `${name} takes ${builtin.arity} arguments, not ${args.length}`);
+        return { t: 'call', at: token, name, args };
+      }
+      if (token.value === '_') throw parseError(token, 'a wildcard outside some and every is outside the subset this evaluator accepts');
+      if (token.value === 'data') throw parseError(token, 'data is outside the subset this evaluator accepts; a policy reads input and its own rules');
+      return { t: 'var', at: token, name: token.value };
+    }
+
+    commaSeparated(closer) {
+      const items = [];
+      this.skipNewlines();
+      while (!this.punctuation(closer)) {
+        items.push(this.term());
+        this.skipNewlines();
+        if (!this.punctuation(',')) break;
+        this.next();
+        this.skipNewlines();
+      }
+      return items;
+    }
+
+    arrayTerm() {
+      const start = this.next();
+      this.skipNewlines();
+      if (this.punctuation(']')) {
+        this.next();
+        return { t: 'array', at: start, items: [] };
+      }
+      const first = this.term();
+      this.skipNewlines();
+      if (this.punctuation('|')) return this.comprehension('array', start, { head: first }, ']');
+      const items = [first];
+      if (this.punctuation(',')) {
+        this.next();
+        items.push(...this.commaSeparated(']'));
+      }
+      this.skipNewlines();
+      this.expect(']');
+      return { t: 'array', at: start, items };
+    }
+
+    braceTerm() {
+      const start = this.next();
+      this.skipNewlines();
+      if (this.punctuation('}')) {
+        this.next();
+        return { t: 'object', at: start, entries: [] };
+      }
+      const first = this.term();
+      this.skipNewlines();
+      if (this.punctuation(':')) {
+        this.next();
+        this.skipNewlines();
+        const value = this.term();
+        this.skipNewlines();
+        if (this.punctuation('|')) return this.comprehension('object', start, { key: first, value }, '}');
+        const entries = [[first, value]];
+        while (this.punctuation(',')) {
+          this.next();
+          this.skipNewlines();
+          if (this.punctuation('}')) break;
+          const key = this.term();
+          this.skipNewlines();
+          this.expect(':');
+          this.skipNewlines();
+          entries.push([key, this.term()]);
+          this.skipNewlines();
+        }
+        this.expect('}');
+        return { t: 'object', at: start, entries };
+      }
+      if (this.punctuation('|')) return this.comprehension('set', start, { head: first }, '}');
+      const items = [first];
+      if (this.punctuation(',')) {
+        this.next();
+        items.push(...this.commaSeparated('}'));
+      }
+      this.skipNewlines();
+      this.expect('}');
+      return { t: 'set', at: start, items };
+    }
+
+    comprehension(shape, start, parts, closer) {
+      this.next();
+      const body = this.body(closer);
+      this.expect(closer);
+      return { t: 'comprehension', at: start, shape, ...parts, body };
+    }
+  }
+
+  /* ---------------------------------------------------------- static checks */
+
+  /** Every variable is bound before it is used, and no name is rebound. OPA would reorder a body; here the order is the order written. */
+  function checkScopes(rule, ruleNames, uses) {
+    const bind = (token, scope) => {
+      const { value: name } = token;
+      if (name === '_') return;
+      if (name === 'input' || ruleNames.has(name) || scope.has(name)) throw parseError(token, `${name} is already bound; a name cannot be rebound in this evaluator`);
+      scope.add(name);
+    };
+    const walkTerm = (term, scope) => {
+      switch (term.t) {
+        case 'value':
+          return;
+        case 'var':
+          if (term.name === 'input' || scope.has(term.name)) return;
+          if (ruleNames.has(term.name)) {
+            uses.add(term.name);
+            return;
+          }
+          throw parseError(term.at, `${term.name} is unsafe: nothing binds it before this use, in the order written`);
+        case 'ref':
+          walkTerm(term.base, scope);
+          for (const key of term.path) walkTerm(key, scope);
+          return;
+        case 'call':
+          for (const arg of term.args) walkTerm(arg, scope);
+          return;
+        case 'array':
+        case 'set':
+          for (const item of term.items) walkTerm(item, scope);
+          return;
+        case 'object':
+          for (const [key, value] of term.entries) {
+            walkTerm(key, scope);
+            walkTerm(value, scope);
+          }
+          return;
+        case 'comprehension': {
+          const inner = new Set(scope);
+          walkBody(term.body, inner);
+          for (const part of [term.head, term.key, term.value]) if (part) walkTerm(part, inner);
+          return;
+        }
+        default:
+          throw new RegoError('parse', `unknown term ${term.t}`);
+      }
+    };
+    const walkExpression = (expr, scope) => {
+      if (expr.e === 'term') walkTerm(expr.term, scope);
+      else {
+        walkTerm(expr.left, scope);
+        walkTerm(expr.right, scope);
+      }
+    };
+    const walkBody = (body, scope) => {
+      for (const literal of body) {
+        if (literal.l === 'some') {
+          walkTerm(literal.domain, scope);
+          for (const name of literal.names) bind(name, scope);
+        } else if (literal.l === 'every') {
+          walkTerm(literal.domain, scope);
+          const inner = new Set(scope);
+          for (const name of literal.names) bind(name, inner);
+          walkBody(literal.body, inner);
+        } else if (literal.l === 'not') {
+          walkExpression(literal.expr, scope);
+        } else if (literal.l === 'assign') {
+          walkTerm(literal.term, scope);
+          bind(literal.name, scope);
+        } else {
+          walkExpression(literal.expr, scope);
+        }
+      }
+    };
+    const scope = new Set();
+    walkBody(rule.body, scope);
+    walkTerm(rule.head, scope);
+  }
+
+  function checkRules(rules) {
+    const byName = new Map();
+    for (const rule of rules) {
+      if (rule.name === 'input' || rule.name === 'data' || rule.name === '_') throw parseError(rule.at, `a rule cannot be named ${rule.name}`);
+      if (!byName.has(rule.name)) byName.set(rule.name, []);
+      byName.get(rule.name).push(rule);
+    }
+    if (!byName.has('minimum')) throw parseError({ line: 1, column: 1 }, 'a policy defines minimum, the lowest assurance level it accepts, such as minimum := "P2"');
+    const dependencies = new Map();
+    const names = new Set(byName.keys());
+    for (const [name, group] of byName) {
+      const kinds = new Set(group.map((r) => (r.kind === 'default' ? 'complete' : r.kind)));
+      if (kinds.size > 1) throw parseError(group[0].at, `${name} is defined both with contains and with := or if`);
+      if (group.filter((r) => r.kind === 'default').length > 1) throw parseError(group[0].at, `${name} has more than one default`);
+      if (name === 'deny' && !kinds.has('set')) throw parseError(group[0].at, 'deny is a set: write deny contains {"rule": ..., "message": ...} if { ... }');
+      if (name === 'minimum' && !kinds.has('complete')) throw parseError(group[0].at, 'minimum is one value: write minimum := "P2"');
+      const uses = new Set();
+      for (const rule of group) checkScopes(rule, names, uses);
+      dependencies.set(name, uses);
+    }
+    // Recursion would not terminate on its own, and OPA refuses it too.
+    const state = new Map();
+    const visit = (name, trail) => {
+      if (state.get(name) === 'done') return;
+      if (state.get(name) === 'open') throw parseError(byName.get(name)[0].at, `the rules recurse: ${[...trail, name].join(' -> ')}`);
+      state.set(name, 'open');
+      for (const used of dependencies.get(name)) visit(used, [...trail, name]);
+      state.set(name, 'done');
+    };
+    for (const name of DECISIONS) if (byName.has(name)) visit(name, []);
+    // A rule that decides nothing is a mistake that would read as a pass: an `allow` this file never consults, or a misspelled `deny`.
+    for (const [name, group] of byName) {
+      if (state.get(name) !== 'done') throw parseError(group[0].at, `the rule ${name} decides nothing: only minimum and deny decide, and neither uses it`);
+    }
+    return byName;
+  }
+
+  /** Parse a policy. Throws `RegoError` of kind `parse`. Returns the program `evaluateRego` runs. */
+  function parseRego(source) {
+    if (typeof source !== 'string') throw new RegoError('parse', 'a policy is text');
+    if (source.length > MAX_SOURCE) throw new RegoError('parse', `a policy is at most ${MAX_SOURCE} bytes`);
+    try {
+      return Object.freeze({ rules: checkRules(new Parser(lex(source)).module()) });
+    } catch (error) {
+      if (error instanceof RangeError) throw new RegoError('parse', 'the policy nests too deeply');
+      throw error;
+    }
+  }
+
+  /* ----------------------------------------------------------------- values */
+
+  class RegoSet {
+    constructor() {
+      this.members = new Map();
+    }
+
+    add(value) {
+      this.members.set(canonical(value), value);
+    }
+
+    has(value) {
+      return this.members.has(canonical(value));
+    }
+
+    get size() {
+      return this.members.size;
+    }
+
+    /** Members in canonical order, so that nothing depends on insertion. */
+    values() {
+      return [...this.members.keys()].sort().map((key) => this.members.get(key));
+    }
+  }
+
+  const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof RegoSet);
+  const isCollection = (value) => Array.isArray(value) || value instanceof RegoSet || isObject(value);
+
+  function canonical(value) {
+    if (value instanceof RegoSet) return `set(${[...value.members.keys()].sort().join(',')})`;
+    if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+    if (isObject(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
+    return JSON.stringify(value);
+  }
+
+  const equal = (a, b) => canonical(a) === canonical(b);
+
+  /** Compare strings by code point, as Go compares UTF-8 bytes. JavaScript's own order is by UTF-16 unit. */
+  function compareStrings(a, b) {
+    const x = [...a];
+    const y = [...b];
+    for (let i = 0; i < Math.min(x.length, y.length); i++) {
+      const delta = x[i].codePointAt(0) - y[i].codePointAt(0);
+      if (delta !== 0) return delta;
+    }
+    return x.length - y.length;
+  }
+
+  function typeName(value) {
+    if (value === null) return 'null';
+    if (value instanceof RegoSet) return 'set';
+    if (Array.isArray(value)) return 'array';
+    return typeof value === 'object' ? 'object' : typeof value;
+  }
+
+  /** The text sprintf %v prints, as OPA prints a term: a string as itself at the top, quoted inside a collection. */
+  function display(value, top = true) {
+    if (typeof value === 'string') return top ? value : JSON.stringify(value);
+    if (value instanceof RegoSet) return value.size === 0 ? 'set()' : `{${value.values().map((v) => display(v, false)).join(', ')}}`;
+    if (Array.isArray(value)) return `[${value.map((v) => display(v, false)).join(', ')}]`;
+    if (isObject(value)) return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}: ${display(value[k], false)}`).join(', ')}}`;
+    return JSON.stringify(value);
+  }
+
+  class BuiltinError extends Error {}
+
+  const wants = (name, position, type, value) => {
+    if (typeName(value) !== type) throw new BuiltinError(`${name} wants a ${type} as argument ${position}, and got a ${typeName(value)}`);
+    return value;
+  };
+
+  function sprintf(format, args) {
+    wants('sprintf', 1, 'string', format);
+    wants('sprintf', 2, 'array', args);
+    let used = 0;
+    const text = format.replace(/%(.?)/gs, (_, verb) => {
+      if (verb === '%') return '%';
+      if (!'svd'.includes(verb) || verb === '') throw new BuiltinError(`sprintf has no verb %${verb} in this evaluator; it has %s, %v, %d and %%`);
+      if (used >= args.length) throw new BuiltinError(`the sprintf format wants more than the ${args.length} values it was given`);
+      const value = args[used++];
+      if (verb === 's' && typeof value !== 'string') throw new BuiltinError(`sprintf %s wants a string, and got a ${typeName(value)}; use %v`);
+      if (verb === 'd' && !Number.isInteger(value)) throw new BuiltinError(`sprintf %d wants an integer, and got a ${typeName(value)}`);
+      return display(value);
+    });
+    if (used !== args.length) throw new BuiltinError(`the sprintf format uses ${used} of the ${args.length} values it was given`);
+    return text;
+  }
+
+  function concat(separator, items) {
+    wants('concat', 1, 'string', separator);
+    if (!Array.isArray(items) && !(items instanceof RegoSet)) throw new BuiltinError(`concat wants an array or a set as argument 2, and got a ${typeName(items)}`);
+    const list = Array.isArray(items) ? items : [...items.values()].sort((a, b) => (typeof a === 'string' && typeof b === 'string' ? compareStrings(a, b) : 0));
+    for (const item of list) wants('concat', 2, 'string', item);
+    return list.join(separator);
+  }
+
+  function count(value) {
+    if (value instanceof RegoSet) return value.size;
+    if (Array.isArray(value)) return value.length;
+    if (isObject(value)) return Object.keys(value).length;
+    if (typeof value === 'string') return [...value].length;
+    throw new BuiltinError(`count wants a collection or a string, and got a ${typeName(value)}`);
+  }
+
+  /** The functions a policy may call. A name not listed here is refused when the policy is parsed. */
+  const BUILTINS = Object.freeze({
+    concat: { arity: 2, run: concat },
+    contains: { arity: 2, run: (a, b) => wants('contains', 1, 'string', a).includes(wants('contains', 2, 'string', b)) },
+    count: { arity: 1, run: count },
+    endswith: { arity: 2, run: (a, b) => wants('endswith', 1, 'string', a).endsWith(wants('endswith', 2, 'string', b)) },
+    'object.get': {
+      arity: 3,
+      run: (object, key, fallback) => {
+        wants('object.get', 1, 'object', object);
+        wants('object.get', 2, 'string', key);
+        return Object.hasOwn(object, key) ? object[key] : fallback;
+      },
+    },
+    'object.keys': {
+      arity: 1,
+      run: (object) => {
+        const set = new RegoSet();
+        for (const key of Object.keys(wants('object.keys', 1, 'object', object))) set.add(key);
+        return set;
+      },
+    },
+    set: { arity: 0, run: () => new RegoSet() },
+    sprintf: { arity: 2, run: sprintf },
+    startswith: { arity: 2, run: (a, b) => wants('startswith', 1, 'string', a).startsWith(wants('startswith', 2, 'string', b)) },
+    type_name: { arity: 1, run: typeName },
+  });
+
+  /* -------------------------------------------------------------- evaluator */
+
+  class Evaluator {
+    constructor(program, input) {
+      this.rules = program.rules;
+      this.input = input;
+      this.cache = new Map();
+      this.steps = 0;
+      this.current = null;
+    }
+
+    fail(message) {
+      const where = this.current ? `rule ${this.current.name} at line ${this.current.at.line}: ` : '';
+      return new RegoError('evaluation', `${where}${message}`);
+    }
+
+    tick() {
+      if (++this.steps > STEP_BUDGET) throw this.fail(`the evaluation took more than ${STEP_BUDGET} steps`);
+    }
+
+    rule(name) {
+      if (this.cache.has(name)) return this.cache.get(name);
+      const group = this.rules.get(name);
+      const outer = this.current;
+      this.current = group[0];
+      let value;
+      if (group[0].kind === 'set') {
+        value = new RegoSet();
+        for (const rule of group) {
+          this.current = rule;
+          this.solve(rule.body, Object.create(null), (env) => {
+            const head = this.term(rule.head, env);
+            if (head !== UNDEFINED) value.add(head);
+          });
+        }
+      } else {
+        value = UNDEFINED;
+        for (const rule of group) {
+          if (rule.kind === 'default') continue;
+          this.current = rule;
+          this.solve(rule.body, Object.create(null), (env) => {
+            const head = this.term(rule.head, env);
+            if (head === UNDEFINED) return;
+            if (value !== UNDEFINED && !equal(value, head)) throw this.fail(`${name} has two different values, ${display(value, false)} and ${display(head, false)}`);
+            value = head;
+          });
+        }
+        const fallback = group.find((rule) => rule.kind === 'default');
+        if (value === UNDEFINED && fallback) {
+          this.current = fallback;
+          value = this.term(fallback.head, Object.create(null));
+        }
+      }
+      this.current = outer;
+      this.cache.set(name, value);
+      return value;
+    }
+
+    /** Call `emit` with the bindings of every solution of a body, in the order written. */
+    solve(body, env, emit) {
+      const step = (index, bindings) => {
+        this.tick();
+        if (index === body.length) return emit(bindings);
+        const literal = body[index];
+        switch (literal.l) {
+          case 'some': {
+            for (const scoped of this.elements(literal, this.term(literal.domain, bindings), bindings)) step(index + 1, scoped);
+            return undefined;
+          }
+          case 'every': {
+            // A domain that is undefined or is not a collection fails the literal; an empty one holds.
+            const domain = this.term(literal.domain, bindings);
+            if (!isCollection(domain)) return undefined;
+            for (const scoped of this.elements(literal, domain, bindings)) {
+              let found = false;
+              this.solve(literal.body, scoped, () => {
+                found = true;
+              });
+              if (!found) return undefined;
+            }
+            return step(index + 1, bindings);
+          }
+          case 'not':
+            return this.holds(literal.expr, bindings) ? undefined : step(index + 1, bindings);
+          case 'assign': {
+            const value = this.term(literal.term, bindings);
+            if (value === UNDEFINED) return undefined;
+            return step(index + 1, this.extended(bindings, literal.name.value, value));
+          }
+          default:
+            return this.holds(literal.expr, bindings) ? step(index + 1, bindings) : undefined;
+        }
+      };
+      step(0, env);
+    }
+
+    extended(env, name, value) {
+      if (name === '_') return env;
+      const next = Object.create(null);
+      Object.assign(next, env);
+      next[name] = value;
+      return next;
+    }
+
+    /** The bindings of each element of a domain. One that is undefined or is not a collection has no elements. */
+    *elements(literal, domain, env) {
+      if (!isCollection(domain)) return;
+      const [first, second] = literal.names;
+      const pairs = Array.isArray(domain)
+        ? domain.map((value, index) => [index, value])
+        : domain instanceof RegoSet
+          ? domain.values().map((value) => [value, value])
+          : Object.keys(domain).sort().map((key) => [key, domain[key]]);
+      for (const [key, value] of pairs) {
+        this.tick();
+        yield second ? this.extended(this.extended(env, first.value, key), second.value, value) : this.extended(env, first.value, value);
+      }
+    }
+
+    holds(expr, env) {
+      this.tick();
+      if (expr.e === 'term') {
+        const value = this.term(expr.term, env);
+        return value !== UNDEFINED && value !== false;
+      }
+      const left = this.term(expr.left, env);
+      const right = this.term(expr.right, env);
+      if (left === UNDEFINED || right === UNDEFINED) return false;
+      if (expr.e === 'in') {
+        if (Array.isArray(right)) return right.some((item) => equal(item, left));
+        if (right instanceof RegoSet) return right.has(left);
+        if (isObject(right)) return Object.values(right).some((item) => equal(item, left));
+        return false;
+      }
+      if (expr.op === '==') return equal(left, right);
+      if (expr.op === '!=') return !equal(left, right);
+      let order;
+      if (typeof left === 'number' && typeof right === 'number') order = left - right;
+      else if (typeof left === 'string' && typeof right === 'string') order = compareStrings(left, right);
+      else throw this.fail(`${expr.op} compares two numbers or two strings, and got a ${typeName(left)} and a ${typeName(right)}`);
+      if (expr.op === '<') return order < 0;
+      if (expr.op === '<=') return order <= 0;
+      if (expr.op === '>') return order > 0;
+      return order >= 0;
+    }
+
+    term(term, env) {
+      this.tick();
+      switch (term.t) {
+        case 'value':
+          return term.value;
+        case 'var':
+          if (term.name in env) return env[term.name];
+          if (term.name === 'input') return this.input;
+          return this.rule(term.name);
+        case 'ref':
+          return this.reference(term, env);
+        case 'call': {
+          const args = [];
+          for (const arg of term.args) {
+            const value = this.term(arg, env);
+            if (value === UNDEFINED) return UNDEFINED;
+            args.push(value);
+          }
+          try {
+            return BUILTINS[term.name].run(...args);
+          } catch (error) {
+            if (error instanceof BuiltinError) throw this.fail(error.message);
+            throw error;
+          }
+        }
+        case 'array': {
+          const items = [];
+          for (const item of term.items) {
+            const value = this.term(item, env);
+            if (value === UNDEFINED) return UNDEFINED;
+            items.push(value);
+          }
+          return items;
+        }
+        case 'set': {
+          const set = new RegoSet();
+          for (const item of term.items) {
+            const value = this.term(item, env);
+            if (value === UNDEFINED) return UNDEFINED;
+            set.add(value);
+          }
+          return set;
+        }
+        case 'object': {
+          const object = Object.create(null);
+          for (const [keyTerm, valueTerm] of term.entries) {
+            const key = this.term(keyTerm, env);
+            const value = this.term(valueTerm, env);
+            if (key === UNDEFINED || value === UNDEFINED) return UNDEFINED;
+            this.put(object, key, value);
+          }
+          return object;
+        }
+        case 'comprehension':
+          return this.comprehension(term, env);
+        default:
+          throw this.fail(`unknown term ${term.t}`);
+      }
+    }
+
+    put(object, key, value) {
+      if (typeof key !== 'string') throw this.fail(`an object key must be a string in this evaluator, and got a ${typeName(key)}`);
+      if (key in object && !equal(object[key], value)) throw this.fail(`the object key ${JSON.stringify(key)} has two different values`);
+      object[key] = value;
+    }
+
+    comprehension(term, env) {
+      if (term.shape === 'array') {
+        const items = [];
+        this.solve(term.body, env, (scoped) => {
+          const value = this.term(term.head, scoped);
+          if (value !== UNDEFINED) items.push(value);
+        });
+        return items;
+      }
+      if (term.shape === 'set') {
+        const set = new RegoSet();
+        this.solve(term.body, env, (scoped) => {
+          const value = this.term(term.head, scoped);
+          if (value !== UNDEFINED) set.add(value);
+        });
+        return set;
+      }
+      const object = Object.create(null);
+      this.solve(term.body, env, (scoped) => {
+        const key = this.term(term.key, scoped);
+        const value = this.term(term.value, scoped);
+        if (key !== UNDEFINED && value !== UNDEFINED) this.put(object, key, value);
+      });
+      return object;
+    }
+
+    reference(term, env) {
+      let value = this.term(term.base, env);
+      for (const keyTerm of term.path) {
+        if (value === UNDEFINED) return UNDEFINED;
+        const key = this.term(keyTerm, env);
+        if (key === UNDEFINED) return UNDEFINED;
+        if (Array.isArray(value)) value = Number.isInteger(key) && key >= 0 && key < value.length ? value[key] : UNDEFINED;
+        else if (value instanceof RegoSet) value = value.has(key) ? key : UNDEFINED;
+        else if (isObject(value)) value = typeof key === 'string' && Object.hasOwn(value, key) ? value[key] : UNDEFINED;
+        else return UNDEFINED;
+      }
+      return value;
+    }
+  }
+
+  /** Turn a value back into JSON, with a set as a sorted array, for the caller. */
+  function plain(value) {
+    if (value instanceof RegoSet) return value.values().map(plain);
+    if (Array.isArray(value)) return value.map(plain);
+    if (isObject(value)) return Object.fromEntries(Object.keys(value).sort().map((key) => [key, plain(value[key])]));
+    return value;
+  }
+
+  /**
+   * Evaluate a parsed policy against an input document. Throws `RegoError` of
+   * kind `evaluation`. Returns `{ minimum, deny }`: `minimum` as a plain value, or
+   * undefined when the rule has none; `deny` as a sorted array of plain values.
+   */
+  function evaluateRego(program, input) {
+    const evaluator = new Evaluator(program, input);
+    try {
+      const minimum = evaluator.rule('minimum');
+      const deny = program.rules.has('deny') ? plain(evaluator.rule('deny')) : [];
+      return { minimum: minimum === UNDEFINED ? undefined : plain(minimum), deny };
+    } catch (error) {
+      if (error instanceof RangeError) throw new RegoError('evaluation', 'the evaluation nests too deeply');
+      throw error;
+    }
+  }
+  return Object.freeze({ RegoError, parseRego, evaluateRego });
+})();
+
+// src/vendor/policies.mjs
+const __vendor_policies = (() => {
+  // GENERATED by scripts/vendor.mjs from sdk/npm/spec/policies. Do not edit; run `node scripts/vendor.mjs`.
+  // The source of each shipped policy, and the prism/policy-input/1 schema, whitespace removed.
+
+  const POLICY_SOURCES = Object.freeze({
+    "default": "# The default policy: P2 or above, and the declared world within the granted capabilities.\n# prism check judges a holo by this file when no --policy is given.\npackage prism.policy\n\nimport rego.v1\n\nminimum := \"P2\"\n\ndeny contains {\"rule\": \"world.capabilities\", \"message\": message} if {\n\tinput.world.within == false\n\tmessage := concat(\"; \", input.world.problems)\n}\n",
+    "pure-only": "# Pure only: the holo does nothing beyond pure dispatch. It imports no effect, requests no\n# capability and is granted none. Any assurance level passes, so an intact holo with no\n# statements passes. Copy this file and raise minimum when you also need a level.\npackage prism.policy\n\nimport rego.v1\n\nminimum := \"P0\"\n\n# A pure world promises nothing about a holo whose bytes do not hold together.\ndamage contains reason.check if {\n\tsome reason in input.verdict.reasons\n\treason.check in {\"holo.integrity\", \"holo.documents\", \"world.contract\"}\n}\n\ndeny contains {\"rule\": check, \"message\": sprintf(\"the holo is damaged: %s\", [check])} if {\n\tsome check in damage\n}\n\ndeny contains {\"rule\": \"policy.pure-only.world\", \"message\": \"the holo declares no world, so nothing shows that it is pure\"} if {\n\tinput.world == null\n}\n\ndeny contains {\"rule\": \"policy.pure-only.world\", \"message\": sprintf(\"this reader has no world for %s, so nothing shows that it is pure\", [input.world.contract])} if {\n\tinput.world.known == false\n}\n\ndeny contains {\"rule\": \"policy.pure-only.effects\", \"message\": sprintf(\"the world imports the impure effects %v\", [input.world.effects])} if {\n\tinput.world.pure == false\n}\n\ndeny contains {\"rule\": \"policy.pure-only.imports\", \"message\": sprintf(\"the world imports %s.%s\", [entry.module, entry.name])} if {\n\tsome entry in input.world.imports\n}\n\ndeny contains {\"rule\": \"policy.pure-only.requested\", \"message\": \"the holo carries a capability set that requests something\"} if {\n\tinput.world.capability_set.empty == false\n}\n\ndeny contains {\"rule\": \"policy.pure-only.granted\", \"message\": sprintf(\"the caller grants %s\", [member])} if {\n\tsome member, entries in input.capabilities\n\tstartswith(member, \"allow-\")\n\tcount(entries) > 0\n}\n",
+    "provenance-only": "# Provenance only: the holo carries a provenance statement whose signature checks, and no proof is\n# required. P1 includes the integrity of the archive, so a damaged holo cannot reach it.\npackage prism.policy\n\nimport rego.v1\n\nminimum := \"P1\"\n\ndeny contains {\"rule\": \"policy.provenance-only.absent\", \"message\": \"the holo carries no provenance statement\"} if {\n\tinput.predicates.provenance == null\n}\n\ndeny contains {\"rule\": \"policy.provenance-only.unverified\", \"message\": \"the provenance statement signature does not check against the trust root\"} if {\n\tinput.predicates.provenance.verified == false\n}\n",
+  });
+
+  const POLICY_INPUT_JSON_SCHEMA = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://schemas.uor.foundation/prism/policy-input/1","title":"PolicyInput","description":"The document a policy judges, bound to `input` when a policy file is evaluated. It holds what the check found: the evidence, the declared world, the granted capabilities and the attested predicates. It never holds a policy, and nothing in it is read from a policy section of the holo. Design: docs/proposals/285-policy-file.md.","type":"object","additionalProperties":false,"required":["schema","holo","verdict","world","capabilities","predicates"],"properties":{"schema":{"const":"prism/policy-input/1"},"holo":{"type":"object","additionalProperties":false,"required":["fingerprint","revision","digests"],"properties":{"fingerprint":{"description":"The archive fingerprint, the same value as the holo member of a verdict.","type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"revision":{"description":"The format revision the archive matches, or null when it matches none.","type":["string","null"]},"digests":{"description":"Both digests of the whole file and of each content blob that could be located.","type":"object","additionalProperties":false,"required":["archive"],"properties":{"archive":{"$ref":"#/$defs/digests"},"capabilities":{"$ref":"#/$defs/digests"},"guest":{"$ref":"#/$defs/digests"},"view":{"$ref":"#/$defs/digests"},"model":{"$ref":"#/$defs/digests"}}}}},"verdict":{"description":"The evidence: the assurance level and every check that did not pass, before any policy judged them. A policy never changes the level.","type":"object","additionalProperties":false,"required":["level","reasons"],"properties":{"level":{"$ref":"#/$defs/level"},"reasons":{"type":"array","maxItems":1024,"items":{"$ref":"#/$defs/reason"}}}},"world":{"description":"The world the holo declares, or null when it names no guest contract.","oneOf":[{"type":"null"},{"$ref":"#/$defs/world"}]},"capabilities":{"description":"The capability set the caller granted, or null when nothing was granted. A policy file never grants; only the caller does.","oneOf":[{"type":"null"},{"$ref":"#/$defs/capabilitySet"}]},"predicates":{"description":"The attested statements the holo carries, by the kind of evidence each is. Null when the holo carries none of that kind.","type":"object","additionalProperties":false,"required":["provenance","proof","replay"],"properties":{"provenance":{"$ref":"#/$defs/predicate"},"proof":{"$ref":"#/$defs/predicate"},"replay":{"$ref":"#/$defs/predicate"}}}},"$defs":{"level":{"description":"P0 unverified, P1 provenance, P2 proof checked, P3 proof, replay and world.","enum":["P0","P1","P2","P3"]},"digests":{"type":"object","additionalProperties":false,"required":["sha256","blake3"],"properties":{"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"blake3":{"type":"string","pattern":"^[0-9a-f]{64}$"}}},"reason":{"description":"One check that did not pass, the same shape as a reason of prism/verdict/1.","type":"object","additionalProperties":false,"required":["check","withholds","message"],"properties":{"check":{"type":"string","pattern":"^[a-z][a-z0-9-]*([.][a-z][a-z0-9-]*)+$"},"code":{"type":"string","pattern":"^PP[0-9]{4}$"},"withholds":{"enum":["P1","P2","P3",null]},"message":{"type":"string","minLength":1,"maxLength":1024}}},"world":{"type":"object","additionalProperties":false,"required":["contract","known","within","pure","effects","imports","problems","capability_set"],"properties":{"contract":{"type":"string","minLength":1},"known":{"description":"False when this reader has no world for the contract. Then within, pure, effects and imports are null and nothing is stated about them.","type":"boolean"},"within":{"type":["boolean","null"]},"pure":{"type":["boolean","null"]},"effects":{"oneOf":[{"type":"null"},{"type":"array","items":{"enum":["clock","random","socket","filesystem","unknown"]}}]},"imports":{"oneOf":[{"type":"null"},{"type":"array","items":{"type":"object","additionalProperties":false,"required":["module","name","kind"],"properties":{"module":{"type":"string"},"name":{"type":"string"},"kind":{"type":"string"},"capability":{"enum":["outbound-hosts","key-value-stores","variables"]}}}}]},"problems":{"type":"array","items":{"type":"string"}},"capability_set":{"description":"The capability set blob the holo itself carries, or null when it could not be located. Empty means the holo requests nothing.","oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["label","empty"],"properties":{"label":{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"empty":{"type":"boolean"}}}]}}},"capabilitySet":{"type":"object","additionalProperties":false,"properties":{"allow-outbound-hosts":{"$ref":"#/$defs/entries"},"deny-outbound-hosts":{"$ref":"#/$defs/entries"},"allow-key-value-stores":{"$ref":"#/$defs/entries"},"deny-key-value-stores":{"$ref":"#/$defs/entries"},"allow-variables":{"$ref":"#/$defs/entries"},"deny-variables":{"$ref":"#/$defs/entries"},"allow-providers":{"$ref":"#/$defs/entries"},"deny-providers":{"$ref":"#/$defs/entries"}}},"entries":{"type":"array","items":{"type":"string"}},"predicate":{"description":"One attested statement, or null. verified says its signature checked against the trust root.","oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["predicateType","verified","predicate"],"properties":{"predicateType":{"type":"string","minLength":1},"verified":{"type":"boolean"},"predicate":{"type":"object"}}}]}}};
+  return Object.freeze({ POLICY_SOURCES, POLICY_INPUT_JSON_SCHEMA });
+})();
+
+// src/policy.mjs
+const __policy = (() => {
+  const { parseRego, evaluateRego, RegoError } = __rego;
+  const { validate } = __vendor_json_schema;
+  const { POLICY_INPUT_JSON_SCHEMA, POLICY_SOURCES } = __vendor_policies;
+  const assurance = __vendor_assurance_levels;
+  /**
+   * The policy evaluator of `prism check --policy` (issue #285,
+   * docs/proposals/285-policy-file.md). The default policy and every user policy
+   * pass through here; the default is a shipped file, not logic in `verify`.
+   *
+   * A policy is Rego (`rego.mjs`). It reads one input document,
+   * `prism/policy-input/1`, and decides with two rules: `minimum`, the lowest
+   * assurance level it accepts, and `deny`, a set of `{ rule, message }` objects.
+   * The level comes from the evidence, and no policy can change it.
+   *
+   * A policy never lives in a holo. Nothing here reads an archive.
+   */
+
+  const { ASSURANCE } = assurance;
+
+  /** The check id of a verdict reason. */
+  const CHECK = /^[a-z][a-z0-9-]*([.][a-z][a-z0-9-]*)+$/;
+  /** Check ids that mean something else already. A policy that used one would be mistaken for it. */
+  const TAKEN = /^policy\.(level|effects|invalid|unreadable|parse|evaluation|digests(\..*)?)$/;
+  /** A verdict holds at most 1024 reasons, and the evidence needs some of them. */
+  const MAX_DENIALS = 512;
+
+  const evaluationError = (message) => new RegoError('evaluation', message);
+
+  /** The source of each policy this package ships, by name. */
+  const POLICIES = POLICY_SOURCES;
+
+  const memo = new Map();
+
+  /** A shipped policy, parsed once. */
+  function shippedPolicy(name) {
+    if (!memo.has(name)) memo.set(name, parseRego(POLICY_SOURCES[name]));
+    return memo.get(name);
+  }
+
+  /** One denial as the verdict reason it adds, or null when it cites a reason the evidence already holds. */
+  function denial(entry, evidence) {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw evaluationError(`rule deny produced ${JSON.stringify(entry)}; each member is an object with rule and message`);
+    }
+    const keys = Object.keys(entry).sort().join(' ');
+    if (keys !== 'message rule' || typeof entry.rule !== 'string' || typeof entry.message !== 'string' || entry.message === '') {
+      throw evaluationError(`rule deny produced ${JSON.stringify(entry)}; each member has exactly a rule and a message, both strings`);
+    }
+    const { rule, message } = entry;
+    if (!CHECK.test(rule)) throw evaluationError(`rule deny named ${JSON.stringify(rule)}; a rule is a dotted name such as policy.my-rule`);
+    if (TAKEN.test(rule)) throw evaluationError(`rule deny named ${rule}, which already means something else in a verdict; choose another name`);
+    if (rule.startsWith('policy.')) return { rule, message };
+    // A policy may rest its denial on a reason the evidence holds. It cannot invent evidence, such as a proof failure.
+    if (evidence.some((reason) => reason.check === rule)) return null;
+    throw evaluationError(`rule deny named ${rule}, which is neither a policy.* name nor a reason the evidence holds`);
+  }
+
+  /**
+   * Evaluate a parsed policy against an input document. Throws `RegoError` of
+   * kind `evaluation` when the input is not a `prism/policy-input/1` document or
+   * the policy does not produce a decision. Returns `{ minimum, denied, denials }`.
+   * `denied` is whether any rule denied. `denials` are the reasons a denial adds to
+   * the verdict, sorted so that a verdict never depends on evaluation order; a denial
+   * that cites a reason the evidence already holds adds none.
+   *
+   * @param {object} program from `parseRego`
+   * @param {object} input a `prism/policy-input/1` document
+   */
+  function decide(program, input) {
+    const problems = validate(POLICY_INPUT_JSON_SCHEMA, input);
+    if (problems.length > 0) {
+      throw evaluationError(`the input is not a prism/policy-input/1 document: ${problems.slice(0, 3).map((p) => `${p.path} ${p.message}`).join('; ')}`);
+    }
+    const { minimum, deny } = evaluateRego(program, input);
+    if (minimum === undefined) throw evaluationError('rule minimum has no value for this input; give it a value, or a default');
+    if (!ASSURANCE.LEVELS.includes(minimum)) {
+      throw evaluationError(`rule minimum is ${JSON.stringify(minimum)}; it must be one of ${ASSURANCE.LEVELS.join(', ')}`);
+    }
+    if (deny.length > MAX_DENIALS) throw evaluationError(`rule deny produced ${deny.length} members; at most ${MAX_DENIALS} are reported`);
+    const denials = deny.map((entry) => denial(entry, input.verdict.reasons)).filter(Boolean);
+    denials.sort((a, b) => (a.rule === b.rule ? (a.message < b.message ? -1 : 1) : a.rule < b.rule ? -1 : 1));
+    return { minimum, denied: deny.length > 0, denials };
+  }
+  return Object.freeze({ POLICIES, shippedPolicy, decide });
 })();
 
 // src/index.mjs
@@ -2192,7 +3366,9 @@ const __index = (() => {
   const { readStructure } = __reader;
   const assurance = __vendor_assurance_levels;
   const transparency = __transparency;
-  const { checkWorld, checkWorldPolicy, capabilitySetProblem, compareWorldPin, describeWorld, effectsOutsidePolicy, IMPURE_EFFECTS } = __world;
+  const { checkWorld, checkWorldPolicy, capabilitySetProblem, compareWorldPin, declaredImports, describeWorld, effectsOutsidePolicy, IMPURE_EFFECTS } = __world;
+  const { parseRego, RegoError } = __rego;
+  const policies = __policy;
   /**
    * @prism-code/verify: check a `.holo` offline, without the runtime.
    *
@@ -2212,11 +3388,18 @@ const __index = (() => {
    */
   const ASSURANCE = assurance.ASSURANCE;
 
+  /** The source of each policy this package ships, by name: `default`, `pure-only` and `provenance-only` (issue #285). */
+  const POLICIES = policies.POLICIES;
+
+  /** The `schema` member of the document a policy judges (issue #285). */
+  const POLICY_INPUT_SCHEMA = spec.POLICY.INPUT;
+
   /**
    * Thrown when no verdict can be reached: the input is not bytes, the policy is
-   * invalid, the file is not a readable holo, or it is a holo of a format
-   * revision this package does not know. A holo that fails a check is a
-   * Verdict, not an error.
+   * invalid, does not parse (`policy.parse`) or cannot be evaluated
+   * (`policy.evaluation`), the file is not a readable holo, or it is a holo of a
+   * format revision this package does not know. A holo that fails a check, or a
+   * policy that denies it, is a Verdict, not an error.
    */
   class VerifyError extends Error {
     constructor(code, message) {
@@ -2803,17 +3986,67 @@ const __index = (() => {
     return inspectionOf(bytes, facts, checks);
   }
 
+  /**
+   * Parse a Rego policy (issue #285). Throws `VerifyError` `policy.parse`, whose
+   * message names the line and the construct.
+   *
+   * @param {string} source
+   */
+  function parsePolicy(source) {
+    try {
+      return parseRego(source);
+    } catch (error) {
+      if (error instanceof RegoError) throw new VerifyError('policy.parse', `the policy does not parse: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Evaluate a parsed policy against a `prism/policy-input/1` document (issue
+   * #285). Throws `VerifyError` `policy.evaluation`, whose message names the rule.
+   * Returns `{ minimum, denied, denials }`; the level is the evidence's, not the policy's.
+   *
+   * @param {object} policy from `parsePolicy`
+   * @param {object} input
+   */
+  function evaluatePolicy(policy, input) {
+    try {
+      return policies.decide(policy, input);
+    } catch (error) {
+      if (error instanceof RegoError) throw new VerifyError('policy.evaluation', `the policy cannot be evaluated: ${error.message}`);
+      throw error;
+    }
+  }
+
+  function checkCapabilities(capabilities) {
+    if (capabilities === undefined || capabilities === null) return null;
+    const problem = capabilitySetProblem(capabilities);
+    if (problem) throw new VerifyError('policy.invalid', `policy.capabilities: ${problem}`);
+    return capabilities;
+  }
+
+  function checkName(name) {
+    if (typeof name !== 'string' || name.length < 1 || name.length > 1024) throw new VerifyError('policy.invalid', 'policy.name must be a string of 1 to 1024 characters');
+    return name;
+  }
+
   function checkPolicy(policy) {
-    const { LEVELS, DEFAULT_MINIMUM, DEFAULT_POLICY } = ASSURANCE;
-    if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {}, world: undefined, capabilities: null, effects: null };
+    const { LEVELS, DEFAULT_POLICY } = ASSURANCE;
+    // `program` is the policy that decides; `minimum` is only ever a caller's override of the default policy's.
+    if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, program: policies.shippedPolicy(DEFAULT_POLICY), minimum: null, digests: {}, world: undefined, capabilities: null, effects: null };
     if (typeof policy !== 'object') throw new VerifyError('policy.invalid', 'the policy must be an object');
     for (const key of Object.keys(policy)) {
-      if (!['name', 'minimum', 'digests', 'world', 'capabilities', 'effects'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum, digests, world, capabilities or effects`);
+      if (!['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, rego, minimum, digests, world, capabilities or effects`);
     }
-    const name = policy.name ?? DEFAULT_POLICY;
-    if (typeof name !== 'string' || name.length < 1 || name.length > 1024) throw new VerifyError('policy.invalid', 'policy.name must be a string of 1 to 1024 characters');
-    const minimum = policy.minimum ?? DEFAULT_MINIMUM;
-    if (!LEVELS.includes(minimum)) throw new VerifyError('policy.invalid', `policy.minimum ${JSON.stringify(minimum)} is not one of ${LEVELS.join(', ')}`);
+    if (policy.rego !== undefined) {
+      // A policy file is the whole policy. What it decides, a level or a pin, it says in Rego, where a reader can see it.
+      const other = Object.keys(policy).find((key) => !['name', 'rego', 'capabilities'].includes(key));
+      if (other) throw new VerifyError('policy.invalid', `policy.${other} cannot be given with policy.rego; a Rego policy states it itself`);
+      return { name: checkName(policy.name ?? 'policy'), program: parsePolicy(policy.rego), minimum: null, digests: {}, world: undefined, capabilities: checkCapabilities(policy.capabilities), effects: null };
+    }
+    const name = checkName(policy.name ?? DEFAULT_POLICY);
+    const minimum = policy.minimum ?? null;
+    if (minimum !== null && !LEVELS.includes(minimum)) throw new VerifyError('policy.invalid', `policy.minimum ${JSON.stringify(minimum)} is not one of ${LEVELS.join(', ')}`);
     const digests = policy.digests ?? {};
     if (typeof digests !== 'object') throw new VerifyError('policy.invalid', 'policy.digests must be an object');
     for (const [target, set] of Object.entries(digests)) {
@@ -2825,18 +4058,14 @@ const __index = (() => {
         if (!HEX64.test(set[algorithm])) throw new VerifyError('policy.invalid', `policy.digests.${target}.${algorithm} is not 64 lowercase hex characters`);
       }
     }
-    const capabilities = policy.capabilities ?? null;
-    if (capabilities !== null) {
-      const problem = capabilitySetProblem(capabilities);
-      if (problem) throw new VerifyError('policy.invalid', `policy.capabilities: ${problem}`);
-    }
+    const capabilities = checkCapabilities(policy.capabilities);
     // effects (#282): the impure effects the policy allows the world. Absent allows any; [] is the pure-world policy.
     const effects = policy.effects ?? null;
     if (effects !== null) {
       if (!Array.isArray(effects) || effects.some((e) => !IMPURE_EFFECTS.includes(e))) throw new VerifyError('policy.invalid', `policy.effects must be an array of ${IMPURE_EFFECTS.join(', ')}`);
       if (new Set(effects).size !== effects.length) throw new VerifyError('policy.invalid', 'policy.effects repeats an effect');
     }
-    return { name, minimum, digests, world: checkWorldPin(policy.world), capabilities, effects };
+    return { name, program: policies.shippedPolicy(DEFAULT_POLICY), minimum, digests, world: checkWorldPin(policy.world), capabilities, effects };
   }
 
   /**
@@ -2877,23 +4106,10 @@ const __index = (() => {
   ]);
 
   /**
-   * Check a holo and return its verdict, a `prism/verdict/1` object
-   * (docs/proposals/269-assurance-levels.md). The level is computed from the
-   * evidence; the policy only decides `passed`. Every check runs, so the
-   * reasons list every problem at once.
-   *
-   * Rejects with VerifyError when no verdict can be reached: input that is not
-   * bytes, an invalid policy, a file whose header or section table cannot be
-   * read, or an intact holo of a format revision this package does not know.
-   * Asynchronous so that bundle signature verification (issue #267), which
-   * needs WebCrypto, can join without an API change.
-   *
-   * @param {Uint8Array | ArrayBuffer} source the whole holo
-   * @param {{ name?: string, minimum?: 'P0' | 'P1' | 'P2' | 'P3', digests?: Record<string, { sha256?: string, blake3?: string }>, world?: { contract?: string, sha256?: string, blake3?: string } | null }} [policy]
+   * What a holo's bytes show, before any policy judges them. Rejects with
+   * VerifyError when there is nothing to judge.
    */
-  async function verify(source, policy) {
-    const bytes = asBytes(source);
-    const wanted = checkPolicy(policy);
+  function evidenceOf(bytes, capabilities) {
     const { checks, facts } = analyze(bytes);
 
     const unreadable = checks.find((c) => c.status === 'fail' && STRUCTURE_IDS.includes(c.id));
@@ -2908,22 +4124,99 @@ const __index = (() => {
     }
     for (const statement of STATEMENTS) reasons.push({ ...statement });
 
-    // world.capabilities (#283): the declared world's imports within the granted set. It withholds P3, and the default policy requires it at every level.
+    // world.capabilities (#283): the declared world's imports within the granted set. It withholds P3; whether it fails the holo is the policy's to say.
     const contract = facts.documents.directory?.layers?.find((l) => l.kind === 'wasm')?.contract ?? facts.documents.provenance?.core_wasm_contract ?? null;
-    const worldPolicy = contract === null ? null : checkWorldPolicy(contract, wanted.capabilities);
-    const outsideGrant = worldPolicy?.known && !worldPolicy.within;
-    if (outsideGrant) {
-      reasons.push({ check: 'world.capabilities', code: 'PP5602', withholds: 'P3', message: sentence(`the world exceeds the granted capabilities: ${worldPolicy.problems.join('; ')}`) });
+    const world = contract === null ? null : checkWorldPolicy(contract, capabilities);
+    if (world?.known && !world.within) {
+      reasons.push({ check: 'world.capabilities', code: 'PP5602', withholds: 'P3', message: sentence(`the world exceeds the granted capabilities: ${world.problems.join('; ')}`) });
     }
 
     const { LEVELS, RANK } = ASSURANCE;
     const lowestWithheld = Math.min(...reasons.filter((r) => r.withholds).map((r) => RANK[r.withholds]), LEVELS.length);
-    const level = LEVELS[lowestWithheld - 1];
+    return { facts, reasons, contract, world, level: LEVELS[lowestWithheld - 1] };
+  }
 
-    let passed = !outsideGrant;
-    if (RANK[level] < RANK[wanted.minimum]) {
+  /** The `prism/policy-input/1` document of a holo's evidence (issue #285). */
+  function inputOf(bytes, evidence, capabilities) {
+    const { facts, reasons, contract, world, level } = evidence;
+    const blob = (role) => (facts.roles[role] ? facts.sections.find((s) => s.label === facts.roles[role]) : undefined);
+    const digests = { archive: digestsOf(bytes) };
+    for (const role of ['capabilities', 'guest', 'view', 'model']) {
+      const section = blob(role);
+      if (section?.digests) digests[role] = section.digests;
+    }
+    const capabilitySet = blob('capabilities');
+    const named = typeof contract === 'string' && contract.length > 0;
+    return {
+      schema: spec.POLICY.INPUT,
+      holo: { fingerprint: facts.fingerprint, revision: facts.revision, digests },
+      verdict: { level, reasons },
+      world: named
+        ? {
+            contract,
+            known: world.known,
+            within: world.within,
+            pure: world.pure,
+            effects: world.effects,
+            imports: declaredImports(contract),
+            problems: world.problems,
+            capability_set: capabilitySet?.content ? { label: capabilitySet.label, empty: hex(capabilitySet.content) === spec.CAPABILITY_SET.EMPTY_HEX } : null,
+          }
+        : null,
+      capabilities,
+      // Statements join with the format revision that admits the attestation section (#267). Until then a holo carries none.
+      predicates: { provenance: null, proof: null, replay: null },
+    };
+  }
+
+  /**
+   * The document a policy judges for this holo, `prism/policy-input/1` (issue
+   * #285). Write it to a file to try a policy under `opa eval`. Rejects like `verify`.
+   *
+   * @param {Uint8Array | ArrayBuffer} source the whole holo
+   * @param {{ capabilities?: object | null }} [options] the set the caller grants
+   */
+  async function policyInput(source, options) {
+    const bytes = asBytes(source);
+    const capabilities = checkCapabilities(options?.capabilities);
+    return inputOf(bytes, evidenceOf(bytes, capabilities), capabilities);
+  }
+
+  /**
+   * Check a holo and return its verdict, a `prism/verdict/1` object
+   * (docs/proposals/269-assurance-levels.md). The level is computed from the
+   * evidence; the policy only decides `passed`. Every check runs, so the
+   * reasons list every problem at once.
+   *
+   * The policy is a shipped file or the caller's (docs/proposals/285-policy-file.md).
+   * With `rego`, that source decides. Without it, the shipped default policy
+   * decides, and `minimum`, `digests`, `effects` and `world` adjust it: they are
+   * the options of the same check from before policy files.
+   *
+   * Rejects with VerifyError when no verdict can be reached: input that is not
+   * bytes, an invalid policy, a policy that does not parse or cannot be evaluated,
+   * a file whose header or section table cannot be read, or an intact holo of a
+   * format revision this package does not know. Asynchronous so that bundle
+   * signature verification (issue #267), which needs WebCrypto, can join without an API change.
+   *
+   * @param {Uint8Array | ArrayBuffer} source the whole holo
+   * @param {{ name?: string, rego?: string, minimum?: 'P0' | 'P1' | 'P2' | 'P3', digests?: Record<string, { sha256?: string, blake3?: string }>, world?: { contract?: string, sha256?: string, blake3?: string } | null }} [policy]
+   */
+  async function verify(source, policy) {
+    const bytes = asBytes(source);
+    const wanted = checkPolicy(policy);
+    const evidence = evidenceOf(bytes, wanted.capabilities);
+    const { facts, level, contract, world: worldPolicy } = evidence;
+    const reasons = [...evidence.reasons];
+
+    const decision = evaluatePolicy(wanted.program, inputOf(bytes, evidence, wanted.capabilities));
+    const minimum = wanted.minimum ?? decision.minimum;
+    const { RANK } = ASSURANCE;
+
+    let passed = !decision.denied;
+    if (RANK[level] < RANK[minimum]) {
       passed = false;
-      reasons.push({ check: 'policy.level', code: 'PP5601', withholds: null, message: `The level is ${level}; the policy requires ${wanted.minimum} or above.` });
+      reasons.push({ check: 'policy.level', code: 'PP5601', withholds: null, message: `The level is ${level}; the policy requires ${minimum} or above.` });
     }
     for (const [target, expected] of Object.entries(wanted.digests)) {
       let actual = null;
@@ -2957,11 +4250,13 @@ const __index = (() => {
       }
     }
 
+    for (const { rule, message } of decision.denials) reasons.push({ check: rule, withholds: null, message: sentence(message) });
+
     return {
       schema: ASSURANCE.VERDICT,
       holo: facts.fingerprint,
       level,
-      policy: { name: wanted.name, minimum: wanted.minimum },
+      policy: { name: wanted.name, minimum },
       passed,
       reasons,
     };
@@ -2989,7 +4284,7 @@ const __index = (() => {
       throw error;
     }
   }
-  return Object.freeze({ FORMAT_REVISION, ASSURANCE, VerifyError, worldOf, worldPolicy, INSPECTION_SCHEMA, inspect, verify, verifyTransparency });
+  return Object.freeze({ FORMAT_REVISION, ASSURANCE, POLICIES, POLICY_INPUT_SCHEMA, VerifyError, worldOf, worldPolicy, INSPECTION_SCHEMA, inspect, parsePolicy, evaluatePolicy, policyInput, verify, verifyTransparency });
 })();
 
-export const { FORMAT_REVISION, ASSURANCE, VerifyError, worldOf, worldPolicy, INSPECTION_SCHEMA, inspect, verify, verifyTransparency } = __index;
+export const { FORMAT_REVISION, ASSURANCE, POLICIES, POLICY_INPUT_SCHEMA, VerifyError, worldOf, worldPolicy, INSPECTION_SCHEMA, inspect, parsePolicy, evaluatePolicy, policyInput, verify, verifyTransparency } = __index;

@@ -18,7 +18,7 @@ prism check calculator@sha256:8a41…
 ```text
 calculator@sha256:8a41…
   digest        ok    matches
-  provenance    ok    built from model sha256:c05d… in toolchain image sha256:91ab…
+  provenance    ok    built from model sha256:c05d… in SDK image sha256:91ab…
   proof         ok    2 theorems checked
   lockfile      ok    all pins match prismpm.lock
   replay        ok    1 history, 1 call, no divergence
@@ -30,9 +30,7 @@ The level is still P2, because the proof is fine. The verdict is FAIL, because t
 
 ## Check against your own policy
 
-A policy file replaces the default. It sets the lowest assurance level that passes and how large the capability set may be. Pass it to `check`:
-
-Status: the policy file format is not published yet. The [Policy reference](/docs/reference/policy) gains its keys when the policy schema ships.
+A policy file replaces the default. It sets the lowest assurance level that passes and what else must be true of the holo. The [Policy reference](/docs/reference/policy) has the format and two worked examples, `pure-only` and `provenance-only`. Pass one to `check`:
 
 ```bash
 prism check --policy policy
@@ -41,7 +39,7 @@ prism check --policy policy
 ```text
 calculator@sha256:3f9c…
   digest        ok    matches
-  provenance    ok    built from model sha256:7d2e… in toolchain image sha256:91ab…
+  provenance    ok    built from model sha256:7d2e… in SDK image sha256:91ab…
   proof         ok    2 theorems checked
   lockfile      ok    all pins match prismpm.lock
   replay        ok    1 history, 1 call, no divergence

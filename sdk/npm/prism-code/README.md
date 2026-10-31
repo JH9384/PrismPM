@@ -68,17 +68,64 @@ request the view posts) by dispatching through the guest.
 
 `run` gates on `check` (#282): it judges the holo against the policy, with the
 capability set it will run under, before anything is instantiated. A holo
-that fails is refused with exit 1 and its verdict on stderr; no verdict (an
+that fails is refused with its verdict on stderr and the exit code of the reason
+(1 for every holo today, see the table under Containers); no verdict (an
 unreadable policy, a file that is not a holo) is exit 2. Every holo is P0
 until holos carry signed statements, so under the default policy (P2) every
 `run` is refused today: pass a policy that accepts the holo, such as
 `{"minimum": "P0"}`, or `--allow-unverified`, which runs it anyway and prints a
 warning on every start. A closure cannot be judged and runs only with the flag.
 
+With an input, `run` is one run as a container (below) and does not serve:
+`prism-code run app.holo "$REQUEST"` or `--input "$REQUEST"`.
+
 A policy's `effects` lists the impure effects the world may import: `[]` is
 the pure-world policy, which refuses a world importing a clock, random,
 socket, filesystem or unknown interface (`policy.effects`); `["clock"]` grants
 the clock.
+
+## Containers (experimental, #348)
+
+One run of a holo is a container: `created`, `running` or `exited`, with a start
+and finish time, an exit code and the returned output, kept until removed.
+
+```js
+import { prism } from 'prism-code';
+
+const container = await prism.containers.run('app.holo', '1\tadd\t20\t22', { policy: { minimum: 'P0' } });
+container.status;     // 'exited'
+container.exitCode;   // 0
+container.text();     // '1\tok\t42'
+await container.inspect();   // { schema: 'prism/container/1', id, image: { digest, ... }, state, verdict, output }
+await container.remove();
+```
+
+`create` then `start` is the two-step form. `rm: true` removes it on exit. A run
+is gated on `check`, and a failed run is an exit code, never a rejection; an image
+that cannot be opened makes no container, and the call rejects.
+
+```
+npx prism-code run app.holo "$REQUEST" [--rm] [--policy policy.json] [--allow-unverified]
+npx prism-code inspect <container> [--json] [--format state.exitCode]
+npx prism-code rm <container>
+```
+
+stdout holds the guest's output and nothing else, and the process exits with the
+container's code. The command line keeps one file per container in
+`$PRISM_HOME/containers`, by default `~/.prism/containers`, with the output and never
+the input. `EXIT_CODES` and `exitCodeFor(error)` are the table both use:
+
+| Exit | From |
+| --- | --- |
+| 0 | Success |
+| 1 | `VerificationError` with a verdict, an attestation error, any other `PrismError` |
+| 2 | `VerificationError` with no verdict, `PrismCodeError`, `CapabilityDeniedError` |
+| 3 | `SigningError` |
+| 10 | `ProofMismatchError` |
+| 11 | `WorldMismatchError` |
+| 12 | `DeterminismViolationError` |
+| 13 | `ReplayError` |
+| 70 | Anything untyped: a guest trap, or a bug in the runtime |
 
 ## Capabilities (experimental, #279)
 
@@ -355,14 +402,38 @@ npx prism-code check Calculator.holo --policy policy.json --json
 | Exit | Meaning | stdout with `--json` |
 | --- | --- | --- |
 | 0 | A verdict was reached and the policy passed. | one verdict |
-| 1 | A verdict was reached and the policy failed. | one verdict |
-| 2 | No verdict: not a holo, an unreadable policy, an unknown format revision. | nothing |
+| 1 | A verdict was reached and the policy failed or denied. | one verdict |
+| 2 | No verdict: not a holo, an unreadable, unparsable or unevaluable policy, an unknown format revision. | nothing |
 
-The policy is a verify-time input, never read from the holo. A policy file is
-one JSON object with `name`, `minimum` (`P0` to `P3`), `digests` and `world`,
-the options of `experimental_verify`. Without `--policy` the default policy
-asks for `P2` or above; `PRISM_MINIMUM_LEVEL` sets the minimum when the policy
-does not. Without a `name`, the verdict names the policy by its path.
+The policy is a verify-time input, never read from the holo. `--policy` takes a
+Rego file (`.rego`), the name of a shipped policy (`pure-only`,
+`provenance-only`, `default`), or a JSON file with `name`, `minimum` (`P0` to
+`P3`), `digests`, `world` and `effects`, the options of `experimental_verify`,
+which adjust the default policy. Without `--policy` the default policy asks for
+`P2` or above and the declared world within the granted capabilities;
+`PRISM_MINIMUM_LEVEL` sets the minimum when the policy does not, and never
+applies to a Rego policy, which states its own. A file is named in the verdict by
+its path, unless JSON names itself. The format is in
+[docs/proposals/285-policy-file.md](../../../docs/proposals/285-policy-file.md).
+
+A Rego policy is in the package `prism.policy` and decides with `minimum` and `deny`:
+
+```rego
+package prism.policy
+
+import rego.v1
+
+minimum := "P0"
+
+deny contains {"rule": "policy.house.pure", "message": "the world must be pure"} if {
+	input.world.pure == false
+}
+```
+
+A policy that denies is a verdict and exits 1, with the rule as the reason's
+`check`; with `throw: true` it is `PolicyDeniedError`. A policy that does not parse
+is `PolicyParseError` and one that cannot be evaluated is `PolicyEvaluationError`,
+and both exit 2.
 
 A CI job gates on the exit code and keeps the verdict when it fails:
 
@@ -443,6 +514,70 @@ packages, and exits 1 when a check fails. Its error hook suggests it when
 `check`, `build`, `verify`, `conformance` or `export-browser` exit 64 (no
 lockfile) or 69 (no Docker).
 
+## Provider services (experimental, #294)
+
+A capability in `prism.toml` can name a provider: an executable that provisions
+something the application needs and says how to reach it, after Docker Compose
+provider services. Nothing runs unless the capability set allows the type, and
+a returned variable is produced only when the set allows its name.
+
+```toml
+[capabilities]
+allow-providers = ["kv"]
+allow-variables = ["rates_url", "rates_store"]
+
+[capabilities.rates]
+provider = { type = "kv", options = { set = ["base=EUR"] } }
+```
+
+```
+$ npx prism-code providers up
+rates: created store rates
+rates (kv): RATES_URL, RATES_STORE
+$ npx prism-code providers up --json    # the same, with the values
+$ npx prism-code providers down         # release it; kv deletes the store
+```
+
+```js
+import { readManifest, resolveProviders, releaseProviders } from 'prism-code/node';
+
+const project = await readManifest('.');
+const { env, providers, withheld } = await resolveProviders(project);
+// env.RATES_URL, env.RATES_STORE; withheld lists what the set does not allow, by name
+```
+
+`resolveProviders` sets the environment on no process. A host passes it on.
+Today nothing inside a holo can read it: the guest world imports nothing, and
+`prism-code run` does not read `prism.toml`.
+
+Writing a provider takes one small protocol. Prism runs it in the project
+directory, with the options as flags and the capability's name last:
+
+```
+prism-provider-<type> --project-name <application> up [--<option>=<value> ...] <name>
+prism-provider-<type> --project-name <application> down [--<option>=<value> ...] <name>
+```
+
+It replies on stdout with one JSON object per line:
+
+```
+{"type":"info","message":"created store rates"}
+{"type":"setenv","message":"URL=file:///home/ada/exchange/.prism/kv/exchange/rates.json"}
+```
+
+The types are `info`, `debug`, `error` and `setenv`. `setenv` `URL=...` from the
+capability `rates` becomes `RATES_URL`. Exit 0 with no `error` message is
+success, and anything else fails with a typed error: `CapabilityDeniedError`,
+`ProviderNotFoundError`, `ProviderReplyError` or `ProviderFailedError`. No error
+quotes a reply line, because a reply may hold a secret. The provider inherits
+the caller's environment and runs as the user, outside the holo, so the capability
+set bounds whether it runs, not what it does.
+
+`prism-provider-kv` is the reference provider, a third binary in this package. It
+keeps a store as one JSON file, `.prism/kv/<application>/<store>.json`, and takes
+`store`, `dir` and repeated `set = ["key=value"]`. The protocol and its reasons
+are in `docs/proposals/294-provider-services.md`.
+
 ## What is in a `.holo`
 
 Little-endian: `HOLO`, u16 version 4, u16 flags, u16 section count, a table of
@@ -521,6 +656,53 @@ Errors are typed: `SigningError` (`sign.*`), `SignatureInvalidError`, `IdentityM
 `VerificationError` with check `policy.invalid`. The verb is `verify-attestation` because
 `prism-code verify` already runs `prismpm verify`. The design is
 [docs/proposals/272-attest-verify.md](../../../docs/proposals/272-attest-verify.md).
+
+## Push and pull (experimental, #292)
+
+```
+prism-code push app.holo ghcr.io/acme/app:1.0 --keyless
+prism-code pull ghcr.io/acme/app:1.0 app.holo \
+  --certificate-identity https://github.com/acme/app/.github/workflows/release.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+`push` puts the holo in any OCI Distribution 1.1 registry as one layer of a deterministic manifest, so the
+same file has one digest everywhere. Each line of its attestation section becomes a referrer with the same bytes,
+in the layout cosign writes. A registry without the referrers API gets the spec's `sha256-<digest>` tag instead.
+With `--key` or `--keyless`, `push` also signs a statement per predicate that names the manifest, which is what
+`cosign verify-attestation` looks for; without a signer it warns. `oras discover` lists them all.
+
+`pull` writes nothing until the holo has passed, in order: the manifest and layer digests, the archive's footer and
+labels, the BLAKE3 annotations, the verdict of `check` under `--policy` (default P0, or `PRISM_MINIMUM_LEVEL`),
+the subjects of every attestation, and, when you name a signer with the flags of `verify-attestation`, at least one
+signature. Without a signer it says signatures were not checked. Exit codes: 0 done, 1 a digest or a check failed,
+2 no answer from the registry, 3 signing failed, 64 usage.
+
+| Reference | Means |
+| --- | --- |
+| `ghcr.io/acme/app:1.0` | A tag; `latest` when none is given. A registry is required: there is no default. |
+| `ghcr.io/acme/app@sha256:<hex>` | The manifest digest. |
+| `ghcr.io/acme/app@blake3:<hex>` | The archive fingerprint, pull only, through the `blake3-<hex>` tag `push` writes. The bytes are checked, so the tag proves nothing by itself. |
+| `dir://./store:1.0`, `--store ./store app:1.0` | A local OCI image layout, for offline use. `oras --oci-layout` reads it. |
+
+`pull ghcr.io/acme/app:1.0 dir://./store:1.0` keeps the holo and its referrers for offline use, and `push
+dir://./store:1.0 registry.internal/app:1.0` publishes them again with the same digest.
+
+Credentials come from Docker's config (`credHelpers`, `auths`, `credsStore`), and for `ghcr.io` from `GHCR_TOKEN` or
+`GITHUB_TOKEN`. No flag takes a token. A loopback registry speaks HTTP; any other needs `--plain-http`.
+
+```js
+import { experimental_push, experimental_pull } from 'prism-code/node';
+
+const pushed = await experimental_push(bytes, 'ghcr.io/acme/app:1.0', { key: privatePem });
+pushed.digest;       // sha256:...
+pushed.fingerprint;  // blake3:...
+const { holo, verdict } = await experimental_pull('ghcr.io/acme/app:1.0', { key: publicPem, output: 'app.holo' });
+```
+
+Errors are typed: `RegistryAuthError`, `ReferrersUnsupportedError`, `DigestMismatchError`, `PullVerificationError`,
+`ManifestNotFoundError`, `RegistryError`, `ReferenceInvalidError`. The design is
+[docs/proposals/292-push-pull-oci.md](../../../docs/proposals/292-push-pull-oci.md).
 
 ## In the browser
 

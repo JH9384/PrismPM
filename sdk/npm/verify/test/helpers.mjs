@@ -15,6 +15,18 @@ export const here = (relative) => fileURLToPath(new URL(relative, import.meta.ur
 export const REFERENCE_PATH = here('../../prism-code/fixtures/Calculator.holo');
 export const REFERENCE_SHA256 = '84371aaac82af6b2a81a25a81d43d4097892985f55ae4919cfdcfa8b6e3486e7';
 
+/** Every reference archive (#278), by name. `reference()` is the Calculator; `archive(name)` is any of them. */
+export const REFERENCE_ARCHIVES = Object.freeze({
+  Calculator: REFERENCE_PATH,
+  PaymentApproval: here('../../prism-code/fixtures/PaymentApproval.holo'),
+});
+
+/** A fresh copy of the named reference archive. */
+export function archive(name) {
+  if (!(name in REFERENCE_ARCHIVES)) throw new Error(`no reference archive ${name}`);
+  return new Uint8Array(readFileSync(REFERENCE_ARCHIVES[name]));
+}
+
 /** ADR-015's digest table for the reference archive. */
 export const ADR_015 = Object.freeze({
   archive: { sha256: REFERENCE_SHA256, blake3: '4efe02106778d44a469cc0fc8f6998167af7c9075a3ac605c150098c0f5243bb' },

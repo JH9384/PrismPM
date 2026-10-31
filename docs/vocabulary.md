@@ -18,7 +18,7 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | SDK image | The digest-pinned Linux OCI index (`linux/amd64`, `linux/arm64`) with LexLean, Lean 4, rustc and wasm-bindgen, built from [`sdk/Dockerfile`](../sdk/Dockerfile) ([SPEC §1](../SPEC.md#1-repository-scope-and-project-configuration)). | base image |
 | `prismpm.lock` | The project lock. Its `sdk_image` field names the SDK image by immutable digest ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | pinned `FROM image@sha256:...` |
 | `prism-code` runtime | The JavaScript runtime: `load` opens and verifies a holo, `dispatch` runs one request on the guest. See [`sdk/npm/prism-code`](../sdk/npm/prism-code/README.md). | container runtime |
-| instance | A loaded, verified, running holo. `prism-code` runs each request on a fresh guest instance. | container |
+| instance | A loaded, verified, running holo. `prism-code` runs each request on a fresh guest instance. `prism.containers` and `prism-code run <holo> <input>` record one run as a container: created, running, exited, with an exit code and its output. | container |
 | browser export | The six-file browser closure written by `prismpm export-browser` ([README](../README.md#development-and-acceptance)). | exporter output (`--output`) |
 | registry | Any OCI Image and Distribution 1.1 registry. `prismpm push` and `prismpm pull` move releases by digest ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | registry |
 | product release | The root OCI artifact, config `prismpm/product-release/1`, that references the holo, packages, locks and evidence by digest ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | image manifest or index |
@@ -27,6 +27,7 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | build tree | `<build_root>/build/<prism-build-id>/`, keyed by the SHA-256 Prism build ID ([SPEC §6](../SPEC.md#6-build-artifacts-and-identities)). | build cache entry |
 | world | Planned. The WIT contract the guest imports and exports. | none; nearest is the image's `ENTRYPOINT` and `EXPOSE` contract |
 | capability set | Planned as deny-by-default permissions. Today a holo carries a canonical capability-set blob, empty for text applications ([SPEC §3](../SPEC.md#3-canonical-holo-contract)). | `--cap-add`, seccomp profile |
+| provider | An executable, `prism-provider-<type>` on the PATH, that provisions what a capability in `prism.toml` declares and returns `<NAME>_<VAR>` variables ([proposal](proposals/294-provider-services.md)). | Compose provider service |
 | attestation | Planned for the holo: an in-toto statement about it. Product releases already carry in-toto and SLSA referrers ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | BuildKit attestation |
 | proof | Planned. The `prism/proof/v1` in-toto predicate: which theorems the Lean kernel checked for the shipped guest ([proposal](proposals/266-proof-predicate.md)). | none |
 | history | Planned. Recorded dispatches that can be replayed. | none; nearest is `docker logs` |
@@ -39,13 +40,13 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | check | `prismpm check` validates the model in memory and writes nothing ([SPEC §4](../SPEC.md#4-controller-api-cli-and-diagnostics)). | `docker build --check` |
 | verify | `prismpm verify` checks the Lean proofs and runs the holo's acceptance vectors in an independent oracle ([SPEC §1.3](../SPEC.md#13-compiler-pipeline)). | none |
 | run | `prismpm run REF` runs a release through its modeled Compose target. `prism-code run app.holo` serves one holo ([`prism-code`](../sdk/npm/prism-code/README.md#run-it)). | `docker run` |
-| push / pull | `prismpm push REF`, `prismpm pull REF` ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | `docker push`, `docker pull` |
+| push / pull | `prismpm push REF`, `prismpm pull REF` move a product release ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). `prism-code push <holo> REF` and `prism-code pull REF` move one holo and its attestations ([proposal](proposals/292-push-pull-oci.md)). | `docker push`, `docker pull` |
 | inspect | `prismpm inspect REF` for a product release and `prismpm inspect <path.holo>` for one holo. `hologram holo inspect` and `prism-code inspect` also read a holo. | `docker inspect` |
 | export | `prismpm export-browser REF --output DIR` ([README](../README.md#development-and-acceptance)). | `docker build --output` |
 | lock / update | `prismpm lock` writes or refreshes the pinned inputs in `prismpm.lock` without building. `prismpm update --toolchain REF` pins a new SDK image and prints the old and new digests. `prismpm lock check` verifies the lock, and `prismpm lock update` proposes a new pin and does not apply it. | `npm install` and `npm update`, or editing the `FROM ...@sha256:` pin |
 | deploy | `prismpm plan` then `prismpm deploy` through the Compose or Kubernetes adapter ([SPEC §15](../SPEC.md#15-target-planning-and-deployment)). | `docker compose up`, `docker stack deploy` |
 
-`REF` is a registry-qualified immutable reference, `NAME@sha256:DIGEST`.
+`REF` is a registry-qualified immutable reference, `NAME@sha256:DIGEST`. `prism-code push` and `pull` also take `NAME:TAG`, `NAME@blake3:FINGERPRINT` and `dir://PATH`.
 
 ## The stack
 

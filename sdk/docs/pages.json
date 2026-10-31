@@ -3,26 +3,176 @@
   "site": "https://universal-coordinate-foundation.lovable.app/docs",
   "name": "Prism",
   "summary": "Prism builds your application into a holo, a content-addressed package that carries its own proof and provenance, and checks them before anything runs.",
+  "versions": [
+    "v1"
+  ],
+  "mintlify": {
+    "theme": "mint",
+    "colors": {
+      "primary": "#0E7490"
+    },
+    "tabs": [
+      {
+        "tab": "Docs",
+        "groups": [
+          {
+            "group": "Get started"
+          },
+          {
+            "group": "Concepts"
+          },
+          {
+            "group": "Guides"
+          },
+          {
+            "group": "Examples"
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Reference",
+            "nest": [
+              "API Reference",
+              "SDKs"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Changelog",
+        "groups": [
+          {
+            "group": "Changelog"
+          },
+          {
+            "group": "Migration"
+          }
+        ]
+      }
+    ]
+  },
   "groups": [
     {
       "title": "Get started",
       "pages": [
-        { "path": "index", "narrative": true },
-        { "path": "get-started/introduction", "narrative": true },
-        { "path": "get-started/quickstart", "narrative": true },
-        { "path": "get-started/core-concepts", "narrative": true }
+        {
+          "path": "index",
+          "narrative": true
+        },
+        {
+          "path": "get-started/introduction",
+          "narrative": true
+        },
+        {
+          "path": "get-started/quickstart",
+          "narrative": true
+        },
+        {
+          "path": "get-started/core-concepts",
+          "narrative": true
+        }
+      ]
+    },
+    {
+      "title": "Concepts",
+      "pages": [
+        {
+          "path": "concepts/holo",
+          "narrative": true
+        },
+        {
+          "path": "concepts/proof-and-assurance",
+          "narrative": true
+        },
+        {
+          "path": "concepts/world-and-capabilities",
+          "narrative": true
+        },
+        {
+          "path": "concepts/provenance-and-attestations",
+          "narrative": true
+        },
+        {
+          "path": "concepts/reproducible-builds",
+          "narrative": true
+        },
+        {
+          "path": "concepts/registries-and-releases",
+          "narrative": true
+        }
       ]
     },
     {
       "title": "Guides",
       "pages": [
-        { "path": "guides/write-from-examples", "narrative": true },
-        { "path": "guides/verify-and-inspect", "narrative": true },
-        { "path": "guides/run-and-gate", "narrative": true },
-        { "path": "guides/ship", "narrative": true },
-        { "path": "guides/agents", "narrative": true },
-        { "path": "guides/audit", "narrative": true },
-        { "path": "guides/write-the-model", "narrative": true }
+        {
+          "path": "guides/write-from-examples",
+          "narrative": true
+        },
+        {
+          "path": "guides/verify-and-inspect",
+          "narrative": true
+        },
+        {
+          "path": "guides/run-a-holo",
+          "narrative": true
+        },
+        {
+          "path": "guides/run-and-gate",
+          "narrative": true
+        },
+        {
+          "path": "guides/ship",
+          "narrative": true
+        },
+        {
+          "path": "guides/rebuild-and-update",
+          "narrative": true
+        },
+        {
+          "path": "guides/agents",
+          "narrative": true
+        },
+        {
+          "path": "guides/audit",
+          "narrative": true
+        },
+        {
+          "path": "guides/write-the-model",
+          "narrative": true
+        }
+      ]
+    },
+    {
+      "title": "Examples",
+      "pages": [
+        {
+          "path": "examples/call-a-holo",
+          "narrative": true
+        },
+        {
+          "path": "examples/command-line",
+          "narrative": true
+        },
+        {
+          "path": "examples/replay-examples",
+          "narrative": true
+        },
+        {
+          "path": "examples/inspect-a-holo",
+          "narrative": true
+        },
+        {
+          "path": "examples/check-a-holo",
+          "narrative": true
+        },
+        {
+          "path": "examples/read-the-spec",
+          "narrative": true
+        }
       ]
     },
     {
@@ -34,7 +184,11 @@
           "title": "Holo format",
           "description": "The byte layout of a .holo file, its sections, digests and format revisions.",
           "available_in": "0.2.0",
-          "next": ["reference/attestations", "api/spec-package", "api/load"]
+          "next": [
+            "reference/attestations",
+            "api/spec-package",
+            "api/load"
+          ]
         },
         {
           "id": "attestations",
@@ -43,7 +197,11 @@
           "description": "The statement and envelope a holo's attestations use, the predicate types and their status.",
           "available_in": "0.5",
           "status": "no holo carries a signed statement yet. Every predicate type in the registry is a placeholder, so no statement is captured on this page.",
-          "next": ["reference/holo-format", "reference/errors", "api/spec-package"]
+          "next": [
+            "reference/holo-format",
+            "reference/errors",
+            "api/spec-package"
+          ]
         },
         {
           "id": "manifest",
@@ -52,7 +210,11 @@
           "description": "Every table and key in prism.toml.",
           "available_in": "0.6",
           "status": "experimental. prism-code reads and checks this manifest today (prism-code manifest); the prism CLI reads it from 0.6.",
-          "next": ["reference/lockfile", "reference/cli", "reference/holo-format"]
+          "next": [
+            "reference/lockfile",
+            "reference/cli",
+            "reference/holo-format"
+          ]
         },
         {
           "id": "lockfile",
@@ -60,7 +222,11 @@
           "title": "Lockfile reference",
           "description": "Every field of the lockfile, from the schema the spec package publishes.",
           "available_in": "0.5",
-          "next": ["reference/manifest", "reference/holo-format", "reference/cli"]
+          "next": [
+            "reference/manifest",
+            "reference/holo-format",
+            "reference/cli"
+          ]
         },
         {
           "id": "errors",
@@ -69,7 +235,11 @@
           "description": "Every error code the runtime raises and every CLI exit code.",
           "available_in": "0.5",
           "status": "the typed error classes are in the prism-code source and are not in the published 0.2.0. The table lists every code the source raises.",
-          "next": ["reference/cli", "api/errors", "api/load"]
+          "next": [
+            "reference/cli",
+            "api/errors",
+            "api/load"
+          ]
         },
         {
           "id": "cli",
@@ -78,10 +248,20 @@
           "description": "The prism-code command that ships today, then every prism verb, its flags, its exit codes and its usage.",
           "available_in": "1.0-beta",
           "status": "the prism CLI has not shipped, so no verb output is captured. Usage and flags come from the stand-in description.",
-          "next": ["reference/manifest", "reference/errors", "reference/lockfile"]
+          "next": [
+            "reference/manifest",
+            "reference/errors",
+            "reference/lockfile"
+          ]
         },
-        { "path": "reference/policy", "narrative": true },
-        { "path": "reference/release-status", "narrative": true }
+        {
+          "path": "reference/policy",
+          "narrative": true
+        },
+        {
+          "path": "reference/release-status",
+          "narrative": true
+        }
       ]
     },
     {
@@ -93,7 +273,11 @@
           "title": "prism-code at a glance",
           "description": "Load a holo, dispatch an input and replay its examples from Node.js with the prism-code runtime.",
           "available_in": "0.2.0",
-          "next": ["api/load", "api/dispatch", "api/history-and-replay"]
+          "next": [
+            "api/load",
+            "api/dispatch",
+            "api/history-and-replay"
+          ]
         },
         {
           "id": "load",
@@ -101,7 +285,11 @@
           "title": "Load a holo",
           "description": "Read a holo from a path, a URL or bytes and get an application you can inspect and run.",
           "available_in": "0.2.0",
-          "next": ["api/dispatch", "api/inspect", "reference/holo-format"]
+          "next": [
+            "api/dispatch",
+            "api/inspect",
+            "reference/holo-format"
+          ]
         },
         {
           "id": "inspect",
@@ -110,7 +298,11 @@
           "description": "Read the manifest, digests, world and attestations of a holo without running it.",
           "available_in": "0.5",
           "status": "`inspect()` is not in prism-code 0.2.0. This page gains an executed example when the runtime ships it. The declarations below are what a reader decodes.",
-          "next": ["api/load", "api/verify", "reference/holo-format"]
+          "next": [
+            "api/load",
+            "api/verify",
+            "reference/holo-format"
+          ]
         },
         {
           "id": "verify",
@@ -119,7 +311,11 @@
           "description": "Check digest, provenance, proof and world against a policy and get a verdict.",
           "available_in": "0.5",
           "status": "`experimental_verify()` is in the prism-code source and not in the published 0.2.0, which checks the digest footer and every section label on load. It is experimental until the v0.6 freeze. No holo carries an attestation bundle yet, so every holo is P0 and the default policy fails it.",
-          "next": ["api/instantiate", "reference/attestations", "api/load"]
+          "next": [
+            "api/instantiate",
+            "reference/attestations",
+            "api/load"
+          ]
         },
         {
           "id": "instantiate",
@@ -128,7 +324,11 @@
           "description": "Create a running instance with exactly the capability set you grant.",
           "available_in": "0.6",
           "status": "`instantiate()` is not in prism-code 0.2.0, which runs each request on a fresh guest instance inside `dispatch()`. The world below is what an instance exports.",
-          "next": ["api/dispatch", "api/verify", "reference/holo-format"]
+          "next": [
+            "api/dispatch",
+            "api/verify",
+            "reference/holo-format"
+          ]
         },
         {
           "id": "dispatch",
@@ -136,7 +336,11 @@
           "title": "Dispatch inputs",
           "description": "Send one request to the holo and get its response.",
           "available_in": "0.2.0",
-          "next": ["api/history-and-replay", "api/errors", "api/load"]
+          "next": [
+            "api/history-and-replay",
+            "api/errors",
+            "api/load"
+          ]
         },
         {
           "id": "history-and-replay",
@@ -145,7 +349,11 @@
           "description": "Replay the examples a holo carries and prove its behaviour unchanged.",
           "available_in": "0.6",
           "status": "`history()` and `replay()` are not in prism-code 0.2.0. `acceptance()` replays the examples the holo carries and is executed below.",
-          "next": ["api/dispatch", "reference/cli", "api/verify"]
+          "next": [
+            "api/dispatch",
+            "reference/cli",
+            "api/verify"
+          ]
         },
         {
           "id": "as-tool",
@@ -154,7 +362,11 @@
           "description": "Wrap a checked holo as a Vercel AI SDK tool so a model can call it.",
           "available_in": "1.0-beta",
           "status": "`asTool()` is not in prism-code 0.2.0. This page gains its declaration and an executed example when the runtime ships it.",
-          "next": ["api/dispatch", "api/load", "api/errors"]
+          "next": [
+            "api/dispatch",
+            "api/load",
+            "api/errors"
+          ]
         },
         {
           "id": "api-errors",
@@ -163,7 +375,11 @@
           "description": "Every error the runtime throws and the code it carries.",
           "available_in": "0.5",
           "status": "the classes are in the prism-code source and not in the published 0.2.0. `DeterminismViolationError` and `ReplayError` are defined and mapped, and nothing raises them until replay ships.",
-          "next": ["reference/errors", "api/load", "api/dispatch"]
+          "next": [
+            "reference/errors",
+            "api/load",
+            "api/dispatch"
+          ]
         },
         {
           "id": "spec-package",
@@ -171,7 +387,11 @@
           "title": "Spec package",
           "description": "The types, JSON Schemas, world file and format revision that every runtime is built from.",
           "available_in": "0.5",
-          "next": ["reference/holo-format", "reference/attestations", "api/index"]
+          "next": [
+            "reference/holo-format",
+            "reference/attestations",
+            "api/index"
+          ]
         },
         {
           "id": "verify-package",
@@ -180,7 +400,11 @@
           "description": "Check a holo offline in any browser without loading the runtime.",
           "available_in": "0.5",
           "status": "`@prism-code/verify` does not exist yet. This page is generated from its declarations once it does.",
-          "next": ["api/verify", "api/spec-package", "api/load"]
+          "next": [
+            "api/verify",
+            "api/spec-package",
+            "api/load"
+          ]
         },
         {
           "id": "testing-package",
@@ -189,29 +413,51 @@
           "description": "Test code that drives a holo with a mock host, skipped time and scripted dispatch.",
           "available_in": "0.6",
           "status": "`@prism-code/testing` does not exist yet. This page is generated from its declarations once it does.",
-          "next": ["api/history-and-replay", "api/dispatch", "api/index"]
+          "next": [
+            "api/history-and-replay",
+            "api/dispatch",
+            "api/index"
+          ]
         }
       ]
     },
     {
       "title": "SDKs",
       "pages": [
-        { "path": "sdks/overview", "narrative": true },
-        { "path": "sdks/typescript", "narrative": true },
-        { "path": "sdks/rust", "narrative": true },
-        { "path": "sdks/python", "narrative": true }
+        {
+          "path": "sdks/overview",
+          "narrative": true
+        },
+        {
+          "path": "sdks/typescript",
+          "narrative": true
+        },
+        {
+          "path": "sdks/rust",
+          "narrative": true
+        },
+        {
+          "path": "sdks/python",
+          "narrative": true
+        }
       ]
     },
     {
       "title": "Changelog",
       "pages": [
-        { "path": "changelog", "narrative": true }
+        {
+          "path": "changelog",
+          "narrative": true
+        }
       ]
     },
     {
       "title": "Migration",
       "pages": [
-        { "path": "migration/to-1-0", "narrative": true }
+        {
+          "path": "migration/to-1-0",
+          "narrative": true
+        }
       ]
     }
   ]

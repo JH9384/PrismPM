@@ -38,7 +38,7 @@ impl StdlibExports {
         if self.spec != "prismpm/stdlib-exports/1"
             || self.lean_module != "PrismPM.Runtime"
             || self.ir_module != "PrismPM"
-            || self.export.len() != 66
+            || self.export.len() != 69
             || self
                 .export
                 .windows(2)
@@ -133,6 +133,8 @@ impl StdlibExports {
                 "browserValidAppManifest" => ("Holo.V1.BrowserWire", "fn(&[u8]) -> bool"),
                 "browserValidArchiveBody" | "browserValidArchiveFrame" => ("Holo.V1.BrowserWire", "fn(&[u8]) -> Result<bool, ComputeError>"),
                 "appManifest" => ("Holo.V1.Wire", "fn(Vec<u8>, Vec<u8>, Vec<u8>) -> Option<Vec<u8>>"),
+                "archiveAttestation" | "archiveStripAttestation" => ("Holo.V1.Wire", "fn(Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"),
+                "archiveBodyWithAttestation" => ("Holo.V1.Wire", "fn(Vec<u8>, Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"),
                 "archiveBody" => ("Holo.V1.Wire", "fn(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"),
                 "archiveBodyBytes" => ("Holo.V1.Wire", "fn(Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"),
                 "archiveExtension" => ("Holo.V1.Wire", "fn(Vec<u8>, u64) -> Result<Option<Vec<u8>>, ComputeError>"),

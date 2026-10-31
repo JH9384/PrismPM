@@ -15,20 +15,20 @@ That is the whole idea. Everything else is Docker with one extra verb.
 
 | Prism noun | Docker noun | What it is |
 |---|---|---|
-| model | build context | The source of your application: examples, intent, types, and the model files that `build` generates or you write. |
+| model | Dockerfile | The source of your application: examples, intent, types, and the model files that `build` generates or you write. |
 | holo | image | The built, content-addressed application. One file, addressed by name or digest, with its proof inside. |
 | digest | image digest | The content hash of a holo. Every digest is a sha256 and a BLAKE3 over the same bytes, so Docker tools find the sha256. |
-| toolchain image | builder image | The pinned image the compiler and the provers run in. `build` pulls it by digest and uses nothing on your machine. |
-| lockfile | pinned FROM digest | `prismpm.lock`. Pins the toolchain image, the model digest and every input. |
+| SDK image | base image | The pinned image the compiler and the provers run in. `build` pulls it by digest and uses nothing on your machine. |
+| lockfile | pinned FROM digest | `prismpm.lock`. Pins the SDK image, the model digest and every input. |
 | instance | container | A loaded, checked, running holo. |
 | registry | registry | Any OCI-compatible registry. Holos push and pull like images. Attestations ride along as referrers. |
-| `prism.toml` | Dockerfile | The manifest: name, model source, capability set, variables. |
+| `prism.toml` | none | The manifest: name, model source, capability set, variables. Docker splits these across the Dockerfile and run flags. |
 
 ## Verbs
 
 | Prism verb | Docker verb | What it does |
 |---|---|---|
-| `prism build` | `docker build` | Compiles the model into a holo inside the toolchain image. Records provenance and the proof. |
+| `prism build` | `docker build` | Compiles the model into a holo inside the SDK image. Records provenance and the proof. |
 | `prism check` | none | Verifies digest, provenance, proof, lockfile pins and world against a policy. Prints the assurance level. |
 | `prism run` | `docker run` | Instantiates the holo after `check` passes, with exactly its capability set. |
 | `prism push` | `docker push` | Sends the holo and its attestations to a registry. |

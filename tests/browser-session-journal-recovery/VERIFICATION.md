@@ -75,7 +75,14 @@ still rechecks all captured bytes, file types and link counts; identical source
 bytes cannot change imports. This avoids measured 952–1,252 ms repeated graph
 parsing (the equivalent 833-file byte check took 45–54 ms). A 90-minute owner
 and 92-minute process deadline cover the measured complete workload without
-dropping cases. Per-invocation guard/build timings remain in the receipt/log.
+dropping cases.
+
+2026-10-30, pinned devcontainer, LexLean 0.4.0: the same complete workload
+passes 8/8 in 5,314 s (owner 5,188 s), 97% of the 92-minute process deadline.
+`driver verify` takes about 49 s for each of the 25 fresh builds (1,234 s), Cargo
+builds 808 s, Lake builds 327 s, per-invocation guards about 780 s. The owner
+bound moves to 118 minutes and the process deadline to 120 minutes; no case is
+dropped. Per-invocation guard/build timings remain in the receipt/log.
 
 ## Historical component evidence
 

@@ -5,6 +5,8 @@ import {runInNewContext} from 'node:vm';
 import {compilerInputPaths, captureCompilerInputs} from './compiler-owner.mjs';
 import * as publication from '../publication-context-linkage/compile.mjs';
 import * as retention from '../browser-session-journal-retention/compile.mjs';
+import * as reservation from '../browser-session-journal/reservation-compile.mjs';
+import * as frames from '../browser-session-recovery-frames/compile.mjs';
 import * as primary from '../holo-primary-component/compile.mjs';
 import * as pkce from '../browser-pkce/compile.mjs';
 import * as operation from '../browser-session-operation/compile.mjs';
@@ -24,20 +26,22 @@ import * as admission from '../publication-admission/compile.mjs';
 // one or equate their source/pin barriers with the twelve captured model maps.
 const components = [
   ['holo-primary-component', primary], ['pkce', pkce], ['session-operation', operation],
-  ['signed-context', signed], ['session-retention', retention], ['publication-linkage', publication],
+  ['signed-context', signed], ['session-retention', retention], ['session-journal-reservation', reservation],
+  ['session-recovery-frames', frames],
+  ['publication-linkage', publication],
   ['account-genesis', genesis], ['p256', p256], ['view', view], ['effects', effects],
   ['presentation', presentation], ['session', session], ['operation-journal', journal],
   ['budget', budget], ['custody', custody], ['publication', admission],
 ];
 const directAdapters = new Set(['view', 'effects', 'operation-journal', 'custody']);
 
-test('the component capture matrix covers the exact sixteen registered compiler families', () => {
+test('the component capture matrix covers the exact eighteen registered compiler families', () => {
   const source = readFileSync(new URL('./compiler-owner.mjs', import.meta.url), 'utf8');
   const begin = source.indexOf('const families = Object.freeze({'), end = source.indexOf('\nconst owners = ', begin);
   assert(begin >= 0 && end > begin);
   const registered = runInNewContext(source.slice(begin, end) + '\nObject.keys(families);');
   assert.deepEqual(components.map(([name]) => name).sort(), [...registered].sort());
-  assert.equal(components.length, 16);
+  assert.equal(components.length, 18);
   assert.equal(directAdapters.size, 4);
 });
 

@@ -11,6 +11,9 @@ const REVISION: &str = "2bda6a9a9476872dade705bd61ece4209607f6da";
 const DIRECTORY: &str = "https://hologram.foundation/extension/application-directory/v1";
 const PROVENANCE: &str = "https://uor.foundation/extension/prismpm-model/v1";
 const BROWSER_PROVENANCE: &str = "https://uor.foundation/extension/prismpm-browser/v1";
+const ATTESTATION: &str = "https://uor.foundation/extension/attestation-bundle/v1";
+/// Two synthetic JSON Lines. Prism's reader checks the lines, Hologram only carries the bytes.
+const ATTESTATION_LINES: &[u8] = b"{\"mediaType\":\"application/vnd.dev.sigstore.bundle.v0.3+json\"}\n{\"mediaType\":\"second\"}\n";
 
 #[derive(Clone, Copy)]
 enum Profile {
@@ -113,6 +116,44 @@ fn reseal(bytes: &mut [u8]) {
     let footer = bytes.len() - 32;
     let digest = blake3::hash(&bytes[..footer]);
     bytes[footer..].copy_from_slice(digest.as_bytes());
+}
+
+/// The archive with one more Extension row after the four content blobs, assembled by
+/// Hologram's own writer in the given order. Prism's attestation section (#267) is that row.
+fn attestation_vector(sections: &[(SectionKind, Vec<u8>)]) -> Value {
+    let mut signed = sections.to_vec();
+    signed.push((
+        SectionKind::Extension,
+        upstream_extension(ATTESTATION, ATTESTATION_LINES),
+    ));
+    let archive = HoloWriter::assemble(signed.clone());
+    let plan = HoloLoader::from_bytes(&archive)
+        .unwrap()
+        .into_plan()
+        .unwrap();
+    assert_eq!(plan.sections().len(), 9);
+    assert_eq!(plan.sections()[0].offset, 226);
+    assert_eq!(plan.sections()[8].kind as u8, 14);
+    assert_eq!(plan.content_blobs().unwrap().len(), 4);
+    let extensions = plan.extensions().unwrap();
+    assert_eq!(extensions.len(), 3);
+    assert_eq!(extensions[2], (ATTESTATION, ATTESTATION_LINES));
+    assert_eq!(
+        &archive[archive.len() - 32..],
+        blake3::hash(&archive[..archive.len() - 32]).as_bytes()
+    );
+    let outcome = loader_outcome(&archive);
+    assert_eq!(outcome["stage"], "accepted-physical-archive");
+    json!({
+        "extension": ATTESTATION,
+        "lines_hex": hex(ATTESTATION_LINES),
+        "bytes_hex": hex(&archive),
+        "body_hex": hex(&archive[..archive.len() - 32]),
+        "footer_hex": hex(&archive[archive.len() - 32..]),
+        "kappa": address_bytes(&archive).to_string(),
+        "sections": plan.sections().iter().zip(&signed).map(|(section, (_, payload))| json!({"kind": section.kind as u8, "offset": section.offset, "length": section.length, "payload_hex": hex(payload)})).collect::<Vec<_>>(),
+        "upstream": outcome,
+    })
 }
 
 fn fixture(profile: Profile) -> Value {
@@ -234,6 +275,9 @@ fn fixture(profile: Profile) -> Value {
         "archive":{"bytes_hex":hex(&archive),"body_hex":hex(&archive[..archive.len()-32]),"footer_hex":hex(&archive[archive.len()-32..]),"kappa":address_bytes(&archive).to_string(),"sections":plan.sections().iter().zip(&sections).map(|(section,(_,payload))|json!({"kind":section.kind as u8,"offset":section.offset,"length":section.length,"payload_hex":hex(payload)})).collect::<Vec<_>>()},
         "malformed_archives":malformed,
     });
+    if matches!(profile, Profile::Portable) {
+        result["attestation"] = attestation_vector(&sections);
+    }
     if matches!(profile, Profile::Browser) {
         // Coherent, re-addressed native authority request, not a corrupt byte
         // standing in for a capability substitution.

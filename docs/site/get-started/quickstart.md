@@ -5,9 +5,11 @@ available_in: "1.0-beta"
 ---
 In five minutes you create a calculator from one example and two sentences, build it into a holo, check its proof, run it, and publish it to GitHub Pages. Every command below is one you will use every day.
 
+The `prism` CLI ships with 1.0-beta.1. To try a holo with what is on npm today, start with [Call a holo](/docs/examples/call-a-holo).
+
 ## Before you start
 
-You need Node.js 22 or later and Docker. Docker runs the toolchain image, so you never install the compiler yourself. The scaffolder adds the `prism` CLI to the project. For the last step you need a GitHub account.
+You need Node.js 22 or later and Docker. Docker runs the SDK image, so you never install the compiler yourself. The scaffolder adds the `prism` CLI to the project. For the last step you need a GitHub account.
 
 ## Create the project
 
@@ -22,7 +24,7 @@ Creating calculator
   prism.toml         application calculator 0.1.0
   examples/add.json  one example
   intent.md          two sentences
-  prismpm.lock       toolchain image sha256:91ab…
+  prismpm.lock       SDK image sha256:91ab…
 Done. Next: cd calculator && prism build
 ```
 
@@ -54,7 +56,7 @@ There is no `[capabilities]` table, and without one the holo is granted nothing.
 
 ## Build the holo
 
-Build compiles the model into a holo inside the pinned toolchain image. It writes the model from your examples and intent, proves each sentence, replays the example, and records provenance:
+Build compiles the model into a holo inside the pinned SDK image. It writes the model from your examples and intent, proves each sentence, replays the example, and records provenance:
 
 ```bash
 cd calculator
@@ -62,7 +64,7 @@ prism build
 ```
 
 ```text
-Pulling toolchain image sha256:91ab… (cached)
+Pulling SDK image sha256:91ab… (cached)
 Generating model from examples/ and intent.md
   model/  2 files written, digest sha256:7d2e…
 Compiling model
@@ -88,7 +90,7 @@ prism check
 ```text
 calculator@sha256:3f9c…
   digest        ok   matches
-  provenance    ok   built from model sha256:7d2e… in toolchain image sha256:91ab…
+  provenance    ok   built from model sha256:7d2e… in SDK image sha256:91ab…
   proof         ok   2 theorems checked
   lockfile      ok   all pins match prismpm.lock
   replay        ok   1 history, 1 call, no divergence

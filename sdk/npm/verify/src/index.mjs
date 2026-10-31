@@ -15,7 +15,9 @@ import { sha256Hex } from './sha256.mjs';
 import { readStructure } from './reader.mjs';
 import * as assurance from './vendor/assurance-levels.mjs';
 import * as transparency from './transparency.mjs';
-import { checkWorld, checkWorldPolicy, capabilitySetProblem, compareWorldPin, describeWorld, effectsOutsidePolicy, IMPURE_EFFECTS } from './world.mjs';
+import { checkWorld, checkWorldPolicy, capabilitySetProblem, compareWorldPin, declaredImports, describeWorld, effectsOutsidePolicy, IMPURE_EFFECTS } from './world.mjs';
+import { parseRego, RegoError } from './rego.mjs';
+import * as policies from './policy.mjs';
 
 /** The newest holo format revision this package reads, from @prism-code/spec. */
 export const FORMAT_REVISION = spec.FORMAT_REVISION;
@@ -26,11 +28,18 @@ export const FORMAT_REVISION = spec.FORMAT_REVISION;
  */
 export const ASSURANCE = assurance.ASSURANCE;
 
+/** The source of each policy this package ships, by name: `default`, `pure-only` and `provenance-only` (issue #285). */
+export const POLICIES = policies.POLICIES;
+
+/** The `schema` member of the document a policy judges (issue #285). */
+export const POLICY_INPUT_SCHEMA = spec.POLICY.INPUT;
+
 /**
  * Thrown when no verdict can be reached: the input is not bytes, the policy is
- * invalid, the file is not a readable holo, or it is a holo of a format
- * revision this package does not know. A holo that fails a check is a
- * Verdict, not an error.
+ * invalid, does not parse (`policy.parse`) or cannot be evaluated
+ * (`policy.evaluation`), the file is not a readable holo, or it is a holo of a
+ * format revision this package does not know. A holo that fails a check, or a
+ * policy that denies it, is a Verdict, not an error.
  */
 export class VerifyError extends Error {
   constructor(code, message) {
@@ -617,17 +626,67 @@ export function inspect(source) {
   return inspectionOf(bytes, facts, checks);
 }
 
+/**
+ * Parse a Rego policy (issue #285). Throws `VerifyError` `policy.parse`, whose
+ * message names the line and the construct.
+ *
+ * @param {string} source
+ */
+export function parsePolicy(source) {
+  try {
+    return parseRego(source);
+  } catch (error) {
+    if (error instanceof RegoError) throw new VerifyError('policy.parse', `the policy does not parse: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Evaluate a parsed policy against a `prism/policy-input/1` document (issue
+ * #285). Throws `VerifyError` `policy.evaluation`, whose message names the rule.
+ * Returns `{ minimum, denied, denials }`; the level is the evidence's, not the policy's.
+ *
+ * @param {object} policy from `parsePolicy`
+ * @param {object} input
+ */
+export function evaluatePolicy(policy, input) {
+  try {
+    return policies.decide(policy, input);
+  } catch (error) {
+    if (error instanceof RegoError) throw new VerifyError('policy.evaluation', `the policy cannot be evaluated: ${error.message}`);
+    throw error;
+  }
+}
+
+function checkCapabilities(capabilities) {
+  if (capabilities === undefined || capabilities === null) return null;
+  const problem = capabilitySetProblem(capabilities);
+  if (problem) throw new VerifyError('policy.invalid', `policy.capabilities: ${problem}`);
+  return capabilities;
+}
+
+function checkName(name) {
+  if (typeof name !== 'string' || name.length < 1 || name.length > 1024) throw new VerifyError('policy.invalid', 'policy.name must be a string of 1 to 1024 characters');
+  return name;
+}
+
 function checkPolicy(policy) {
-  const { LEVELS, DEFAULT_MINIMUM, DEFAULT_POLICY } = ASSURANCE;
-  if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, minimum: DEFAULT_MINIMUM, digests: {}, world: undefined, capabilities: null, effects: null };
+  const { LEVELS, DEFAULT_POLICY } = ASSURANCE;
+  // `program` is the policy that decides; `minimum` is only ever a caller's override of the default policy's.
+  if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, program: policies.shippedPolicy(DEFAULT_POLICY), minimum: null, digests: {}, world: undefined, capabilities: null, effects: null };
   if (typeof policy !== 'object') throw new VerifyError('policy.invalid', 'the policy must be an object');
   for (const key of Object.keys(policy)) {
-    if (!['name', 'minimum', 'digests', 'world', 'capabilities', 'effects'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, minimum, digests, world, capabilities or effects`);
+    if (!['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, rego, minimum, digests, world, capabilities or effects`);
   }
-  const name = policy.name ?? DEFAULT_POLICY;
-  if (typeof name !== 'string' || name.length < 1 || name.length > 1024) throw new VerifyError('policy.invalid', 'policy.name must be a string of 1 to 1024 characters');
-  const minimum = policy.minimum ?? DEFAULT_MINIMUM;
-  if (!LEVELS.includes(minimum)) throw new VerifyError('policy.invalid', `policy.minimum ${JSON.stringify(minimum)} is not one of ${LEVELS.join(', ')}`);
+  if (policy.rego !== undefined) {
+    // A policy file is the whole policy. What it decides, a level or a pin, it says in Rego, where a reader can see it.
+    const other = Object.keys(policy).find((key) => !['name', 'rego', 'capabilities'].includes(key));
+    if (other) throw new VerifyError('policy.invalid', `policy.${other} cannot be given with policy.rego; a Rego policy states it itself`);
+    return { name: checkName(policy.name ?? 'policy'), program: parsePolicy(policy.rego), minimum: null, digests: {}, world: undefined, capabilities: checkCapabilities(policy.capabilities), effects: null };
+  }
+  const name = checkName(policy.name ?? DEFAULT_POLICY);
+  const minimum = policy.minimum ?? null;
+  if (minimum !== null && !LEVELS.includes(minimum)) throw new VerifyError('policy.invalid', `policy.minimum ${JSON.stringify(minimum)} is not one of ${LEVELS.join(', ')}`);
   const digests = policy.digests ?? {};
   if (typeof digests !== 'object') throw new VerifyError('policy.invalid', 'policy.digests must be an object');
   for (const [target, set] of Object.entries(digests)) {
@@ -639,18 +698,14 @@ function checkPolicy(policy) {
       if (!HEX64.test(set[algorithm])) throw new VerifyError('policy.invalid', `policy.digests.${target}.${algorithm} is not 64 lowercase hex characters`);
     }
   }
-  const capabilities = policy.capabilities ?? null;
-  if (capabilities !== null) {
-    const problem = capabilitySetProblem(capabilities);
-    if (problem) throw new VerifyError('policy.invalid', `policy.capabilities: ${problem}`);
-  }
+  const capabilities = checkCapabilities(policy.capabilities);
   // effects (#282): the impure effects the policy allows the world. Absent allows any; [] is the pure-world policy.
   const effects = policy.effects ?? null;
   if (effects !== null) {
     if (!Array.isArray(effects) || effects.some((e) => !IMPURE_EFFECTS.includes(e))) throw new VerifyError('policy.invalid', `policy.effects must be an array of ${IMPURE_EFFECTS.join(', ')}`);
     if (new Set(effects).size !== effects.length) throw new VerifyError('policy.invalid', 'policy.effects repeats an effect');
   }
-  return { name, minimum, digests, world: checkWorldPin(policy.world), capabilities, effects };
+  return { name, program: policies.shippedPolicy(DEFAULT_POLICY), minimum, digests, world: checkWorldPin(policy.world), capabilities, effects };
 }
 
 /**
@@ -691,23 +746,10 @@ const STATEMENTS = Object.freeze([
 ]);
 
 /**
- * Check a holo and return its verdict, a `prism/verdict/1` object
- * (docs/proposals/269-assurance-levels.md). The level is computed from the
- * evidence; the policy only decides `passed`. Every check runs, so the
- * reasons list every problem at once.
- *
- * Rejects with VerifyError when no verdict can be reached: input that is not
- * bytes, an invalid policy, a file whose header or section table cannot be
- * read, or an intact holo of a format revision this package does not know.
- * Asynchronous so that bundle signature verification (issue #267), which
- * needs WebCrypto, can join without an API change.
- *
- * @param {Uint8Array | ArrayBuffer} source the whole holo
- * @param {{ name?: string, minimum?: 'P0' | 'P1' | 'P2' | 'P3', digests?: Record<string, { sha256?: string, blake3?: string }>, world?: { contract?: string, sha256?: string, blake3?: string } | null }} [policy]
+ * What a holo's bytes show, before any policy judges them. Rejects with
+ * VerifyError when there is nothing to judge.
  */
-export async function verify(source, policy) {
-  const bytes = asBytes(source);
-  const wanted = checkPolicy(policy);
+function evidenceOf(bytes, capabilities) {
   const { checks, facts } = analyze(bytes);
 
   const unreadable = checks.find((c) => c.status === 'fail' && STRUCTURE_IDS.includes(c.id));
@@ -722,22 +764,99 @@ export async function verify(source, policy) {
   }
   for (const statement of STATEMENTS) reasons.push({ ...statement });
 
-  // world.capabilities (#283): the declared world's imports within the granted set. It withholds P3, and the default policy requires it at every level.
+  // world.capabilities (#283): the declared world's imports within the granted set. It withholds P3; whether it fails the holo is the policy's to say.
   const contract = facts.documents.directory?.layers?.find((l) => l.kind === 'wasm')?.contract ?? facts.documents.provenance?.core_wasm_contract ?? null;
-  const worldPolicy = contract === null ? null : checkWorldPolicy(contract, wanted.capabilities);
-  const outsideGrant = worldPolicy?.known && !worldPolicy.within;
-  if (outsideGrant) {
-    reasons.push({ check: 'world.capabilities', code: 'PP5602', withholds: 'P3', message: sentence(`the world exceeds the granted capabilities: ${worldPolicy.problems.join('; ')}`) });
+  const world = contract === null ? null : checkWorldPolicy(contract, capabilities);
+  if (world?.known && !world.within) {
+    reasons.push({ check: 'world.capabilities', code: 'PP5602', withholds: 'P3', message: sentence(`the world exceeds the granted capabilities: ${world.problems.join('; ')}`) });
   }
 
   const { LEVELS, RANK } = ASSURANCE;
   const lowestWithheld = Math.min(...reasons.filter((r) => r.withholds).map((r) => RANK[r.withholds]), LEVELS.length);
-  const level = LEVELS[lowestWithheld - 1];
+  return { facts, reasons, contract, world, level: LEVELS[lowestWithheld - 1] };
+}
 
-  let passed = !outsideGrant;
-  if (RANK[level] < RANK[wanted.minimum]) {
+/** The `prism/policy-input/1` document of a holo's evidence (issue #285). */
+function inputOf(bytes, evidence, capabilities) {
+  const { facts, reasons, contract, world, level } = evidence;
+  const blob = (role) => (facts.roles[role] ? facts.sections.find((s) => s.label === facts.roles[role]) : undefined);
+  const digests = { archive: digestsOf(bytes) };
+  for (const role of ['capabilities', 'guest', 'view', 'model']) {
+    const section = blob(role);
+    if (section?.digests) digests[role] = section.digests;
+  }
+  const capabilitySet = blob('capabilities');
+  const named = typeof contract === 'string' && contract.length > 0;
+  return {
+    schema: spec.POLICY.INPUT,
+    holo: { fingerprint: facts.fingerprint, revision: facts.revision, digests },
+    verdict: { level, reasons },
+    world: named
+      ? {
+          contract,
+          known: world.known,
+          within: world.within,
+          pure: world.pure,
+          effects: world.effects,
+          imports: declaredImports(contract),
+          problems: world.problems,
+          capability_set: capabilitySet?.content ? { label: capabilitySet.label, empty: hex(capabilitySet.content) === spec.CAPABILITY_SET.EMPTY_HEX } : null,
+        }
+      : null,
+    capabilities,
+    // Statements join with the format revision that admits the attestation section (#267). Until then a holo carries none.
+    predicates: { provenance: null, proof: null, replay: null },
+  };
+}
+
+/**
+ * The document a policy judges for this holo, `prism/policy-input/1` (issue
+ * #285). Write it to a file to try a policy under `opa eval`. Rejects like `verify`.
+ *
+ * @param {Uint8Array | ArrayBuffer} source the whole holo
+ * @param {{ capabilities?: object | null }} [options] the set the caller grants
+ */
+export async function policyInput(source, options) {
+  const bytes = asBytes(source);
+  const capabilities = checkCapabilities(options?.capabilities);
+  return inputOf(bytes, evidenceOf(bytes, capabilities), capabilities);
+}
+
+/**
+ * Check a holo and return its verdict, a `prism/verdict/1` object
+ * (docs/proposals/269-assurance-levels.md). The level is computed from the
+ * evidence; the policy only decides `passed`. Every check runs, so the
+ * reasons list every problem at once.
+ *
+ * The policy is a shipped file or the caller's (docs/proposals/285-policy-file.md).
+ * With `rego`, that source decides. Without it, the shipped default policy
+ * decides, and `minimum`, `digests`, `effects` and `world` adjust it: they are
+ * the options of the same check from before policy files.
+ *
+ * Rejects with VerifyError when no verdict can be reached: input that is not
+ * bytes, an invalid policy, a policy that does not parse or cannot be evaluated,
+ * a file whose header or section table cannot be read, or an intact holo of a
+ * format revision this package does not know. Asynchronous so that bundle
+ * signature verification (issue #267), which needs WebCrypto, can join without an API change.
+ *
+ * @param {Uint8Array | ArrayBuffer} source the whole holo
+ * @param {{ name?: string, rego?: string, minimum?: 'P0' | 'P1' | 'P2' | 'P3', digests?: Record<string, { sha256?: string, blake3?: string }>, world?: { contract?: string, sha256?: string, blake3?: string } | null }} [policy]
+ */
+export async function verify(source, policy) {
+  const bytes = asBytes(source);
+  const wanted = checkPolicy(policy);
+  const evidence = evidenceOf(bytes, wanted.capabilities);
+  const { facts, level, contract, world: worldPolicy } = evidence;
+  const reasons = [...evidence.reasons];
+
+  const decision = evaluatePolicy(wanted.program, inputOf(bytes, evidence, wanted.capabilities));
+  const minimum = wanted.minimum ?? decision.minimum;
+  const { RANK } = ASSURANCE;
+
+  let passed = !decision.denied;
+  if (RANK[level] < RANK[minimum]) {
     passed = false;
-    reasons.push({ check: 'policy.level', code: 'PP5601', withholds: null, message: `The level is ${level}; the policy requires ${wanted.minimum} or above.` });
+    reasons.push({ check: 'policy.level', code: 'PP5601', withholds: null, message: `The level is ${level}; the policy requires ${minimum} or above.` });
   }
   for (const [target, expected] of Object.entries(wanted.digests)) {
     let actual = null;
@@ -771,11 +890,13 @@ export async function verify(source, policy) {
     }
   }
 
+  for (const { rule, message } of decision.denials) reasons.push({ check: rule, withholds: null, message: sentence(message) });
+
   return {
     schema: ASSURANCE.VERDICT,
     holo: facts.fingerprint,
     level,
-    policy: { name: wanted.name, minimum: wanted.minimum },
+    policy: { name: wanted.name, minimum },
     passed,
     reasons,
   };

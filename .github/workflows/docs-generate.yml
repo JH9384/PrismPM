@@ -7,12 +7,17 @@ name: docs generate
 # request that changes the spec therefore changes no generated file, and two
 # such pull requests cannot conflict.
 #
+# The built site includes mintlify/, the same pages as Mintlify reads them, with
+# docs.json; it is derived from pages.json and committed nowhere.
+#
 # On every pull request and every push to main this workflow
 #   - runs the generator's own tests,
 #   - verifies the docs: generates every page, fills the narrative pages, runs
 #     every example, checks frontmatter, links and CLI commands, applies the
 #     vocabulary lint, and fails naming the page that breaks,
 #   - lints the hand-written docs under docs/,
+#   - runs the pinned Mintlify CLI on mintlify/,
+#   - reports which public items have a reference entry and an example,
 #   - uploads the built site as the workflow artifact `docs-site`.
 # On a pull request it also generates the base branch's site and writes the
 # pages that differ, with their diff, to the job summary and to the artifact
@@ -68,6 +73,26 @@ jobs:
         run: node sdk/docs/skill.mjs --check
       - name: Generate the site
         run: node sdk/docs/generate.mjs --out build/docs
+      # Only Mintlify's own parser can say what Mintlify accepts. The version is
+      # exact, so a new CLI release cannot turn this check red by itself.
+      - name: Validate the Mintlify tree
+        working-directory: build/docs/mintlify
+        run: |
+          npx --yes mint@4.2.1178 validate
+          npx --yes mint@4.2.1178 broken-links --check-redirects
+      # A missing reference entry fails. A missing example is reported.
+      - name: Report coverage of public items
+        shell: bash
+        run: |
+          set -euo pipefail
+          node sdk/docs/coverage.mjs --owed > "$RUNNER_TEMP/coverage.tsv"
+          {
+            echo '## Public items with no executed example'
+            echo
+            echo '```text'
+            cat "$RUNNER_TEMP/coverage.tsv"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload the site
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

@@ -24,7 +24,7 @@ Prism has four ways in. Pick the lowest one that does the job.
 | `examples/` | One JSON file per example: an input and its expected output. |
 | `intent.md` | One sentence per line. Each becomes a theorem. |
 | types | The input and output types, in TypeScript, JSON Schema or Pydantic. |
-| `prismpm.lock` | The lockfile: the toolchain image digest, the model, spec and world digests, and the version of every tool in the toolchain image. |
+| `prismpm.lock` | The lockfile: the SDK image digest, the model, spec and world digests, and the version of every tool in the SDK image. |
 
 For calculator, `prism.toml` names the application:
 
@@ -61,7 +61,7 @@ Write each sentence the way you would state the rule to a colleague. One rule pe
 
 `build` runs the same steps every time.
 
-- Pulls the toolchain image at the digest in the lockfile. The compiler and the provers live there, not on your machine.
+- Pulls the SDK image at the digest in the lockfile. The compiler and the provers live there, not on your machine.
 - Reads the examples, the intent and the types.
 - Has an agent write the model through the Model Context Protocol, then compiles and proves it. Each unproved sentence goes back to the agent with a counterexample. The loop ends when every sentence is a theorem.
 - Replays every example against the compiled program.
@@ -80,7 +80,7 @@ prism build
 ```
 
 ```text
-Pulling toolchain image sha256:91ab… (cached)
+Pulling SDK image sha256:91ab… (cached)
 Generating model from examples/, intent.md, types.ts
 Compiling model
 Proving

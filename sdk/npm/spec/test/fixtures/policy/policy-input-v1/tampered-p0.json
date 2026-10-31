@@ -1,0 +1,88 @@
+{
+  "schema": "prism/policy-input/1",
+  "holo": {
+    "fingerprint": "blake3:fd9dd2691405298b32aa8a7020294ff355aab79a4bdd84cd6d55c47aab5e92cc",
+    "revision": "2026-10-23",
+    "digests": {
+      "archive": {
+        "sha256": "d702910578d6ed10e945eff232cfe87cfe25475f76e0359ded26b3c6d411088f",
+        "blake3": "2b28c0a80ecb377cad9e76b7110f0f861159aca3b2dfd3934267b67178318a02"
+      },
+      "capabilities": {
+        "sha256": "888ef9fab26cf92f0a20a1d0fdf7e5dd494f7eb7ec23dfb26a039a7233cb4a02",
+        "blake3": "cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c"
+      },
+      "guest": {
+        "sha256": "dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03",
+        "blake3": "2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380"
+      },
+      "view": {
+        "sha256": "c232ee20ca0115cd9c53b17687dde96292028700e6b626319960331ec6591906",
+        "blake3": "9860e7054e3f3a8e6ab79c26bcda06bc65778ebdda211160ea66871142b7c808"
+      },
+      "model": {
+        "sha256": "f87f82fef17671858129187b432b0564388ee6938ee22b342a0f505c117176ca",
+        "blake3": "7bee7b20d82bfc2166eb620da75bf1c6c8d8a05b157e3b3c6bfb770d64d04894"
+      }
+    }
+  },
+  "verdict": {
+    "level": "P0",
+    "reasons": [
+      {
+        "check": "holo.integrity",
+        "withholds": "P1",
+        "message": "The footer 8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba does not equal the BLAKE3 of the body, fd9dd2691405298b32aa8a7020294ff355aab79a4bdd84cd6d55c47aab5e92cc: the archive was altered."
+      },
+      {
+        "check": "holo.integrity",
+        "withholds": "P1",
+        "message": "Section 7 is labelled blake3:e76544838a98c46341ed8807f72897ec68de5a8a9bf28721738a76761c9df90e but its content hashes to blake3:7bee7b20d82bfc2166eb620da75bf1c6c8d8a05b157e3b3c6bfb770d64d04894."
+      },
+      {
+        "check": "holo.documents",
+        "withholds": "P1",
+        "message": "The model document is not JSON: The encoded data was not valid for encoding utf-8."
+      },
+      {
+        "check": "holo.integrity",
+        "withholds": "P1",
+        "message": "The provenance model_id 074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6 differs from the model document's sha256 f87f82fef17671858129187b432b0564388ee6938ee22b342a0f505c117176ca; the source manifest lists model-document sha256 074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6, the blob hashes to f87f82fef17671858129187b432b0564388ee6938ee22b342a0f505c117176ca."
+      },
+      {
+        "check": "provenance.statement",
+        "withholds": "P1",
+        "message": "The holo carries no provenance statement; format revision 2026-10-23 has no attestation bundle (issues #267 and #268)."
+      },
+      {
+        "check": "proof.statement",
+        "withholds": "P2",
+        "message": "The holo carries no proof statement (issue #266)."
+      },
+      {
+        "check": "replay.statement",
+        "withholds": "P3",
+        "message": "The holo carries no replay statement (issue #284)."
+      }
+    ]
+  },
+  "world": {
+    "contract": "hologram:guest/core-wasm@1",
+    "known": true,
+    "within": true,
+    "pure": true,
+    "effects": [],
+    "imports": [],
+    "problems": [],
+    "capability_set": {
+      "label": "blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c",
+      "empty": true
+    }
+  },
+  "capabilities": null,
+  "predicates": {
+    "provenance": null,
+    "proof": null,
+    "replay": null
+  }
+}

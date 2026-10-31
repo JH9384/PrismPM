@@ -22,6 +22,10 @@ export function cli({ cli: description, page }) {
   parts.push(paragraph(shipped.plugins.hooks));
   parts.push(table(['Plugin', 'Binary', 'Usage', 'What it does'], shipped.plugins.firstParty.map((p) => [code(p.name), code(p.binary), code(p.usage), p.summary])));
 
+  parts.push(heading(3, 'Providers (experimental)'));
+  parts.push(paragraph(shipped.providers.discovery));
+  parts.push(table(['Type', 'Binary', 'In prism.toml', 'What it does'], shipped.providers.firstParty.map((p) => [code(p.name), code(p.binary), code(p.usage), p.summary])));
+
   parts.push(heading(2, 'Global flags'));
   parts.push(table(['Flag', 'Default', 'Meaning'], description.globalFlags.map((f) => [code(f.flag), f.default, f.meaning])));
 

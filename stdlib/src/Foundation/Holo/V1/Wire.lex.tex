@@ -207,10 +207,18 @@ definition{
 }
 
 definition{
+  name: wireAttestationPrefix,
+  parameters: [],
+  result: Bytes,
+  body: (prim append (prim append 0x (wireEncodeLe16 54) : Bytes) 0x68747470733a2f2f756f722e666f756e646174696f6e2f657874656e73696f6e2f6174746573746174696f6e2d62756e646c652f7631 : Bytes),
+  axioms: []
+}
+
+definition{
   name: wireSectionKind,
   parameters: [index : Nat],
   result: Bytes,
-  body: (if (index <? 8) then (if (index =? 0) then 0x0f else (if (index =? 1) then 0x08 else (if (index <? 4) then 0x0e else 0x10))) else 0x),
+  body: (if (index <? 9) then (if (index =? 0) then 0x0f else (if (index =? 1) then 0x08 else (if (index <? 4) then 0x0e else (if (index <? 8) then 0x10 else 0x0e)))) else 0x),
   axioms: []
 }
 
@@ -256,7 +264,7 @@ definition{
   result: Bool,
   body: (match remaining
     | Nat.zero => (offset =? (prim length body : Nat))
-    | Nat.succ rest => (if ((index <? 8) && ((offset <=? (prim length body : Nat)) && true)) then (if ((wireWindowEquals body (10 + (prim multiply index 24 : Nat)) 1 (wireSectionKind index)) && ((wireWindowEquals body (11 + (prim multiply index 24 : Nat)) 7 0x00000000000000) && (((wireRowOffset body index) =? offset) && (((wireRowLength body index) <=? (prim subtract (prim length body : Nat) offset : Nat)) && true)))) then (wireRowsValid body (index + 1) (offset + (wireRowLength body index)) rest) else false) else false)),
+    | Nat.succ rest => (if ((index <? 9) && ((offset <=? (prim length body : Nat)) && true)) then (if ((wireWindowEquals body (10 + (prim multiply index 24 : Nat)) 1 (wireSectionKind index)) && ((wireWindowEquals body (11 + (prim multiply index 24 : Nat)) 7 0x00000000000000) && (((wireRowOffset body index) =? offset) && (((wireRowLength body index) <=? (prim subtract (prim length body : Nat) offset : Nat)) && true)))) then (wireRowsValid body (index + 1) (offset + (wireRowLength body index)) rest) else false) else false)),
   axioms: [propext],
   recursive_argument: remaining
 }
@@ -326,10 +334,37 @@ definition{
 }
 
 definition{
+  name: wireNoBlankLines,
+  parameters: [value : Bytes, count : Nat],
+  result: Bool,
+  body: (match count
+    | Nat.zero => true
+    | Nat.succ rest => (if (wireWindowEquals value rest 2 0x0a0a) then false else (wireNoBlankLines value rest))),
+  axioms: [propext],
+  recursive_argument: count
+}
+
+definition{
+  name: wireAttestationRowValid,
+  parameters: [row : Bytes],
+  result: Bool,
+  body: ((((prim length (wireAttestationPrefix) : Nat) + 2) <=? (prim length row : Nat)) && ((wireWindowEquals row 0 (prim length (wireAttestationPrefix) : Nat) (wireAttestationPrefix)) && ((wireWindowEquals row (prim subtract (prim length row : Nat) 1 : Nat) 1 0x0a) && ((if (wireWindowEquals row (prim length (wireAttestationPrefix) : Nat) 1 0x0a) then false else true) && ((wireNoBlankLines row (prim length row : Nat)) && true))))),
+  axioms: [propext]
+}
+
+definition{
   name: validArchiveBody,
   parameters: [body : Bytes],
   result: Bool,
-  body: (if ((202 <=? (prim length body : Nat)) && ((wireWindowEquals body 0 10 0x484f4c4f040000000800) && true)) then (if (wireRowsValid body 0 202 8) then (wireBodyPayloadsValid body) else false) else false),
+  body: (if ((202 <=? (prim length body : Nat)) && ((wireWindowEquals body 0 10 0x484f4c4f040000000800) && true)) then (if (wireRowsValid body 0 202 8) then (wireBodyPayloadsValid body) else false) else (if ((226 <=? (prim length body : Nat)) && ((wireWindowEquals body 0 10 0x484f4c4f040000000900) && true)) then (if (wireRowsValid body 0 226 9) then ((wireBodyPayloadsValid body) && ((wireAttestationRowValid (wireSectionBytesUnchecked body 8)) && true)) else false) else false)),
+  axioms: [propext]
+}
+
+definition{
+  name: wireRowCount,
+  parameters: [body : Bytes],
+  result: Nat,
+  body: (wireDecodeLe16 (wireSlice body 8 2)),
   axioms: [propext]
 }
 
@@ -364,6 +399,30 @@ definition{
   ],
   result: (Option Bytes),
   body: (if (wirePayloadsValid manifest blob0 blob1 blob2 blob3) then (ctor Option.some [Bytes] (wireComposeBodyUnchecked manifest metadata (prim append (prim append 0x (wireDirectoryPrefix) : Bytes) directory : Bytes) (prim append (prim append 0x (wireProvenancePrefix) : Bytes) provenance : Bytes) blob0 blob1 blob2 blob3)) else (ctor Option.none [Bytes])),
+  axioms: [propext]
+}
+
+definition{
+  name: wireTableRowShifted,
+  parameters: [body : Bytes, index : Nat, shift : Nat],
+  result: Bytes,
+  body: (wireTableRow index ((wireRowOffset body index) + shift) (wireRowLength body index)),
+  axioms: [propext]
+}
+
+definition{
+  name: wireTableRowUnshifted,
+  parameters: [body : Bytes, index : Nat, shift : Nat],
+  result: Bytes,
+  body: (wireTableRow index (prim subtract (wireRowOffset body index) shift : Nat) (wireRowLength body index)),
+  axioms: [propext]
+}
+
+definition{
+  name: archiveBodyWithAttestation,
+  parameters: [body : Bytes, attestation : Bytes],
+  result: (Option Bytes),
+  body: (if ((validArchiveBody body) && (((wireRowCount body) =? 8) && ((wireAttestationRowValid (prim append (prim append 0x (wireAttestationPrefix) : Bytes) attestation : Bytes)) && true))) then (ctor Option.some [Bytes] (prim append (prim append (prim append (prim append (prim append (prim append (prim append (prim append (prim append (prim append (prim append (prim append 0x 0x484f4c4f040000000900 : Bytes) (wireTableRowShifted body 0 24) : Bytes) (wireTableRowShifted body 1 24) : Bytes) (wireTableRowShifted body 2 24) : Bytes) (wireTableRowShifted body 3 24) : Bytes) (wireTableRowShifted body 4 24) : Bytes) (wireTableRowShifted body 5 24) : Bytes) (wireTableRowShifted body 6 24) : Bytes) (wireTableRowShifted body 7 24) : Bytes) (wireTableRow 8 ((prim length body : Nat) + 24) ((prim length (wireAttestationPrefix) : Nat) + (prim length attestation : Nat))) : Bytes) (wireSlice body 202 (prim subtract (prim length body : Nat) 202 : Nat)) : Bytes) (prim append (prim append 0x (wireAttestationPrefix) : Bytes) attestation : Bytes) : Bytes)) else (ctor Option.none [Bytes])),
   axioms: [propext]
 }
 
@@ -403,7 +462,7 @@ definition{
   name: archiveSection,
   parameters: [value : Bytes, index : Nat],
   result: (Option Bytes),
-  body: (if ((validArchiveFrame value) && ((index <? 8) && true)) then (ctor Option.some [Bytes] (wireSectionBytesUnchecked value index)) else (ctor Option.none [Bytes])),
+  body: (if ((validArchiveFrame value) && ((index <? (wireRowCount value)) && true)) then (ctor Option.some [Bytes] (wireSectionBytesUnchecked value index)) else (ctor Option.none [Bytes])),
   axioms: [propext]
 }
 
@@ -412,6 +471,22 @@ definition{
   parameters: [value : Bytes, index : Nat],
   result: (Option Bytes),
   body: (if ((validArchiveFrame value) && ((index <? 2) && true)) then (if (index =? 0) then (ctor Option.some [Bytes] (wireSlice (wireSectionBytesUnchecked value (index + 2)) (prim length (wireDirectoryPrefix) : Nat) (prim subtract (prim length (wireSectionBytesUnchecked value (index + 2)) : Nat) (prim length (wireDirectoryPrefix) : Nat) : Nat))) else (ctor Option.some [Bytes] (wireSlice (wireSectionBytesUnchecked value (index + 2)) (prim length (wireProvenancePrefix) : Nat) (prim subtract (prim length (wireSectionBytesUnchecked value (index + 2)) : Nat) (prim length (wireProvenancePrefix) : Nat) : Nat)))) else (ctor Option.none [Bytes])),
+  axioms: [propext]
+}
+
+definition{
+  name: archiveAttestation,
+  parameters: [value : Bytes],
+  result: (Option Bytes),
+  body: (if ((validArchiveFrame value) && (((wireRowCount value) =? 9) && true)) then (ctor Option.some [Bytes] (wireSlice (wireSectionBytesUnchecked value 8) (prim length (wireAttestationPrefix) : Nat) (prim subtract (prim length (wireSectionBytesUnchecked value 8) : Nat) (prim length (wireAttestationPrefix) : Nat) : Nat))) else (ctor Option.none [Bytes])),
+  axioms: [propext]
+}
+
+definition{
+  name: archiveStripAttestation,
+  parameters: [value : Bytes],
+  result: (Option Bytes),
+  body: (if ((validArchiveFrame value) && (((wireRowCount value) =? 9) && true)) then (ctor Option.some [Bytes] (prim append (prim append (prim append (prim append (prim append (prim append (prim append (prim append (prim append (prim append 0x 0x484f4c4f040000000800 : Bytes) (wireTableRowUnshifted value 0 24) : Bytes) (wireTableRowUnshifted value 1 24) : Bytes) (wireTableRowUnshifted value 2 24) : Bytes) (wireTableRowUnshifted value 3 24) : Bytes) (wireTableRowUnshifted value 4 24) : Bytes) (wireTableRowUnshifted value 5 24) : Bytes) (wireTableRowUnshifted value 6 24) : Bytes) (wireTableRowUnshifted value 7 24) : Bytes) (wireSlice value 226 (prim subtract (wireRowOffset value 8) 226 : Nat)) : Bytes)) else (ctor Option.none [Bytes])),
   axioms: [propext]
 }
 

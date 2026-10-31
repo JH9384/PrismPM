@@ -12,7 +12,7 @@ struct Contract {
     schema: &'static [u8],
 }
 
-const CONTRACTS: [Contract; 64] = [
+const CONTRACTS: [Contract; 66] = [
     Contract {
         id: "prismpm/workbench-view-projection/1",
         maximum_bytes: 1_048_576,
@@ -255,6 +255,18 @@ const CONTRACTS: [Contract; 64] = [
         schema: include_bytes!("../schemas/inspect-result.schema.json"),
     },
     Contract {
+        id: "prismpm/attest-result/1",
+        maximum_bytes: 1_048_576,
+        maximum_items: 4_096,
+        schema: include_bytes!("../schemas/attest-result.schema.json"),
+    },
+    Contract {
+        id: "prismpm/attestation-verification-result/1",
+        maximum_bytes: 1_048_576,
+        maximum_items: 4_096,
+        schema: include_bytes!("../schemas/attestation-verification-result.schema.json"),
+    },
+    Contract {
         id: "prismpm/product-release-result/1",
         maximum_bytes: 1_048_576,
         maximum_items: 4_096,
@@ -405,6 +417,28 @@ fn contract(id: &str) -> Result<&'static Contract, PrismError> {
         .iter()
         .find(|contract| contract.id == id)
         .ok_or_else(|| PrismError::new("PP1101", format!("unsupported contract {id}")))
+}
+
+/// Whether `value` satisfies the subschema at `pointer` of the registered
+/// schema `id`, so an earlier check applies exactly the rule that contract
+/// enforces later instead of a copy of it.
+pub(crate) fn satisfies_subschema(
+    id: &str,
+    pointer: &str,
+    value: &Value,
+) -> Result<bool, PrismError> {
+    let schema: Value = serde_json::from_slice(contract(id)?.schema)
+        .map_err(|error| PrismError::new("PP9001", format!("registered schema {id}: {error}")))?;
+    let subschema = schema.pointer(pointer).ok_or_else(|| {
+        PrismError::new("PP9001", format!("registered schema {id} has no {pointer}"))
+    })?;
+    let validator = jsonschema::validator_for(subschema).map_err(|error| {
+        PrismError::new(
+            "PP9001",
+            format!("compile registered schema {id}{pointer}: {error}"),
+        )
+    })?;
+    Ok(validator.is_valid(value))
 }
 
 fn strictly_ordered(rows: &[Value], key: impl Fn(&Value) -> Option<String>) -> bool {

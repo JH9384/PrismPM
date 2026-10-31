@@ -4,11 +4,16 @@
  *
  *   prism-code run <app.holo> [--policy F] [--allow-unverified] [--capabilities <file>] [--capability-set <name>] [--port N] [--host H]
  *                                                     check the holo (#282), then serve the view and the intent endpoint
+ *   prism-code run <app.holo> <input> | --input <text> [--rm] [--policy F] ...
+ *                                                     one run as a container (#348): print its output and exit with its code
+ *   prism-code rm <container>...                      remove containers
  *   prism-code vectors <app.holo | closure-dir>       replay the acceptance vectors
  *   prism-code init [<dir>] [--name N] [--template T] [--sdk-image REF] [--force]
  *                                                     scaffold a project; with --sdk-image, bind it (standards.lock, prismpm.lock)
  *   prism-code manifest [<dir>] [--target browser|node] [--json]
  *                                                     check and lint prism.toml, with its overlay merged
+ *   prism-code providers <up|down> [<dir>] [--target browser|node] [--json]
+ *                                                     run the providers prism.toml declares (experimental)
  *   prism-code inspect <app.holo> [--json] [--format <path>]
  *                                                     print what the holo says about itself, without running it
  *   prism-code attest <app.holo> --predicate <file> --type <uri> [--key <private.pem>]
@@ -16,15 +21,20 @@
  *   prism-code verify-attestation <app.holo> ...      check the signatures of those statements
  *   prism-code check <app.holo> [--policy <file>] [--json]
  *                                                     judge the holo against a policy and print its verdict
+ *   prism-code push <app.holo> <reference>            put the holo and its attestations in a registry or a local store
+ *   prism-code pull <reference> [<out.holo>]          fetch a holo, verify it, then write it
  *   prism-code build [--check]|verify|conformance ... run prismpm in the locked SDK image
  *   prism-code <plugin> [args]                        run prism-<plugin> from the PATH (experimental)
  *
  * Exit codes: 0 ok or the policy passed, 1 vectors failed, an attestation did
  * not verify or the policy failed, 2 artifact refused (a guest import no
- * capability set grants, a world outside the grant, or a manifest that fails
- * its checks, included) or no verdict, 3 signing failed or the sigstore
- * packages are missing, 64 usage, 69 Docker unavailable, otherwise the
- * delegated command's or the plugin's code.
+ * capability set grants, a world outside the grant, a manifest that fails
+ * its checks, or a provider that failed, included) or no verdict, 3 signing failed or the sigstore
+ * packages are missing, 10 to 13 a typed error from a run, 64 usage, 69 Docker
+ * unavailable, 70 something untyped, otherwise the delegated command's or the
+ * plugin's code. `EXIT_CODES` in src/errors.mjs is the table for typed errors.
+ * `push` and `pull` exit 1 when a digest or the holo fails, 2 when the registry
+ * gives no answer (#292).
  *
  * `check` without a holo is the 0.2.0 spelling of `build --check`. It still
  * runs, with a warning, and is removed in 0.4.0 (STABILITY.md, Deprecated).
@@ -35,12 +45,16 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { userInfo } from 'node:os';
 import { createRequire } from 'node:module';
-import { fromFile, serve, readManifest } from '../src/node.mjs';
+import { createPrism } from '../src/index.mjs';
+import { fromFile, serve, readManifest, fileContainerStore, resolveProviders, releaseProviders } from '../src/node.mjs';
 import { sdkImageFromLock, dockerArguments, DELEGATED } from '../src/docker.mjs';
-import { CapabilityDeniedError, PrismCodeError, PrismError, SigningError, VerificationError } from '../src/errors.mjs';
+import { PrismCodeError, PrismError, VerificationError, errorFromVerdict, exitCodeFor } from '../src/errors.mjs';
+import { unverifiedWarning } from '../src/containers.mjs';
+import { ASSURANCE } from '../src/vendor/verify.mjs';
 import { inspect, formatInspection, select } from '../src/inspect.mjs';
+import { manifestProviders } from '../src/manifest.mjs';
 import { canonicalJson } from '../src/archive.mjs';
-import { check, formatVerdict, verdictJson, exitCodeOf, EXIT as CHECK_EXIT } from '../src/check.mjs';
+import { check, readPolicy, formatVerdict, verdictJson, exitCodeOf, EXIT as CHECK_EXIT } from '../src/check.mjs';
 import { discover, errorHookMessages, listPlugins, pluginHelp, readMetadata, runPlugin } from '../src/plugins.mjs';
 
 const require = createRequire(import.meta.url);
@@ -53,6 +67,11 @@ Usage:
                                                     check the holo, then serve its view; POST /_hologram/intent
                                                     dispatches. A holo that fails check is refused (exit 1, 2 for
                                                     no verdict) unless --allow-unverified, which warns every start
+  prism-code run <app.holo> <input> [--rm] [--policy <file>] [--allow-unverified] [--capabilities <file>] [--capability-set <name>]
+  prism-code run <app.holo> --input <text> [--rm] ...
+                                                    one run as a container: check the holo, dispatch the input, print
+                                                    the output, exit with the container's code; --rm removes it on exit
+  prism-code rm <container>...                      remove exited containers
   prism-code vectors <app.holo | closure-dir>       replay every acceptance vector through the guest
   prism-code init [<dir>] [--name <name>] [--template <name>] [--sdk-image <ref>] [--force]
                                                     scaffold a project: prism.toml, a language-1.2 model and its
@@ -61,9 +80,14 @@ Usage:
   prism-code manifest [<dir>] [--target <browser|node>] [--json]
                                                     check and lint prism.toml, with prism.<target>.toml merged;
                                                     a secret written as a literal is an error
+  prism-code providers <up|down> [<dir>] [--target <browser|node>] [--json]
+                                                    run the prism-provider-<type> each capability declares;
+                                                    the capability set must allow the type and each variable
   prism-code inspect <app.holo> [--json] [--format <path>]
                                                     print sections, digests, manifest, model, world and
                                                     attestations without running the guest
+  prism-code inspect <container> [--json] [--format <path>]
+                                                    print a container's state, exit code, image digest and output
   prism-code attest <app.holo> --predicate <file> --type <uri> [--subject <s>]... [--key <private.pem>] [--output <file>]
                                                     sign an in-toto statement into the holo; keyless unless --key
   prism-code verify-attestation <app.holo> --certificate-identity <id> --certificate-oidc-issuer <url>
@@ -74,6 +98,12 @@ Usage:
   prism-code check <app.holo> [--policy <file>] [--json]
                                                     judge the holo against a policy and print its verdict:
                                                     exit 0 passed, 1 failed, 2 no verdict
+  prism-code push <app.holo | dir://store:tag> <reference> [--key <private.pem> | --keyless] [--store <dir>]
+                                                    put the holo in an OCI registry or a local store, each attestation
+                                                    a referrer; a signer also signs a statement naming the manifest
+  prism-code pull <reference> [<out.holo> | dir://store:tag] [--policy <file>] [--store <dir>]
+                                                    fetch a holo and write it only after it verifies: digests, archive,
+                                                    verdict, attestations; the verify-attestation flags add a signer policy
   prism-code build --check [args]                   prismpm check in the SDK image named by ./prismpm.lock:
                                                     validate the model, write nothing
   prism-code build [args]                           prismpm build (needs the Docker socket)
@@ -92,16 +122,35 @@ Options for verify-attestation:
                       --trusted-root <file>        pin a trusted_root.json; default is the public instance's, fetched over TUF
                       --entries <n>, --timestamps <n>
                                                    least verified log entries and timestamps: 1 and 1 keyless, 0 and 0 with --key
-Options for run:      --policy <file>              the policy check judges the holo by, as for check; effects [] is the pure-world policy
+Options for run:      --policy <file>              the policy check judges the holo by, as for check
                       --allow-unverified           run a holo that fails check, or a closure; prints a warning, never the default
                       --capabilities <file>        a prism/capabilities/1 file; without one the holo is granted nothing
                       --capability-set <name>      the set to apply, default "default"
-Options for check:    --policy <file>              a JSON policy: name, minimum (P0 to P3), digests, world;
-                                                   default: P2 or above, or PRISM_MINIMUM_LEVEL
+                      --input <text>               the input of a one-shot run; the second argument is the same
+                      --rm                         remove the container when it exits; one-shot runs only
+Options for check:    --policy <file>              a Rego file (.rego), the name of a shipped policy (pure-only,
+                                                   provenance-only), or a JSON file of name, minimum, digests,
+                                                   world and effects; default: P2 or above and the world within
+                                                   the grant. Exit 1 when it denies, 2 when it cannot be evaluated
                       --json                       the verdict as one canonical JSON object
                       deprecated: check without a holo runs build --check; removed in 0.4.0
+Options for push:     --key <private.pem>          sign a statement naming the manifest, per predicate in the holo, for cosign verify-attestation
+                      --keyless                    the same with an OIDC token, as attest does; --signing-config for a private instance
+                      --no-attestations            push only the holo's manifest; the section stays in the file
+Options for pull:     --policy <file>              the policy check reads; default: P0 or above, or PRISM_MINIMUM_LEVEL
+                      --key <public.pem>, --certificate-identity <id>, --certificate-identity-regexp <re>, --certificate-oidc-issuer <url>
+                                                   at least one attestation must pass this signer policy, as verify-attestation
+                      --type <uri>, --trusted-root <file>, --entries <n>, --timestamps <n>
+                                                   narrow or pin the signer policy, as verify-attestation
+Options for both:     --store <dir>                the reference is a name in this local OCI layout; dir://<dir>[:tag] says the same
+                      --plain-http                 reach a registry over HTTP; a loopback registry already is
+                      --json                       the result as one canonical JSON object
+                      references: registry/repo[:tag], registry/repo@sha256:<hex>, registry/repo@blake3:<fingerprint> (pull);
+                      credentials come from Docker's config, or GHCR_TOKEN or GITHUB_TOKEN for ghcr.io
 Options for manifest: --target <browser|node>      merge prism.browser.toml or prism.node.toml over prism.toml
                       --json                       the merged manifest and the warnings as canonical JSON
+Options for providers: --target <browser|node>     merge prism.browser.toml or prism.node.toml over prism.toml
+                      --json                       the result as canonical JSON, with the values; text output never prints one
 Options for closures: --model <model.prism.json>   the model document (numeric-profile closures need it)
 `;
 
@@ -139,6 +188,8 @@ const VALUE_OPTIONS = [
   'capability-set',
   'policy',
   'target',
+  'input',
+  'store',
 ];
 
 function parse(argv) {
@@ -210,15 +261,59 @@ function closureSummary(app) {
   };
 }
 
+const cliContainers = () =>
+  createPrism({
+    store: fileContainerStore(),
+    warn: (message) => process.stderr.write(`warning: ${message} (--allow-unverified)\n`),
+  }).containers;
+
+/** The container this names, or null. A name that is not an id is simply not one. */
+async function findContainer(name) {
+  try {
+    return await cliContainers().get(name);
+  } catch (error) {
+    if (error.code === 'container.missing') return null;
+    throw error;
+  }
+}
+
+function formatContainer(record) {
+  const { state, image, output } = record;
+  const lines = [
+    `Container:  ${record.id}`,
+    `Image:      ${image.name ?? 'unnamed'} ${image.digest ?? `(${image.kind}, no digest)`}`,
+    `Status:     ${state.status}`,
+    `Exit code:  ${state.exitCode ?? 'none'}`,
+    `Created:    ${record.created}`,
+    `Started:    ${state.startedAt ?? 'never'}`,
+    `Finished:   ${state.finishedAt ?? 'not yet'}`,
+  ];
+  if (state.error) lines.push(`Error:      ${state.error.code ?? state.error.name}: ${state.error.message}`);
+  if (output) lines.push(`Output:     ${JSON.stringify(output.data)}${output.encoding === 'hex' ? ' (hex)' : ''}`);
+  return `${lines.join('\n')}\n`;
+}
+
+async function commandRm(positional) {
+  if (positional.length === 0) return usage('rm takes one or more containers');
+  const containers = cliContainers();
+  for (const name of positional) {
+    await containers.remove(name);
+    process.stdout.write(`${name}\n`);
+  }
+  return 0;
+}
+
 async function commandInspect(positional, options) {
   if (positional.length !== 1) return usage('inspect takes one artifact');
   if (Object.hasOwn(options, 'format') && (typeof options.format !== 'string' || options.format === '')) return usage('--format takes a path, such as sections[0].digest.sha256');
   const path = resolve(positional[0]);
   const info = await stat(path).catch(() => null);
-  if (!info) throw new PrismCodeError('load.path', `${path} does not exist`);
+  // A path wins; what is not a path may name a container (#348).
+  const container = info ? null : await findContainer(positional[0]);
+  if (!info && !container) throw new PrismCodeError('load.path', `${path} does not exist`);
   // A closure has no section table; it keeps the 0.2.0 summary.
-  const closure = info.isDirectory();
-  const value = closure ? closureSummary(await open(positional[0], options)) : await inspect(new Uint8Array(await readFile(path)));
+  const closure = info?.isDirectory() ?? false;
+  const value = container ? await container.inspect() : closure ? closureSummary(await open(positional[0], options)) : await inspect(new Uint8Array(await readFile(path)));
   if (typeof options.format === 'string') {
     let picked;
     try {
@@ -235,6 +330,7 @@ async function commandInspect(positional, options) {
     return 0;
   }
   if (options.json) process.stdout.write(`${canonicalJson(value)}\n`);
+  else if (container) process.stdout.write(formatContainer(value));
   else if (closure) process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
   else process.stdout.write(formatInspection(value));
   return 0;
@@ -246,6 +342,14 @@ async function commandAttestation(verb, positional, options) {
   if (bad) return usage(`--${bad} takes a value`);
   const cli = await import('../src/attest-cli.mjs');
   return verb === 'attest' ? cli.runAttest(positional, options, usage) : cli.runVerifyAttestation(positional, options, usage);
+}
+
+// A registry client and a store are not needed by any other verb; load them only when one of these runs.
+async function commandTransfer(verb, positional, options) {
+  const bad = missingValue(options);
+  if (bad) return usage(`--${bad} takes a value`);
+  const cli = await import('../src/push-pull-cli.mjs');
+  return verb === 'push' ? cli.runPush(positional, options, usage) : cli.runPull(positional, options, usage);
 }
 
 const CHECK_OPTIONS = ['policy', 'json'];
@@ -305,22 +409,58 @@ async function gateRun(path, options) {
     verdict = await check(path, { policy: options.policy, capabilities });
   } catch (error) {
     if (!(error instanceof PrismError)) throw error;
-    if (allow) return { verdict: null, warning: `no verdict (${error.check ?? error.code}: ${error.message}); running it unverified (--allow-unverified)` };
+    if (allow) return { verdict: null, warning: `${unverifiedWarning(null, error)} (--allow-unverified)` };
     process.stderr.write(`no verdict: ${error.check ?? error.code}: ${error.message}\nrun refused: pass --allow-unverified to run a holo check cannot judge\n`);
     return { refuse: CHECK_EXIT.NO_VERDICT };
   }
   if (verdict.passed) return { verdict, warning: null };
-  if (allow) return { verdict, warning: `the holo failed check (${verdict.level}, policy ${verdict.policy.name} requires ${verdict.policy.minimum}): ${verdict.reasons.filter((r) => r.check !== 'policy.level').map((r) => r.check).join(', ') || 'policy.level'}; running it unverified (--allow-unverified)` };
+  if (allow) return { verdict, warning: `${unverifiedWarning(verdict)} (--allow-unverified)` };
+  refusal(path, verdict);
+  return { refuse: exitCodeFor(errorFromVerdict(verdict, ASSURANCE.RANK)) };
+}
+
+function refusal(path, verdict) {
   process.stderr.write(formatVerdict(verdict, path));
   process.stderr.write('run refused: the holo did not pass check. Raise its evidence, run it under a policy that accepts it (--policy), or pass --allow-unverified.\n');
-  return { refuse: exitCodeOf(verdict) };
+}
+
+/**
+ * One run as a container (#348). stdout holds the guest's output and nothing
+ * else, as `docker run` does; everything about the run goes to stderr. The exit
+ * code is the container's. The record stays until `rm`, unless `--rm`.
+ */
+async function commandRunOnce(path, input, options) {
+  const container = await cliContainers().create(resolve(path), input, {
+    model: options.model ? resolve(options.model) : null,
+    capabilities: options.capabilities ? resolve(options.capabilities) : null,
+    capabilitySet: options['capability-set'],
+    policy: options.policy === undefined ? undefined : () => readPolicy(options.policy),
+    allowUnverified: options['allow-unverified'] === true,
+    rm: options.rm === true,
+  });
+  await container.start();
+  if (container.output) process.stdout.write(container.output);
+  const { error } = container;
+  if (error?.verdict) refusal(path, error.verdict);
+  else if (error instanceof VerificationError) process.stderr.write(`no verdict: ${error.check ?? error.code}: ${error.message}\nrun refused: pass --allow-unverified to run a holo check cannot judge\n`);
+  else if (error) process.stderr.write(`${error.code ?? error.name}: ${error.message}\n`);
+  if (options.rm !== true) process.stderr.write(`container ${container.id} exited ${container.exitCode}\n`);
+  return container.exitCode;
 }
 
 async function commandRun(positional, options) {
-  if (positional.length !== 1) return usage('run takes one artifact');
+  if (positional.length < 1 || positional.length > 2) return usage('run takes one artifact and at most one input');
   for (const name of ['capabilities', 'capability-set', 'policy']) {
     if (Object.hasOwn(options, name) && (typeof options[name] !== 'string' || options[name] === '')) return usage(`--${name} takes a value`);
   }
+  if (Object.hasOwn(options, 'input') && typeof options.input !== 'string') return usage('--input takes a value');
+  if (Object.hasOwn(options, 'input') && positional.length === 2) return usage('give the input once: as the second argument or as --input');
+  const input = options.input ?? positional[1];
+  if (input !== undefined) {
+    if (options.port !== undefined || options.host !== undefined) return usage('--port and --host serve the holo; they do not go with an input');
+    return commandRunOnce(positional[0], input, options);
+  }
+  if (options.rm !== undefined) return usage('--rm needs an input: a served holo is not a container yet');
   const gate = await gateRun(positional[0], options);
   if (gate.refuse !== undefined) return gate.refuse;
   if (gate.warning) process.stderr.write(`warning: ${gate.warning}\n`);
@@ -355,7 +495,37 @@ async function commandManifest(positional, options) {
   process.stdout.write(`${app.name} ${app.version} from ${files.join(' + ')}\n`);
   process.stdout.write(`capabilities: ${granted}\n`);
   process.stdout.write(`variables: ${variables.length ? variables.join(', ') : 'none'}\n`);
+  const declared = manifestProviders(manifest);
+  if (declared.length > 0) process.stdout.write(`providers: ${declared.map((p) => `${p.name} (${p.type})`).join(', ')}\n`);
   for (const w of warnings) process.stderr.write(`warning: ${w.rule}: ${w.message}\n`);
+  return 0;
+}
+
+async function commandProviders(positional, options) {
+  const [verb, directory, ...extra] = positional;
+  if ((verb !== 'up' && verb !== 'down') || extra.length > 0) return usage('providers takes up or down, and at most one project directory');
+  const bad = missingValue(options);
+  if (bad) return usage(`--${bad} takes a value`);
+  if (options.target !== undefined && !['browser', 'node'].includes(options.target)) return usage('--target is browser or node');
+  const project = await readManifest(resolve(directory ?? '.'), { target: options.target ?? null });
+  for (const w of project.warnings) process.stderr.write(`warning: ${w.rule}: ${w.message}\n`);
+  const onMessage = ({ capability, type, message }) => {
+    if (type === 'info') process.stderr.write(`${capability}: ${message}\n`);
+  };
+  if (verb === 'down') {
+    const { providers } = await releaseProviders(project, { onMessage });
+    if (options.json) process.stdout.write(`${canonicalJson({ providers })}\n`);
+    else process.stdout.write(`released: ${providers.length ? providers.join(', ') : 'none'}\n`);
+    return 0;
+  }
+  const { env, providers, withheld } = await resolveProviders(project, { onMessage });
+  for (const w of withheld) process.stderr.write(`warning: capability ${w.capability} returned ${w.name}, and the capability set does not allow the variable ${w.variable}; it is withheld\n`);
+  if (options.json) {
+    process.stdout.write(`${canonicalJson({ env, providers, withheld })}\n`);
+    return 0;
+  }
+  if (providers.length === 0) process.stdout.write('providers: none declared\n');
+  for (const p of providers) process.stdout.write(`${p.name} (${p.type}): ${p.variables.length ? p.variables.join(', ') : 'no variables'}\n`);
   return 0;
 }
 
@@ -427,8 +597,12 @@ async function main(argv) {
       return commandInspect(positional, options);
     case 'run':
       return commandRun(positional, options);
+    case 'rm':
+      return commandRm(positional);
     case 'manifest':
       return commandManifest(positional, options);
+    case 'providers':
+      return commandProviders(positional, options);
     case 'init': {
       const { runInit } = await import('../src/init-cli.mjs');
       return runInit(rest);
@@ -436,6 +610,9 @@ async function main(argv) {
     case 'attest':
     case 'verify-attestation':
       return commandAttestation(command, positional, options);
+    case 'push':
+    case 'pull':
+      return commandTransfer(command, positional, options);
     case 'check':
       if (namesHolo(positional)) return commandCheck(positional, options);
       process.stderr.write('prism-code check without a holo is deprecated and is removed in 0.4.0; use prism-code build --check, which runs the same prismpm check\n');
@@ -457,18 +634,14 @@ main(argv).then(
   (error) => {
     if (error instanceof PrismCodeError) {
       process.stderr.write(`${error.code}: ${error.message}\n`);
-      process.exitCode = error.code.startsWith('lock.') ? 64 : 2;
     } else if (error instanceof PrismError) {
       process.stderr.write(`${error.code}: ${error.message}\n`);
       if (error.check) process.stderr.write(`check: ${error.check}\n`);
-      if (error instanceof VerificationError && error.check === 'policy.invalid') process.exitCode = 64;
-      else if (error instanceof CapabilityDeniedError) process.exitCode = 2;
-      else if (error instanceof SigningError || error.code === 'attest.unavailable') process.exitCode = 3;
-      else process.exitCode = 1;
     } else {
       process.stderr.write(`${error?.stack ?? error}\n`);
-      process.exitCode = 70;
     }
+    // A flag the caller got wrong is usage; every other outcome is the table's.
+    process.exitCode = error instanceof VerificationError && error.check === 'policy.invalid' ? 64 : exitCodeFor(error);
   },
 ).then(() => {
   // A plugin may have something to say about a verb that failed, as Docker's error-hooks do.

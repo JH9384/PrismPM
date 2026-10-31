@@ -2,6 +2,7 @@
 
 pub mod application;
 pub mod archive;
+pub mod attestation;
 pub mod browser_application;
 pub mod canonical;
 mod facet_validate;

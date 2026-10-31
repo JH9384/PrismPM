@@ -204,6 +204,12 @@ export function describeWorld(contract, guest) {
   };
 }
 
+/** The imports a contract's world declares, or null when this reader has no world for it. */
+export function declaredImports(contract) {
+  if (!Object.hasOwn(WORLDS, contract)) return null;
+  return WORLDS[contract].imports.map(({ module, name, kind, capability }) => ({ module, name, kind, ...(capability === undefined ? {} : { capability }) }));
+}
+
 /**
  * Compare a pinned world, in the shape of the lock's `inputs.world`, with the
  * world a holo's contract names. Returns the differences, empty when it matches.
@@ -234,7 +240,8 @@ export function compareWorldPin(contract, pin) {
 /** The effects that make a world impure: a guest importing one can see something a replay cannot reproduce. */
 export const IMPURE_EFFECTS = Object.freeze(['clock', 'random', 'socket', 'filesystem', 'unknown']);
 const CAPABILITY_KINDS = Object.freeze(['outbound-hosts', 'key-value-stores', 'variables']);
-const SET_MEMBERS = Object.freeze(CAPABILITY_KINDS.flatMap((kind) => [`allow-${kind}`, `deny-${kind}`]));
+// A set also grants providers (#294). They run outside the holo, so no world import names that kind.
+const SET_MEMBERS = Object.freeze([...CAPABILITY_KINDS, 'providers'].flatMap((kind) => [`allow-${kind}`, `deny-${kind}`]));
 const WASI_INTERFACES = Object.freeze([
   ['wasi:clocks/', 'clock'],
   ['wasi:random/', 'random'],

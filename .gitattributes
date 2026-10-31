@@ -4,6 +4,10 @@ sdk/npm/spec/test/fixtures/documents/sdk-lock-v3/calculator.json text eol=lf
 # The npm packages are size-capped on bytes; a CRLF checkout on Windows must not change what is packed.
 sdk/npm/**/*.js text eol=lf
 sdk/npm/**/*.mjs text eol=lf
+sdk/npm/**/*.rego text eol=lf
 sdk/npm/**/*.d.ts text eol=lf
 sdk/npm/**/*.json text eol=lf
 schemas/**/*.json text eol=lf
+# The matrix is generated and compared byte for byte; the corpus is hashed (#287).
+COMPLIANCE.md text eol=lf
+sdk/npm/conformance/corpus/*.holo binary

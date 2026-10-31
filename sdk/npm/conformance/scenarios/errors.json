@@ -1,0 +1,98 @@
+{
+  "feature": "errors",
+  "title": "Typed errors",
+  "checks": [
+    {
+      "id": "errors.verify.passed-does-not-throw",
+      "title": "Asking for an error on failure raises nothing when the verdict passes.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "minimum": "P0" }, "throw": true },
+      "expect": { "ok": true, "result": { "passed": true } }
+    },
+    {
+      "id": "errors.verify.level-shortfall",
+      "title": "A level below the policy is a verification error that carries the whole verdict.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "throw": true },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "provenance.statement",
+          "verdict": { "schema": "prism/verdict/1", "level": "P0", "passed": false }
+        }
+      }
+    },
+    {
+      "id": "errors.verify.integrity",
+      "title": "A failed integrity check is a verification error naming the check.",
+      "op": "verify",
+      "archive": "footer-flipped",
+      "input": { "policy": { "minimum": "P1" }, "throw": true },
+      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "holo.integrity", "verdict": { "passed": false } } }
+    },
+    {
+      "id": "errors.verify.pinned-digest-first",
+      "title": "A digest the caller pinned explains the failure before a missing level does.",
+      "op": "verify",
+      "archive": "reference",
+      "input": {
+        "policy": { "digests": { "guest": { "blake3": "0000000000000000000000000000000000000000000000000000000000000000" } } },
+        "throw": true
+      },
+      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.digests.guest" } }
+    },
+    {
+      "id": "errors.world.contract",
+      "title": "A guest that differs from its world is a world mismatch, not a generic failure.",
+      "op": "verify",
+      "archive": "guest-extra-export",
+      "input": { "throw": true },
+      "expect": { "ok": false, "error": { "code": "world_mismatch", "check": "world.contract" } }
+    },
+    {
+      "id": "errors.world.pin",
+      "title": "A world hash the caller pinned and the holo broke is a world mismatch.",
+      "op": "verify",
+      "archive": "reference",
+      "input": {
+        "policy": { "world": { "sha256": "0000000000000000000000000000000000000000000000000000000000000000" } },
+        "throw": true
+      },
+      "expect": { "ok": false, "error": { "code": "world_mismatch", "check": "world.hash", "verdict": { "passed": false } } }
+    },
+    {
+      "id": "errors.capability.denied-import",
+      "title": "A guest import nothing links is a capability denial at load, naming the import.",
+      "op": "load",
+      "archive": "guest-table-import",
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "capability_denied",
+          "check": "capabilities.import",
+          "details": { "import": { "module": "env", "name": "host", "kind": "table" } }
+        }
+      }
+    },
+    {
+      "id": "errors.capability.denied-resource",
+      "title": "A denied resource is a capability denial naming the kind, the resource and the set.",
+      "op": "capabilities",
+      "input": {
+        "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": { "allow-variables": ["*"], "deny-variables": ["signing_key"] } } },
+        "asserts": [{ "kind": "variables", "resource": "api_token" }, { "kind": "variables", "resource": "signing_key" }]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "capability_denied",
+          "check": "capabilities.variables",
+          "details": { "kind": "variables", "resource": "signing_key", "set": "default" }
+        }
+      }
+    }
+  ]
+}

@@ -21,6 +21,7 @@ This directory contains Architecture Decision Records for PrismPM, documenting s
 | [013](013-vv-evidence-artifact-citation.md) | `target/vv-evidence.json` as Cited Release Evidence | Proposed | 2026-09-22 |
 | [014](014-bootstrap-digest-pin-scope.md) | Partial Bootstrap Digest Pin Scope (PP5008) | Proposed | 2026-09-22 |
 | [015](015-dual-digests.md) | Dual Digests, BLAKE3 Native Plus sha256 | Accepted | 2026-10-23 |
+| [016](016-holo-canonical-bytes-and-version-policy.md) | `.holo` Normative Home, Canonical Bytes, and Version Policy | Proposed | 2026-10-29 |
 
 ## Summary of Resolved Dissonance
 

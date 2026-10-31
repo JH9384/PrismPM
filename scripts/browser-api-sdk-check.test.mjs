@@ -380,7 +380,7 @@ test('standalone registry retains all six original inventories and distinct dead
   ['Session Reservation',3600000,['tests/browser-session-journal/reservation.test.mjs','tests/browser-session-journal/reservation-owner.test.mjs'],[10,23]],
   ['Session Payload',3600000,['tests/browser-session-payloads/component.test.mjs','tests/browser-session-payloads/owner.test.mjs'],[4,30]],
   ['Session Recovery Frames',3600000,['tests/browser-session-recovery-frames/wire.test.mjs','tests/browser-session-recovery-frames/owner.test.mjs'],[3,1]],
-  ['Session Journal Recovery',5500000,['tests/browser-session-journal-recovery/component.test.mjs','tests/browser-session-journal-recovery/owner.test.mjs'],[7,1]],
+  ['Session Journal Recovery',7200000,['tests/browser-session-journal-recovery/component.test.mjs','tests/browser-session-journal-recovery/owner.test.mjs'],[7,1]],
   ['Session Retention',3600000,['tests/browser-session-journal-retention/component.test.mjs','tests/browser-session-journal-retention/owner.test.mjs'],[4,18]],
  ];
  assert.deepEqual(standaloneSuites.map(row=>[row.id,row.deadline,row.files,row.exactTests]),expected);
@@ -389,7 +389,7 @@ test('standalone registry retains all six original inventories and distinct dead
   assert(Object.isFrozen(row)&&Object.isFrozen(row.files)&&Object.isFrozen(row.exactTests));
   assert.equal(row.minimum,row.exactTests.reduce((a,b)=>a+b,0));
   for(const file of row.files)assert(sourceRoots.some(path=>file.startsWith(path+'/')));
-  assert.match(sdkSource(row.files[1]),row.id==='Session Journal Recovery'?/timeout: 5400000/:/timeout:\s*3500000/);
+  assert.match(sdkSource(row.files[1]),row.id==='Session Journal Recovery'?/timeout: 7100000/:/timeout:\s*3500000/);
  }
  assert.equal(standaloneSuites.reduce((sum,row)=>sum+row.minimum,0),109);
  assert.equal(suites.length,26);assert.deepEqual(fallbackSuites,independentOwners);

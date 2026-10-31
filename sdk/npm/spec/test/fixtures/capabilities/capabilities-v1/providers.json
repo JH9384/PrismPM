@@ -1,0 +1,19 @@
+{
+  "schema": "prism/capabilities/1",
+  "sets": {
+    "default": {},
+    "local": {
+      "allow-providers": [
+        "kv"
+      ],
+      "deny-providers": [
+        "cloud-db"
+      ]
+    },
+    "any": {
+      "allow-providers": [
+        "*"
+      ]
+    }
+  }
+}

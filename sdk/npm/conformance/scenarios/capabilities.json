@@ -1,0 +1,289 @@
+{
+  "feature": "capabilities",
+  "title": "Capabilities, deny by default",
+  "checks": [
+    {
+      "id": "capabilities.none.denies-everything",
+      "title": "With no capability file, every kind is denied, wildcard resources included.",
+      "op": "capabilities",
+      "input": {
+        "queries": [
+          { "kind": "outbound-hosts", "resource": "https://api.example.com" },
+          { "kind": "outbound-hosts", "resource": "*" },
+          { "kind": "key-value-stores", "resource": "default" },
+          { "kind": "key-value-stores", "resource": "*" },
+          { "kind": "variables", "resource": "api_token" },
+          { "kind": "variables", "resource": "*" }
+        ]
+      },
+      "expect": { "ok": true, "result": { "set": null, "answers": [false, false, false, false, false, false] } }
+    },
+    {
+      "id": "capabilities.none.load-grants-nothing",
+      "title": "A load with no capability file names no set, and the reference holo still opens.",
+      "op": "load",
+      "archive": "reference",
+      "expect": { "ok": true, "result": { "capabilities": { "set": null } } }
+    },
+    {
+      "id": "capabilities.empty.default-set-denies",
+      "title": "An empty default set grants nothing.",
+      "op": "capabilities",
+      "input": {
+        "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": {} } },
+        "queries": [
+          { "kind": "outbound-hosts", "resource": "https://api.example.com" },
+          { "kind": "key-value-stores", "resource": "default" },
+          { "kind": "variables", "resource": "api_token" }
+        ]
+      },
+      "expect": { "ok": true, "result": { "set": "default", "answers": [false, false, false] } }
+    },
+    {
+      "id": "capabilities.empty.deny-only-denies",
+      "title": "A set of deny entries alone grants nothing.",
+      "op": "capabilities",
+      "input": {
+        "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": { "deny-outbound-hosts": ["*://*:*"], "deny-variables": ["*"] } } },
+        "queries": [
+          { "kind": "outbound-hosts", "resource": "https://api.example.com" },
+          { "kind": "key-value-stores", "resource": "default" },
+          { "kind": "variables", "resource": "api_token" }
+        ]
+      },
+      "expect": { "ok": true, "result": { "answers": [false, false, false] } }
+    },
+    {
+      "id": "capabilities.allow.exact-names",
+      "title": "An allow entry grants exactly what it names, for each kind.",
+      "op": "capabilities",
+      "input": {
+        "capabilities": {
+          "schema": "prism/capabilities/1",
+          "sets": { "default": { "allow-key-value-stores": ["default"], "allow-variables": ["api_token"] } }
+        },
+        "queries": [
+          { "kind": "key-value-stores", "resource": "default" },
+          { "kind": "key-value-stores", "resource": "cache" },
+          { "kind": "variables", "resource": "api_token" },
+          { "kind": "variables", "resource": "api_token2" }
+        ]
+      },
+      "expect": { "ok": true, "result": { "answers": [true, false, true, false] } }
+    },
+    {
+      "id": "capabilities.outbound.exact-match",
+      "title": "An outbound host entry matches on scheme, host and port, and ignores the path.",
+      "op": "capabilities",
+      "input": {
+        "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": { "allow-outbound-hosts": ["https://api.example.com"] } } },
+        "queries": [
+          { "kind": "outbound-hosts", "resource": "https://api.example.com" },
+          { "kind": "outbound-hosts", "resource": "https://api.example.com/v1/items?q=1" },
+          { "kind": "outbound-hosts", "resource": "https://API.example.com:443" },
+          { "kind": "outbound-hosts", "resource": "http://api.example.com" },
+          { "kind": "outbound-hosts", "resource": "https://api.example.com:8443" },
+          { "kind": "outbound-hosts", "resource": "https://evil.api.example.com" },
+          { "kind": "outbound-hosts", "resource": "not a url" }
+        ]
+      },
+      "expect": { "ok": true, "result": { "answers": [true, true, true, false, false, false, false] } }
+    },
+    {
+      "id": "capabilities.outbound.wildcards",
+      "title": "Subdomain, port and scheme wildcards match what they say and no further.",
+      "op": "capabilities",
+      "input": {
+        "capabilities": {
+          "schema": "prism/capabilities/1",
+          "sets": { "default": { "allow-outbound-hosts": ["https://*.example.com", "http://localhost:*", "*://cdn.example.org"] } }
+        },
+        "queries": [
+          { "kind": "outbound-hosts", "resource": "https://a.example.com" },
+          { "kind": "outbound-hosts", "resource": "https://a.b.example.com" },
+          { "kind": "outbound-hosts", "resource": "https://example.com" },
+          { "kind": "outbound-hosts", "resource": "https://badexample.com" },
+          { "kind": "outbound-hosts", "resource": "http://localhost:3000" },
+          { "kind": "outbound-hosts", "resource": "wss://cdn.example.org" },
+          { "kind": "outbound-hosts", "resource": "wss://cdn.example.org:9000" }
+        ]
+      },
+      "expect": { "ok": true, "result": { "answers": [true, true, false, false, true, true, false] } }
+    },
+    {
+      "id": "capabilities.deny.wins-over-allow",
+      "title": "A deny entry wins over an allow entry, including a specific deny under a wildcard allow.",
+      "op": "capabilities",
+      "input": {
+        "capabilities": {
+          "schema": "prism/capabilities/1",
+          "sets": {
+            "default": {
+              "allow-outbound-hosts": ["https://*.cdn.example.com:8443"],
+              "deny-outbound-hosts": ["https://admin.cdn.example.com:8443"],
+              "allow-key-value-stores": ["*"],
+              "deny-key-value-stores": ["secrets"],
+              "allow-variables": ["*"],
+              "deny-variables": ["signing_key"]
+            }
+          }
+        },
+        "queries": [
+          { "kind": "outbound-hosts", "resource": "https://img.cdn.example.com:8443" },
+          { "kind": "outbound-hosts", "resource": "https://admin.cdn.example.com:8443" },
+          { "kind": "key-value-stores", "resource": "default" },
+          { "kind": "key-value-stores", "resource": "secrets" },
+          { "kind": "variables", "resource": "api_token" },
+          { "kind": "variables", "resource": "signing_key" }
+        ]
+      },
+      "expect": { "ok": true, "result": { "answers": [true, false, true, false, true, false] } }
+    },
+    {
+      "id": "capabilities.deny.same-entry-on-both-lists",
+      "title": "The same entry on both lists is denied.",
+      "op": "capabilities",
+      "input": {
+        "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": { "allow-variables": ["api_token"], "deny-variables": ["api_token"] } } },
+        "queries": [{ "kind": "variables", "resource": "api_token" }]
+      },
+      "expect": { "ok": true, "result": { "answers": [false] } }
+    },
+    {
+      "id": "capabilities.set.default-applies",
+      "title": "A named set grants nothing until it is asked for.",
+      "op": "capabilities",
+      "input": {
+        "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": {}, "online": { "allow-outbound-hosts": ["https://api.example.com"] } } },
+        "queries": [{ "kind": "outbound-hosts", "resource": "https://api.example.com" }]
+      },
+      "expect": { "ok": true, "result": { "set": "default", "answers": [false] } }
+    },
+    {
+      "id": "capabilities.set.named-applies",
+      "title": "A named set applies when it is asked for.",
+      "op": "capabilities",
+      "input": {
+        "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": {}, "online": { "allow-outbound-hosts": ["https://api.example.com"] } } },
+        "capabilitySet": "online",
+        "queries": [{ "kind": "outbound-hosts", "resource": "https://api.example.com" }]
+      },
+      "expect": { "ok": true, "result": { "set": "online", "answers": [true] } }
+    },
+    {
+      "id": "capabilities.set.load-names-the-set",
+      "title": "A load under a named set reports that set.",
+      "op": "load",
+      "archive": "reference",
+      "input": {
+        "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": {}, "online": { "allow-outbound-hosts": ["https://api.example.com"] } } },
+        "capabilitySet": "online"
+      },
+      "expect": { "ok": true, "result": { "capabilities": { "set": "online" } } }
+    },
+    {
+      "id": "capabilities.set.missing-is-an-error",
+      "title": "A set the file does not hold is an error, never an empty grant.",
+      "op": "load",
+      "archive": "reference",
+      "input": {
+        "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": {} } },
+        "capabilitySet": "offline"
+      },
+      "expect": { "ok": false, "error": { "code": "capabilities.invalid" } }
+    },
+    {
+      "id": "capabilities.set.named-without-a-file",
+      "title": "Naming a set with no file is an error, never an empty grant.",
+      "op": "load",
+      "archive": "reference",
+      "input": { "capabilitySet": "online" },
+      "expect": { "ok": false, "error": { "code": "capabilities.invalid" } }
+    },
+    {
+      "id": "capabilities.invalid.unknown-member",
+      "title": "A misspelled member is an error, so a typo cannot widen or narrow a grant silently.",
+      "op": "capabilities",
+      "input": { "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": { "allow-outbound-host": ["https://api.example.com"] } } } },
+      "expect": { "ok": false, "error": { "code": "capabilities.invalid" } }
+    },
+    {
+      "id": "capabilities.invalid.no-default-set",
+      "title": "A file with no default set is an error.",
+      "op": "capabilities",
+      "input": { "capabilities": { "schema": "prism/capabilities/1", "sets": { "online": {} } } },
+      "expect": { "ok": false, "error": { "code": "capabilities.invalid" } }
+    },
+    {
+      "id": "capabilities.invalid.wrong-schema",
+      "title": "Another schema version is an error.",
+      "op": "capabilities",
+      "input": { "capabilities": { "schema": "prism/capabilities/2", "sets": { "default": {} } } },
+      "expect": { "ok": false, "error": { "code": "capabilities.invalid" } }
+    },
+    {
+      "id": "capabilities.invalid.malformed-entry",
+      "title": "A host entry with a path is an error.",
+      "op": "capabilities",
+      "input": { "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": { "allow-outbound-hosts": ["api.example.com/v1"] } } } },
+      "expect": { "ok": false, "error": { "code": "capabilities.invalid" } }
+    },
+    {
+      "id": "capabilities.invalid.repeated-entry",
+      "title": "A repeated entry is an error.",
+      "op": "capabilities",
+      "input": { "capabilities": { "schema": "prism/capabilities/1", "sets": { "default": { "allow-key-value-stores": ["default", "default"] } } } },
+      "expect": { "ok": false, "error": { "code": "capabilities.invalid" } }
+    },
+    {
+      "id": "capabilities.invalid.not-json",
+      "title": "A file that is not JSON is an error.",
+      "op": "capabilities",
+      "input": { "capabilities": "{\"schema\":" },
+      "expect": { "ok": false, "error": { "code": "capabilities.invalid" } }
+    },
+    {
+      "id": "capabilities.import.denied-with-no-file",
+      "title": "A guest import is denied at load when no capability file is given.",
+      "op": "load",
+      "archive": "guest-table-import",
+      "expect": { "ok": false, "error": { "code": "capability_denied", "check": "capabilities.import" } }
+    },
+    {
+      "id": "capabilities.import.denied-under-a-full-grant",
+      "title": "A guest import is denied at load even when the file grants every resource, because the world lists no imports.",
+      "op": "load",
+      "archive": "guest-table-import",
+      "input": {
+        "capabilities": {
+          "schema": "prism/capabilities/1",
+          "sets": { "default": { "allow-outbound-hosts": ["*://*:*"], "allow-key-value-stores": ["*"], "allow-variables": ["*"] } }
+        }
+      },
+      "expect": { "ok": false, "error": { "code": "capability_denied", "check": "capabilities.import" } }
+    },
+    {
+      "id": "capabilities.kind.unknown",
+      "title": "Asking about a kind that does not exist is an error, not a denial.",
+      "op": "capabilities",
+      "input": { "queries": [{ "kind": "sockets", "resource": "x" }] },
+      "expect": { "ok": false, "error": { "code": "capabilities.kind" } }
+    },
+    {
+      "id": "capabilities.policy.invalid-grant",
+      "title": "A verify policy whose grant is malformed is an invalid policy.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "capabilities": { "allow-outbound-host": [] } } },
+      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+    },
+    {
+      "id": "capabilities.policy.within-grant",
+      "title": "A world that imports nothing is within every grant.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "minimum": "P0", "capabilities": { "allow-variables": ["*"] } } },
+      "expect": { "ok": true, "result": { "passed": true, "reasons": { "$excludes": [{ "check": "world.capabilities" }] } } }
+    }
+  ]
+}

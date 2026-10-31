@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { load, inspect, experimental_verify, WorldMismatchError, VerificationError, PrismError, classForCheck, ERROR_CLASSES } from '../src/index.mjs';
 import { inspect as verifyInspect } from '../../verify/src/index.mjs';
-import { reference, mutatedGuest, withGuest } from '../../verify/test/helpers.mjs';
+import { reference, archive, mutatedGuest, withGuest } from '../../verify/test/helpers.mjs';
 
 const WORLD = {
   contract: 'hologram:guest/core-wasm@1',
@@ -21,12 +21,15 @@ test('WorldMismatchError is a PrismError with its own code and maps both world c
   assert.notEqual(classForCheck('world.capabilities'), WorldMismatchError, 'the capability check stays #283\'s');
 });
 
-test('inspect prints the world and equals @prism-code/verify for the reference archive and every changed guest', async () => {
-  const archives = [reference(), ...CHANGES.map((change) => withGuest(mutatedGuest(change)))];
+test('inspect prints the world and equals @prism-code/verify for both reference archives and every changed guest', async () => {
+  const archives = [reference(), archive('PaymentApproval'), ...CHANGES.map((change) => withGuest(mutatedGuest(change)))];
   for (const bytes of archives) assert.deepEqual(await inspect(bytes), verifyInspect(bytes));
-  const { world } = await inspect(reference());
-  assert.equal(world.conforms, true);
-  assert.deepEqual(world.digest, { blake3: WORLD.blake3, sha256: WORLD.sha256 });
+  for (const bytes of [reference(), archive('PaymentApproval')]) {
+    const { world } = await inspect(bytes);
+    assert.equal(world.contract, WORLD.contract);
+    assert.equal(world.conforms, true);
+    assert.deepEqual(world.digest, { blake3: WORLD.blake3, sha256: WORLD.sha256 });
+  }
   assert.equal((await inspect(withGuest(mutatedGuest('extra import')))).world.conforms, false);
 });
 

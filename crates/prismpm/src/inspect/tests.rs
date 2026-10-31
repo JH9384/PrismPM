@@ -4,20 +4,26 @@ use super::{inspect, select, INSPECTION_SCHEMA};
 use prism_stdlib as wire;
 use serde_json::{json, Value};
 
-/// The reference archive and the inspection `prism-code inspect` prints for
-/// it (`sdk/npm/prism-code/test/fixtures/Calculator.inspect.json`, golden of
-/// issue #271). Both readers report the same values for this archive.
-fn reference() -> (Vec<u8>, Value) {
+/// A reference archive and the inspection `prism-code inspect` prints for it
+/// (`sdk/npm/prism-code/test/fixtures/<name>.inspect.json`, golden of issue
+/// #271). Both readers report the same values for each archive.
+fn reference_archive(name: &str) -> (Vec<u8>, Value) {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let bytes = std::fs::read(root.join("sdk/npm/prism-code/fixtures/Calculator.holo"))
+    let bytes = std::fs::read(root.join(format!("sdk/npm/prism-code/fixtures/{name}.holo")))
         .expect("reference archive");
-    let golden =
-        std::fs::read(root.join("sdk/npm/prism-code/test/fixtures/Calculator.inspect.json"))
-            .expect("inspection golden");
+    let golden = std::fs::read(root.join(format!(
+        "sdk/npm/prism-code/test/fixtures/{name}.inspect.json"
+    )))
+    .expect("inspection golden");
     (
         bytes,
         serde_json::from_slice(&golden).expect("inspection golden is canonical JSON"),
     )
+}
+
+/// The Calculator, the first reference archive.
+fn reference() -> (Vec<u8>, Value) {
+    reference_archive("Calculator")
 }
 
 /// The reference archive signed by the JavaScript appender with the two
@@ -39,6 +45,19 @@ fn the_reference_archive_inspects_exactly_as_the_javascript_half_reports_it() {
     // Eight rows and no attestation section: the table ends at the archive's
     // own row count, although the wire model names a ninth row.
     assert_eq!(inspected["sections"].as_array().unwrap().len(), 8);
+    assert_eq!(inspected["attestations"], json!([]));
+}
+
+/// The second reference archive (#278), the Payment Approval text application,
+/// held to its own golden the same way.
+#[test]
+fn the_second_reference_archive_inspects_exactly_as_the_javascript_half_reports_it() {
+    let (bytes, golden) = reference_archive("PaymentApproval");
+    let inspected = inspect(&bytes).unwrap();
+    assert_eq!(inspected, golden);
+    assert_eq!(inspected["model"]["name"], "PaymentApproval");
+    assert_eq!(inspected["world"]["contract"], "hologram:guest/core-wasm@1");
+    assert_eq!(inspected["world"]["conforms"], true);
     assert_eq!(inspected["attestations"], json!([]));
 }
 

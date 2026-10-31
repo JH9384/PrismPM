@@ -91,8 +91,12 @@ test('the verdict schema rejects a verdict that contradicts itself', () => {
 const prismInspect = here('../../prism-code/src/inspect.mjs');
 const prismGolden = here('../../prism-code/test/fixtures/Calculator.inspect.json');
 
-test('the inspection golden copy equals prism-code', () => {
-  assert.deepEqual(JSON.parse(readFileSync(here('fixtures/Calculator.inspect.json'), 'utf8')), JSON.parse(readFileSync(prismGolden, 'utf8')));
+test('the inspection golden copies equal prism-code, for both reference archives', () => {
+  for (const name of ['Calculator', 'PaymentApproval']) {
+    const copy = JSON.parse(readFileSync(here(`fixtures/${name}.inspect.json`), 'utf8'));
+    const origin = JSON.parse(readFileSync(here(`../../prism-code/test/fixtures/${name}.inspect.json`), 'utf8'));
+    assert.deepEqual(copy, origin, name);
+  }
 });
 
 test('inspect equals prism-code inspect, intact and damaged', async () => {

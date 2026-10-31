@@ -1,0 +1,74 @@
+Name:      PaymentApproval
+Revision:  2026-10-23
+Format:    HOLO physical version 4, flags 0
+Size:      25510 B
+Digest:    sha256:8957bd156311dbbe0b547a9d730cca301ffcb852b3bcefb5ed22421875880a65
+           blake3:8dbe202297c070cd16426f72c82be625533a392cfec19d90fa6482ef5585a79b
+Footer:    3679659faf138f35de6f04f23312c68d911e0a1e13624b59d9045c57213b3034 (BLAKE3 of the body)
+
+Sections:
+  INDEX  KIND  ROLE                   OFFSET  LENGTH  SHA256                                                            BLAKE3
+  0      15    app-manifest           202     356     b383be6b7035326eed4997602d48dc0caa43ed993c1f1dfa46fb4f5fec969d7a  bb231f2e39ae39762727dfa73ad269f9c7d592d59d364b2bad374ce3bdc802d9
+  1      8     source-manifest        558     610     bb4761f606751008ddb2e98e49cdba57c932dfbc6ada2a6090c9b5eb53ce71b3  da70c952d0398d614c917665b3b28cfbb474367f122a10e4cc743e416d4a5c80
+  2      14    application-directory  1168    1078    2661f658fe89aefa8d82bcb3a6fcd12fe3301ce5cc946aabfc7df5bdd50e2c7f  681495b1091feeb53e699b373160ee24ea2ddc9f9dd37dee707ebf9e93b05459
+  3      14    model-provenance       2246    2200    b05d875c6e7a7a3e01c1df1f90eaa383b6c48edaa95328731994fa675b5cb633  390f3ca82929c093e85286719534a0904b63c28f614ae37d1f6f40abb47f6c9d
+  4      16    guest                  4446    10201   26d73118aaacabbc4a06c489ee1cadffad707391ba00b2a98bf92326322a08a0  d3ec787a89bfcd65f2b98363eb46170094d076aca54bbb4e8ab610c41448abb9
+  5      16    model-document         14647   4472    02330ddfeae8ba6caea49039e6f423ae2a8ba42dead3c7ce5e81a04358a87b1c  6a16bb6f21e4fe98d3e633f90b327f3e8e790976935a0de8d1416d14684aa5a0
+  6      16    view                   19119   6184    ea0fe9bb6c1d9a5d768802c5b20cf9fdb191baa588b6f588411f3eca2c16f3ee  b5ae0686fc86efbfe80ed7c4fe8d7821338144c6a5509baa8dcfea14804c77b8
+  7      16    capability-set         25303   175     c85722a1f3f28f6a326e2af9734960401879b60fa3876633028a8118c6f34411  650500808dbf458a84ab6db39ae83dc81cfd118e3de08fe472eb97a8202ef924
+
+Content:
+  INDEX  ROLE            LENGTH  SHA256                                                            LABEL
+  4      guest           10130   eda626117adae723fac5ffb6c957717c251cf2c3c15773c817c39a7968aec92f  blake3:0b5bbdb716fa46ca83096e030bb3e18207b2bc4bc53759584e2c9fe9b4cbf4a9
+  5      model-document  4401    f38874cc1348c56e83d6d4afa0e8612552aebac0c1efa467b7a1f9d117e8343c  blake3:1d58417a40cca4108f9778a79636b827c400c814182ae490509d6a83246324e6
+  6      view            6113    974659c96b670a1a227f9e300a30ace09f78aafc407e632132e034d657fbff72  blake3:c9c920ac359f600159f8e64252856792862e08bd94fcf3ded296e6d94790ca01
+  7      capability-set  104     888ef9fab26cf92f0a20a1d0fdf7e5dd494f7eb7ec23dfb26a039a7233cb4a02  blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c
+
+Manifest:
+  URI:             https://hologram.foundation/realization/app-manifest
+  Capability set:  blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c
+  Guest:           blake3:0b5bbdb716fa46ca83096e030bb3e18207b2bc4bc53759584e2c9fe9b4cbf4a9
+  View:            blake3:c9c920ac359f600159f8e64252856792862e08bd94fcf3ded296e6d94790ca01
+  Entry:           holo_run
+  Contract:        hologram:guest/core-wasm@1
+  View entry:      index.html
+  Surface:         portable
+
+Model:
+  Schema:       prismpm/model-document/2
+  Name:         PaymentApproval
+  Crate:        prism-payment-approval 0.1.0
+  Description:  The second PrismPM reference archive: a payment approval decision over a requester role, an amount and a limit.
+  Profile:      prismpm/text-application/1
+  Function:     none
+  Vectors:      19
+  Limits:       request 64 B, response 256 B, guest allocation 128 B
+  Digest:       sha256:f38874cc1348c56e83d6d4afa0e8612552aebac0c1efa467b7a1f9d117e8343c
+                blake3:1d58417a40cca4108f9778a79636b827c400c814182ae490509d6a83246324e6
+
+Provenance:
+  Schema:       prismpm/model-provenance/1
+  Application:  blake3:bb231f2e39ae39762727dfa73ad269f9c7d592d59d364b2bad374ce3bdc802d9
+  Model ID:     f38874cc1348c56e83d6d4afa0e8612552aebac0c1efa467b7a1f9d117e8343c
+  Compiler:     1427f8b629013648a480454d67202788f2303f5396f1d7c70a7c350ddab6f694
+  Stdlib:       76cce1893830a576854eb8f36dd87ddeb1adea4629776f8d94fd9eb49c4f92fb
+  LexLean:      e0b74b81e6f49c83596a957d232c8383a5db1a25
+
+World:
+  Contract:        hologram:guest/core-wasm@1
+  WIT:             hologram:guest@1.0.0 world core-wasm, worlds/core-wasm.wit
+  WIT digest:      sha256:a566c87a359cadf98f652747f1b3574aa307ff5f652a190c6d99c350db9cf369
+                   blake3:0774a8ecbfa945a427712ee7d7ad406195b2d07492ceae15cca0067276c9ced8
+  Imports:         none
+  Exports:         holo_alloc, holo_run, memory
+  Guest:           conforms to the world
+  Purity:          pure: no clock, random, socket or filesystem import
+  Capability set:  blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c (requests nothing)
+
+Attestations:
+  none
+
+Verification:
+  Footer:            ok
+  Labels:            ok
+  Cross-references:  ok

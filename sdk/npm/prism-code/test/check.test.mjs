@@ -13,6 +13,7 @@ import { formatVerdict, titleOf, LIMITS, EXIT } from '../src/check.mjs';
 const here = (relative) => fileURLToPath(new URL(relative, import.meta.url));
 const bin = here('../bin/prism-code.mjs');
 const fixture = here('../fixtures/Calculator.holo');
+const paymentApproval = here('../fixtures/PaymentApproval.holo');
 const verdicts = here('../../spec/test/fixtures/verdict/verdict-v1/');
 const GUEST_SHA256 = 'dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03';
 const IMAGE = 'ghcr.io/uor-foundation/prismpm-sdk@sha256:36da25ef924d84899453f24ec0c117a7a220e708037933eb8b499caa7723d99e';
@@ -143,6 +144,25 @@ test('the text form names the human title of each reason, and the limits from P2
   const passed = formatVerdict(JSON.parse(readFileSync(join(verdicts, 'calculator-p2-passed.json'), 'utf8')));
   assert.match(passed, /^PASSED {2}P2 proof checked/);
   assert.ok(passed.endsWith(`This check trusts the signer for what it cannot know:\n${LIMITS.map((l) => `  ${l}\n`).join('')}`));
+});
+
+test('the committed verdict goldens are what check prints; the Rust CLI holds its verdicts against them (AL-06)', () => {
+  const goldens = here('../test/fixtures/verdict/');
+  const bytes = new Uint8Array(readFileSync(fixture));
+  const guest = parseArchive(bytes).blobs.find((b) => b.label === 'blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380');
+  bytes[guest.content.byteOffset + 100] ^= 0xff;
+  const tampered = file('golden-tampered.holo', bytes);
+  const named = file('golden-p0.json', JSON.stringify({ name: 'p0', minimum: 'P0' }));
+  for (const [name, args, code] of [
+    ['calculator.default.json', [fixture], EXIT.FAILED],
+    ['calculator.p0.json', [fixture, '--policy', named], EXIT.PASSED],
+    ['calculator.tampered-guest.json', [tampered], EXIT.FAILED],
+    ['payment-approval.default.json', [paymentApproval], EXIT.FAILED],
+  ]) {
+    const { code: actual, out } = run(['check', ...args, '--json']);
+    assert.equal(actual, code, name);
+    assert.equal(out, readFileSync(join(goldens, name), 'utf8'), name);
+  }
 });
 
 test('check without a holo is the deprecated build --check: it warns and still runs', () => {

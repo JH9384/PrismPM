@@ -431,6 +431,66 @@ The pinned independent Hologram loader, planner, executor, or View encoder disag
 
 Class: `oracle`. Exit code: 1.
 
+## `PP5501` --- Proof statement signature failure
+
+The DSSE signature of a proof statement does not verify against the trust root, or no trust root is available to verify it.
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5502` --- Proof statement shape failure
+
+A proof statement is not an in-toto Statement v1 with one subject and a prism/proof/v1 predicate whose verifiedLevels is exactly P2.
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5503` --- Proof subject disagreement
+
+The subject of a proof statement is not the guest blob of the holo it travels in.
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5504` --- Proof model disagreement
+
+The model a proof statement describes is not the model document and provenance of the holo.
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5505` --- Proof verifier disagreement
+
+The verifier pins of a proof statement differ from the pins of the project lock.
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5506` --- Proof verdict failure
+
+A proof statement reports a failed verification result, a failed theorem, or a theorem whose observed axioms are outside its policy.
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5507` --- Proof TCB incomplete
+
+The named trusted computing base of a proof statement lacks one of its seven components.
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5601` --- Assurance level below the policy minimum
+
+The level computed from the evidence in the holo is below the minimum the policy requires.
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5602` --- Declared world exceeds the granted capabilities
+
+The world the holo declares imports a capability kind the granted capability set grants nothing of.
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5603` --- No verdict reached
+
+check could not judge the holo: the file is not a readable archive, its layout matches no format revision, or the policy file is unreadable or invalid.
+
+Class: `acceptance`. Exit code: 2.
+
 ## `PP6001` --- Reference model identity drift
 
 The reference repository model or lock is not byte-identical to the authoritative PrismPM getting-started source closure.

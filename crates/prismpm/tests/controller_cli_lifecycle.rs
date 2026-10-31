@@ -26,7 +26,13 @@ fn cli_subcommand_coverage_and_parsing_boundaries() {
 
     // Check
     let check_cli = Cli::try_parse_from(["prismpm", "check"]).unwrap();
-    assert!(matches!(check_cli.command, Commands::Check));
+    assert!(matches!(
+        check_cli.command,
+        Commands::Check {
+            holo: None,
+            policy: None
+        }
+    ));
 
     // Build (with and without locked/tag/release)
     let build_cli = Cli::try_parse_from(["prismpm", "build"]).unwrap();

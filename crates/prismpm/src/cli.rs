@@ -79,8 +79,15 @@ pub enum Commands {
         #[arg(long)]
         locked: bool,
     },
-    /// Check project static validity without filesystem modification.
-    Check,
+    /// Check project static validity without filesystem modification, or judge a
+    /// `.holo` against a policy: exit 0 when it passes, 1 when it fails, 2 when no verdict was reached.
+    Check {
+        /// Path of a `.holo` to judge. Without it, check the project model.
+        holo: Option<PathBuf>,
+        /// JSON policy file for a holo check: name, minimum (P0 to P3), digests, world, effects.
+        #[arg(long, requires = "holo")]
+        policy: Option<PathBuf>,
+    },
     /// Build project artifacts or a locked verified OCI product release.
     Build {
         /// Tagged discovery reference for product release construction.
@@ -491,6 +498,46 @@ fn confined_input(root: &Path, relative: &Path) -> Result<PathBuf, PrismError> {
     Ok(resolved)
 }
 
+/// `check <path.holo>` (#270): print the verdict and exit 0 when the policy
+/// passes, 1 when it fails, 2 when no verdict was reached. With `--json`,
+/// stdout holds exactly one canonical verdict on 0 and 1 and nothing on 2; the
+/// diagnostic goes to stderr (docs/proposals/269-assurance-levels.md). The
+/// holo is judged on its own, without a project root.
+fn holo_check(holo: &Path, policy: Option<&Path>, json: bool) -> ExitCode {
+    use crate::inspect::verdict;
+    if let Err(error) = crate::process_resources::configure()
+        .and_then(|()| crate::sdk::verify_environment().map(|_| ()))
+    {
+        let _ = writeln!(std::io::stderr().lock(), "{error}");
+        return ExitCode::from(error.exit_code());
+    }
+    let minimum = std::env::var(verdict::MINIMUM_LEVEL_ENV).ok();
+    match verdict::check_path(holo, policy, minimum.as_deref()) {
+        Ok(verdict) => {
+            let written = if json {
+                canonical(&verdict.value())
+                    .and_then(|bytes| write_line(std::io::stdout().lock(), &bytes))
+            } else {
+                let text = verdict.text(Some(&holo.display().to_string()));
+                std::io::stdout()
+                    .lock()
+                    .write_all(text.as_bytes())
+                    .map_err(|error| {
+                        PrismError::new("PP9001", format!("write CLI output: {error}"))
+                    })
+            };
+            match written {
+                Ok(()) => ExitCode::from(verdict.exit_code()),
+                Err(error) => ExitCode::from(error.exit_code()),
+            }
+        }
+        Err(no_verdict) => {
+            let _ = writeln!(std::io::stderr().lock(), "{}", no_verdict.diagnostic());
+            ExitCode::from(verdict::EXIT_NO_VERDICT)
+        }
+    }
+}
+
 fn write_line(mut stream: impl Write, bytes: &[u8]) -> Result<(), PrismError> {
     stream
         .write_all(bytes)
@@ -704,7 +751,10 @@ fn execute(cli: &Cli) -> Result<(serde_json::Value, String), PrismError> {
             );
             Ok((value, human))
         }
-        Commands::Check => {
+        Commands::Check { holo: Some(_), .. } => {
+            unreachable!("a holo check returns before project loading")
+        }
+        Commands::Check { holo: None, .. } => {
             let result = controller.check(CheckRequest {
                 config_path: cli.config.clone(),
             })?;
@@ -1373,6 +1423,14 @@ pub fn run() -> ExitCode {
         }
     };
 
+    if let Commands::Check {
+        holo: Some(holo),
+        policy,
+    } = &cli.command
+    {
+        return holo_check(holo, policy.as_deref(), cli.json);
+    }
+
     match crate::process_resources::configure().and_then(|()| execute(&cli)) {
         Ok((value, human)) => {
             let result = if cli.json {
@@ -1409,6 +1467,38 @@ pub fn run() -> ExitCode {
 mod tests {
     use super::{inspection_summary, Cli, Commands};
     use clap::Parser;
+
+    #[test]
+    fn check_judges_a_holo_only_when_one_is_named() {
+        let model = Cli::try_parse_from(["prismpm", "check"]).unwrap();
+        assert!(matches!(
+            model.command,
+            Commands::Check {
+                holo: None,
+                policy: None
+            }
+        ));
+        let holo = Cli::try_parse_from(["prismpm", "check", "app.holo", "--json"]).unwrap();
+        assert!(holo.json);
+        assert!(matches!(
+            holo.command,
+            Commands::Check {
+                holo: Some(_),
+                policy: None
+            }
+        ));
+        let policy =
+            Cli::try_parse_from(["prismpm", "check", "app.holo", "--policy", "ci.json"]).unwrap();
+        assert!(matches!(
+            policy.command,
+            Commands::Check {
+                holo: Some(_),
+                policy: Some(_)
+            }
+        ));
+        assert!(Cli::try_parse_from(["prismpm", "check", "--policy", "ci.json"]).is_err());
+        assert!(Cli::try_parse_from(["prismpm", "check", "a.holo", "b.holo"]).is_err());
+    }
 
     #[test]
     fn the_inspect_summary_names_each_statement_of_a_signed_archive() {

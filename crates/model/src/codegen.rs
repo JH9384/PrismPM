@@ -27,7 +27,7 @@ pub fn render_spec_appendix(model: &Model) -> String {
             "stdlib" => "§5",
             "artifacts" => "§6",
             "execution" => "§7",
-            "verification" => "§8",
+            "verification" | "assurance" => "§8",
             "security" => "§9",
             "authorities" => "§10",
             "system" => "§11",

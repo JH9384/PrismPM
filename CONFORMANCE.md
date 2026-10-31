@@ -30,6 +30,14 @@ The three honesty levels:
 | `AR-09` | `build` | Source maps provide complete token traceability between .lex.tex and generated Lean. |
 | `AR-10` | `build` | Coverage reports document all modeled and unmodeled elements. |
 
+## assurance
+
+| ID | Level | Statement |
+| --- | --- | --- |
+| `AL-03` | `build` | A holo without provenance reports P0 even when its proof statement is valid, and the reasons name the missing provenance beside every proof check that did not pass. |
+| `AL-05` | `build` | A statement's verifiedLevels never changes the computed level: a claim other than P2 is a shape failure of the proof statement, and no claim raises the level. |
+| `AL-06` | `build` | prismpm check and prism-code check return equal verdicts for every committed verdict fixture: the same holo digest, level, policy, result, and the same check ids, codes and withheld levels in the same order. |
+
 ## authorities
 
 | ID | Level | Statement |

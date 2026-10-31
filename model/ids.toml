@@ -319,6 +319,24 @@ level = "build"
 statement = "Every refusal of attest and verify-attestation is a registered diagnostic with its check: PP3101 signing, PP3102 signature, PP3103 identity, PP3104 transparency, PP3105 subject, PP3106 no attestation, PP3107 trusted root, and PP1001 for a policy that would let any signer pass."
 
 [[id]]
+id = "AL-03"
+suite = "assurance"
+level = "build"
+statement = "A holo without provenance reports P0 even when its proof statement is valid, and the reasons name the missing provenance beside every proof check that did not pass."
+
+[[id]]
+id = "AL-05"
+suite = "assurance"
+level = "build"
+statement = "A statement's verifiedLevels never changes the computed level: a claim other than P2 is a shape failure of the proof statement, and no claim raises the level."
+
+[[id]]
+id = "AL-06"
+suite = "assurance"
+level = "build"
+statement = "prismpm check and prism-code check return equal verdicts for every committed verdict fixture: the same holo digest, level, policy, result, and the same check ids, codes and withheld levels in the same order."
+
+[[id]]
 id = "CT-01"
 suite = "controller"
 level = "build"

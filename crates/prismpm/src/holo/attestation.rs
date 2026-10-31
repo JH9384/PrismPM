@@ -67,6 +67,16 @@ impl Attestation {
             .iter()
             .all(|subject| subject.sha256_matches == Some(true))
     }
+
+    /// The in-toto statement inside the DSSE envelope, decoded again from the
+    /// stored line. `None` only for a line `decode_bundle` did not produce.
+    #[must_use]
+    pub(crate) fn statement(&self) -> Option<Value> {
+        let bundle: Value = serde_json::from_slice(&self.line).ok()?;
+        let payload =
+            base64_bytes(bundle.get("dsseEnvelope")?.get("payload")?, "DSSE payload").ok()?;
+        serde_json::from_slice(&payload).ok()
+    }
 }
 
 fn lines_error(message: impl Into<String>) -> PrismError {

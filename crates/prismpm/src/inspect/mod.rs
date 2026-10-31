@@ -24,6 +24,8 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
+pub mod verdict;
+
 /// The schema identifier of one inspection.
 pub const INSPECTION_SCHEMA: &str = "prismpm/holo-inspection/1";
 

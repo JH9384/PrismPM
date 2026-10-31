@@ -399,6 +399,9 @@ pub fn run_at(root: &Path, id: &str) {
         "HO-23" | "HO-24" | "HO-25" | "HO-26" | "HO-27" | "HO-28" | "HO-29" | "HO-30" => {
             verify_attestation(root, id)
         }
+        // Assurance levels (#269) as `prismpm check` computes them (#270): the Rust
+        // regressions hold the verdict against the spec fixtures and the JavaScript goldens.
+        "AL-03" | "AL-05" | "AL-06" => verify_assurance(root, id),
         // The JavaScript runtime reads the composed archive, the HOLOVIEW
         // bundle and the exported closure without the Rust SDK; its complete
         // owning suite is the acceptance, file by file.
@@ -3471,6 +3474,18 @@ fn verify_portable_view_report(root: &Path) {
     }
 }
 
+/// AL-03, AL-05 and AL-06: the named Rust regressions of the verdict reader, each with its
+/// exact inventory. AL-06 reads the goldens `prism-code check --json` printed.
+fn verify_assurance(root: &Path, id: &str) {
+    let (filter, expected) = match id {
+        "AL-03" => ("inspect::verdict::tests::al_03_", 2),
+        "AL-05" => ("inspect::verdict::tests::al_05_", 2),
+        "AL-06" => ("inspect::verdict::tests::al_06_", 1),
+        _ => unreachable!("AL-03, AL-05 and AL-06 only"),
+    };
+    rust_regressions(root, id, filter, expected, "target/conformance-assurance");
+}
+
 /// HO-23 to HO-30: run the named Rust regressions with their exact inventory and, where the
 /// JavaScript reference implementation owns the same rule, its complete Node file.
 fn verify_attestation(root: &Path, id: &str) {
@@ -3485,6 +3500,11 @@ fn verify_attestation(root: &Path, id: &str) {
         "HO-30" => ("attest::tests::ho_30_", 2),
         _ => unreachable!("HO-23 to HO-30 only"),
     };
+    rust_regressions(root, id, filter, expected, "target/conformance-attestation");
+}
+
+/// Run the `prismpm` library tests `filter` names and require exactly `expected` of them to pass.
+fn rust_regressions(root: &Path, id: &str, filter: &str, expected: usize, target_dir: &str) {
     let output = Command::new("cargo")
         .args([
             "test",
@@ -3497,10 +3517,7 @@ fn verify_attestation(root: &Path, id: &str) {
             "--",
             "--nocapture",
         ])
-        .env(
-            "CARGO_TARGET_DIR",
-            root.join("target/conformance-attestation"),
-        )
+        .env("CARGO_TARGET_DIR", root.join(target_dir))
         .current_dir(root)
         .output()
         .unwrap_or_else(|error| panic!("{id} executes its Rust regressions: {error}"));

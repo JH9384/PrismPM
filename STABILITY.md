@@ -107,7 +107,7 @@ A flag marked planned is named here so you can plan for it; its spelling may cha
 | `prism-code check <holo>`, `--policy <file>`, `--json` and exit codes 0, 1, 2 | [#270](https://github.com/UOR-Foundation/PrismPM/issues/270) | On main |
 | `--policy` on `prism-code check` and `run` taking a Rego file or the name of a shipped policy (`default`, `pure-only`, `provenance-only`) | [#285](https://github.com/UOR-Foundation/PrismPM/issues/285) | On main |
 | `prism-code build --check` | [#270](https://github.com/UOR-Foundation/PrismPM/issues/270) | On main |
-| `check` as a typed verdict in the Rust CLI, with `--json`, `--policy <file>` and exit codes 0, 1, 2 | [#270](https://github.com/UOR-Foundation/PrismPM/issues/270) | Planned |
+| `check <path.holo>` as a typed verdict in the Rust CLI, with `--json`, `--policy <file>` and exit codes 0, 1, 2 | [#270](https://github.com/UOR-Foundation/PrismPM/issues/270) | On main |
 | `build --provenance=<min\|max>`, `build --no-provenance` | [#268](https://github.com/UOR-Foundation/PrismPM/issues/268) | Planned |
 | `prism-code attest <holo> --predicate <file> --type <uri>`, `--subject`, `--key`, `--output`, `--signing-config` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | On main |
 | `prism-code verify-attestation <holo>`, `--certificate-identity`, `--certificate-identity-regexp`, `--certificate-oidc-issuer`, `--key`, `--type`, `--trusted-root`, `--entries`, `--timestamps`, `--json` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | On main |
@@ -131,11 +131,12 @@ A flag marked planned is named here so you can plan for it; its spelling may cha
 | `verify-attestation <path.holo>`, `--certificate-identity`, `--certificate-identity-regexp`, `--certificate-oidc-issuer`, `--key`, `--type`, `--trusted-root`, `--entries`, `--timestamps`, `--json` in the Rust CLI | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | On main |
 | Keyless (OIDC) signing in the Rust `attest`; fetching the trusted root over TUF in the Rust `verify-attestation` | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) | Planned |
 
-Today `prismpm check` validates the model and `prismpm verify` checks the Lean proofs.
-In the JavaScript CLI `check` already judges a holo and returns a verdict (#270), and the model check is `prism-code build --check`; the Rust CLI follows when it reads the attestation section (#267).
+Today `prismpm check` validates the model, `prismpm check <path.holo>` judges a holo and returns a verdict (#270, `docs/proposals/270-check-rust.md`), and `prismpm verify` checks the Lean proofs.
+In the JavaScript CLI `check` judges a holo and the model check is `prism-code build --check`.
 Both CLIs name the attestation verb `verify-attestation`, because `prism-code verify` already runs `prismpm verify`, which is build verification (`docs/proposals/272-attest-verify.md`).
-`prismpm verify-attestation` judges a holo and returns a verdict, `prismpm/attestation-verification-result/1`, on exit 0 and 1 alike; `check` follows when #270 ships in the Rust CLI.
-That change is breaking and gets its changelog line.
+`prismpm verify-attestation` checks a holo's attestations against a signer policy and returns `prismpm/attestation-verification-result/1`, on exit 0 and 1 alike.
+The `check` verdict reads the attestation section (#267) and checks each statement's shape and subjects, but does not yet run the signature verification of `verify-attestation`, so no holo reaches P2 through `check` in either CLI.
+Wiring that verification into the verdict is breaking and gets its changelog line; the holo form of `check` was additive and is not.
 
 ### 6.1.1 Deprecated
 

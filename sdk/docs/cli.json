@@ -46,6 +46,7 @@
       { "name": "check", "usage": "prism-code check <app.holo> [--policy <file>] [--json]", "summary": "Judge the holo against a policy and print its verdict: the assurance level, whether the policy passed, and every reason. `--policy` takes a Rego file, the name of a shipped policy (`pure-only`, `provenance-only`) or a JSON file. Exit 1 when the policy denies, 2 when it cannot be parsed or evaluated. Without a holo, the deprecated spelling of `build --check`, removed in 0.4.0." },
       { "name": "push", "usage": "prism-code push <app.holo> <reference> [--key <file>] [--keyless] [--no-attestations] [--signing-config <file>] [--store <dir>] [--plain-http] [--json]", "summary": "Put the holo in an OCI registry or a local store as a deterministic manifest, each attestation a referrer. With `--key` or `--keyless`, also sign a statement naming the manifest, so `cosign verify-attestation` passes on the same reference." },
       { "name": "pull", "usage": "prism-code pull <reference> [<out.holo>] [--policy <file>] [--key <file>] [--certificate-identity <id>] [--certificate-identity-regexp <re>] [--certificate-oidc-issuer <url>] [--type <uri>] [--trusted-root <file>] [--entries <n>] [--timestamps <n>] [--store <dir>] [--plain-http] [--json]", "summary": "Fetch a holo and write it only after its digests, archive, verdict and attestations pass; the signer flags are those of `verify-attestation`. A reference is `registry/repo:tag`, `@sha256:`, `@blake3:` or `dir://`." },
+      { "name": "dev", "usage": "prism-code dev [<dir>] [--port <n>] [--no-open] [--policy <file>] [--build <command>] [--holo <path>]", "summary": "Watch the project, rebuild and re-check on every change, and serve the local studio at `http://localhost:4100`, with a Check tab and a Replay tab. The page loads nothing from outside the machine." },
       { "name": "build", "usage": "prism-code build [--check]", "summary": "Build the project into a holo inside the SDK image the lockfile pins. With `--check`, validate the model and write nothing." },
       { "name": "verify", "usage": "prism-code verify", "summary": "Run verify in the SDK image the lockfile pins." },
       { "name": "conformance", "usage": "prism-code conformance", "summary": "Run the conformance suite in the SDK image the lockfile pins." }
@@ -122,7 +123,9 @@
       "flags": [
         { "flag": "--port <n>", "default": "4100", "meaning": "Studio port." },
         { "flag": "--no-open", "default": "off", "meaning": "Do not open the studio in a browser." },
-        { "flag": "--policy <file>", "default": "the default policy", "meaning": "Policy the Check tab judges against." }
+        { "flag": "--policy <file>", "default": "the default policy", "meaning": "Policy the Check tab judges against." },
+        { "flag": "--build <command>", "default": "`[model].build`, then `prism build --update`", "meaning": "The build to run, in a shell." },
+        { "flag": "--holo <path>", "default": "the one the build reports", "meaning": "The file the build writes." }
       ],
       "example": "prism dev"
     },

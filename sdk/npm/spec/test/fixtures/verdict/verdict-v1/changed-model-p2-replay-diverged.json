@@ -1,0 +1,24 @@
+{
+  "schema": "prism/verdict/1",
+  "holo": "blake3:66492988a5b4e08844d683b9f87b8e96ea4dbe81d0b76cfaa21f3ebaabffe5b3",
+  "level": "P2",
+  "policy": {
+    "name": "release",
+    "minimum": "P3"
+  },
+  "passed": false,
+  "reasons": [
+    {
+      "check": "replay.divergence",
+      "code": "PP5701",
+      "withholds": "P3",
+      "message": "The replay recorded 7 divergences from its histories."
+    },
+    {
+      "check": "policy.level",
+      "code": "PP5601",
+      "withholds": null,
+      "message": "The level is P2; the policy requires P3 or above."
+    }
+  ]
+}

@@ -1,8 +1,9 @@
 /**
  * The checks of one `prism/proof/v1` statement against the holo it travels
  * in (issue #266, table "How the statement is checked offline" in
- * docs/proposals/266-proof-predicate.md). Each failure is a verdict reason
- * that withholds P2.
+ * docs/proposals/266-proof-predicate.md), and of one `prism/replay/v1`
+ * statement (issue #284, docs/proposals/284-histories-replay.md). Each failure
+ * is a verdict reason: a proof failure withholds P2, a replay failure P3.
  *
  * Pure: the caller has already decoded the statement and verified its DSSE
  * signature, and hands in the outcome as `envelope`. `verify` joins these
@@ -115,5 +116,69 @@ export function checkProofStatement(statement, holo, envelope) {
   const missing = TCB_COMPONENTS.filter((component) => !named.has(component));
   if (missing.length > 0) reasons.push(reason('proof.tcb', `The named TCB lacks ${missing.join(', ')}.`));
 
+  return reasons;
+}
+
+export const REPLAY_PREDICATE_TYPE = ASSURANCE.PREDICATES.replay;
+export const REPLAY_SCHEMA = 'predicates/replay-v1.schema.json';
+
+/** The diagnostic of each replay check. `replay.divergence` is the one a `DeterminismViolationError` carries. */
+export const REPLAY_CODES = Object.freeze({
+  'replay.divergence': 'PP5701',
+  'replay.envelope': 'PP5702',
+  'replay.statement': 'PP5703',
+  'replay.subject': 'PP5704',
+  'replay.model': 'PP5705',
+});
+
+function replayReason(check, message) {
+  return { check, code: REPLAY_CODES[check], withholds: 'P3', message };
+}
+
+const sameDigests = (a, b) => Boolean(a && b) && a.sha256 === b.sha256 && a.blake3 === b.blake3;
+
+/**
+ * Check one replay statement against a build. Returns the reasons, in check
+ * order; an empty list means the statement supports P3. It is why a changed
+ * model cannot reach P3: a statement from before the change names another
+ * guest and another model, and a statement from after it records divergences.
+ *
+ * @param {object} statement the decoded in-toto Statement
+ * @param {{ guest: { sha256: string, blake3: string } | null, model: { sha256: string, blake3: string } | null }} holo the digests of the guest and model blobs
+ * @param {{ verified: boolean, message?: string }} envelope the outcome of the DSSE signature check against the trust root
+ */
+export function checkReplayStatement(statement, holo, envelope) {
+  const reasons = [];
+  if (!envelope?.verified) reasons.push(replayReason('replay.envelope', envelope?.message ?? 'The replay statement signature does not verify against the trust root.'));
+
+  const shape = [];
+  if (!isObject(statement)) shape.push('the statement is not an object');
+  else {
+    if (statement._type !== STATEMENT_TYPE) shape.push(`_type is ${JSON.stringify(statement._type)}`);
+    if (statement.predicateType !== REPLAY_PREDICATE_TYPE) shape.push(`predicateType is ${JSON.stringify(statement.predicateType)}`);
+    if (!Array.isArray(statement.subject) || statement.subject.length !== 1 || !isObject(statement.subject[0]?.digest)) shape.push('the statement must have exactly one subject with a digest set');
+    const errors = validate(PREDICATE_SCHEMAS[REPLAY_SCHEMA], statement.predicate);
+    if (errors.length > 0) shape.push(...errors.slice(0, 3).map((e) => `predicate${e.path} ${e.message}`));
+    else {
+      const sum = statement.predicate.histories.reduce((total, history) => total + history.divergences, 0);
+      if (sum !== statement.predicate.divergenceCount) shape.push(`divergenceCount is ${statement.predicate.divergenceCount}, its histories sum to ${sum}`);
+    }
+  }
+  if (shape.length > 0) {
+    // Nothing further can be compared in a statement of the wrong shape.
+    reasons.push(replayReason('replay.statement', `The replay statement has the wrong shape: ${shape.join('; ')}.`));
+    return reasons;
+  }
+  const { subject, predicate } = statement;
+
+  if (!sameDigests(subject[0].digest, holo.guest)) {
+    reasons.push(replayReason('replay.subject', `The replay statement is about ${subject[0].name} with blake3 ${subject[0].digest.blake3}, which is not this holo's guest${holo.guest ? ` (blake3 ${holo.guest.blake3})` : ''}.`));
+  }
+  if (!sameDigests(predicate.model, holo.model)) {
+    reasons.push(replayReason('replay.model', `The replay statement is about the model with blake3 ${predicate.model.blake3}, which is not this holo's model${holo.model ? ` (blake3 ${holo.model.blake3})` : ''}.`));
+  }
+  if (predicate.divergenceCount > 0) {
+    reasons.push(replayReason('replay.divergence', `The replay recorded ${predicate.divergenceCount} divergences from its histories.`));
+  }
   return reasons;
 }

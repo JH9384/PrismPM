@@ -1,5 +1,12 @@
 Feature: holo
 
+  @HO-31 @build
+  Scenario: A recorded history replays byte-identically against the build it came from in both the JavaScript runtime and prismpm, and a changed model that passes its own acceptance vectors fails replay with a typed divergence, writes a statement that records it, and cannot support assurance level P3 with that statement or with the statement of the previous build.
+    Given the released Calculator archive, the history recorded from its acceptance vectors, and a coherent archive whose guest and vectors both changed
+    When the owning Node suites replay the history against both archives and check each replay statement against each archive
+    Then the released archive replays with no divergence and its statement supports P3, while the changed archive passes its own vectors, fails with DeterminismViolationError on every changed event, and its statement and the previous build's each withhold P3
+    And prismpm replay writes the same statement but for the runtime that ran it
+
   @HO-30 @build
   Scenario: Every refusal of attest and verify-attestation is a registered diagnostic with its check: PP3101 signing, PP3102 signature, PP3103 identity, PP3104 transparency, PP3105 subject, PP3106 no attestation, PP3107 trusted root, and PP1001 for a policy that would let any signer pass.
     Given a holo signed with a local key, the other key, a forged subject digest and every unusable policy

@@ -34,7 +34,7 @@ const HOLO_KEYS = ['ARCHIVE', 'APP_MANIFEST', 'SOURCE_MANIFEST', 'APPLICATION_DI
  * A file of their own, so the browser build and prism-code's copy carry them only once
  * `verify` reads statements.
  */
-const PREDICATE_PATHS = ['predicates/proof-v1.schema.json'];
+const PREDICATE_PATHS = ['predicates/proof-v1.schema.json', 'predicates/replay-v1.schema.json'];
 
 /** The `schema` names of the documents a reader of the spec's format revisions checks. */
 function documentNames(spec) {

@@ -388,6 +388,32 @@ Every error is a `PrismError` with a stable `code`: `VerificationError`
 code, `verdict` and `reasons` the whole result. Load and archive failures remain
 `PrismCodeError`, a `PrismError` whose `code` is the check (`archive.magic`, ...).
 
+## Replay a history (experimental)
+
+A history, `prism/history/1`, is the dispatches of one application in order, each with its recorded outcome. A holo's acceptance vectors are its first history, and `run --record` or a recorder takes another from live dispatches. A replay runs every event against a build and compares the outcomes byte for byte, so a build that changed what it answers fails, even when its own vectors changed with it.
+
+```
+npx prism-code history app.holo --output app.history.json     # the acceptance vectors as a history
+npx prism-code replay app.history.json --holo app.holo        # exit 0 unchanged, 1 diverged, 2 could not replay
+npx prism-code replay histories/ --holo app.holo --statement replay.json
+npx prism-code run app.holo --record live.history.json        # every dispatch, as it happens
+```
+
+```js
+const app = await load('app.holo');
+const history = await app.history();
+
+const recorder = app.experimental_recorder();
+await recorder.dispatch(encoder.encode('1\tadd\t20\t22'));
+const recorded = await recorder.history();
+
+const { statement, divergenceCount } = await app.experimental_replay([history, recorded]);
+```
+
+A divergence rejects with `DeterminismViolationError` (`replay.divergence`), and every divergence is in its `details`. With `throw: false` the result comes back instead. A replay that cannot be carried out always rejects with `ReplayError`.
+
+`statement` is an in-toto Statement v1 of type `https://uor.foundation/prism/replay/v1`: the guest as its subject, the model, every history by its sha256 and BLAKE3, the divergence count and the runtime. It holds no clock, so the same replay writes the same bytes. Sign it with `prism-code attest`. `check <holo> --replay <file>` judges a statement from beside the holo, which can withhold P3 and never support it because it is unsigned. Reading signed statements from the holo waits on #270, and until then every holo is P0. The design is `docs/proposals/284-histories-replay.md`.
+
 ## Generate a typed client (experimental)
 
 `prism-code generate` writes bindings and a typed client from the holo's WIT

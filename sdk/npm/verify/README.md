@@ -77,7 +77,7 @@ What this package does check today appears as reasons that withhold P1:
 | `world.contract` | The guest module does not have the imports and exports of the WIT world its contract names: an import the world does not list, a missing or extra export, or an export of another kind or signature (issue #278). Not checked when the guest fails its label, which `holo.integrity` already reports. |
 | `provenance.statement` | Always, until the attestation bundle exists (issues #267 and #268). |
 | `proof.statement` | Always, until the proof predicate is carried (issue #266). Withholds P2. |
-| `replay.statement` | Always, until replay arrives (issue #284). Withholds P3. |
+| `replay.statement` | Always, until `verify` reads statements (issue #267). Replay itself has arrived (issue #284): `prism-code replay` writes the statement. Withholds P3. |
 | `policy.level` | The level is below `policy.minimum`. Code `PP5601`. |
 | `policy.digests.<part>` | A pinned digest does not match. |
 | `world.capabilities` | The world the contract names imports a capability kind `policy.capabilities` grants nothing of, or an import that names no kind. Code `PP5602`. It withholds P3, and it fails the policy at every level: the default policy requires the world within the grant (issue #283). `worldPolicy(contract, set)` runs the same check alone and also reports whether the world is pure. |

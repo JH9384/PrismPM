@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/history/1",
+  "title": "HistoryV1",
+  "description": "A history: the dispatches of one application, in order, each with its recorded outcome. It generalises the acceptance vectors of a model document: a vector is an event with a response, and an event may also record the refusal a dispatch ended in. Replay re-executes every event against a build and compares outcomes byte for byte. Its digests cover its canonical JSON with no trailing newline. Design: docs/proposals/284-histories-replay.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "application",
+    "events"
+  ],
+  "properties": {
+    "schema": {
+      "const": "prism/history/1"
+    },
+    "application": {
+      "description": "The name of the application when it was recorded, or null. Information for a person; replay never compares it.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recordedFrom": {
+      "description": "The build the history was recorded from. Absent for a closure. Information for a person; replay never compares it, because the point of a replay is to run a different build.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guest",
+        "model"
+      ],
+      "properties": {
+        "guest": {
+          "$ref": "#/$defs/PrismDigestSet"
+        },
+        "model": {
+          "$ref": "#/$defs/PrismDigestSet"
+        }
+      }
+    },
+    "events": {
+      "description": "The dispatches in the order they ran. A history of nothing proves nothing, so at least one is required.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "description": "The dispatch returned a response.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "request",
+              "response"
+            ],
+            "properties": {
+              "request": {
+                "$ref": "#/$defs/Hex"
+              },
+              "response": {
+                "$ref": "#/$defs/Hex"
+              }
+            }
+          },
+          {
+            "description": "The dispatch ended in a refusal or a trap, named by its stable code.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "request",
+              "error"
+            ],
+            "properties": {
+              "request": {
+                "$ref": "#/$defs/Hex"
+              },
+              "error": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*(\\.[a-z0-9-]+)+$"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "Hex": {
+      "description": "Bytes as lowercase hex, two characters each. Hex has one spelling per value, so a digest has one meaning.",
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$"
+    },
+    "PrismDigestSet": {
+      "description": "Exactly sha256 and blake3, lowercase hex, over the same bytes (ADR-015).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blake3",
+        "sha256"
+      ],
+      "properties": {
+        "blake3": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

@@ -62,6 +62,21 @@ export function historyAndReplay({ runtime, examples, page }) {
     ),
   );
   parts.push(...example(examples.acceptance));
+  parts.push(
+    ...signature(
+      member(runtime.types, 'Application', 'history'),
+      declaration(runtime.types, 'History'),
+      declaration(runtime.types, 'HistoryEvent'),
+      declaration(runtime.types, 'experimental_replay'),
+      declaration(runtime.types, 'ReplayOptions'),
+      declaration(runtime.types, 'ReplayResult'),
+      declaration(runtime.types, 'ReplayDivergence'),
+      declaration(runtime.types, 'ReplayStatement'),
+      declaration(runtime.types, 'experimental_recorder'),
+      declaration(runtime.types, 'Recorder'),
+    ),
+  );
+  parts.push(...example(examples.replay));
   return { parts, sources: [runtime.source(), runtime.fixtureSource()] };
 }
 

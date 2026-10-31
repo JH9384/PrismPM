@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uor.foundation/prism/replay/v1/schema.json",
+  "title": "ReplayPredicateV1",
+  "description": "The predicate of an in-toto Statement v1 with predicateType https://uor.foundation/prism/replay/v1. The statement has exactly one subject, the Core-Wasm guest blob. The predicate names the runtime that re-executed the histories, the model of the build, every history by digest, and how many events diverged. It holds no clock, so the same replay writes the same bytes. Design: docs/proposals/284-histories-replay.md. Digests are lowercase hex without an algorithm prefix.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "runtime",
+    "model",
+    "histories",
+    "divergenceCount"
+  ],
+  "properties": {
+    "runtime": {
+      "description": "The runtime that re-executed the histories.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "description": "prism-code or prismpm.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "model": {
+      "description": "The model blob of the build that was replayed. sha256 is model_id; blake3 is the label of the blob without blake3:.",
+      "$ref": "#/$defs/PrismDigestSet"
+    },
+    "histories": {
+      "description": "Every history that was replayed. A statement that replayed nothing claims nothing, so at least one is required.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "digest",
+          "events",
+          "divergences"
+        ],
+        "properties": {
+          "digest": {
+            "description": "Both digests cover the canonical JSON of the history, with no trailing newline.",
+            "$ref": "#/$defs/PrismDigestSet"
+          },
+          "events": {
+            "description": "Events re-executed. A history holds at least one.",
+            "type": "integer",
+            "minimum": 1
+          },
+          "divergences": {
+            "description": "Events whose outcome differs from the recording.",
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "divergenceCount": {
+      "description": "The sum of histories[].divergences. A check rejects a statement where they disagree, and anything but zero withholds P3.",
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "$defs": {
+    "PrismDigestSet": {
+      "description": "Exactly sha256 and blake3, lowercase hex, over the same bytes (ADR-015). blake3 is default-mode BLAKE3 with 256-bit output.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blake3",
+        "sha256"
+      ],
+      "properties": {
+        "blake3": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

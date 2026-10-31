@@ -356,7 +356,7 @@
           "title": "History and replay",
           "description": "Replay the examples a holo carries and prove its behaviour unchanged.",
           "available_in": "0.6",
-          "status": "`history()` and `replay()` are not in prism-code 0.2.0. `acceptance()` replays the examples the holo carries and is executed below.",
+          "status": "`acceptance()` is in prism-code 0.2.0. `history()`, `experimental_replay()` and `experimental_recorder()` are in this checkout and are experimental until the 0.6 freeze; both examples below are executed.",
           "next": [
             "api/dispatch",
             "reference/cli",

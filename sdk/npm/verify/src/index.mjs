@@ -15,6 +15,8 @@ import { sha256Hex } from './sha256.mjs';
 import { readStructure } from './reader.mjs';
 import * as assurance from './vendor/assurance-levels.mjs';
 import * as transparency from './transparency.mjs';
+import { levelOf } from './level.mjs';
+import { checkReplayStatement } from './statements.mjs';
 import { checkWorld, checkWorldPolicy, capabilitySetProblem, compareWorldPin, declaredImports, describeWorld, effectsOutsidePolicy, IMPURE_EFFECTS } from './world.mjs';
 import { parseRego, RegoError } from './rego.mjs';
 import * as policies from './policy.mjs';
@@ -676,13 +678,13 @@ function checkPolicy(policy) {
   if (policy === undefined || policy === null) return { name: DEFAULT_POLICY, program: policies.shippedPolicy(DEFAULT_POLICY), minimum: null, digests: {}, world: undefined, capabilities: null, effects: null };
   if (typeof policy !== 'object') throw new VerifyError('policy.invalid', 'the policy must be an object');
   for (const key of Object.keys(policy)) {
-    if (!['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, rego, minimum, digests, world, capabilities or effects`);
+    if (!['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects', 'replay'].includes(key)) throw new VerifyError('policy.invalid', `unknown policy member ${key}; expected name, rego, minimum, digests, world, capabilities or effects`);
   }
   if (policy.rego !== undefined) {
     // A policy file is the whole policy. What it decides, a level or a pin, it says in Rego, where a reader can see it.
-    const other = Object.keys(policy).find((key) => !['name', 'rego', 'capabilities'].includes(key));
+    const other = Object.keys(policy).find((key) => !['name', 'rego', 'capabilities', 'replay'].includes(key));
     if (other) throw new VerifyError('policy.invalid', `policy.${other} cannot be given with policy.rego; a Rego policy states it itself`);
-    return { name: checkName(policy.name ?? 'policy'), program: parsePolicy(policy.rego), minimum: null, digests: {}, world: undefined, capabilities: checkCapabilities(policy.capabilities), effects: null };
+    return { name: checkName(policy.name ?? 'policy'), program: parsePolicy(policy.rego), minimum: null, digests: {}, world: undefined, capabilities: checkCapabilities(policy.capabilities), effects: null, replay: policy.replay };
   }
   const name = checkName(policy.name ?? DEFAULT_POLICY);
   const minimum = policy.minimum ?? null;
@@ -705,7 +707,7 @@ function checkPolicy(policy) {
     if (!Array.isArray(effects) || effects.some((e) => !IMPURE_EFFECTS.includes(e))) throw new VerifyError('policy.invalid', `policy.effects must be an array of ${IMPURE_EFFECTS.join(', ')}`);
     if (new Set(effects).size !== effects.length) throw new VerifyError('policy.invalid', 'policy.effects repeats an effect');
   }
-  return { name, program: policies.shippedPolicy(DEFAULT_POLICY), minimum, digests, world: checkWorldPin(policy.world), capabilities, effects };
+  return { name, program: policies.shippedPolicy(DEFAULT_POLICY), minimum, digests, world: checkWorldPin(policy.world), capabilities, effects, replay: policy.replay };
 }
 
 /**
@@ -746,10 +748,18 @@ const STATEMENTS = Object.freeze([
 ]);
 
 /**
+ * A replay statement handed to the check beside the holo. Nothing signed it, so
+ * it says what a replay found and can withhold P3, but cannot support it. The
+ * caller cannot claim otherwise: only a signed statement inside the holo will,
+ * once the check reads the attestation section (#267).
+ */
+const DETACHED = Object.freeze({ verified: false, message: "The replay statement came from beside the holo and is unsigned; only a signed statement in the holo's attestation section can support P3 (issues #267 and #270)." });
+
+/**
  * What a holo's bytes show, before any policy judges them. Rejects with
  * VerifyError when there is nothing to judge.
  */
-function evidenceOf(bytes, capabilities) {
+function evidenceOf(bytes, capabilities, replay) {
   const { checks, facts } = analyze(bytes);
 
   const unreadable = checks.find((c) => c.status === 'fail' && STRUCTURE_IDS.includes(c.id));
@@ -762,7 +772,14 @@ function evidenceOf(bytes, capabilities) {
   for (const check of checks) {
     if (check.status === 'fail' && REPORTED_AS[check.id]) reasons.push({ check: REPORTED_AS[check.id], withholds: 'P1', message: sentence(check.detail) });
   }
-  for (const statement of STATEMENTS) reasons.push({ ...statement });
+  for (const statement of STATEMENTS) {
+    if (replay === undefined || statement.check !== 'replay.statement') reasons.push({ ...statement });
+  }
+  // replay.* (#284): the replay check's own reasons replace the one that says no statement is there.
+  if (replay !== undefined) {
+    const digests = (role) => facts.sections.find((s) => s.label === facts.roles[role])?.digests ?? null;
+    reasons.push(...checkReplayStatement(replay, { guest: digests('guest'), model: digests('model') }, DETACHED));
+  }
 
   // world.capabilities (#283): the declared world's imports within the granted set. It withholds P3; whether it fails the holo is the policy's to say.
   const contract = facts.documents.directory?.layers?.find((l) => l.kind === 'wasm')?.contract ?? facts.documents.provenance?.core_wasm_contract ?? null;
@@ -771,14 +788,12 @@ function evidenceOf(bytes, capabilities) {
     reasons.push({ check: 'world.capabilities', code: 'PP5602', withholds: 'P3', message: sentence(`the world exceeds the granted capabilities: ${world.problems.join('; ')}`) });
   }
 
-  const { LEVELS, RANK } = ASSURANCE;
-  const lowestWithheld = Math.min(...reasons.filter((r) => r.withholds).map((r) => RANK[r.withholds]), LEVELS.length);
-  return { facts, reasons, contract, world, level: LEVELS[lowestWithheld - 1] };
+  return { facts, reasons, contract, world, replay, level: levelOf(reasons) };
 }
 
 /** The `prism/policy-input/1` document of a holo's evidence (issue #285). */
 function inputOf(bytes, evidence, capabilities) {
-  const { facts, reasons, contract, world, level } = evidence;
+  const { facts, reasons, contract, world, replay, level } = evidence;
   const blob = (role) => (facts.roles[role] ? facts.sections.find((s) => s.label === facts.roles[role]) : undefined);
   const digests = { archive: digestsOf(bytes) };
   for (const role of ['capabilities', 'guest', 'view', 'model']) {
@@ -804,8 +819,12 @@ function inputOf(bytes, evidence, capabilities) {
         }
       : null,
     capabilities,
-    // Statements join with the format revision that admits the attestation section (#267). Until then a holo carries none.
-    predicates: { provenance: null, proof: null, replay: null },
+    // Statements join with the format revision that admits the attestation section (#267). Until then a holo carries none, and only a replay statement can come from beside it.
+    predicates: {
+      provenance: null,
+      proof: null,
+      replay: replay === undefined || reasons.some((r) => r.check === 'replay.statement') ? null : { predicateType: replay.predicateType, verified: DETACHED.verified, predicate: replay.predicate },
+    },
   };
 }
 
@@ -814,12 +833,12 @@ function inputOf(bytes, evidence, capabilities) {
  * #285). Write it to a file to try a policy under `opa eval`. Rejects like `verify`.
  *
  * @param {Uint8Array | ArrayBuffer} source the whole holo
- * @param {{ capabilities?: object | null }} [options] the set the caller grants
+ * @param {{ capabilities?: object | null, replay?: object }} [options] the set the caller grants, and a decoded `prism/replay/v1` statement from beside the holo
  */
 export async function policyInput(source, options) {
   const bytes = asBytes(source);
   const capabilities = checkCapabilities(options?.capabilities);
-  return inputOf(bytes, evidenceOf(bytes, capabilities), capabilities);
+  return inputOf(bytes, evidenceOf(bytes, capabilities, options?.replay), capabilities);
 }
 
 /**
@@ -845,7 +864,7 @@ export async function policyInput(source, options) {
 export async function verify(source, policy) {
   const bytes = asBytes(source);
   const wanted = checkPolicy(policy);
-  const evidence = evidenceOf(bytes, wanted.capabilities);
+  const evidence = evidenceOf(bytes, wanted.capabilities, wanted.replay);
   const { facts, level, contract, world: worldPolicy } = evidence;
   const reasons = [...evidence.reasons];
 

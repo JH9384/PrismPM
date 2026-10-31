@@ -1,0 +1,10 @@
+{
+  "schema": "prism/history/1",
+  "application": "Calculator",
+  "events": [
+    {
+      "request": "00",
+      "error": "trap"
+    }
+  ]
+}

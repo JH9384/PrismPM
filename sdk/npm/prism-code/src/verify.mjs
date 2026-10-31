@@ -19,7 +19,7 @@ import { attestationSection, ATTESTATION_EXTENSION } from './attestations.mjs';
 /** The environment variable that sets the client's minimum assurance level, P0 to P3. */
 export const MINIMUM_LEVEL_ENV = 'PRISM_MINIMUM_LEVEL';
 
-const OPTION_KEYS = ['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects', 'throw', 'env'];
+const OPTION_KEYS = ['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects', 'replay', 'throw', 'env'];
 
 function defined(options) {
   if (options === undefined || options === null) return {};

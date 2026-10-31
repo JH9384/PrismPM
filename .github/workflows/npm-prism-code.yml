@@ -16,6 +16,12 @@ on:
       # test/manifest.test.mjs and test/capabilities.test.mjs run the spec's schema fixtures through the runtime.
       - sdk/npm/spec/test/fixtures/manifest/**
       - sdk/npm/spec/test/fixtures/capabilities/**
+      # test/replay.test.mjs runs the spec's history fixtures and the verifier's replay check (#284).
+      - sdk/npm/spec/test/fixtures/history/**
+      - sdk/npm/spec/test/fixtures/attestation/statement/calculator-replay.json
+      - sdk/npm/spec/predicates/replay-v1.schema.json
+      - sdk/npm/verify/src/statements.mjs
+      - sdk/npm/verify/src/level.mjs
       # templates/text-request is a byte copy of this fixture (#281); sync-templates --check holds them equal.
       - tests/fixtures/holo/ho-11-text-application/project/**
       - sdk/npm/create-prism-code/**
@@ -29,6 +35,12 @@ on:
       # test/manifest.test.mjs and test/capabilities.test.mjs run the spec's schema fixtures through the runtime.
       - sdk/npm/spec/test/fixtures/manifest/**
       - sdk/npm/spec/test/fixtures/capabilities/**
+      # test/replay.test.mjs runs the spec's history fixtures and the verifier's replay check (#284).
+      - sdk/npm/spec/test/fixtures/history/**
+      - sdk/npm/spec/test/fixtures/attestation/statement/calculator-replay.json
+      - sdk/npm/spec/predicates/replay-v1.schema.json
+      - sdk/npm/verify/src/statements.mjs
+      - sdk/npm/verify/src/level.mjs
       # templates/text-request is a byte copy of this fixture (#281); sync-templates --check holds them equal.
       - tests/fixtures/holo/ho-11-text-application/project/**
       - sdk/npm/create-prism-code/**
@@ -92,7 +104,7 @@ jobs:
           npm pack --dry-run --json > pack.json
           size=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("pack.json","utf8"))[0].unpackedSize)')
           echo "unpacked size: $size bytes"
-          # 1 MiB is the prism-code package cap. prism-code vendors the @prism-code/verify build (src/vendor/verify.mjs, about 265 KiB, so holo.verify() has no dependency) and adds its own code. Raised from 768 KiB to fit the M3 features in flight (export, middleware, generate, replay, about 115 KiB together); the next lever is depending on @prism-code/verify once it is published instead of vendoring it.
+          # 1 MiB is the prism-code package cap. prism-code vendors the @prism-code/verify build (src/vendor/verify.mjs, about 288 KiB, so holo.verify() has no dependency) and adds its own code. Raised from 768 KiB to fit the M3 features in flight (export, middleware, generate, replay, about 115 KiB together); the next lever is depending on @prism-code/verify once it is published instead of vendoring it.
           test "$size" -le 1048576
           rm pack.json
       - name: The entry points import cleanly
@@ -104,6 +116,27 @@ jobs:
           done
           # Every reference archive replays its vectors (#278): Calculator and Payment Approval.
           for holo in fixtures/*.holo; do node bin/prism-code.mjs vectors "$holo"; done
+      # Every reference archive replays its committed history (#284): Calculator and Payment Approval.
+      - name: The reference archives replay green
+        shell: bash
+        run: |
+          set -euo pipefail
+          for history in fixtures/*.history.json; do
+            holo="${history%.history.json}.holo"
+            test -f "$holo"
+            node bin/prism-code.mjs replay "$history" --holo "$holo"
+          done
+      - name: A changed model fails replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Its own vectors pass, so only the recorded history can tell.
+          node bin/prism-code.mjs vectors test/fixtures/Calculator.changed-model.holo
+          code=0
+          node bin/prism-code.mjs replay fixtures/Calculator.history.json --holo test/fixtures/Calculator.changed-model.holo || code=$?
+          test "$code" -eq 1
+      - name: The negative fixture is what the reference archive derives to
+        run: node scripts/derive-changed-model.mjs --check
       - name: Release tag matches package.json
         if: startsWith(github.ref, 'refs/tags/prism-code-v')
         shell: bash

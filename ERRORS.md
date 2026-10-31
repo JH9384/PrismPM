@@ -497,6 +497,42 @@ The reference repository model or lock is not byte-identical to the authoritativ
 
 Class: `acceptance`. Exit code: 1.
 
+## `PP5701` --- Replay diverged from its history
+
+Re-executing a recorded history against this build produced an outcome that differs from the recording, or a replay statement records a divergence (replay.divergence, DeterminismViolationError).
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5702` --- Replay statement signature invalid
+
+A prism/replay/v1 statement is not signed by a key or identity the trust root accepts (replay.envelope).
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5703` --- Replay statement absent or malformed
+
+A holo carries no prism/replay/v1 statement, or its statement has the wrong shape or a divergence count its histories do not sum to (replay.statement).
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5704` --- Replay statement names another guest
+
+The subject of a prism/replay/v1 statement is not the guest blob of this holo, by either digest (replay.subject).
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5705` --- Replay statement names another model
+
+The model of a prism/replay/v1 statement is not the model blob of this holo, by either digest (replay.model).
+
+Class: `acceptance`. Exit code: 1.
+
+## `PP5706` --- Replay could not be carried out
+
+A history is not prism/history/1, is repeated or cannot be read, or the holo cannot be read or fails its own integrity checks, so nothing was compared.
+
+Class: `configuration`. Exit code: 2.
+
 ## `PP6002` --- Incomplete application acceptance
 
 A required application acceptance gate is missing, skipped, stale, conditional, failed, or not bound to current artifacts.

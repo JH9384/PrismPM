@@ -418,6 +418,17 @@ pub fn run_at(root: &Path, id: &str) {
             ],
             "600000",
         ),
+        // A history replays unchanged and a changed model cannot reach P3; the
+        // Rust half holds the same fixtures in crates/prismpm/src/replay/tests.rs.
+        "HO-31" => node_suite::verify_exact(
+            root,
+            id,
+            &[
+                ("sdk/npm/prism-code/test/replay.test.mjs", 32),
+                ("sdk/npm/verify/test/replay-statement.test.mjs", 8),
+            ],
+            "600000",
+        ),
         "HO-14" => {
             let evidence = prismpm::upstream_conformance::verify_blake3_corpus(
                 &root.join("standards/corpora/blake3-1.5.5"),

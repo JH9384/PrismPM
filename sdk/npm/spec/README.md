@@ -105,7 +105,9 @@ A predicate is four files in `predicates/`, and nothing else changes:
 The predicate type is `https://uor.foundation/prism/<name>/v<N>`.
 `npm run build` writes `predicates/registry.json`, the `<NAME>_PREDICATE_TYPE` constants in `index.mjs` and `PredicateMap` in `types/predicate-map.d.ts` from those files.
 The proof predicate is defined (`proof-v1`, issue [#266](https://github.com/UOR-Foundation/PrismPM/issues/266)); its design is [docs/proposals/266-proof-predicate.md](../../../docs/proposals/266-proof-predicate.md) and `test/fixtures/attestation/statement/calculator.json` is its calculator example.
-`replay-v1` is a placeholder: its type is still `unknown`.
+The replay predicate is defined (`replay-v1`, issue [#284](https://github.com/UOR-Foundation/PrismPM/issues/284)); its design is [docs/proposals/284-histories-replay.md](../../../docs/proposals/284-histories-replay.md) and `test/fixtures/attestation/statement/calculator-replay.json` is its calculator example.
+A replay statement has one subject, the guest blob, and names the runtime, the model, every history by dual digest and the divergence count. It holds no clock, so the same replay writes the same bytes.
+The history it replays is `schemas/history/history-v1.schema.json`, `prism/history/1`, a superset of a model's acceptance vectors.
 The type files are `.d.ts`, not `.ts`, because the package has no compile step.
 
 ## Adding a schema

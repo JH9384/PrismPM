@@ -1,5 +1,5 @@
 {
-  "status": "placeholder",
-  "owner": { "milestone": "M3 v0.6 Replay, capabilities, conformance" },
-  "description": "Recorded dispatches that replay against a holo."
+  "status": "experimental",
+  "owner": { "issue": 284 },
+  "description": "Recorded dispatches that replayed against a holo: the histories, their divergence count and the runtime that ran them."
 }

@@ -1,0 +1,18 @@
+{
+  "schema": "prism/history/1",
+  "application": null,
+  "events": [
+    {
+      "request": "3109616464093230093232",
+      "response": "31096f6b093432"
+    },
+    {
+      "request": "00000000",
+      "error": "core.allocation"
+    },
+    {
+      "request": "",
+      "response": ""
+    }
+  ]
+}

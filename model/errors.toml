@@ -575,6 +575,48 @@ exit = 1
 statement = "The reference repository model or lock is not byte-identical to the authoritative PrismPM getting-started source closure."
 
 [[error]]
+code = "PP5701"
+title = "Replay diverged from its history"
+class = "acceptance"
+exit = 1
+statement = "Re-executing a recorded history against this build produced an outcome that differs from the recording, or a replay statement records a divergence (replay.divergence, DeterminismViolationError)."
+
+[[error]]
+code = "PP5702"
+title = "Replay statement signature invalid"
+class = "acceptance"
+exit = 1
+statement = "A prism/replay/v1 statement is not signed by a key or identity the trust root accepts (replay.envelope)."
+
+[[error]]
+code = "PP5703"
+title = "Replay statement absent or malformed"
+class = "acceptance"
+exit = 1
+statement = "A holo carries no prism/replay/v1 statement, or its statement has the wrong shape or a divergence count its histories do not sum to (replay.statement)."
+
+[[error]]
+code = "PP5704"
+title = "Replay statement names another guest"
+class = "acceptance"
+exit = 1
+statement = "The subject of a prism/replay/v1 statement is not the guest blob of this holo, by either digest (replay.subject)."
+
+[[error]]
+code = "PP5705"
+title = "Replay statement names another model"
+class = "acceptance"
+exit = 1
+statement = "The model of a prism/replay/v1 statement is not the model blob of this holo, by either digest (replay.model)."
+
+[[error]]
+code = "PP5706"
+title = "Replay could not be carried out"
+class = "configuration"
+exit = 2
+statement = "A history is not prism/history/1, is repeated or cannot be read, or the holo cannot be read or fails its own integrity checks, so nothing was compared."
+
+[[error]]
 code = "PP6002"
 title = "Incomplete application acceptance"
 class = "acceptance"

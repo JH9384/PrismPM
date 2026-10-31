@@ -265,6 +265,12 @@ level = "build"
 statement = "The optional Text/3 workbench binds typed source-owned guidance, forms, examples, error recovery and mandatory no-store Wasm acquisition to real byte-guest results, six exact portable assets and cancellable browser worker execution while preserving Text/1 and Text/2 resource semantics and the text/3 command-line surface."
 
 [[id]]
+id = "HO-31"
+suite = "holo"
+level = "build"
+statement = "A recorded history replays byte-identically against the build it came from in both the JavaScript runtime and prismpm, and a changed model that passes its own acceptance vectors fails replay with a typed divergence, writes a statement that records it, and cannot support assurance level P3 with that statement or with the statement of the previous build."
+
+[[id]]
 id = "HO-20"
 suite = "holo"
 level = "build"

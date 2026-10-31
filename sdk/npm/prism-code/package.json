@@ -47,6 +47,7 @@
     "types",
     "templates",
     "fixtures/Calculator.holo",
+    "fixtures/Calculator.history.json",
     "README.md",
     "LICENSE"
   ],

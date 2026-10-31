@@ -785,6 +785,16 @@ subsystem code and structured locations; Rust debug formatting is not part of
 the contract. User-controlled input must produce a registered diagnostic and
 must not panic.
 
+`prismpm replay <history|dir>... --holo PATH [--statement PATH]` re-executes
+`prism/history/1` histories against a `.holo` and compares every outcome byte
+for byte. Unlike the commands above it reads no project. A difference is
+`PP5701`, exit 1; a replay that cannot be carried out is `PP5706`, exit 2. On
+success it returns `prismpm/replay-result/1`. On both, `--statement` writes the
+`https://uor.foundation/prism/replay/v1` in-toto statement, whose one subject is
+the guest blob and which holds no clock. A replay is evidence for assurance level
+P3; it proves nothing about the Lean model, and a statement from another guest or
+model, or one that records a divergence, withholds P3.
+
 ## 5. Prism-stdlib contract
 
 `prism-stdlib` is the first portable foundation/runtime layer: the ecosystem
@@ -3834,6 +3844,7 @@ Every row below is normative, has the honesty level registered in `model/ids.tom
 | `HO-17` | `holo` | The explicit text/3 profile models its command-line surface in source and generates static musl programs whose bounded raw input, model-owned help and version, declared exit-code map and registered usage, I/O and fault diagnostics are accepted against the Core-Wasm entry for every vector, without handwritten product code or any claim about targets not executed. | §3 |
 | `HO-18` | `holo` | The SDK checks OPM and UML design views against the system model, refuses an unknown component, edge, process, state or viewpoint with PP2012, and emits OPL text and PlantUML source as build artifacts. | §3 |
 | `HO-19` | `holo` | The optional Text/3 workbench binds typed source-owned guidance, forms, examples, error recovery and mandatory no-store Wasm acquisition to real byte-guest results, six exact portable assets and cancellable browser worker execution while preserving Text/1 and Text/2 resource semantics and the text/3 command-line surface. | §3 |
+| `HO-31` | `holo` | A recorded history replays byte-identically against the build it came from in both the JavaScript runtime and prismpm, and a changed model that passes its own acceptance vectors fails replay with a typed divergence, writes a statement that records it, and cannot support assurance level P3 with that statement or with the statement of the previous build. | §3 |
 | `HO-20` | `holo` | The JavaScript runtime in sdk/npm/prism-code opens a composed .holo archive and an exported browser closure without the Rust SDK, verifies the footer, every content-blob label and the manifest cross-references with its own BLAKE3, decodes and re-encodes the HOLOVIEW bundle byte for byte, dispatches requests through the Core-Wasm guest on fresh instances, and replays every modeled acceptance vector byte-identically, so a change to the archive, bundle or model-document layout fails this case in the same change. | §3 |
 | `HO-23` | `holo` | A holo without the attestation section loads and verifies with the same bytes and identities as before the section existed, and reports no attestations. | §3 |
 | `HO-24` | `holo` | An attestation section is an Extension row named https://uor.foundation/extension/attestation-bundle/v1, is the last row, appears at most once, and the footer is BLAKE3 of the body including it. | §3 |

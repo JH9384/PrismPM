@@ -30,7 +30,7 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | provider | An executable, `prism-provider-<type>` on the PATH, that provisions what a capability in `prism.toml` declares and returns `<NAME>_<VAR>` variables ([proposal](proposals/294-provider-services.md)). | Compose provider service |
 | attestation | Planned for the holo: an in-toto statement about it. Product releases already carry in-toto and SLSA referrers ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | BuildKit attestation |
 | proof | Planned. The `prism/proof/v1` in-toto predicate: which theorems the Lean kernel checked for the shipped guest ([proposal](proposals/266-proof-predicate.md)). | none |
-| history | Planned. Recorded dispatches that can be replayed. | none; nearest is `docker logs` |
+| history | `prism/history/1`: the dispatches of one application in order, each with its recorded outcome. Acceptance vectors are its first source ([proposal](proposals/284-histories-replay.md)). | none; nearest is `docker logs` |
 
 ## Verbs
 
@@ -42,6 +42,7 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | run | `prismpm run REF` runs a release through its modeled Compose target. `prism-code run app.holo` serves one holo ([`prism-code`](../sdk/npm/prism-code/README.md#run-it)). | `docker run` |
 | push / pull | `prismpm push REF`, `prismpm pull REF` move a product release ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). `prism-code push <holo> REF` and `prism-code pull REF` move one holo and its attestations ([proposal](proposals/292-push-pull-oci.md)). | `docker push`, `docker pull` |
 | inspect | `prismpm inspect REF` for a product release and `prismpm inspect <path.holo>` for one holo. `hologram holo inspect` and `prism-code inspect` also read a holo. | `docker inspect` |
+| replay | `prismpm replay HISTORY --holo PATH` and `prism-code replay HISTORY --holo PATH` re-execute a history against a build and fail on divergence ([proposal](proposals/284-histories-replay.md)). | none |
 | export | `prismpm export-browser REF --output DIR` ([README](../README.md#development-and-acceptance)). | `docker build --output` |
 | lock / update | `prismpm lock` writes or refreshes the pinned inputs in `prismpm.lock` without building. `prismpm update --toolchain REF` pins a new SDK image and prints the old and new digests. `prismpm lock check` verifies the lock, and `prismpm lock update` proposes a new pin and does not apply it. | `npm install` and `npm update`, or editing the `FROM ...@sha256:` pin |
 | deploy | `prismpm plan` then `prismpm deploy` through the Compose or Kubernetes adapter ([SPEC §15](../SPEC.md#15-target-planning-and-deployment)). | `docker compose up`, `docker stack deploy` |

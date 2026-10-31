@@ -125,6 +125,12 @@ requires_digest = true
 result_schema = "prismpm/push-result/1"
 
 [[command]]
+name = "replay"
+mutates = "local-evidence"
+requires_digest = false
+result_schema = "prismpm/replay-result/1"
+
+[[command]]
 name = "rollback"
 mutates = "authorized-target"
 requires_digest = true

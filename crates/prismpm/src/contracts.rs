@@ -12,7 +12,7 @@ struct Contract {
     schema: &'static [u8],
 }
 
-const CONTRACTS: [Contract; 66] = [
+const CONTRACTS: [Contract; 67] = [
     Contract {
         id: "prismpm/workbench-view-projection/1",
         maximum_bytes: 1_048_576,
@@ -253,6 +253,12 @@ const CONTRACTS: [Contract; 66] = [
         maximum_bytes: 16_777_216,
         maximum_items: 65_536,
         schema: include_bytes!("../schemas/inspect-result.schema.json"),
+    },
+    Contract {
+        id: "prismpm/replay-result/1",
+        maximum_bytes: 16_777_216,
+        maximum_items: 65_536,
+        schema: include_bytes!("../schemas/replay-result.schema.json"),
     },
     Contract {
         id: "prismpm/attest-result/1",

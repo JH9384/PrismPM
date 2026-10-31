@@ -1,0 +1,20 @@
+{
+  "runtime": {
+    "name": "prism-code",
+    "version": "0.3.0"
+  },
+  "model": {
+    "sha256": "074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6"
+  },
+  "histories": [
+    {
+      "digest": {
+        "blake3": "507d9bdf6de96117e3823f6614ed3f24544d6a4224e2ef0637f2057dfbafce98",
+        "sha256": "56d4c9c4bcf9f5c26fecd78d9709f9e3caef761d76f9a13ab94d7c31fe92ad1a"
+      },
+      "events": 22,
+      "divergences": 0
+    }
+  ],
+  "divergenceCount": 0
+}

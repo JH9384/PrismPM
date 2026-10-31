@@ -81,17 +81,33 @@ async function holoBytes(path) {
   return new Uint8Array(await readFile(resolve(path)));
 }
 
+/** A replay statement from a file (#284), or a no-verdict error. Its checks are the verdict's; only reading it is here. */
+async function readReplay(path) {
+  let text;
+  try {
+    text = await readFile(resolve(path), 'utf8');
+  } catch (cause) {
+    throw noVerdict('replay.statement', `the replay statement ${path} cannot be read: ${cause.code ?? cause.message}`, cause);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (cause) {
+    throw noVerdict('replay.statement', `the replay statement ${path} is not JSON: ${cause.message}`, cause);
+  }
+}
+
 /**
  * Judge one holo. Resolves to the verdict; rejects with a `VerificationError`
  * when no verdict was reached.
  *
  * @param {string} path the holo
- * @param {{ policy?: string, capabilities?: object | null, env?: object }} [options] `policy` is a shipped policy's name or a file path; `capabilities` the granted set
+ * @param {{ policy?: string, capabilities?: object | null, replay?: string, env?: object }} [options] `policy` is a shipped policy's name or a file path; `capabilities` the granted set; `replay` the path of a `prism/replay/v1` statement
  */
 export async function check(path, options = {}) {
   const policy = options.policy === undefined ? {} : await readPolicy(options.policy);
   // The capability set the caller grants (run, #282); a policy file never grants.
   if (options.capabilities !== undefined) policy.capabilities = options.capabilities;
+  if (options.replay !== undefined) policy.replay = await readReplay(options.replay);
   const bytes = await holoBytes(path);
   const blocked = attestationBlocker(bytes);
   if (blocked) throw blocked;

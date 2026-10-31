@@ -36,6 +36,7 @@ const app = await load(bytes);
 
 ## Next steps
 
+- [Run a holo](/docs/guides/run-a-holo)
 - [API reference](/docs/api)
 - [Release status](/docs/reference/release-status)
 - [Check in the browser](/docs/api/verify-package)

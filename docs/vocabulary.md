@@ -18,7 +18,7 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | SDK image | The digest-pinned Linux OCI index (`linux/amd64`, `linux/arm64`) with LexLean, Lean 4, rustc and wasm-bindgen, built from [`sdk/Dockerfile`](../sdk/Dockerfile) ([SPEC §1](../SPEC.md#1-repository-scope-and-project-configuration)). | base image |
 | `prismpm.lock` | The project lock. Its `sdk_image` field names the SDK image by immutable digest ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | pinned `FROM image@sha256:...` |
 | `prism-code` runtime | The JavaScript runtime: `load` opens and verifies a holo, `dispatch` runs one request on the guest. See [`sdk/npm/prism-code`](../sdk/npm/prism-code/README.md). | container runtime |
-| instance | A loaded, verified, running holo. `prism-code` runs each request on a fresh guest instance. | container |
+| instance | A loaded, verified, running holo. `prism-code` runs each request on a fresh guest instance. `prism.containers` and `prism-code run <holo> <input>` record one run as a container: created, running, exited, with an exit code and its output. | container |
 | browser export | The six-file browser closure written by `prismpm export-browser` ([README](../README.md#development-and-acceptance)). | exporter output (`--output`) |
 | registry | Any OCI Image and Distribution 1.1 registry. `prismpm push` and `prismpm pull` move releases by digest ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | registry |
 | product release | The root OCI artifact, config `prismpm/product-release/1`, that references the holo, packages, locks and evidence by digest ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | image manifest or index |

@@ -1,10 +1,14 @@
 import type { Server } from 'node:http';
-import type { Application, Capabilities, LoadOptions, ManifestTarget, ParsedManifest, PrismError } from './index.js';
+import type { Application, Capabilities, ContainerStore, LoadOptions, ManifestTarget, ParsedManifest, PrismError } from './index.js';
 
 /** Open a `.holo` file or a closure directory. */
 export function fromFile(source: string | URL, options?: LoadOptions): Promise<Application>;
 /** Read a closure directory into a file map. */
 export function readClosureDirectory(directory: string): Promise<Map<string, Uint8Array>>;
+/** Experimental. Where `prism-code run` keeps containers: `$PRISM_HOME/containers`, by default `~/.prism/containers`. */
+export function containersDirectory(env?: Record<string, string | undefined>): string;
+/** Experimental. Container records as one JSON file each, readable only by this user. A record holds the output and never the input. */
+export function fileContainerStore(directory?: string): ContainerStore;
 /** Serve `app.view` as static files and answer `POST /_hologram/intent` with `app.dispatch`. */
 export function serve(app: Application, options?: { port?: number; host?: string }): Promise<{ server: Server; url: string; close(): Promise<void> }>;
 

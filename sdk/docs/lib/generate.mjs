@@ -57,7 +57,7 @@ const GENERATORS = {
   'testing-package': api.missingPackage,
 };
 
-export const EXAMPLES = ['load', 'dispatch', 'acceptance', 'three-calls', 'spec-constants', 'verify', 'inspect-sections', 'command-line'];
+export const EXAMPLES = ['load', 'dispatch', 'acceptance', 'three-calls', 'spec-constants', 'verify', 'inspect-sections', 'command-line', 'containers'];
 
 export function readPages() {
   return JSON.parse(readFileSync(join(DOCS_DIR, 'pages.json'), 'utf8'));

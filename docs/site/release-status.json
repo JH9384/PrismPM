@@ -37,6 +37,7 @@
     { "feature": "Authoring from examples and intent", "available_in": "0.6" },
     { "feature": "`prism init` and `npm create prism-code`", "available_in": "0.6" },
     { "feature": "The `run` gate and `--allow-unverified`", "available_in": "0.6" },
+    { "feature": "Containers: `prism.containers`, `run --rm`, `rm` and exit codes from typed errors", "available_in": "0.6" },
     { "feature": "Policy files for `check` and `run`", "available_in": "0.6" },
     { "feature": "Histories, `prism replay` and the replay attestation", "available_in": "0.6" },
     { "feature": "`prism dev` and the local studio", "available_in": "0.6" },

@@ -27,16 +27,19 @@
       { "code": 1, "name": "vectors failed", "meaning": "At least one acceptance vector did not replay or the holo carries none, `verify-attestation` did not verify, `check` reached a verdict the policy rejects, or `pull` found a digest that does not match or a holo that fails verification and wrote nothing." },
       { "code": 2, "name": "refused", "meaning": "The holo, capability file or manifest cannot be read or fails its checks, an identity check failed, a guest import, the holo's world or a provider is not granted, or a provider failed; or `check` reached no verdict: not a holo, an unreadable policy or an unknown format revision; or `push` or `pull` got no answer: an unreachable registry, refused credentials, a reference that does not exist or referrers that cannot be stored." },
       { "code": 3, "name": "signing failed", "meaning": "`attest` could not sign, or the optional sigstore packages are not installed." },
+      { "code": 10, "name": "proof mismatch", "meaning": "`run` refused a holo for a proof reason. 11 is a world mismatch, 12 a determinism violation, 13 a replay error." },
       { "code": 64, "name": "usage", "meaning": "The arguments were wrong, or `prismpm.lock` is missing." },
-      { "code": 69, "name": "no Docker", "meaning": "Docker is not installed or not on the PATH." }
+      { "code": 69, "name": "no Docker", "meaning": "Docker is not installed or not on the PATH." },
+      { "code": 70, "name": "untyped", "meaning": "Dispatch threw something untyped: a guest trap, or a bug in the runtime." }
     ],
     "verbs": [
-      { "name": "run", "usage": "prism-code run <app.holo> [--port <n>] [--policy <file>] [--capabilities <file>]", "summary": "Check the holo against the policy, then serve its view on a local port; a POST to `/_hologram/intent` dispatches one request. A holo that fails check is refused unless `--allow-unverified`, which warns on every start." },
+      { "name": "run", "usage": "prism-code run <app.holo> [<input>] [--input <text>] [--rm] [--port <n>] [--policy <file>] [--allow-unverified] [--capabilities <file>]", "summary": "Check the holo against the policy. With an input, this is one run as a container: dispatch the input, print the output and exit with the container's code, keeping the container until `rm` unless `--rm`. Without one, serve its view on a local port; a POST to `/_hologram/intent` dispatches one request. A holo that fails check is refused unless `--allow-unverified`, which warns on every start." },
+      { "name": "rm", "usage": "prism-code rm <container>...", "summary": "Remove containers, by id or unique id prefix. A running container is refused." },
       { "name": "init", "usage": "prism-code init [<dir>] [--sdk-image <ref>]", "summary": "Scaffold a project: `prism.toml`, a language-1.2 model and its Lean workspace. With `--sdk-image`, also copy that image's `standards.lock` and write `prismpm.lock` (needs Docker). `npm create prism-code` runs the same command." },
       { "name": "manifest", "usage": "prism-code manifest [<dir>] [--target <target>]", "summary": "Check and lint the project's `prism.toml`, with the overlay for the target merged in, and print the application, the grant and the variables." },
       { "name": "providers", "usage": "prism-code providers <verb> [<dir>] [--target <target>] [--json]", "summary": "`up` runs the `prism-provider-<type>` each capability in `prism.toml` declares and prints the variables it produced, and `down` releases them. Text output names them, and `--json` also prints their values. The capability set must allow the type and each variable. Experimental." },
       { "name": "vectors", "usage": "prism-code vectors <app.holo>", "summary": "Replay every acceptance vector the holo carries and exit 1 on a failure." },
-      { "name": "inspect", "usage": "prism-code inspect <app.holo>", "summary": "Print what the holo says about itself, without running it." },
+      { "name": "inspect", "usage": "prism-code inspect <holo-or-container> [--format <path>]", "summary": "Print what the holo says about itself, without running it, or a container's state, exit code, image digest and output." },
       { "name": "attest", "usage": "prism-code attest <app.holo> --predicate <file> --type <uri>", "summary": "Sign an in-toto statement about the holo into its attestation section: keyless with an OIDC token, or with `--key`." },
       { "name": "verify-attestation", "usage": "prism-code verify-attestation <app.holo> --certificate-identity <id> --certificate-oidc-issuer <url>", "summary": "Check the holo's attestations against the signer you expect, or against `--key`." },
       { "name": "check", "usage": "prism-code check <app.holo> [--policy <file>] [--json]", "summary": "Judge the holo against a policy and print its verdict: the assurance level, whether the policy passed, and every reason. `--policy` takes a Rego file, the name of a shipped policy (`pure-only`, `provenance-only`) or a JSON file. Exit 1 when the policy denies, 2 when it cannot be parsed or evaluated. Without a holo, the deprecated spelling of `build --check`, removed in 0.4.0." },
@@ -106,6 +109,7 @@
         { "flag": "--input <json>", "default": "stdin", "meaning": "One input to dispatch. Omit it to read inputs line by line." },
         { "flag": "--policy <file>", "default": "the default policy", "meaning": "Policy the gate judges against." },
         { "flag": "--allow-unverified", "default": "off", "meaning": "Run even when `check` fails. Prints a warning on every start." },
+        { "flag": "--rm", "default": "off", "meaning": "Remove the container when it exits. One input only." },
         { "flag": "--port <n>", "default": "none", "meaning": "Serve the instance over HTTP instead of dispatching once." }
       ],
       "example": "prism run calculator@sha256:3f9c --input '{\"op\":\"add\",\"a\":2,\"b\":3}'"

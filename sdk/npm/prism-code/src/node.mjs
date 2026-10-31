@@ -4,8 +4,9 @@
  * (hologram-live `hologram-view-surface`: `application.invoke`, at most 16
  * outputs).
  */
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { homedir } from 'node:os';
 import { resolve, join, extname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { loadArchive, loadClosure } from './index.mjs';
@@ -98,6 +99,46 @@ export async function readManifest(directory = '.', options = {}) {
     grant = { capabilities: parseCapabilities(new Uint8Array(bytes)), capabilitySet };
   }
   return Object.freeze({ ...parsed, directory: root, files: Object.freeze(files), grant: Object.freeze(grant) });
+}
+
+/** The directory `prism-code run` keeps containers in: `$PRISM_HOME/containers`, by default `~/.prism/containers`. */
+export function containersDirectory(env = process.env) {
+  return join(env.PRISM_HOME || join(homedir(), '.prism'), 'containers');
+}
+
+/**
+ * Records as one JSON file per container, readable only by this user. The
+ * record holds the output and never the input (docs/proposals/348-container-lifecycle.md).
+ */
+export function fileContainerStore(directory = containersDirectory()) {
+  const fileOf = (id) => join(directory, `${id}.json`);
+  const guarded = async (what, action) => {
+    try {
+      return await action();
+    } catch (cause) {
+      return fail('container.store', `${what} ${directory}: ${cause.message}; set PRISM_HOME to a directory you can write`, { cause: cause.code });
+    }
+  };
+  return Object.freeze({
+    put: (record) =>
+      guarded('cannot write a container to', async () => {
+        await mkdir(directory, { recursive: true, mode: 0o700 });
+        // Write beside the target and rename, so an interrupted run never leaves half a record.
+        const scratch = `${fileOf(record.id)}.${process.pid}.tmp`;
+        await writeFile(scratch, JSON.stringify(record), { mode: 0o600 });
+        await rename(scratch, fileOf(record.id));
+      }),
+    get: (id) => guarded('cannot read a container from', async () => JSON.parse(await readFile(fileOf(id), 'utf8'))),
+    find: (prefix) =>
+      guarded('cannot list containers in', async () => {
+        const names = await readdir(directory).catch((error) => {
+          if (error.code === 'ENOENT') return [];
+          throw error;
+        });
+        return names.filter((name) => /^[0-9a-f]{64}\.json$/.test(name) && name.startsWith(prefix)).map((name) => name.slice(0, 64));
+      }),
+    remove: (id) => guarded('cannot remove a container from', () => rm(fileOf(id), { force: true })),
+  });
 }
 
 const INTENT_VERSION = 1;

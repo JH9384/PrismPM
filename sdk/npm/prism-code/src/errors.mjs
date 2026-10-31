@@ -275,6 +275,76 @@ export function errorFromVerdict(verdict, ranks) {
   return errorForReason(reason, verdict);
 }
 
+/**
+ * What a run exits with, one row per outcome: the single source of truth for
+ * container exit codes and the `prism-code` process (issue #348). The table is
+ * in docs/site/guides/run-a-holo.md, and a test holds the two equal. A row
+ * names an error class, or none for success, and `when` narrows it. The first
+ * row that matches decides.
+ *
+ * `check` reports a verdict, not an error, so its own contract stays 0, 1, 2.
+ * 1 to 3 keep the meanings the command line already gave them. 10 to 13 are
+ * new. 64 to 78 are the BSD sysexits and 125 and above are Docker's and the
+ * shell's, so no typed error takes those, apart from `lock.*` as usage (64).
+ */
+export const EXIT_CODES = Object.freeze(
+  [
+    { exit: 0, error: null, meaning: 'The guest returned its output.' },
+    { exit: 1, error: 'VerificationError', when: 'with a verdict', meaning: 'The holo failed check, for an archive, document, provenance or policy reason.' },
+    { exit: 2, error: 'VerificationError', when: 'no verdict', meaning: 'Check could not reach a verdict: an unreadable policy, a closure, an unknown format revision.' },
+    { exit: 2, error: 'PrismCodeError', meaning: 'The artifact was refused, or dispatch refused the request: a bad archive, a request over the guest allocation.' },
+    { exit: 2, error: 'CapabilityDeniedError', meaning: 'The world exceeds the granted capabilities, or the runtime denied an import or a resource.' },
+    { exit: 3, error: 'SigningError', meaning: 'A signature could not be produced.' },
+    { exit: 10, error: 'ProofMismatchError', meaning: 'A proof check failed: the statement is absent, malformed, or about another holo.' },
+    { exit: 11, error: 'WorldMismatchError', meaning: 'The guest does not have the interface of its declared world, or the world is not the one pinned.' },
+    { exit: 12, error: 'DeterminismViolationError', meaning: 'A replay produced output that differs from the recorded history.' },
+    { exit: 13, error: 'ReplayError', meaning: 'A replay could not be carried out, or the replay statement failed.' },
+    { exit: 1, error: 'SignatureInvalidError', meaning: 'An attestation did not verify: its signature.' },
+    { exit: 1, error: 'IdentityMismatchError', meaning: 'An attestation did not verify: its signer.' },
+    { exit: 1, error: 'TransparencyError', meaning: 'An attestation did not verify: its log entry or timestamp.' },
+    { exit: 1, error: 'SubjectMismatchError', meaning: 'An attestation did not verify: its subject.' },
+    { exit: 1, error: 'AttestationNotFoundError', meaning: 'An attestation did not verify: there is none.' },
+    { exit: 1, error: 'TrustRootError', meaning: 'An attestation did not verify: the trusted root is unusable.' },
+    { exit: 1, error: 'PolicyDeniedError', when: 'with a verdict', meaning: 'A policy rule denied the holo.' },
+    { exit: 2, error: 'PolicyParseError', when: 'no verdict', meaning: 'A policy did not parse.' },
+    { exit: 2, error: 'PolicyEvaluationError', when: 'no verdict', meaning: 'A policy could not be evaluated.' },
+    { exit: 2, error: 'RegistryError', meaning: 'The registry or store failed.' },
+    { exit: 2, error: 'RegistryAuthError', meaning: 'The registry refused the credentials.' },
+    { exit: 2, error: 'ReferrersUnsupportedError', meaning: 'No referrers API or tag.' },
+    { exit: 2, error: 'ManifestNotFoundError', meaning: 'The reference names nothing.' },
+    { exit: 1, error: 'DigestMismatchError', meaning: 'Bytes differ from their digest.' },
+    { exit: 1, error: 'PullVerificationError', meaning: 'A pulled holo failed verification.' },
+    { exit: 1, error: 'ReferenceInvalidError', meaning: 'Not a registry or store reference.' },
+    { exit: 2, error: 'ProviderNotFoundError', meaning: 'No provider on the PATH.' },
+    { exit: 2, error: 'ProviderReplyError', meaning: 'A provider broke the protocol.' },
+    { exit: 2, error: 'ProviderFailedError', meaning: 'A provider failed.' },
+    { exit: 1, error: 'PrismError', meaning: 'Any other typed error.' },
+    { exit: 70, error: 'anything else', meaning: 'Dispatch threw something untyped: a guest trap, or a bug in the runtime.' },
+  ].map(Object.freeze),
+);
+
+const classNamed = (name) => (name === 'PrismError' ? PrismError : name === 'PrismCodeError' ? PrismCodeError : Object.values(ERROR_CLASSES).find((C) => C.name === name));
+
+/**
+ * The exit code for how a run ended: `exitCodeFor(null)` is 0, a typed error
+ * takes its row of `EXIT_CODES`, and anything else is 70. A `lock.*` code is
+ * the one `PrismCodeError` that is the caller's to fix, so it is usage (64),
+ * and `attest.unavailable` means no signature could be produced (3).
+ */
+export function exitCodeFor(error) {
+  if (error === null || error === undefined) return 0;
+  if (!(error instanceof PrismError)) return 70;
+  if (error instanceof PrismCodeError && error.code.startsWith('lock.')) return 64;
+  if (error.code === 'attest.unavailable') return 3;
+  return EXIT_CODES.find((row) => {
+    const Class = row.error === null ? undefined : classNamed(row.error);
+    if (!Class || !(error instanceof Class)) return false;
+    if (row.when === 'with a verdict') return error.verdict !== undefined;
+    if (row.when === 'no verdict') return error.verdict === undefined;
+    return true;
+  }).exit;
+}
+
 export function fail(code, message, details) {
   throw new PrismCodeError(code, message, details);
 }

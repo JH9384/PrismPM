@@ -68,17 +68,64 @@ request the view posts) by dispatching through the guest.
 
 `run` gates on `check` (#282): it judges the holo against the policy, with the
 capability set it will run under, before anything is instantiated. A holo
-that fails is refused with exit 1 and its verdict on stderr; no verdict (an
+that fails is refused with its verdict on stderr and the exit code of the reason
+(1 for every holo today, see the table under Containers); no verdict (an
 unreadable policy, a file that is not a holo) is exit 2. Every holo is P0
 until holos carry signed statements, so under the default policy (P2) every
 `run` is refused today: pass a policy that accepts the holo, such as
 `{"minimum": "P0"}`, or `--allow-unverified`, which runs it anyway and prints a
 warning on every start. A closure cannot be judged and runs only with the flag.
 
+With an input, `run` is one run as a container (below) and does not serve:
+`prism-code run app.holo "$REQUEST"` or `--input "$REQUEST"`.
+
 A policy's `effects` lists the impure effects the world may import: `[]` is
 the pure-world policy, which refuses a world importing a clock, random,
 socket, filesystem or unknown interface (`policy.effects`); `["clock"]` grants
 the clock.
+
+## Containers (experimental, #348)
+
+One run of a holo is a container: `created`, `running` or `exited`, with a start
+and finish time, an exit code and the returned output, kept until removed.
+
+```js
+import { prism } from 'prism-code';
+
+const container = await prism.containers.run('app.holo', '1\tadd\t20\t22', { policy: { minimum: 'P0' } });
+container.status;     // 'exited'
+container.exitCode;   // 0
+container.text();     // '1\tok\t42'
+await container.inspect();   // { schema: 'prism/container/1', id, image: { digest, ... }, state, verdict, output }
+await container.remove();
+```
+
+`create` then `start` is the two-step form. `rm: true` removes it on exit. A run
+is gated on `check`, and a failed run is an exit code, never a rejection; an image
+that cannot be opened makes no container, and the call rejects.
+
+```
+npx prism-code run app.holo "$REQUEST" [--rm] [--policy policy.json] [--allow-unverified]
+npx prism-code inspect <container> [--json] [--format state.exitCode]
+npx prism-code rm <container>
+```
+
+stdout holds the guest's output and nothing else, and the process exits with the
+container's code. The command line keeps one file per container in
+`$PRISM_HOME/containers`, by default `~/.prism/containers`, with the output and never
+the input. `EXIT_CODES` and `exitCodeFor(error)` are the table both use:
+
+| Exit | From |
+| --- | --- |
+| 0 | Success |
+| 1 | `VerificationError` with a verdict, an attestation error, any other `PrismError` |
+| 2 | `VerificationError` with no verdict, `PrismCodeError`, `CapabilityDeniedError` |
+| 3 | `SigningError` |
+| 10 | `ProofMismatchError` |
+| 11 | `WorldMismatchError` |
+| 12 | `DeterminismViolationError` |
+| 13 | `ReplayError` |
+| 70 | Anything untyped: a guest trap, or a bug in the runtime |
 
 ## Capabilities (experimental, #279)
 

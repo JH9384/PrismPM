@@ -63,6 +63,7 @@ A holo declares what it imports and exports, and runs with exactly the capabilit
 - `init` scaffolds `prism.toml`, `examples/`, `intent.md`, a default capability set and the lockfile; `npm create prism-code` does the same from npm.
 - `build` writes the model from examples and intent through an agent, and fails by name on an unproved sentence.
 - `run` starts an instance only after `check` passes at the policy's level; `--allow-unverified` prints a warning. `check` and `run` take a policy file.
+- One run of a holo is a container, `created`, `running` or `exited`, with an exit code that follows the typed error and its output, kept until `--rm` or `rm` removes it. `prism.containers` is the same in the SDK.
 - `replay <history>` re-executes recorded inputs and fails on divergence; `dev` watches, rebuilds, re-checks and serves the local studio.
 - `generate` writes JS, Rust and Python bindings and the typed client from the world.
 - `export` writes the six-file browser export or a tarball.

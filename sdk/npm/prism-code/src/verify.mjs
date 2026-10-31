@@ -13,6 +13,8 @@
  */
 import { ASSURANCE, VerifyError, verify as verifyBytes } from './vendor/verify.mjs';
 import { VerificationError, classForCheck, errorFromVerdict } from './errors.mjs';
+import { parseArchive } from './archive.mjs';
+import { attestationSection, ATTESTATION_EXTENSION } from './attestations.mjs';
 
 /** The environment variable that sets the client's minimum assurance level, P0 to P3. */
 export const MINIMUM_LEVEL_ENV = 'PRISM_MINIMUM_LEVEL';
@@ -28,6 +30,26 @@ function defined(options) {
     }
   }
   return Object.fromEntries(Object.entries(options).filter(([, value]) => value !== undefined));
+}
+
+/**
+ * Why a holo with an attestation section has no verdict yet, or null. The
+ * section joins a format revision only when the wire model change of #267
+ * merges; until then every reader refuses it, and a pass would be invented.
+ * `check` and a container's gate both ask this first, so they cannot disagree.
+ */
+export function attestationBlocker(bytes) {
+  let section;
+  try {
+    section = attestationSection(parseArchive(bytes));
+  } catch {
+    return null;
+  }
+  if (!section) return null;
+  return new VerificationError(
+    `the holo carries an attestation section (${ATTESTATION_EXTENSION}), which joins a format revision only when the wire model change of #267 merges; no reader can judge its statements until then`,
+    { check: 'format.revision' },
+  );
 }
 
 function environment(env) {

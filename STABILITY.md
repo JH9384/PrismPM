@@ -77,6 +77,7 @@ Nothing is Stable today.
 | Holo build provenance: the `https://uor.foundation/prism/holo-build/v1` statement, its `min` and `max` modes, and `provenanceStatement`, `attachProvenance`, `readProvenance` in `prism-code` | [docs/proposals/268-build-provenance.md](docs/proposals/268-build-provenance.md) | Experimental |
 | `prism-code` `experimental_verify`, `experimental_createClient`, `Application.experimental_verify` and the `PrismError` hierarchy with its stable codes | `sdk/npm/prism-code` | Experimental |
 | SDK image contract: the digest-pinned OCI index for `linux/amd64` and `linux/arm64` | [SPEC.md](SPEC.md) section 1 | Experimental |
+| `prism-code` containers ([#348](https://github.com/UOR-Foundation/PrismPM/issues/348)): `prism.containers`, the `prism/container/1` shape, `EXIT_CODES`, `run <holo> <input>`, `--rm`, `rm` and the `PRISM_HOME` store | `sdk/npm/prism-code` | Experimental |
 | `prism-code` CLI plugins ([#293](https://github.com/UOR-Foundation/PrismPM/issues/293)): `prism-<name>` on the PATH runs as `prism-code <name>`, the `prism-cli-plugin-metadata` and `prism-cli-plugin-hooks` calls (schema version 1), `errorHooks`, `PRISM_CODE_NO_HOOKS`, and the first-party `prism-doctor` | `sdk/npm/prism-code` | Experimental |
 
 The CLI binary will be renamed `prism`.
@@ -114,6 +115,7 @@ A flag marked planned is named here so you can plan for it; its spelling may cha
 | The OCI layout of a holo: media type `application/vnd.uor.prism.holo.v1`, the fixed `created` annotation and the `foundation.uor.prism.*` annotations. Each is part of the manifest digest | [#292](https://github.com/UOR-Foundation/PrismPM/issues/292) | On main |
 | `prism-code run --capabilities <file>`, `--capability-set <name>` | [#279](https://github.com/UOR-Foundation/PrismPM/issues/279) | On main |
 | `prism-code run <holo>` gated on `check`, `--policy <file>`, `--allow-unverified`; the policy member `effects` and the `policy.effects` reason | [#282](https://github.com/UOR-Foundation/PrismPM/issues/282) | On main |
+| `prism-code run <holo> <input>`, `--input`, `--rm`; `prism-code inspect <container>`; `prism-code rm <container>`; the exit codes of `EXIT_CODES`; `PRISM_HOME` | [#348](https://github.com/UOR-Foundation/PrismPM/issues/348) | On main |
 | `prism-code init [<dir>]`, `--name`, `--template`, `--sdk-image`, `--force`; `npm create prism-code` | [#281](https://github.com/UOR-Foundation/PrismPM/issues/281) | On main |
 | `prism-code manifest [<dir>]`, `--target <browser\|node>`, `--json` | [#280](https://github.com/UOR-Foundation/PrismPM/issues/280) | On main |
 | `prism-code providers <up\|down> [<dir>]`, `--target <browser\|node>`, `--json`; the `prism-provider-kv` binary, its flags and file layout | [#294](https://github.com/UOR-Foundation/PrismPM/issues/294) | On main |
@@ -142,6 +144,8 @@ Until then the old spelling runs as before and prints a warning naming the repla
 | --- | --- | --- |
 | `prism-code` | `experimental_verify`, `experimental_createClient`, `Application.experimental_verify`, `MINIMUM_LEVEL_ENV` and the `PRISM_MINIMUM_LEVEL` variable | [#276](https://github.com/UOR-Foundation/PrismPM/issues/276) |
 | `prism-code` | `PrismError`, `VerificationError`, `ProofMismatchError`, `CapabilityDeniedError`, `DeterminismViolationError`, `ReplayError`, `ERROR_CLASSES`, `classForCheck`, `errorForReason`, `errorFromVerdict` and every error `code` | [#276](https://github.com/UOR-Foundation/PrismPM/issues/276) |
+| `prism-code` | `prism`, `createPrism`, `memoryContainerStore`, `CONTAINER_SCHEMA`, `EXIT_CODES`, `exitCodeFor`, the `Container` object and the `prism/container/1` shape, and the `container.*` error codes. These carry no `experimental_` prefix because their names are the developer view of #346; this row is the marker. | [#348](https://github.com/UOR-Foundation/PrismPM/issues/348) |
+| `prism-code/node` | `fileContainerStore`, `containersDirectory` | [#348](https://github.com/UOR-Foundation/PrismPM/issues/348) |
 | `prism-code/node` | `experimental_attest`, `experimental_verifyAttestations`, `experimental_verifyBundle`, `GITHUB_ACTIONS_ISSUER`; the optional `sigstore` dependencies they load | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) |
 | `prism-code` | `SigningError`, `SignatureInvalidError`, `IdentityMismatchError`, `TransparencyError`, `SubjectMismatchError`, `AttestationNotFoundError`, `TrustRootError` and their `code`s | [#272](https://github.com/UOR-Foundation/PrismPM/issues/272) |
 | `prism-code/node` | `experimental_push`, `experimental_pull`, `openEndpoint`, `openStore`, `createRegistryClient`, `dockerCredentials`, `parseReference`, `formatReference`, `holoManifest`, `referrerManifest`, `registryStatement`, `registryStatements`, `fingerprintTag`, `referrersTag`, `parseChallenge`, `isLoopback`, the media type and annotation constants | [#292](https://github.com/UOR-Foundation/PrismPM/issues/292) |

@@ -142,6 +142,108 @@ export function errorForReason(reason: VerdictReason, verdict?: Verdict): PrismE
 /** The error that explains a failed verdict, or null for a passed one. `ranks` is `ASSURANCE.RANK`. */
 export function errorFromVerdict(verdict: Verdict, ranks: Record<AssuranceLevel, number>): PrismError | null;
 
+/** One row of the exit table. `error` names a class, null for success, or `anything else`. */
+export interface ExitCodeRow {
+  readonly exit: number;
+  readonly error: string | null;
+  /** Narrows `error`: `with a verdict` or `no verdict`. */
+  readonly when?: string;
+  readonly meaning: string;
+}
+/** Experimental. What a run exits with: the single source of truth for containers and the command line (#348). */
+export const EXIT_CODES: readonly ExitCodeRow[];
+/** Experimental. The exit code for how a run ended: null is 0, a typed error takes its row, anything else is 70. */
+export function exitCodeFor(error: unknown): number;
+
+/** Experimental. The `schema` of `Container.inspect()`. */
+export const CONTAINER_SCHEMA: 'prism/container/1';
+export type ContainerStatus = 'created' | 'running' | 'exited';
+
+/** What `Container.inspect()` returns (#348). */
+export interface ContainerRecord {
+  schema: 'prism/container/1';
+  /** 64 lowercase hex characters. A unique prefix also names the container. */
+  id: string;
+  image: {
+    name: string | null;
+    kind: 'holo' | 'closure' | null;
+    /** The archive fingerprint, `blake3:` and 64 hex characters, as in `verdict.holo`. Null for a closure. */
+    digest: string | null;
+  };
+  /** ISO 8601. */
+  created: string;
+  rm: boolean;
+  state: {
+    status: ContainerStatus;
+    /** Null until exited. */
+    exitCode: number | null;
+    /** What ended the run, or null. */
+    error: { name: string; code: string | null; message: string; check?: string; diagnostic?: string } | null;
+    /** Null until running, and null for good when check refused the holo: the guest never ran. */
+    startedAt: string | null;
+    finishedAt: string | null;
+  };
+  /** The verdict of the check this run was gated on, or null when none was reached. */
+  verdict: Verdict | null;
+  /** The output the guest returned, as text when it is valid UTF-8, otherwise as hex. Never the input. */
+  output: { encoding: 'utf-8' | 'hex'; data: string } | null;
+}
+
+/** Experimental. One run of a holo (#348). */
+export interface Container {
+  readonly id: string;
+  readonly status: ContainerStatus;
+  readonly exitCode: number | null;
+  /** The bytes the guest returned, or null. */
+  readonly output: Uint8Array | null;
+  /** The typed error that ended this run, or null. A container read back from a store has the summary in `inspect()` instead. */
+  readonly error: unknown;
+  /** The output as text, or null. */
+  text(): string | null;
+  /** Run it, and resolve to this container once it has exited. A failed run is the exit code, never a rejection. Again after exit runs it again. */
+  start(): Promise<Container>;
+  /** Rejects with `container.missing` once removed. */
+  inspect(): Promise<ContainerRecord>;
+  /** Refused with `container.running` while it runs. */
+  remove(): Promise<void>;
+}
+
+/** Where records are kept. `memoryContainerStore` is the default. */
+export interface ContainerStore {
+  put(record: ContainerRecord): Promise<void>;
+  get(id: string): Promise<ContainerRecord | undefined>;
+  /** The full ids that start with this prefix. */
+  find(prefix: string): Promise<string[]>;
+  remove(id: string): Promise<void>;
+}
+export function memoryContainerStore(): ContainerStore;
+
+export interface ContainerOptions extends LoadOptions {
+  /** The policy to gate on, as `experimental_verify` takes it, or a function that returns it. Default: P2 or above, or `PRISM_MINIMUM_LEVEL`. */
+  policy?: VerifyOptions | (() => VerifyOptions | Promise<VerifyOptions>);
+  /** Run a holo that fails check, or that check cannot judge. Warns on every start; never the default. */
+  allowUnverified?: boolean;
+  /** Remove the container when it exits, as `docker run --rm` does. */
+  rm?: boolean;
+}
+
+/** Experimental. `prism.containers` (#348). `image` is what `load` takes, or an application it returned. */
+export interface Containers {
+  /** Create and start: resolves to the container once it has exited, whatever its exit code. */
+  run(image: Uint8Array | ArrayBuffer | Blob | string | URL | Application, input: string | Uint8Array | ArrayBuffer | ArrayBufferView, options?: ContainerOptions): Promise<Container>;
+  /** Open the image and make a container in state `created`. An image that cannot be opened makes no container. */
+  create(image: Uint8Array | ArrayBuffer | Blob | string | URL | Application, input: string | Uint8Array | ArrayBuffer | ArrayBufferView, options?: ContainerOptions): Promise<Container>;
+  start(id: string): Promise<Container>;
+  /** The container with this id or unique id prefix. Rejects with `container.missing` or `container.ambiguous`. */
+  get(id: string): Promise<Container>;
+  remove(id: string): Promise<void>;
+}
+
+/** Experimental. The default client. Its records live in memory until removed. */
+export const prism: { readonly containers: Containers };
+/** Experimental. A client with containers of its own. `warn` receives the warning of an unverified run. */
+export function createPrism(options?: { store?: ContainerStore; warn?: (message: string) => void }): { readonly containers: Containers };
+
 export type AssuranceLevel = 'P0' | 'P1' | 'P2' | 'P3';
 
 export interface VerdictReason {

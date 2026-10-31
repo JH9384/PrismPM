@@ -203,6 +203,45 @@ async function keylessBuilder(m, options) {
 }
 
 /**
+ * Sign statement bytes into a Sigstore bundle v0.3, with `key` or keyless. The
+ * bundle's JSON is returned; nothing else is written. `attest` stores it in the
+ * holo, and `push` (#292) stores it as a referrer.
+ *
+ * @param {Uint8Array} bytes the in-toto Statement v1 exactly as it is to be signed
+ * @param {{ key?: string | KeyObject, identityToken?: string, signingConfig?: object | string, tufMirrorUrl?: string, tufRoot?: string, tufCache?: string }} options
+ * @returns {Promise<object>}
+ */
+export async function signStatement(bytes, options = {}) {
+  const m = await sigstore();
+  const builder = options.key !== undefined ? await keyedBuilder(m, options.key) : await keylessBuilder(m, options);
+  try {
+    const artifact = { data: Buffer.from(bytes), type: DSSE_PAYLOAD_TYPE };
+    const signed = await builder.create(artifact).catch((error) => {
+      if (isLogConflict(error)) return builder.create(artifact);
+      throw error;
+    });
+    const bundle = m.bundle.bundleToJSON(signed);
+    // A DSSE verifier skips a signature whose keyid is not its own, and cosign's is not this hash, so a keyed bundle with one
+    // verifies nowhere but here. The keyid is not signed, and the hint in the verification material still names the key.
+    if (options.key !== undefined) for (const signature of bundle.dsseEnvelope.signatures) signature.keyid = '';
+    return bundle;
+  } catch (cause) {
+    if (cause instanceof PrismError) throw cause;
+    const message = cause?.message ?? String(cause);
+    // The CI identity provider rejects with a plain string; sigstore's own errors carry a code.
+    const identity = typeof cause === 'string' || /^IDENTITY_TOKEN/.test(cause?.code ?? '');
+    throw new SigningError(
+      typeof cause === 'string' || cause?.code === 'IDENTITY_TOKEN_READ_ERROR'
+        ? `no OIDC identity token is available: set SIGSTORE_ID_TOKEN, pass identityToken, or run in GitHub Actions with id-token: write (${message})`
+        : identity
+          ? `the OIDC identity token cannot be used: ${message}`
+          : `signing failed: ${message}`,
+      { check: identity ? 'sign.identity' : 'sign.service', cause },
+    );
+  }
+}
+
+/**
  * Sign a statement about a holo and return the holo with the bundle appended to
  * its attestation section. The input holo is not modified.
  *
@@ -223,30 +262,7 @@ export async function experimental_attest(source, options) {
   if (!isObject(options)) throw new SigningError('attest takes an options object with a type and a predicate', { check: 'sign.predicate' });
   const parsed = parseArchive(await holoBytes(source));
   const { statement, bytes } = buildStatement(parsed, options);
-  const m = await sigstore();
-  const builder = options.key !== undefined ? await keyedBuilder(m, options.key) : await keylessBuilder(m, options);
-  let bundle;
-  try {
-    const artifact = { data: Buffer.from(bytes), type: DSSE_PAYLOAD_TYPE };
-    const signed = await builder.create(artifact).catch((error) => {
-      if (isLogConflict(error)) return builder.create(artifact);
-      throw error;
-    });
-    bundle = m.bundle.bundleToJSON(signed);
-  } catch (cause) {
-    if (cause instanceof PrismError) throw cause;
-    const message = cause?.message ?? String(cause);
-    // The CI identity provider rejects with a plain string; sigstore's own errors carry a code.
-    const identity = typeof cause === 'string' || /^IDENTITY_TOKEN/.test(cause?.code ?? '');
-    throw new SigningError(
-      typeof cause === 'string' || cause?.code === 'IDENTITY_TOKEN_READ_ERROR'
-        ? `no OIDC identity token is available: set SIGSTORE_ID_TOKEN, pass identityToken, or run in GitHub Actions with id-token: write (${message})`
-        : identity
-          ? `the OIDC identity token cannot be used: ${message}`
-          : `signing failed: ${message}`,
-      { check: identity ? 'sign.identity' : 'sign.service', cause },
-    );
-  }
+  const bundle = await signStatement(bytes, options);
   const holo = appendAttestations(parsed, [bundle]);
   return { holo, bundle, statement, attestations: readAttestations(holo).length };
 }
@@ -308,7 +324,7 @@ function policyOf(options) {
 }
 
 /** The blobs a bundle's subjects name must be in this holo with both digests equal; otherwise a typed error. */
-function checkSubjects(parsed, attestation) {
+export function checkSubjects(parsed, attestation) {
   for (const subject of attestation.subjects) {
     const blob = subject.blob === null ? null : parsed.blobs.find((b) => b.label === subject.blob);
     if (!blob) throw new SubjectMismatchError(`subject ${subject.name} is not a content blob of this holo`, { check: 'attestation.subject' });

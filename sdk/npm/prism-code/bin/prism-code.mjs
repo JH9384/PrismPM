@@ -18,6 +18,8 @@
  *   prism-code verify-attestation <app.holo> ...      check the signatures of those statements
  *   prism-code check <app.holo> [--policy <file>] [--json]
  *                                                     judge the holo against a policy and print its verdict
+ *   prism-code push <app.holo> <reference>            put the holo and its attestations in a registry or a local store
+ *   prism-code pull <reference> [<out.holo>]          fetch a holo, verify it, then write it
  *   prism-code build [--check]|verify|conformance ... run prismpm in the locked SDK image
  *   prism-code <plugin> [args]                        run prism-<plugin> from the PATH (experimental)
  *
@@ -26,7 +28,8 @@
  * capability set grants, a world outside the grant, a manifest that fails
  * its checks, or a provider that failed, included) or no verdict, 3 signing failed or the sigstore
  * packages are missing, 64 usage, 69 Docker unavailable, otherwise the
- * delegated command's or the plugin's code.
+ * delegated command's or the plugin's code. `push` and `pull` exit 1 when a digest
+ * or the holo fails, 2 when the registry gives no answer (#292).
  *
  * `check` without a holo is the 0.2.0 spelling of `build --check`. It still
  * runs, with a warning, and is removed in 0.4.0 (STABILITY.md, Deprecated).
@@ -80,6 +83,12 @@ Usage:
   prism-code check <app.holo> [--policy <file>] [--json]
                                                     judge the holo against a policy and print its verdict:
                                                     exit 0 passed, 1 failed, 2 no verdict
+  prism-code push <app.holo | dir://store:tag> <reference> [--key <private.pem> | --keyless] [--store <dir>]
+                                                    put the holo in an OCI registry or a local store, each attestation
+                                                    a referrer; a signer also signs a statement naming the manifest
+  prism-code pull <reference> [<out.holo> | dir://store:tag] [--policy <file>] [--store <dir>]
+                                                    fetch a holo and write it only after it verifies: digests, archive,
+                                                    verdict, attestations; the verify-attestation flags add a signer policy
   prism-code build --check [args]                   prismpm check in the SDK image named by ./prismpm.lock:
                                                     validate the model, write nothing
   prism-code build [args]                           prismpm build (needs the Docker socket)
@@ -108,6 +117,19 @@ Options for check:    --policy <file>              a Rego file (.rego), the name
                                                    the grant. Exit 1 when it denies, 2 when it cannot be evaluated
                       --json                       the verdict as one canonical JSON object
                       deprecated: check without a holo runs build --check; removed in 0.4.0
+Options for push:     --key <private.pem>          sign a statement naming the manifest, per predicate in the holo, for cosign verify-attestation
+                      --keyless                    the same with an OIDC token, as attest does; --signing-config for a private instance
+                      --no-attestations            push only the holo's manifest; the section stays in the file
+Options for pull:     --policy <file>              the policy check reads; default: P0 or above, or PRISM_MINIMUM_LEVEL
+                      --key <public.pem>, --certificate-identity <id>, --certificate-identity-regexp <re>, --certificate-oidc-issuer <url>
+                                                   at least one attestation must pass this signer policy, as verify-attestation
+                      --type <uri>, --trusted-root <file>, --entries <n>, --timestamps <n>
+                                                   narrow or pin the signer policy, as verify-attestation
+Options for both:     --store <dir>                the reference is a name in this local OCI layout; dir://<dir>[:tag] says the same
+                      --plain-http                 reach a registry over HTTP; a loopback registry already is
+                      --json                       the result as one canonical JSON object
+                      references: registry/repo[:tag], registry/repo@sha256:<hex>, registry/repo@blake3:<fingerprint> (pull);
+                      credentials come from Docker's config, or GHCR_TOKEN or GITHUB_TOKEN for ghcr.io
 Options for manifest: --target <browser|node>      merge prism.browser.toml or prism.node.toml over prism.toml
                       --json                       the merged manifest and the warnings as canonical JSON
 Options for providers: --target <browser|node>     merge prism.browser.toml or prism.node.toml over prism.toml
@@ -149,6 +171,7 @@ const VALUE_OPTIONS = [
   'capability-set',
   'policy',
   'target',
+  'store',
 ];
 
 function parse(argv) {
@@ -256,6 +279,14 @@ async function commandAttestation(verb, positional, options) {
   if (bad) return usage(`--${bad} takes a value`);
   const cli = await import('../src/attest-cli.mjs');
   return verb === 'attest' ? cli.runAttest(positional, options, usage) : cli.runVerifyAttestation(positional, options, usage);
+}
+
+// A registry client and a store are not needed by any other verb; load them only when one of these runs.
+async function commandTransfer(verb, positional, options) {
+  const bad = missingValue(options);
+  if (bad) return usage(`--${bad} takes a value`);
+  const cli = await import('../src/push-pull-cli.mjs');
+  return verb === 'push' ? cli.runPush(positional, options, usage) : cli.runPull(positional, options, usage);
 }
 
 const CHECK_OPTIONS = ['policy', 'json'];
@@ -478,6 +509,9 @@ async function main(argv) {
     case 'attest':
     case 'verify-attestation':
       return commandAttestation(command, positional, options);
+    case 'push':
+    case 'pull':
+      return commandTransfer(command, positional, options);
     case 'check':
       if (namesHolo(positional)) return commandCheck(positional, options);
       process.stderr.write('prism-code check without a holo is deprecated and is removed in 0.4.0; use prism-code build --check, which runs the same prismpm check\n');

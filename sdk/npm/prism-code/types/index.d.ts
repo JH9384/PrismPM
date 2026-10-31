@@ -107,6 +107,34 @@ export class ProviderFailedError extends ProviderError {
 export class TrustRootError extends PrismError {
   static readonly code: 'trust_root_invalid';
 }
+/** `registry_failed`: a registry or a local store could not do what was asked. `check` is `registry.*` or `store.*`. */
+export class RegistryError extends PrismError {
+  static readonly code: 'registry_failed';
+}
+/** `registry_auth_failed`: the registry refused the credentials, or asked for them where they must not be sent. */
+export class RegistryAuthError extends PrismError {
+  static readonly code: 'registry_auth_failed';
+}
+/** `referrers_unsupported`: no referrers API, and the referrers tag cannot be read or written, or the fallback is off. */
+export class ReferrersUnsupportedError extends PrismError {
+  static readonly code: 'referrers_unsupported';
+}
+/** `manifest_not_found`: the reference names nothing in the registry or the store. */
+export class ManifestNotFoundError extends PrismError {
+  static readonly code: 'manifest_not_found';
+}
+/** `digest_mismatch`: bytes differ from the digest a descriptor, a reference, a registry header or an annotation claimed. */
+export class DigestMismatchError extends PrismError {
+  static readonly code: 'digest_mismatch';
+}
+/** `pull_verification_failed`: a pulled holo failed its verdict, its attestations or the signer policy; nothing was written. */
+export class PullVerificationError extends PrismError {
+  static readonly code: 'pull_verification_failed';
+}
+/** `reference_invalid`: the text is not a registry or store reference. `check` is `reference.*`. */
+export class ReferenceInvalidError extends PrismError {
+  static readonly code: 'reference_invalid';
+}
 export const ERROR_CLASSES: Readonly<Record<string, typeof PrismError>>;
 /** The class a verdict reason's check id maps to. */
 export function classForCheck(check: string): typeof PrismError;

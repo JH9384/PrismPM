@@ -184,3 +184,24 @@ export async function serve(app, { port = 0, host = '127.0.0.1' } = {}) {
 
 // Signing and checking attestations (#272). The sigstore packages they need are optional and load on first use.
 export { experimental_attest, experimental_verifyAttestations, experimental_verifyBundle, GITHUB_ACTIONS_ISSUER } from './attest.mjs';
+
+// Moving holos to and from a registry or a local store (#292).
+export { experimental_push, experimental_pull, openEndpoint, MAX_HOLO_BYTES, PUSH_SCHEMA, PULL_SCHEMA } from './push-pull.mjs';
+export { parseReference, formatReference } from './oci-reference.mjs';
+export { createRegistryClient, parseChallenge, isLoopback } from './oci-registry.mjs';
+export { dockerCredentials } from './oci-auth.mjs';
+export { openStore } from './oci-store.mjs';
+export {
+  holoManifest,
+  referrerManifest,
+  registryStatement,
+  registryStatements,
+  fingerprintTag,
+  referrersTag,
+  HOLO_MEDIA_TYPE,
+  MANIFEST_MEDIA_TYPE,
+  INDEX_MEDIA_TYPE,
+  EMPTY_DESCRIPTOR,
+  ANNOTATION,
+  CREATED,
+} from './oci-manifest.mjs';

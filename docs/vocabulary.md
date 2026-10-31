@@ -40,13 +40,13 @@ Today's command is `prismpm`. The v1.0 roadmap renames it `prism`. Read
 | check | `prismpm check` validates the model in memory and writes nothing ([SPEC §4](../SPEC.md#4-controller-api-cli-and-diagnostics)). | `docker build --check` |
 | verify | `prismpm verify` checks the Lean proofs and runs the holo's acceptance vectors in an independent oracle ([SPEC §1.3](../SPEC.md#13-compiler-pipeline)). | none |
 | run | `prismpm run REF` runs a release through its modeled Compose target. `prism-code run app.holo` serves one holo ([`prism-code`](../sdk/npm/prism-code/README.md#run-it)). | `docker run` |
-| push / pull | `prismpm push REF`, `prismpm pull REF` ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). | `docker push`, `docker pull` |
+| push / pull | `prismpm push REF`, `prismpm pull REF` move a product release ([SPEC §13](../SPEC.md#13-oci-product-release-graph)). `prism-code push <holo> REF` and `prism-code pull REF` move one holo and its attestations ([proposal](proposals/292-push-pull-oci.md)). | `docker push`, `docker pull` |
 | inspect | `prismpm inspect REF` for a product release and `prismpm inspect <path.holo>` for one holo. `hologram holo inspect` and `prism-code inspect` also read a holo. | `docker inspect` |
 | export | `prismpm export-browser REF --output DIR` ([README](../README.md#development-and-acceptance)). | `docker build --output` |
 | lock / update | `prismpm lock` writes or refreshes the pinned inputs in `prismpm.lock` without building. `prismpm update --toolchain REF` pins a new SDK image and prints the old and new digests. `prismpm lock check` verifies the lock, and `prismpm lock update` proposes a new pin and does not apply it. | `npm install` and `npm update`, or editing the `FROM ...@sha256:` pin |
 | deploy | `prismpm plan` then `prismpm deploy` through the Compose or Kubernetes adapter ([SPEC §15](../SPEC.md#15-target-planning-and-deployment)). | `docker compose up`, `docker stack deploy` |
 
-`REF` is a registry-qualified immutable reference, `NAME@sha256:DIGEST`.
+`REF` is a registry-qualified immutable reference, `NAME@sha256:DIGEST`. `prism-code push` and `pull` also take `NAME:TAG`, `NAME@blake3:FINGERPRINT` and `dir://PATH`.
 
 ## The stack
 

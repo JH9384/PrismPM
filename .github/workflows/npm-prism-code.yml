@@ -87,8 +87,8 @@ jobs:
           npm pack --dry-run --json > pack.json
           size=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("pack.json","utf8"))[0].unpackedSize)')
           echo "unpacked size: $size bytes"
-          # 640 KiB is the prism-code package cap. It is set above the 416 KiB cap of @prism-code/verify because prism-code vendors that build (src/vendor/verify.mjs, so holo.verify() has no dependency) and adds its own code. 640 KiB leaves room for the M2-M4 roadmap features in flight.
-          test "$size" -le 655360
+          # 768 KiB is the prism-code package cap. It is set above the 416 KiB cap of @prism-code/verify because prism-code vendors that build (src/vendor/verify.mjs, so holo.verify() has no dependency) and adds its own code. Raised from 640 KiB when push and pull (#292) landed after provider services (#294).
+          test "$size" -le 786432
           rm pack.json
       - name: The entry points import cleanly
         shell: bash

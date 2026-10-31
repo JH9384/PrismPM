@@ -81,6 +81,18 @@ export declare const ATTESTATION_BUNDLE: Readonly<{
   SCHEMA: 'schemas/attestation/sigstore-bundle.schema.json';
   PROVENANCE_PREDICATE_TYPE: 'https://slsa.dev/provenance/v1';
   OCI_ANNOTATIONS: Readonly<{ CONTENT: 'dev.sigstore.bundle.content'; PREDICATE_TYPE: 'dev.sigstore.bundle.predicateType' }>;
+
+/** A holo as an OCI artifact, issue #292. Part of the digest of its manifest. */
+export declare const OCI: Readonly<{
+  HOLO_MEDIA_TYPE: 'application/vnd.uor.prism.holo.v1';
+  CREATED: '1970-01-01T00:00:00Z';
+  ANNOTATIONS: Readonly<{
+    FINGERPRINT: 'foundation.uor.prism.holo.fingerprint';
+    APPLICATION: 'foundation.uor.prism.holo.application';
+    BLAKE3: 'foundation.uor.prism.digest.blake3';
+  }>;
+  FINGERPRINT_TAG_PREFIX: 'blake3-';
+}>;
   OCI_CONTENT: 'dsse-envelope';
 }>;
 

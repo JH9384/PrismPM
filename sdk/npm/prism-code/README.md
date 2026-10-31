@@ -610,6 +610,53 @@ Errors are typed: `SigningError` (`sign.*`), `SignatureInvalidError`, `IdentityM
 `prism-code verify` already runs `prismpm verify`. The design is
 [docs/proposals/272-attest-verify.md](../../../docs/proposals/272-attest-verify.md).
 
+## Push and pull (experimental, #292)
+
+```
+prism-code push app.holo ghcr.io/acme/app:1.0 --keyless
+prism-code pull ghcr.io/acme/app:1.0 app.holo \
+  --certificate-identity https://github.com/acme/app/.github/workflows/release.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+`push` puts the holo in any OCI Distribution 1.1 registry as one layer of a deterministic manifest, so the
+same file has one digest everywhere. Each line of its attestation section becomes a referrer with the same bytes,
+in the layout cosign writes. A registry without the referrers API gets the spec's `sha256-<digest>` tag instead.
+With `--key` or `--keyless`, `push` also signs a statement per predicate that names the manifest, which is what
+`cosign verify-attestation` looks for; without a signer it warns. `oras discover` lists them all.
+
+`pull` writes nothing until the holo has passed, in order: the manifest and layer digests, the archive's footer and
+labels, the BLAKE3 annotations, the verdict of `check` under `--policy` (default P0, or `PRISM_MINIMUM_LEVEL`),
+the subjects of every attestation, and, when you name a signer with the flags of `verify-attestation`, at least one
+signature. Without a signer it says signatures were not checked. Exit codes: 0 done, 1 a digest or a check failed,
+2 no answer from the registry, 3 signing failed, 64 usage.
+
+| Reference | Means |
+| --- | --- |
+| `ghcr.io/acme/app:1.0` | A tag; `latest` when none is given. A registry is required: there is no default. |
+| `ghcr.io/acme/app@sha256:<hex>` | The manifest digest. |
+| `ghcr.io/acme/app@blake3:<hex>` | The archive fingerprint, pull only, through the `blake3-<hex>` tag `push` writes. The bytes are checked, so the tag proves nothing by itself. |
+| `dir://./store:1.0`, `--store ./store app:1.0` | A local OCI image layout, for offline use. `oras --oci-layout` reads it. |
+
+`pull ghcr.io/acme/app:1.0 dir://./store:1.0` keeps the holo and its referrers for offline use, and `push
+dir://./store:1.0 registry.internal/app:1.0` publishes them again with the same digest.
+
+Credentials come from Docker's config (`credHelpers`, `auths`, `credsStore`), and for `ghcr.io` from `GHCR_TOKEN` or
+`GITHUB_TOKEN`. No flag takes a token. A loopback registry speaks HTTP; any other needs `--plain-http`.
+
+```js
+import { experimental_push, experimental_pull } from 'prism-code/node';
+
+const pushed = await experimental_push(bytes, 'ghcr.io/acme/app:1.0', { key: privatePem });
+pushed.digest;       // sha256:...
+pushed.fingerprint;  // blake3:...
+const { holo, verdict } = await experimental_pull('ghcr.io/acme/app:1.0', { key: publicPem, output: 'app.holo' });
+```
+
+Errors are typed: `RegistryAuthError`, `ReferrersUnsupportedError`, `DigestMismatchError`, `PullVerificationError`,
+`ManifestNotFoundError`, `RegistryError`, `ReferenceInvalidError`. The design is
+[docs/proposals/292-push-pull-oci.md](../../../docs/proposals/292-push-pull-oci.md).
+
 ## In the browser
 
 ```js

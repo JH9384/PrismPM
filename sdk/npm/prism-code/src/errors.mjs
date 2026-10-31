@@ -21,6 +21,9 @@
  * - `SignatureInvalidError`, `IdentityMismatchError`, `TransparencyError`,
  *   `SubjectMismatchError`, `AttestationNotFoundError`, `TrustRootError`: the
  *   reasons `verify-attestation` can refuse a bundle (#272).
+ * - `RegistryError`, `RegistryAuthError`, `ReferrersUnsupportedError`,
+ *   `ManifestNotFoundError`, `DigestMismatchError`, `PullVerificationError`,
+ *   `ReferenceInvalidError`: the reasons `push` and `pull` can stop (#292).
  * - `ProviderNotFoundError`, `ProviderReplyError`, `ProviderFailedError`: the
  *   ways running a provider service can fail (#294). `ProviderError` is their base.
  *
@@ -144,6 +147,34 @@ AttestationNotFoundError.code = 'attestation_not_found';
 export class TrustRootError extends PrismError {}
 TrustRootError.code = 'trust_root_invalid';
 
+/** A registry or a local store could not do what was asked. `check` is `registry.*` or `store.*`. */
+export class RegistryError extends PrismError {}
+RegistryError.code = 'registry_failed';
+
+/** The registry refused the credentials, or asked for them where they must not be sent. `check` is `registry.auth`, `registry.denied` or `registry.insecure`. */
+export class RegistryAuthError extends PrismError {}
+RegistryAuthError.code = 'registry_auth_failed';
+
+/** The registry has no referrers API and its referrers tag cannot be read or written, or the caller turned the fallback off. */
+export class ReferrersUnsupportedError extends PrismError {}
+ReferrersUnsupportedError.code = 'referrers_unsupported';
+
+/** The reference names nothing in the registry or the store. */
+export class ManifestNotFoundError extends PrismError {}
+ManifestNotFoundError.code = 'manifest_not_found';
+
+/** Bytes differ from the digest something claimed for them: a descriptor, a reference, a registry header or an annotation. */
+export class DigestMismatchError extends PrismError {}
+DigestMismatchError.code = 'digest_mismatch';
+
+/** `pull` fetched a holo that failed its verdict, its attestations or the signer policy, and wrote nothing. `check` is `pull.*`. */
+export class PullVerificationError extends PrismError {}
+PullVerificationError.code = 'pull_verification_failed';
+
+/** The text is not a registry or store reference. `check` is `reference.*`. */
+export class ReferenceInvalidError extends PrismError {}
+ReferenceInvalidError.code = 'reference_invalid';
+
 /** Running a provider service failed (#294). `details` names the capability and the provider type. */
 export class ProviderError extends PrismError {}
 ProviderError.code = 'provider_error';
@@ -182,6 +213,13 @@ export const ERROR_CLASSES = Object.freeze({
   [SubjectMismatchError.code]: SubjectMismatchError,
   [AttestationNotFoundError.code]: AttestationNotFoundError,
   [TrustRootError.code]: TrustRootError,
+  [RegistryError.code]: RegistryError,
+  [RegistryAuthError.code]: RegistryAuthError,
+  [ReferrersUnsupportedError.code]: ReferrersUnsupportedError,
+  [ManifestNotFoundError.code]: ManifestNotFoundError,
+  [DigestMismatchError.code]: DigestMismatchError,
+  [PullVerificationError.code]: PullVerificationError,
+  [ReferenceInvalidError.code]: ReferenceInvalidError,
   [ProviderNotFoundError.code]: ProviderNotFoundError,
   [ProviderReplyError.code]: ProviderReplyError,
   [ProviderFailedError.code]: ProviderFailedError,

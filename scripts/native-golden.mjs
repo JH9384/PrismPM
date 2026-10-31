@@ -510,7 +510,7 @@ export async function runReview({source, revision, destination}, transport = exe
   return result;
 }
 
-export const NATIVE_INPUT_PATHS = Object.freeze(["stdlib/**", "tests/golden/**", "vendor/lexlean/**", "crates/prismpm/src/**", "model/**", "schemas/**", "sdk/**", "lexlean.toml", "lexlean.lock", "lean-toolchain", "rust-toolchain.toml", "Cargo.toml", "Cargo.lock", "scripts/native-golden.mjs", "scripts/ci-observe.mjs", ".github/workflows/native-golden.yml"]);
+export const NATIVE_INPUT_PATHS = Object.freeze(["stdlib/**", "tests/golden/**", "vendor/lexlean/**", "crates/prismpm/src/**", "model/**", "schemas/**", "sdk/**", "!sdk/npm/**", "!sdk/docs/**", "lexlean.toml", "lexlean.lock", "lean-toolchain", "rust-toolchain.toml", "Cargo.toml", "Cargo.lock", "scripts/native-golden.mjs", "scripts/ci-observe.mjs", ".github/workflows/native-golden.yml"]);
 
 export function validateWorkflow(text) {
   assert.match(text, /^  pull_request:\n(?:    #.*\n)+    paths:\n((?:      - '.*'\n)+)  push:\n    branches: \[main\]\n    tags: \['v\*'\]\n  workflow_dispatch:\n/m);

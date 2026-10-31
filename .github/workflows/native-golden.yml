@@ -6,7 +6,9 @@ on:
   pull_request:
     # Only inputs the native records depend on: stdlib and golden sources, the
     # compiler/emitter closure, LexLean, toolchains and SDK image inputs. A PR
-    # that changes them gets its review artifacts to import.
+    # that changes them gets its review artifacts to import. The npm packages and
+    # docs under sdk/ are not compiled into the native records (only test code
+    # reads their fixtures), so they are excluded.
     paths:
       - 'stdlib/**'
       - 'tests/golden/**'
@@ -15,6 +17,8 @@ on:
       - 'model/**'
       - 'schemas/**'
       - 'sdk/**'
+      - '!sdk/npm/**'
+      - '!sdk/docs/**'
       - 'lexlean.toml'
       - 'lexlean.lock'
       - 'lean-toolchain'

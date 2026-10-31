@@ -1,0 +1,124 @@
+{
+  "feature": "dispatch",
+  "title": "Dispatch through the guest",
+  "checks": [
+    {
+      "id": "dispatch.vectors.reference",
+      "title": "Every acceptance vector of the reference holo answers byte for byte, with the vectors given by this suite and not read from the holo.",
+      "op": "dispatch",
+      "archive": "reference",
+      "input": {
+        "requests": [
+          { "$utf8": "1\tadd\t0\t0" },
+          { "$utf8": "1\tadd\t20\t22" },
+          { "$utf8": "1\tadd\t9223372036854775807\t0" },
+          { "$utf8": "1\tadd\t9223372036854775807\t1" },
+          { "$utf8": "1\tadd\t-9223372036854775808\t-1" },
+          { "$utf8": "1\tsubtract\t-7\t5" },
+          { "$utf8": "1\tsubtract\t-9223372036854775808\t1" },
+          { "$utf8": "1\tsubtract\t9223372036854775807\t-1" },
+          { "$utf8": "1\tmultiply\t-6\t7" },
+          { "$utf8": "1\tmultiply\t9223372036854775807\t2" },
+          { "$utf8": "1\tmultiply\t-9223372036854775808\t-1" },
+          { "$utf8": "1\tdivide\t-7\t3" },
+          { "$utf8": "1\tdivide\t7\t-3" },
+          { "$utf8": "1\tdivide\t1\t0" },
+          { "$utf8": "1\tdivide\t-9223372036854775808\t-1" },
+          { "$utf8": "" },
+          { "$utf8": "2\tadd\t1\t2" },
+          { "$utf8": "1\tmod\t1\t2" },
+          { "$utf8": "1\tadd\t01\t2" },
+          { "$utf8": "1\tadd\t+1\t2" },
+          { "$utf8": "1\tadd\t1" },
+          "ff"
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "responses": [
+            { "hex": { "$utf8": "1\tok\t0" } },
+            { "hex": { "$utf8": "1\tok\t42" } },
+            { "hex": { "$utf8": "1\tok\t9223372036854775807" } },
+            { "hex": { "$utf8": "1\terror\toverflow" } },
+            { "hex": { "$utf8": "1\terror\toverflow" } },
+            { "hex": { "$utf8": "1\tok\t-12" } },
+            { "hex": { "$utf8": "1\terror\toverflow" } },
+            { "hex": { "$utf8": "1\terror\toverflow" } },
+            { "hex": { "$utf8": "1\tok\t-42" } },
+            { "hex": { "$utf8": "1\terror\toverflow" } },
+            { "hex": { "$utf8": "1\terror\toverflow" } },
+            { "hex": { "$utf8": "1\tok\t-2" } },
+            { "hex": { "$utf8": "1\tok\t-2" } },
+            { "hex": { "$utf8": "1\terror\tdivision-by-zero" } },
+            { "hex": { "$utf8": "1\terror\toverflow" } },
+            { "hex": { "$utf8": "1\terror\tmalformed-request" } },
+            { "hex": { "$utf8": "1\terror\tunsupported-version" } },
+            { "hex": { "$utf8": "1\terror\tunknown-operation" } },
+            { "hex": { "$utf8": "1\terror\tmalformed-request" } },
+            { "hex": { "$utf8": "1\terror\tmalformed-request" } },
+            { "hex": { "$utf8": "1\terror\tmalformed-request" } },
+            { "hex": { "$utf8": "1\terror\tmalformed-request" } }
+          ]
+        }
+      }
+    },
+    {
+      "id": "dispatch.acceptance.reference",
+      "title": "The runtime's own replay of the holo's vectors passes all of them.",
+      "op": "acceptance",
+      "archive": "reference",
+      "expect": { "ok": true, "result": { "total": 22, "passed": 22 } }
+    },
+    {
+      "id": "dispatch.fresh-instance.repeat",
+      "title": "The same request answers the same bytes every time, in one process.",
+      "op": "dispatch",
+      "archive": "reference",
+      "input": {
+        "requests": [{ "$utf8": "1\tmultiply\t-6\t7" }, { "$utf8": "1\tmultiply\t-6\t7" }, { "$utf8": "1\tmultiply\t-6\t7" }]
+      },
+      "expect": {
+        "ok": true,
+        "result": { "responses": [{ "hex": { "$utf8": "1\tok\t-42" } }, { "hex": { "$utf8": "1\tok\t-42" } }, { "hex": { "$utf8": "1\tok\t-42" } }] }
+      }
+    },
+    {
+      "id": "dispatch.fresh-instance.no-state-between-requests",
+      "title": "A failed request changes nothing about the next one.",
+      "op": "dispatch",
+      "archive": "reference",
+      "input": {
+        "requests": [{ "$utf8": "1\tdivide\t1\t0" }, { "$utf8": "1\tadd\t20\t22" }]
+      },
+      "expect": {
+        "ok": true,
+        "result": { "responses": [{ "hex": { "$utf8": "1\terror\tdivision-by-zero" } }, { "hex": { "$utf8": "1\tok\t42" } }] }
+      }
+    },
+    {
+      "id": "dispatch.limits.over-the-request-maximum",
+      "title": "A request above the model's maximum reaches the guest and is answered as malformed.",
+      "op": "dispatch",
+      "archive": "reference",
+      "input": { "requests": [{ "$zeros": 53 }] },
+      "expect": { "ok": true, "result": { "responses": [{ "hex": { "$utf8": "1\terror\tmalformed-request" } }] } }
+    },
+    {
+      "id": "dispatch.limits.at-the-allocation-maximum",
+      "title": "A request of exactly the guest allocation maximum is dispatched.",
+      "op": "dispatch",
+      "archive": "reference",
+      "input": { "requests": [{ "$zeros": 65536 }] },
+      "expect": { "ok": true, "result": { "responses": [{ "hex": { "$utf8": "1\terror\tmalformed-request" } }] } }
+    },
+    {
+      "id": "dispatch.limits.over-the-allocation-maximum",
+      "title": "A request above the guest allocation maximum is refused before the guest runs.",
+      "op": "dispatch",
+      "archive": "reference",
+      "input": { "requests": [{ "$zeros": 65537 }] },
+      "expect": { "ok": true, "result": { "responses": [{ "error": { "code": "core.allocation" } }] } }
+    }
+  ]
+}

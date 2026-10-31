@@ -8,3 +8,6 @@ sdk/npm/**/*.rego text eol=lf
 sdk/npm/**/*.d.ts text eol=lf
 sdk/npm/**/*.json text eol=lf
 schemas/**/*.json text eol=lf
+# The matrix is generated and compared byte for byte; the corpus is hashed (#287).
+COMPLIANCE.md text eol=lf
+sdk/npm/conformance/corpus/*.holo binary

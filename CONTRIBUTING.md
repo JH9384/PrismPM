@@ -73,3 +73,24 @@ Closes [#249](https://github.com/UOR-Foundation/PrismPM/issues/249).
 ```
 
 `node sdk/docs/generate.mjs verify` (the `docs generate` workflow on every pull request) rejects a shipped release whose features name no request. The rule is `changelogProblems` in `sdk/docs/lib/site.mjs`. The published `changelog.md` on the `docs-site` branch therefore names every request it shipped. Use the full link, not a bare `#N`: the docs vocabulary lint rejects bare issue numbers in prose, and the site is read off GitHub.
+
+## Changing the `.holo` format: add a scenario
+
+A change to the `.holo` format cannot merge without a scenario in [`@prism-code/conformance`](sdk/npm/conformance/README.md), the suite every runtime runs. The `conformance gate` workflow enforces this on every pull request. It compares your change with `sdk/npm/conformance/format-gate.json`, which maps format files (the spec package's schemas, constants and worlds, and the Rust writer) to the scenario files that cover them.
+
+1. **Add or change a check** in a scenario file the failure message names, in the same pull request. A new check that fails without your change is what the gate is asking for. Whitespace, a title, a placeholder or a removed check does not count.
+2. **Or exempt the file**, only when the format truly did not change, such as a refactor of the writer that leaves every byte alone: add `{ "files": [...], "reason": "..." }` to `exemptions` in `format-gate.json`, in the same pull request, for a reviewer to accept or refuse.
+
+To check before you push:
+
+```bash
+node sdk/npm/conformance/bin/prism-conformance.mjs gate --base origin/main --head HEAD
+```
+
+If your change alters what a runtime does, the suite or `COMPLIANCE.md` may also change. `COMPLIANCE.md` is generated, never edited by hand, and CI fails when it is stale:
+
+```bash
+node sdk/npm/conformance/bin/prism-conformance.mjs matrix --write
+```
+
+The [package README](sdk/npm/conformance/README.md) holds the shim contract for adding a runtime, and how to write a scenario.

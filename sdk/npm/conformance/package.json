@@ -1,0 +1,50 @@
+{
+  "name": "@prism-code/conformance",
+  "version": "0.1.0",
+  "description": "The executable suite every Prism runtime runs in CI through an entrypoint shim: the .holo format and the runtime contract as data, with expected failures, stable check ids and a generated compliance matrix.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "prism-conformance": "./bin/prism-conformance.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "src",
+    "scenarios",
+    "corpus",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "vendor": "node scripts/vendor.mjs"
+  },
+  "keywords": [
+    "prism",
+    "prismpm",
+    "holo",
+    "conformance",
+    "compliance",
+    "core-wasm",
+    "uor"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UOR-Foundation/PrismPM",
+    "directory": "sdk/npm/conformance"
+  },
+  "homepage": "https://github.com/UOR-Foundation/PrismPM/tree/main/sdk/npm/conformance",
+  "bugs": "https://github.com/UOR-Foundation/PrismPM/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

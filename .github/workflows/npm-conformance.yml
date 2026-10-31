@@ -1,0 +1,129 @@
+name: npm conformance
+
+# The suite every Prism runtime runs, in sdk/npm/conformance (#287). Short,
+# path-filtered and outside the devcontainer, like npm-prism-code.yml. It runs
+# when the suite changes, when a runtime under test changes, and when anything the
+# suite vendors changes. COMPLIANCE.md is in the paths so a hand edit fails here.
+# There is no publish job.
+#
+# A runtime joins by adding its shim to sdk/npm/conformance/runtimes.json and a
+# step to the suite job that writes results/<name>.json; `matrix --check` refuses
+# a registered runtime with no results.
+
+on:
+  pull_request:
+    paths:
+      - sdk/npm/conformance/**
+      - sdk/npm/prism-code/src/**
+      - sdk/npm/prism-code/conformance/**
+      - sdk/npm/prism-code/fixtures/**
+      - sdk/npm/prism-code/package.json
+      # src/vendor copies these; the vendor check fails when one drifts.
+      - sdk/npm/spec/schemas/verdict/**
+      - sdk/npm/spec/test/json-schema.mjs
+      - docs/adr/015-dual-digests.md
+      - COMPLIANCE.md
+      - .github/workflows/npm-conformance.yml
+  push:
+    branches: [main]
+    paths:
+      - sdk/npm/conformance/**
+      - sdk/npm/prism-code/src/**
+      - sdk/npm/prism-code/conformance/**
+      - sdk/npm/prism-code/fixtures/**
+      - sdk/npm/prism-code/package.json
+      - sdk/npm/spec/schemas/verdict/**
+      - sdk/npm/spec/test/json-schema.mjs
+      - docs/adr/015-dual-digests.md
+      - COMPLIANCE.md
+      - .github/workflows/npm-conformance.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-conformance-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+        node: ['22', '24']
+    defaults:
+      run:
+        working-directory: sdk/npm/conformance
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: ${{ matrix.node }}
+      # These tests run the whole suite against prism-code, and against runtimes
+      # that are wrong on purpose, which is what shows the suite can fail.
+      - name: Unit tests
+        run: node --test "test/*.test.mjs"
+      - name: Package size and contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm pack --dry-run --json > pack.json
+          node -e '
+            const pack = JSON.parse(require("fs").readFileSync("pack.json", "utf8"))[0];
+            console.log(`unpacked size: ${pack.unpackedSize} bytes, ${pack.entryCount} files`);
+            if (pack.unpackedSize > 262144) throw new Error("package exceeds 256 KiB");
+            const paths = pack.files.map((f) => f.path);
+            const stray = paths.filter((p) => /^(test|scripts)\//.test(p) || p === "runtimes.json" || p === "format-gate.json");
+            if (stray.length) throw new Error(`repository files in the package: ${stray}`);
+            for (const required of ["bin/prism-conformance.mjs", "src/index.mjs", "scenarios/load.json", "corpus/Calculator.holo", "corpus/archives.lock.json", "README.md", "LICENSE"]) {
+              if (!paths.includes(required)) throw new Error(`missing from the package: ${required}`);
+            }
+          '
+          rm pack.json
+
+  suite:
+    name: prism-code passes, and COMPLIANCE.md is current
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+      - name: Run the suite against the JavaScript runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target/conformance/results
+          node sdk/npm/conformance/bin/prism-conformance.mjs run --runtime js \
+            --out target/conformance/results/js.json | tee target/conformance/js.txt
+      - name: Regenerate the matrix from those results
+        run: node sdk/npm/conformance/bin/prism-conformance.mjs matrix --results target/conformance/results --write --output target/conformance/COMPLIANCE.md
+      - name: Publish the matrix and the results with this run
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: compliance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/conformance/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Summarize the run
+        if: always()
+        shell: bash
+        run: |
+          if [ -f target/conformance/COMPLIANCE.md ]; then
+            sed -n '/^## Features/,/^## Checks/p' target/conformance/COMPLIANCE.md | sed '$d' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f target/conformance/js.txt ]; then
+            tail -n 2 target/conformance/js.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: The committed COMPLIANCE.md is the one the suite just generated
+        run: node sdk/npm/conformance/bin/prism-conformance.mjs matrix --results target/conformance/results --check

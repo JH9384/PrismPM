@@ -1,0 +1,58 @@
+{
+  "rules": [
+    {
+      "name": "archive container",
+      "format": [
+        "crates/prismpm/src/holo/archive.rs",
+        "sdk/npm/spec/constants.mjs",
+        "sdk/npm/spec/types/holo.d.ts",
+        "sdk/npm/spec/schemas/holo/**",
+        "language/prism.arch/entries/prism-hologram-wire-encoding.toml",
+        "language/prism.arch/entries/prism-hologram-wire-corpus.toml",
+        "language/prism.arch/entries/prism-hologram-primary-wire-format.toml"
+      ],
+      "scenarios": ["load", "verify", "digests"]
+    },
+    {
+      "name": "documents inside a holo",
+      "format": [
+        "crates/prismpm/src/holo/canonical.rs",
+        "crates/prismpm/src/holo/model_document.rs",
+        "sdk/npm/spec/schemas/documents/**"
+      ],
+      "scenarios": ["load", "verify", "dispatch"]
+    },
+    {
+      "name": "attestation section",
+      "format": [
+        "sdk/npm/spec/types/attestation-bundle.d.ts",
+        "sdk/npm/spec/schemas/attestation/**"
+      ],
+      "scenarios": ["load", "verify"]
+    },
+    {
+      "name": "verdict",
+      "format": [
+        "sdk/npm/spec/assurance-levels.mjs",
+        "sdk/npm/spec/schemas/verdict/**"
+      ],
+      "scenarios": ["verify", "errors"]
+    },
+    {
+      "name": "world",
+      "format": [
+        "sdk/npm/spec/worlds/**"
+      ],
+      "scenarios": ["world"]
+    },
+    {
+      "name": "capabilities",
+      "format": [
+        "sdk/npm/spec/types/capabilities.d.ts",
+        "sdk/npm/spec/schemas/capabilities/**"
+      ],
+      "scenarios": ["capabilities"]
+    }
+  ],
+  "exemptions": []
+}

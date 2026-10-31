@@ -1,0 +1,287 @@
+{
+  "feature": "digests",
+  "title": "Dual digests",
+  "checks": [
+    {
+      "id": "digests.archive.dual",
+      "title": "The archive is reported under both algorithms, over the whole file, as ADR-015 pins them.",
+      "op": "inspect",
+      "archive": "reference",
+      "expect": {
+        "ok": true,
+        "result": {
+          "schema": "prismpm/holo-inspection/1",
+          "size": 24801,
+          "digest": {
+            "sha256": "84371aaac82af6b2a81a25a81d43d4097892985f55ae4919cfdcfa8b6e3486e7",
+            "blake3": "4efe02106778d44a469cc0fc8f6998167af7c9075a3ac605c150098c0f5243bb"
+          }
+        }
+      }
+    },
+    {
+      "id": "digests.footer.not-the-file-hash",
+      "title": "The footer is the BLAKE3 of the body, reported apart from the file's BLAKE3.",
+      "op": "inspect",
+      "archive": "reference",
+      "expect": {
+        "ok": true,
+        "result": {
+          "footer": "8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba",
+          "verification": { "footer": true, "labels": true, "cross_references": true }
+        }
+      }
+    },
+    {
+      "id": "digests.verdict.names-the-footer",
+      "title": "A verdict addresses the holo by its archive fingerprint.",
+      "op": "verify",
+      "archive": "reference",
+      "expect": { "ok": true, "result": { "holo": "blake3:8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba" } }
+    },
+    {
+      "id": "digests.blob.guest",
+      "title": "The guest's content is reported under both algorithms, and its label is the BLAKE3.",
+      "op": "inspect",
+      "archive": "reference",
+      "expect": {
+        "ok": true,
+        "result": {
+          "sections": {
+            "$contains": [
+              {
+                "role": "guest",
+                "label": "blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380",
+                "content": {
+                  "length": 10498,
+                  "label_matches": true,
+                  "digest": {
+                    "sha256": "dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03",
+                    "blake3": "2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "digests.blob.model",
+      "title": "The model document's content is reported under both algorithms.",
+      "op": "inspect",
+      "archive": "reference",
+      "expect": {
+        "ok": true,
+        "result": {
+          "sections": {
+            "$contains": [
+              {
+                "role": "model-document",
+                "label": "blake3:e76544838a98c46341ed8807f72897ec68de5a8a9bf28721738a76761c9df90e",
+                "content": {
+                  "length": 5873,
+                  "label_matches": true,
+                  "digest": {
+                    "sha256": "074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6",
+                    "blake3": "e76544838a98c46341ed8807f72897ec68de5a8a9bf28721738a76761c9df90e"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "digests.blob.view",
+      "title": "The view's content is reported under both algorithms.",
+      "op": "inspect",
+      "archive": "reference",
+      "expect": {
+        "ok": true,
+        "result": {
+          "sections": {
+            "$contains": [
+              {
+                "role": "view",
+                "label": "blake3:9860e7054e3f3a8e6ab79c26bcda06bc65778ebdda211160ea66871142b7c808",
+                "content": {
+                  "length": 3570,
+                  "label_matches": true,
+                  "digest": {
+                    "sha256": "c232ee20ca0115cd9c53b17687dde96292028700e6b626319960331ec6591906",
+                    "blake3": "9860e7054e3f3a8e6ab79c26bcda06bc65778ebdda211160ea66871142b7c808"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "digests.blob.capability-set",
+      "title": "The capability set's content is reported under both algorithms.",
+      "op": "inspect",
+      "archive": "reference",
+      "expect": {
+        "ok": true,
+        "result": {
+          "sections": {
+            "$contains": [
+              {
+                "role": "capability-set",
+                "label": "blake3:cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c",
+                "content": {
+                  "length": 104,
+                  "label_matches": true,
+                  "digest": {
+                    "sha256": "888ef9fab26cf92f0a20a1d0fdf7e5dd494f7eb7ec23dfb26a039a7233cb4a02",
+                    "blake3": "cf46eb3028b50fde0444a1a648f5ce7cba94013f541c86537df54adf5d203e1c"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "digests.section.covers-its-table-bytes",
+      "title": "A section's digest covers exactly its table bytes, label included.",
+      "op": "inspect",
+      "archive": "reference",
+      "expect": {
+        "ok": true,
+        "result": {
+          "sections": {
+            "$contains": [
+              {
+                "index": 4,
+                "offset": 4440,
+                "length": 10569,
+                "digest": {
+                  "sha256": "cb9f6b72ff08caab873b53a035e557515d96d3445d4efb695643ee51f690a16e",
+                  "blake3": "ab47b9093b47dd455700bb5d79676e2056baae82fc8e12d2363edb9fabca9416"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "digests.damage.footer-reported",
+      "title": "A wrong footer is reported, and the labels stay good.",
+      "op": "inspect",
+      "archive": "footer-flipped",
+      "expect": { "ok": true, "result": { "verification": { "footer": false, "labels": true } } }
+    },
+    {
+      "id": "digests.damage.label-reported",
+      "title": "A blob that differs from its label is reported under a correct footer.",
+      "op": "inspect",
+      "archive": "guest-data-flipped",
+      "expect": {
+        "ok": true,
+        "result": {
+          "verification": { "footer": true, "labels": false },
+          "sections": { "$contains": [{ "role": "guest", "content": { "label_matches": false } }] }
+        }
+      }
+    },
+    {
+      "id": "digests.pin.match",
+      "title": "Pins that hold under both algorithms pass.",
+      "op": "verify",
+      "archive": "reference",
+      "input": {
+        "policy": {
+          "minimum": "P0",
+          "digests": {
+            "archive": {
+              "sha256": "84371aaac82af6b2a81a25a81d43d4097892985f55ae4919cfdcfa8b6e3486e7",
+              "blake3": "4efe02106778d44a469cc0fc8f6998167af7c9075a3ac605c150098c0f5243bb"
+            },
+            "guest": {
+              "sha256": "dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03",
+              "blake3": "2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380"
+            },
+            "model": {
+              "sha256": "074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6",
+              "blake3": "e76544838a98c46341ed8807f72897ec68de5a8a9bf28721738a76761c9df90e"
+            }
+          }
+        }
+      },
+      "expect": { "ok": true, "result": { "passed": true } }
+    },
+    {
+      "id": "digests.pin.sha256-mismatch",
+      "title": "A sha256 pin that does not hold fails the policy and withholds no level.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "minimum": "P0", "digests": { "archive": { "sha256": "0000000000000000000000000000000000000000000000000000000000000000" } } } },
+      "expect": { "ok": true, "result": { "level": "P0", "passed": false, "reasons": { "$contains": [{ "check": "policy.digests.archive", "withholds": null }] } } }
+    },
+    {
+      "id": "digests.pin.blake3-mismatch",
+      "title": "A blake3 pin that does not hold fails the policy.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "minimum": "P0", "digests": { "guest": { "blake3": "0000000000000000000000000000000000000000000000000000000000000000" } } } },
+      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "policy.digests.guest", "withholds": null }] } } }
+    },
+    {
+      "id": "digests.pin.one-of-two-wrong",
+      "title": "Two pins on one target must both hold, so checking one algorithm is not enough.",
+      "op": "verify",
+      "archive": "reference",
+      "input": {
+        "policy": {
+          "minimum": "P0",
+          "digests": {
+            "model": {
+              "sha256": "074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6",
+              "blake3": "0000000000000000000000000000000000000000000000000000000000000000"
+            }
+          }
+        }
+      },
+      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "policy.digests.model" }] } } }
+    },
+    {
+      "id": "digests.pin.invalid-hex",
+      "title": "A pin that is not 64 lowercase hex characters is an invalid policy.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "digests": { "archive": { "sha256": "ABC" } } } },
+      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+    },
+    {
+      "id": "digests.pin.unknown-algorithm",
+      "title": "A pin under an algorithm other than sha256 and blake3 is an invalid policy.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "digests": { "archive": { "md5": "0000000000000000000000000000000000000000000000000000000000000000" } } } },
+      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+    },
+    {
+      "id": "digests.pin.unknown-target",
+      "title": "A pin on a part that does not exist is an invalid policy.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "digests": { "footer": { "blake3": "0000000000000000000000000000000000000000000000000000000000000000" } } } },
+      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+    },
+    {
+      "id": "digests.pin.empty",
+      "title": "A pin that names no digest is an invalid policy, not a pass.",
+      "op": "verify",
+      "archive": "reference",
+      "input": { "policy": { "digests": { "archive": {} } } },
+      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+    }
+  ]
+}

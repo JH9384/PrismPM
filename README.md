@@ -151,5 +151,6 @@ integrity against the release's own evidence, not deployment acceptance.
 - [SPEC.md](SPEC.md) — Atomic release contract specification
 - [docs/vocabulary.md](docs/vocabulary.md) — Prism nouns and verbs mapped to Docker's
 - [CONFORMANCE.md](CONFORMANCE.md) — Conformance requirements
+- [COMPLIANCE.md](COMPLIANCE.md) — Generated matrix of which runtime passes which part of the runtime contract
 - [ERRORS.md](ERRORS.md) — Error code registry
 - [STABILITY.md](STABILITY.md) — Stability tiers and pre-1.0 versioning policy

@@ -1,0 +1,149 @@
+{
+  "feature": "load",
+  "title": "Load a holo",
+  "checks": [
+    {
+      "id": "load.reference.opens",
+      "title": "The reference holo opens, with its name, limits, vector count and identities verified.",
+      "op": "load",
+      "archive": "reference",
+      "expect": {
+        "ok": true,
+        "result": {
+          "kind": "holo",
+          "name": "Calculator",
+          "verified": true,
+          "fingerprint": "8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba",
+          "limits": { "request": 52, "response": 27, "guestAllocation": 65536 },
+          "vectors": 22
+        }
+      }
+    },
+    {
+      "id": "load.refuse.empty",
+      "title": "An empty file is refused.",
+      "op": "load",
+      "archive": "empty",
+      "expect": { "ok": false, "error": { "code": "archive.bounds" } }
+    },
+    {
+      "id": "load.refuse.too-short",
+      "title": "A file shorter than a header and a footer is refused.",
+      "op": "load",
+      "archive": "too-short",
+      "expect": { "ok": false, "error": { "code": "archive.bounds" } }
+    },
+    {
+      "id": "load.refuse.bad-magic",
+      "title": "A file that does not start with HOLO is refused.",
+      "op": "load",
+      "archive": "bad-magic",
+      "expect": { "ok": false, "error": { "code": "archive.magic" } }
+    },
+    {
+      "id": "load.refuse.bad-version",
+      "title": "A physical version other than 4 is refused.",
+      "op": "load",
+      "archive": "bad-version",
+      "expect": { "ok": false, "error": { "code": "archive.version" } }
+    },
+    {
+      "id": "load.refuse.bad-flags",
+      "title": "Non-zero flags are refused.",
+      "op": "load",
+      "archive": "bad-flags",
+      "expect": { "ok": false, "error": { "code": "archive.flags" } }
+    },
+    {
+      "id": "load.refuse.truncated-table",
+      "title": "A section table that overruns the file is refused.",
+      "op": "load",
+      "archive": "truncated-table",
+      "expect": { "ok": false, "error": { "code": "archive.bounds" } }
+    },
+    {
+      "id": "load.refuse.section-overrun",
+      "title": "A section that overruns the body is refused, even under a correct footer.",
+      "op": "load",
+      "archive": "section-overrun",
+      "expect": { "ok": false, "error": { "code": "archive.bounds" } }
+    },
+    {
+      "id": "load.refuse.unknown-kind",
+      "title": "An unknown section kind is refused, even under a correct footer.",
+      "op": "load",
+      "archive": "unknown-kind",
+      "expect": { "ok": false, "error": { "code": "archive.kind" } }
+    },
+    {
+      "id": "load.refuse.manifest-uri",
+      "title": "An application manifest with the wrong URI is refused.",
+      "op": "load",
+      "archive": "manifest-uri",
+      "expect": { "ok": false, "error": { "code": "archive.manifest" } }
+    },
+    {
+      "id": "load.refuse.label-not-a-blob",
+      "title": "A directory that names a blob the archive does not hold is refused.",
+      "op": "load",
+      "archive": "label-flipped",
+      "expect": { "ok": false, "error": { "code": "archive.directory" } }
+    },
+    {
+      "id": "load.refuse.undecodable-guest",
+      "title": "A guest that does not compile is refused.",
+      "op": "load",
+      "archive": "guest-undecodable",
+      "expect": { "ok": false, "error": { "code": "core.compile" } }
+    },
+    {
+      "id": "load.refuse.undecodable-view",
+      "title": "A HOLOVIEW bundle that does not decode is refused.",
+      "op": "load",
+      "archive": "view-flipped",
+      "expect": { "ok": false, "error": { "code": "view.bounds" } }
+    },
+    {
+      "id": "load.refuse.undecodable-model",
+      "title": "A model document with no application is refused.",
+      "op": "load",
+      "archive": "model-flipped",
+      "expect": { "ok": false, "error": { "code": "archive.model" } }
+    },
+    {
+      "id": "load.damage.footer-reported",
+      "title": "A wrong footer is not hidden: the holo opens and reports its identities unverified.",
+      "op": "load",
+      "archive": "footer-flipped",
+      "expect": { "ok": true, "result": { "verified": false } }
+    },
+    {
+      "id": "load.damage.guest-label-reported",
+      "title": "A guest whose bytes differ from its label is not hidden, even under a correct footer.",
+      "op": "load",
+      "archive": "guest-data-flipped",
+      "expect": { "ok": true, "result": { "verified": false } }
+    },
+    {
+      "id": "load.attestation.tolerated",
+      "title": "An attestation section as the last row does not stop a load or change the identities.",
+      "op": "load",
+      "archive": "unsigned-p3-claim",
+      "expect": { "ok": true, "result": { "kind": "holo", "verified": true } }
+    },
+    {
+      "id": "load.attestation.not-last",
+      "title": "An attestation section that is not the last row is refused.",
+      "op": "load",
+      "archive": "attestation-not-last",
+      "expect": { "ok": false, "error": { "code": "attestation.position" } }
+    },
+    {
+      "id": "load.attestation.duplicate",
+      "title": "Two attestation sections are refused.",
+      "op": "load",
+      "archive": "attestation-duplicate",
+      "expect": { "ok": false, "error": { "code": "attestation.duplicate" } }
+    }
+  ]
+}

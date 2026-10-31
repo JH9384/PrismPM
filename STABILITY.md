@@ -79,6 +79,7 @@ Nothing is Stable today.
 | SDK image contract: the digest-pinned OCI index for `linux/amd64` and `linux/arm64` | [SPEC.md](SPEC.md) section 1 | Experimental |
 | `prism-code` containers ([#348](https://github.com/UOR-Foundation/PrismPM/issues/348)): `prism.containers`, the `prism/container/1` shape, `EXIT_CODES`, `run <holo> <input>`, `--rm`, `rm` and the `PRISM_HOME` store | `sdk/npm/prism-code` | Experimental |
 | `prism-code` CLI plugins ([#293](https://github.com/UOR-Foundation/PrismPM/issues/293)): `prism-<name>` on the PATH runs as `prism-code <name>`, the `prism-cli-plugin-metadata` and `prism-cli-plugin-hooks` calls (schema version 1), `errorHooks`, `PRISM_CODE_NO_HOOKS`, and the first-party `prism-doctor` | `sdk/npm/prism-code` | Experimental |
+| `@prism-code/conformance` 0.1.0: the `prism-conformance` CLI, the scenarios and check ids, the shim contract `prism/conformance-shim/1`, the `prism/conformance-declaration/1` and `prism/conformance-results/1` shapes | `sdk/npm/conformance` | Experimental |
 
 The CLI binary will be renamed `prism`.
 `prismpm` stays as an alias through every 1.x release.
@@ -162,9 +163,10 @@ Until then the old spelling runs as before and prints a warning naming the repla
 | `@prism-code/verify` | `worldPolicy`, `policy.capabilities`, the `world.capabilities` reason (`PP5602`), and the inspection's `world.pure` and `world.effects` | [#283](https://github.com/UOR-Foundation/PrismPM/issues/283) |
 | `@prism-code/verify` | `verify`, `inspect`, `verifyTransparency`, `ASSURANCE`, `VerifyError`, `FORMAT_REVISION`, `INSPECTION_SCHEMA` | [#273](https://github.com/UOR-Foundation/PrismPM/issues/273), [#275](https://github.com/UOR-Foundation/PrismPM/issues/275) |
 | `@prism-code/spec` | The `prism/proof/v1` types and schema, the `prism/verdict/1` schema, assurance levels, the attestation and Sigstore bundle schemas, the trusted-root schema, the lock schemas, the `prism/capabilities/1` schema and types, the `prism/manifest/1` schema and types, each with its provider members, and the `prism/policy-input/1` schema and types, `POLICY` and the shipped policy files | [#266](https://github.com/UOR-Foundation/PrismPM/issues/266), [#269](https://github.com/UOR-Foundation/PrismPM/issues/269), [#267](https://github.com/UOR-Foundation/PrismPM/issues/267), [#264](https://github.com/UOR-Foundation/PrismPM/issues/264), [#279](https://github.com/UOR-Foundation/PrismPM/issues/279), [#280](https://github.com/UOR-Foundation/PrismPM/issues/280), [#294](https://github.com/UOR-Foundation/PrismPM/issues/294), [#285](https://github.com/UOR-Foundation/PrismPM/issues/285) |
+| `@prism-code/conformance` | `runSuite`, `renderMatrix`, `runGate`, `loadScenarios`, the shim contract `prism/conformance-shim/1`, every check id, and `COMPLIANCE.md`'s cells | [#287](https://github.com/UOR-Foundation/PrismPM/issues/287) |
 
 `prism-code` entries land in the first release after 0.2.0.
-`@prism-code/verify` and `@prism-code/spec` are not published yet.
+`@prism-code/verify`, `@prism-code/spec` and `@prism-code/conformance` are not published yet.
 The `prism/replay/v1` predicate is a placeholder owned by M3 and carries no promise.
 
 ### 6.3 Verdict fields

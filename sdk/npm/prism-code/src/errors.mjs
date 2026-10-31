@@ -26,6 +26,9 @@
  *   `ReferenceInvalidError`: the reasons `push` and `pull` can stop (#292).
  * - `ProviderNotFoundError`, `ProviderReplyError`, `ProviderFailedError`: the
  *   ways running a provider service can fail (#294). `ProviderError` is their base.
+ * - `ExportMismatchError`: a browser export's bytes differ from the release's
+ *   build manifest, its layers or the files written (#290).
+ * - `MiddlewareError`: a middleware on the stack threw something that is not a `PrismError` (#295).
  *
  * The last five map one-to-one to the check ids of a `prism/verdict/1`
  * reason (docs/proposals/269-assurance-levels.md); `errorForReason` is the map.
@@ -194,6 +197,22 @@ ProviderReplyError.code = 'provider_reply_invalid';
 /** A provider exited non-zero or sent an `error` message (`provider.failed`), would not start (`provider.spawn`) or ran out of time (`provider.timeout`). */
 export class ProviderFailedError extends ProviderError {}
 ProviderFailedError.code = 'provider_failed';
+/**
+ * A browser export does not byte-match its release: a file differs from its
+ * build manifest row (`export.manifest`) or its release layer (`export.layer`),
+ * the written set of files differs (`export.files`), or the tree digest does
+ * (`export.tree`). `check` says which; `details` names the file.
+ */
+export class ExportMismatchError extends PrismError {}
+ExportMismatchError.code = 'export_mismatch';
+/**
+ * A middleware threw something that is not a `PrismError` (#295). `details`
+ * names it (`name`, `step`, `tags`) and `cause` is what it threw. A
+ * `PrismError` a middleware throws, such as `CapabilityDeniedError`, passes
+ * through as it is.
+ */
+export class MiddlewareError extends PrismError {}
+MiddlewareError.code = 'middleware_failed';
 
 /** Every class with a code of its own, by code. */
 export const ERROR_CLASSES = Object.freeze({
@@ -223,6 +242,8 @@ export const ERROR_CLASSES = Object.freeze({
   [ProviderNotFoundError.code]: ProviderNotFoundError,
   [ProviderReplyError.code]: ProviderReplyError,
   [ProviderFailedError.code]: ProviderFailedError,
+  [ExportMismatchError.code]: ExportMismatchError,
+  [MiddlewareError.code]: MiddlewareError,
 });
 
 /**
@@ -318,6 +339,8 @@ export const EXIT_CODES = Object.freeze(
     { exit: 2, error: 'ProviderNotFoundError', meaning: 'No provider on the PATH.' },
     { exit: 2, error: 'ProviderReplyError', meaning: 'A provider broke the protocol.' },
     { exit: 2, error: 'ProviderFailedError', meaning: 'A provider failed.' },
+    { exit: 2, error: 'ExportMismatchError', meaning: 'A browser export differs from its release.' },
+    { exit: 1, error: 'MiddlewareError', meaning: 'A middleware threw something untyped.' },
     { exit: 1, error: 'PrismError', meaning: 'Any other typed error.' },
     { exit: 70, error: 'anything else', meaning: 'Dispatch threw something untyped: a guest trap, or a bug in the runtime.' },
   ].map(Object.freeze),

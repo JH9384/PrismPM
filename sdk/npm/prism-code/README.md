@@ -704,6 +704,42 @@ Errors are typed: `RegistryAuthError`, `ReferrersUnsupportedError`, `DigestMisma
 `ManifestNotFoundError`, `RegistryError`, `ReferenceInvalidError`. The design is
 [docs/proposals/292-push-pull-oci.md](../../../docs/proposals/292-push-pull-oci.md).
 
+## Export for the browser (experimental, #290)
+
+```
+prism-code export ghcr.io/acme/calculator@sha256:<digest> --out site
+prism-code export ghcr.io/acme/calculator@sha256:<digest> --tar site.tar
+```
+
+`export` writes the six-file browser export of a release that `prismpm build`
+or `prismpm pull` left verified in `.prism/oci`: `index.html`, `app.js`,
+`app.css`, the wasm-bindgen glue `<stem>.js`, the adapter `<stem>_bg.wasm` and
+`provenance.json`. `--tar` writes the same six files as one deterministic ustar
+archive instead (name order, mode 0644, owner 0, mtime 0, no directory entry).
+The holo's attestation bundles, when it carries any, go byte for byte to
+`<name>.attestations.jsonl` beside the output, as buildx writes attestation
+files beside its `local` and `tar` output. `--out` defaults to `export`; both
+are new names in the project (`--project`, default the current directory), and
+nothing that exists is replaced. `--json` prints the `prismpm/browser-export/1`
+receipt `prismpm export-browser` prints.
+
+The bytes come from the release, not from a `.holo` (a holo carries the core
+guest, not the browser adapter) and not from a copied folder. Each file is read
+from its stored release blob, checked against its layer digest and its build
+manifest row (`manifest.json`), written, and read back. A file whose bytes
+differ is an `ExportMismatchError` (`export_mismatch`, exit 2) with `check`
+`export.manifest`, `export.layer`, `export.files` or `export.tree`, and the
+export is removed. The shared Action's Pages closure check reads the release
+and the exported directory with the same code. This checks integrity only; it
+grants no publication or deployment authority.
+
+```js
+import { experimental_exportBrowser, experimental_checkExport } from 'prism-code/node';
+
+const { receipt, path, attestations } = experimental_exportBrowser({ reference, out: 'site' });
+experimental_checkExport({ releaseDigest: receipt.release_digest, path: 'site' }); // { files, tree_digest }
+```
+
 ## In the browser
 
 ```js

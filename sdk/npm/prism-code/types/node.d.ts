@@ -326,3 +326,37 @@ export const CREATED: '1970-01-01T00:00:00Z';
 export const MAX_HOLO_BYTES: number;
 export const PUSH_SCHEMA: 'prism/push-result/1';
 export const PULL_SCHEMA: 'prism/pull-result/1';
+/** One file of a browser export, as the build manifest and the receipt name it. */
+export interface ExportFile {
+  path: string;
+  digest: string;
+  size: number;
+}
+/** `prismpm/browser-export/1`, the receipt `prismpm export-browser` prints. Integrity only. */
+export interface BrowserExportReceipt {
+  schema: 'prismpm/browser-export/1';
+  reference: string;
+  release_digest: string;
+  model_digest: string;
+  build_digest: string;
+  /** The directory name, or the name the tarball unpacks to (`site` for `site.tar`). */
+  output: string;
+  files: ExportFile[];
+  tree_digest: string;
+}
+/**
+ * Experimental. Write the six-file browser export of a verified release in `<project>/.prism/oci`
+ * to a new directory (`out`) or a new `<name>.tar` (`tar`) in the project, and the holo's attestation
+ * bundles to `<name>.attestations.jsonl` beside it. Throws `ExportMismatchError` when a file's bytes
+ * differ from its build manifest row or release layer, and `PrismCodeError` (`export.*`) otherwise.
+ */
+export function experimental_exportBrowser(options: { project?: string; reference: string; out?: string; tar?: string }): {
+  receipt: BrowserExportReceipt;
+  path: string;
+  attestations: { path: string; bundles: number } | null;
+};
+/** Experimental. Check an existing export directory or tarball against a verified release's build manifest. */
+export function experimental_checkExport(options: { project?: string; releaseDigest: string; path: string }): {
+  files: ExportFile[];
+  tree_digest: string;
+};

@@ -13,6 +13,9 @@ case "$context" in
 esac
 project=$GITHUB_WORKSPACE/$context
 action_path=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# The checkout the Action runs from: pages-closure.mjs reads the release through
+# prism-code's export module in sdk/npm/prism-code of the same checkout.
+action_root=$(dirname "$action_path")
 command=${PRISMPM_ACTION_COMMAND:-}
 reference=${PRISMPM_ACTION_REFERENCE:-}
 export_output=${PRISMPM_ACTION_OUTPUT:-}
@@ -275,7 +278,7 @@ if test "$pages_publication" = true; then
     --security-opt no-new-privileges \
     --network none \
     --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" \
-    --volume "$action_path:$action_path:ro" \
+    --volume "$action_root:$action_root:ro" \
     "$PRISMPM_ACTION_SDK_IMAGE" \
     node "$action_path/pages-closure.mjs" "$project" "$release_digest" "$export_output" "$tree_digest" >"$closure_file"
   cp "$export_file" "$result_file"

@@ -125,6 +125,10 @@
           "narrative": true
         },
         {
+          "path": "guides/write-a-middleware",
+          "narrative": true
+        },
+        {
           "path": "guides/ship",
           "narrative": true
         },

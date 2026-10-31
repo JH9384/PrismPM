@@ -407,6 +407,28 @@ fn contract(id: &str) -> Result<&'static Contract, PrismError> {
         .ok_or_else(|| PrismError::new("PP1101", format!("unsupported contract {id}")))
 }
 
+/// Whether `value` satisfies the subschema at `pointer` of the registered
+/// schema `id`, so an earlier check applies exactly the rule that contract
+/// enforces later instead of a copy of it.
+pub(crate) fn satisfies_subschema(
+    id: &str,
+    pointer: &str,
+    value: &Value,
+) -> Result<bool, PrismError> {
+    let schema: Value = serde_json::from_slice(contract(id)?.schema)
+        .map_err(|error| PrismError::new("PP9001", format!("registered schema {id}: {error}")))?;
+    let subschema = schema.pointer(pointer).ok_or_else(|| {
+        PrismError::new("PP9001", format!("registered schema {id} has no {pointer}"))
+    })?;
+    let validator = jsonschema::validator_for(subschema).map_err(|error| {
+        PrismError::new(
+            "PP9001",
+            format!("compile registered schema {id}{pointer}: {error}"),
+        )
+    })?;
+    Ok(validator.is_valid(value))
+}
+
 fn strictly_ordered(rows: &[Value], key: impl Fn(&Value) -> Option<String>) -> bool {
     let keys = rows.iter().map(key).collect::<Option<Vec<_>>>();
     keys.is_some_and(|keys| {

@@ -161,6 +161,19 @@ pub(crate) fn validate_application(
             "browser system selected application or resource requirements differ",
         ));
     }
+    // The release binding names the generated archive `<name>.holo`. Apply its
+    // artifact path rule here, so `check` refuses a name that `build` could
+    // never bind (for example one containing a space).
+    let archive = format!("{}.holo", application.name());
+    if !crate::contracts::satisfies_subschema(
+        "prismpm/browser-system-release/1",
+        "/properties/files/items/properties/path",
+        &Value::String(archive.clone()),
+    )? {
+        return Err(invalid(&format!(
+            "browser system cannot bind the generated archive path {archive:?}: the selected application name is not a release artifact path stem"
+        )));
+    }
     if declares_command_line(system) && application.cli().is_none() {
         return Err(invalid(
             "browser system declares a command-line component, but the selected application models no command line",

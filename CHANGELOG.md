@@ -1,9 +1,19 @@
 # Changelog
 
-All notable changes to PrismPM will be documented in this file.
+Every release of the `prismpm` crate and the SDK has an entry here, newest first.
+The `prism-code` npm package has its own: [sdk/npm/prism-code/CHANGELOG.md](sdk/npm/prism-code/CHANGELOG.md).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Each entry uses the four headers [STABILITY.md](STABILITY.md) section 2 sets, in this order: Features Added, Breaking Changes, Bugs Fixed, Other Changes.
+Breaking Changes is the per-version breaking log.
+Before 1.0 a minor bump may break you and a patch bump never does; from 1.0 on, versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The 0.1.0 entry predates this rule and keeps its original headers.
+
+To move to 1.0, read the [migration guide](docs/site/migration/to-1-0.md).
+
+## Policy
+
+### Compatibility
+- Holo/1 and accepted Prism application inputs remain stable. Additive contracts use new registered schemas; an incompatible schema change requires a new schema identifier and an explicit migration.
 
 ## [Unreleased]
 
@@ -25,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0] - 2026-10-27
 
-### Added
+### Features Added
 - npm `prism-code` 0.3.0, the first npm release since 0.2.0 (tag `prism-code-v0.3.0`, trusted publishing with provenance from `.github/workflows/npm-prism-code.yml`): it carries every `prism-code` entry in this section, including `check <holo>`, `init`, `manifest`, `attest`, `verify-attestation`, `run --policy` and `inspect <holo>`. The version is 0.3.0, not 0.4.0, because 0.3.0 is the first release that warns about bare `check`, which STABILITY.md section 6.1.1 removes in `prism-code` 0.4.0. `@prism-code/verify` is vendored into the package, so it needs no release for `prism-code`; `@prism-code/verify`, `@prism-code/spec` and `create-prism-code` stay unpublished.
 - Feature and user-journey declarations: `Foundation.Arch::Feature` (statement, realizing calls, accepting acceptance rows) and `Foundation.Arch::Journey` (stakeholder actor, ordered feature steps), checked by `prismpm check` and `build` with registered diagnostics PP2014 to PP2018, and the normalized validator `Foundation.Holo.validateNormalizedFeatures` with empty-axiom soundness and completeness theorems (FT-12, FT-13, ST-19).
 - crates.io readiness (#214, `docs/release/crates-io-publication.md`): `just package-release-crates-check` also requires that the packaged `prism-stdlib` is the crate `prismpm build` embeds (the file `application_build.rs` includes and the `crate_sha256` of `stdlib/release.json`), dry-runs `cargo publish` for `prod-ir`, `prod-codegen`, `prism-stdlib` and `prismpm`, and checks each archive against what crates.io needs (`scripts/crate-metadata-check.sh`); `package-release-crates.sh --publish` is the owner's one-command first upload, refusing without `CARGO_REGISTRY_TOKEN`, from a dirty tree, or unless `lexlean 0.4.0` is public with the vendored bytes; the `crates` job of `release.yml` dry-runs every crate and uploads only with a `CARGO_REGISTRY_TOKEN` secret or trusted publishing (`CRATES_IO_TRUSTED_PUBLISHING`), so a release without either is no longer held for an upload.
@@ -41,44 +51,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `prism-code export <name@sha256:digest> [--out <dir> | --tar <file>]` (#290, experimental): writes the six-file browser export of a release verified in `.prism/oci`, or one deterministic ustar tarball of it, with the holo's attestation bundles copied byte for byte to `<name>.attestations.jsonl` beside the output (buildx's `local` and `tar` exporters); every file is read from its stored release blob, checked against its layer and its build manifest row, written and read back, and a difference is the new `ExportMismatchError` (`export_mismatch`, exit 2) with the export removed; `--json` prints the `prismpm/browser-export/1` receipt. `experimental_exportBrowser` and `experimental_checkExport` in `prism-code/node`. The shared Action's Pages closure check (`action/pages-closure.mjs`) now reads the release and checks the exported directory through the same module, so it also requires the exact six-file profile, and its container mounts the Action's checkout read-only instead of only `action/`.
 - `prismpm attest <path.holo> --predicate <file> --type <uri> --key <pem>` and `prismpm verify-attestation <path.holo>` (#272, experimental, the Rust half): `attest` signs an in-toto statement about the holo's content blobs with a local P-256 or Ed25519 key into the attestation section as the Sigstore bundle v0.3 that `prism-code attest --key` writes; `verify-attestation` checks every bundle of the requested type offline against a pinned `--trusted-root`, in the order the JavaScript verifier does (subjects, the DSSE signature under the certificate or `--key` with the chain and its signed certificate timestamps at a signed time, the exact `--certificate-identity` or `--certificate-identity-regexp` and `--certificate-oidc-issuer`, then the Rekor v1 `dsse` 0.0.1, Rekor v2 `dsse` 0.0.2 and `hashedrekord` 0.0.2 entries, inclusion proofs, checkpoints and RFC 3161 timestamps), and prints `prismpm/attestation-verification-result/1` on exit 0 and 1. Every refusal is registered: PP3101 to PP3107 and PP1001 for a policy that would let any signer pass (HO-28 to HO-30). Keyless signing and fetching the root over TUF stay with `prism-code` until the Rust CLI has an OIDC and TUF client. Adds the `p256`, `p384`, `ed25519-dalek` and `regex` crates.
 - The Verification API is Experimental in v0.5 (#277): `STABILITY.md` section 6 lists every CLI verb and flag, SDK export and verdict field that carries no promise until the v0.6 freeze.
-
 - The WIT world as the holo's contract (#278, `docs/proposals/278-wit-world.md`, experimental): `@prism-code/spec` gains `WORLDS`, one row per guest contract with the WIT file's digests (the lock's `inputs.world`), imports and exports with lowered signatures; `inspect` prints the world's package, name, digests and whether the guest conforms; `holo.experimental_verify()` and `@prism-code/verify` check the guest module's import and export sections against the world (`world.contract`, withholds P1) and a `world` policy option shaped like `inputs.world` (`world.hash`, withholds no level); both raise the new `WorldMismatchError` (`world_mismatch`) with `throw: true`. A failed verdict is now explained by a rule the caller pinned (a digest, the world) before it is explained by a missing level. No holo byte changes.
 - Capability sets, deny by default (#279, `docs/proposals/279-capability-sets.md`, experimental): a capability file, `prism/capabilities/1` (JSON Schema and types in `@prism-code/spec`), holds named sets of `allow-` and `deny-` entries for outbound hosts (`scheme://host[:port]` with `*` wildcards), key-value stores and variables; a resource is granted only when an allow entry matches and no deny entry does, and unknown members are errors. `prism-code run --capabilities <file> [--capability-set <name>]`, the `capabilities` and `capabilitySet` options of `load`, `loadArchive`, `loadClosure` and `fromFile`, `parseCapabilities`, `grantOf` and `Application.capabilities` (`allows`, `assert`) apply the `default` set unless another is named; with no file the holo is granted nothing. A denied resource or guest import throws `CapabilityDeniedError` with check `capabilities.<kind>` or `capabilities.import`.
 - The `prism.toml` manifest (#280, `docs/proposals/280-prism-toml.md`, experimental): `[application]` (name, semantic version, description, authors), `[model]` (source, build, watch), `[capabilities]` (one `prism/capabilities/1` set inline, or `file` and `set` naming a capability file) and `[variables]` (a literal, `env(NAME)`, or `{ value, secret }`), with per-target overlays `prism.browser.toml` and `prism.node.toml` merged in (tables key by key, other values replace). Schema `prism/manifest/1` and types in `@prism-code/spec`. A secret written as a literal, or any string shaped like a credential, is a lint error (`manifest.secret`); `env(NAME)` of an unset name throws `manifest.env`. `prism-code manifest [<dir>] [--target browser|node] [--json]`, `parseManifest`, `validateManifest`, `lintManifest`, `mergeOverlay`, `manifestCapabilities`, `resolveVariables`, `parseToml` (a strict, dependency-free TOML subset) and `readManifest` in `prism-code/node`. The manifest reference page is now generated from the schema.
 - The static world-within-policy check (#283, `docs/proposals/283-world-within-policy.md`, experimental): the imports of the world a holo's contract names are compared with the granted capability set before the guest is compiled. `@prism-code/verify` reports a world that imports a capability kind the set grants none of as `world.capabilities` (`PP5602`, withholds P3, fails the default policy at every level), takes the grant as `policy.capabilities`, and exports `worldPolicy(contract, set)`. The runtime refuses such a holo at load with `CapabilityDeniedError` (`world.capabilities`) and reports `app.world` (`within`, `pure`, `effects`); `holo.experimental_verify()` judges the set the holo was loaded with. A world with no clock, random, socket, filesystem or unknown import is pure, and `inspect` prints `world.pure` and `world.effects`. `hologram:guest/core-wasm@1` imports nothing, so every existing holo is within its grant and pure.
 - `prism-code init` and `npm create prism-code` (#281, experimental): scaffold a project from a template that is a byte-for-byte copy of a reviewed fixture (`text-request`, from `tests/fixtures/holo/ho-11-text-application`: a language-1.2 text application with its lexicon, Lean workspace and `lexlean.lock`) plus a generated `prism.toml` that grants nothing. `--sdk-image NAME@sha256:DIGEST` binds the project: it copies the image's `standards.lock` and writes `prismpm.lock` with `prismpm update --toolchain` in that image. No SDK release exists yet, so there is no default image. `create-prism-code` (new package, not yet published) runs the same code; `create-prism` on npm is an unrelated package. `scripts/sync-templates.mjs --check` keeps templates equal to their fixtures, and the manual `init end to end` workflow times `npm create prism-code` to `prism-code check` against the issue's two minutes.
-
 - `prism-code check <holo> [--policy <file>] [--json]` (#270, experimental): judges a holo against a policy and prints its `prism/verdict/1` with the level, the policy result and every reason (each named by its title, such as `ProofMismatch`); exits 0 when the policy passes, 1 when it fails and 2 when no verdict was reached (not a holo, an unreadable policy, an unknown format revision), and with `--json` prints exactly one canonical verdict on 0 and 1 and nothing on 2. The policy file holds `name`, `minimum`, `digests` and `world` and is never read from the holo. A holo that carries an attestation section exits 2 until #267's wire model change adds the format revision that admits it. From P2 up the text form prints what the check trusts the signer for. `@prism-code/verify` gains the eight `prism/proof/v1` statement checks (`src/statements.mjs`, PP5501 to PP5507), which `verify` joins when that revision lands.
 - `prism-code build --check` runs `prismpm check` in the SDK image: it validates the model and writes nothing.
 - CLI plugins in `prism-code` (#293, experimental): an executable `prism-<name>` on the PATH runs as `prism-code <name>` (and as `prism <name>` after the rename), with arguments and exit code passed through; built-in verbs always win, the first PATH directory wins, and Windows resolves by `PATHEXT` and quotes `.cmd` arguments so npm shims work. A plugin describes itself with `prism-cli-plugin-metadata` and is listed under its own Plugins heading in `--help`, or as invalid and never run. Error hooks, after Docker's `error-hooks` (Engine 29.3.0): when a verb a plugin names in `errorHooks` exits non-zero, its `prism-cli-plugin-hooks` reply is printed under What's next; `PRISM_CODE_NO_HOOKS=1` turns them off. The first-party plugin `prism-doctor` ships as a second binary of the package: `prism-code doctor` checks Node.js, Docker, `./prismpm.lock` and the sigstore packages, and its hook suggests it when a Docker verb exits 64 or 69.
 - `prism-code push <holo> <reference>` and `prism-code pull <reference> [<out.holo>]` (#292, `docs/proposals/292-push-pull-oci.md`, experimental): move a holo and its attestations to and from any OCI Distribution 1.1 registry, with a dependency-free client over `fetch`, or a local OCI image layout (`--store <dir>` or `dir://`), usable as the backing store of #349. The holo is one layer of a deterministic manifest (media type `application/vnd.uor.prism.holo.v1`, BLAKE3 in annotations beside the `sha256` digest, ADR-015), so one file has one digest on every registry. Each attestation line becomes an OCI 1.1 referrer with the same bytes, in cosign's layout; `--key` or `--keyless` also signs a statement per predicate that names the manifest, so `cosign verify-attestation` passes on the pushed reference and `oras discover` lists them. A registry without the referrers API uses the spec's tag schema. `pull` writes nothing until the digests, the archive, the BLAKE3 annotations, the verdict of `check` under `--policy`, every statement subject and an optional signer policy (the flags of `verify-attestation`) have passed. `registry/repo@blake3:<fingerprint>` addresses a holo by its fingerprint through a `blake3-<fingerprint>` tag and the bytes are verified. Credentials come from Docker's config, or `GHCR_TOKEN` or `GITHUB_TOKEN` for `ghcr.io`. New typed errors: `RegistryError`, `RegistryAuthError`, `ReferrersUnsupportedError`, `ManifestNotFoundError`, `DigestMismatchError`, `PullVerificationError`, `ReferenceInvalidError`. `@prism-code/spec` gains `OCI`.
 - Provider services in `prism.toml` (#294, `docs/proposals/294-provider-services.md`, experimental), after Docker Compose's: a table under `[capabilities]` declares `provider = { type, options }`, and `prism-code providers up|down [<dir>] [--target browser|node] [--json]` or `resolveProviders` and `releaseProviders` in `prism-code/node` run `prism-provider-<type>` from the PATH with the options as flags, and produce the `setenv` key/values of its JSON Lines reply as `<NAME>_<VAR>`. Deny by default holds twice: `prism/capabilities/1` gains the kind `providers` (`allow-providers`, `deny-providers`), checked for every declaration before any provider starts, and a returned variable is produced only when the `variables` kind allows it, otherwise it is withheld and reported by name. Failures are `CapabilityDeniedError` (`capabilities.providers`), `ProviderNotFoundError`, `ProviderReplyError` and `ProviderFailedError`, and none quotes a reply line. `prism-provider-kv`, a local key-value store kept as one JSON file, ships as a package binary and is the reference provider. `@prism-code/verify` accepts the new set members. The plugin scan now skips names starting with `provider-`. Nothing inside a holo can read these variables yet, because the guest world imports nothing and `prism-code run` does not read `prism.toml`.
-
 - Runtime middleware in `prism-code` (#295, experimental, guide `docs/site/guides/write-a-middleware.md`): `Application.experimental_middleware` is a stack of named, tagged middleware over the four steps the runtime performs, `verify`, `instantiate`, `dispatch` and `record`, ordered by step, by `priority` and by `addRelativeTo` before or after a named middleware, with `remove`, `removeByTag`, `override`, `clone` and `use(pluggable)` after the AWS SDK for JavaScript v3 stack. Each step wraps one operation of its own, so `instantiate` is where a capability check can link imports. A middleware that throws anything but a `PrismError` raises the new `MiddlewareError` (`middleware_failed`); stack misuse fails with `middleware.step`, `middleware.name`, `middleware.relative` or `middleware.shape`. Tracing ships as the first middleware: `experimental_tracing({ tracer })` opens one OpenTelemetry span per step, `prism.<step>`, from a tracer the caller passes, so the package still has no dependencies. `runGuest` is unchanged.
 - `prism-code generate <holo> --out <dir>` (Part of #289, experimental): bindings and a typed client from the holo's WIT world and model, as ES modules with TypeScript declarations that import nothing. One code model feeds one writer per language; JavaScript is the first, Rust and Python follow. `world.js` binds `hologram:guest/core-wasm@1` from its WIT file (vendored, checked against the world's digest); the client has one method per modeled operation and a typed error with the guest's codes, or `invoke(bytes)` when the model has none. The output directory is required. `prism-generate.json` records the language, the generator, the world and the model (shaped like the lock's `inputs.world` and `inputs.model`) and each file's sha256, so a second run with the same inputs writes nothing; a file `generate` did not write is never overwritten.
 
-### Changed
-- `prism-code attest --key` writes an empty DSSE `keyid`, so `cosign verify-blob-attestation` accepts the bundle (#292): cosign skips a signature whose `keyid` is not its own, and the key's hash there made such a bundle verify nowhere but in `prism-code`. The hash stays in `verificationMaterial.publicKey.hint`, and bundles already written still verify in `prism-code`.
-- `prism-code run` gates on `check` (#282, `docs/proposals/282-run-gated-on-check.md`, experimental, breaking): the holo is judged against the policy (`--policy`, default P2) with the capability set it will run under before it is instantiated. A failing verdict refuses with exit 1 and prints the verdict; no verdict refuses with exit 2. `--allow-unverified` runs it anyway with a warning on every start and is never the default. Every holo is P0 today, so `run` without a policy that accepts P0 or the flag now refuses. A policy's new `effects` member lists the impure effects the world may import; `[]` is the pure-world policy, reported as `policy.effects`.
-- `signatures[].sig` may be empty in `dsse-envelope.schema.json` and `sigstore-bundle.schema.json` (#268): the unsigned provenance placeholder carries one empty signature, which no verifier accepts. Every bundle that was valid stays valid.
-- Spec pull requests no longer conflict (#340): the docs pages (`docs/generated/`) and the spec pin (`sdk/docs/spec.lock.json`) are no longer committed, `node sdk/docs/generate.mjs verify` generates the docs from the checkout and fails naming the page when generation, an example or the vocabulary lint fails, and the spec package's `index.mjs`, `index.d.ts`, `types/documents.d.ts` and predicate registry are generated by `npm run build` from the files in `schemas/` and `predicates/`, so a new schema is added by adding files only. The hand-written constants moved from `index.mjs` and `index.d.ts` to `constants.mjs` and `constants.d.ts`; `@prism-code/spec` imports are unchanged.
-- Keyless `prism-code attest` no longer fails intermittently with `(409) an equivalent entry already exists` from the public Rekor log. It waits 30 s for each Sigstore service instead of 5 s, so a slow answer is not re-sent, and when a re-sent entry is still refused as a duplicate it signs once more. The unused first entry stays in the log.
-
-### Deprecated
-- `prism-code check` without a holo, the 0.2.0 spelling of `build --check` (#270). It still runs `prismpm check` in the SDK image and prints a warning; it is removed in 0.4.0. Migration: replace `prism-code check [args]` with `prism-code build --check [args]`.
-
 ### Breaking Changes
+- `prism-code run` gates on `check` (#282, `docs/proposals/282-run-gated-on-check.md`, experimental, breaking): the holo is judged against the policy (`--policy`, default P2) with the capability set it will run under before it is instantiated. A failing verdict refuses with exit 1 and prints the verdict; no verdict refuses with exit 2. `--allow-unverified` runs it anyway with a warning on every start and is never the default. Every holo is P0 today, so `run` without a policy that accepts P0 or the flag now refuses. A policy's new `effects` member lists the impure effects the world may import; `[]` is the pure-world policy, reported as `policy.effects`.
 - A guest that declares an import now fails to load with `CapabilityDeniedError` (`capability_denied`, check `capabilities.import`) instead of `PrismCodeError` `core.imports` (#279); the `prism-code` exit code stays 2.
 - `prism-code inspect` on a `.holo` prints the human inspection instead of the 0.2.0 JSON summary, and `--json` prints `prismpm/holo-inspection/1`. A closure directory keeps the 0.2.0 summary.
 - `prism-code check <holo>` judges the holo and returns a verdict instead of running `prismpm check` in the SDK image; the Docker-backed check is now `prism-code build --check` (#270).
 
-### Compatibility
+### Bugs Fixed
+- `prism-code attest --key` writes an empty DSSE `keyid`, so `cosign verify-blob-attestation` accepts the bundle (#292): cosign skips a signature whose `keyid` is not its own, and the key's hash there made such a bundle verify nowhere but in `prism-code`. The hash stays in `verificationMaterial.publicKey.hint`, and bundles already written still verify in `prism-code`.
+- Keyless `prism-code attest` no longer fails intermittently with `(409) an equivalent entry already exists` from the public Rekor log. It waits 30 s for each Sigstore service instead of 5 s, so a slow answer is not re-sent, and when a re-sent entry is still refused as a duplicate it signs once more. The unused first entry stays in the log.
+
+### Other Changes
+- `signatures[].sig` may be empty in `dsse-envelope.schema.json` and `sigstore-bundle.schema.json` (#268): the unsigned provenance placeholder carries one empty signature, which no verifier accepts. Every bundle that was valid stays valid.
+- Spec pull requests no longer conflict (#340): the docs pages (`docs/generated/`) and the spec pin (`sdk/docs/spec.lock.json`) are no longer committed, `node sdk/docs/generate.mjs verify` generates the docs from the checkout and fails naming the page when generation, an example or the vocabulary lint fails, and the spec package's `index.mjs`, `index.d.ts`, `types/documents.d.ts` and predicate registry are generated by `npm run build` from the files in `schemas/` and `predicates/`, so a new schema is added by adding files only. The hand-written constants moved from `index.mjs` and `index.d.ts` to `constants.mjs` and `constants.d.ts`; `@prism-code/spec` imports are unchanged.
+- `prism-code check` without a holo, the 0.2.0 spelling of `build --check` (#270). It still runs `prismpm check` in the SDK image and prints a warning; it is removed in 0.4.0. Migration: replace `prism-code check [args]` with `prism-code build --check [args]`.
 - Holo/1 and accepted Prism application inputs remain stable. Additive contracts use new registered schemas; an incompatible schema change requires a new schema identifier and an explicit migration.
 - Security disclosures and vulnerability reporting: `security@uor.foundation`.
 
 ## [0.3.0] - 2026-09-21
 
-### Added
+### Features Added
 - Authoritative production-system model (`prismpm/system-schema/1`, `prismpm/conformance-model/1`), immutable standards/oracle bindings, OCI release graphs, digest-only lifecycle controller, Compose and Kubernetes target projections, operations/supply-chain evidence, and the reproducible multi-platform PrismPM SDK.
 - Shipped reproducible multi-platform SDK packages for `linux/amd64` and `linux/arm64`.
 - First-party crates.io bootstrap specification (`prismpm/crates-io-bootstrap-receipt/1`) and trusted publishing configuration for `lexlean`, `prod-ir`, `prod-codegen`, `prism-stdlib`, and `prismpm`.
@@ -87,28 +92,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Universal template contract, source-free browser export (`export-browser`), and HTTPS publication verification (`verify-browser-publication`) supporting foundry-web production deployment.
 - Complete Calculator reference closure and Hologram Calculator/Text interoperability acceptance evidence.
 
-### Changed
-- Prepared `prism-stdlib` 0.2.0 with generated production-system validation support while preserving Holo/1 and the 0.1 application runtime API.
+### Breaking Changes
+Not recorded. This entry predates the per-version breaking log in STABILITY.md section 2.
+
+### Bugs Fixed
 - Corrected generated View field layout in `lean4-prod`; Calculator behavior and Holo/1 remain compatible.
+
+### Other Changes
+- Prepared `prism-stdlib` 0.2.0 with generated production-system validation support while preserving Holo/1 and the 0.1 application runtime API.
 - Generated the Holo/1 wire codec and bounded workspace reducer from LexLean; kept independent Hologram oracles outside the production dependency graph.
 - Upgraded AsyncAPI owned runtime lock with zero vulnerabilities, audited via npm audit and pinned in `sdk/oracles`.
-
-### Standards & Targets
 - Supported standards editions: JSON Schema 2020-12, SPDX 3.0.1, SLSA Provenance v1, OCI Image Spec v1.1, Sigstore Bundle v0.3.
 - Supported target profiles: Local CLI, Docker Compose 3.8, Kubernetes 1.36.4, and GitHub Pages.
-
-### Compatibility
 - Holo/1 and accepted Prism application inputs remain stable. Additive contracts use new registered schemas; an incompatible schema change requires a new schema identifier and an explicit migration.
 - Security disclosures and vulnerability reporting: `security@uor.foundation`.
+- Verification commands: `cargo run --package xtask -- validate`, `cargo test --all-targets`, `cargo clippy --all-targets --all-features -- -D warnings`.
+- This version has no git tag and no GitHub Release.
 
-### Verification Commands
-- `cargo run --package xtask -- validate`
-- `cargo test --all-targets`
-- `cargo clippy --all-targets --all-features -- -D warnings`
+## [0.2.0] - 2026-09-05
 
-Holo/1 and accepted Prism application inputs remain stable. Additive contracts
-use new registered schemas; an incompatible schema change requires a new schema
-identifier and an explicit migration.
+### Features Added
+- The Holo/1 application pipeline and the Calculator reference application.
+- Reproducible Calculator release artifacts.
+
+### Breaking Changes
+Not recorded. This entry predates the per-version breaking log in STABILITY.md section 2.
+
+### Bugs Fixed
+- Aligned the Calculator browser grammar with the model.
+
+### Other Changes
+- An immutable, unsigned development bootstrap for the accepted Calculator/Holo/1 production line, built twice from commit `f378fd3a8dc5711cb4b22cec9ee2f874353628c3` in clean devcontainer roots. The x86_64 binaries were byte-identical. It makes no production-system or SLSA-level claim.
+- Fetched the embedded Hologram oracle dependencies, refreshed the reviewed golden evidence, and finished dependency and verification cleanup.
+- This entry was written later from the tag, the GitHub Release and the commits. The release shipped with no changelog entry.
 
 ## [0.1.0] - 2026-08-30
 

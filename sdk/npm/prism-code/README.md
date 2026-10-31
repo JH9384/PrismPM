@@ -458,6 +458,30 @@ trusts the signer for.
 `prism-code check` with no holo is the 0.2.0 spelling of `build --check`. It
 still runs, prints a deprecation warning, and is removed in 0.4.0.
 
+## Develop with the studio (experimental, #288)
+
+`prism-code dev` watches a project, rebuilds and re-checks on every save, and
+serves a local studio at `http://localhost:4100`. The port is fixed: `--port`
+moves it, and a port in use is an error.
+
+```
+npx prism-code dev
+npx prism-code dev path/to/project --policy policy.json --no-open
+npx prism-code dev --build "make holo" --holo out/app.holo
+```
+
+The Check tab shows the verdict `check` prints for the same holo, with its
+level and every reason, and the time from the edit to the verdict. The page
+also judges the bytes itself with `@prism-code/verify` and says whether the two
+agree. The Replay tab says `unavailable` until `prism replay` ships.
+
+A build that fails, or names no holo, leaves no current verdict: the last one
+stays visible, labeled as describing source that has since changed. The page
+loads nothing from outside the machine. The build is separate: without
+`--build` or `[model].build` it runs `prism-code build --update`, which rewrites the model's pins in
+`prismpm.lock` as you save, so commit the lock with your source. It needs Docker and
+`prismpm.lock`. A build command from `prism.toml` runs with your permissions.
+
 ## Build one
 
 `build`, `build --check`, `verify` and `conformance` run `prismpm` inside the

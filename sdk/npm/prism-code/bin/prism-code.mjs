@@ -23,6 +23,8 @@
  *                                                     write a verified release's six-file browser export
  *   prism-code check <app.holo> [--policy <file>] [--json]
  *                                                     judge the holo against a policy and print its verdict
+ *   prism-code dev [<dir>] [--port N] [--no-open] [--policy <file>] [--build <command>] [--holo <path>]
+ *                                                     watch the project, rebuild and re-check on every change, serve the local studio
  *   prism-code push <app.holo> <reference>            put the holo and its attestations in a registry or a local store
  *   prism-code pull <reference> [<out.holo>]          fetch a holo, verify it, then write it
  *   prism-code build [--check]|verify|conformance ... run prismpm in the locked SDK image
@@ -106,6 +108,9 @@ Usage:
   prism-code check <app.holo> [--policy <file>] [--json]
                                                     judge the holo against a policy and print its verdict:
                                                     exit 0 passed, 1 failed, 2 no verdict
+  prism-code dev [<dir>] [--port <n>] [--no-open] [--policy <file>] [--build <command>] [--holo <path>]
+                                                    watch the project, rebuild and re-check on every change, and
+                                                    serve the local studio at http://localhost:4100: tabs Check, Replay
   prism-code push <app.holo | dir://store:tag> <reference> [--key <private.pem> | --keyless] [--store <dir>]
                                                     put the holo in an OCI registry or a local store, each attestation
                                                     a referrer; a signer also signs a statement naming the manifest
@@ -157,6 +162,11 @@ Options for both:     --store <dir>                the reference is a name in th
                       credentials come from Docker's config, or GHCR_TOKEN or GITHUB_TOKEN for ghcr.io
 Options for manifest: --target <browser|node>      merge prism.browser.toml or prism.node.toml over prism.toml
                       --json                       the merged manifest and the warnings as canonical JSON
+Options for dev:      --port <n>                   the studio's port, default 4100; a port in use is an error, not a move
+                      --no-open                    do not open the studio in a browser
+                      --policy <file>              the policy the Check tab judges by, a file or a shipped name, as for check; an edit to a file re-checks
+                      --build <command>            the build, in a shell; default [model].build of prism.toml, then prism-code build --update
+                      --holo <path>                the file the build writes; default the one the build reports
 Options for providers: --target <browser|node>     merge prism.browser.toml or prism.node.toml over prism.toml
                       --json                       the result as canonical JSON, with the values; text output never prints one
 Options for export:   --out <dir>                  a new directory name in the project, default export
@@ -645,6 +655,10 @@ async function main(argv) {
     case 'init': {
       const { runInit } = await import('../src/init-cli.mjs');
       return runInit(rest);
+    }
+    case 'dev': {
+      const { runDev } = await import('../src/dev-cli.mjs');
+      return runDev(rest);
     }
     case 'attest':
     case 'verify-attestation':

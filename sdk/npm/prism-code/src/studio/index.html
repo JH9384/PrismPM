@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prism studio</title>
+<link rel="stylesheet" href="/studio.css">
+<script type="module" src="/studio.mjs"></script>
+</head>
+<body>
+<header class="bar">
+  <h1>Prism studio</h1>
+  <p id="project" class="muted"></p>
+  <p id="link" class="link" role="status"></p>
+</header>
+<nav class="tabs" role="tablist" aria-label="Studio tabs">
+  <button id="tab-check" role="tab" type="button" aria-controls="panel-check" aria-selected="true">Check</button>
+  <button id="tab-replay" role="tab" type="button" aria-controls="panel-replay" aria-selected="false" tabindex="-1">Replay</button>
+</nav>
+<main>
+  <section id="panel-check" role="tabpanel" aria-labelledby="tab-check" tabindex="0"></section>
+  <section id="panel-replay" role="tabpanel" aria-labelledby="tab-replay" tabindex="0" hidden></section>
+</main>
+</body>
+</html>

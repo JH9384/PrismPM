@@ -113,6 +113,10 @@
           "narrative": true
         },
         {
+          "path": "guides/dev-studio",
+          "narrative": true
+        },
+        {
           "path": "guides/verify-and-inspect",
           "narrative": true
         },

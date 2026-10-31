@@ -12,7 +12,7 @@
   "distribution": [
     { "name": "Documented API", "value": "1.0", "note": "These docs describe Prism 1.0. Every page says which release it needs in `available_in`." },
     { "name": "`prism-code` on npm", "value": "0.2.0", "note": "`load`, `dispatch` and `acceptance`, and the `prism-code` command." },
-    { "name": "`prism` CLI", "value": "not shipped", "note": "Today `prism-code check` and `prism-code build` run the build in the pinned toolchain image." },
+    { "name": "`prism` CLI", "value": "not shipped", "note": "Today `prism-code check` and `prism-code build` run the build in the pinned SDK image." },
     { "name": "`@prism-code/*` packages", "value": "not published", "note": "`@prism-code/spec` and `@prism-code/verify` are written and publish with 0.5." },
     { "name": "Rust crates", "value": "not published", "note": "The `prism-code` crate ships with 1.0-beta.1." },
     { "name": "Python package", "value": "not published", "note": "The `prism-code` package ships with 1.1." }
@@ -20,7 +20,7 @@
   "features": [
     { "feature": "`prism-code` library: `load`, `dispatch`, and `acceptance`, which replays the examples a holo carries", "available_in": "0.2.0" },
     { "feature": "`prism-code run` serves a holo, `prism-code vectors` replays its examples, `prism-code inspect` prints what it says about itself", "available_in": "0.2.0" },
-    { "feature": "`prism-code check` and `prism-code build` run the build in the toolchain image pinned by the lockfile", "available_in": "0.2.0" },
+    { "feature": "`prism-code check` and `prism-code build` run the build in the SDK image pinned by the lockfile", "available_in": "0.2.0" },
     { "feature": "The holo format: section table, sha256 and BLAKE3 digests, digest footer", "available_in": "0.2.0" },
     { "feature": "`prism lock`, `prism update` and the full input lock", "available_in": "0.5" },
     { "feature": "`prism check` with a verdict, an assurance level and exit codes", "available_in": "0.5" },

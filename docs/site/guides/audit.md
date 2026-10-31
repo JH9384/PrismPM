@@ -19,7 +19,7 @@ prism inspect calculator@sha256:3f9c… --audit
 
 ```text
 calculator@sha256:3f9c…   format revision {{FORMAT_REVISION}}
-Built         2026-10-23T10:12:44Z in toolchain image sha256:91ab…
+Built         2026-10-23T10:12:44Z in SDK image sha256:91ab…
 Source        model sha256:7d2e…  lockfile pins match
 Signed        keyless  identity https://github.com/you/calculator/.github/workflows/release.yml@refs/tags/v0.1.0
               issuer https://token.actions.githubusercontent.com
@@ -78,7 +78,7 @@ If any of the three fails, there is no P2 or P3 and `run` does not start.
 
 ## What the proof does not cover
 
-- The proof checker, which is the Lean 4 kernel, and the toolchain image are trusted, not proven. The compiler and the provers run in a pinned toolchain image whose digest is in the lockfile. Their correctness is assumed. Pin the digest and review what is in the toolchain image.
+- The proof checker, which is the Lean 4 kernel, and the SDK image are trusted, not proven. The compiler and the provers run in a pinned SDK image whose digest is in the lockfile. Their correctness is assumed. Pin the digest and review what is in the SDK image.
 - The intent sentences are yours. The proof shows the sentences hold. It does not show that the sentences are the right ones. An audit reads every sentence and asks what is missing.
 - The host enforces the capability set. The proof covers what the holo asks for. The runtime decides what it gets. Use a runtime that passes `@prism-code/conformance`.
 - Anything beyond the world is outside the proof. A host you allowed can return anything. The proof says what the holo does with it, not what it is.

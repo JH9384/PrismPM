@@ -3,7 +3,7 @@ title: Core concepts
 description: The seven ideas behind every Prism command, each with one example.
 available_in: "1.0-beta"
 ---
-This page gives you the vocabulary the rest of the docs use. Each section defines one idea and shows it on the calculator application from the quickstart.
+This page gives you the vocabulary the rest of the docs use. Each section defines one idea and shows it on the calculator application from the quickstart. The [Concepts](/docs/concepts/holo) group explains why each one works the way it does.
 
 ## Model
 
@@ -25,7 +25,7 @@ A holo is an image that carries its own proof. It is one file, `calculator.holo`
 calculator@sha256:3f9c…
 ```
 
-Inside are the application manifest, the model document, the provenance, the capability set, the program as WebAssembly, a portable view for the browser, and an attestation bundle. Each part has its own sha256 and BLAKE3 digest, and the last 32 bytes of the file are the BLAKE3 of everything before them. The holo's digest covers all of it. The same model built in the same toolchain image gives the same digest, every time. [Holo format](/docs/reference/holo-format) has the byte layout.
+Inside are the application manifest, the model document, the provenance, the capability set, the program as WebAssembly, a portable view for the browser, and an attestation bundle. Each part has its own sha256 and BLAKE3 digest, and the last 32 bytes of the file are the BLAKE3 of everything before them. The holo's digest covers all of it. The same model built in the same SDK image gives the same digest, every time. [Holo format](/docs/reference/holo-format) has the byte layout.
 
 ## Check
 

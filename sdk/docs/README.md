@@ -1,10 +1,10 @@
 # Docs generator
 
-Builds the whole Prism docs site into `build/docs/`: the Reference and API pages it generates, the hand-written pages under [`docs/site/`](../../docs/site), `llms.txt` and `llms-full.md`.
+Builds the whole Prism docs site into `build/docs/`: the Reference and API pages it generates, the hand-written pages under [`docs/site/`](../../docs/site), `llms.txt`, `llms-full.md`, and the same site as Mintlify reads it under `mintlify/`.
 Nothing on a generated page is written by hand: tables come from the spec package's JSON Schemas and constants, signatures from type declarations, output blocks from executed examples, and the CLI page from a machine-readable description.
 Nothing the generator writes is committed to main: no pages and no pin.
 On every push to main, CI publishes the built site to the `docs-site` branch, which the hosting site reads (see [The docs-site branch](#the-docs-site-branch)).
-Design: [docs/proposals/300-docs-pipeline.md](../../docs/proposals/300-docs-pipeline.md).
+Design: [docs/proposals/300-docs-pipeline.md](../../docs/proposals/300-docs-pipeline.md) and [docs/proposals/299-docs-site.md](../../docs/proposals/299-docs-site.md).
 
 Node 22. No dependencies: `prism-code` and `@prism-code/spec` are read from this repository.
 
@@ -16,6 +16,7 @@ node sdk/docs/changed.mjs <base> <head>    the pages that differ between two gen
 node sdk/docs/publish.mjs <site> --commit <sha> [--previous <dir>]
                                            stage a built site as the docs-site tree; print changed=true|false
 node sdk/docs/lint.mjs [path...]           vocabulary lint; default: docs/ minus the engineering records
+node sdk/docs/coverage.mjs [--owed]        which public items have a reference entry and an example; exit 1 when an entry is missing
 node --test "sdk/docs/test/*.test.mjs"     the generator's own tests
 node sdk/docs/skill.mjs                    rebuild the generated blocks of skills/prism/SKILL.md
 node sdk/docs/skill.mjs --check            fail when a block is stale or the skill names a command that does not ship
@@ -31,7 +32,7 @@ node sdk/docs/skill.mjs smoke              install prism-code from npm and run e
 | `Calculator.holo` | `sdk/npm/prism-code/fixtures` | the input every example runs against |
 | `cli.json` | this directory | the CLI page and the exit codes; the verbs and flags a narrative page may show |
 | `pages.json` | this directory | the page list in site order: every page's path, and for a generated page its title, description, `available_in`, next steps and status line; `llms.txt` |
-| narrative pages | `docs/site/**/*.md` | Get started, Guides, SDKs, Changelog, and the policy and release status reference pages |
+| narrative pages | `docs/site/**/*.md` | Get started, Concepts, Guides, Examples, SDKs, Changelog, Migration, and the policy and release status reference pages |
 | `release-status.json` | `docs/site/` | the releases every `available_in` must name, and the tables of the release status page |
 
 ### Narrative pages
@@ -85,15 +86,18 @@ It is replaced, not edited, when that happens; the page's footer and status line
 Every example under `examples/` is executed on every generation, with `cwd` at the fixture directory and the bare specifiers `prism-code` and `@prism-code/spec` resolved to this repository through a module hook (`lib/register.mjs`), so the scripts read as they would in a project.
 Standard output is the page's output block.
 An example that exits non-zero fails the pages that show it.
+A `.sh` example is command lines a reader types, each a `prism-code` command with no quoting, run in turn; it shows as a `bash` block, so the command check applies to it.
 
 | Example | Page | Runs against |
 | --- | --- | --- |
 | `load.mjs` | api/load | `prism-code` 0.2.0, `Calculator.holo` |
 | `dispatch.mjs` | api/dispatch | same |
-| `acceptance.mjs` | api/history-and-replay | same |
-| `three-calls.mjs` | api/index, sdks/typescript | same |
-| `verify.mjs` | api/verify | `prism-code` source, `Calculator.holo` |
-| `spec-constants.mjs` | api/spec-package | the spec in this checkout |
+| `acceptance.mjs` | api/history-and-replay, examples/replay-examples | same |
+| `three-calls.mjs` | api/index, sdks/typescript, examples/call-a-holo | same |
+| `verify.mjs` | api/verify, examples/check-a-holo | `prism-code` source, `Calculator.holo` |
+| `spec-constants.mjs` | api/spec-package, examples/read-the-spec | the spec in this checkout |
+| `inspect-sections.mjs` | examples/inspect-a-holo | `prism-code` source, `Calculator.holo` |
+| `command-line.sh` | examples/command-line | the `prism-code` command in this repository, `Calculator.holo` |
 
 Pages whose example cannot run yet (`inspect`, `instantiate`, `as-tool`, the manifest, the verify and testing packages) carry one generated status line from `pages.json` and the relevant declarations.
 No prose stands in for a missing example.
@@ -157,6 +161,33 @@ The pages that differ, with their diff, go to the job summary and to the artifac
 The commit in each page's footer is ignored, so only a real change to a page shows.
 It does not post a comment, because that needs `pull-requests: write`, and it never commits to main: a bot commit there would hide a failure instead of catching it.
 
+## The Mintlify tree
+
+`mintlify/` is the site as Mintlify reads it, derived from the rendered pages by `lib/mintlify.mjs`, so it is never edited.
+Its `docs.json` comes from `pages.json`: `versions` lists one entry per major, spelled `v<N>`, and `mintlify.tabs` places every page group in exactly one tab, with `nest` putting a group inside another.
+A group in no tab, or a version that is not a major, fails the build.
+
+A page differs from its `/docs` form in three ways only:
+
+| Change | Why |
+| --- | --- |
+| HTML comments outside code are removed | Mintlify's parser rejects them. |
+| `/docs/<path>` links become `/<path>` | Mintlify serves pages from the root. `docs.json` also redirects the old paths. |
+| A page whose `available_in` is a planned release gets a note | Mintlify does not show `available_in`. The note goes when `release-status.json` marks the release shipped. |
+
+`changelog` is written as `changelog/index.md`, because Mintlify skips a file named `changelog.md`. Its URL is still `/changelog`.
+The full index is `llms-full.txt`, the only name Mintlify takes for it.
+
+`verify` checks the tree with no dependency. CI also runs `mint validate` and `mint broken-links` at an exact version. To run them locally:
+
+```bash
+cd build/docs/mintlify
+npx --yes mint@4.2.1178 validate
+npx --yes mint@4.2.1178 dev
+```
+
+To serve the site, point a Mintlify project at the `docs-site` branch with `mintlify` as its content directory. Until the domain moves, `llms.txt` links stay on `site` in `pages.json`; change that one field at cutover.
+
 ## The agent skill
 
 `skills/prism/SKILL.md` is the Agent Skill that teaches an agent Prism in Docker's words: install `prism-code`, load, run, inspect and verify a holo, and where these docs and `llms.txt` live.
@@ -180,7 +211,7 @@ Nothing pushes to the website: no token for it exists, and none is needed.
 
 The branch is the contract:
 
-- Its tree is exactly the built site plus `README.md`. At the root: `api/`, `reference/`, `get-started/`, `guides/`, `sdks/`, `changelog.md`, `index.md`, `llms.txt`, `llms-full.md` and `release-status.json`. `build/docs/` after `node sdk/docs/generate.mjs` is that tree without the README.
+- Its tree is exactly the built site plus `README.md`. At the root: `api/`, `reference/`, `get-started/`, `concepts/`, `guides/`, `examples/`, `sdks/`, `migration/`, `mintlify/`, `changelog.md`, `index.md`, `llms.txt`, `llms-full.md` and `release-status.json`. A host that reads the pages ignores `mintlify/`. `build/docs/` after `node sdk/docs/generate.mjs` is that tree without the README.
 - Every page is one Markdown file with frontmatter `title`, `description` and `available_in`, served at the site path plus the file name without `.md`. `api/index.md` is served at `api`, and `index.md` at the site root.
 - Links between pages are `/docs/<site path>`.
 - `README.md` names the main commit the tree was built from and says the branch must not be edited.
@@ -204,6 +235,7 @@ generate.mjs        entry: write the site, verify
 changed.mjs         the pages that differ between two generated sites
 publish.mjs         stage a built site as the docs-site branch tree
 lint.mjs            the vocabulary lint
+coverage.mjs        which public items have a reference entry and an example
 cli.json            the CLI description stand-in
 pages.json          the page list
 examples/           the executed example scripts, shown verbatim on the pages
@@ -212,6 +244,7 @@ lib/runtime.mjs     prism-code: types, version, error codes, the fixture
 lib/examples.mjs    run one example and capture its output
 lib/generate.mjs    render every page, narrative and generated, collecting problems by page
 lib/site.mjs        narrative pages, release-status.json, frontmatter, link, command and layout checks
+lib/mintlify.mjs    the mintlify/ tree and docs.json, derived from the rendered site
 lib/schema.mjs      JSON Schema to table rows
 lib/dts.mjs         declarations out of .d.ts files
 lib/markdown.mjs    frontmatter, tables, fences, footer

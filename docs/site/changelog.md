@@ -78,7 +78,7 @@ Every build carries a proof and a provenance attestation, and `check` verifies b
 
 - `check` verifies digest, provenance, proof and lockfile pins and prints a verdict with its assurance level and reasons.
 - `build` always emits provenance and the proof attestation and caches by spec digest.
-- `lock` writes the lockfile; `update` bumps the toolchain image and prints old and new digests.
+- `lock` writes the lockfile; `update` bumps the SDK image and prints old and new digests.
 - `attest` adds a signed statement and `verify` checks it, keyless by default with `--key` for air-gapped use.
 - `inspect` prints manifest, section digests, format revision and attestations without running.
 - `holo.verify()` returns a verdict, and the runtime throws typed errors.
@@ -96,7 +96,7 @@ Date: 2026-10-23. Tag: Feature.
 - `dispatch` sends one request to the program on a fresh instance and returns the response bytes.
 - `acceptance` replays every example the holo carries and reports how many passed.
 - `prism-code run` serves a holo, `prism-code vectors` replays its examples, and `prism-code inspect` prints what it says about itself.
-- `prism-code check` and `prism-code build` run the build inside the toolchain image pinned by `prismpm.lock`. Docker is required.
+- `prism-code check` and `prism-code build` run the build inside the SDK image pinned by `prismpm.lock`. Docker is required.
 
 Closes [#249](https://github.com/UOR-Foundation/PrismPM/issues/249).
 Closes [#250](https://github.com/UOR-Foundation/PrismPM/issues/250).

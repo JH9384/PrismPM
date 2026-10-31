@@ -40,9 +40,9 @@
       { "name": "attest", "usage": "prism-code attest <app.holo> --predicate <file> --type <uri>", "summary": "Sign an in-toto statement about the holo into its attestation section: keyless with an OIDC token, or with `--key`." },
       { "name": "verify-attestation", "usage": "prism-code verify-attestation <app.holo> --certificate-identity <id> --certificate-oidc-issuer <url>", "summary": "Check the holo's attestations against the signer you expect, or against `--key`." },
       { "name": "check", "usage": "prism-code check <app.holo> [--policy <file>] [--json]", "summary": "Judge the holo against a policy and print its verdict: the assurance level, whether the policy passed, and every reason. Without a holo, the deprecated spelling of `build --check`, removed in 0.4.0." },
-      { "name": "build", "usage": "prism-code build [--check]", "summary": "Build the project into a holo inside the toolchain image the lockfile pins. With `--check`, validate the model and write nothing." },
-      { "name": "verify", "usage": "prism-code verify", "summary": "Run verify in the toolchain image the lockfile pins." },
-      { "name": "conformance", "usage": "prism-code conformance", "summary": "Run the conformance suite in the toolchain image the lockfile pins." }
+      { "name": "build", "usage": "prism-code build [--check]", "summary": "Build the project into a holo inside the SDK image the lockfile pins. With `--check`, validate the model and write nothing." },
+      { "name": "verify", "usage": "prism-code verify", "summary": "Run verify in the SDK image the lockfile pins." },
+      { "name": "conformance", "usage": "prism-code conformance", "summary": "Run the conformance suite in the SDK image the lockfile pins." }
     ],
     "providers": {
       "$comment": "Provider services (#294, experimental). The wire protocol is on the manifest reference page.",
@@ -75,7 +75,7 @@
     },
     {
       "name": "build",
-      "summary": "Compile the model into a holo inside the pinned toolchain image, record provenance and the proof attestation, and cache the result by spec digest.",
+      "summary": "Compile the model into a holo inside the pinned SDK image, record provenance and the proof attestation, and cache the result by spec digest.",
       "usage": "prism build [flags]",
       "flags": [
         { "flag": "--provenance=<min|max>", "default": "min", "meaning": "How much the provenance records. `max` adds every resolved input and the full toolchain environment." },
@@ -217,7 +217,7 @@
     },
     {
       "name": "lock",
-      "summary": "Write or refresh the lockfile from the current model and inputs, without building. Pins that still resolve stay as they are, and the toolchain image and toolchain pins do not move. Exits 2 when there is no lockfile or its SDK cannot be resolved.",
+      "summary": "Write or refresh the lockfile from the current model and inputs, without building. Pins that still resolve stay as they are, and the SDK image and toolchain pins do not move. Exits 2 when there is no lockfile or its SDK cannot be resolved.",
       "usage": "prism lock [flags]",
       "flags": [
         { "flag": "--check", "default": "off", "meaning": "Write nothing. Fail when the lockfile is stale and name the pins that differ." }
@@ -226,10 +226,10 @@
     },
     {
       "name": "update",
-      "summary": "Move the lockfile forward and print the old and new digests of every pin that changed. Without a flag it refreshes the toolchain pins; with `--toolchain` it also pins a new toolchain image. Exits 2 when the lockfile or the image cannot be resolved.",
+      "summary": "Move the lockfile forward and print the old and new digests of every pin that changed. Without a flag it refreshes the toolchain pins; with `--toolchain` it also pins a new SDK image. Exits 2 when the lockfile or the image cannot be resolved.",
       "usage": "prism update [flags]",
       "flags": [
-        { "flag": "--toolchain <ref>", "default": "the pinned image", "meaning": "Toolchain image to pin, as `name@sha256:digest`." },
+        { "flag": "--toolchain <ref>", "default": "the pinned image", "meaning": "SDK image to pin, as `name@sha256:digest`." },
         { "flag": "--standards-lock <digest>", "default": "the project's standards lock", "meaning": "Standards lock the new image selects. Needs `--toolchain`." },
         { "flag": "--dry-run", "default": "off", "meaning": "Print the change without writing the lockfile." }
       ],

@@ -12,7 +12,7 @@ Prism works like Docker. A model is built into a holo, an immutable package addr
 | Dockerfile | model |
 | image, tag and digest | holo |
 | container | instance |
-| base image pinned in `FROM` | toolchain image pinned in the lockfile |
+| base image pinned in `FROM` | SDK image pinned in the lockfile |
 | `docker run` | `prism-code run` |
 | `docker inspect` | `prism-code inspect` |
 
@@ -50,9 +50,9 @@ Run `npx prism-code --help` for the list your installed version has. The command
 | `prism-code attest <app.holo> --predicate <file> --type <uri>`                                         | Sign an in-toto statement about the holo into its attestation section: keyless with an OIDC token, or with `--key`.                                                                                                                                                                   |
 | `prism-code verify-attestation <app.holo> --certificate-identity <id> --certificate-oidc-issuer <url>` | Check the holo's attestations against the signer you expect, or against `--key`.                                                                                                                                                                                                      |
 | `prism-code check <app.holo> [--policy <file>] [--json]`                                               | Judge the holo against a policy and print its verdict: the assurance level, whether the policy passed, and every reason. Without a holo, the deprecated spelling of `build --check`, removed in 0.4.0.                                                                                |
-| `prism-code build [--check]`                                                                           | Build the project into a holo inside the toolchain image the lockfile pins. With `--check`, validate the model and write nothing.                                                                                                                                                     |
-| `prism-code verify`                                                                                    | Run verify in the toolchain image the lockfile pins.                                                                                                                                                                                                                                  |
-| `prism-code conformance`                                                                               | Run the conformance suite in the toolchain image the lockfile pins.                                                                                                                                                                                                                   |
+| `prism-code build [--check]`                                                                           | Build the project into a holo inside the SDK image the lockfile pins. With `--check`, validate the model and write nothing.                                                                                                                                                           |
+| `prism-code verify`                                                                                    | Run verify in the SDK image the lockfile pins.                                                                                                                                                                                                                                        |
+| `prism-code conformance`                                                                               | Run the conformance suite in the SDK image the lockfile pins.                                                                                                                                                                                                                         |
 
 | Exit code | Name           | Meaning                                                                                                                                                                                                                                                                                 |
 | --------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -96,7 +96,7 @@ Calculator true
 - Check before you run. `inspect` and `vectors` read a holo without trusting it. A holo that fails an identity check exits 2: stop and report it. Do not run it, and do not edit its bytes.
 - Report what the output says. `inspect` prints the holo's identities, limits, provenance and view files. Do not infer a proof or a signed statement from what it leaves out; say what is and is not there.
 - Read the exit code before the text. 0 is ok, 1 is a failed vector, 2 is a refused holo, 64 is a usage error, 69 is no Docker.
-- `check`, `build`, `verify` and `conformance` run the project's toolchain image, so they need Docker and a `prismpm.lock` in the current directory. Say so when Docker is missing instead of working around it.
+- `check`, `build`, `verify` and `conformance` run the project's SDK image, so they need Docker and a `prismpm.lock` in the current directory. Say so when Docker is missing instead of working around it.
 - The docs say which release each feature needs. Read the release status page before you promise a feature.
 
 ## Docs

@@ -16,6 +16,7 @@ import { bullets, footer, frontmatter, heading, page as assemble } from './markd
 import * as api from './pages/api.mjs';
 import { cli as cliPage } from './pages/cli.mjs';
 import { llmsFull, llmsTxt } from './pages/llms.mjs';
+import { mintlifyFiles, navigationProblems, treeProblems } from './mintlify.mjs';
 import * as reference from './pages/reference.mjs';
 import { FIXTURE_DIR, prismCode } from './runtime.mjs';
 import {
@@ -56,7 +57,7 @@ const GENERATORS = {
   'testing-package': api.missingPackage,
 };
 
-export const EXAMPLES = ['load', 'dispatch', 'acceptance', 'three-calls', 'spec-constants', 'verify'];
+export const EXAMPLES = ['load', 'dispatch', 'acceptance', 'three-calls', 'spec-constants', 'verify', 'inspect-sections', 'command-line'];
 
 export function readPages() {
   return JSON.parse(readFileSync(join(DOCS_DIR, 'pages.json'), 'utf8'));
@@ -165,6 +166,8 @@ export async function renderSite({ spec, runtime, pages = readPages(), cli = rea
     }
   }
 
+  for (const message of navigationProblems(pages)) problems.push(new PageProblem('docs.json', 'source', message));
+
   const known = new Set([...entries.map((e) => sitePath(e.path)), 'llms.txt', 'llms-full.md']);
   for (const [path, text] of rendered) {
     for (const message of frontmatterProblems(text, releases)) problems.push(new PageProblem(path, 'frontmatter', message));
@@ -180,6 +183,9 @@ export async function renderSite({ spec, runtime, pages = readPages(), cli = rea
     const listed = { ...pages, groups: pages.groups.map((g) => ({ ...g, pages: g.pages.map((p) => byPath.get(p.path)) })) };
     files.set('llms.txt', llmsTxt(listed, rendered));
     files.set('llms-full.md', llmsFull(listed, rendered));
+    const tree = mintlifyFiles(files, listed, releases);
+    for (const { page, message } of treeProblems(tree)) problems.push(new PageProblem(page, 'source', `mintlify: ${message}`));
+    for (const [path, text] of tree) files.set(path, text);
   }
   return { files, problems };
 }
@@ -188,7 +194,7 @@ export async function renderSite({ spec, runtime, pages = readPages(), cli = rea
 export function lintFiles(files) {
   const problems = [];
   for (const [path, text] of files) {
-    if (!/\.(md|txt)$/.test(path)) continue;
+    if (!/\.(md|txt)$/.test(path) || path.startsWith('mintlify/')) continue;
     for (const hit of lintText(text, path)) problems.push(new PageProblem(path.replace(/\.(md|txt)$/, ''), 'lint', `line ${hit.line}, ${hit.word}: ${hit.text.trim()}`));
   }
   return problems;

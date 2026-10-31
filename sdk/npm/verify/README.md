@@ -86,6 +86,14 @@ What this package does check today appears as reasons that withhold P1:
 
 So until the bundle lands, read a verdict this way: no `holo.integrity` and no `holo.documents` reason means the holo is intact and well-formed. A P0 policy accepts any readable holo, tampered or not, because P0 promises nothing. Pin a digest when you need a pass or fail answer today.
 
+## Policy files
+
+`verify(bytes, { name, rego, capabilities })` judges a holo by a Rego policy (issue #285, [docs/proposals/285-policy-file.md](../../../docs/proposals/285-policy-file.md)). Without `rego`, the shipped default policy decides, and `minimum`, `digests`, `world` and `effects` adjust it.
+
+`POLICIES` holds the source of `default`, `pure-only` and `provenance-only`. `policyInput(bytes, { capabilities })` returns the `prism/policy-input/1` document a policy reads. `parsePolicy(source)` and `evaluatePolicy(parsed, input)` run a policy on a document alone, and return `{ minimum, denied, denials }`.
+
+The evaluator, `src/rego.mjs`, is a closed subset of Rego v1 with no dependencies. It refuses what it does not implement, by name, and `test/rego-opa.test.mjs` pins its answers against OPA.
+
 ## Example
 
 Serve `Calculator.holo` next to this page and open it.
@@ -188,7 +196,7 @@ A failed check is a reason in a verdict, not an error.
 
 ## Size
 
-`browser.js` is about 160 KB. Most of it is the JSON Schemas of the four model document versions a holo can carry, BLAKE3, and the log and timestamp checks.
+`browser.js` is about 265 KB. Most of it is the JSON Schemas of the model document versions a holo can carry, BLAKE3, the log and timestamp checks, and the Rego evaluator with the shipped policies.
 
 ## How it is built
 

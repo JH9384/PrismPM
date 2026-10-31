@@ -111,5 +111,18 @@ export declare const PROVENANCE: Readonly<{
   UNSIGNED: Readonly<{ SIGNATURE: '' }>;
 }>;
 
+/** The policy file of `prism check --policy` (issue #285). A policy never lives in a holo. */
+export declare const POLICY: Readonly<{
+  INPUT: 'prism/policy-input/1';
+  INPUT_SCHEMA: 'schemas/policy/policy-input-v1.schema.json';
+  LANGUAGE: 'rego';
+  PACKAGE: 'prism.policy';
+  SHIPPED: Readonly<{
+    default: 'policies/default.rego';
+    'pure-only': 'policies/pure-only.rego';
+    'provenance-only': 'policies/provenance-only.rego';
+  }>;
+}>;
+
 export type * from './assurance-levels.js';
 export { ASSURANCE } from './assurance-levels.js';

@@ -2,7 +2,7 @@
   "schema": "prism/verdict/1",
   "holo": "blake3:8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba",
   "level": "P0",
-  "policy": { "name": "policies/provenance-only.cue", "minimum": "P1" },
+  "policy": { "name": "provenance-only", "minimum": "P1" },
   "passed": false,
   "reasons": [
     { "check": "provenance.statement", "withholds": "P1", "message": "The holo carries no provenance statement." },

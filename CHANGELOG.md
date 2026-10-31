@@ -5,6 +5,11 @@ All notable changes to PrismPM will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Features Added
+- Policy files for `prism-code check` and `run` (#285, `docs/proposals/285-policy-file.md`, experimental): `--policy` takes a Rego file (`.rego`) or the name of a shipped policy. `default` (P2 or above, and the declared world within the granted capabilities) is now a file that goes through the same evaluator as a user policy, and `pure-only` and `provenance-only` ship beside it. A policy reads one versioned document, `prism/policy-input/1` (schema and types in `@prism-code/spec`), and decides with `minimum` and `deny`; it never changes the level and never lives in the holo. The evaluator in `@prism-code/verify` is a closed subset of Rego v1 with no dependencies, which refuses what it does not implement and whose answers are pinned against OPA; `parsePolicy`, `evaluatePolicy`, `policyInput` and `POLICIES` are exported. A policy that does not parse is `PolicyParseError` (`policy_parse_failed`) and one that cannot be evaluated is `PolicyEvaluationError` (`policy_evaluation_failed`), both exit 2; a denial is a verdict reason named by its rule, `PolicyDeniedError` (`policy_denied`), exit 1. CUE is not evaluated yet, and a `.cue` file exits 2. JSON policy files keep working. Every holo is still P0 until holos carry signed statements (#267, #268), so the default policy still fails every real holo.
+
 ## [0.4.0] - 2026-10-27
 
 ### Added

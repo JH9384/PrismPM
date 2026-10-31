@@ -43,6 +43,18 @@ export class CapabilityDeniedError extends PrismError {
 export class WorldMismatchError extends PrismError {
   static readonly code: 'world_mismatch';
 }
+/** `policy_parse_failed`: the policy file does not parse, or uses a construct outside the subset (`policy.parse`). No verdict; `check` exits 2. Issue #285. */
+export class PolicyParseError extends VerificationError {
+  static readonly code: 'policy_parse_failed';
+}
+/** `policy_evaluation_failed`: the policy file parsed but produced no decision (`policy.evaluation`); the message names the rule. No verdict; `check` exits 2. Issue #285. */
+export class PolicyEvaluationError extends VerificationError {
+  static readonly code: 'policy_evaluation_failed';
+}
+/** `policy_denied`: a rule of a policy file denied the holo; `check` is the rule, such as `policy.pure-only.effects`. `check` exits 1. Issue #285. */
+export class PolicyDeniedError extends VerificationError {
+  static readonly code: 'policy_denied';
+}
 /** `determinism_violation`: a replay diverged from its recorded history (`replay.divergence`). */
 export class DeterminismViolationError extends PrismError {
   static readonly code: 'determinism_violation';

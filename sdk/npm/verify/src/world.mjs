@@ -204,6 +204,12 @@ export function describeWorld(contract, guest) {
   };
 }
 
+/** The imports a contract's world declares, or null when this reader has no world for it. */
+export function declaredImports(contract) {
+  if (!Object.hasOwn(WORLDS, contract)) return null;
+  return WORLDS[contract].imports.map(({ module, name, kind, capability }) => ({ module, name, kind, ...(capability === undefined ? {} : { capability }) }));
+}
+
 /**
  * Compare a pinned world, in the shape of the lock's `inputs.world`, with the
  * world a holo's contract names. Returns the differences, empty when it matches.

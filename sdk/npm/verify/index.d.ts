@@ -27,6 +27,12 @@ export interface Policy {
    */
   world?: { contract?: string; blake3?: string; sha256?: string } | null;
   /**
+   * The source of a Rego policy (issue #285, docs/proposals/285-policy-file.md). It decides alone, so only `name` and
+   * `capabilities` may accompany it. Without it, the shipped default policy decides, and `minimum`, `digests`,
+   * `world` and `effects` adjust that.
+   */
+  rego?: string;
+  /**
    * The capability set granted to the holo (issue #283): one set of a `prism/capabilities/1` file, or null for
    * nothing. A world importing a capability kind the set grants none of is a `world.capabilities` reason, code
    * `PP5602`: it withholds P3 and fails the policy at every level. Default null.
@@ -40,6 +46,54 @@ export interface Policy {
   effects?: Array<'clock' | 'random' | 'socket' | 'filesystem' | 'unknown'>;
 }
 
+/** The document a policy judges, `prism/policy-input/1` (issue #285). Its schema is in `@prism-code/spec`. */
+export interface PolicyInput {
+  schema: 'prism/policy-input/1';
+  holo: {
+    fingerprint: string;
+    revision: string | null;
+    digests: { archive: { sha256: string; blake3: string } } & Partial<Record<'capabilities' | 'guest' | 'view' | 'model', { sha256: string; blake3: string }>>;
+  };
+  verdict: { level: AssuranceLevel; reasons: VerdictReason[] };
+  world: {
+    contract: string;
+    known: boolean;
+    within: boolean | null;
+    pure: boolean | null;
+    effects: Array<'clock' | 'random' | 'socket' | 'filesystem' | 'unknown'> | null;
+    imports: Array<{ module: string; name: string; kind: string; capability?: string }> | null;
+    problems: string[];
+    capability_set: { label: string; empty: boolean } | null;
+  } | null;
+  capabilities: CapabilitySet | null;
+  predicates: Record<'provenance' | 'proof' | 'replay', { predicateType: string; verified: boolean; predicate: Record<string, unknown> } | null>;
+}
+
+/** A parsed policy, from `parsePolicy`. Opaque. */
+export interface ParsedPolicy {
+  readonly rules: unknown;
+}
+
+/** What a policy decided (issue #285). The level is the evidence's, and no policy changes it. */
+export interface PolicyDecision {
+  minimum: AssuranceLevel;
+  /** Whether any rule denied. */
+  denied: boolean;
+  /** The reasons a denial adds to the verdict. A denial that cites a reason the evidence already holds adds none. */
+  denials: Array<{ rule: string; message: string }>;
+}
+
+/** The source of each policy this package ships, by name (issue #285). */
+export const POLICIES: Readonly<Record<'default' | 'pure-only' | 'provenance-only', string>>;
+/** The `schema` member of the document a policy judges. */
+export const POLICY_INPUT_SCHEMA: 'prism/policy-input/1';
+/** Parse a Rego policy. Throws `VerifyError` `policy.parse`, naming the line and the construct. */
+export function parsePolicy(source: string): ParsedPolicy;
+/** Evaluate a parsed policy. Throws `VerifyError` `policy.evaluation`, naming the rule. */
+export function evaluatePolicy(policy: ParsedPolicy, input: PolicyInput): PolicyDecision;
+/** The document a policy judges for this holo. Rejects like `verify`. */
+export function policyInput(source: Uint8Array | ArrayBuffer, options?: { capabilities?: CapabilitySet | null }): Promise<PolicyInput>;
+
 /** One set of a `prism/capabilities/1` file (issue #279). */
 export interface CapabilitySet {
   'allow-outbound-hosts'?: string[];
@@ -48,6 +102,8 @@ export interface CapabilitySet {
   'deny-key-value-stores'?: string[];
   'allow-variables'?: string[];
   'deny-variables'?: string[];
+  'allow-providers'?: string[];
+  'deny-providers'?: string[];
 }
 
 /** Is a contract's world within a granted set, and is it pure (issue #283)? `known` is false for a contract this reader has no world for. */

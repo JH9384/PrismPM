@@ -355,14 +355,38 @@ npx prism-code check Calculator.holo --policy policy.json --json
 | Exit | Meaning | stdout with `--json` |
 | --- | --- | --- |
 | 0 | A verdict was reached and the policy passed. | one verdict |
-| 1 | A verdict was reached and the policy failed. | one verdict |
-| 2 | No verdict: not a holo, an unreadable policy, an unknown format revision. | nothing |
+| 1 | A verdict was reached and the policy failed or denied. | one verdict |
+| 2 | No verdict: not a holo, an unreadable, unparsable or unevaluable policy, an unknown format revision. | nothing |
 
-The policy is a verify-time input, never read from the holo. A policy file is
-one JSON object with `name`, `minimum` (`P0` to `P3`), `digests` and `world`,
-the options of `experimental_verify`. Without `--policy` the default policy
-asks for `P2` or above; `PRISM_MINIMUM_LEVEL` sets the minimum when the policy
-does not. Without a `name`, the verdict names the policy by its path.
+The policy is a verify-time input, never read from the holo. `--policy` takes a
+Rego file (`.rego`), the name of a shipped policy (`pure-only`,
+`provenance-only`, `default`), or a JSON file with `name`, `minimum` (`P0` to
+`P3`), `digests`, `world` and `effects`, the options of `experimental_verify`,
+which adjust the default policy. Without `--policy` the default policy asks for
+`P2` or above and the declared world within the granted capabilities;
+`PRISM_MINIMUM_LEVEL` sets the minimum when the policy does not, and never
+applies to a Rego policy, which states its own. A file is named in the verdict by
+its path, unless JSON names itself. The format is in
+[docs/proposals/285-policy-file.md](../../../docs/proposals/285-policy-file.md).
+
+A Rego policy is in the package `prism.policy` and decides with `minimum` and `deny`:
+
+```rego
+package prism.policy
+
+import rego.v1
+
+minimum := "P0"
+
+deny contains {"rule": "policy.house.pure", "message": "the world must be pure"} if {
+	input.world.pure == false
+}
+```
+
+A policy that denies is a verdict and exits 1, with the rule as the reason's
+`check`; with `throw: true` it is `PolicyDeniedError`. A policy that does not parse
+is `PolicyParseError` and one that cannot be evaluated is `PolicyEvaluationError`,
+and both exit 2.
 
 A CI job gates on the exit code and keeps the verdict when it fails:
 

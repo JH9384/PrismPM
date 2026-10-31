@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/policy-input/1",
+  "title": "PolicyInput",
+  "description": "The document a policy judges, bound to `input` when a policy file is evaluated. It holds what the check found: the evidence, the declared world, the granted capabilities and the attested predicates. It never holds a policy, and nothing in it is read from a policy section of the holo. Design: docs/proposals/285-policy-file.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "holo", "verdict", "world", "capabilities", "predicates"],
+  "properties": {
+    "schema": { "const": "prism/policy-input/1" },
+    "holo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint", "revision", "digests"],
+      "properties": {
+        "fingerprint": {
+          "description": "The archive fingerprint, the same value as the holo member of a verdict.",
+          "type": "string",
+          "pattern": "^blake3:[0-9a-f]{64}$"
+        },
+        "revision": {
+          "description": "The format revision the archive matches, or null when it matches none.",
+          "type": ["string", "null"]
+        },
+        "digests": {
+          "description": "Both digests of the whole file and of each content blob that could be located.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["archive"],
+          "properties": {
+            "archive": { "$ref": "#/$defs/digests" },
+            "capabilities": { "$ref": "#/$defs/digests" },
+            "guest": { "$ref": "#/$defs/digests" },
+            "view": { "$ref": "#/$defs/digests" },
+            "model": { "$ref": "#/$defs/digests" }
+          }
+        }
+      }
+    },
+    "verdict": {
+      "description": "The evidence: the assurance level and every check that did not pass, before any policy judged them. A policy never changes the level.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "reasons"],
+      "properties": {
+        "level": { "$ref": "#/$defs/level" },
+        "reasons": {
+          "type": "array",
+          "maxItems": 1024,
+          "items": { "$ref": "#/$defs/reason" }
+        }
+      }
+    },
+    "world": {
+      "description": "The world the holo declares, or null when it names no guest contract.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/world" }]
+    },
+    "capabilities": {
+      "description": "The capability set the caller granted, or null when nothing was granted. A policy file never grants; only the caller does.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/capabilitySet" }]
+    },
+    "predicates": {
+      "description": "The attested statements the holo carries, by the kind of evidence each is. Null when the holo carries none of that kind.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provenance", "proof", "replay"],
+      "properties": {
+        "provenance": { "$ref": "#/$defs/predicate" },
+        "proof": { "$ref": "#/$defs/predicate" },
+        "replay": { "$ref": "#/$defs/predicate" }
+      }
+    }
+  },
+  "$defs": {
+    "level": {
+      "description": "P0 unverified, P1 provenance, P2 proof checked, P3 proof, replay and world.",
+      "enum": ["P0", "P1", "P2", "P3"]
+    },
+    "digests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "blake3"],
+      "properties": {
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "blake3": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "reason": {
+      "description": "One check that did not pass, the same shape as a reason of prism/verdict/1.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check", "withholds", "message"],
+      "properties": {
+        "check": { "type": "string", "pattern": "^[a-z][a-z0-9-]*([.][a-z][a-z0-9-]*)+$" },
+        "code": { "type": "string", "pattern": "^PP[0-9]{4}$" },
+        "withholds": { "enum": ["P1", "P2", "P3", null] },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    },
+    "world": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "known", "within", "pure", "effects", "imports", "problems", "capability_set"],
+      "properties": {
+        "contract": { "type": "string", "minLength": 1 },
+        "known": {
+          "description": "False when this reader has no world for the contract. Then within, pure, effects and imports are null and nothing is stated about them.",
+          "type": "boolean"
+        },
+        "within": { "type": ["boolean", "null"] },
+        "pure": { "type": ["boolean", "null"] },
+        "effects": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array", "items": { "enum": ["clock", "random", "socket", "filesystem", "unknown"] } }
+          ]
+        },
+        "imports": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["module", "name", "kind"],
+                "properties": {
+                  "module": { "type": "string" },
+                  "name": { "type": "string" },
+                  "kind": { "type": "string" },
+                  "capability": { "enum": ["outbound-hosts", "key-value-stores", "variables"] }
+                }
+              }
+            }
+          ]
+        },
+        "problems": { "type": "array", "items": { "type": "string" } },
+        "capability_set": {
+          "description": "The capability set blob the holo itself carries, or null when it could not be located. Empty means the holo requests nothing.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["label", "empty"],
+              "properties": {
+                "label": { "type": "string", "pattern": "^blake3:[0-9a-f]{64}$" },
+                "empty": { "type": "boolean" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "capabilitySet": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow-outbound-hosts": { "$ref": "#/$defs/entries" },
+        "deny-outbound-hosts": { "$ref": "#/$defs/entries" },
+        "allow-key-value-stores": { "$ref": "#/$defs/entries" },
+        "deny-key-value-stores": { "$ref": "#/$defs/entries" },
+        "allow-variables": { "$ref": "#/$defs/entries" },
+        "deny-variables": { "$ref": "#/$defs/entries" },
+        "allow-providers": { "$ref": "#/$defs/entries" },
+        "deny-providers": { "$ref": "#/$defs/entries" }
+      }
+    },
+    "entries": { "type": "array", "items": { "type": "string" } },
+    "predicate": {
+      "description": "One attested statement, or null. verified says its signature checked against the trust root.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["predicateType", "verified", "predicate"],
+          "properties": {
+            "predicateType": { "type": "string", "minLength": 1 },
+            "verified": { "type": "boolean" },
+            "predicate": { "type": "object" }
+          }
+        }
+      ]
+    }
+  }
+}

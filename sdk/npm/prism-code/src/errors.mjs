@@ -12,6 +12,9 @@
  *   or the runtime denied a guest import or a resource (`capabilities.*`, issue #279).
  * - `WorldMismatchError`: the guest does not have the interface of the WIT world it declares,
  *   or the world is not the one the caller pinned (issue #278).
+ * - `PolicyParseError`, `PolicyEvaluationError`: a policy file could not be parsed or
+ *   evaluated, so no verdict was reached. `PolicyDeniedError`: a rule of a policy file
+ *   denied the holo (issue #285). All three are `VerificationError`s.
  * - `DeterminismViolationError`: a replay diverged from its recorded history.
  * - `ReplayError`: a replay could not be carried out or its statement failed.
  * - `SigningError`: `attest` could not produce a signature (#272).
@@ -55,6 +58,28 @@ export class PrismCodeError extends PrismError {
 /** No verdict was reached, or an archive, document or provenance check failed. `check` names it. */
 export class VerificationError extends PrismError {}
 VerificationError.code = 'verification_failed';
+
+/**
+ * The policy file does not parse: its syntax is wrong, or it uses a construct outside the
+ * subset this evaluator accepts. `check` is `policy.parse`, and the message names the line
+ * and the construct. No verdict was reached, so `check` exits 2.
+ */
+export class PolicyParseError extends VerificationError {}
+PolicyParseError.code = 'policy_parse_failed';
+
+/**
+ * The policy file parsed but could not produce a decision. `check` is `policy.evaluation`, and
+ * the message names the rule. No verdict was reached, so `check` exits 2.
+ */
+export class PolicyEvaluationError extends VerificationError {}
+PolicyEvaluationError.code = 'policy_evaluation_failed';
+
+/**
+ * A rule of a policy file denied the holo. `check` is the rule, such as
+ * `policy.pure-only.effects`. A verdict was reached, and it failed, so `check` exits 1.
+ */
+export class PolicyDeniedError extends VerificationError {}
+PolicyDeniedError.code = 'policy_denied';
 
 /** A `proof.*` check failed: the proof statement is absent, malformed, or does not belong to this holo. */
 export class ProofMismatchError extends PrismError {}
@@ -142,6 +167,9 @@ ProviderFailedError.code = 'provider_failed';
 /** Every class with a code of its own, by code. */
 export const ERROR_CLASSES = Object.freeze({
   [VerificationError.code]: VerificationError,
+  [PolicyParseError.code]: PolicyParseError,
+  [PolicyEvaluationError.code]: PolicyEvaluationError,
+  [PolicyDeniedError.code]: PolicyDeniedError,
   [ProofMismatchError.code]: ProofMismatchError,
   [CapabilityDeniedError.code]: CapabilityDeniedError,
   [WorldMismatchError.code]: WorldMismatchError,
@@ -162,10 +190,14 @@ export const ERROR_CLASSES = Object.freeze({
 /**
  * The class a verdict reason maps to, by its check id. `replay.divergence` is
  * the one replay check that is a determinism violation; every other `replay.*`
- * check is a replay error. Anything else, `holo.*`, `provenance.*` and
- * `policy.*`, is a verification error.
+ * check is a replay error. A `policy.*` check is a rule of a policy file, a
+ * denial, unless it is one of the checks a verdict held before policy files.
+ * Anything else, `holo.*` and `provenance.*`, is a verification error.
  */
 export function classForCheck(check) {
+  if (check === 'policy.parse') return PolicyParseError;
+  if (check === 'policy.evaluation') return PolicyEvaluationError;
+  if (check.startsWith('policy.') && !/^policy\.(level|effects|invalid|unreadable|digests(\..*)?)$/.test(check)) return PolicyDeniedError;
   if (check.startsWith('proof.')) return ProofMismatchError;
   if (check === 'world.capabilities' || check.startsWith('capabilities.')) return CapabilityDeniedError;
   if (check === 'world.contract' || check === 'world.hash') return WorldMismatchError;

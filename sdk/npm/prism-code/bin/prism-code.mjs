@@ -98,12 +98,14 @@ Options for verify-attestation:
                       --trusted-root <file>        pin a trusted_root.json; default is the public instance's, fetched over TUF
                       --entries <n>, --timestamps <n>
                                                    least verified log entries and timestamps: 1 and 1 keyless, 0 and 0 with --key
-Options for run:      --policy <file>              the policy check judges the holo by, as for check; effects [] is the pure-world policy
+Options for run:      --policy <file>              the policy check judges the holo by, as for check
                       --allow-unverified           run a holo that fails check, or a closure; prints a warning, never the default
                       --capabilities <file>        a prism/capabilities/1 file; without one the holo is granted nothing
                       --capability-set <name>      the set to apply, default "default"
-Options for check:    --policy <file>              a JSON policy: name, minimum (P0 to P3), digests, world;
-                                                   default: P2 or above, or PRISM_MINIMUM_LEVEL
+Options for check:    --policy <file>              a Rego file (.rego), the name of a shipped policy (pure-only,
+                                                   provenance-only), or a JSON file of name, minimum, digests,
+                                                   world and effects; default: P2 or above and the world within
+                                                   the grant. Exit 1 when it denies, 2 when it cannot be evaluated
                       --json                       the verdict as one canonical JSON object
                       deprecated: check without a holo runs build --check; removed in 0.4.0
 Options for manifest: --target <browser|node>      merge prism.browser.toml or prism.node.toml over prism.toml

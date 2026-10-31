@@ -12,12 +12,12 @@
  * (STABILITY.md).
  */
 import { ASSURANCE, VerifyError, verify as verifyBytes } from './vendor/verify.mjs';
-import { VerificationError, errorFromVerdict } from './errors.mjs';
+import { VerificationError, classForCheck, errorFromVerdict } from './errors.mjs';
 
 /** The environment variable that sets the client's minimum assurance level, P0 to P3. */
 export const MINIMUM_LEVEL_ENV = 'PRISM_MINIMUM_LEVEL';
 
-const OPTION_KEYS = ['name', 'minimum', 'digests', 'world', 'capabilities', 'effects', 'throw', 'env'];
+const OPTION_KEYS = ['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects', 'throw', 'env'];
 
 function defined(options) {
   if (options === undefined || options === null) return {};
@@ -43,7 +43,8 @@ function environment(env) {
 export function resolveOptions(client, call) {
   const merged = { ...defined(client), ...defined(call) };
   const fromEnvironment = environment(merged.env)[MINIMUM_LEVEL_ENV];
-  if (merged.minimum === undefined && fromEnvironment !== undefined && fromEnvironment !== '') {
+  // A Rego policy states its own minimum, and an environment variable must not lower it.
+  if (merged.rego === undefined && merged.minimum === undefined && fromEnvironment !== undefined && fromEnvironment !== '') {
     if (!ASSURANCE.LEVELS.includes(fromEnvironment)) {
       throw new VerificationError(`${MINIMUM_LEVEL_ENV} is ${JSON.stringify(fromEnvironment)}; expected one of ${ASSURANCE.LEVELS.join(', ')}`, {
         check: 'policy.invalid',
@@ -73,7 +74,7 @@ async function bytesOf(source) {
  * policy) always throws a `VerificationError`.
  *
  * @param {Uint8Array | ArrayBuffer | Blob | object} source the holo as bytes, a Blob, or a holo opened with `load`
- * @param {{ name?: string, minimum?: string, digests?: object, world?: object | null, throw?: boolean, env?: object }} [options]
+ * @param {{ name?: string, rego?: string, minimum?: string, digests?: object, world?: object | null, throw?: boolean, env?: object }} [options] `rego` is the source of a Rego policy (#285), which decides alone
  */
 export async function experimental_verify(source, options = undefined, clientOptions = undefined) {
   const { policy, throwOnFail } = resolveOptions(clientOptions, options);
@@ -81,7 +82,7 @@ export async function experimental_verify(source, options = undefined, clientOpt
   try {
     verdict = await verifyBytes(await bytesOf(source), policy);
   } catch (error) {
-    if (error instanceof VerifyError) throw new VerificationError(error.message, { check: error.code, cause: error });
+    if (error instanceof VerifyError) throw new (classForCheck(error.code))(error.message, { check: error.code, cause: error });
     throw error;
   }
   if (throwOnFail) {

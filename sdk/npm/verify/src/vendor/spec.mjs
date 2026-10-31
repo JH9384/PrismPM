@@ -243,6 +243,23 @@ export const PROVENANCE = freeze({
   UNSIGNED: freeze({ SIGNATURE: '' }),
 });
 
+/**
+ * The policy file of `prism check --policy` (issue #285, docs/proposals/285-policy-file.md). A policy never
+ * lives in a holo. `SHIPPED` names the policies this package carries as files, and `default` is the one a
+ * check uses when it is given none.
+ */
+export const POLICY = freeze({
+  INPUT: 'prism/policy-input/1',
+  INPUT_SCHEMA: 'schemas/policy/policy-input-v1.schema.json',
+  LANGUAGE: 'rego',
+  PACKAGE: 'prism.policy',
+  SHIPPED: freeze({
+    default: 'policies/default.rego',
+    'pure-only': 'policies/pure-only.rego',
+    'provenance-only': 'policies/provenance-only.rego',
+  }),
+});
+
 export const ASSURANCE = assuranceLevels.ASSURANCE;
 
 /** The documents this reader checks, by their `schema` member. The spec's SCHEMAS lists every document. */

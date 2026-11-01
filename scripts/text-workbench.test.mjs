@@ -68,14 +68,17 @@ export function invoke_bytes(bytes){
  return encode.encode(JSON.stringify(answer));
 }`;
 }
-async function withPage(run, {source = template, view = viewData(), delayScript = 0, draft = 'hello', failFirstLoad = false, transport = 'browser', hologram, ...configuration} = {}) {
+async function withPage(run, {source = template, view = viewData(), delayScript = 0, draft = 'hello', failFirstLoad = false, transport = 'browser', hologram, style = null, ...configuration} = {}) {
   const requests = [], invocations = [];let loads = 0;
-  const html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="form-action \'none\'"><title>SDK component</title></head>'
+  const html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="form-action \'none\'">'
+    + (style ? '<link rel="stylesheet" href="/app.css">' : '') + '<title>SDK component</title></head>'
     + '<body><details id="raw-editor"><summary>Raw input</summary><form id="application-form"><textarea id="request"></textarea><button id="submit" disabled>Wait</button></form></details><script type="module" src="/app.js"></script></body></html>';
   const server = createServer(async (request, response) => {
     requests.push(request.url);
     response.setHeader('cache-control', 'no-store');
-    if (request.url === '/app.js') {
+    if (request.url === '/app.css' && style) {
+      response.setHeader('content-type', 'text/css');response.end(style);
+    } else if (request.url === '/app.js') {
       if (delayScript) await new Promise(resolve => setTimeout(resolve, delayScript));
       response.setHeader('content-type', 'text/javascript');response.end(runtime(view, source, transport));
     } else if (request.url === '/binding.js') {
@@ -655,4 +658,63 @@ test('text_v3_workbench text and controls meet 4.5:1 contrast in light and dark'
   const broken = styleSource.replace('--muted:#4d6272', '--muted:#e9f1f5');
   assert.notEqual(broken, styleSource);
   await assert.rejects(contrastProbe(template, broken), error => error instanceof assert.AssertionError);
+});
+
+// The #208 journey runs on three engines; this workbench harness launches only the pinned
+// Chromium, so the journey proves the workbench page's forced-colors palette on that engine.
+// Three-engine coverage for the semantic presentation remains in tests/browser-semantic-presentation/browser.mjs.
+async function forcedColorsProbe(source, style) {
+  await withPage(async ({page}) => {
+    await enabled(page);
+    await page.locator('#raw-editor').evaluate(node => {node.open = true;});
+    await page.emulateMedia({forcedColors:'active'});
+    await page.waitForFunction(() => matchMedia('(forced-colors:active)').matches);
+    const observed = await page.evaluate(() => {
+      const system = name => {
+        const probe = document.createElement('span'); probe.style.color = name; probe.style.forcedColorAdjust = 'none';
+        document.body.append(probe); const value = getComputedStyle(probe).color; probe.remove(); return value;
+      };
+      const colors = {canvas:system('Canvas'), canvasText:system('CanvasText'), field:system('Field'),
+        fieldText:system('FieldText'), grayText:system('GrayText'), linkText:system('LinkText'), highlight:system('Highlight')};
+      const read = (node, disabled) => {
+        const copy = node.cloneNode(true); copy.removeAttribute('id');
+        if (disabled !== undefined) copy.disabled = disabled;
+        copy.style.forcedColorAdjust = 'none';
+        node.parentNode.append(copy);
+        const computed = getComputedStyle(copy);
+        const value = {tag:node.tagName, disabled:Boolean(copy.disabled), color:computed.color,
+          backgroundColor:computed.backgroundColor, borderTopColor:computed.borderTopColor, borderBottomColor:computed.borderBottomColor};
+        copy.remove(); return value;
+      };
+      return {colors,
+        controls:[...document.querySelectorAll('button,input,textarea,select,a')].filter(node => !node.hidden).map(node => read(node)),
+        status:read(document.querySelector('#status')), disabled:read(document.querySelector('#submit'), true),
+        header:read(document.querySelector('.site-header')), panel:read(document.querySelector('.panel'))};
+    });
+    const {colors} = observed;
+    assert.deepEqual(observed.status, {tag:'P', disabled:false, color:colors.canvasText, backgroundColor:colors.canvas, borderTopColor:colors.canvasText, borderBottomColor:colors.canvasText}, 'the status region must use Canvas and CanvasText when forced');
+    for (const control of observed.controls) {
+      if (control.tag === 'A') {assert.equal(control.color, colors.linkText, 'every link must use LinkText when forced'); continue;}
+      const foreground = control.disabled ? colors.grayText : control.tag === 'BUTTON' ? colors.canvasText : colors.fieldText;
+      const background = control.tag === 'BUTTON' ? colors.canvas : colors.field;
+      const border = control.disabled ? colors.grayText : control.tag === 'BUTTON' ? colors.canvasText : colors.fieldText;
+      assert.equal(control.color, foreground, 'every control foreground must use its system color when forced');
+      assert.equal(control.backgroundColor, background, 'every control background must use its system color when forced');
+      assert.equal(control.borderTopColor, border, 'every control border must use its system color when forced');
+    }
+    assert.deepEqual(observed.disabled, {tag:'BUTTON', disabled:true, color:colors.grayText, backgroundColor:colors.canvas, borderTopColor:colors.grayText, borderBottomColor:colors.grayText}, 'the disabled submit must use GrayText when forced');
+    assert.equal(observed.header.borderBottomColor, colors.canvasText, 'the header border must use CanvasText when forced');
+    assert.equal(observed.panel.backgroundColor, colors.canvas, 'the panel background must use Canvas when forced');
+    assert.equal(observed.panel.borderTopColor, colors.canvasText, 'the panel border must use CanvasText when forced');
+    await page.locator('#request').focus();
+    const focus = await page.locator('#request').evaluate(node => {const computed=getComputedStyle(node); return {style:computed.outlineStyle, color:computed.outlineColor};});
+    assert.equal(focus.style, 'solid', 'the focus ring must remain a solid outline');
+    assert.equal(focus.color, colors.highlight, 'the focus ring must use the Highlight system color');
+  }, {source, style});
+}
+test('text_v3_workbench forced-colors palette colors controls and the focus ring', async () => {
+  await forcedColorsProbe(template, styleSource);
+  const broken = styleSource.replace(/\/\* forced-colors[\s\S]*$/, '');
+  assert.notEqual(broken, styleSource);
+  await assert.rejects(forcedColorsProbe(template, broken), error => error instanceof assert.AssertionError);
 });

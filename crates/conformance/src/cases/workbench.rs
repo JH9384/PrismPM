@@ -42,7 +42,7 @@ pub(super) fn verify(root: &Path) {
         "HO-19",
         &[
             ("scripts/portable-oracle-matrix.test.mjs", 59),
-            ("scripts/text-workbench.test.mjs", 26),
+            ("scripts/text-workbench.test.mjs", 27),
         ],
         "240000",
     );

@@ -1,7 +1,7 @@
 # The language-1.2 model of UOR-Foundation/prism-code at 13f62734 (migrated in
 # prism-code#5), relocked under LexLean v0.4.0. Two changes from that commit:
 # lexlean.lock names compiler semantics 1427f8b6, and src/System.lex.tex binds
-# the application model digest this compiler projects (a896b93c).
+# the application model digest this compiler projects (54778b22).
 spec = "prismpm/test-case/1"
 command = "check"
 expected_exit = 0

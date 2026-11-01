@@ -1,0 +1,89 @@
+# Prism
+
+> Prism builds your application into a holo, a content-addressed package that carries its own proof and provenance, and checks them before anything runs.
+
+## Get started
+
+- [Prism docs](https://universal-coordinate-foundation.lovable.app/docs/): Build applications that prove what they do, then check, run and ship them anywhere.
+- [What Prism is](https://universal-coordinate-foundation.lovable.app/docs/get-started/introduction): Prism explained in Docker terms, with every noun and verb side by side.
+- [Quickstart](https://universal-coordinate-foundation.lovable.app/docs/get-started/quickstart): Scaffold, build, check, run and deploy your first holo in five minutes.
+- [Core concepts](https://universal-coordinate-foundation.lovable.app/docs/get-started/core-concepts): The seven ideas behind every Prism command, each with one example.
+
+## Concepts
+
+- [The holo](https://universal-coordinate-foundation.lovable.app/docs/concepts/holo): Why a Prism application is one self-describing file, and what that file holds.
+- [Proof and assurance](https://universal-coordinate-foundation.lovable.app/docs/concepts/proof-and-assurance): What a proof adds to tests, how assurance levels measure evidence, and where the guarantee stops.
+- [World and capabilities](https://universal-coordinate-foundation.lovable.app/docs/concepts/world-and-capabilities): Why a holo declares what it needs, and why it gets nothing until something grants it.
+- [Provenance and attestations](https://universal-coordinate-foundation.lovable.app/docs/concepts/provenance-and-attestations): How a holo records where it came from, and how a signature ties that record to someone.
+- [Reproducible builds](https://universal-coordinate-foundation.lovable.app/docs/concepts/reproducible-builds): How the SDK image and the lockfile make the same inputs produce the same holo.
+- [Registries and releases](https://universal-coordinate-foundation.lovable.app/docs/concepts/registries-and-releases): Why holos use the registries you already run, and how a digest keeps them honest there.
+
+## Guides
+
+- [Write from examples](https://universal-coordinate-foundation.lovable.app/docs/guides/write-from-examples): Author an application from examples, intent and types, build it, and read the report.
+- [Develop with the studio](https://universal-coordinate-foundation.lovable.app/docs/guides/dev-studio): Watch the model, rebuild and re-check on every save, and read the verdict in a local studio that works offline.
+- [Verify and inspect](https://universal-coordinate-foundation.lovable.app/docs/guides/verify-and-inspect): Check a holo against a policy, read the verdict, and look inside without running it.
+- [Run a holo](https://universal-coordinate-foundation.lovable.app/docs/guides/run-a-holo): One run of a holo is a container, with a state, an exit code and its output, kept until you remove it.
+- [Run and gate](https://universal-coordinate-foundation.lovable.app/docs/guides/run-and-gate): Run a checked holo with exactly its capability set, and decide what happens when the check fails.
+- [Write a middleware](https://universal-coordinate-foundation.lovable.app/docs/guides/write-a-middleware): Add your own code around the steps the runtime performs, and trace each step with OpenTelemetry.
+- [Ship a holo](https://universal-coordinate-foundation.lovable.app/docs/guides/ship): Push and pull holos through any registry, publish to GitHub Pages, and export for Docker.
+- [Rebuild and update](https://universal-coordinate-foundation.lovable.app/docs/guides/rebuild-and-update): Reproduce a pinned build, confirm its digest, and move a pin forward on purpose.
+- [Use with agents](https://universal-coordinate-foundation.lovable.app/docs/guides/agents): Give an agent a holo as a tool, serve it over MCP, or let an agent write the model.
+- [Audit a holo](https://universal-coordinate-foundation.lovable.app/docs/guides/audit): Read the security view of a holo, export the report, and know exactly what the proof covers.
+- [Write the model](https://universal-coordinate-foundation.lovable.app/docs/guides/write-the-model): Write the model files yourself when examples and intent are not enough.
+
+## Examples
+
+- [Call a holo](https://universal-coordinate-foundation.lovable.app/docs/examples/call-a-holo): Load the sample holo, send it one request and replay its examples from JavaScript.
+- [From the command line](https://universal-coordinate-foundation.lovable.app/docs/examples/command-line): Replay a holo's examples and read what it says about itself with the prism-code command.
+- [Replay examples](https://universal-coordinate-foundation.lovable.app/docs/examples/replay-examples): Run every example a holo carries and count how many still give the expected answer.
+- [Inspect a holo](https://universal-coordinate-foundation.lovable.app/docs/examples/inspect-a-holo): List the sections of a holo from code, without running it.
+- [Check a holo](https://universal-coordinate-foundation.lovable.app/docs/examples/check-a-holo): Judge a holo against a policy from code, and handle the error when it falls short.
+- [Read the spec package](https://universal-coordinate-foundation.lovable.app/docs/examples/read-the-spec): Read the format revision and other constants a tool needs from the spec package.
+
+## Reference
+
+- [Holo format](https://universal-coordinate-foundation.lovable.app/docs/reference/holo-format): The byte layout of a .holo file, its sections, digests and format revisions.
+- [Attestations reference](https://universal-coordinate-foundation.lovable.app/docs/reference/attestations): The statement and envelope a holo's attestations use, the predicate types and their status.
+- [Manifest reference](https://universal-coordinate-foundation.lovable.app/docs/reference/manifest): Every table and key in prism.toml.
+- [Lockfile reference](https://universal-coordinate-foundation.lovable.app/docs/reference/lockfile): Every field of the lockfile, from the schema the spec package publishes.
+- [Errors reference](https://universal-coordinate-foundation.lovable.app/docs/reference/errors): Every error code the runtime raises and every CLI exit code.
+- [CLI reference](https://universal-coordinate-foundation.lovable.app/docs/reference/cli): The prism-code command that ships today, then every prism verb, its flags, its exit codes and its usage.
+- [Policy reference](https://universal-coordinate-foundation.lovable.app/docs/reference/policy): The policy check and run judge a holo against, the default policy and how a failure is reported.
+- [Release status](https://universal-coordinate-foundation.lovable.app/docs/reference/release-status): What you can use today and which release each Prism feature lands in.
+
+## API Reference
+
+- [prism-code at a glance](https://universal-coordinate-foundation.lovable.app/docs/api): Load a holo, dispatch an input and replay its examples from Node.js with the prism-code runtime.
+- [Load a holo](https://universal-coordinate-foundation.lovable.app/docs/api/load): Read a holo from a path, a URL or bytes and get an application you can inspect and run.
+- [Inspect a holo](https://universal-coordinate-foundation.lovable.app/docs/api/inspect): Read the manifest, digests, world and attestations of a holo without running it.
+- [Check a holo](https://universal-coordinate-foundation.lovable.app/docs/api/verify): Check digest, provenance, proof and world against a policy and get a verdict.
+- [Instantiate a holo](https://universal-coordinate-foundation.lovable.app/docs/api/instantiate): Create a running instance with exactly the capability set you grant.
+- [Dispatch inputs](https://universal-coordinate-foundation.lovable.app/docs/api/dispatch): Send one request to the holo and get its response.
+- [History and replay](https://universal-coordinate-foundation.lovable.app/docs/api/history-and-replay): Replay the examples a holo carries and prove its behaviour unchanged.
+- [Use a holo as a tool](https://universal-coordinate-foundation.lovable.app/docs/api/as-tool): Wrap a checked holo as a Vercel AI SDK tool so a model can call it.
+- [Error types](https://universal-coordinate-foundation.lovable.app/docs/api/errors): Every error the runtime throws and the code it carries.
+- [Spec package](https://universal-coordinate-foundation.lovable.app/docs/api/spec-package): The types, JSON Schemas, world file and format revision that every runtime is built from.
+- [Check in the browser](https://universal-coordinate-foundation.lovable.app/docs/api/verify-package): Check a holo offline in any browser without loading the runtime.
+- [Testing package](https://universal-coordinate-foundation.lovable.app/docs/api/testing-package): Test code that drives a holo with a mock host, skipped time and scripted dispatch.
+
+## SDKs
+
+- [SDK overview](https://universal-coordinate-foundation.lovable.app/docs/sdks/overview): The runtime for each language, where it is published, its stability tier and the one spec they share.
+- [TypeScript SDK](https://universal-coordinate-foundation.lovable.app/docs/sdks/typescript): Install prism-code from npm and run a holo from Node.js or the browser.
+- [Rust SDK](https://universal-coordinate-foundation.lovable.app/docs/sdks/rust): Add the prism-code crate and run a holo from Rust.
+- [Python SDK](https://universal-coordinate-foundation.lovable.app/docs/sdks/python): Install prism-code from PyPI and run a holo from Python.
+
+## Changelog
+
+- [Changelog](https://universal-coordinate-foundation.lovable.app/docs/changelog): What each Prism release makes available, newest first.
+
+## Migration
+
+- [Migrate to 1.0](https://universal-coordinate-foundation.lovable.app/docs/migration/to-1-0): What changes between 0.x and 1.0, what you rewrite by hand, and what is still planned.
+
+## Optional
+
+- [Every page in one file](https://universal-coordinate-foundation.lovable.app/docs/llms-full.md): the pages above, concatenated in this order.
+- Markdown export: append `.md` to any page URL above to get that page as Markdown.
+

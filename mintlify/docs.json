@@ -1,0 +1,141 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Prism",
+  "description": "Prism builds your application into a holo, a content-addressed package that carries its own proof and provenance, and checks them before anything runs.",
+  "colors": {
+    "primary": "#0E7490"
+  },
+  "navigation": {
+    "versions": [
+      {
+        "version": "v1",
+        "tabs": [
+          {
+            "tab": "Docs",
+            "groups": [
+              {
+                "group": "Get started",
+                "pages": [
+                  "index",
+                  "get-started/introduction",
+                  "get-started/quickstart",
+                  "get-started/core-concepts"
+                ]
+              },
+              {
+                "group": "Concepts",
+                "pages": [
+                  "concepts/holo",
+                  "concepts/proof-and-assurance",
+                  "concepts/world-and-capabilities",
+                  "concepts/provenance-and-attestations",
+                  "concepts/reproducible-builds",
+                  "concepts/registries-and-releases"
+                ]
+              },
+              {
+                "group": "Guides",
+                "pages": [
+                  "guides/write-from-examples",
+                  "guides/dev-studio",
+                  "guides/verify-and-inspect",
+                  "guides/run-a-holo",
+                  "guides/run-and-gate",
+                  "guides/write-a-middleware",
+                  "guides/ship",
+                  "guides/rebuild-and-update",
+                  "guides/agents",
+                  "guides/audit",
+                  "guides/write-the-model"
+                ]
+              },
+              {
+                "group": "Examples",
+                "pages": [
+                  "examples/call-a-holo",
+                  "examples/command-line",
+                  "examples/replay-examples",
+                  "examples/inspect-a-holo",
+                  "examples/check-a-holo",
+                  "examples/read-the-spec"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Reference",
+            "groups": [
+              {
+                "group": "Reference",
+                "pages": [
+                  "reference/holo-format",
+                  "reference/attestations",
+                  "reference/manifest",
+                  "reference/lockfile",
+                  "reference/errors",
+                  "reference/cli",
+                  "reference/policy",
+                  "reference/release-status",
+                  {
+                    "group": "API Reference",
+                    "pages": [
+                      "api/index",
+                      "api/load",
+                      "api/inspect",
+                      "api/verify",
+                      "api/instantiate",
+                      "api/dispatch",
+                      "api/history-and-replay",
+                      "api/as-tool",
+                      "api/errors",
+                      "api/spec-package",
+                      "api/verify-package",
+                      "api/testing-package"
+                    ]
+                  },
+                  {
+                    "group": "SDKs",
+                    "pages": [
+                      "sdks/overview",
+                      "sdks/typescript",
+                      "sdks/rust",
+                      "sdks/python"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Changelog",
+            "groups": [
+              {
+                "group": "Changelog",
+                "pages": [
+                  "changelog/index"
+                ]
+              },
+              {
+                "group": "Migration",
+                "pages": [
+                  "migration/to-1-0"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "redirects": [
+    {
+      "source": "/docs",
+      "destination": "/"
+    },
+    {
+      "source": "/docs/:slug*",
+      "destination": "/:slug*"
+    }
+  ]
+}

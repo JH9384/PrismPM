@@ -353,7 +353,7 @@ function sourcePins(root, policy) {
     ['source_commit', policy.historical_revision],
     ['tag_object', policy.historical_tag],
     ['sha256', policy.bootstrap_sha256],
-    ['url', 'https://github.com/UOR-Foundation/PrismPM/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz']
+    ['url', 'https://github.com/UOR-Foundation/prismpm/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz']
   ]) {
     const matches = [...section.matchAll(new RegExp('^' + key + ' = "([^"\\r\\n]+)"\\r?$', 'gm'))];
     assert.equal(matches.length, 1, 'one explicit bootstrap pin required');

@@ -11,7 +11,7 @@ import test from 'node:test';
 import {assetNames, publicationNotes, workspaceVersion} from './release-phases.mjs';
 import {apiWith, githubClient, publicationTag, publishOci, releaseByTag, tagCommit} from './release-publication.mjs';
 
-const repository = 'UOR-Foundation/PrismPM';
+const repository = 'UOR-Foundation/prismpm';
 const revision = 'a'.repeat(40);
 // Publication runs at the version tag: the factory's cut dispatches it there.
 const version = workspaceVersion();

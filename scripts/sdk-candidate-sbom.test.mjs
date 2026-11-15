@@ -35,7 +35,7 @@ function releaseFixture(sbom = rawSpdx(), architecture = 'amd64', imageName = 's
   const config = encode({architecture, os: 'linux', config: {Labels: {
     'org.opencontainers.image.created': '1970-01-01T00:00:00Z',
     'org.opencontainers.image.revision': revision,
-    'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/PrismPM',
+    'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/prismpm',
     'org.opencontainers.image.version': workspaceVersion()}}});
   const child = encode({schemaVersion: 2, mediaType: manifestType,
     config: {mediaType: 'application/vnd.oci.image.config.v1+json', digest: digest(config), size: config.length}, layers: []});
@@ -59,8 +59,8 @@ test('release transport has exact repository/ref/signer policies without pretend
         const subject = `ghcr.io/uor-foundation/prismpm-${name}@${digest(manifest)}`;
         const args = verificationArguments(record, digest(manifest), '/trusted-root', options);
         assert.deepEqual(args, ['verify', '--trusted-root', '/trusted-root', '--certificate-identity',
-          `https://github.com/UOR-Foundation/PrismPM/.github/workflows/release.yml@${ref}`,
-          '--certificate-oidc-issuer', issuer, '--certificate-github-workflow-repository', 'UOR-Foundation/PrismPM',
+          `https://github.com/UOR-Foundation/prismpm/.github/workflows/release.yml@${ref}`,
+          '--certificate-oidc-issuer', issuer, '--certificate-github-workflow-repository', 'UOR-Foundation/prismpm',
           '--certificate-github-workflow-ref', ref, '--certificate-github-workflow-sha', revision,
           '--certificate-github-workflow-trigger', event,
           '--certificate-github-workflow-name', 'PrismPM OCI/native and Cargo publication', subject]);
@@ -214,7 +214,7 @@ test('candidate signature policy is exact and never disables identity or transpa
   const args = verificationArguments(record, digest(manifest), '/trusted-root.json');
   assert.deepEqual(args, ['verify', '--trusted-root', '/trusted-root.json',
     '--certificate-identity', workflow, '--certificate-oidc-issuer', issuer,
-    '--certificate-github-workflow-repository', 'UOR-Foundation/PrismPM',
+    '--certificate-github-workflow-repository', 'UOR-Foundation/prismpm',
     '--certificate-github-workflow-ref', 'refs/heads/main',
     '--certificate-github-workflow-sha', revision,
     '--certificate-github-workflow-trigger', 'workflow_dispatch',
@@ -255,7 +255,7 @@ test('pinned real Sigstore verification rejects wrong identity, issuer, digest a
     const verify = value => execFileSync('cosign', value, {stdio: 'pipe'});
     verify(args);
     for (const [key, value] of [['--certificate-identity', workflow],
-      ['--certificate-identity', 'https://github.com/UOR-Foundation/PrismPM/.github/workflows/release.yml@refs/heads/main'],
+      ['--certificate-identity', 'https://github.com/UOR-Foundation/prismpm/.github/workflows/release.yml@refs/heads/main'],
       ['--certificate-oidc-issuer', issuer],
       ['--bundle', join(directory, 'missing.sigstore.json')]]) {
       const changed = [...args]; changed[changed.indexOf(key) + 1] = value;

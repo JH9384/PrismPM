@@ -50,7 +50,7 @@ function fixture(t) {
   writeFileSync(bootstrap, 'synthetic pinned transport bytes, NOT a historical SDK\n');
   writeFileSync(join(source, 'tools.lock'), '[bootstrap-sdk]\nversion = "0.2.0"\n'
     + `source_commit = "${historical}"\ntag_object = "${tag}"\n`
-    + 'url = "https://github.com/UOR-Foundation/PrismPM/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz"\n'
+    + 'url = "https://github.com/UOR-Foundation/prismpm/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz"\n'
     + `sha256 = "${hash(readFileSync(bootstrap))}"\n`);
   writeFileSync(join(source, 'sdk/vv-inputs.lock.json'), canonical({ schema: 'prismpm/sdk-image-input-authorities/1', advisory: {
     url: 'https://github.com/RustSec/advisory-db', revision: git(advisory, 'rev-parse', 'HEAD'), tree: git(advisory, 'rev-parse', 'HEAD^{tree}') } }));
@@ -855,7 +855,7 @@ else throw Error('unexpected caller invocation');\n`;
   writeFileSync(join(bin, 'node-shim.mjs'), shim);
   writeFileSync(join(bin, 'node'), `#!/bin/sh\nexec '${process.execPath}' '${join(bin, 'node-shim.mjs')}' "$@"\n`, { mode: 0o755 });
   const output = join(f.work, 'github-output');
-  const environment = { ...env(), GITHUB_SHA: f.revision, GITHUB_REPOSITORY: 'UOR-Foundation/PrismPM',
+  const environment = { ...env(), GITHUB_SHA: f.revision, GITHUB_REPOSITORY: 'UOR-Foundation/prismpm',
     RUNNER_TEMP: f.work, GITHUB_OUTPUT: output, ARCH: 'amd64', ARCHITECTURE: 'amd64', PLATFORM: 'linux/amd64',
     TARGET: 'runtime', DOCKERFILE: 'sdk/Dockerfile', REPOSITORY: 'fixture-registry.invalid/sdk', VERSION: '0.3.0' };
   return { record, output, run: (script, cwd = f.source) => spawnSync('bash', ['-euo', 'pipefail', '-c', script], {

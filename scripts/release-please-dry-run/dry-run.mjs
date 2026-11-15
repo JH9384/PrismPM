@@ -11,7 +11,7 @@
  *
  *   node scripts/release-please-dry-run/dry-run.mjs [options]
  *
- *   --repo <owner/name>     default $GITHUB_REPOSITORY, then UOR-Foundation/PrismPM
+ *   --repo <owner/name>     default $GITHUB_REPOSITORY, then UOR-Foundation/prismpm
  *   --branch <name>         default main
  *   --config <file>         default release-please-config.json
  *   --manifest <file>       default .release-please-manifest.json
@@ -139,7 +139,7 @@ function markdown(results) {
 
 async function main() {
   const { values } = parseArgs({ options: {
-    repo: { type: 'string', default: process.env.GITHUB_REPOSITORY || 'UOR-Foundation/PrismPM' },
+    repo: { type: 'string', default: process.env.GITHUB_REPOSITORY || 'UOR-Foundation/prismpm' },
     branch: { type: 'string', default: 'main' },
     config: { type: 'string', default: 'release-please-config.json' },
     manifest: { type: 'string', default: '.release-please-manifest.json' },

@@ -24,7 +24,7 @@ const earlier=fs.existsSync(log)?fs.readFileSync(log,'utf8').trim().split('\\n')
 fs.appendFileSync(log,JSON.stringify(args)+'\\n');
 const id='c'.repeat(64);
 if(args[0]==='pull')process.exit(0);
-if(args[0]==='image'&&args[1]==='inspect'){console.log(JSON.stringify([{Os:'linux',Architecture:process.arch==='x64'?'amd64':'arm64',RepoDigests:[process.env.RECORDED_IMAGE],Config:{Entrypoint:['/usr/local/bin/prismpm-devcontainer-init'],Volumes:null,Labels:{'org.opencontainers.image.revision':process.env.RECORDED_REVISION,'org.opencontainers.image.source':'https://github.com/UOR-Foundation/PrismPM','org.opencontainers.image.version':'${workspaceVersion()}'}}}]));process.exit(0);}
+if(args[0]==='image'&&args[1]==='inspect'){console.log(JSON.stringify([{Os:'linux',Architecture:process.arch==='x64'?'amd64':'arm64',RepoDigests:[process.env.RECORDED_IMAGE],Config:{Entrypoint:['/usr/local/bin/prismpm-devcontainer-init'],Volumes:null,Labels:{'org.opencontainers.image.revision':process.env.RECORDED_REVISION,'org.opencontainers.image.source':'https://github.com/UOR-Foundation/prismpm','org.opencontainers.image.version':'${workspaceVersion()}'}}}]));process.exit(0);}
 if(args[0]==='container'&&args[1]==='create'){console.log(id);process.exit(0);}
 if(args[0]==='container'&&args[1]==='cp'){
  const from=args[2].split(':').slice(1).join(':'),prefix='/opt/prismpm/share/conformance-root/';

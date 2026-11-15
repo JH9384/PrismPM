@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const repository = 'ghcr.io/uor-foundation/prismpm-sdk-candidate';
-export const source = 'https://github.com/UOR-Foundation/PrismPM';
+export const source = 'https://github.com/UOR-Foundation/prismpm';
 export const workflow = `${source}/.github/workflows/sdk-candidate.yml@refs/heads/main`;
 export const issuer = 'https://token.actions.githubusercontent.com';
 export const manifestType = 'application/vnd.oci.image.manifest.v1+json';
@@ -131,7 +131,7 @@ export function verificationArguments(record, artifactDigest, trustedRoot, optio
   assert.match(artifactDigest, /^sha256:[0-9a-f]{64}$/);
   return ['verify', '--trusted-root', trustedRoot,
     '--certificate-identity', policy.workflow, '--certificate-oidc-issuer', issuer,
-    '--certificate-github-workflow-repository', 'UOR-Foundation/PrismPM',
+    '--certificate-github-workflow-repository', 'UOR-Foundation/prismpm',
     '--certificate-github-workflow-ref', policy.ref,
     '--certificate-github-workflow-sha', record.source_revision,
     '--certificate-github-workflow-trigger', policy.event,
@@ -173,7 +173,7 @@ export function transportSbom(command, directory, record, trustedRoot, options) 
   const artifactDigest = digest(manifestBytes);
   const reference = `${policy.repository}@${artifactDigest}`;
   if (command === 'sbom-publish') {
-    assert.equal(process.env.GITHUB_REPOSITORY, 'UOR-Foundation/PrismPM');
+    assert.equal(process.env.GITHUB_REPOSITORY, 'UOR-Foundation/prismpm');
     assert.equal(process.env.GITHUB_REF, policy.ref);
     assert.equal(process.env.GITHUB_SHA, record.source_revision);
     assert.equal(process.env.GITHUB_EVENT_NAME, policy.event);

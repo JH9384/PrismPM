@@ -11,7 +11,7 @@ const bytes=v=>Buffer.from(JSON.stringify(v));
 const now=Date.parse('2026-10-08T00:00:00Z');
 function fixture(runId=123,attempt=1){
  const source='a'.repeat(40),expected={revision:source,run_id:runId,run_attempt:attempt,artifact_ids:{amd64:12,arm64:13}};
- const run={repository:{id:1,full_name:'UOR-Foundation/PrismPM'},head_repository:{id:1,full_name:'UOR-Foundation/PrismPM'},
+ const run={repository:{id:1,full_name:'UOR-Foundation/prismpm'},head_repository:{id:1,full_name:'UOR-Foundation/prismpm'},
   id:runId,run_attempt:attempt,head_sha:source,path:'.github/workflows/sdk-candidate.yml',event:'workflow_dispatch',status:'completed',conclusion:'success',
   created_at:'2026-10-07T00:58:00Z',run_started_at:'2026-10-07T00:59:00Z',updated_at:'2026-10-07T01:02:00Z'};
  // Original declared workflow steps followed by genuine runner post-action gaps.
@@ -40,7 +40,7 @@ function fixture(runId=123,attempt=1){
  const standards=bytes({schema:'prismpm/standards-lock/1',authorities:[],oracles:[]});
  function lane(arch){
   const config=bytes({os:'linux',architecture:arch,config:{Labels:{'org.opencontainers.image.revision':source,
-   'org.opencontainers.image.source':'https://github.com/UOR-Foundation/PrismPM','org.opencontainers.image.version':workspaceVersion(),
+   'org.opencontainers.image.source':'https://github.com/UOR-Foundation/prismpm','org.opencontainers.image.version':workspaceVersion(),
    'org.opencontainers.image.created':'1970-01-01T00:00:00Z'}}});
   const manifest=bytes({schemaVersion:2,mediaType:'application/vnd.oci.image.manifest.v1+json',
    config:{mediaType:'application/vnd.oci.image.config.v1+json',digest:sha(config),size:config.length},layers:[{
@@ -217,7 +217,7 @@ test('fully resealed source standards substitutions reach the independent exact-
 test('coherently resealed metadata still cannot substitute config manifest or release claims',()=>{
  for(const mutate of [(f,l)=>{const c=JSON.parse(l.files.get('evidence/candidate.json'));c.production_accepted=true;l.files.set('evidence/candidate.json',bytes(c));},
   (f,l)=>{const m=JSON.parse(l.files.get('evidence/manifest.json'));m.config.size++;l.files.set('evidence/manifest.json',bytes(m));},
-  (f,l)=>{const m=JSON.parse(l.files.get('evidence/manifest.json'));m.layers[0].urls=['https://github.com/UOR-Foundation/PrismPM'];l.files.set('evidence/manifest.json',bytes(m));},
+  (f,l)=>{const m=JSON.parse(l.files.get('evidence/manifest.json'));m.layers[0].urls=['https://github.com/UOR-Foundation/prismpm'];l.files.set('evidence/manifest.json',bytes(m));},
   (f,l)=>{const c=JSON.parse(l.files.get('evidence/config.json'));c.architecture='arm64';const cb=bytes(c);l.files.set('evidence/config.json',cb);
    const m=JSON.parse(l.files.get('evidence/manifest.json'));m.config.digest=sha(cb);m.config.size=cb.length;l.files.set('evidence/manifest.json',bytes(m));}]){
   const f=fixture(),authority=f.admit(),l=f.lanes.amd64;mutate(f,l);

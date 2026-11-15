@@ -52,7 +52,7 @@ test('OCI mismatch diagnostics execute bounded real archive fixtures and remain 
 
 const revision = 'a'.repeat(40);
 const sha = bytes => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
-const policy = () => ({repository: 'UOR-Foundation/PrismPM', ref: 'refs/tags/v0.5.0',
+const policy = () => ({repository: 'UOR-Foundation/prismpm', ref: 'refs/tags/v0.5.0',
   event: 'workflow_dispatch', version: '0.5.0', publishCrates: false, rehearsal: false, revision});
 const rehearsal = () => ({...policy(), ref: 'refs/heads/main', rehearsal: true});
 const buildStages = ['images', 'native', 'reproducibility', 'installed-sdk'];
@@ -63,7 +63,7 @@ const ociNeeds = ['gate', 'factory', ...buildStages];
 const buildkit = 'moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa';
 const workspace = workspaceVersion();
 const workspaceMinor = workspace.split('.').slice(0, 2).join('.');
-const environment = () => ({GITHUB_REPOSITORY: 'UOR-Foundation/PrismPM', GITHUB_REF: `refs/tags/v${workspace}`,
+const environment = () => ({GITHUB_REPOSITORY: 'UOR-Foundation/prismpm', GITHUB_REF: `refs/tags/v${workspace}`,
   GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_SHA: revision, DISPATCH_VERSION: workspace, PUBLISH_CRATES: 'false', REHEARSAL: 'false',
   GITHUB_ACTIONS: 'true', GITHUB_RUN_ID: '123456789', GITHUB_RUN_ATTEMPT: '1'});
 
@@ -484,9 +484,9 @@ test('image-index signatures require the exact current source, ref, trigger, nam
       const image = `ghcr.io/uor-foundation/prismpm-${name}@${imageDigest}`;
       assert.deepEqual(imageVerificationArguments(image, revision, ref, '/trusted-root', event), [
         'verify', '--trusted-root', '/trusted-root', '--certificate-identity',
-        `https://github.com/UOR-Foundation/PrismPM/.github/workflows/release.yml@${ref}`,
+        `https://github.com/UOR-Foundation/prismpm/.github/workflows/release.yml@${ref}`,
         '--certificate-oidc-issuer', 'https://token.actions.githubusercontent.com',
-        '--certificate-github-workflow-repository', 'UOR-Foundation/PrismPM',
+        '--certificate-github-workflow-repository', 'UOR-Foundation/prismpm',
         '--certificate-github-workflow-ref', ref, '--certificate-github-workflow-sha', revision,
         '--certificate-github-workflow-trigger', event,
         '--certificate-github-workflow-name', 'PrismPM OCI/native and Cargo publication', image,
@@ -605,7 +605,7 @@ function layout(directory, architecture, marker = 'same') {
   const config = {...put({architecture, os: 'linux', config: {Labels: {
     'org.opencontainers.image.created': '1970-01-01T00:00:00Z',
     'org.opencontainers.image.revision': revision,
-    'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/PrismPM',
+    'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/prismpm',
     'org.opencontainers.image.version': workspaceVersion(), marker}}}), mediaType: 'application/vnd.oci.image.config.v1+json'};
   const layers = [Buffer.alloc(200_003, 97), Buffer.from('second layer\n')].map(bytes =>
     ({...putBytes(bytes), mediaType: 'application/vnd.oci.image.layer.v1.tar'}));
@@ -874,7 +874,7 @@ test('pinned Buildx pushes each platform by digest and the assembled two-platfor
     const args = ['buildx', 'build', '--builder', registry, '--no-cache', '--provenance=false', '--sbom=false',
       '--build-arg', 'SOURCE_DATE_EPOCH=0', '--label', 'org.opencontainers.image.created=1970-01-01T00:00:00Z',
       '--label', `org.opencontainers.image.revision=${revision}`, '--label',
-      'org.opencontainers.image.source=https://github.com/UOR-Foundation/PrismPM',
+      'org.opencontainers.image.source=https://github.com/UOR-Foundation/prismpm',
       '--label', `org.opencontainers.image.version=${workspaceVersion()}`];
     const platforms = [];
     for (const architecture of ['amd64', 'arm64']) {

@@ -27,7 +27,7 @@ artifact, not an inline SPDX attestation:
    counts. Missing signatures, documents or mismatched bindings fail publication.
 
 No fields, packages, files, relationships or license text are removed or split.
-The failed run [35059468070](https://github.com/UOR-Foundation/PrismPM/actions/runs/35059468070)
+The failed run [35059468070](https://github.com/UOR-Foundation/prismpm/actions/runs/35059468070)
 produced a 26,732,935-byte AMD64 SPDX document; compaction saved only one byte.
 GitHub's inline predicate transport has a 16 MiB limit. Signing the small OCI
 manifest preserves the complete document without submitting a large inline

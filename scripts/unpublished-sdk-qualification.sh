@@ -10,7 +10,7 @@ case "$(uname -m):$architecture" in x86_64:amd64|aarch64:arm64) ;; *) exit 64 ;;
 case "$phase" in prerequisites|installed) ;; *) exit 64 ;; esac
 test "${GITHUB_ACTIONS:-}" = true
 test "${RUNNER_ENVIRONMENT:-}" = github-hosted
-test "${GITHUB_REPOSITORY:-}" = UOR-Foundation/PrismPM
+test "${GITHUB_REPOSITORY:-}" = UOR-Foundation/prismpm
 [[ ${GITHUB_SHA:-} =~ ^[0-9a-f]{40}$ ]]
 root=$(cd "$(dirname "$0")/.." && pwd -P)
 test "$(basename "$root")" = root-a

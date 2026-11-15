@@ -18,7 +18,7 @@ import {join, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {assetNames, policyFromEnvironment, publicationNotes, requirePrerequisites, verifyExistingRelease} from './release-phases.mjs';
 
-const repository = 'UOR-Foundation/PrismPM';
+const repository = 'UOR-Foundation/prismpm';
 const releasePage = 100;
 
 export {policyFromEnvironment};

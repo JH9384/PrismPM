@@ -82,7 +82,7 @@ export async function qualifyUnpublishedSdk(plan,destination,secret){
  assert.equal(process.platform,'linux');assert.equal(process.arch,plan.arch==='amd64'?'x64':'arm64');
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.RUNNER_ENVIRONMENT,'github-hosted');
  assert.equal(process.env.RUNNER_OS,'Linux');assert.equal(process.env.RUNNER_ARCH,plan.arch==='amd64'?'X64':'ARM64');
- assert.equal(process.env.GITHUB_REPOSITORY,'UOR-Foundation/PrismPM');assert.equal(process.env.GITHUB_SHA,plan.selection.qualifier);
+ assert.equal(process.env.GITHUB_REPOSITORY,'UOR-Foundation/prismpm');assert.equal(process.env.GITHUB_SHA,plan.selection.qualifier);
  assert.match(process.env.GITHUB_RUN_ID,/^[1-9][0-9]*$/);assert.match(process.env.GITHUB_RUN_ATTEMPT,/^[1-9][0-9]*$/);
  assert.equal(realpathSync(source),source);assert.equal(source,join(dirname(source),'root-a'));
  const out=resolve(destination);assert.equal(realpathSync(dirname(out)),dirname(out));

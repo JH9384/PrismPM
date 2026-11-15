@@ -67,7 +67,7 @@ export function inputPolicy(source, revision) {
   const bootstrap = Object.fromEntries(fields.map(row => [row[1], row[2]]));
   keys(bootstrap, ['version', 'source_commit', 'tag_object', 'url', 'sha256']);
   assert.equal(bootstrap.version, '0.2.0');
-  assert.equal(bootstrap.url, 'https://github.com/UOR-Foundation/PrismPM/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz');
+  assert.equal(bootstrap.url, 'https://github.com/UOR-Foundation/prismpm/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz');
   oid(bootstrap.source_commit); oid(bootstrap.tag_object); assert.match(bootstrap.sha256, /^[0-9a-f]{64}$/);
   return { schema: 'prismpm/sdk-vv-input-policy/1', source_revision: revision,
     historical_revision: bootstrap.source_commit, historical_tag: bootstrap.tag_object,
@@ -115,7 +115,7 @@ export function prepareImageInputs(source, revision, destination) {
     const bootstrap = join(work, 'bootstrap.tar.gz');
     acquisition('curl', ['--disable', '--proto', '=https', '--proto-redir', '=https', '--tlsv1.2', '--fail', '--location',
       '--silent', '--show-error', '--max-time', '240', '--max-filesize', '67108864',
-      'https://github.com/UOR-Foundation/PrismPM/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz', '--output', bootstrap], work);
+      'https://github.com/UOR-Foundation/prismpm/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz', '--output', bootstrap], work);
     return captureImageInputs({ source, revision, advisory, bootstrap, destination });
   } finally { removeOwned(work, identity); }
 }

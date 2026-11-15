@@ -46,7 +46,7 @@ else
   bootstrap_staging=$(mktemp "$bootstrap_cache/download.XXXXXX")
   trap 'rm -f "$bootstrap_staging"' EXIT
   curl --fail --location --proto '=https' --tlsv1.2 --silent --show-error \
-    https://github.com/UOR-Foundation/PrismPM/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz \
+    https://github.com/UOR-Foundation/prismpm/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz \
     --output "$bootstrap_staging"
   printf '%s  %s\n' "$bootstrap_sha" "$bootstrap_staging" | sha256sum --check --strict
   chmod 0444 "$bootstrap_staging"

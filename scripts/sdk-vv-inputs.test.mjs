@@ -74,7 +74,7 @@ function fixture(t) {
     'version = "0.2.0"',
     `source_commit = "${historical}"`,
     `tag_object = "${tag}"`,
-    'url = "https://github.com/UOR-Foundation/PrismPM/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz"',
+    'url = "https://github.com/UOR-Foundation/prismpm/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz"',
     `sha256 = "${bootstrapSha}"`,
     ''
   ].join('\n'));

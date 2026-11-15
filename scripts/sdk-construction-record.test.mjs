@@ -20,12 +20,12 @@ function fixture(t){
  const root=join(work,'construction'),evidence=join(root,'evidence'),layout=join(work,'layout');
  mkdirSync(root);mkdirSync(join(layout,'blobs','sha256'),{recursive:true});
  const source='a'.repeat(40),arch=process.arch==='arm64'?'arm64':'amd64';
- const env={SOURCE_REVISION:source,GITHUB_WORKFLOW_SHA:source,ARCHITECTURE:arch,GITHUB_REPOSITORY:'UOR-Foundation/PrismPM',GITHUB_EVENT_NAME:'workflow_dispatch',GITHUB_RUN_ID:'123',GITHUB_RUN_ATTEMPT:'1'};
+ const env={SOURCE_REVISION:source,GITHUB_WORKFLOW_SHA:source,ARCHITECTURE:arch,GITHUB_REPOSITORY:'UOR-Foundation/prismpm',GITHUB_EVENT_NAME:'workflow_dispatch',GITHUB_RUN_ID:'123',GITHUB_RUN_ATTEMPT:'1'};
  const put=bytes=>{writeFileSync(join(layout,'blobs','sha256',sha(bytes).slice(7)),bytes);return {digest:sha(bytes),size:bytes.length};};
  const layerRoot=join(work,'layer');mkdirSync(layerRoot);writeFileSync(join(layerRoot,'unit-only'),'metadata test, not an executable SDK');
  const layer=execFileSync('/usr/bin/tar',['--format=ustar','-cf','-','-C',layerRoot,'unit-only'],{timeout:5000,maxBuffer:1048576});
  const config=Buffer.from(JSON.stringify({os:'linux',architecture:arch,rootfs:{type:'layers',diff_ids:[sha(layer)]},config:{Labels:{
-  'org.opencontainers.image.revision':source,'org.opencontainers.image.source':'https://github.com/UOR-Foundation/PrismPM',
+  'org.opencontainers.image.revision':source,'org.opencontainers.image.source':'https://github.com/UOR-Foundation/prismpm',
   'org.opencontainers.image.version':workspaceVersion(),'org.opencontainers.image.created':'1970-01-01T00:00:00Z'}}}));
  const manifest=Buffer.from(JSON.stringify({schemaVersion:2,mediaType:'application/vnd.oci.image.manifest.v1+json',
   config:{...put(config),mediaType:'application/vnd.oci.image.config.v1+json'},

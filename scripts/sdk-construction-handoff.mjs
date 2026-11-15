@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {validateConfig,validateEvidence} from './sdk-candidate.mjs';
 
-const repository='UOR-Foundation/PrismPM';
+const repository='UOR-Foundation/prismpm';
 const names=['authority-result.json','candidate.json','cli.json','config.json','digest.txt',
  'inventory.json','manifest.json','model-check.json','standards.lock','tamper.json'];
 const unclaimed=['full-vv','installed-dual-native-sdk-qualification','signing','release','product-readiness'];

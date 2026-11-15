@@ -13,7 +13,7 @@ import {execFileSync, spawnSync} from 'node:child_process';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 
-const repository = 'UOR-Foundation/PrismPM';
+const repository = 'UOR-Foundation/prismpm';
 
 // Mirrors `plumbing` in factory/src/Factory/Release.lex.tex; factory.test.mjs
 // keeps the two equal. Entries ending in `/` are directory prefixes.

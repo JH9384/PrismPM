@@ -13,7 +13,7 @@ import { semver, workspaceVersion } from './workspace-version.mjs';
 export { workspaceVersion };
 import { describeSpdx, releaseTransportPolicy, transportSbom, trustRootDigest, verificationArguments } from './sdk-candidate-sbom.mjs';
 
-const repository = 'UOR-Foundation/PrismPM';
+const repository = 'UOR-Foundation/prismpm';
 const imageNames = ['sdk', 'runtime', 'adapter-compose', 'adapter-kubernetes', 'adapter-github-pages', 'oracles', 'sdk-build'];
 const sha = bytes => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const buildStages = ['images', 'native', 'reproducibility', 'installed-sdk'];

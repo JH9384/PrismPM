@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import https from 'node:https';
 import {Readable} from 'node:stream';
-const prefix='/repos/UOR-Foundation/PrismPM';
+const prefix='/repos/UOR-Foundation/prismpm';
 const safeError=()=>Error('construction provider transport failed');
 
 export function constructionStorageLocation(value){

@@ -305,7 +305,7 @@ function source(root){
 }
 function inspected(){return[{Os:'linux',Architecture:'amd64',RepoDigests:[image],Config:{Entrypoint:['/usr/local/bin/prismpm-devcontainer-init'],Volumes:null,Labels:{
  'org.opencontainers.image.revision':revision,
- 'org.opencontainers.image.source':'https://github.com/UOR-Foundation/PrismPM',
+ 'org.opencontainers.image.source':'https://github.com/UOR-Foundation/prismpm',
  'org.opencontainers.image.version':/^version = "([^"]+)"$/m.exec(sdkSource('Cargo.toml').split('[workspace.package]')[1])[1],
 }}}];}
 

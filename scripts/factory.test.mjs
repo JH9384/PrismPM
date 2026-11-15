@@ -76,8 +76,8 @@ test('κ ignores the plumbing and follows every other byte, mode and path', t =>
 });
 
 const run = (id, sha, extra = {}) => ({id, head_sha: sha, run_attempt: 2, event: 'push', head_branch: 'release/v0.4',
-  path: '.github/workflows/release.yml', repository: {full_name: 'UOR-Foundation/PrismPM'},
-  head_repository: {full_name: 'UOR-Foundation/PrismPM'}, ...extra});
+  path: '.github/workflows/release.yml', repository: {full_name: 'UOR-Foundation/prismpm'},
+  head_repository: {full_name: 'UOR-Foundation/prismpm'}, ...extra});
 
 const built = () => [...Array.from({length: imageJobs}, (_, index) => ({name: `images (image-${index})`, conclusion: 'success'})),
   {name: 'image-platforms (ubuntu-24.04, amd64)', conclusion: 'success'}, {name: 'image-platforms (ubuntu-24.04-arm, arm64)', conclusion: 'success'},

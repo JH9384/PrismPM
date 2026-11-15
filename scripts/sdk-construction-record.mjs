@@ -75,7 +75,7 @@ function failureContext(evidence){
 export function constructionRecord(location,environment,transport=smoke){
  const source=environment.SOURCE_REVISION,workflow=environment.GITHUB_WORKFLOW_SHA,arch=environment.ARCHITECTURE;
  assert.match(source,/^[0-9a-f]{40}$/);assert.equal(workflow,source,'workflow and constructed source revisions must match');
- assert.equal(environment.GITHUB_REPOSITORY,'UOR-Foundation/PrismPM');assert.equal(environment.GITHUB_EVENT_NAME,'workflow_dispatch');
+ assert.equal(environment.GITHUB_REPOSITORY,'UOR-Foundation/prismpm');assert.equal(environment.GITHUB_EVENT_NAME,'workflow_dispatch');
  for(const key of ['GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT'])assert.match(environment[key],/^[1-9][0-9]{0,19}$/);
  assert.equal(process.platform,'linux');assert(['amd64','arm64'].includes(arch));
  assert.equal(process.arch,arch==='amd64'?'x64':'arm64','native process architecture required');

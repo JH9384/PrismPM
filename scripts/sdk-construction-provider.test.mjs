@@ -125,8 +125,8 @@ test('complete authority selection retains all three original fixed-endpoint res
  try{
   const result=await provider.authority(123,async b=>{await new Promise(r=>setImmediate(r));retained.push(b.toString());});
   assert.deepEqual(retained,bodies);assert.equal(result.run.id,123);assert.deepEqual(result.jobs,[{id:1}]);
-  assert.deepEqual(calls.map(c=>c.url.pathname+c.url.search),['/repos/UOR-Foundation/PrismPM/actions/runs/123',
-   '/repos/UOR-Foundation/PrismPM/actions/runs/123/jobs?per_page=100','/repos/UOR-Foundation/PrismPM/actions/runs/123/artifacts?per_page=100']);
+  assert.deepEqual(calls.map(c=>c.url.pathname+c.url.search),['/repos/UOR-Foundation/prismpm/actions/runs/123',
+   '/repos/UOR-Foundation/prismpm/actions/runs/123/jobs?per_page=100','/repos/UOR-Foundation/prismpm/actions/runs/123/artifacts?per_page=100']);
  }finally{await provider.close();mock.restoreAll();}
 });
 test('the request header deadline retires a transport that never supplies a response',async()=>{

@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 
 mod actions;
+mod forge;
 
 const USAGE: &str = "usage: prism-factory <command> [options]
 
@@ -19,7 +20,9 @@ commands:
   request           print the plan request for a revision (tree, contexts, receipts, weights)
   plan              print the certified plan for a revision
   run               run every obligation the plan routes to `observe` on this host
-  workflow          print a generated GitHub workflow (`--name factory|release|cut`), or --check/--write it
+  workflow          print a generated GitHub workflow (`--name factory|release|cut|delegate`), or --check/--write it
+  delegate          print the forge's delegation plan: VERIFIED is a file of `signed`, `trust-*` and `event` lines
+  delegate-prepare  VERIFIED NAME: write NAME's closure to --work/NAME for the PrismPM Action's `factory` command
   plan-request      print the certified plan for a request on stdin (as `request` prints it)
   reweigh           print the next weights for `weight` and `outcome` lines on stdin
   actions-route     write the routes of a release run to $GITHUB_OUTPUT (the Actions adapter)
@@ -30,7 +33,7 @@ commands:
 options:
   --rev REV          the revision to plan (default HEAD)
   --context KEY=VAL  a context input (`@KEY`) only the obligations that declare it read (repeatable)
-  --name NAME        workflow: `factory` (default), `release` or `cut`
+  --name NAME        workflow: `factory` (default), `release`, `cut` or `delegate`
   --jobs DIR         workflow: the job fragments of `release` (default prism-factory/jobs)
   --receipts DIR     the receipt store (default target/factory/receipts)
   --only NAME        run only these obligations (repeatable)
@@ -214,7 +217,7 @@ pub(crate) fn read_plan(text: &str) -> Plan {
 }
 
 /// Writes exactly the obligation's closure into a fresh directory.
-fn materialize(entries: &[Entry], files: &[String], destination: &Path) -> Result<(), String> {
+pub(crate) fn materialize(entries: &[Entry], files: &[String], destination: &Path) -> Result<(), String> {
     if destination.exists() {
         fs::remove_dir_all(destination).map_err(|error| format!("{}: {error}", destination.display()))?;
     }
@@ -375,6 +378,8 @@ fn main() -> ExitCode {
             true
         }),
         "run" => run(&options),
+        "delegate" => forge::plan(&options),
+        "delegate-prepare" => forge::prepare(&options),
         "workflow" => actions::workflow(&options),
         "actions-route" => actions::route(&options),
         "plan-request" => {

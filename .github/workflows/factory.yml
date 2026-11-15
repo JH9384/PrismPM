@@ -2,10 +2,10 @@
 # Do not edit: `prism-factory/factory.sh workflow --write` rewrites it and `check` refuses drift.
 # Every decision (identity, route, order, releasability) is made by the certified
 # factory core; this file only gives it a runner and a checkout. Release runs
-# record receipts (release.yml, job `receipts`); this one only reads them.
+# record receipts (release.yml, job `receipts`); this one only reads them. Pull
+# requests are checked by prism-delegation.yml, so this runs only on dispatch.
 name: Factory
 on:
-  pull_request:
   workflow_dispatch:
 permissions:
   contents: read

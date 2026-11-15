@@ -327,10 +327,11 @@ pub(crate) fn route_record(options: &Options) -> Result<bool, String> {
 /// refuses a fragment the model does not place.
 fn projection(options: &Options) -> Result<Vec<u8>, String> {
     match options.name.as_str() {
-        "factory" => Ok(prism_factory_host::workflow(b"")),
-        "cut" => Ok(prism_factory_host::workflow(b"cut")),
+        "factory" => prism_factory_host::workflow(b"").map_err(|_| "overflow".to_string()),
+        "cut" => prism_factory_host::workflow(b"cut").map_err(|_| "overflow".to_string()),
+        "delegate" => prism_factory_host::workflow(b"delegate").map_err(|_| "overflow".to_string()),
         "release" => {
-            let skeleton = String::from_utf8(prism_factory_host::workflow(b"release")).map_err(|_| "projection")?;
+            let skeleton = String::from_utf8(prism_factory_host::workflow(b"release").map_err(|_| "overflow")?).map_err(|_| "projection")?;
             let mut placed = BTreeSet::new();
             let mut out = String::new();
             for line in skeleton.split_inclusive('\n') {

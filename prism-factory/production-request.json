@@ -2,6 +2,19 @@
   "roots": [
     {
       "package": {
+        "name": "factory_delegate",
+        "version": "0.1.0"
+      },
+      "root": "PrismFactory.Factory.delegate",
+      "targets": [
+        {
+          "digest": "957f6e9a7a87b504094f9c5d0ed9305aad7cbee156bba670acc8bda99db5224c",
+          "id": "rust-std"
+        }
+      ]
+    },
+    {
+      "package": {
         "name": "factory_plan",
         "version": "0.1.0"
       },

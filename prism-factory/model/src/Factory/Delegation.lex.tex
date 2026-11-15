@@ -1,0 +1,1159 @@
+\begin{lexlean}{Factory.Delegation}
+\useglossary{lexlean.std.nat@1.2.0}
+\importmodule{LexLeanStd.Buffer}
+\importmodule{LexLeanStd.Text}
+\importmodule{Factory.Engine}
+\importmodule{Factory.PrismPM}
+\title{Natural number addition}
+\begin{semanticmodule}
+inductive{
+  name: Access,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: sealed, fields: []}, {name: pinned, fields: []}, {name: live, fields: []}]
+}
+
+definition{
+  name: accessName,
+  parameters: [access : Access],
+  result: String,
+  body: (match access
+    | Access.sealed => "sealed"
+    | Access.pinned => "pinned"
+    | Access.live => "live"),
+  executable: true
+}
+
+definition{
+  name: reachesLive,
+  parameters: [access : Access],
+  result: Bool,
+  body: (match access
+    | Access.sealed => false
+    | Access.pinned => false
+    | Access.live => true),
+  executable: true
+}
+
+structure{
+  name: Sandbox,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: image, type: String},
+    {name: user, type: String},
+    {name: umask, type: String},
+    {name: home, type: String},
+    {name: scratch, type: String},
+    {name: network, type: Access}
+  ]
+}
+
+definition{
+  name: sandbox,
+  parameters: [image : String, network : Access],
+  result: Sandbox,
+  body: (record Sandbox {image := image, user := "1000:1000", umask := "0022", home := "tmp/prismpm-home", scratch := "tmp", network := network}),
+  executable: true
+}
+
+definition{
+  name: sandboxes,
+  parameters: [],
+  result: (List (String * Sandbox)),
+  body: (cons ("policy", (sandbox "@sdk" (ctor Access.sealed))) (cons ("factory-model", (sandbox "@sdk" (ctor Access.pinned))) (cons ("plumbing", (sandbox "@sdk" (ctor Access.pinned))) (cons ("vv-sdk", (sandbox "@sdk" (ctor Access.pinned))) (cons ("source-vv", (sandbox "@vv-sdk" (ctor Access.sealed))) (cons ("build", (sandbox "@sdk" (ctor Access.pinned))) (cons ("gate", (sandbox "@vv-sdk" (ctor Access.sealed))) (cons ("oci-native", (sandbox "@build" (ctor Access.pinned))) (cons ("crates", (sandbox "@build" (ctor Access.pinned))) (cons ("release", (sandbox "@build" (ctor Access.pinned))) (nil (String * Sandbox)))))))))))),
+  executable: true
+}
+
+definition{
+  name: sandboxFor,
+  parameters: [wanted : String],
+  result: Sandbox,
+  body: (prim list_fold (fun [wanted] (sofar : Sandbox) (entry : (String * Sandbox)) => (if (prim equal (first entry) wanted : Bool) then (second entry) else sofar)) (sandbox "@sdk" (ctor Access.sealed)) (sandboxes) : Sandbox),
+  executable: true
+}
+
+definition{
+  name: declaredSandbox,
+  parameters: [wanted : String],
+  result: Bool,
+  body: (prim list_fold (fun [wanted] (sofar : Bool) (entry : (String * Sandbox)) => (sofar || (prim equal (first entry) wanted : Bool))) false (sandboxes) : Bool),
+  executable: true
+}
+
+definition{
+  name: delegate,
+  parameters: [item : Factory.Engine::Obligation],
+  result: Factory.Engine::Obligation,
+  body: (record Factory.Engine::Obligation {name := (project item name), kind := (project item kind), environment := "prism", run := (project item run), inputs := (project item inputs), needs := (project item needs)}),
+  executable: true
+}
+
+definition{
+  name: delegated,
+  parameters: [items : (List Factory.Engine::Obligation)],
+  result: (List Factory.Engine::Obligation),
+  body: (prim list_fold (fun (sofar : (List Factory.Engine::Obligation)) (item : Factory.Engine::Obligation) => (prim append sofar (cons (delegate item) (nil Factory.Engine::Obligation)) : (List Factory.Engine::Obligation))) (nil Factory.Engine::Obligation) items : (List Factory.Engine::Obligation)),
+  executable: true
+}
+
+definition{
+  name: sdkImage,
+  parameters: [],
+  result: String,
+  body: "ghcr.io/uor-foundation/prismpm-sdk@sha256:d6c263a733a6bc36e0458c3f5b9a1f5ea9c14dfbe8c257d3f650a960b5fe633c",
+  executable: true
+}
+
+definition{
+  name: imageOf,
+  parameters: [box : Sandbox],
+  result: String,
+  body: (if (prim equal (project box image) "@sdk" : Bool) then (sdkImage) else (project box image)),
+  executable: true
+}
+
+definition{
+  name: sandboxText,
+  parameters: [wanted : String],
+  result: Bytes,
+  body: (let box : Sandbox := (sandboxFor wanted); (LexLeanStd.Text::joinWith (cons (prim utf8_encode "prism/1" : Bytes) (cons (prim utf8_encode (imageOf box) : Bytes) (cons (prim utf8_encode (project box user) : Bytes) (cons (prim utf8_encode (project box umask) : Bytes) (cons (prim utf8_encode (project box home) : Bytes) (cons (prim utf8_encode (project box scratch) : Bytes) (cons (prim utf8_encode (accessName (project box network)) : Bytes) (nil Bytes)))))))) 0x20)),
+  executable: true
+}
+
+definition{
+  name: graph,
+  parameters: [],
+  result: (List Factory.Engine::Obligation),
+  body: (delegated (Factory.PrismPM::graph)),
+  executable: true
+}
+
+definition{
+  name: identified,
+  parameters: [item : Factory.Engine::Obligation],
+  result: Factory.Engine::Obligation,
+  body: (record Factory.Engine::Obligation {name := (project item name), kind := (project item kind), environment := (Factory.Engine::decoded (sandboxText (project item name))), run := (project item run), inputs := (project item inputs), needs := (project item needs)}),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: identifiedGraph,
+  parameters: [],
+  result: (List Factory.Engine::Obligation),
+  body: (prim list_fold (fun (sofar : (List Factory.Engine::Obligation)) (item : Factory.Engine::Obligation) => (prim append sofar (cons (identified item) (nil Factory.Engine::Obligation)) : (List Factory.Engine::Obligation))) (nil Factory.Engine::Obligation) (graph) : (List Factory.Engine::Obligation)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: carried,
+  parameters: [],
+  result: (List String),
+  body: (cons "factory-model" (nil String)),
+  executable: true
+}
+
+definition{
+  name: isCarried,
+  parameters: [wanted : String],
+  result: Bool,
+  body: (Factory.Engine::member wanted (carried)),
+  executable: true
+}
+
+definition{
+  name: allSandboxed,
+  parameters: [items : (List Factory.Engine::Obligation)],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (item : Factory.Engine::Obligation) => (sofar && (declaredSandbox (project item name)))) true items : Bool),
+  executable: true
+}
+
+definition{
+  name: noneLive,
+  parameters: [],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (entry : (String * Sandbox)) => (sofar && (not (reachesLive (project (second entry) network))))) true (sandboxes) : Bool),
+  executable: true
+}
+
+inductive{
+  name: Event,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: pullRequest, fields: []}, {name: push, fields: []}, {name: tag, fields: []}, {name: dispatch, fields: []}]
+}
+
+definition{
+  name: eventName,
+  parameters: [event : Event],
+  result: String,
+  body: (match event
+    | Event.pullRequest => "pull_request"
+    | Event.push => "push"
+    | Event.tag => "tag"
+    | Event.dispatch => "workflow_dispatch"),
+  executable: true
+}
+
+definition{
+  name: lane,
+  parameters: [event : Event],
+  result: (List String),
+  body: (match event
+    | Event.pullRequest => (Factory.Engine::cutSet (graph))
+    | Event.push => (Factory.Engine::names (graph))
+    | Event.tag => (Factory.Engine::names (graph))
+    | Event.dispatch => (Factory.Engine::names (graph))),
+  executable: true
+}
+
+inductive{
+  name: Place,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: forge, fields: []}, {name: peer, fields: []}, {name: store, fields: []}]
+}
+
+inductive{
+  name: Peer,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: runner, fields: []}, {name: workstation, fields: []}, {name: browser, fields: []}]
+}
+
+inductive{
+  name: Duty,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: trigger, fields: []}, {name: checkout, fields: []}, {name: identify, fields: []}, {name: verify, fields: []}, {name: report, fields: []}, {name: execute, fields: []}, {name: fetch, fields: []}, {name: sign, fields: []}, {name: keep, fields: []}]
+}
+
+definition{
+  name: placeOf,
+  parameters: [duty : Duty],
+  result: Place,
+  body: (match duty
+    | Duty.trigger => (ctor Place.forge)
+    | Duty.checkout => (ctor Place.forge)
+    | Duty.identify => (ctor Place.forge)
+    | Duty.verify => (ctor Place.forge)
+    | Duty.report => (ctor Place.forge)
+    | Duty.execute => (ctor Place.peer)
+    | Duty.fetch => (ctor Place.peer)
+    | Duty.sign => (ctor Place.peer)
+    | Duty.keep => (ctor Place.store)),
+  executable: true
+}
+
+definition{
+  name: placeName,
+  parameters: [place : Place],
+  result: String,
+  body: (match place
+    | Place.forge => "forge"
+    | Place.peer => "peer"
+    | Place.store => "store"),
+  executable: true
+}
+
+definition{
+  name: dutyName,
+  parameters: [duty : Duty],
+  result: String,
+  body: (match duty
+    | Duty.trigger => "trigger"
+    | Duty.checkout => "checkout"
+    | Duty.identify => "identify"
+    | Duty.verify => "verify"
+    | Duty.report => "report"
+    | Duty.execute => "execute"
+    | Duty.fetch => "fetch"
+    | Duty.sign => "sign"
+    | Duty.keep => "keep"),
+  executable: true
+}
+
+definition{
+  name: peerName,
+  parameters: [peer : Peer],
+  result: String,
+  body: (match peer
+    | Peer.runner => "runner"
+    | Peer.workstation => "workstation"
+    | Peer.browser => "browser"),
+  executable: true
+}
+
+definition{
+  name: implies,
+  parameters: [premise : Bool, conclusion : Bool],
+  result: Bool,
+  body: ((not premise) || conclusion),
+  executable: true
+}
+
+definition{
+  name: works,
+  parameters: [duty : Duty],
+  result: Bool,
+  body: (match duty
+    | Duty.trigger => false
+    | Duty.checkout => false
+    | Duty.identify => false
+    | Duty.verify => false
+    | Duty.report => false
+    | Duty.execute => true
+    | Duty.fetch => true
+    | Duty.sign => true
+    | Duty.keep => false),
+  executable: true
+}
+
+definition{
+  name: onPeer,
+  parameters: [place : Place],
+  result: Bool,
+  body: (match place
+    | Place.forge => false
+    | Place.peer => true
+    | Place.store => false),
+  executable: true
+}
+
+definition{
+  name: onForge,
+  parameters: [place : Place],
+  result: Bool,
+  body: (match place
+    | Place.forge => true
+    | Place.peer => false
+    | Place.store => false),
+  executable: true
+}
+
+definition{
+  name: establishes,
+  parameters: [peer : Peer],
+  result: Bool,
+  body: (match peer
+    | Peer.runner => true
+    | Peer.workstation => true
+    | Peer.browser => false),
+  executable: true
+}
+
+inductive{
+  name: Store,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: attestations, fields: []}, {name: branch, fields: []}, {name: fabric, fields: []}]
+}
+
+definition{
+  name: storeName,
+  parameters: [store : Store],
+  result: String,
+  body: (match store
+    | Store.attestations => "attestations"
+    | Store.branch => "branch"
+    | Store.fabric => "fabric"),
+  executable: true
+}
+
+definition{
+  name: keptIn,
+  parameters: [],
+  result: (List Store),
+  body: (cons (ctor Store.attestations) (cons (ctor Store.branch) (nil Store))),
+  executable: true
+}
+
+definition{
+  name: storeNames,
+  parameters: [stores : (List Store)],
+  result: (List String),
+  body: (prim list_fold (fun (sofar : (List String)) (store : Store) => (prim append sofar (cons (storeName store) (nil String)) : (List String))) (nil String) stores : (List String)),
+  executable: true
+}
+
+inductive{
+  name: Signer,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: workflow, fields: []}, {name: maintainer, fields: []}, {name: anyone, fields: []}]
+}
+
+structure{
+  name: Receipt,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: obligation, type: String},
+    {name: kappa, type: String},
+    {name: passed, type: Bool},
+    {name: signer, type: Signer},
+    {name: subject, type: String},
+    {name: peer, type: Peer}
+  ]
+}
+
+structure{
+  name: Trust,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: repository, type: String},
+    {name: maintainers, type: (List String)}
+  ]
+}
+
+structure{
+  name: Workload,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: repository, type: String},
+    {name: revision, type: String},
+    {name: event, type: Event},
+    {name: kappas, type: (List (String * String))}
+  ]
+}
+
+definition{
+  name: kappaOf,
+  parameters: [wanted : String, kappas : (List (String * String))],
+  result: String,
+  body: (prim list_fold (fun [wanted] (sofar : String) (entry : (String * String)) => (if (prim equal (first entry) wanted : Bool) then (second entry) else sofar)) "" kappas : String),
+  executable: true
+}
+
+definition{
+  name: trusted,
+  parameters: [receipt : Receipt, trust : Trust],
+  result: Bool,
+  body: (match (project receipt signer)
+      | Signer.workflow => (prim equal (project receipt subject) (project trust repository) : Bool)
+      | Signer.maintainer => (Factory.Engine::member (project receipt subject) (project trust maintainers))
+      | Signer.anyone => false),
+  executable: true
+}
+
+definition{
+  name: bound,
+  parameters: [receipt : Receipt, load : Workload],
+  result: Bool,
+  body: (prim equal (project receipt kappa) (kappaOf (project receipt obligation) (project load kappas)) : Bool),
+  executable: true
+}
+
+definition{
+  name: counts,
+  parameters: [receipt : Receipt, load : Workload, trust : Trust],
+  result: Bool,
+  body: ((bound receipt load) && (trusted receipt trust)),
+  executable: true
+}
+
+inductive{
+  name: Status,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: success, fields: []}, {name: failure, fields: []}, {name: pending, fields: []}]
+}
+
+definition{
+  name: statusName,
+  parameters: [status : Status],
+  result: String,
+  body: (match status
+    | Status.success => "success"
+    | Status.failure => "failure"
+    | Status.pending => "pending"),
+  executable: true
+}
+
+definition{
+  name: isSuccess,
+  parameters: [status : Status],
+  result: Bool,
+  body: (match status
+    | Status.success => true
+    | Status.failure => false
+    | Status.pending => false),
+  executable: true
+}
+
+definition{
+  name: isFailure,
+  parameters: [status : Status],
+  result: Bool,
+  body: (match status
+    | Status.success => false
+    | Status.failure => true
+    | Status.pending => false),
+  executable: true
+}
+
+definition{
+  name: statusFor,
+  parameters: [wanted : String, receipts : (List Receipt), load : Workload, trust : Trust],
+  result: Status,
+  body: (prim list_fold (fun [load, trust, wanted] (sofar : Status) (receipt : Receipt) => (if ((prim equal (project receipt obligation) wanted : Bool) && (counts receipt load trust)) then (if (project receipt passed) then (ctor Status.success) else (if (isSuccess sofar) then sofar else (ctor Status.failure))) else sofar)) (ctor Status.pending) receipts : Status),
+  executable: true
+}
+
+definition{
+  name: combine,
+  parameters: [sofar : Status, next : Status],
+  result: Status,
+  body: (if (isFailure sofar) then sofar else (if (isFailure next) then next else (if (isSuccess sofar) then next else sofar))),
+  executable: true
+}
+
+definition{
+  name: overall,
+  parameters: [wanted : (List String), receipts : (List Receipt), load : Workload, trust : Trust],
+  result: Status,
+  body: (prim list_fold (fun [load, receipts, trust] (sofar : Status) (name : String) => (combine sofar (statusFor name receipts load trust))) (ctor Status.success) wanted : Status),
+  executable: true
+}
+
+definition{
+  name: toEstablish,
+  parameters: [wanted : (List String), receipts : (List Receipt), load : Workload, trust : Trust],
+  result: (List String),
+  body: (prim list_fold (fun [load, receipts, trust] (sofar : (List String)) (name : String) => (match (statusFor name receipts load trust)
+      | Status.pending => (prim append sofar (cons name (nil String)) : (List String))
+      | Status.success => sofar
+      | Status.failure => sofar)) (nil String) wanted : (List String)),
+  executable: true
+}
+
+definition{
+  name: dispatches,
+  parameters: [verdict : Factory.Engine::Route],
+  result: Bool,
+  body: (Factory.Engine::isObserved verdict),
+  executable: true
+}
+
+structure{
+  name: Grant,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: scope, type: String},
+    {name: access, type: String}
+  ]
+}
+
+structure{
+  name: Step,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: label, type: String},
+    {name: key, type: String},
+    {name: action, type: String},
+    {name: command, type: String},
+    {name: inputs, type: (List (String * String))},
+    {name: environment, type: (List (String * String))}
+  ]
+}
+
+structure{
+  name: ForgeJob,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: place, type: Place},
+    {name: needs, type: (List String)},
+    {name: condition, type: String},
+    {name: timeout, type: Nat},
+    {name: grants, type: (List Grant)},
+    {name: secrets, type: (List String)},
+    {name: duties, type: (List Duty)},
+    {name: matrix, type: String},
+    {name: outputs, type: (List (String * String))},
+    {name: steps, type: (List Step)}
+  ]
+}
+
+definition{
+  name: forgeJobs,
+  parameters: [],
+  result: (List ForgeJob),
+  body: (cons (record ForgeJob {name := "plan", place := (ctor Place.forge), needs := (nil String), condition := "", timeout := 10, grants := (cons (record Grant {scope := "contents", access := "read"}) (nil Grant)), secrets := (nil String), duties := (cons (ctor Duty.trigger) (cons (ctor Duty.checkout) (cons (ctor Duty.identify) (cons (ctor Duty.verify) (nil Duty))))), matrix := "", outputs := (cons ("establish", "${{ steps.plan.outputs.establish }}") (cons ("sdk-image", "${{ steps.plan.outputs.sdk-image }}") (nil (String * String)))), steps := (cons (record Step {label := "Identify every obligation and count its receipts", key := "plan", action := "", command := "bash prism-factory/factory.sh forge-plan", inputs := (nil (String * String)), environment := (cons ("GH_TOKEN", "${{ github.token }}") (nil (String * String)))}) (nil Step))}) (cons (record ForgeJob {name := "establish", place := (ctor Place.peer), needs := (cons "plan" (nil String)), condition := "${{ needs.plan.outputs.establish != '[]' }}", timeout := 360, grants := (cons (record Grant {scope := "contents", access := "read"}) (cons (record Grant {scope := "id-token", access := "write"}) (cons (record Grant {scope := "attestations", access := "write"}) (nil Grant)))), secrets := (nil String), duties := (cons (ctor Duty.execute) (cons (ctor Duty.fetch) (cons (ctor Duty.sign) (nil Duty)))), matrix := "${{ fromJSON(needs.plan.outputs.establish) }}", outputs := (nil (String * String)), steps := (cons (record Step {label := "Materialize the obligation's closure", key := "closure", action := "", command := "bash prism-factory/factory.sh forge-prepare ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (nil (String * String))}) (cons (record Step {label := "Establish the obligation in the immutable SDK image", key := "establish", action := "./action", command := "", inputs := (cons ("sdk-image", "${{ needs.plan.outputs.sdk-image }}") (cons ("command", "factory") (cons ("target", "${{ matrix.obligation }}") (cons ("context", "${{ steps.closure.outputs.context }}") (nil (String * String)))))), environment := (nil (String * String))}) (cons (record Step {label := "Write the receipt", key := "receipt", action := "", command := "bash prism-factory/factory.sh forge-receipt ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (cons ("FACTORY_RESULT", "${{ steps.establish.outputs.result }}") (nil (String * String)))}) (cons (record Step {label := "Sign the receipt keylessly", key := "sign", action := "actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a", command := "", inputs := (cons ("subject-path", "${{ steps.receipt.outputs.receipt }}") (nil (String * String))), environment := (nil (String * String))}) (cons (record Step {label := "Place the bundle beside the receipt", key := "", action := "", command := "bash prism-factory/factory.sh forge-bundle ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (cons ("FACTORY_BUNDLE", "${{ steps.sign.outputs.bundle-path }}") (nil (String * String)))}) (cons (record Step {label := "Hand the receipt and its bundle to the forge", key := "", action := "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", command := "", inputs := (cons ("name", "receipt-${{ matrix.obligation }}") (cons ("path", "target/factory/fresh/${{ matrix.obligation }}") (nil (String * String)))), environment := (nil (String * String))}) (nil Step)))))))}) (cons (record ForgeJob {name := "report", place := (ctor Place.forge), needs := (cons "plan" (cons "establish" (nil String))), condition := "${{ always() && needs.plan.result == 'success' }}", timeout := 10, grants := (cons (record Grant {scope := "contents", access := "read"}) (cons (record Grant {scope := "statuses", access := "write"}) (nil Grant))), secrets := (nil String), duties := (cons (ctor Duty.checkout) (cons (ctor Duty.identify) (cons (ctor Duty.verify) (cons (ctor Duty.report) (nil Duty))))), matrix := "", outputs := (nil (String * String)), steps := (cons (record Step {label := "Collect the receipts the peers established", key := "", action := "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", command := "", inputs := (cons ("pattern", "receipt-*") (cons ("path", "target/factory/fresh") (cons ("merge-multiple", "true") (nil (String * String))))), environment := (nil (String * String))}) (cons (record Step {label := "Verify every receipt and report the check", key := "", action := "", command := "bash prism-factory/factory.sh forge-report", inputs := (nil (String * String)), environment := (cons ("GH_TOKEN", "${{ github.token }}") (nil (String * String)))}) (nil Step)))}) (cons (record ForgeJob {name := "keep", place := (ctor Place.store), needs := (cons "report" (nil String)), condition := "${{ always() && needs.report.result != 'skipped' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}", timeout := 10, grants := (cons (record Grant {scope := "contents", access := "write"}) (nil Grant)), secrets := (nil String), duties := (cons (ctor Duty.keep) (nil Duty)), matrix := "", outputs := (nil (String * String)), steps := (cons (record Step {label := "Collect the receipts the peers established", key := "", action := "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", command := "", inputs := (cons ("pattern", "receipt-*") (cons ("path", "target/factory/fresh") (cons ("merge-multiple", "true") (nil (String * String))))), environment := (nil (String * String))}) (cons (record Step {label := "Keep every verified receipt on the receipts branch", key := "", action := "", command := "bash prism-factory/factory.sh forge-keep", inputs := (nil (String * String)), environment := (cons ("GH_TOKEN", "${{ github.token }}") (nil (String * String)))}) (nil Step)))}) (nil ForgeJob))))),
+  executable: true
+}
+
+definition{
+  name: forgeGrants,
+  parameters: [],
+  result: (List Grant),
+  body: (cons (record Grant {scope := "contents", access := "read"}) (cons (record Grant {scope := "statuses", access := "write"}) (nil Grant))),
+  executable: true
+}
+
+definition{
+  name: peerGrants,
+  parameters: [],
+  result: (List Grant),
+  body: (cons (record Grant {scope := "contents", access := "read"}) (cons (record Grant {scope := "id-token", access := "write"}) (cons (record Grant {scope := "attestations", access := "write"}) (nil Grant)))),
+  executable: true
+}
+
+definition{
+  name: storeGrants,
+  parameters: [],
+  result: (List Grant),
+  body: (cons (record Grant {scope := "contents", access := "write"}) (nil Grant)),
+  executable: true
+}
+
+definition{
+  name: sameGrant,
+  parameters: [left : Grant, right : Grant],
+  result: Bool,
+  body: ((prim equal (project left scope) (project right scope) : Bool) && (prim equal (project left access) (project right access) : Bool)),
+  executable: true
+}
+
+definition{
+  name: grantIn,
+  parameters: [wanted : Grant, allowed : (List Grant)],
+  result: Bool,
+  body: (prim list_fold (fun [wanted] (sofar : Bool) (entry : Grant) => (sofar || (sameGrant entry wanted))) false allowed : Bool),
+  executable: true
+}
+
+definition{
+  name: allowedFor,
+  parameters: [place : Place],
+  result: (List Grant),
+  body: (match place
+    | Place.forge => (forgeGrants)
+    | Place.peer => (peerGrants)
+    | Place.store => (storeGrants)),
+  executable: true
+}
+
+definition{
+  name: grantsAllowed,
+  parameters: [jobs : (List ForgeJob)],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (job : ForgeJob) => (prim list_fold (fun [job] (inner : Bool) (entry : Grant) => (inner && (grantIn entry (allowedFor (project job place))))) sofar (project job grants) : Bool)) true jobs : Bool),
+  executable: true
+}
+
+definition{
+  name: secretFree,
+  parameters: [jobs : (List ForgeJob)],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (job : ForgeJob) => (sofar && (match (project job secrets)
+      | List.nil => true
+      | List.cons head tail => false))) true jobs : Bool),
+  executable: true
+}
+
+definition{
+  name: dutiesInPlace,
+  parameters: [jobs : (List ForgeJob)],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (job : ForgeJob) => (prim list_fold (fun [job] (inner : Bool) (duty : Duty) => (inner && (prim equal (placeName (placeOf duty)) (placeName (project job place)) : Bool))) sofar (project job duties) : Bool)) true jobs : Bool),
+  executable: true
+}
+
+definition{
+  name: forgeMinutes,
+  parameters: [jobs : (List ForgeJob)],
+  result: Nat,
+  body: (prim list_fold (fun (sofar : Nat) (job : ForgeJob) => (if (onForge (project job place)) then (sofar + (project job timeout)) else sofar)) 0 jobs : Nat),
+  executable: true
+}
+
+definition{
+  name: jobNames,
+  parameters: [jobs : (List ForgeJob)],
+  result: (List String),
+  body: (prim list_fold (fun (sofar : (List String)) (job : ForgeJob) => (prim append sofar (cons (project job name) (nil String)) : (List String))) (nil String) jobs : (List String)),
+  executable: true
+}
+
+definition{
+  name: peerJobsUseTheAction,
+  parameters: [jobs : (List ForgeJob)],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (job : ForgeJob) => (sofar && (implies (onPeer (project job place)) (prim list_fold (fun (found : Bool) (entry : Step) => (found || (prim equal (project entry action) "./action" : Bool))) false (project job steps) : Bool)))) true jobs : Bool),
+  executable: true
+}
+
+definition{
+  name: peerJobsAreConditional,
+  parameters: [jobs : (List ForgeJob)],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (job : ForgeJob) => (sofar && (implies (onPeer (project job place)) ((not (prim equal (project job condition) "" : Bool)) && (not (prim equal (project job matrix) "" : Bool)))))) true jobs : Bool),
+  executable: true
+}
+
+definition{
+  name: needsKnown,
+  parameters: [jobs : (List ForgeJob)],
+  result: Bool,
+  body: (second (prim list_fold (fun (state : ((List String) * Bool)) (job : ForgeJob) => ((prim append (first state) (cons (project job name) (nil String)) : (List String)), ((second state) && (Factory.Engine::subset (project job needs) (first state))))) ((nil String), true) jobs : ((List String) * Bool))),
+  executable: true
+}
+
+definition{
+  name: headLines,
+  parameters: [],
+  result: (List String),
+  body: (cons "# Generated by the Prism factory from prism-factory/model/src/Factory/Delegation.lex.tex." (cons "# Do not edit: `prism-factory/factory.sh workflow --name delegate --write .github/workflows/prism-delegation.yml` rewrites it; `check` refuses drift." (cons "# GitHub is the forge: it triggers, identifies each obligation with the certified" (cons "# core and verifies receipts. Nothing here is a hosted server. A receipt counts" (cons "# when a workflow of this repository or a listed maintainer signed it keylessly" (cons "# for exactly this identity, wherever it was established (a lent runner or a" (cons "# workstation on the same SDK image). Only obligations with no counted receipt" (cons "# are established, each on its own lent runner through the PrismPM Action." (cons "name: Prism delegation" (cons "on:" (cons "  pull_request:" (cons "  push:" (cons "    branches: [main, 'release/v*']" (cons "    tags: ['v*']" (cons "  workflow_dispatch:" (cons "permissions:" (cons "  contents: read" (cons "concurrency:" (cons "  group: prism-delegation-${{ github.ref }}" (cons "  cancel-in-progress: true" (cons "jobs:" (nil String)))))))))))))))))))))),
+  executable: true
+}
+
+definition{
+  name: checkoutLine,
+  parameters: [],
+  result: String,
+  body: "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+  executable: true
+}
+
+definition{
+  name: text,
+  parameters: [value : String],
+  result: Bytes,
+  body: (prim utf8_encode value : Bytes),
+  executable: true
+}
+
+definition{
+  name: lineOf,
+  parameters: [pieces : (List Bytes)],
+  result: Bytes,
+  body: (prim append (LexLeanStd.Buffer::joinAll pieces) 0x0a : Bytes),
+  executable: true
+}
+
+definition{
+  name: textLine,
+  parameters: [value : String],
+  result: Bytes,
+  body: (lineOf (cons (text value) (nil Bytes))),
+  executable: true
+}
+
+definition{
+  name: pairLines,
+  parameters: [indent : String, title : String, pairs : (List (String * String))],
+  result: Bytes,
+  body: (match pairs
+      | List.nil => 0x
+      | List.cons head tail => (prim list_fold (fun [indent] (sofar : Bytes) (entry : (String * String)) => (prim append sofar (lineOf (cons (text indent) (cons (text "  ") (cons (text (first entry)) (cons (text ": ") (cons (text (second entry)) (nil Bytes))))))) : Bytes)) (lineOf (cons (text indent) (cons (text title) (nil Bytes)))) pairs : Bytes)),
+  executable: true
+}
+
+definition{
+  name: grantLines,
+  parameters: [grants : (List Grant)],
+  result: Bytes,
+  body: (prim list_fold (fun (sofar : Bytes) (entry : Grant) => (prim append sofar (lineOf (cons (text "      ") (cons (text (project entry scope)) (cons (text ": ") (cons (text (project entry access)) (nil Bytes)))))) : Bytes)) 0x grants : Bytes),
+  executable: true
+}
+
+definition{
+  name: optional,
+  parameters: [prefix : String, value : String],
+  result: Bytes,
+  body: (if (prim equal value "" : Bool) then 0x else (lineOf (cons (text prefix) (cons (text value) (nil Bytes))))),
+  executable: true
+}
+
+definition{
+  name: stepLines,
+  parameters: [steps : (List Step)],
+  result: Bytes,
+  body: (prim list_fold (fun (sofar : Bytes) (entry : Step) => (LexLeanStd.Buffer::joinAll (cons sofar (cons (lineOf (cons (text "      - name: ") (cons (text (project entry label)) (nil Bytes)))) (cons (optional "        id: " (project entry key)) (cons (optional "        uses: " (project entry action)) (cons (pairLines "        " "with:" (project entry inputs)) (cons (pairLines "        " "env:" (project entry environment)) (cons (optional "        run: " (project entry command)) (nil Bytes)))))))))) 0x steps : Bytes),
+  executable: true
+}
+
+definition{
+  name: needsText,
+  parameters: [needs : (List String)],
+  result: Bytes,
+  body: (match needs
+      | List.nil => 0x
+      | List.cons head tail => (lineOf (cons (text "    needs: [") (cons (LexLeanStd.Text::joinWith (prim list_fold (fun (sofar : (List Bytes)) (name : String) => (prim append sofar (cons (text name) (nil Bytes)) : (List Bytes))) (nil Bytes) needs : (List Bytes)) 0x2c20) (cons (text "]") (nil Bytes)))))),
+  executable: true
+}
+
+definition{
+  name: matrixLines,
+  parameters: [matrix : String],
+  result: Bytes,
+  body: (if (prim equal matrix "" : Bool) then 0x else (LexLeanStd.Buffer::joinAll (cons (textLine "    strategy:") (cons (textLine "      fail-fast: false") (cons (textLine "      matrix:") (cons (lineOf (cons (text "        obligation: ") (cons (text matrix) (nil Bytes)))) (nil Bytes))))))),
+  executable: true
+}
+
+definition{
+  name: jobLines,
+  parameters: [job : ForgeJob],
+  result: Bytes,
+  body: (LexLeanStd.Buffer::joinAll (cons (lineOf (cons (text "  ") (cons (text (project job name)) (cons (text ":") (nil Bytes))))) (cons (needsText (project job needs)) (cons (optional "    if: " (project job condition)) (cons (textLine "    runs-on: ubuntu-24.04") (cons (lineOf (cons (text "    timeout-minutes: ") (cons (LexLeanStd.Buffer::decimal (project job timeout)) (nil Bytes)))) (cons (textLine "    permissions:") (cons (grantLines (project job grants)) (cons (matrixLines (project job matrix)) (cons (pairLines "    " "outputs:" (project job outputs)) (cons (textLine "    steps:") (cons (textLine (checkoutLine)) (cons (textLine "        with:") (cons (textLine "          submodules: false") (cons (stepLines (project job steps)) (nil Bytes)))))))))))))))),
+  executable: true
+}
+
+definition{
+  name: projection,
+  parameters: [],
+  result: Bytes,
+  body: (prim list_fold (fun (sofar : Bytes) (job : ForgeJob) => (prim append sofar (jobLines job) : Bytes)) (prim list_fold (fun (sofar : Bytes) (piece : String) => (prim append sofar (textLine piece) : Bytes)) 0x (headLines) : Bytes) (forgeJobs) : Bytes),
+  executable: true
+}
+
+definition{
+  name: flatInputs,
+  parameters: [items : (List Factory.Engine::Obligation)],
+  result: (List String),
+  body: (prim list_fold (fun (sofar : (List String)) (item : Factory.Engine::Obligation) => (prim append sofar (prim append (cons (project item name) (nil String)) (project item inputs) : (List String)) : (List String))) (nil String) items : (List String)),
+  executable: true
+}
+
+definition{
+  name: flatNeeds,
+  parameters: [items : (List Factory.Engine::Obligation)],
+  result: (List String),
+  body: (prim list_fold (fun (sofar : (List String)) (item : Factory.Engine::Obligation) => (prim append sofar (prim append (cons (project item name) (nil String)) (project item needs) : (List String)) : (List String))) (nil String) items : (List String)),
+  executable: true
+}
+
+theorem{
+  name: execution_fetching_and_signing_happen_only_on_a_peer,
+  parameters: [duty : Duty],
+  statement: ((implies (works duty) (onPeer (placeOf duty))) = true),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: trigger},
+      {proof: decide{}, binders: [], constructor: checkout},
+      {proof: decide{}, binders: [], constructor: identify},
+      {proof: decide{}, binders: [], constructor: verify},
+      {proof: decide{}, binders: [], constructor: report},
+      {proof: decide{}, binders: [], constructor: execute},
+      {proof: decide{}, binders: [], constructor: fetch},
+      {proof: decide{}, binders: [], constructor: sign},
+      {proof: decide{}, binders: [], constructor: keep}
+    ],
+    scrutinee: duty
+  },
+  axioms: []
+}
+
+theorem{
+  name: a_browser_verifies_and_keeps_but_never_establishes,
+  parameters: [peer : Peer],
+  statement: ((implies (prim equal (peerName peer) "browser" : Bool) (not (establishes peer))) = true),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: runner},
+      {proof: decide{}, binders: [], constructor: workstation},
+      {proof: decide{}, binders: [], constructor: browser}
+    ],
+    scrutinee: peer
+  },
+  axioms: []
+}
+
+theorem{
+  name: every_job_does_only_the_duties_of_its_place,
+  parameters: [],
+  statement: ((dutiesInPlace (forgeJobs)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: no_job_holds_a_secret,
+  parameters: [],
+  statement: ((secretFree (forgeJobs)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: the_forge_reads_contents_and_writes_statuses_and_a_peer_also_signs_and_keeps,
+  parameters: [],
+  statement: ((grantsAllowed (forgeJobs)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: the_forge_spends_at_most_twenty_runner_minutes_of_its_own_per_event,
+  parameters: [],
+  statement: (((forgeMinutes (forgeJobs)) <=? 20) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: every_lent_runner_runs_the_prismpm_action,
+  parameters: [],
+  statement: ((peerJobsUseTheAction (forgeJobs)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_lent_runner_starts_only_for_obligations_left_to_establish,
+  parameters: [],
+  statement: ((peerJobsAreConditional (forgeJobs)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: every_job_is_named_once_and_needs_only_earlier_jobs,
+  parameters: [],
+  statement: (((Factory.Engine::distinct (jobNames (forgeJobs))) && (needsKnown (forgeJobs))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: every_receipt_is_kept_in_two_independent_stores,
+  parameters: [],
+  statement: (((Factory.Engine::distinct (storeNames (keptIn))) && (2 <=? (prim length (keptIn) : Nat))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: after_delegation_no_obligation_runs_on_the_legacy_adapter,
+  parameters: [],
+  statement: ((Factory.PrismPM::onLegacyAdapter (graph)) = 0),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: delegation_keeps_every_obligation,
+  parameters: [],
+  statement: ((Factory.Engine::sameStrings (Factory.Engine::names (graph)) (Factory.Engine::names (Factory.PrismPM::graph))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: the_delegated_graph_still_needs_every_need_first,
+  parameters: [],
+  statement: ((Factory.Engine::needsComeFirst (graph)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: the_delegated_graph_has_no_arbitrary_obligation,
+  parameters: [],
+  statement: ((Factory.Engine::noArbitraryObligation (graph) "release") = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: every_delegated_obligation_has_a_declared_sandbox,
+  parameters: [],
+  statement: ((allSandboxed (graph)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: delegation_keeps_every_input_and_need,
+  parameters: [],
+  statement: (((Factory.Engine::sameStrings (flatInputs (graph)) (flatInputs (Factory.PrismPM::graph))) && (Factory.Engine::sameStrings (flatNeeds (graph)) (flatNeeds (Factory.PrismPM::graph)))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: every_carried_obligation_is_in_the_graph,
+  parameters: [],
+  statement: ((Factory.Engine::subset (carried) (Factory.Engine::names (graph))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: nine_obligations_are_still_carried_by_their_release_jobs,
+  parameters: [],
+  statement: ((prim list_fold (fun (sofar : Nat) (item : Factory.Engine::Obligation) => (if (isCarried (project item name)) then sofar else (sofar + 1))) 0 (graph) : Nat) = 9),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: no_sandbox_reaches_the_live_network,
+  parameters: [],
+  statement: ((noneLive) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: source_vv_and_the_gate_run_sealed,
+  parameters: [],
+  statement: (((prim equal (accessName (project (sandboxFor "source-vv") network)) "sealed" : Bool) && (prim equal (accessName (project (sandboxFor "gate") network)) "sealed" : Bool)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_pull_request_establishes_everything_a_cut_rests_on,
+  parameters: [],
+  statement: ((Factory.Engine::sameStrings (lane (ctor Event.pullRequest)) (cons "factory-model" (cons "vv-sdk" (cons "source-vv" (cons "build" (nil String)))))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_release_run_covers_the_whole_graph,
+  parameters: [],
+  statement: ((Factory.Engine::sameStrings (lane (ctor Event.tag)) (Factory.Engine::names (graph))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_receipt_from_a_workflow_of_this_repository_counts,
+  parameters: [],
+  statement: ((counts (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))})) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_receipt_from_a_maintainers_workstation_counts,
+  parameters: [],
+  statement: ((counts (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.maintainer), subject := "afflom", peer := (ctor Peer.workstation)}) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))})) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_receipt_counts_wherever_it_was_established,
+  parameters: [],
+  statement: ((statusName (statusFor "source-vv" (cons (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.maintainer), subject := "afflom", peer := (ctor Peer.workstation)}) (nil Receipt)) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))}))) = (statusName (statusFor "source-vv" (cons (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (nil Receipt)) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))})))),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: anyone_elses_receipt_is_a_hint_and_never_counts,
+  parameters: [],
+  statement: ((counts (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.anyone), subject := "someone", peer := (ctor Peer.workstation)}) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))})) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_fork_workflows_receipt_never_counts,
+  parameters: [],
+  statement: ((counts (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/someone/fork/.github/workflows/x.yml@refs/heads/main", peer := (ctor Peer.runner)}) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))})) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_receipt_for_other_content_never_counts,
+  parameters: [],
+  statement: ((counts (record Receipt {obligation := "source-vv", kappa := "k7", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))})) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_receipt_is_found_by_content_not_by_repository,
+  parameters: [],
+  statement: ((counts (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (record Workload {repository := "another/repository", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (nil (String * String)))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))})) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: an_obligation_with_only_a_hint_is_established_not_assumed,
+  parameters: [],
+  statement: ((Factory.Engine::sameStrings (toEstablish (cons "source-vv" (cons "build" (nil String))) (cons (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.anyone), subject := "someone", peer := (ctor Peer.workstation)}) (cons (record Receipt {obligation := "build", kappa := "k2", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (nil Receipt))) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))})) (cons "source-vv" (nil String))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: counted_receipts_for_everything_pass_the_check_with_nothing_to_establish,
+  parameters: [],
+  statement: (((prim equal (statusName (overall (cons "source-vv" (cons "build" (nil String))) (cons (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.maintainer), subject := "afflom", peer := (ctor Peer.workstation)}) (cons (record Receipt {obligation := "build", kappa := "k2", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (nil Receipt))) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))}))) "success" : Bool) && (Factory.Engine::sameStrings (toEstablish (cons "source-vv" (cons "build" (nil String))) (cons (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.maintainer), subject := "afflom", peer := (ctor Peer.workstation)}) (cons (record Receipt {obligation := "build", kappa := "k2", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (nil Receipt))) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))})) (nil String))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: one_counted_failure_fails_the_whole_check,
+  parameters: [],
+  statement: ((statusName (overall (cons "source-vv" (cons "build" (nil String))) (cons (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (cons (record Receipt {obligation := "build", kappa := "k2", passed := false, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (nil Receipt))) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))}))) = "failure"),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_later_pass_outweighs_an_earlier_failure,
+  parameters: [],
+  statement: ((statusName (statusFor "build" (cons (record Receipt {obligation := "build", kappa := "k2", passed := false, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (cons (record Receipt {obligation := "build", kappa := "k2", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (nil Receipt))) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))}))) = "success"),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_missing_receipt_keeps_the_check_pending,
+  parameters: [],
+  statement: ((statusName (overall (cons "source-vv" (cons "build" (nil String))) (cons (record Receipt {obligation := "source-vv", kappa := "k1", passed := true, signer := (ctor Signer.workflow), subject := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", peer := (ctor Peer.runner)}) (nil Receipt)) (record Workload {repository := "UOR-Foundation/PrismPM", revision := "r1", event := (ctor Event.pullRequest), kappas := (cons ("source-vv", "k1") (cons ("build", "k2") (nil (String * String))))}) (record Trust {repository := "https://github.com/UOR-Foundation/PrismPM/.github/workflows/prism-delegation.yml@refs/heads/main", maintainers := (cons "afflom" (nil String))}))) = "pending"),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_proved_route_dispatches_nothing,
+  parameters: [],
+  statement: ((dispatches (ctor Factory.Engine::Route.proved)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_refuted_route_is_not_rerun,
+  parameters: [],
+  statement: ((dispatches (ctor Factory.Engine::Route.refuted)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_blocked_route_waits_for_its_upstream,
+  parameters: [],
+  statement: ((dispatches (ctor Factory.Engine::Route.blocked)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_new_identity_is_dispatched,
+  parameters: [],
+  statement: ((dispatches (ctor Factory.Engine::Route.observe)) = true),
+  proof: decide{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

@@ -53,6 +53,57 @@ case "$detach:$authorized" in
   *) printf '%s\n' 'detach and authorized must be true or false' >&2; exit 2 ;;
 esac
 
+# `factory`: establish one obligation of the Prism factory's delegation
+# (prism-factory/model/src/Factory/Delegation.lex.tex). `context` is the
+# closure `factory.sh forge-prepare` materialized; only it is mounted, at
+# /work. A sealed sandbox has no network; a pinned one fetches by digest only
+# (the obligation's own locks). The user, umask, HOME and scratch tmpfs come
+# from the obligation's sandbox record. The outcome is the result, so a
+# failure is a receipt, not a failed step.
+if test "$command" = factory; then
+  test -n "$target"
+  test -d "$project"
+  run_command=$(cat "$project.run")
+  access=$(cat "$project.access")
+  image=$(cat "$project.image")
+  test "$image" = @sdk || { printf '%s\n' "factory: image $image is not the SDK image; not yet carried" >&2; exit 2; }
+  # The sandbox record: prism/1 IMAGE USER UMASK HOME SCRATCH ACCESS, with HOME
+  # and SCRATCH named from the root. It is part of the obligation's identity,
+  # so the container is made from it and nothing else.
+  read -r sandbox_version _ sandbox_user sandbox_umask sandbox_home sandbox_scratch sandbox_access <"$project.sandbox"
+  test "$sandbox_version" = prism/1 || { printf '%s\n' "factory: unknown sandbox record $sandbox_version" >&2; exit 2; }
+  test "$sandbox_access" = "$access" || { printf '%s\n' "factory: the sandbox record says $sandbox_access" >&2; exit 2; }
+  case "$sandbox_user:$sandbox_umask:$sandbox_home:$sandbox_scratch" in
+    *[!0-9a-z/:._-]*|*..*) printf '%s\n' 'factory: the sandbox record is not confined' >&2; exit 2 ;;
+  esac
+  case "$sandbox_home" in "$sandbox_scratch"/*) ;; *) printf '%s\n' 'factory: HOME must be inside the scratch tmpfs' >&2; exit 2 ;; esac
+  # The closure is a throwaway copy; the sandbox user must be able to write
+  # its build outputs there.
+  chmod -R a+rwX "$project"
+  case "$access" in
+    sealed) network_args=(--network none) ;;
+    pinned) network_args=() ;;
+    *) printf '%s\n' "factory: access $access is not sealed or pinned" >&2; exit 2 ;;
+  esac
+  status=0
+  docker run --rm \
+    --user "$sandbox_user" \
+    --env HOME="/$sandbox_home" \
+    --env CARGO_HOME="/$sandbox_home/cargo" \
+    --env FACTORY_OBLIGATION="$target" \
+    --tmpfs "/$sandbox_scratch:rw,exec,nosuid,size=8g" \
+    --cap-drop ALL \
+    --security-opt no-new-privileges \
+    "${network_args[@]}" \
+    --volume "$project:/work" \
+    --workdir /work \
+    "$PRISMPM_ACTION_SDK_IMAGE" \
+    bash -euo pipefail -c "umask $sandbox_umask; $run_command" || status=$?
+  if test "$status" = 0; then passed=true; else passed=false; fi
+  printf 'result={"obligation":"%s","passed":%s,"status":%s}\n' "$target" "$passed" "$status" >>"$GITHUB_OUTPUT"
+  exit 0
+fi
+
 case "$command" in
   check|verify)
     args=(--project "$project" "${args[@]}")

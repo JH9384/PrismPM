@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "factory_delegate"
+version = "0.1.0"
+
+[[package]]
 name = "factory_plan"
 version = "0.1.0"
 
@@ -18,6 +22,7 @@ version = "0.1.0"
 name = "prism-factory-host"
 version = "0.1.0"
 dependencies = [
+ "factory_delegate",
  "factory_plan",
  "factory_reweigh",
  "factory_workflow",

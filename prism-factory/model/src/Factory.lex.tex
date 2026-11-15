@@ -1,6 +1,7 @@
 \begin{lexlean}{Factory}
 \useglossary{lexlean.std.nat@1.2.0}
 \importmodule{LexLeanStd.Text}
+\importmodule{Factory.Delegation}
 \importmodule{Factory.Engine}
 \importmodule{Factory.PrismPM}
 \importmodule{Factory.Workflow}
@@ -223,11 +224,116 @@ definition{
   executable: true
 }
 
+structure{
+  name: DelegateRequest,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: tree, type: (List (Bytes * Bytes))},
+    {name: signed, type: (List Factory.Delegation::Receipt)},
+    {name: repository, type: String},
+    {name: maintainers, type: (List String)},
+    {name: event, type: Factory.Delegation::Event}
+  ]
+}
+
+definition{
+  name: signerNamed,
+  parameters: [raw : Bytes],
+  result: Factory.Delegation::Signer,
+  body: (if (prim equal raw (Factory.Engine::text "workflow") : Bool) then (ctor Factory.Delegation::Signer.workflow) else (if (prim equal raw (Factory.Engine::text "maintainer") : Bool) then (ctor Factory.Delegation::Signer.maintainer) else (ctor Factory.Delegation::Signer.anyone))),
+  executable: true
+}
+
+definition{
+  name: peerNamed,
+  parameters: [raw : Bytes],
+  result: Factory.Delegation::Peer,
+  body: (if (prim equal raw (Factory.Engine::text "workstation") : Bool) then (ctor Factory.Delegation::Peer.workstation) else (if (prim equal raw (Factory.Engine::text "browser") : Bool) then (ctor Factory.Delegation::Peer.browser) else (ctor Factory.Delegation::Peer.runner))),
+  executable: true
+}
+
+definition{
+  name: eventNamed,
+  parameters: [raw : Bytes],
+  result: Factory.Delegation::Event,
+  body: (if (prim equal raw (Factory.Engine::text "pull_request") : Bool) then (ctor Factory.Delegation::Event.pullRequest) else (if (prim equal raw (Factory.Engine::text "push") : Bool) then (ctor Factory.Delegation::Event.push) else (if (prim equal raw (Factory.Engine::text "tag") : Bool) then (ctor Factory.Delegation::Event.tag) else (ctor Factory.Delegation::Event.dispatch)))),
+  executable: true
+}
+
+definition{
+  name: readDelegateLine,
+  parameters: [request : DelegateRequest, raw : Bytes],
+  result: DelegateRequest,
+  body: (let split : (Bytes * Bytes) := (cut raw); (let tag : Bytes := (first split); (let rest : (Bytes * Bytes) := (cut (second split)); (if (prim equal tag (Factory.Engine::text "tree") : Bool) then (record DelegateRequest {tree := (cons ((first rest), (second rest)) (project request tree)), signed := (project request signed), repository := (project request repository), maintainers := (project request maintainers), event := (project request event)}) else (if (prim equal tag (Factory.Engine::text "signed") : Bool) then (record DelegateRequest {tree := (project request tree), signed := (let a : (Bytes * Bytes) := (cut (second rest)); (let b : (Bytes * Bytes) := (cut (second a)); (let c : (Bytes * Bytes) := (cut (second b)); (let e : (Bytes * Bytes) := (cut (second c)); (cons (record Factory.Delegation::Receipt {obligation := (Factory.Engine::decoded (first rest)), kappa := (Factory.Engine::decoded (first a)), passed := (passes (first b)), signer := (signerNamed (first c)), subject := (Factory.Engine::decoded (second e)), peer := (peerNamed (first e))}) (project request signed)))))), repository := (project request repository), maintainers := (project request maintainers), event := (project request event)}) else (if (prim equal tag (Factory.Engine::text "trust-repository") : Bool) then (record DelegateRequest {tree := (project request tree), signed := (project request signed), repository := (Factory.Engine::decoded (second split)), maintainers := (project request maintainers), event := (project request event)}) else (if (prim equal tag (Factory.Engine::text "trust-maintainer") : Bool) then (record DelegateRequest {tree := (project request tree), signed := (project request signed), repository := (project request repository), maintainers := (cons (Factory.Engine::decoded (second split)) (project request maintainers)), event := (project request event)}) else (if (prim equal tag (Factory.Engine::text "event") : Bool) then (record DelegateRequest {tree := (project request tree), signed := (project request signed), repository := (project request repository), maintainers := (project request maintainers), event := (eventNamed (second split))}) else request)))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: readDelegate,
+  parameters: [raw : Bytes],
+  result: DelegateRequest,
+  body: (let parsed : DelegateRequest := (prim list_fold (fun (request : DelegateRequest) (piece : Bytes) => (readDelegateLine request piece)) (record DelegateRequest {tree := (nil (Bytes * Bytes)), signed := (nil Factory.Delegation::Receipt), repository := "", maintainers := (nil String), event := (ctor Factory.Delegation::Event.dispatch)}) (LexLeanStd.Text::lines raw) : DelegateRequest); (record DelegateRequest {tree := (reversedTree (project parsed tree)), signed := (project parsed signed), repository := (project parsed repository), maintainers := (project parsed maintainers), event := (project parsed event)})),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: countedReceipts,
+  parameters: [request : DelegateRequest],
+  result: (List (String * Bool)),
+  body: (let trust : Factory.Delegation::Trust := (record Factory.Delegation::Trust {repository := (project request repository), maintainers := (project request maintainers)}); (prim list_fold (fun [trust] (sofar : (List (String * Bool))) (receipt : Factory.Delegation::Receipt) => (if (Factory.Delegation::trusted receipt trust) then (cons ((project receipt kappa), (project receipt passed)) sofar) else sofar)) (nil (String * Bool)) (project request signed) : (List (String * Bool)))),
+  executable: true
+}
+
+definition{
+  name: wantedBy,
+  parameters: [event : Factory.Delegation::Event],
+  result: (List String),
+  body: (prim list_fold (fun (sofar : (List String)) (name : String) => (if (Factory.Delegation::isCarried name) then (prim append sofar (cons name (nil String)) : (List String)) else sofar)) (nil String) (Factory.Delegation::lane event) : (List String)),
+  executable: true
+}
+
+definition{
+  name: statusOfRoute,
+  parameters: [verdict : Factory.Engine::Route],
+  result: String,
+  body: (if (Factory.Engine::isProved verdict) then "success" else (if (prim equal (Factory.Engine::routeName verdict) "refuted" : Bool) then "failure" else "pending")),
+  executable: true
+}
+
+definition{
+  name: delegateLines,
+  parameters: [entry : Factory.Engine::Planned, wanted : (List String), tree : (List (Bytes * Bytes))],
+  result: Bytes,
+  body: (let item : Factory.Engine::Obligation := (project entry obligation); (let owner : String := (project item name); (let box : Factory.Delegation::Sandbox := (Factory.Delegation::sandboxFor owner); (let head : Bytes := (prim append (prim append (words (cons "obligation" (cons owner (cons (Factory.Engine::routeName (project entry verdict)) (cons (project entry kappa) (nil String)))))) (words (cons "run" (cons owner (cons (project item run) (nil String))))) : Bytes) (words (cons "access" (cons owner (cons (Factory.Delegation::accessName (project box network)) (cons (project box image) (nil String)))))) : Bytes); (let sandbox : Bytes := (Factory.Engine::line (cons (Factory.Engine::text "sandbox") (cons (Factory.Engine::text owner) (cons (Factory.Delegation::sandboxText owner) (nil Bytes))))); (let chosen : Bool := ((Factory.Engine::isObserved (project entry verdict)) && (Factory.Engine::member owner wanted)); (let mark : Bytes := (if chosen then (prim append (words (cons "establish" (cons owner (nil String)))) (closureFiles owner (project item inputs) tree) : Bytes) else 0x); (let status : Bytes := (if (Factory.Engine::member owner wanted) then (words (cons "status" (cons owner (cons (statusOfRoute (project entry verdict)) (nil String))))) else 0x); (prim append (prim append (prim append head sandbox : Bytes) mark : Bytes) status : Bytes))))))))),
+  executable: true
+}
+
+definition{
+  name: overallOf,
+  parameters: [planned : (List Factory.Engine::Planned), wanted : (List String)],
+  result: String,
+  body: (prim list_fold (fun [wanted] (sofar : String) (entry : Factory.Engine::Planned) => (if (Factory.Engine::member (project (project entry obligation) name) wanted) then (let next : String := (statusOfRoute (project entry verdict)); (if (prim equal sofar "failure" : Bool) then sofar else (if (prim equal next "failure" : Bool) then next else (if (prim equal sofar "success" : Bool) then next else sofar)))) else sofar)) "success" planned : String),
+  executable: true
+}
+
+definition{
+  name: delegate,
+  parameters: [request : Bytes],
+  result: Bytes,
+  body: (let parsed : DelegateRequest := (readDelegate request); (let wanted : (List String) := (wantedBy (project parsed event)); (let planned : (List Factory.Engine::Planned) := (Factory.Engine::planAll (Factory.Delegation::identifiedGraph) (project parsed tree) (countedReceipts parsed)); (prim append (Factory.Engine::joinedReversed (prim list_fold (fun [parsed, wanted] (sofar : (List Bytes)) (entry : Factory.Engine::Planned) => (cons (delegateLines entry wanted (project parsed tree)) sofar)) (nil Bytes) planned : (List Bytes))) (prim append (words (cons "sdk" (cons (Factory.Delegation::sdkImage) (nil String)))) (words (cons "check" (cons (overallOf planned wanted) (nil String)))) : Bytes) : Bytes)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
+}
+
 definition{
   name: workflow,
   parameters: [selector : Bytes],
   result: Bytes,
-  body: (if (prim equal selector (Factory.Engine::text "release") : Bool) then (releaseWorkflow) else (if (prim equal selector (Factory.Engine::text "cut") : Bool) then (Factory.Workflow::render 0x (Factory.Workflow::cutLines)) else (Factory.Workflow::render 0x (Factory.Workflow::factoryLines)))),
+  body: (if (prim equal selector (Factory.Engine::text "release") : Bool) then (releaseWorkflow) else (if (prim equal selector (Factory.Engine::text "cut") : Bool) then (Factory.Workflow::render 0x (Factory.Workflow::cutLines)) else (if (prim equal selector (Factory.Engine::text "delegate") : Bool) then (Factory.Delegation::projection) else (Factory.Workflow::render 0x (Factory.Workflow::factoryLines))))),
   executable: true,
   production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
 }

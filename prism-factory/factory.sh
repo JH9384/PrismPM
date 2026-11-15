@@ -8,6 +8,12 @@
 #   factory.sh actions-cut            the release cut: tag vVERSION and dispatch its publication run
 #                                     when the certified plan says the rehearsed commit is cuttable
 #   factory.sh site DIR               build the GitHub Pages site into DIR
+#   factory.sh forge-plan             delegation `plan` job: verify kept receipts, write what to establish
+#   factory.sh forge-prepare NAME     delegation `establish` job: materialize NAME's closure for the Action
+#   factory.sh forge-receipt NAME     write NAME's receipt from the Action's result
+#   factory.sh forge-bundle NAME      place the receipt's Sigstore bundle beside it
+#   factory.sh forge-report           delegation `report` job: verify every receipt, report the check
+#   factory.sh forge-keep             delegation `keep` job: keep verified receipts on the receipts branch
 #
 # Decisions are made by the certified core in prism-factory/certified; this
 # script only builds the host and moves receipts.
@@ -66,6 +72,77 @@ publish_receipts() {
   done
   echo "factory.sh: could not push receipts to $branch" >&2
   return 1
+}
+
+# ---------------------------------------------------------------- delegation
+# GitHub is the forge (prism-factory/model/src/Factory/Delegation.lex.tex): it
+# verifies receipts and the certified `delegate` root decides. A receipt is a
+# file `KAPPA-pass|fail.receipt`; its Sigstore bundle `KAPPA-...jsonl` (gh reads
+# only .json and .jsonl bundles) was
+# made by actions/attest-build-provenance in this repository's delegation
+# workflow, and `gh attestation verify` checks it before the root sees it.
+delegation_branch=${PRISM_RECEIPTS_BRANCH:-prism-receipts}
+delegation_workflow=.github/workflows/prism-delegation.yml
+work=target/factory/work
+kept=target/factory/kept
+fresh=target/factory/fresh
+
+forge_event() {
+  case "${GITHUB_EVENT_NAME:-workflow_dispatch}:${GITHUB_REF:-}" in
+    push:refs/tags/*) echo tag ;;
+    pull_request:*) echo pull_request ;;
+    push:*) echo push ;;
+    *) echo workflow_dispatch ;;
+  esac
+}
+
+forge_contexts() {
+  printf -- '--context\nmode=%s\n--context\nrun=%s\n' "$( [ "$(forge_event)" = tag ] && echo publish || echo rehearsal )" "${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
+}
+
+# Writes the trust and event lines, then one `signed` line for each receipt in
+# the given directories whose bundle verifies against this repository's
+# delegation workflow. Receipts that do not verify are dropped, not trusted.
+forge_verified() {
+  local out=$1; shift
+  local repo=${GITHUB_REPOSITORY:?} subject="${GITHUB_REPOSITORY}/${delegation_workflow}"
+  mkdir -p "$(dirname "$out")"
+  {
+    echo "trust-repository $subject"
+    echo "event $(forge_event)"
+  } > "$out"
+  local dir receipt bundle kappa verdict name
+  for dir in "$@"; do
+    [ -d "$dir" ] || continue
+    for receipt in "$dir"/*.receipt; do
+      [ -e "$receipt" ] || continue
+      bundle=${receipt%.receipt}.jsonl
+      [ -e "$bundle" ] || { echo "factory: $receipt has no bundle; ignored" >&2; continue; }
+      if ! why=$(gh attestation verify "$receipt" --bundle "$bundle" --repo "$repo" \
+           --signer-workflow "$subject" 2>&1); then
+        printf 'factory: %s does not verify; ignored:\n%s\n' "$receipt" "$why" >&2
+        continue
+      fi
+      read -r _ kappa verdict < "$receipt"
+      name=$(sed -n 's/^obligation //p' "$receipt")
+      echo "signed $name $kappa $verdict workflow runner $subject" >> "$out"
+    done
+  done
+}
+
+fetch_kept() {
+  rm -rf "$kept"; mkdir -p "$kept"
+  if git fetch --quiet --depth=1 origin "refs/heads/$delegation_branch" 2>/dev/null; then
+    git archive FETCH_HEAD | tar -x -C "$kept"
+  fi
+}
+
+forge_plan() {
+  local verified=target/factory/verified plan
+  mkdir -p target/factory
+  mapfile -t contexts < <(forge_contexts)
+  forge_verified "$verified" "$kept" "$@"
+  "$host" delegate "$verified" "${contexts[@]}"
 }
 
 command=${1:-}
@@ -147,6 +224,95 @@ case "$command" in
       gh api -X PATCH "repos/$repo/milestones/${milestone%% *}" -f state=closed >/dev/null
       echo "factory: closed milestone $minor"
     fi
+    ;;
+  forge-plan)
+    build
+    fetch_kept
+    plan=$(forge_plan)
+    grep -E '^(obligation|status|check|establish|sdk) ' <<<"$plan" || true
+    establish=$(sed -n 's/^establish //p' <<<"$plan" | jq -R . | jq -cs .)
+    sdk=$(sed -n 's/^sdk //p' <<<"$plan")
+    { echo "establish=$establish"; echo "sdk-image=$sdk"; } >> "${GITHUB_OUTPUT:-/dev/stdout}"
+    ;;
+  forge-prepare)
+    name=${2:?usage: factory.sh forge-prepare NAME}
+    build
+    mapfile -t contexts < <(forge_contexts)
+    # The closure and command do not depend on receipts: plan with none.
+    forge_verified target/factory/verified
+    "$host" delegate-prepare target/factory/verified "$name" --work "$work" "${contexts[@]}" >/dev/null
+    echo "context=$work/$name" >> "${GITHUB_OUTPUT:-/dev/stdout}"
+    ;;
+  forge-receipt)
+    name=${2:?usage: factory.sh forge-receipt NAME}
+    : "${FACTORY_RESULT:?}"
+    passed=$(jq -r '.passed' <<<"$FACTORY_RESULT")
+    case "$passed" in true) verdict=pass ;; false) verdict=fail ;; *) echo "factory: no result for $name" >&2; exit 65 ;; esac
+    kappa=$(cat "$work/$name.kappa")
+    mkdir -p "$fresh/$name"
+    receipt=$fresh/$name/$kappa-$verdict.receipt
+    {
+      echo "receipt $kappa $verdict"
+      echo "obligation $name"
+      echo "revision $(git rev-parse HEAD)"
+      echo "sandbox $(cat "$work/$name.sandbox")"
+      echo "peer runner"
+      echo "workflow ${GITHUB_WORKFLOW_REF:-local}"
+      echo "run ${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
+    } > "$receipt"
+    echo "receipt=$receipt" >> "${GITHUB_OUTPUT:-/dev/stdout}"
+    ;;
+  forge-bundle)
+    name=${2:?usage: factory.sh forge-bundle NAME}
+    : "${FACTORY_BUNDLE:?}"
+    for receipt in "$fresh/$name"/*.receipt; do cp "$FACTORY_BUNDLE" "${receipt%.receipt}.jsonl"; done
+    ;;
+  forge-report)
+    build
+    fetch_kept
+    plan=$(forge_plan "$fresh")
+    grep -E '^(obligation|status|check) ' <<<"$plan" || true
+    check=$(sed -n 's/^check //p' <<<"$plan")
+    : "${GITHUB_REPOSITORY:?}"
+    sha=$(jq -r '.pull_request.head.sha // empty' "${GITHUB_EVENT_PATH:-/dev/null}" 2>/dev/null || true)
+    sha=${sha:-${GITHUB_SHA:?}}
+    case "$check" in success) state=success ;; failure) state=failure ;; *) state=pending ;; esac
+    summary=$(sed -n 's/^status \([^ ]*\) \(.*\)$/\1 \2/p' <<<"$plan" | paste -sd ',' -)
+    gh api "repos/$GITHUB_REPOSITORY/statuses/$sha" -f state="$state" -f context=prism/delegation \
+      -f description="${summary:-nothing carried}" \
+      -f target_url="${GITHUB_SERVER_URL:-https://github.com}/$GITHUB_REPOSITORY/actions/runs/${GITHUB_RUN_ID:-0}" >/dev/null
+    [ "$state" != failure ]
+    ;;
+  forge-keep)
+    # Keeps every receipt of this run that verifies, with its bundle, on the
+    # receipts branch. A receipt that does not verify is not kept.
+    forge_verified target/factory/keep-verified "$fresh"
+    staged=target/factory/keep
+    rm -rf "$staged"; mkdir -p "$staged"
+    while read -r tag name kappa verdict _; do
+      [ "$tag" = signed ] || continue
+      cp "$fresh/$kappa-$verdict.receipt" "$fresh/$kappa-$verdict.jsonl" "$staged/"
+    done < target/factory/keep-verified
+    ls "$staged"/*.receipt >/dev/null 2>&1 || { echo "factory: no new receipts to keep"; exit 0; }
+    for attempt in 1 2 3 4 5; do
+      index=$(mktemp); parent=()
+      if git fetch --quiet --depth=1 origin "refs/heads/$delegation_branch" 2>/dev/null; then
+        GIT_INDEX_FILE=$index git read-tree FETCH_HEAD; parent=(-p "$(git rev-parse FETCH_HEAD)")
+      else
+        rm -f "$index"
+      fi
+      for file in "$staged"/*; do
+        blob=$(git hash-object -w "$file")
+        GIT_INDEX_FILE=$index git update-index --add --cacheinfo "100644,$blob,${file##*/}"
+      done
+      tree=$(GIT_INDEX_FILE=$index git write-tree); rm -f "$index"
+      commit=$(git -c user.name=prism-factory -c user.email=prism-factory@users.noreply.github.com \
+        commit-tree "$tree" "${parent[@]}" -m "Receipts of run ${GITHUB_RUN_ID:-local} for $(git rev-parse HEAD)")
+      if git push --quiet origin "$commit:refs/heads/$delegation_branch"; then echo "factory: kept $(ls "$staged" | grep -c receipt) receipts"; exit 0; fi
+      sleep $((attempt * 5))
+    done
+    echo "factory: could not push receipts to $delegation_branch" >&2
+    exit 1
     ;;
   site)
     out=${2:?usage: factory.sh site DIR}

@@ -1,7 +1,8 @@
 //! The thin host of the Prism factory.
 //!
-//! This crate decides nothing. It hands bytes to the three certified roots
-//! exported from `prism-factory/model` (`plan`, `reweigh`, `workflow`) and
+//! This crate decides nothing. It hands bytes to the four certified roots
+//! exported from `prism-factory/model` (`plan`, `reweigh`, `workflow`,
+//! `delegate`) and
 //! returns their bytes. The same functions back the command-line host on a
 //! laptop or a runner and the WebAssembly page on GitHub Pages.
 #![forbid(unsafe_op_in_unsafe_fn)]
@@ -17,6 +18,15 @@ pub fn plan(request: &[u8]) -> Result<Vec<u8>, Overflow> {
         .map_err(|_| Overflow)
 }
 
+/// The forge's delegation plan for a request (`tree`, `signed`, `trust-*` and
+/// `event` lines): every obligation's route and identity, its sandbox, what a
+/// lent runner establishes, and the check.
+pub fn delegate(request: &[u8]) -> Result<Vec<u8>, Overflow> {
+    factory_delegate::run(factory_delegate::Bytes::lit(request))
+        .map(|out| out.octets().to_vec())
+        .map_err(|_| Overflow)
+}
+
 /// The next priority levels for a request (`weight` and `outcome` lines).
 pub fn reweigh(request: &[u8]) -> Result<Vec<u8>, Overflow> {
     factory_reweigh::run(factory_reweigh::Bytes::lit(request))
@@ -26,9 +36,11 @@ pub fn reweigh(request: &[u8]) -> Result<Vec<u8>, Overflow> {
 
 /// A generated GitHub workflow projection: `b"release"` for the release
 /// skeleton (job fragments are placed by the host), `b"cut"` for the release
-/// cut, anything else for the pull-request workflow.
-pub fn workflow(selector: &[u8]) -> Vec<u8> {
-    factory_workflow::run(factory_workflow::Bytes::lit(selector)).octets().to_vec()
+/// cut, `b"delegate"` for the forge's delegation wrapper, anything else for the pull-request workflow.
+pub fn workflow(selector: &[u8]) -> Result<Vec<u8>, Overflow> {
+    factory_workflow::run(factory_workflow::Bytes::lit(selector))
+        .map(|out| out.octets().to_vec())
+        .map_err(|_| Overflow)
 }
 
 /// The WebAssembly ABI for the page: the caller writes a request into memory
@@ -83,6 +95,6 @@ mod wasm {
 
     #[no_mangle]
     pub extern "C" fn factory_workflow() -> u64 {
-        give(super::workflow(b""))
+        super::workflow(b"").map(give).unwrap_or(0)
     }
 }

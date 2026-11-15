@@ -100,7 +100,7 @@ in the release policy job before source verification or image construction. It
 checks native smoke expectations against the registered diagnostic exit and
 workspace release version; its synthetic records are never release evidence.
 Source verification shards import the devcontainer layer cache already populated
-by PR Fast Checks. They do not write it concurrently. Cache misses rebuild as
+by the run's own devcontainer-image job. They do not write it concurrently. Cache misses rebuild as
 usual, and every shard still runs its complete source check; no acceptance result
 is cached. Hosted timing is required before claiming a release-duration reduction.
 Publication tests use an isolated GitHub command fixture, not live publication.

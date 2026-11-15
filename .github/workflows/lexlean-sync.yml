@@ -11,7 +11,7 @@ name: LexLean sync
 #                          commits the patch, opens the pull request and
 #                          dispatches the native record producer.
 #   import-native          when both architectures' records exist, verifies and
-#                          commits them, then dispatches PR Fast Checks.
+#                          commits them, then dispatches the Prism delegation.
 #
 # Review of the pull request stays the acceptance. Nothing here merges, tags or
 # publishes. Pushes use GITHUB_TOKEN, which starts no workflow by itself, so
@@ -158,7 +158,7 @@ jobs:
           if [ -z "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
             gh pr create --draft --base "${base:-main}" --head "$BRANCH" \
               --title "build(deps): move LexLean to ${BRANCH#lexlean/}" \
-              --body "Moves the LexLean pin to UOR-Foundation/LexLean@$revision. Opened by \`lexlean-sync.yml\`: pins rewritten by \`scripts/lexlean-pin.mjs\`, generated evidence from $RUN_URL. Native records and PR Fast Checks follow automatically. Prose that names the old release (SPEC.md, AGENTS.md) needs a reviewer pass." \
+              --body "Moves the LexLean pin to UOR-Foundation/LexLean@$revision. Opened by \`lexlean-sync.yml\`: pins rewritten by \`scripts/lexlean-pin.mjs\`, generated evidence from $RUN_URL. Native records and the Prism delegation follow automatically. Prose that names the old release (SPEC.md, AGENTS.md) needs a reviewer pass." \
               || echo "::warning::could not open the pull request with GITHUB_TOKEN; open $BRANCH by hand"
           fi
           gh workflow run native-golden.yml --ref "$BRANCH"
@@ -203,6 +203,6 @@ jobs:
             git push -q origin "HEAD:refs/heads/$BRANCH"
           fi
           echo "ready=true" >> "$GITHUB_OUTPUT"
-      - name: Start PR Fast Checks on the complete branch
+      - name: Start the Prism delegation on the complete branch
         if: steps.records.outputs.ready == 'true'
-        run: gh workflow run ci-parallel.yml --ref "$BRANCH"
+        run: gh workflow run prism-delegation.yml --ref "$BRANCH"

@@ -1082,6 +1082,22 @@ theorem{
   axioms: []
 }
 
+definition{
+  name: baseManifest,
+  parameters: [],
+  result: String,
+  body: "@base:model/modules.toml",
+  executable: true
+}
+
+theorem{
+  name: only_the_model_audits_read_the_base_revision_and_only_its_module_manifest,
+  parameters: [],
+  statement: ((prim list_fold (fun (sofar : (List String)) (item : Factory.Engine::Obligation) => (if (Factory.Engine::member (baseManifest) (project item inputs)) then (prim append sofar (cons (project item name) (nil String)) : (List String)) else sofar)) (nil String) (whole) : (List String)) = (cons "model-audits" (nil String))),
+  proof: decide{},
+  axioms: []
+}
+
 theorem{
   name: the_whole_delegated_graph_needs_every_need_first_and_names_each_obligation_once,
   parameters: [],

@@ -10,15 +10,8 @@ import {parts as vvParts} from './vv-assemble.mjs';
 
 const {load} = createRequire('/opt/prismpm/oracles/package.json')('js-yaml');
 const workflow = name => load(readFileSync(new URL(`../.github/workflows/${name}.yml`, import.meta.url), 'utf8'));
-const jobs = [
-  ['lint-and-policy', 'Lint & Dependency Policy', 40, 'cargo fmt --check\ncargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings\ncargo deny --frozen --all-features check'],
-  ['model-and-audits', 'Model & Audits', 50, 'bash scripts/bootstrap-verify.sh --check-source\ncargo xtask validate'],
-  ['fixtures-and-golden', 'Fixtures & Reviewed Golden Outputs', 50, 'cargo xtask check-fixtures\ncargo run --locked --offline --manifest-path tests/holo-codec-oracle/Cargo.toml --target-dir target/holo-codec-oracle\ncargo xtask check-golden'],
-];
-
 function sourceEvents(name, value) {
   const expected = {
-    'ci-parallel': {pull_request: null, merge_group: {branches: ['main']}, workflow_dispatch: null},
     vv: {push: {branches: ['main']}, workflow_dispatch: null},
     bootstrap: {workflow_dispatch: null},
     reproducibility: {schedule: [{cron: '17 3 * * *'}], workflow_dispatch: null},
@@ -26,62 +19,19 @@ function sourceEvents(name, value) {
   assert.deepEqual(value.on, expected, name + ': complete source trigger contract');
 }
 
-function parallelContract(value) {
-  sourceEvents('ci-parallel', value);
-  assert.deepEqual(Object.keys(value.jobs), ['devcontainer-image', ...jobs.map(row => row[0])]);
-  const image = value.jobs['devcontainer-image'];
-  assert.equal(image.name, 'Devcontainer image cache');
-  assert.equal(image['timeout-minutes'], 40);
-  assert(!('if' in image) && !('strategy' in image) && !('needs' in image));
-  assert.equal(image.steps[0].uses, 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683');
-  assert.equal(image.steps.at(-1).uses, 'devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6');
-  assert.equal(image.steps.at(-1).with.push, 'never');
-  assert.equal(image.steps.at(-1).with.runCmd, 'true');
-  for (const job of Object.values(value.jobs)) {
-    const cleanup = job.steps.findIndex(step => step.uses === './.github/actions/prepare-devcontainer-runner');
-    const cache = job.steps.findIndex(step => step.uses === './.github/actions/devcontainer-cache');
-    assert(cleanup > 0 && cleanup < cache, 'prepare disk before importing construction layers');
-  }
-  for (const [id, name, timeout, command] of jobs) {
-    const job = value.jobs[id];
-    assert.equal(job.needs, 'devcontainer-image', id);
-    assert.equal(job.name, name);
-    assert.equal(job['timeout-minutes'], timeout);
-    assert(!('if' in job) && !('strategy' in job), id);
-    const run = job.steps.at(-1);
-    assert.equal(run.uses, 'devcontainers/ci@8bf61b26e9c3a98f69cb6ce2f88d24ff59b785c6');
-    assert.equal(run.with.push, 'never');
-    assert(run.with.runCmd.startsWith('set -euo pipefail\n'), id);
-    assert(run.with.runCmd.endsWith(command + '\n'), id);
-    assert(!run.with.runCmd.includes('|| true'), id);
-    assert.equal(job.steps[0].uses, 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683');
-  }
-  // Rule 6 of check-modules reads the merge base, and skips with no origin/main.
-  assert.equal(value.jobs['model-and-audits'].steps[0].with['fetch-depth'], 0);
-}
-
-test('three capped jobs preserve every pull request gate name and complete command', () => {
-  parallelContract(workflow('ci-parallel'));
-});
-
-test('parallel policy refuses missing, duplicated, weakened or unbounded execution', () => {
-  const original = workflow('ci-parallel');
-  for (const mutate of [
-    v => delete v.jobs['model-and-audits'],
-    v => delete v.jobs['devcontainer-image'],
-    v => delete v.jobs['model-and-audits'].needs,
-    v => v.jobs['devcontainer-image'].steps.at(-1).with.runCmd = 'cargo xtask validate',
-    v => v.jobs.extra = v.jobs['lint-and-policy'],
-    v => v.jobs['lint-and-policy'].steps.at(-1).with.runCmd = 'cargo fmt --check',
-    v => v.jobs['model-and-audits'].steps.at(-1).with.runCmd += ' || true',
-    v => v.jobs['lint-and-policy'].steps.at(-1).with.push = 'always',
-    v => v.jobs['lint-and-policy']['timeout-minutes'] = 10,
-    v => v.jobs['fixtures-and-golden'].if = 'false',
-    v => v.on.pull_request = {branches: ['main']},
-    v => v.on.push = {branches: ['main']},
-  ]) {
-    const value = structuredClone(original); mutate(value);
-    assert.throws(() => parallelContract(value));
+// PR Fast Checks (ci-parallel.yml) is retired: lint, model-audits and
+// fixtures-golden are obligations of the Prism factory's delegation
+// (prism-factory/model/src/Factory/PrismPM.lex.tex), established on lent
+// runners only when their content identity has no counted receipt, and
+// reported as the one prism/delegation check.
+test('the pull request checks are carried by the delegation, not a parallel workflow', () => {
+  assert(!existsSync(new URL('../.github/workflows/ci-parallel.yml', import.meta.url)));
+  const delegation = workflow('prism-delegation');
+  assert('pull_request' in delegation.on);
+  const model = readFileSync(new URL('../prism-factory/model/src/Factory/PrismPM.lex.tex', import.meta.url), 'utf8');
+  for (const command of ['cargo fmt --check', 'cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings',
+    'cargo deny --frozen --all-features check', 'cargo xtask validate', 'cargo xtask check-fixtures', 'cargo xtask check-golden']) {
+    assert(model.includes(command), command);
   }
 });
 
@@ -133,7 +83,7 @@ test('unit ownership refuses missing regressions, repeated integration, hidden e
 });
 
 test('read-only source workflows supersede by workflow and ref, never unique run ID', () => {
-  for (const name of ['ci-parallel', 'vv', 'bootstrap', 'reproducibility']) {
+  for (const name of ['vv', 'bootstrap', 'reproducibility']) {
     const value = workflow(name);
     sourceEvents(name, value);
     assert.equal(value.concurrency['cancel-in-progress'], true);
@@ -145,18 +95,15 @@ test('read-only source workflows supersede by workflow and ref, never unique run
 });
 
 test('source trigger policy refuses missing filtered broadened or redundant execution', () => {
-  for (const name of ['ci-parallel', 'reproducibility', 'vv', 'bootstrap']) {
+  for (const name of ['reproducibility', 'vv', 'bootstrap']) {
     const original = workflow(name);
     const mutations = [
       value => delete value.on.workflow_dispatch,
       value => value.on.pull_request_target = null,
       value => value.on.pull_request = {paths: ['src/**']},
     ];
-    if (name !== 'ci-parallel') mutations.push(value => value.on.pull_request = null);
-    if (name === 'ci-parallel') mutations.push(value => delete value.on.merge_group,
-      value => value.on.merge_group = null,
-      value => value.on.merge_group = {branches: ['main', 'other']});
-    else mutations.push(value => value.on.merge_group = {branches: ['main']});
+    mutations.push(value => value.on.pull_request = null);
+    mutations.push(value => value.on.merge_group = {branches: ['main']});
     if (name !== 'reproducibility') mutations.push(value => value.on.schedule = [{cron: '* * * * *'}]);
     if (name !== 'vv') mutations.push(value => value.on.push = {branches: ['main']});
     else mutations.push(value => delete value.on.push, value => value.on.push = null,
@@ -171,7 +118,7 @@ test('source trigger policy refuses missing filtered broadened or redundant exec
 });
 
 test('all affected jobs have explicit bounds; the one normative pass retains six hours', () => {
-  for (const name of ['ci-parallel', 'vv', 'bootstrap', 'reproducibility', 'sdk', 'release', 'sdk-candidate', 'native-golden']) {
+  for (const name of ['vv', 'bootstrap', 'reproducibility', 'sdk', 'release', 'sdk-candidate', 'native-golden']) {
     for (const [id, job] of Object.entries(workflow(name).jobs)) {
       const bound = job['timeout-minutes'];
       assert(Number.isInteger(bound) && bound > 0 && bound <= 360, `${name}/${id}`);

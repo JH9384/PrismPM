@@ -242,15 +242,23 @@ refuses drift. On every pull request and push it runs:
 The obligations a peer carries are the model's `carried` list. Today that is
 `factory-model`, which `factory.yml` used to run on every pull request
 (`factory.yml` now runs only on dispatch), and the three pull request checks
-that PR Fast Checks (`ci-parallel.yml`) runs in the devcontainer. Each check
-runs its PR Fast Checks command in the SDK image, which carries the same
-toolchain, after a locked `cargo fetch`. One step is left out:
-`bootstrap-verify.sh --check-source` only checks that a full-history checkout
-contains the pinned bootstrap commit, and a closure has no history by design.
+`lint`, `model-audits` and `fixtures-golden`, which replaced PR Fast Checks
+(`ci-parallel.yml`, retired). Each runs the old job's command in the SDK image,
+which carries the same toolchain, after a locked `cargo fetch`. One step is
+left out: `bootstrap-verify.sh --check-source` only checks that a full-history
+checkout contains the pinned bootstrap commit, and a closure has no history by
+design (`vv.yml` still runs it on every push to `main`).
+
 A closure is its own Git repository with one commit that tracks exactly the
-closure, so `git ls-files` there lists what the identity covers. PR Fast Checks
-is retired once the delegation has carried these checks on live pull
-requests. Each release obligation moves into `carried` in the change that
+closure, so `git ls-files` there lists what the identity covers. A ratchet
+compares the tree with its *base*, the revision's first parent (for a pull
+request's merge commit, the tip it merges into). The request carries the base
+as `@base:PATH` entries, and an obligation reads only the ones it declares:
+`model-audits` declares `@base:model/modules.toml`, so the module baseline
+(rule 6 of `check-modules`) may not grow, and its identity changes only when
+that manifest does. Its closure commit then has a parent holding exactly those
+entries, named `origin/main` as a full checkout names the base.
+Each release obligation moves into `carried` in the change that
 retires its `release.yml` job, so nothing runs twice.
 
 ## Limits

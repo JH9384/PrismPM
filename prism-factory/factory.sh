@@ -137,6 +137,16 @@ fetch_kept() {
   fi
 }
 
+# A ratchet obligation compares the tree with its base, the revision's first
+# parent (`@base:` entries). A shallow checkout holds only the revision, so
+# fetch the base's commit too.
+fetch_base() {
+  local parent
+  parent=$(git cat-file commit HEAD | sed -n '/^$/q; s/^parent //p' | head -n 1)
+  [ -n "$parent" ] || return 0
+  git cat-file -e "$parent^{tree}" 2>/dev/null || git fetch --quiet --depth=1 origin "$parent"
+}
+
 forge_plan() {
   local verified=target/factory/verified plan
   mkdir -p target/factory
@@ -227,6 +237,7 @@ case "$command" in
     ;;
   forge-plan)
     build
+    fetch_base
     fetch_kept
     plan=$(forge_plan)
     grep -E '^(obligation|status|check|establish|sdk) ' <<<"$plan" || true
@@ -237,6 +248,7 @@ case "$command" in
   forge-prepare)
     name=${2:?usage: factory.sh forge-prepare NAME}
     build
+    fetch_base
     mapfile -t contexts < <(forge_contexts)
     # The closure and command do not depend on receipts: plan with none.
     forge_verified target/factory/verified
@@ -269,6 +281,7 @@ case "$command" in
     ;;
   forge-report)
     build
+    fetch_base
     fetch_kept
     plan=$(forge_plan "$fresh")
     grep -E '^(obligation|status|check) ' <<<"$plan" || true

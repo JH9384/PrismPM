@@ -399,7 +399,7 @@ test('all observed workflows retain their full gates, always stop/upload, and ke
 });
 
 test('one normative workflow owns complete main acceptance and diagnostic owners stay on request, PR or schedule', () => {
-  const names = ['bootstrap.yml', 'ci-parallel.yml', 'reproducibility.yml'];
+  const names = ['bootstrap.yml', 'reproducibility.yml'];
   const check = (normative, diagnostics) => {
     assert.deepEqual(normative.on, {push: {branches: ['main']}, workflow_dispatch: null});
     assert.deepEqual(normative.permissions, {contents: 'read'});
@@ -425,7 +425,7 @@ test('one normative workflow owns complete main acceptance and diagnostic owners
     assert.deepEqual(normative.jobs.complete.needs, 'vv');
     assert.equal(normative.jobs.complete.if, undefined);
     assert(normative.jobs.complete.steps.some(step => step.run?.includes('node scripts/vv-assemble.mjs target/vv-parts target/vv-evidence.json "$GITHUB_SHA"')));
-    const events = [{workflow_dispatch: null}, {pull_request: null, merge_group: {branches: ['main']}, workflow_dispatch: null},
+    const events = [{workflow_dispatch: null},
       {schedule: [{cron: '17 3 * * *'}], workflow_dispatch: null}];
     for (const [index, diagnostic] of diagnostics.entries()) assert.deepEqual(diagnostic.on, events[index]);
   };

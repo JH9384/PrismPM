@@ -277,7 +277,7 @@ A CI check fails on a dependency the table forbids and on any cycle.
 This section specifies it, and `xtask/src/modules.rs` implements it.
 
 **Where it runs.** It is `cargo xtask check-modules`, called from `cargo xtask validate`.
-The Model & Audits job in `ci-parallel.yml` already runs `validate` on every pull request, with full history.
+The delegated `model-audits` obligation (`prism-factory`) runs `validate` on every pull request, with the base's `model/modules.toml` as `origin/main`.
 `just vv` is not enough on its own, because `vv.yml` runs on pushes to `main` and takes hours.
 
 **What it reads.** One file, `model/modules.toml`, holds the table, the owners and the migration baseline:

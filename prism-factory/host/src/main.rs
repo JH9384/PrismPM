@@ -113,8 +113,8 @@ pub(crate) fn git(arguments: &[&str]) -> Result<Vec<u8>, String> {
 
 /// One tracked entry: its path, and `mode:object` as its content address.
 pub(crate) struct Entry {
-    path: String,
-    object: String,
+    pub(crate) path: String,
+    pub(crate) object: String,
 }
 
 pub(crate) fn tree(revision: &str) -> Result<Vec<Entry>, String> {

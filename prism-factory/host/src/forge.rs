@@ -8,7 +8,27 @@
 use std::fs;
 use std::path::Path;
 
-use crate::{git, materialize, tree, Options};
+use crate::{git, materialize, tree, Entry, Options};
+
+fn git_with_input(arguments: &[&str], input: &[u8]) -> Result<Vec<u8>, String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let mut child = Command::new("git").args(arguments).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().map_err(|error| format!("git: {error}"))?;
+    child.stdin.take().ok_or("git stdin")?.write_all(input).map_err(|error| error.to_string())?;
+    let out = child.wait_with_output().map_err(|error| error.to_string())?;
+    if !out.status.success() {
+        return Err(format!("git {} failed", arguments.join(" ")));
+    }
+    Ok(out.stdout)
+}
+
+fn git_indexed(index: &Path, arguments: &[&str]) -> Result<Vec<u8>, String> {
+    let out = std::process::Command::new("git").env("GIT_INDEX_FILE", index).args(arguments).output().map_err(|error| format!("git: {error}"))?;
+    if !out.status.success() {
+        return Err(format!("git {} failed: {}", arguments.join(" "), String::from_utf8_lossy(&out.stderr)));
+    }
+    Ok(out.stdout)
+}
 
 /// One obligation as the delegation plan describes it.
 #[derive(Default, Debug)]
@@ -66,11 +86,39 @@ pub(crate) fn read(text: &str) -> DelegationPlan {
     plan
 }
 
-/// The request: the tree, each context (`@key`), then the lines `factory.sh`
-/// wrote after verifying receipts (`signed`, `trust-repository`,
+/// The base of a revision is its first parent: for a pull request's merge
+/// commit, the tip of the branch it merges into; for a push, the previous tip.
+/// A check that compares the tree with its base (a ratchet) declares
+/// `@base:PATH`, and reads the base's entry at PATH and nothing else of it.
+pub(crate) fn base(revision: &str) -> Result<Option<String>, String> {
+    let commit = git(&["cat-file", "commit", revision])?;
+    let header = String::from_utf8_lossy(&commit);
+    let Some(parent) = header.lines().take_while(|line| !line.is_empty()).find_map(|line| line.strip_prefix("parent ")) else {
+        return Ok(None);
+    };
+    let parent = parent.trim().to_string();
+    if git(&["cat-file", "-e", &format!("{parent}^{{tree}}")]).is_err() {
+        return Err(format!("the base {parent} of {revision} is not here; fetch it (git fetch --depth=1 origin {parent})"));
+    }
+    Ok(Some(parent))
+}
+
+/// Every entry of the tree, then every entry of its base under `@base:`.
+fn entries_with_base(revision: &str) -> Result<Vec<Entry>, String> {
+    let mut entries = tree(revision)?;
+    if let Some(parent) = base(revision)? {
+        for entry in tree(&parent)? {
+            entries.push(Entry { path: format!("@base:{}", entry.path), object: entry.object });
+        }
+    }
+    Ok(entries)
+}
+
+/// The request: the tree and its base, each context (`@key`), then the lines
+/// `factory.sh` wrote after verifying receipts (`signed`, `trust-repository`,
 /// `trust-maintainer`, `event`).
 pub(crate) fn request(options: &Options, verified: Option<&Path>) -> Result<String, String> {
-    let entries = tree(&options.revision)?;
+    let entries = entries_with_base(&options.revision)?;
     let mut text = String::new();
     for entry in &entries {
         text.push_str(&format!("tree {} {}\n", entry.object, entry.path));
@@ -115,19 +163,48 @@ pub(crate) fn prepare(options: &Options) -> Result<bool, String> {
     if !item.establish {
         return Err(format!("{name} is {} and is not for a lent runner to establish", item.route));
     }
-    let entries = tree(&options.revision)?;
+    let entries = entries_with_base(&options.revision)?;
     let work = options.work.join(name);
-    materialize(&entries, &item.files, &work)?;
+    let (based, files): (Vec<String>, Vec<String>) = item.files.iter().cloned().partition(|path| path.starts_with("@base:"));
+    // A context (`@key`) is part of the identity, not a file.
+    let files: Vec<String> = files.into_iter().filter(|path| !path.starts_with('@')).collect();
+    materialize(&entries, &files, &work)?;
     // The closure gets its own repository, whose one commit tracks exactly the
     // closure, so no Git command in it can reach the checkout around it and
-    // `git ls-files` lists exactly what the identity covers.
+    // `git ls-files` lists exactly what the identity covers. When the closure
+    // reads its base, that commit's parent holds exactly the base entries it
+    // declared, named `origin/main` as a full checkout names the base.
     let at = work.to_string_lossy();
     git(&["init", "--quiet", &at])?;
+    let identity = ["-c", "user.name=prism-factory", "-c", "user.email=prism-factory@users.noreply.github.com", "-c", "commit.gpgsign=false"];
+    if !based.is_empty() {
+        let by_path: std::collections::BTreeMap<&str, &str> = entries.iter().map(|entry| (entry.path.as_str(), entry.object.as_str())).collect();
+        // GIT_INDEX_FILE resolves against the directory `-C` enters, so name it absolutely.
+        let index = fs::canonicalize(&work).map_err(|error| format!("{}: {error}", work.display()))?.join(".git/prism-base-index");
+        let _ = fs::remove_file(&index);
+        for path in &based {
+            let object = by_path.get(path.as_str()).ok_or(format!("{path} is not in the base"))?;
+            let (mode, oid) = object.split_once(':').ok_or("bad object")?;
+            let blob = git(&["cat-file", "blob", oid])?;
+            let stored = String::from_utf8(git_with_input(&["-C", &at, "hash-object", "-w", "--stdin"], &blob)?).map_err(|_| "git hash-object")?;
+            git_indexed(&index, &["-C", &at, "update-index", "--add", "--cacheinfo", &format!("{mode},{},{}", stored.trim(), &path["@base:".len()..])])?;
+        }
+        let tree = String::from_utf8(git_indexed(&index, &["-C", &at, "write-tree"])?).map_err(|_| "git write-tree")?;
+        let _ = fs::remove_file(&index);
+        let mut arguments = vec!["-C", &*at];
+        arguments.extend(identity);
+        let message = format!("base of closure {}", item.kappa);
+        arguments.extend(["commit-tree", tree.trim(), "-m", &message]);
+        let commit = String::from_utf8(git(&arguments)?).map_err(|_| "git commit-tree")?;
+        git(&["-C", &at, "update-ref", "refs/remotes/origin/main", commit.trim()])?;
+        git(&["-C", &at, "update-ref", "HEAD", commit.trim()])?;
+    }
     git(&["-C", &at, "add", "--all", "--force"])?;
-    git(&[
-        "-C", &at, "-c", "user.name=prism-factory", "-c", "user.email=prism-factory@users.noreply.github.com",
-        "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", &format!("closure {}", item.kappa),
-    ])?;
+    let mut arguments = vec!["-C", &*at];
+    arguments.extend(identity);
+    let message = format!("closure {}", item.kappa);
+    arguments.extend(["commit", "--quiet", "--allow-empty", "-m", &message]);
+    git(&arguments)?;
     let beside = |suffix: &str, value: &str| {
         let path = options.work.join(format!("{name}.{suffix}"));
         fs::write(&path, format!("{value}\n")).map_err(|error| format!("{}: {error}", path.display()))

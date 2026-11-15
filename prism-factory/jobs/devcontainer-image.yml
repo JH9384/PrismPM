@@ -3,7 +3,7 @@
   # each under one 6 h hosted-job limit. Longest parts first so max-parallel
   # starts them before the short ones; tests derive the set from `parts`.
   # GitHub keeps PR caches on the PR ref, so a release-branch or tag run never
-  # sees the layers PR Fast Checks wrote. Build the pinned devcontainer once on
+  # sees the layers a pull request wrote. Build the pinned devcontainer once on
   # this ref first; the source shards then import its layers instead of each
   # repeating every package, toolchain and snapshot.debian.org download.
   devcontainer-image:

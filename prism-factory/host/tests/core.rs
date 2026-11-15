@@ -262,3 +262,19 @@ fn a_counted_failure_of_a_fetch_obligation_fails_the_check_and_is_established_ag
     ));
     assert!(later.contains("status model-audits success\n"));
 }
+
+#[test]
+fn only_the_model_audits_read_the_base_and_only_its_module_manifest() {
+    // The base (the revision's first parent) enters as `@base:` entries. Only
+    // model-audits declares one, for the module manifest its ratchet compares.
+    let before = delegated("");
+    let manifest = delegated("tree 100644:eeee @base:model/modules.toml\n");
+    let elsewhere = delegated("tree 100644:ffff @base:docs/x.md\ntree 100644:eeee @base:model/modules.toml\n");
+    assert_ne!(kappa_of(&before, "model-audits"), kappa_of(&manifest, "model-audits"));
+    assert!(manifest.contains("file model-audits @base:model/modules.toml\n"));
+    assert_eq!(kappa_of(&manifest, "model-audits"), kappa_of(&elsewhere, "model-audits"));
+    for name in ["factory-model", "lint", "fixtures-golden"] {
+        assert_eq!(kappa_of(&before, name), kappa_of(&elsewhere, name), "{name}");
+        assert!(!elsewhere.contains(&format!("file {name} @base:")), "{name}");
+    }
+}

@@ -50,7 +50,7 @@ function fixture(t) {
   writeFileSync(bootstrap, 'synthetic pinned transport bytes, NOT a historical SDK\n');
   writeFileSync(join(source, 'tools.lock'), '[bootstrap-sdk]\nversion = "0.2.0"\n'
     + `source_commit = "${historical}"\ntag_object = "${tag}"\n`
-    + 'url = "https://github.com/UOR-Foundation/prismpm/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz"\n'
+    + 'url = "https://github.com/UOR-Foundation/PrismPM/releases/download/v0.2.0/prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz"\n'
     + `sha256 = "${hash(readFileSync(bootstrap))}"\n`);
   writeFileSync(join(source, 'sdk/vv-inputs.lock.json'), canonical({ schema: 'prismpm/sdk-image-input-authorities/1', advisory: {
     url: 'https://github.com/RustSec/advisory-db', revision: git(advisory, 'rev-parse', 'HEAD'), tree: git(advisory, 'rev-parse', 'HEAD^{tree}') } }));

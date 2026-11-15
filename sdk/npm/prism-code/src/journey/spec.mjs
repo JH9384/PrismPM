@@ -279,9 +279,11 @@ export function validateSpec(input) {
       const f = fields.find((x) => x.name === c.field);
       if (!f) refuse(`\`${c.field}\` is not a field.`, where, 'condition.unknown-field');
       if (f.kind === 'choice') {
-        if (!['is', 'is not'].includes(c.op) || !f.values.includes(c.value)) refuse(`\`${c.field} ${c.op} ${c.value}\` does not name a choice of ${c.field}.`, where, 'choice.value');
+        // Measured with Qwen3 30B on 2026-11-15: `=` on a choice was refused as a value that "does not name a choice", which it did.
+        if (!['is', 'is not'].includes(c.op)) refuse(`\`${c.field}\` is a choice; compare it with "is" or "is not", not \`${c.op}\`.`, where, 'choice.comparison');
+        if (!f.values.includes(c.value)) refuse(`\`${c.value}\` is not a choice of \`${c.field}\`; the choices are ${f.values.join(', ')}.`, where, 'choice.value');
       } else {
-        if (!OPS.includes(c.op)) refuse(`\`${c.op}\` is not a comparison.`, where, 'condition.comparison');
+        if (!OPS.includes(c.op)) refuse(`\`${c.op}\` is not a comparison for the number \`${c.field}\`; use one of ${OPS.join(', ')}.`, where, 'condition.comparison');
         if (typeof c.value === 'number') {
           if (!(Number.isSafeInteger(c.value) && c.value >= 0)) refuse('Compare numbers with whole numbers.', where, 'condition.number');
         } else if (!(c.value && fields.some((x) => x.name === c.value.field && x.kind === 'number'))) {

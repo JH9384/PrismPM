@@ -126,6 +126,34 @@ test('a number field compared with a bare word that names a number field is read
   assert.match(checkSpec({ ...draft, rules: [{ when: [when('amount', '<=', 'ceiling')], then: 'approved' }] }).refusal.message, /`"ceiling"` is not a number field\./);
 });
 
+test('equality on a choice is read as `is`, and `is` on a number as `=`, each named', () => {
+  const fields = [{ name: 'weight', kind: 'number', max: 50 }, { name: 'limit', kind: 'number', max: 50 }, { name: 'destination', kind: 'choice', values: ['domestic', 'worldwide'] }];
+  const written = { title: 'Shipping', fields, rules: [{ when: [when('destination', 'is', 'worldwide')], then: 'express' }, { when: [when('destination', 'is not', 'domestic'), when('weight', '=', 20), when('weight', '!=', { field: 'limit' })], then: 'express' }], otherwise: 'standard' };
+  // What Qwen3 30B wrote on 2026-11-15: `==`, then `=`, on a choice.
+  const draft = { ...written, rules: [{ when: [when('destination', '==', 'worldwide')], then: 'express' }, { when: [when('destination', '!=', 'domestic'), when('weight', 'is', 20), when('weight', 'is not', { field: 'limit' })], then: 'express' }] };
+  const checked = checkSpec(draft);
+  assert.equal(checked.ok, true);
+  assert.equal(canonicalJson(checked.spec), canonicalJson(completeSpec(written).spec));
+  assert.deepEqual(checked.notes.filter((n) => /^Read/.test(n)), [
+    'Read `destination == worldwide` as `destination is worldwide`: a choice is compared with `is` or `is not`.',
+    'Read `destination != domestic` as `destination is not domestic`: a choice is compared with `is` or `is not`.',
+    'Read `weight is 20` as `weight = 20`: a number is compared with `=` or `!=`.',
+    'Read `weight is not limit` as `weight != limit`: a number is compared with `=` or `!=`.',
+  ]);
+  assert.deepEqual(completeSpec(written).notes.filter((n) => /^Read/.test(n)), []);
+  // With a bare word for the other field, both readings apply.
+  const both = completeSpec({ ...written, rules: [{ when: [when('weight', 'is', 'limit')], then: 'express' }] });
+  assert.deepEqual(both.spec.rules[0].when, [when('weight', '=', { field: 'limit' })]);
+  // An ordering has no meaning on a choice, and a word that is not a choice is not guessed at.
+  assert.equal(checkSpec({ ...written, rules: [{ when: [when('destination', '<', 'worldwide')], then: 'express' }] }).refusal.rule, 'choice.comparison');
+  assert.equal(checkSpec({ ...written, rules: [{ when: [when('destination', '=', 'mars')], then: 'express' }] }).refusal.rule, 'choice.comparison');
+  // The strict reader still refuses each, now saying which part is wrong.
+  const whole = completeSpec(written).spec;
+  assert.throws(() => readSpecFile({ ...whole, rules: [{ when: [when('destination', '=', 'worldwide')], then: 'express' }] }), /`destination` is a choice; compare it with "is" or "is not", not `=`\./);
+  assert.throws(() => readSpecFile({ ...whole, rules: [{ when: [when('destination', 'is', 'mars')], then: 'express' }] }), /`mars` is not a choice of `destination`; the choices are domestic, worldwide\./);
+  assert.throws(() => readSpecFile({ ...whole, rules: [{ when: [when('weight', 'is not', 20)], then: 'express' }] }), /`is not` is not a comparison for the number `weight`; use one of /);
+});
+
 test('every rule completion refuses by is a registered refusal, and it is pure', () => {
   const source = readFileSync(new URL('../src/journey/complete.mjs', import.meta.url), 'utf8');
   const named = [...source.matchAll(/refuse\(.*, '([a-z]+\.[a-z-]+)'\);/g)].map((m) => m[1]);

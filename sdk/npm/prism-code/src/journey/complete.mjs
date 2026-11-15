@@ -121,9 +121,25 @@ export function completeSpec(input) {
   // field is compared, has one meaning: that field. Measured with Qwen3 30B (#666), this was every
   // refusal of a rules-only draft, six runs of thirty. It is read as the field, and named.
   const numbers = new Set(listOf(work.fields).filter((f) => isObject(f) && f.kind === 'number' && typeof f.name === 'string').map((f) => f.name));
+  // The comparison word has one meaning too: equality on a choice is `is`, and `is` on a number is `=`.
+  // Answers given as text are already read this way (`condition` in spec.mjs). Measured with Qwen3 30B
+  // on 2026-11-15: `=` and `==` on a choice refused two drafts of two, and `is not` on a number one of forty.
+  const choices = new Map(listOf(work.fields).filter((f) => isObject(f) && f.kind === 'choice' && typeof f.name === 'string' && Array.isArray(f.values)).map((f) => [f.name, f.values]));
+  const CHOICE_WORD = { '=': 'is', '==': 'is', '!=': 'is not' };
+  const NUMBER_WORD = { is: '=', '==': '=', 'is not': '!=' };
+  const readWord = (c) => {
+    if (!isObject(c) || typeof c.op !== 'string') return c;
+    const choice = choices.has(c.field) && choices.get(c.field).includes(c.value);
+    const number = numbers.has(c.field) && (typeof c.value === 'number' || numbers.has(c.value) || (isObject(c.value) && numbers.has(c.value.field)));
+    const word = choice ? CHOICE_WORD[c.op] : number ? NUMBER_WORD[c.op] : undefined;
+    if (!word) return c;
+    const value = isObject(c.value) ? c.value.field : c.value;
+    notes.push(`Read \`${c.field} ${c.op} ${value}\` as \`${c.field} ${word} ${value}\`: ${choice ? 'a choice is compared with `is` or `is not`' : 'a number is compared with `=` or `!=`'}.`);
+    return { ...c, op: word };
+  };
   const readField = (item) => {
     if (!isObject(item) || !Array.isArray(item.when)) return item;
-    const when = item.when.map((c) => {
+    const when = item.when.map(readWord).map((c) => {
       if (!isObject(c) || !numbers.has(c.field) || typeof c.value !== 'string' || !numbers.has(c.value)) return c;
       notes.push(`Read \`${c.field} ${c.op} "${c.value}"\` as a comparison with the field ${c.value}: a number is never compared with text.`);
       return { ...c, value: { field: c.value } };

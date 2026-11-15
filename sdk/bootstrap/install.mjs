@@ -76,17 +76,25 @@ export function publishRuntime(stage, destination) {
     !lstatSync(destination, { throwIfNoEntry: false }),
     'bootstrap runtime destination already exists',
   );
-  // GNU coreutils is pinned by the image. Unlike renameSync, -n -T never
-  // replaces an existing destination, including a late-created empty directory.
-  execFileSync(
-    '/usr/bin/mv',
-    ['--no-clobber', '--no-target-directory', '--', stage, destination],
-    { timeout: 10000, stdio: 'inherit' },
-  );
+  // Unlike renameSync, GNU mv -n -T never replaces an existing destination,
+  // including a late-created empty directory. Coreutils before 9.2 exits 0
+  // when it declines; 9.2 and later exit 1. Both leave the stage in place, so
+  // the stage's presence, not the exit status, decides a refusal.
+  let declined = null;
+  try {
+    execFileSync(
+      '/usr/bin/mv',
+      ['--no-clobber', '--no-target-directory', '--', stage, destination],
+      { timeout: 10000, stdio: 'inherit' },
+    );
+  } catch (error) {
+    declined = error;
+  }
   assert(
     !lstatSync(stage, { throwIfNoEntry: false }),
     'bootstrap runtime destination already exists; publication refused',
   );
+  if (declined) throw declined;
   const published = lstatSync(destination, { bigint: true });
   assert(
     published.isDirectory() &&

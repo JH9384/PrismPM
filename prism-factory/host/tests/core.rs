@@ -188,7 +188,10 @@ fn kappa_of(plan: &str, name: &str) -> String {
 fn a_request_establishes_only_the_carried_obligation_until_a_trusted_receipt_counts() {
     let open = delegated("");
     let established: Vec<&str> = open.lines().filter(|line| line.starts_with("establish ")).collect();
-    assert_eq!(established, ["establish factory-model"]);
+    assert_eq!(
+        established,
+        ["establish factory-model", "establish lint", "establish model-audits", "establish fixtures-golden"]
+    );
     assert!(open.ends_with("check pending\n"));
     // The delegated identity carries the sandbox, so it differs from the plain plan's.
     let kappa = kappa_of(&open, "factory-model");
@@ -196,8 +199,17 @@ fn a_request_establishes_only_the_carried_obligation_until_a_trusted_receipt_cou
 
     let passed = delegated(&format!("signed factory-model {kappa} pass workflow runner {FORGE}\n"));
     assert_eq!(route(&passed, "factory-model").0, "proved");
-    assert!(!passed.contains("establish "));
-    assert!(passed.ends_with("check success\n"));
+    assert!(!passed.contains("establish factory-model\n"));
+    // The pull request checks still have no receipt, so the check waits for them.
+    assert!(passed.ends_with("check pending\n"));
+    let mut all = String::new();
+    for name in ["factory-model", "lint", "model-audits", "fixtures-golden"] {
+        let kappa = kappa_of(&passed, name);
+        all.push_str(&format!("signed {name} {kappa} pass workflow runner {FORGE}\n"));
+    }
+    let complete = delegated(&all);
+    assert!(!complete.contains("establish "));
+    assert!(complete.ends_with("check success\n"));
 
     let failed = delegated(&format!("signed factory-model {kappa} fail workflow runner {FORGE}\n"));
     assert_eq!(route(&failed, "factory-model").0, "refuted");
@@ -216,4 +228,37 @@ fn a_receipt_from_another_workflow_or_for_other_content_never_counts() {
         assert!(plan.contains("establish factory-model\n"), "{extra}");
         assert!(plan.ends_with("check pending\n"), "{extra}");
     }
+}
+
+#[test]
+fn the_pull_request_checks_read_the_whole_tree_and_the_factory_model_keeps_its_closure() {
+    // The pull request checks read the whole tree, so any change re-identifies them;
+    // the release obligations keep their own closures.
+    let before = delegated("");
+    let after = String::from_utf8(
+        delegate(format!("{}trust-repository {FORGE}\nevent pull_request\n", TREE.replace("bbbb docs", "dddd docs")).as_bytes())
+            .expect("no overflow"),
+    )
+    .expect("UTF-8");
+    for name in ["lint", "model-audits", "fixtures-golden"] {
+        assert_ne!(kappa_of(&before, name), kappa_of(&after, name), "{name}");
+    }
+    assert_eq!(kappa_of(&before, "factory-model"), kappa_of(&after, "factory-model"));
+}
+
+#[test]
+fn a_counted_failure_of_a_fetch_obligation_fails_the_check_and_is_established_again() {
+    // model-audits fetches, so a failure is observed again rather than taken as
+    // a refutation, but the check it reports is a failure, never pending.
+    let kappa = kappa_of(&delegated(""), "model-audits");
+    let plan = delegated(&format!("signed model-audits {kappa} fail workflow runner {FORGE}\n"));
+    assert_eq!(route(&plan, "model-audits").0, "observe");
+    assert!(plan.contains("status model-audits failure\n"));
+    assert!(plan.contains("establish model-audits\n"));
+    assert!(plan.ends_with("check failure\n"));
+    // A later pass for the same identity outweighs it.
+    let later = delegated(&format!(
+        "signed model-audits {kappa} fail workflow runner {FORGE}\nsigned model-audits {kappa} pass workflow runner {FORGE}\n"
+    ));
+    assert!(later.contains("status model-audits success\n"));
 }

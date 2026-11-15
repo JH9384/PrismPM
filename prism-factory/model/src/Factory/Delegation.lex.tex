@@ -10,7 +10,7 @@ inductive{
   name: Access,
   type_parameters: [],
   parameters: [],
-  constructors: [{name: sealed, fields: []}, {name: pinned, fields: []}, {name: live, fields: []}]
+  constructors: [{name: sealed, fields: []}, {name: pinned, fields: []}, {name: daemon, fields: []}, {name: live, fields: []}]
 }
 
 definition{
@@ -20,6 +20,7 @@ definition{
   body: (match access
     | Access.sealed => "sealed"
     | Access.pinned => "pinned"
+    | Access.daemon => "daemon"
     | Access.live => "live"),
   executable: true
 }
@@ -31,7 +32,20 @@ definition{
   body: (match access
     | Access.sealed => false
     | Access.pinned => false
+    | Access.daemon => false
     | Access.live => true),
+  executable: true
+}
+
+definition{
+  name: drivesDaemon,
+  parameters: [access : Access],
+  result: Bool,
+  body: (match access
+    | Access.sealed => false
+    | Access.pinned => false
+    | Access.daemon => true
+    | Access.live => false),
   executable: true
 }
 
@@ -61,7 +75,7 @@ definition{
   name: sandboxes,
   parameters: [],
   result: (List (String * Sandbox)),
-  body: (cons ("policy", (sandbox "@sdk" (ctor Access.sealed))) (cons ("factory-model", (sandbox "@sdk" (ctor Access.pinned))) (cons ("plumbing", (sandbox "@sdk" (ctor Access.pinned))) (cons ("vv-sdk", (sandbox "@sdk" (ctor Access.pinned))) (cons ("source-vv", (sandbox "@vv-sdk" (ctor Access.sealed))) (cons ("build", (sandbox "@sdk" (ctor Access.pinned))) (cons ("gate", (sandbox "@vv-sdk" (ctor Access.sealed))) (cons ("oci-native", (sandbox "@build" (ctor Access.pinned))) (cons ("crates", (sandbox "@build" (ctor Access.pinned))) (cons ("release", (sandbox "@build" (ctor Access.pinned))) (nil (String * Sandbox)))))))))))),
+  body: (cons ("policy", (sandbox "@sdk" (ctor Access.sealed))) (cons ("factory-model", (sandbox "@sdk" (ctor Access.pinned))) (cons ("plumbing", (sandbox "@sdk" (ctor Access.pinned))) (cons ("vv-sdk", (sandbox "@sdk" (ctor Access.pinned))) (cons ("source-vv", (sandbox "@vv-sdk" (ctor Access.sealed))) (cons ("build", (sandbox "@sdk" (ctor Access.pinned))) (cons ("gate", (sandbox "@vv-sdk" (ctor Access.sealed))) (cons ("oci-native", (sandbox "@build" (ctor Access.pinned))) (cons ("crates", (sandbox "@build" (ctor Access.pinned))) (cons ("release", (sandbox "@build" (ctor Access.pinned))) (cons ("lint", (sandbox "@sdk" (ctor Access.pinned))) (cons ("model-audits", (sandbox "@sdk" (ctor Access.daemon))) (cons ("fixtures-golden", (sandbox "@sdk" (ctor Access.pinned))) (nil (String * Sandbox))))))))))))))),
   executable: true
 }
 
@@ -130,6 +144,22 @@ definition{
 }
 
 definition{
+  name: checkGraph,
+  parameters: [],
+  result: (List Factory.Engine::Obligation),
+  body: (delegated (Factory.PrismPM::checks)),
+  executable: true
+}
+
+definition{
+  name: whole,
+  parameters: [],
+  result: (List Factory.Engine::Obligation),
+  body: (prim append (graph) (checkGraph) : (List Factory.Engine::Obligation)),
+  executable: true
+}
+
+definition{
   name: identified,
   parameters: [item : Factory.Engine::Obligation],
   result: Factory.Engine::Obligation,
@@ -142,7 +172,7 @@ definition{
   name: identifiedGraph,
   parameters: [],
   result: (List Factory.Engine::Obligation),
-  body: (prim list_fold (fun (sofar : (List Factory.Engine::Obligation)) (item : Factory.Engine::Obligation) => (prim append sofar (cons (identified item) (nil Factory.Engine::Obligation)) : (List Factory.Engine::Obligation))) (nil Factory.Engine::Obligation) (graph) : (List Factory.Engine::Obligation)),
+  body: (prim list_fold (fun (sofar : (List Factory.Engine::Obligation)) (item : Factory.Engine::Obligation) => (prim append sofar (cons (identified item) (nil Factory.Engine::Obligation)) : (List Factory.Engine::Obligation))) (nil Factory.Engine::Obligation) (whole) : (List Factory.Engine::Obligation)),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true
 }
@@ -151,7 +181,7 @@ definition{
   name: carried,
   parameters: [],
   result: (List String),
-  body: (cons "factory-model" (nil String)),
+  body: (cons "factory-model" (cons "lint" (cons "model-audits" (cons "fixtures-golden" (nil String))))),
   executable: true
 }
 
@@ -203,10 +233,10 @@ definition{
   parameters: [event : Event],
   result: (List String),
   body: (match event
-    | Event.pullRequest => (Factory.Engine::cutSet (graph))
-    | Event.push => (Factory.Engine::names (graph))
-    | Event.tag => (Factory.Engine::names (graph))
-    | Event.dispatch => (Factory.Engine::names (graph))),
+    | Event.pullRequest => (prim append (Factory.Engine::cutSet (graph)) (Factory.Engine::names (checkGraph)) : (List String))
+    | Event.push => (Factory.Engine::names (whole))
+    | Event.tag => (Factory.Engine::names (whole))
+    | Event.dispatch => (Factory.Engine::names (whole))),
   executable: true
 }
 
@@ -967,7 +997,7 @@ theorem{
 theorem{
   name: every_delegated_obligation_has_a_declared_sandbox,
   parameters: [],
-  statement: ((allSandboxed (graph)) = true),
+  statement: ((allSandboxed (whole)) = true),
   proof: decide{},
   axioms: []
 }
@@ -983,7 +1013,7 @@ theorem{
 theorem{
   name: every_carried_obligation_is_in_the_graph,
   parameters: [],
-  statement: ((Factory.Engine::subset (carried) (Factory.Engine::names (graph))) = true),
+  statement: ((Factory.Engine::subset (carried) (Factory.Engine::names (whole))) = true),
   proof: decide{},
   axioms: []
 }
@@ -1015,7 +1045,7 @@ theorem{
 theorem{
   name: a_pull_request_establishes_everything_a_cut_rests_on,
   parameters: [],
-  statement: ((Factory.Engine::sameStrings (lane (ctor Event.pullRequest)) (cons "factory-model" (cons "vv-sdk" (cons "source-vv" (cons "build" (nil String)))))) = true),
+  statement: ((Factory.Engine::sameStrings (lane (ctor Event.pullRequest)) (cons "factory-model" (cons "vv-sdk" (cons "source-vv" (cons "build" (cons "lint" (cons "model-audits" (cons "fixtures-golden" (nil String))))))))) = true),
   proof: decide{},
   axioms: []
 }
@@ -1023,7 +1053,39 @@ theorem{
 theorem{
   name: a_release_run_covers_the_whole_graph,
   parameters: [],
-  statement: ((Factory.Engine::sameStrings (lane (ctor Event.tag)) (Factory.Engine::names (graph))) = true),
+  statement: ((Factory.Engine::sameStrings (lane (ctor Event.tag)) (Factory.Engine::names (whole))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: the_pull_request_checks_need_nothing_and_are_all_carried,
+  parameters: [],
+  statement: (((prim list_fold (fun (sofar : Bool) (item : Factory.Engine::Obligation) => (sofar && (Factory.Engine::sameStrings (project item needs) (nil String)))) true (checkGraph) : Bool) && (Factory.Engine::subset (Factory.Engine::names (checkGraph)) (carried))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: the_pull_request_checks_run_in_the_pinned_sdk_image,
+  parameters: [],
+  statement: ((prim list_fold (fun (sofar : Bool) (item : Factory.Engine::Obligation) => (sofar && ((prim equal (project (sandboxFor (project item name)) image) "@sdk" : Bool) && (not (prim equal (accessName (project (sandboxFor (project item name)) network)) "sealed" : Bool))))) true (checkGraph) : Bool) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: only_the_model_audits_drive_the_lent_runners_container_daemon,
+  parameters: [],
+  statement: ((prim list_fold (fun (sofar : (List String)) (entry : (String * Sandbox)) => (if (drivesDaemon (project (second entry) network)) then (prim append sofar (cons (first entry) (nil String)) : (List String)) else sofar)) (nil String) (sandboxes) : (List String)) = (cons "model-audits" (nil String))),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: the_whole_delegated_graph_needs_every_need_first_and_names_each_obligation_once,
+  parameters: [],
+  statement: (((Factory.Engine::needsComeFirst (whole)) && (Factory.Engine::sameStrings (Factory.Engine::names (whole)) (prim append (Factory.Engine::names (graph)) (cons "lint" (cons "model-audits" (cons "fixtures-golden" (nil String)))) : (List String)))) = true),
   proof: decide{},
   axioms: []
 }

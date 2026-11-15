@@ -118,9 +118,16 @@ pub(crate) fn prepare(options: &Options) -> Result<bool, String> {
     let entries = tree(&options.revision)?;
     let work = options.work.join(name);
     materialize(&entries, &item.files, &work)?;
-    // The closure gets its own empty repository, so no Git command in it can
-    // reach the checkout around it.
-    git(&["init", "--quiet", &work.to_string_lossy()])?;
+    // The closure gets its own repository, whose one commit tracks exactly the
+    // closure, so no Git command in it can reach the checkout around it and
+    // `git ls-files` lists exactly what the identity covers.
+    let at = work.to_string_lossy();
+    git(&["init", "--quiet", &at])?;
+    git(&["-C", &at, "add", "--all", "--force"])?;
+    git(&[
+        "-C", &at, "-c", "user.name=prism-factory", "-c", "user.email=prism-factory@users.noreply.github.com",
+        "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", &format!("closure {}", item.kappa),
+    ])?;
     let beside = |suffix: &str, value: &str| {
         let path = options.work.join(format!("{name}.{suffix}"));
         fs::write(&path, format!("{value}\n")).map_err(|error| format!("{}: {error}", path.display()))

@@ -296,26 +296,34 @@ definition{
 }
 
 definition{
+  name: failedFor,
+  parameters: [kappa : String, counted : (List (String * Bool))],
+  result: Bool,
+  body: (prim list_fold (fun [kappa] (sofar : Bool) (receipt : (String * Bool)) => (sofar || ((prim equal (first receipt) kappa : Bool) && (not (second receipt))))) false counted : Bool),
+  executable: true
+}
+
+definition{
   name: statusOfRoute,
-  parameters: [verdict : Factory.Engine::Route],
+  parameters: [verdict : Factory.Engine::Route, kappa : String, counted : (List (String * Bool))],
   result: String,
-  body: (if (Factory.Engine::isProved verdict) then "success" else (if (prim equal (Factory.Engine::routeName verdict) "refuted" : Bool) then "failure" else "pending")),
+  body: (if (Factory.Engine::isProved verdict) then "success" else (if ((prim equal (Factory.Engine::routeName verdict) "refuted" : Bool) || (failedFor kappa counted)) then "failure" else "pending")),
   executable: true
 }
 
 definition{
   name: delegateLines,
-  parameters: [entry : Factory.Engine::Planned, wanted : (List String), tree : (List (Bytes * Bytes))],
+  parameters: [entry : Factory.Engine::Planned, wanted : (List String), tree : (List (Bytes * Bytes)), counted : (List (String * Bool))],
   result: Bytes,
-  body: (let item : Factory.Engine::Obligation := (project entry obligation); (let owner : String := (project item name); (let box : Factory.Delegation::Sandbox := (Factory.Delegation::sandboxFor owner); (let head : Bytes := (prim append (prim append (words (cons "obligation" (cons owner (cons (Factory.Engine::routeName (project entry verdict)) (cons (project entry kappa) (nil String)))))) (words (cons "run" (cons owner (cons (project item run) (nil String))))) : Bytes) (words (cons "access" (cons owner (cons (Factory.Delegation::accessName (project box network)) (cons (project box image) (nil String)))))) : Bytes); (let sandbox : Bytes := (Factory.Engine::line (cons (Factory.Engine::text "sandbox") (cons (Factory.Engine::text owner) (cons (Factory.Delegation::sandboxText owner) (nil Bytes))))); (let chosen : Bool := ((Factory.Engine::isObserved (project entry verdict)) && (Factory.Engine::member owner wanted)); (let mark : Bytes := (if chosen then (prim append (words (cons "establish" (cons owner (nil String)))) (closureFiles owner (project item inputs) tree) : Bytes) else 0x); (let status : Bytes := (if (Factory.Engine::member owner wanted) then (words (cons "status" (cons owner (cons (statusOfRoute (project entry verdict)) (nil String))))) else 0x); (prim append (prim append (prim append head sandbox : Bytes) mark : Bytes) status : Bytes))))))))),
+  body: (let item : Factory.Engine::Obligation := (project entry obligation); (let owner : String := (project item name); (let box : Factory.Delegation::Sandbox := (Factory.Delegation::sandboxFor owner); (let head : Bytes := (prim append (prim append (words (cons "obligation" (cons owner (cons (Factory.Engine::routeName (project entry verdict)) (cons (project entry kappa) (nil String)))))) (words (cons "run" (cons owner (cons (project item run) (nil String))))) : Bytes) (words (cons "access" (cons owner (cons (Factory.Delegation::accessName (project box network)) (cons (project box image) (nil String)))))) : Bytes); (let sandbox : Bytes := (Factory.Engine::line (cons (Factory.Engine::text "sandbox") (cons (Factory.Engine::text owner) (cons (Factory.Delegation::sandboxText owner) (nil Bytes))))); (let chosen : Bool := ((Factory.Engine::isObserved (project entry verdict)) && (Factory.Engine::member owner wanted)); (let mark : Bytes := (if chosen then (prim append (words (cons "establish" (cons owner (nil String)))) (closureFiles owner (project item inputs) tree) : Bytes) else 0x); (let status : Bytes := (if (Factory.Engine::member owner wanted) then (words (cons "status" (cons owner (cons (statusOfRoute (project entry verdict) (project entry kappa) counted) (nil String))))) else 0x); (prim append (prim append (prim append head sandbox : Bytes) mark : Bytes) status : Bytes))))))))),
   executable: true
 }
 
 definition{
   name: overallOf,
-  parameters: [planned : (List Factory.Engine::Planned), wanted : (List String)],
+  parameters: [planned : (List Factory.Engine::Planned), wanted : (List String), counted : (List (String * Bool))],
   result: String,
-  body: (prim list_fold (fun [wanted] (sofar : String) (entry : Factory.Engine::Planned) => (if (Factory.Engine::member (project (project entry obligation) name) wanted) then (let next : String := (statusOfRoute (project entry verdict)); (if (prim equal sofar "failure" : Bool) then sofar else (if (prim equal next "failure" : Bool) then next else (if (prim equal sofar "success" : Bool) then next else sofar)))) else sofar)) "success" planned : String),
+  body: (prim list_fold (fun [counted, wanted] (sofar : String) (entry : Factory.Engine::Planned) => (if (Factory.Engine::member (project (project entry obligation) name) wanted) then (let next : String := (statusOfRoute (project entry verdict) (project entry kappa) counted); (if (prim equal sofar "failure" : Bool) then sofar else (if (prim equal next "failure" : Bool) then next else (if (prim equal sofar "success" : Bool) then next else sofar)))) else sofar)) "success" planned : String),
   executable: true
 }
 
@@ -323,7 +331,7 @@ definition{
   name: delegate,
   parameters: [request : Bytes],
   result: Bytes,
-  body: (let parsed : DelegateRequest := (readDelegate request); (let wanted : (List String) := (wantedBy (project parsed event)); (let planned : (List Factory.Engine::Planned) := (Factory.Engine::planAll (Factory.Delegation::identifiedGraph) (project parsed tree) (countedReceipts parsed)); (prim append (Factory.Engine::joinedReversed (prim list_fold (fun [parsed, wanted] (sofar : (List Bytes)) (entry : Factory.Engine::Planned) => (cons (delegateLines entry wanted (project parsed tree)) sofar)) (nil Bytes) planned : (List Bytes))) (prim append (words (cons "sdk" (cons (Factory.Delegation::sdkImage) (nil String)))) (words (cons "check" (cons (overallOf planned wanted) (nil String)))) : Bytes) : Bytes)))),
+  body: (let parsed : DelegateRequest := (readDelegate request); (let wanted : (List String) := (wantedBy (project parsed event)); (let counted : (List (String * Bool)) := (countedReceipts parsed); (let planned : (List Factory.Engine::Planned) := (Factory.Engine::planAll (Factory.Delegation::identifiedGraph) (project parsed tree) counted); (prim append (Factory.Engine::joinedReversed (prim list_fold (fun [counted, parsed, wanted] (sofar : (List Bytes)) (entry : Factory.Engine::Planned) => (cons (delegateLines entry wanted (project parsed tree) counted) sofar)) (nil Bytes) planned : (List Bytes))) (prim append (words (cons "sdk" (cons (Factory.Delegation::sdkImage) (nil String)))) (words (cons "check" (cons (overallOf planned wanted counted) (nil String)))) : Bytes) : Bytes))))),
   axioms: [Classical.choice, Quot.sound, propext],
   executable: true,
   production: {effects: [allocation, overflow, recursion], targets: [rust-std]}

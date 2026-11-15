@@ -76,14 +76,34 @@ if test "$command" = factory; then
   case "$sandbox_user:$sandbox_umask:$sandbox_home:$sandbox_scratch" in
     *[!0-9a-z/:._-]*|*..*) printf '%s\n' 'factory: the sandbox record is not confined' >&2; exit 2 ;;
   esac
-  case "$sandbox_home" in "$sandbox_scratch"/*) ;; *) printf '%s\n' 'factory: HOME must be inside the scratch tmpfs' >&2; exit 2 ;; esac
+  case "$sandbox_home" in "$sandbox_scratch"/*) ;; *) printf '%s\n' 'factory: HOME must be inside the scratch' >&2; exit 2 ;; esac
+  # Cargo's home starts from the image's locked offline cache when the image
+  # carries one (the SDK's prismpm-cargo-home), so a pinned fetch only adds
+  # what the closure's locks name beyond it.
+  seed_cargo='if test -x /usr/local/libexec/prismpm-cargo-home; then CARGO_HOME=$(PRISMPM_EPHEMERAL_HOME=1 TMPDIR=/'"$sandbox_scratch"' /usr/local/libexec/prismpm-cargo-home); export CARGO_HOME; fi;'
   # The closure is a throwaway copy; the sandbox user must be able to write
   # its build outputs there.
   chmod -R a+rwX "$project"
+  # sealed: no network. pinned: fetches by the closure's own locks. daemon:
+  # pinned, plus the lent runner's own container daemon (it is ephemeral and
+  # holds nothing else), with scratch on the runner's disk, since the images
+  # such an obligation drives do not fit in memory.
+  scratch_args=(--tmpfs "/$sandbox_scratch:rw,exec,nosuid,size=8g")
   case "$access" in
     sealed) network_args=(--network none) ;;
     pinned) network_args=() ;;
-    *) printf '%s\n' "factory: access $access is not sealed or pinned" >&2; exit 2 ;;
+    daemon)
+      network_args=(--volume /var/run/docker.sock:/var/run/docker.sock --group-add "$(stat -c %g /var/run/docker.sock)")
+      # The hosted runner's unused toolchains leave too little disk for images.
+      sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup \
+        /usr/share/swift /usr/local/share/boost /usr/local/julia* /opt/az /opt/microsoft \
+        /usr/lib/jvm /usr/share/miniconda /usr/local/share/powershell
+      scratch=$RUNNER_TEMP/prism-scratch-$target
+      mkdir -p "$scratch" && chmod 1777 "$scratch"
+      scratch_args=(--volume "$scratch:/$sandbox_scratch")
+      df -h / >&2
+      ;;
+    *) printf '%s\n' "factory: access $access is not sealed, pinned or daemon" >&2; exit 2 ;;
   esac
   status=0
   docker run --rm \
@@ -91,14 +111,15 @@ if test "$command" = factory; then
     --env HOME="/$sandbox_home" \
     --env CARGO_HOME="/$sandbox_home/cargo" \
     --env FACTORY_OBLIGATION="$target" \
-    --tmpfs "/$sandbox_scratch:rw,exec,nosuid,size=8g" \
+    --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/work \
+    "${scratch_args[@]}" \
     --cap-drop ALL \
     --security-opt no-new-privileges \
     "${network_args[@]}" \
     --volume "$project:/work" \
     --workdir /work \
     "$PRISMPM_ACTION_SDK_IMAGE" \
-    bash -euo pipefail -c "umask $sandbox_umask; $run_command" || status=$?
+    bash -euo pipefail -c "umask $sandbox_umask; $seed_cargo $run_command" || status=$?
   if test "$status" = 0; then passed=true; else passed=false; fi
   printf 'result={"obligation":"%s","passed":%s,"status":%s}\n' "$target" "$passed" "$status" >>"$GITHUB_OUTPUT"
   exit 0

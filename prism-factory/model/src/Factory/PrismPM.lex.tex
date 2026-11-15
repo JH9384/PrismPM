@@ -20,6 +20,14 @@ definition{
 }
 
 definition{
+  name: checks,
+  parameters: [],
+  result: (List Factory.Engine::Obligation),
+  body: (cons (obligation "lint" (ctor Factory.Engine::Kind.fetch) "prism" "cargo fetch --locked && cargo fmt --check && cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings && cargo deny fetch && cargo deny --frozen --all-features check" (cons "" (nil String)) (nil String)) (cons (obligation "model-audits" (ctor Factory.Engine::Kind.fetch) "prism" "bash scripts/fetch.sh && cargo xtask validate" (cons "" (nil String)) (nil String)) (cons (obligation "fixtures-golden" (ctor Factory.Engine::Kind.fetch) "prism" "cargo fetch --locked && bash scripts/fetch-oracle-cargo.sh && cargo xtask check-fixtures && cargo run --locked --offline --manifest-path tests/holo-codec-oracle/Cargo.toml --target-dir target/holo-codec-oracle && cargo xtask check-golden" (cons "" (nil String)) (nil String)) (nil Factory.Engine::Obligation)))),
+  executable: true
+}
+
+definition{
   name: graph,
   parameters: [],
   result: (List Factory.Engine::Obligation),

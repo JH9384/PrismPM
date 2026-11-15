@@ -209,12 +209,13 @@ Browsers verify and keep copies, and establish nothing.
 | Facet | What the model fixes | Theorems |
 | --- | --- | --- |
 | Places, peers and duties | Forge: trigger, checkout, identify, verify, report. Peer: execute, fetch, sign. Store: keep. Runners and workstations establish. Browsers verify and keep | `execution_fetching_and_signing_happen_only_on_a_peer`, `a_browser_verifies_and_keeps_but_never_establishes`, `every_job_does_only_the_duties_of_its_place` |
-| Sandbox | Each obligation's image (`@sdk`, the pinned SDK image, or an upstream obligation's output such as `@vv-sdk`), plus its user, umask, home, scratch and network access (`sealed`, `pinned` by digest, or `live`). The whole sandbox, with `@sdk` resolved to its digest, is the environment line of the obligation's identity (`identified`) | `every_delegated_obligation_has_a_declared_sandbox`, `no_sandbox_reaches_the_live_network`, `source_vv_and_the_gate_run_sealed` |
+| Sandbox | Each obligation's image (`@sdk`, the pinned SDK image, or an upstream obligation's output such as `@vv-sdk`), plus its user, umask, home, scratch and access (`sealed`; `pinned` by digest; `daemon`, which is pinned plus the lent runner's own container daemon with scratch on the runner's disk; or `live`). The whole sandbox, with `@sdk` resolved to its digest, is the environment line of the obligation's identity (`identified`) | `every_delegated_obligation_has_a_declared_sandbox`, `no_sandbox_reaches_the_live_network`, `source_vv_and_the_gate_run_sealed`, `only_the_model_audits_drive_the_lent_runners_container_daemon` |
 | Graph | The release graph moved off the legacy adapter, keeping its names, inputs and needs. `carried` names what a peer carries today | `after_delegation_no_obligation_runs_on_the_legacy_adapter`, `delegation_keeps_every_obligation`, `delegation_keeps_every_input_and_need`, `every_carried_obligation_is_in_the_graph`, `nine_obligations_are_still_carried_by_their_release_jobs`, `the_delegated_graph_still_needs_every_need_first`, `the_delegated_graph_has_no_arbitrary_obligation` |
-| Lanes | A pull request establishes everything a cut rests on, so a release run only assembles receipts | `a_pull_request_establishes_everything_a_cut_rests_on`, `a_release_run_covers_the_whole_graph` |
+| Pull request checks | `lint`, `model-audits` and `fixtures-golden` (`Factory.PrismPM::checks`) are carried obligations with no needs. They read the whole tree and run in the pinned SDK image. `lint` and `fixtures-golden` have pinned access; `model-audits` drives OCI registries and builders, so it has `daemon` access and runs `scripts/fetch.sh` first, as the devcontainer does. The delegated graph is the release graph followed by these checks | `the_pull_request_checks_need_nothing_and_are_all_carried`, `the_pull_request_checks_run_in_the_pinned_sdk_image`, `the_whole_delegated_graph_needs_every_need_first_and_names_each_obligation_once` |
+| Lanes | A pull request establishes everything a cut rests on, plus the pull request checks, so a release run only assembles receipts | `a_pull_request_establishes_everything_a_cut_rests_on`, `a_release_run_covers_the_whole_graph` |
 | Stores | Each receipt is kept in the attestation store and on the receipts branch, and peers add copies | `every_receipt_is_kept_in_two_independent_stores` |
 | Signers | A receipt counts only when it is bound to the forge's own identity for the obligation, and was signed by a workflow of this repository or a listed maintainer. Anyone else's receipt, a fork's, or one for other content is a hint and never counts. Identity is content, so a receipt counts in any repository with the same identity | `a_receipt_from_a_workflow_of_this_repository_counts`, `a_receipt_from_a_maintainers_workstation_counts`, `a_receipt_counts_wherever_it_was_established`, `anyone_elses_receipt_is_a_hint_and_never_counts`, `a_fork_workflows_receipt_never_counts`, `a_receipt_for_other_content_never_counts`, `a_receipt_is_found_by_content_not_by_repository` |
-| Check | Counted receipts for every obligation pass, with nothing to establish. One counted failure fails. A later pass outweighs an earlier failure. A missing receipt is pending, and only pending obligations are established | `counted_receipts_for_everything_pass_the_check_with_nothing_to_establish`, `one_counted_failure_fails_the_whole_check`, `a_later_pass_outweighs_an_earlier_failure`, `a_missing_receipt_keeps_the_check_pending`, `an_obligation_with_only_a_hint_is_established_not_assumed` |
+| Check | Counted receipts for every obligation pass, with nothing to establish. One counted failure fails, also for a fetch obligation, which is still established again because a fetch failure is never a refutation. A later pass outweighs an earlier failure. A missing receipt is pending, and only pending obligations are established | `counted_receipts_for_everything_pass_the_check_with_nothing_to_establish`, `one_counted_failure_fails_the_whole_check`, `a_later_pass_outweighs_an_earlier_failure`, `a_missing_receipt_keeps_the_check_pending`, `an_obligation_with_only_a_hint_is_established_not_assumed` |
 | Dispatch | Only `observe` routes run | `a_proved_route_dispatches_nothing`, `a_refuted_route_is_not_rerun`, `a_blocked_route_waits_for_its_upstream`, `a_new_identity_is_dispatched` |
 | Forge jobs | `plan` (forge), `establish` (one lent runner per obligation left to establish, through `./action`), `report` (forge), `keep` (store). No secrets. The forge reads contents and writes statuses, and a peer adds `id-token` and `attestations` (keyless signing), and only `keep` writes contents. At most 20 forge minutes per event | `no_job_holds_a_secret`, `the_forge_reads_contents_and_writes_statuses_and_a_peer_also_signs_and_keeps`, `the_forge_spends_at_most_twenty_runner_minutes_of_its_own_per_event`, `every_lent_runner_runs_the_prismpm_action`, `a_lent_runner_starts_only_for_obligations_left_to_establish`, `every_job_is_named_once_and_needs_only_earlier_jobs` |
 | Projection | The workflow text is rendered from the job records | `prism-factory workflow --name delegate` |
@@ -239,10 +240,18 @@ refuses drift. On every pull request and push it runs:
    to `prism-receipts`. It runs for pushes and same-repository pull requests.
 
 The obligations a peer carries are the model's `carried` list. Today that is
-`factory-model`, which `factory.yml` used to run on every pull request.
-`factory.yml` now runs only on dispatch. Each other obligation moves into
-`carried` in the change that retires its `release.yml` job, so nothing runs
-twice.
+`factory-model`, which `factory.yml` used to run on every pull request
+(`factory.yml` now runs only on dispatch), and the three pull request checks
+that PR Fast Checks (`ci-parallel.yml`) runs in the devcontainer. Each check
+runs its PR Fast Checks command in the SDK image, which carries the same
+toolchain, after a locked `cargo fetch`. One step is left out:
+`bootstrap-verify.sh --check-source` only checks that a full-history checkout
+contains the pinned bootstrap commit, and a closure has no history by design.
+A closure is its own Git repository with one commit that tracks exactly the
+closure, so `git ls-files` there lists what the identity covers. PR Fast Checks
+is retired once the delegation has carried these checks on live pull
+requests. Each release obligation moves into `carried` in the change that
+retires its `release.yml` job, so nothing runs twice.
 
 ## Limits
 

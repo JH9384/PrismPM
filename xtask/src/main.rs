@@ -769,7 +769,7 @@ const VV_CONFORMANCE_PARTS: [(&str, &[&str]); 5] = [
     ("st-sy", &["conformance_st_", "conformance_sy_"]),
     ("dk-0-1", &["conformance_dk_0", "conformance_dk_1"]),
     ("dk-2", &["conformance_dk_2"]),
-    ("dk-3", &["conformance_dk_3"]),
+    ("dk-3", &["conformance_dk_3", "conformance_dk_4"]),
 ];
 
 /// Every registered conformance test must belong to exactly one named part, and
@@ -2518,8 +2518,8 @@ mod vv_part_tests {
             .collect()
     }
 
-    const ALL: [&str; 9] = [
-        "ho_01", "oc_01", "st_01", "sy_01", "rp_01", "dk_07", "dk_10", "dk_20", "dk_30",
+    const ALL: [&str; 10] = [
+        "ho_01", "oc_01", "st_01", "sy_01", "rp_01", "dk_07", "dk_10", "dk_20", "dk_30", "dk_44",
     ];
 
     #[test]
@@ -2530,8 +2530,17 @@ mod vv_part_tests {
     #[test]
     fn a_dk_owner_outside_every_part_is_refused() {
         let mut ids = ALL.to_vec();
-        ids.push("dk_40");
+        ids.push("dk_90");
         assert!(verify_vv_conformance_partition(&registered(&ids)).is_err());
+    }
+
+    #[test]
+    fn the_registered_conformance_tests_are_partitioned() {
+        let registry = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../crates/conformance/tests/conformance.rs"
+        );
+        verify_vv_conformance_partition(&std::fs::read_to_string(registry).unwrap()).unwrap();
     }
 
     #[test]

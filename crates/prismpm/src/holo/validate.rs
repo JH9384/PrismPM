@@ -40,7 +40,11 @@ pub(super) fn identifier(value: &str, field: &str) -> Result<(), PrismError> {
 /// Validate a model-document DTO before encoding or after strict decoding.
 pub fn validate(doc: &ModelDocument) -> Result<(), PrismError> {
     let expected_schema = if doc.library.is_some() {
-        "prismpm/model-document/3"
+        if super::facet_validate::declared(doc) {
+            "prismpm/model-document/8"
+        } else {
+            "prismpm/model-document/3"
+        }
     } else if matches!(&doc.application, Some(Application::Browser(_))) {
         "prismpm/model-document/4"
     } else if matches!(&doc.application, Some(Application::Server(_))) {
@@ -71,17 +75,20 @@ pub fn validate(doc: &ModelDocument) -> Result<(), PrismError> {
     digest(&doc.provenance.snapshot_id, "snapshot_id")?;
     digest(&doc.provenance.emitter_semantics_id, "emitter_semantics_id")?;
     if let Some(library) = &doc.library {
-        if doc.application.is_some()
-            || !doc.standards_profile.is_empty()
-            || !doc.provenance.facet_packages.is_empty()
-            || doc.architecture != Default::default()
-            || doc.security != Default::default()
-            || doc.quality != Default::default()
-        {
+        if doc.application.is_some() {
             return Err(PrismError::new(
                 "PP4004",
-                "native libraries cannot declare application or facet records",
+                "native libraries cannot declare application records",
             ));
+        }
+        if super::facet_validate::declared(doc) {
+            if doc.provenance.facet_packages.is_empty() {
+                return Err(PrismError::new(
+                    "PP2001",
+                    "a native library may carry architecture facet records only when its lexicon closure includes prism.arch, prism.qual and prism.sec",
+                ));
+            }
+            super::facet_validate::validate(doc)?;
         }
         return super::library::validate(library);
     }

@@ -2892,7 +2892,12 @@ or replace the independent application-profile and release acceptance gates.
 `prismpm/native-library/1` profile. A unique closed value supplies package
 metadata, sorted nonempty `exportRoots` and `acceptanceRoots`. The canonical
 projection is `prismpm/model-document/3`, with `library` instead of `application`
-and empty facet sections. Existing /1 and /2 shapes remain closed; a library
+and empty facet sections. A library whose own modules declare Foundation.Arch,
+Sec and Qual records, with a lexicon closure that includes prism.arch,
+prism.qual and prism.sec, projects instead as `prismpm/model-document/8`: the
+same `library` value plus those records, the exact facet package closure and
+the exact standards profile, validated by the same facet rules as an
+application document. Existing /1 and /2 shapes remain closed; a library
 cannot coexist with an application or system declaration. This profile does
 not change Holo/1 or weaken the architecture facet closure.
 

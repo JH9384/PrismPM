@@ -465,3 +465,57 @@ fn native_library_manifest_rejects_path_escape_duplicate_artifacts_and_failed_pr
         );
     }
 }
+
+/// The shared stdlib document's cross-referenced Foundation.Arch, Sec and Qual
+/// records with their exact closure and profile, carried by a library.
+fn with_facets(mut value: Value) -> Value {
+    let facets: Value = serde_json::from_slice(include_bytes!(
+        "../../../tests/golden/stdlib/build/model.prism.json"
+    ))
+    .unwrap();
+    for key in ["architecture", "security", "quality", "standards_profile"] {
+        value[key] = facets[key].clone();
+    }
+    value["provenance"]["facet_packages"] = facets["provenance"]["facet_packages"].clone();
+    value["schema"] = json!("prismpm/model-document/8");
+    value
+}
+
+#[test]
+fn native_library_carries_its_own_facet_records_as_model_document_8() {
+    let schema: Value =
+        serde_json::from_slice(include_bytes!("../schemas/model-document-v8.schema.json")).unwrap();
+    let validator = jsonschema::validator_for(&schema).unwrap();
+    let valid = with_facets(document());
+    assert!(!valid["security"]["assets"].as_array().unwrap().is_empty());
+    assert!(validator.is_valid(&valid));
+    prismpm::model_contract::contract_from_value("prismpm/model-document/8", valid.clone())
+        .unwrap();
+    let model = decode_canonical(&encode_value(&valid).unwrap()).unwrap();
+    assert!(model.library.is_some());
+
+    // Facets under /3, or /8 without facets, are refused: the schema id states
+    // exactly whether the records are present.
+    let mut under_three = valid.clone();
+    under_three["schema"] = json!("prismpm/model-document/3");
+    assert!(
+        prismpm::model_contract::contract_from_value("prismpm/model-document/3", under_three)
+            .is_err()
+    );
+    let mut bare = document();
+    bare["schema"] = json!("prismpm/model-document/8");
+    assert!(!validator.is_valid(&bare));
+    // Records without the exact closure or profile are refused, as for an application.
+    let mut open = valid.clone();
+    open["provenance"]["facet_packages"] = json!([]);
+    assert!(
+        prismpm::model_contract::contract_from_value("prismpm/model-document/8", open).is_err()
+    );
+    let mut short = valid.clone();
+    short["standards_profile"].as_array_mut().unwrap().pop();
+    assert!(!validator.is_valid(&short));
+    // A library still cannot carry an application, and the schema stays closed.
+    let mut unknown = valid;
+    unknown["security"]["assets"][0]["unlisted"] = json!(1);
+    assert!(!validator.is_valid(&unknown));
+}

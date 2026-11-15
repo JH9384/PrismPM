@@ -1,5 +1,5 @@
 spec = "prismpm/emitter-inputs/1"
-digest = "69b6eedad52d3fb9fe806d84c26343a3da4fc90a28cf8a78bd1ddd7512444734"
+digest = "498c4446d53df1496fdc4b31e23cfff52ba7f03e3f70c156be61fcb3bdac7832"
 inputs = [
     "crates/prismpm/src/application_build.rs",
     "crates/prismpm/src/brand.rs",
@@ -37,6 +37,7 @@ inputs = [
     "schemas/model-document-v5.schema.json",
     "schemas/model-document-v6.schema.json",
     "schemas/model-document-v7.schema.json",
+    "schemas/model-document-v8.schema.json",
     "schemas/model-document.schema.json",
     "schemas/workbench-view-projection.schema.json",
     "vendor/hologram-brand/fonts/Archivo-SemiBold.woff2",

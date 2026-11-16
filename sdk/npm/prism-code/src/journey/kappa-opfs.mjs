@@ -11,6 +11,7 @@
 import { sha256Hex } from '../sha256.mjs';
 import { isKappa } from '../uorc.mjs';
 import { proofFacts, proofRealization } from './kappa-rules.mjs';
+import { imageFacts, imageRealization } from './kernel-image.mjs';
 
 const enc = new TextEncoder();
 const label = async (bytes) => `sha256:${await sha256Hex(bytes)}`;
@@ -98,4 +99,23 @@ export async function findProof(store, { key, kernel, library }) {
     }
   }
   return proofFacts({ key, kernel, library }, bytes, () => bundle);
+}
+
+/** Keep the image of a kernel that loaded its library: the image, its realization, and the key that leads to it. */
+export async function keepImage(store, { key, loader, kernel, library, bytes }) {
+  const image = await store.put(bytes);
+  const name = await store.put(imageRealization({ key, loader, kernel, library, image }));
+  await store.bind(key, name);
+  return name;
+}
+
+/** Look an image up by its derivation key. Resolves `{ facts, image }`; the caller asks `reuseAdmits`. */
+export async function findImage(store, { key, kernel, library }) {
+  const name = await store.bound(key);
+  const bytes = name ? await store.get(name) : null;
+  // `get` returns bytes only when they re-derive to the label asked for, so the label is what the bytes are now.
+  return imageFacts({ key, kernel, library }, bytes, async (label) => {
+    const image = await store.get(label);
+    return image ? { bytes: image, label } : null;
+  });
 }

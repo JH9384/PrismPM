@@ -61,7 +61,7 @@ test('a build writes the page beside the app, and the page carries the record, t
   // The same record gives the same files, byte for byte.
   const again = writeRuleAppSite(join(dir, '.prism', 'site-again'), at('app.rule-app.json'));
   for (const file of again.files) assert.deepEqual(readFileSync(join(again.directory, file)), at(file), file);
-  assert.equal(again.files.length, 4 + browserClosure().length + 7);
+  assert.equal(again.files.length, 4 + browserClosure().length + 8);
   // Planted defect P2: the page proves the guarantees itself. It carries Lean's kernel and library, the pinned bytes,
   // and the same writer of proof terms this package runs, and it does not take the record's word for the proof.
   const manifest = JSON.parse(at('kernel/manifest.json'));
@@ -69,7 +69,7 @@ test('a build writes the page beside the app, and the page carries the record, t
   assert.deepEqual(at('prism-code/src/journey/kernel-terms.mjs'), readFileSync(new URL('../src/journey/kernel-terms.mjs', import.meta.url)));
   assert.ok(!/\bfrom\s*['"]node:/.test(at('prism-code/src/journey/kernel-terms.mjs').toString('utf8')));
   assert.match(script, /import \{ HOLDS, KERNEL_AXIOMS, proofLines, readLibrary \} from '\.\/prism-code\/src\/journey\/kernel-terms\.mjs';/);
-  assert.match(script, /const \{ accepted, reused \} = await prove\(app\.record\);/);
+  assert.match(script, /const \{ accepted, reused, library, keep \} = await prove\(app\.record\);/);
   assert.match(script, /'Proved here by Lean\\'s kernel, in this browser: '/);
   assert.match(script, /if \(g !== manifest\.glue\.sha256 \|\| w !== manifest\.wasm\.sha256 \|\| l !== manifest\.library\.sha256\) throw/);
   // Before its own proof is done the page says it is proving, never that anything is proved.
@@ -111,5 +111,27 @@ test('the page proves only what this browser has not proved, and reuses a proof 
   assert.match(script, /kernel = await loadArchive\(holoBytes, \{ capabilities: null, capabilitySet: undefined, allowUnverified: false \}\);/);
   assert.match(script, /holoPinned: await sha256\(holoBytes\),/);
   // An earlier visit is named only when a proof was reused.
-  assert.match(script, /const earlier = reused === 0 \? '' :/);
+  assert.match(script, /const earlier = \(reused === 0 \? '' :/);
+});
+
+test('the page lays the image of an earlier load instead of loading the library, by the same rule, and asks for every module at once', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prism-rule-app-site-image-'));
+  const record = { title: 't', name: 't', fields: [], words: [], guarantees: [], vectors: [], outcomes: [], kernel: { holo: RULE_JUDGE_HOLO }, proof: null, schema: 'prism/rule-app/1' };
+  const { directory, files } = writeRuleAppSite(join(dir, 'site'), Buffer.from(JSON.stringify(record)));
+  const script = readFileSync(join(directory, 'start.mjs'), 'utf8');
+  assert.deepEqual(readFileSync(join(directory, 'prism-code/src/journey/kernel-image.mjs')), readFileSync(new URL('../src/journey/kernel-image.mjs', import.meta.url)));
+  // The image is found under a key over the loader, the kernel and the library the page has just checked.
+  assert.match(script, /const imageKey = derivationKey\(IMAGE_SCHEMA, \[labels\.loader, labels\.kernel, labels\.library\]\);/);
+  // Planted defect I1: an image stands in for the load only when reuseAdmits says so.
+  assert.match(script, /const laid = reuseAdmits\(kept\.facts\) && restoreImage\(kept\.image, \{ memory: \(\) => memory, grow \}\);/);
+  // Planted defect I2: only a load the kernel accepted is imaged, and before any proof is judged.
+  assert.match(script, /if \(run\('load_library', library\)\.exit !== 0\) throw new Error\('the kernel refused its library'\);\s*\/\/[^\n]*\n\s*image = new Uint8Array\(memory\.buffer\)\.slice\(\);/);
+  assert.ok(script.indexOf('image = new Uint8Array(memory.buffer).slice();') < script.indexOf("run('check_suffix'"));
+  // Planted defect I3: an image is kept only from a load, never from a laid image.
+  assert.match(script, /const keep = image && !store\.off \? \(\) => keepImage\(store, \{ key: imageKey, \.\.\.labels, bytes: encodeImage\(image\) \}\) : null;/);
+  // Planted defect M1: the page names exactly the modules it ships, so none is found late and none is fetched for nothing.
+  const html = readFileSync(join(directory, 'index.html'), 'utf8');
+  const named = [...html.matchAll(/<link rel="modulepreload" href="\.\/([^"]+)">/g)].map((m) => m[1]);
+  assert.deepEqual(named, files.filter((f) => f.startsWith('prism-code/') && f.endsWith('.mjs')));
+  assert.ok(named.length > 30);
 });

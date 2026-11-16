@@ -40,7 +40,8 @@ function startScript() {
 import { loadArchive } from './prism-code/src/index.mjs';
 import { HOLDS, KERNEL_AXIOMS, proofLines, readLibrary } from './prism-code/src/journey/kernel-terms.mjs';
 import { PROOF_SCHEMA, derivationKey, guaranteeStatement, reuseAdmits } from './prism-code/src/journey/kappa-rules.mjs';
-import { findProof, keepProof, opfsStore } from './prism-code/src/journey/kappa-opfs.mjs';
+import { findImage, findProof, keepImage, keepProof, opfsStore } from './prism-code/src/journey/kappa-opfs.mjs';
+import { IMAGE_SCHEMA, encodeImage, restoreImage } from './prism-code/src/journey/kernel-image.mjs';
 
 const SCHEMA_ONE = 1;
 const WORDS_MAX = 1024;
@@ -135,7 +136,10 @@ function values(record) {
  * Lean's kernel, here: every guarantee is written as kernel terms and judged in this page. The kernel, its loader and
  * its library are used only when their bytes have the addresses the manifest names. A guarantee this browser's kernel
  * already accepted is not judged again when reuseAdmits allows it: the same key, kernel, library and proof bytes.
- * When every guarantee is found, the kernel is not fetched or opened at all. Resolves { accepted, reused }.
+ * When every guarantee is found, the kernel is not fetched or opened at all. A kernel that loaded this library in
+ * this browser before is kept as an image of its memory, and laid over a fresh kernel instead of loading the library
+ * again when reuseAdmits allows it. Resolves { accepted, reused, library, keep }: library says whether the library
+ * was loaded or its image laid, and keep, when there is one, keeps the image of a load for the next visit.
  */
 async function prove(record) {
   const manifest = await (await fetch('./kernel/manifest.json', { cache: 'no-store' })).json();
@@ -147,18 +151,21 @@ async function prove(record) {
   const found = await Promise.all(keys.map(({ key }) => findProof(store, { key, kernel: pinned.kernel, library: pinned.library })));
   const reusable = found.map((f) => reuseAdmits(f.facts));
   const holds = (axioms) => Array.isArray(axioms) && axioms.every((a) => KERNEL_AXIOMS.includes(a));
-  if (reusable.every(Boolean)) return { accepted: found.map((f) => holds(f.proof.axioms)), reused: found.length };
+  if (reusable.every(Boolean)) return { accepted: found.map((f) => holds(f.proof.axioms)), reused: found.length, library: null, keep: null };
   const file = (entry) => named('sha256:' + entry.sha256, async () => unpack(await fetch('./kernel/' + entry.file, { cache: 'no-store' })));
   const [glue, wasm, library] = await Promise.all([manifest.glue, manifest.wasm, manifest.library].map(file));
   const [g, w, l] = (await Promise.all([glue, wasm, library].map(sha256))).map((label) => label.slice(7));
   if (g !== manifest.glue.sha256 || w !== manifest.wasm.sha256 || l !== manifest.library.sha256) throw new Error('the kernel, its loader or its library is not the pinned one');
   const b = manifest.binding;
   if (!b || b.kernel !== w || b.loader !== g || b.library !== l) throw new Error('there is no record that this kernel judged this library whole');
+  const labels = { loader: 'sha256:' + g, kernel: 'sha256:' + w, library: 'sha256:' + l };
+  const imageKey = derivationKey(IMAGE_SCHEMA, [labels.loader, labels.kernel, labels.library]);
+  const kept = await findImage(store, { key: imageKey, kernel: labels.kernel, library: labels.library });
   const said = [];
   const url = URL.createObjectURL(new Blob([glue], { type: 'text/javascript' }));
-  let module;
+  let module, memory;
   try {
-    module = await (await import(url)).default({ instantiateWasm: (imports, done) => { WebAssembly.instantiate(wasm, imports).then((r) => done(r.instance, r.module)); return {}; }, print: (s) => said.push(s), printErr: (s) => said.push(s) });
+    module = await (await import(url)).default({ instantiateWasm: (imports, done) => { WebAssembly.instantiate(wasm, imports).then((r) => { memory = r.instance.exports.memory; done(r.instance, r.module); }); return {}; }, print: (s) => said.push(s), printErr: (s) => said.push(s) });
   } finally { URL.revokeObjectURL(url); }
   const run = (entry, bytes) => {
     said.length = 0;
@@ -171,7 +178,15 @@ async function prove(record) {
     return { exit, axioms };
   };
   if (module.ccall('checker_ready', 'number', [], []) !== 0) throw new Error('the kernel did not start');
-  if (run('load_library', library).exit !== 0) throw new Error('the kernel refused its library');
+  // The image of a load this browser's kernel accepted, under the same key, kernel, library and bytes; else the load.
+  const grow = (n) => { if (!module._malloc(n + 65536)) throw new Error('the kernel could not grow its memory'); };
+  const laid = reuseAdmits(kept.facts) && restoreImage(kept.image, { memory: () => memory, grow });
+  let image = null;
+  if (!laid) {
+    if (run('load_library', library).exit !== 0) throw new Error('the kernel refused its library');
+    // Taken before any proof is judged: the image is the kernel with this library and nothing else.
+    image = new Uint8Array(memory.buffer).slice();
+  }
   const lib = readLibrary(dec.decode(library));
   const accepted = [];
   for (const [i, guarantee] of record.guarantees.entries()) {
@@ -183,7 +198,8 @@ async function prove(record) {
     if (r.exit === 0 && axioms !== null) await keepProof(store, { key: keys[i].key, kernel: 'sha256:' + w, library: 'sha256:' + l, statement: keys[i].statement, text, axioms });
     accepted.push(r.exit === 0 && holds(axioms));
   }
-  return { accepted, reused: reusable.filter(Boolean).length };
+  const keep = image && !store.off ? () => keepImage(store, { key: imageKey, ...labels, bytes: encodeImage(image) }) : null;
+  return { accepted, reused: reusable.filter(Boolean).length, library: laid ? 'image' : 'loaded', keep };
 }
 
 const app = await open();
@@ -229,11 +245,13 @@ if (!admits(app.facts)) {
     setTimeout(async () => {
       const started = performance.now();
       try {
-        const { accepted, reused } = await prove(app.record);
+        const { accepted, reused, library, keep } = await prove(app.record);
         const all = accepted.every(Boolean);
-        window.prismRuleApp.proved = { accepted, reused, ms: Math.round(performance.now() - started) };
-        const earlier = reused === 0 ? '' : (reused === count ? 'All' : reused + ' of them') + ' were proved on an earlier visit, under this same kernel and library, and are not proved again. ';
+        window.prismRuleApp.proved = { accepted, reused, library, ms: Math.round(performance.now() - started) };
+        const earlier = (reused === 0 ? '' : (reused === count ? 'All' : reused + ' of them') + ' were proved on an earlier visit, under this same kernel and library, and are not proved again. ') + (library === 'image' ? 'The kernel\\'s library was checked on an earlier visit and is not checked again. ' : '');
         say('status', (all ? 'Proved here by Lean\\'s kernel, in this browser: ' + count + ' guarantee' + (count === 1 ? ' holds' : 's hold') + ' for every request in the bounds. ' + earlier : 'Lean\\'s kernel, in this browser, did not accept ' + accepted.filter((a) => !a).length + ' of ' + count + ' guarantees. ') + tail, all ? 'checked' : 'refused');
+        // The image of this load is kept after the answer is on screen, so keeping it never delays the proof.
+        if (keep) setTimeout(() => keep().catch(() => {}), 0);
       } catch (error) {
         window.prismRuleApp.proved = { error: String(error && error.message ? error.message : error) };
         say('status', 'Lean\\'s kernel could not run in this browser, so the guarantees are not proved here. ' + tail, 'unchecked');
@@ -251,14 +269,20 @@ window.prismRuleApp.ready = true;
 `;
 }
 
-function indexHtml(record) {
+/**
+ * The page. Every module the page imports is named in its head, so a browser asks for all of them at once instead of
+ * finding each one only after the module that imports it has arrived: one round trip, not one per level of imports.
+ */
+function indexHtml(record, modules) {
   const title = escapeHtml(record.title || record.name);
+  const preload = modules.map((path) => `<link rel="modulepreload" href="./${escapeHtml(path)}">`).join('\n');
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
+${preload}
 <style>
 :root { color-scheme: light dark; --ink: #1c1b1a; --paper: #faf9f7; --line: #d9d5cf; --mute: #6b665f; --good: #1f6f4a; --bad: #9c2b2b; }
 @media (prefers-color-scheme: dark) { :root { --ink: #ece9e4; --paper: #171615; --line: #3a3733; --mute: #a39d94; --good: #6fcf9f; --bad: #f08a8a; } }
@@ -298,16 +322,16 @@ export function writeRuleAppSite(directory, recordBytes, { holo = null } = {}) {
   const record = JSON.parse(new TextDecoder().decode(recordBytes));
   rmSync(directory, { recursive: true, force: true });
   const files = new Map([
-    ['index.html', Buffer.from(indexHtml(record))],
     ['start.mjs', Buffer.from(startScript())],
     ['app.rule-app.json', Buffer.from(recordBytes)],
     ['kernel.holo', Buffer.from(holo ?? pinnedHolo())],
   ]);
   for (const file of browserClosure()) files.set(`prism-code/src/${file}`, readFileSync(join(SRC, file)));
   // Lean's kernel, its library and the writer of the proof terms, so the page proves the guarantees itself.
-  for (const name of ['kernel-terms.mjs', 'kappa-rules.mjs', 'kappa-opfs.mjs']) files.set(`prism-code/src/journey/${name}`, readFileSync(join(SRC, 'journey', name)));
+  for (const name of ['kernel-terms.mjs', 'kappa-rules.mjs', 'kappa-opfs.mjs', 'kernel-image.mjs']) files.set(`prism-code/src/journey/${name}`, readFileSync(join(SRC, 'journey', name)));
   files.set('kernel/manifest.json', readFileSync(join(SRC, 'journey', 'kernel', 'manifest.json')));
   for (const name of ['lean-kernel.mjs.gz', 'lean-kernel.wasm.gz', 'library.ndjson.gz']) files.set(`kernel/${name}`, Buffer.from(readKernelFile(name)));
+  files.set('index.html', Buffer.from(indexHtml(record, [...files.keys()].filter((path) => path.startsWith('prism-code/') && path.endsWith('.mjs')).sort())));
   for (const [path, bytes] of files) {
     const at = join(directory, path);
     mkdirSync(dirname(at), { recursive: true });

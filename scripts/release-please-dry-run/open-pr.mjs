@@ -46,6 +46,18 @@ export function narrow(config, manifest, tagExists) {
   return { config: { ...config, packages }, waiting };
 }
 
+/**
+ * The release branches whose merged pull requests release-please never tags: a package
+ * with skip-github-release gets its tag from the factory's cut (release-cut.yml), so its
+ * merged pull request keeps the label `autorelease: pending` for good. Left in, it would
+ * make release-please refuse every other package's release pull request.
+ */
+export function factoryCutBranches(config, targetBranch) {
+  return Object.values(config.packages)
+    .filter((settings) => settings['skip-github-release'] ?? config['skip-github-release'])
+    .map((settings) => `release-please--branches--${targetBranch}--components--${settings.component}`);
+}
+
 async function main() {
   const { values } = parseArgs({ options: {
     repo: { type: 'string', default: process.env.GITHUB_REPOSITORY || 'UOR-Foundation/prismpm' },
@@ -78,7 +90,18 @@ async function main() {
     return { sha: '', mode: '100644', branch, parsedContent, content: Buffer.from(parsedContent).toString('base64') };
   };
   const manifest = await Manifest.fromManifest(github, values.branch, CONFIG, MANIFEST);
+  const factoryCut = new Set(factoryCutBranches(read(CONFIG), values.branch));
+  const merged = manifest.findMergedReleasePullRequests.bind(manifest);
+  manifest.findMergedReleasePullRequests = async function* () {
+    for await (const pr of merged()) if (!factoryCut.has(pr.headBranchName)) yield pr;
+  };
+  // release-please returns no pull request, with only a log line, when it refuses; a
+  // refusal must fail the run instead of reading as nothing to release.
+  const build = manifest.buildPullRequests.bind(manifest);
+  let built = 0;
+  manifest.buildPullRequests = async () => { const candidates = await build(); built = candidates.length; return candidates; };
   const prs = (await manifest.createPullRequests()).filter(Boolean);
+  if (built > prs.length) throw new Error(`release-please built ${built} release pull requests and opened ${prs.length}: read its warnings above`);
   for (const pr of prs) console.log(`release pull request #${pr.number} from ${pr.headBranchName}`);
   if (process.env.GITHUB_OUTPUT) {
     appendFileSync(process.env.GITHUB_OUTPUT, `prs_created=${prs.length > 0}\nprs=${JSON.stringify(prs)}\n`);

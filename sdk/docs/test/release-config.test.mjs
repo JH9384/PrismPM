@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { HEADERS } from '../lib/changelog.mjs';
 import { ROOT } from '../lib/spec.mjs';
 import { releasedPackages } from '../../../scripts/release-please-notes.mjs';
-import { GUARDED, narrow, tagOf } from '../../../scripts/release-please-dry-run/open-pr.mjs';
+import { GUARDED, factoryCutBranches, narrow, tagOf } from '../../../scripts/release-please-dry-run/open-pr.mjs';
 
 const read = (path) => readFileSync(join(ROOT, path), 'utf8').split('\r\n').join('\n');
 const config = JSON.parse(read('release-please-config.json'));
@@ -115,6 +115,11 @@ test('a package whose version is untagged waits alone, and the others still get 
   const noneTagged = narrow(config, manifest, () => false);
   assert.deepEqual(noneTagged.waiting.map((w) => w.path), GUARDED);
   assert.throws(() => narrow({ ...config, packages: { '.': config.packages['.'] } }, manifest, () => false), /every one waits/);
+});
+
+test('a merged release pull request of a package the factory tags never blocks the others', () => {
+  assert.deepEqual(factoryCutBranches(config, 'main'), ['release-please--branches--main--components--prismpm']);
+  assert.deepEqual(factoryCutBranches({ packages: { 'sdk/npm/prism-code': config.packages['sdk/npm/prism-code'] } }, 'main'), []);
 });
 
 test('the dry run can only read', () => {

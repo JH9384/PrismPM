@@ -367,6 +367,25 @@ function registryValue(key) {
   return result.stdout.match(/REG_SZ\s+(.*?)\r?$/m)?.[1] ?? null;
 }
 
+/**
+ * Whether the Claude Desktop app is running: true, false, or null when the
+ * process list could not be read. Claude Code is also `claude.exe` on Windows
+ * and `claude` elsewhere, so the app is known by where it is installed: the
+ * Store package or the installer's AnthropicClaude folder, or Claude.app.
+ */
+export function claudeDesktopRunning({ platform = process.platform, run = spawnSync } = {}) {
+  let result;
+  if (platform === 'win32') {
+    result = run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Get-Process -Name claude -ErrorAction SilentlyContinue | ForEach-Object { $_.Path }'], { encoding: 'utf8', timeout: 15000, windowsHide: true });
+  } else if (platform === 'darwin') {
+    result = run('ps', ['-axo', 'comm='], { encoding: 'utf8', timeout: 15000 });
+  } else return false;
+  if (result.error || result.status !== 0) return null;
+  const paths = String(result.stdout ?? '').split(/\r?\n/);
+  const app = platform === 'win32' ? /[\\/](WindowsApps[\\/]Claude_[^\\/]*|AnthropicClaude)[\\/]/i : /\/Claude\.app\/Contents\/MacOS\/Claude$/;
+  return paths.some((path) => app.test(path.trim()));
+}
+
 /** The context `planSetup` reads on this machine. */
 export function hostSetupContext({ env = process.env, platform = process.platform, home = homedir() } = {}) {
   return {
@@ -377,6 +396,7 @@ export function hostSetupContext({ env = process.env, platform = process.platfor
     exists: existsSync,
     readFile: readText,
     registryValue,
+    claudeDesktopRunning: () => claudeDesktopRunning({ platform }),
     mimeDefault: (type) => {
       const xdgMime = platform === 'linux' ? which('xdg-mime', { env, platform }) : null;
       if (!xdgMime) return null;
@@ -519,6 +539,8 @@ export function nextSteps(plan, { github = null } = {}) {
   const steps = [];
   if (github?.status === 'manual' && /not signed in/.test(github.detail ?? '')) steps.push('Run gh auth login, so your app builds on GitHub Actions and this machine needs no Docker.');
   const changed = [...plan.agents, ...(plan.journey ?? [])].some((r) => r.agent === agent && r.status === 'configure');
+  // A running Claude Desktop would drop the entry, so it was not written: that comes before anything else.
+  if (plan.journey?.some((r) => r.agent === 'claude-desktop' && r.status === 'manual')) steps.push(`Quit Claude Desktop (from the tray or menu bar too), then run npx prism-code@latest setup again, so it keeps the ${JOURNEY_NAME} server.`);
   if (changed) steps.push(`Restart ${label}, so it loads the new servers.`);
   steps.push(`Ask ${label}: "${FIRST_SENTENCE}"`);
   return steps;

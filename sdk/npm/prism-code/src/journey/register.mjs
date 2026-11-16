@@ -107,6 +107,23 @@ export function planJourney(rows, context, paths) {
   if (found.has('cursor')) out.push(planJson('cursor', paths.cursor.file, 'mcpServers', { command: server.command, args: server.args }, server, rows, context));
   if (found.has('vscode')) out.push(planJson('vscode', paths.vscode.file, 'servers', { type: 'stdio', command: server.command, args: server.args }, server, rows, context));
   // Claude Desktop takes no remote server, but it does take a local one.
-  if (found.has('claude-desktop')) out.push(planJson('claude-desktop', paths['claude-desktop'].file, 'mcpServers', { command: server.command, args: server.args }, server, rows, context));
+  if (found.has('claude-desktop')) out.push(planDesktop(planJson('claude-desktop', paths['claude-desktop'].file, 'mcpServers', { command: server.command, args: server.args }, server, rows, context), context));
   return out;
+}
+
+/**
+ * Claude Desktop keeps its config file in memory and writes it back whole when
+ * a preference changes or it quits, so an entry written while it runs is lost.
+ * Found on Windows, 2026-11-16, in 0.9.4: the entry setup wrote was gone half an
+ * hour later. While it runs nothing is written; when it cannot be told, the
+ * entry is written and the row says what would undo it.
+ */
+function planDesktop(row, context) {
+  if (row.status !== 'configure') return row;
+  const running = context.claudeDesktopRunning ? context.claudeDesktopRunning() : false;
+  if (running === true) {
+    return { agent: row.agent, status: 'manual', detail: `Claude Desktop is running, and it rewrites ${row.detail} from memory, which would drop the ${JOURNEY_NAME} server; quit Claude Desktop (from the tray or menu bar too), then run npx prism-code@latest setup again` };
+  }
+  if (running === null) return { ...row, detail: `${row.detail}; could not tell whether Claude Desktop is running; if it is, quit it and run setup again, or it drops this entry` };
+  return row;
 }

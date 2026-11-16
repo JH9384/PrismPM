@@ -85,7 +85,7 @@ export async function prepare(dir, session, log, { pull = false } = {}) {
   if (d.error) return { ok: false, message: d.error };
   const image = imageFor(dir, session);
   if (!hasImage(image)) {
-    if (!pull) return { ok: false, message: `The SDK image is not on this machine. Run \`npx prism-code@latest setup --pull\` in a terminal to download it (about ${SDK_IMAGE_DOWNLOAD}), or set PRISM_CODE_TIER=hosted to prove on the hosted verifier, which stores the model unlisted, not privately.\n  ${image}` };
+    if (!pull) return { ok: false, message: `The SDK image is not on this machine. Run \`npx prism-code@latest setup --image ${image}\` in a terminal, from any folder, to download it (about ${SDK_IMAGE_DOWNLOAD}), or set PRISM_CODE_TIER=hosted to prove on the hosted verifier, which stores the model unlisted, not privately.\n  ${image}` };
     log(`The SDK image is not on this machine yet. Downloading it once now, about ${SDK_IMAGE_DOWNLOAD}; this can take a while.`);
     const pulled = await docker(['pull', image], { onLine: (l) => /^(Status|Digest|[0-9a-f]{12}: Pull complete)/.test(l) && log(l) });
     if (pulled.code !== 0) return { ok: false, message: `Could not download the SDK image:\n${tail(pulled.output)}` };

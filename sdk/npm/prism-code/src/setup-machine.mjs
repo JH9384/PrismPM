@@ -13,7 +13,8 @@
  *             `wsl.exe -d <distro> -- docker` on Windows without Docker
  *             Desktop. Recorded in `$PRISM_HOME/config.json`, so every later
  *             check, build and verify spawns it without probing.
- *   image     the SDK image the project's `prismpm.lock` pins (or `--image`).
+ *   image     the SDK image the project's `prismpm.lock` pins (or `--image`);
+ *             outside a project, the one a new app is pinned to.
  *             It is pulled only with `--pull` or `--image`, and the pull
  *             streams its progress. Otherwise a missing image is deferred:
  *             `build --check` and `verify --lean` run hosted without it, and
@@ -33,6 +34,7 @@ import { dirname, join } from 'node:path';
 import { cacheVolumeName, commandDisplay, sdkImageFromLock } from './docker.mjs';
 import { BUILD_WORKFLOW, TEMPLATE_WORKFLOW_URL, originOf, tokenSource } from './github.mjs';
 import { hostConfigEntry, readHostConfig, resolveDocker } from './host.mjs';
+import { DEFAULT_SDK_IMAGE } from './journey/sdk.mjs';
 
 export const GITATTRIBUTES_LINE = '* text eol=lf';
 /** The compressed size of the SDK image the template pins, measured on ghcr.io on 2026-11-16 (`prismpm-sdk@sha256:d6c263a7…`, amd64: 5.70 GB). */
@@ -78,13 +80,19 @@ function planImage({ image, pull }, context, resolved) {
   let from = '--image';
   if (!reference) {
     const lock = context.readFile(join(context.cwd, 'prismpm.lock'));
-    if (lock === null) return { id: 'image', status: 'not-found', detail: 'no prismpm.lock here; run setup inside a project, or pass --image <ref> to pull an SDK image now' };
-    try {
-      reference = sdkImageFromLock(lock);
-    } catch (error) {
-      return { id: 'image', status: 'failed', detail: `prismpm.lock: ${error.message}` };
+    if (lock === null) {
+      // An app that is not pinned yet proves in this image, so it is the one a pull outside a project is for.
+      // Reporting "no prismpm.lock" here made setup --pull from the home folder exit 0 having pulled nothing.
+      reference = DEFAULT_SDK_IMAGE;
+      from = 'no prismpm.lock here, the image new apps are pinned to';
+    } else {
+      try {
+        reference = sdkImageFromLock(lock);
+      } catch (error) {
+        return { id: 'image', status: 'failed', detail: `prismpm.lock: ${error.message}` };
+      }
+      from = 'prismpm.lock';
     }
-    from = 'prismpm.lock';
   }
   if (!resolved) return { id: 'image', status: 'manual', detail: `${reference} (${from}); not checked, Docker is missing`, reference };
   const id = ask(context, resolved, ['image', 'inspect', '--format', '{{.Id}}', reference]);
@@ -93,7 +101,7 @@ function planImage({ image, pull }, context, resolved) {
     return {
       id: 'image',
       status: 'deferred',
-      detail: `${reference} (${from}) is not here; build --check and verify --lean run hosted without it, and build, verify and axioms pull it on first use (about ${SDK_IMAGE_DOWNLOAD}); setup --pull gets it now`,
+      detail: `${reference} (${from}) is not here; build --check and verify --lean run hosted without it, and build, verify and axioms pull it on first use (about ${SDK_IMAGE_DOWNLOAD}); ${image ? `setup --image ${reference}` : 'setup --pull'} gets it now`,
       reference,
     };
   }

@@ -4,13 +4,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GITATTRIBUTES_LINE, applyMachine, applyMachineStep, formatMachine, planMachine } from '../src/setup-machine.mjs';
 import { readHostConfig } from '../src/host.mjs';
 import { telemetryNotice } from '../src/gaps.mjs';
+import { DEFAULT_SDK_IMAGE } from '../src/journey/sdk.mjs';
 
 const bin = fileURLToPath(new URL('../bin/prism-code.mjs', import.meta.url));
 const IMAGE = 'ghcr.io/uor-foundation/prismpm-sdk@sha256:36da25ef924d84899453f24ec0c117a7a220e708037933eb8b499caa7723d99e';
@@ -118,17 +119,17 @@ test('no Docker: the row is a manual step with the reason, the image and cache a
   assert.equal(rows(planMachine({}, context({ cwd, configDir: join(scratch(), '.prism'), nodeVersion: '20.11.0' }))).node.status, 'failed');
 });
 
-test('outside a project: no lockfile means no image unless --image names one; without a pull it is deferred', () => {
+test('outside a project: no lockfile means the image a new app is pinned to, unless --image names one; without a pull it is deferred', () => {
   const cwd = scratch();
   const configDir = join(scratch(), '.prism');
   const none = rows(planMachine({}, context({ cwd, configDir })));
-  assert.equal(none.image.status, 'not-found');
-  assert.match(none.image.detail, /--image <ref>/);
-  assert.equal(none.cache.status, 'not-found');
+  assert.equal(none.image.status, 'deferred');
+  assert.equal(none.image.reference, DEFAULT_SDK_IMAGE, 'the image prism_prove asks for in an app that is not pinned yet');
+  assert.match(none.image.detail, /\(no prismpm\.lock here, the image new apps are pinned to\) is not here; .*setup --pull gets it now/);
   assert.equal(none.endings.status, 'not-found');
   const named = rows(planMachine({ image: IMAGE, pull: false }, context({ cwd, configDir })));
   assert.equal(named.image.status, 'deferred');
-  assert.match(named.image.detail, /--image\) is not here; .*setup --pull gets it now/);
+  assert.match(named.image.detail, new RegExp(`--image\\) is not here; .*setup --image ${escape(IMAGE)} gets it now`), 'setup --pull would get another image');
   assert.equal(named.cache.status, 'configure', 'the cache volume is created for the named image even before it is pulled');
   const bad = rows(planMachine({}, context({ cwd: project({ sdk_image: 'ghcr.io/x/y:latest' }), configDir })));
   assert.equal(bad.image.status, 'failed');
@@ -268,4 +269,59 @@ test('the github row: no origin is not a repository; a github.com origin with a 
   assert.equal(ready.github.detail, 'acme/app; token from GH_TOKEN; .github/workflows/build.yml present');
   assert.ok(!ready.github.detail.includes('secret'), 'the token itself is never shown');
   assert.equal(ready.github.steps, undefined, 'the row applies nothing');
+});
+
+const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** A daemon stand-in that answers `version`, knows no image, and records each pull in `$PULLED`. */
+function pullingDocker() {
+  const home = scratch('prism-machine-home-');
+  const stub = join(scratch(), 'docker-stub.cjs');
+  writeFileSync(stub, [
+    'const a = process.argv.slice(2);',
+    "if (a[0] === 'version') { process.stdout.write('29.1.3\\n'); process.exit(0); }",
+    "if (a[0] === 'pull') { require('node:fs').appendFileSync(process.env.PULLED, a[1] + '\\n'); process.exit(0); }",
+    "if (a[0] === 'volume' && a[1] === 'create') process.exit(0);",
+    'process.exit(1);',
+    '',
+  ].join('\n'));
+  const pulled = join(scratch(), 'pulled');
+  const env = { ...process.env, HOME: home, USERPROFILE: home, PRISM_HOME: join(home, '.prism'), PRISM_DOCKER: `"${process.execPath}" "${stub}"`, PULLED: pulled };
+  return { env, pulled };
+}
+
+test('setup --pull outside a project pulls the image new apps are pinned to, never a silent success', () => {
+  // Found on Windows, 2026-11-16, in 0.9.4: run from the home folder, setup --pull exited 0 and pulled nothing.
+  const plan = planMachine({ pull: true }, context({ cwd: scratch(), configDir: join(scratch(), '.prism') }));
+  const r = rows(plan);
+  assert.equal(r.image.status, 'configure');
+  assert.deepEqual(r.image.steps.map((step) => step.args), [['pull', DEFAULT_SDK_IMAGE]]);
+
+  const { env, pulled } = pullingDocker();
+  const run = spawnSync(process.execPath, [bin, 'setup', '--pull', '--machine-only'], { cwd: scratch('prism-machine-empty-'), env, encoding: 'utf8' });
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(readText(pulled), `${DEFAULT_SDK_IMAGE}\n`, 'the pull reached Docker');
+  assert.match(run.stdout, new RegExp(`image {11}configured {10}${escape(DEFAULT_SDK_IMAGE)} \\(no prismpm\\.lock here`));
+});
+
+test('the prove refusal for a missing image names a command that pulls that image from any folder', () => {
+  // Found on Windows, 2026-11-16, in 0.9.4: the refusal said to run setup --pull, which pulled nothing outside a project.
+  const { env, pulled } = pullingDocker();
+  const engine = new URL('../src/journey/engine.mjs', import.meta.url).href;
+  const app = scratch('prism-machine-app-');
+  for (const session of [{}, { image: IMAGE }]) {
+    const script = `const { prepare } = await import(${JSON.stringify(engine)}); process.stdout.write(JSON.stringify(await prepare(${JSON.stringify(app)}, ${JSON.stringify(session)}, () => {})));`;
+    const proved = spawnSync(process.execPath, ['--input-type=module', '-e', script], { env, encoding: 'utf8' });
+    assert.equal(proved.status, 0, proved.stderr);
+    const refusal = JSON.parse(proved.stdout);
+    assert.equal(refusal.ok, false);
+    const image = session.image ?? DEFAULT_SDK_IMAGE;
+    const named = /Run `npx prism-code@latest (setup [^`]+)`/.exec(refusal.message);
+    assert.ok(named, refusal.message);
+    // Follow the advice from a folder that is no project, as a user in their home folder would.
+    rmSync(pulled, { force: true });
+    const followed = spawnSync(process.execPath, [bin, ...named[1].split(' ')], { cwd: scratch('prism-machine-elsewhere-'), env, encoding: 'utf8' });
+    assert.equal(followed.status, 0, followed.stderr);
+    assert.equal(readText(pulled), `${image}\n`, `${named[1]} pulls the image the refusal asked for`);
+  }
 });

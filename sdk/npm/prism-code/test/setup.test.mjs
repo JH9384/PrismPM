@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCP_URL } from '../src/agents.mjs';
 import { parseToml } from '../src/toml.mjs';
-import { FIRST_SENTENCE, HANDLER_FILES, LSREGISTER, OPEN_COMMAND_KEY, REGISTRY_KEY, RETIRED_SKILLS, SKILL_FILE, agentPaths, applySetup, bundledSkills, formatNext, formatSetup, nextSteps, planSetup } from '../src/setup.mjs';
+import { FIRST_SENTENCE, HANDLER_FILES, LSREGISTER, OPEN_COMMAND_KEY, REGISTRY_KEY, RETIRED_SKILLS, SKILL_FILE, agentPaths, applySetup, claudeDesktopRunning, bundledSkills, formatNext, formatSetup, nextSteps, planSetup } from '../src/setup.mjs';
 import { createHash } from 'node:crypto';
 
 const bin = fileURLToPath(new URL('../bin/prism-code.mjs', import.meta.url));
@@ -418,4 +418,45 @@ test('without --hosted no agent gets the hosted server, and each file changed is
   applySetup(planSetup({ hosted: true }, context('linux', other)), recorder());
   assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(other, '.cursor', 'mcp.json'), 'utf8')).mcpServers), ['other', 'lexlean', 'prism']);
   assert.equal(readFileSync(join(other, '.cursor', 'mcp.json.prism-backup'), 'utf8'), before);
+});
+
+test('Claude Desktop running: its prism entry is not written, because the app rewrites its config file and drops it; setup says to quit and rerun', () => {
+  // Found on Windows, 2026-11-16, in 0.9.4: setup wrote the prism entry at 17:45 (its .prism-backup
+  // is the file before), and by 18:19 the running app had rewritten the file without it.
+  const files = { 'AppData/Roaming/Claude/claude_desktop_config.json': JSON.stringify({ mcpServers: {}, preferences: { theme: 'dark' } }) };
+  const home = fixtureHome(files);
+  const file = join(home, 'AppData', 'Roaming', 'Claude', 'claude_desktop_config.json');
+  const before = readFileSync(file, 'utf8');
+  const running = { ...context('win32', home), claudeDesktopRunning: () => true };
+  const plan = planSetup({ agent: 'claude-desktop' }, running);
+  const row = plan.journey.find((a) => a.agent === 'claude-desktop');
+  assert.equal(row.status, 'manual', 'an entry the app will drop is not reported as configured');
+  assert.equal(row.steps, undefined, 'nothing is written while the app runs');
+  assert.match(row.detail, /Claude Desktop is running.*rewrites .*claude_desktop_config\.json.*quit Claude Desktop.*run npx prism-code@latest setup again/);
+  applySetup(plan, recorder());
+  assert.equal(readFileSync(file, 'utf8'), before);
+  assert.match(formatSetup(plan), /claude-desktop {2}manual {14}Claude Desktop is running/);
+  assert.deepEqual(nextSteps(plan), ['Quit Claude Desktop (from the tray or menu bar too), then run npx prism-code@latest setup again, so it keeps the prism server.', `Ask Claude Desktop: "${FIRST_SENTENCE}"`]);
+
+  // Quit, the same run writes it.
+  const quit = planSetup({ agent: 'claude-desktop' }, { ...context('win32', home), claudeDesktopRunning: () => false });
+  assert.equal(quit.journey.find((a) => a.agent === 'claude-desktop').status, 'configure');
+  // Unknown (no process list), it writes, and says what would undo it.
+  const unknown = planSetup({ agent: 'claude-desktop' }, { ...context('win32', home), claudeDesktopRunning: () => null });
+  const u = unknown.journey.find((a) => a.agent === 'claude-desktop');
+  assert.equal(u.status, 'configure');
+  assert.match(u.detail, /could not tell whether Claude Desktop is running; if it is, quit it and run setup again/);
+});
+
+test('claudeDesktopRunning finds the desktop app by its install path, never the Claude Code binary of the same name', () => {
+  const answer = (stdout, status = 0) => () => ({ status, stdout, stderr: '' });
+  const lines = (...paths) => paths.map((p) => `${p}\r\n`).join('');
+  const code = lines(String.raw`C:\Users\a\AppData\Roaming\Claude\claude-code\2.1.325\806e0a45e6f5\claude.exe`, String.raw`C:\Users\a\.local\bin\claude.exe`);
+  assert.equal(claudeDesktopRunning({ platform: 'win32', run: answer(code) }), false, 'Claude Code is claude.exe too');
+  assert.equal(claudeDesktopRunning({ platform: 'win32', run: answer(code + lines(String.raw`C:\Program Files\WindowsApps\Claude_5.11492.5.0_x64__pzs8sxrjxfjjc\app\Claude.exe`)) }), true, 'the Store (MSIX) install');
+  assert.equal(claudeDesktopRunning({ platform: 'win32', run: answer(lines(String.raw`C:\Users\a\AppData\Local\AnthropicClaude\app-0.14.1\claude.exe`)) }), true, 'the installer build');
+  assert.equal(claudeDesktopRunning({ platform: 'win32', run: answer('', 1) }), null, 'no process list is unknown, not false');
+  assert.equal(claudeDesktopRunning({ platform: 'darwin', run: answer('/Applications/Claude.app/Contents/MacOS/Claude\n/usr/local/bin/claude\n') }), true);
+  assert.equal(claudeDesktopRunning({ platform: 'darwin', run: answer('/usr/local/bin/claude\n') }), false);
+  assert.equal(claudeDesktopRunning({ platform: 'linux', run: answer('') }), false, 'there is no Claude Desktop for Linux');
 });

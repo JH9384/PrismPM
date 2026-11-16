@@ -134,6 +134,31 @@ export function exporterArtifactBindings(bytes, revision, platform, observedExec
   ];
 }
 
+// The build-only SDK (`sdk-build` in sdk/Dockerfile) is the runtime without
+// release-acceptance oracles and their runners. Its inventory is the measured
+// runtime inventory minus exactly these rows. Each row must have been measured
+// once, and its command must be absent from the variant's PATH, so the list
+// cannot silently drift from what the image actually removes.
+export const BUILD_VARIANT_OMITTED = Object.freeze([
+  'cloudevents-sdk-conformance',
+  'cloudevents-validator',
+  'intoto-statement-validator',
+  'oci-distribution-conformance',
+  'oci-image-schema-conformance',
+  'oci-runtime-validate',
+  'openid-conformance',
+  'prismpm-conformance',
+]);
+
+export function omitBuildVariantArtifacts(artifacts, commandNames) {
+  assert(Array.isArray(artifacts) && commandNames instanceof Set);
+  for (const id of BUILD_VARIANT_OMITTED) {
+    assert.equal(artifacts.filter(row => row.id === id).length, 1, `build variant omits an unmeasured artifact: ${id}`);
+    assert(!commandNames.has(id), `build variant still has an omitted command on PATH: ${id}`);
+  }
+  return artifacts.filter(row => !BUILD_VARIANT_OMITTED.includes(row.id));
+}
+
 export function encodeInventory(value) {
   const canonical = item => Array.isArray(item) ? item.map(canonical)
     : item && typeof item === 'object'

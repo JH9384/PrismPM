@@ -62,7 +62,7 @@ export function frozenInputs() {
     'tests/browser-workspace/src/main.rs','tests/browser-journal/driver/src/main.rs',
     ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml','rust-toolchain.toml','lean-toolchain',
     'LICENSE-MIT','LICENSE-APACHE','model/authorities.toml','model/dependencies.toml',
-    'tests/browser-view/workspace-products.mjs',
+    'tests/browser-view/workspace-products.mjs','tests/browser-view/lexicon-inputs.mjs',
     'vendor/lean4-prod/lean.tar','vendor/lean4-prod/rust/MANIFEST.sha256','vendor/lexlean/MANIFEST.sha256',
   ]);
   for (const path of compilerInputPaths('session')) files.add(path);

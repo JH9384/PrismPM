@@ -1450,6 +1450,7 @@ fn generate_def_in<'m>(
         &owned_parameters,
     );
     let renderer = Renderer {
+        definition: &def.name,
         shapes,
         definitions,
         params: &def.params,
@@ -1969,6 +1970,8 @@ impl StaticOutput {
 }
 
 struct Renderer<'s, 'm> {
+    /// The definition being rendered, named in refusals.
+    definition: &'m str,
     shapes: &'s Signatures<'m>,
     definitions: &'m [Definition],
     params: &'m [(String, Type)],
@@ -2220,6 +2223,47 @@ impl<'m> Renderer<'_, 'm> {
         }
     }
 
+    /// Builder mode records a `let`-bound list only in `env` and emits no Rust
+    /// local for it, so an operand rendered in value mode must not read one:
+    /// it would name an undeclared local (UOR-Foundation/PrismPM#602).
+    /// Binders are alpha-unique after `naming::normalize_definition`, so any
+    /// syntactic use of an `env` name is a use of that binding.
+    fn refuse_builder_list_operand(
+        &self,
+        operand: &Expr,
+        mode: &Mode<'_, 'm>,
+    ) -> Result<(), Error> {
+        let Mode::Builder { env, .. } = mode else {
+            return Ok(());
+        };
+        match env
+            .iter()
+            .rev()
+            .find(|(name, _)| count_var_uses(operand, name) > 0)
+        {
+            None => Ok(()),
+            Some((name, bound)) => Err(Error::UnsupportedList(format!(
+                "`{}` reads `{}`, {}, as an operand; a let-bound list has no storage outside the output buffer",
+                self.definition,
+                name,
+                self.list_origin(bound, env)
+            ))),
+        }
+    }
+
+    /// Where a builder-environment list comes from, following local aliases.
+    fn list_origin(&self, bound: &Expr, env: &[(&'m str, &'m Expr)]) -> String {
+        match bound {
+            Expr::Call(callee, _) => format!("the list returned by `{callee}`"),
+            Expr::Var(alias) => match lookup(env, alias) {
+                Some(inner) => self.list_origin(inner, env),
+                None => format!("the list parameter `{alias}`"),
+            },
+            Expr::Proj(ty, field, _) => format!("the list field `{ty}.{field}`"),
+            _ => String::from("a list constructed in this definition"),
+        }
+    }
+
     fn reject_eager_list_binding(
         &self,
         name: &str,
@@ -2385,12 +2429,15 @@ impl<'m> Renderer<'_, 'm> {
                     self.owned_value(f)?
                 ))
             }
-            Expr::If(cond, t, f) => Ok(format!(
-                "if {} {{ {} }} else {{ {} }}",
-                self.value(cond)?,
-                self.render(t, mode)?,
-                self.render(f, mode)?
-            )),
+            Expr::If(cond, t, f) => {
+                self.refuse_builder_list_operand(cond, mode)?;
+                Ok(format!(
+                    "if {} {{ {} }} else {{ {} }}",
+                    self.value(cond)?,
+                    self.render(t, mode)?,
+                    self.render(f, mode)?
+                ))
+            }
             Expr::Let(name, _, body) if self.inline_values.contains_key(name) => {
                 self.render(body, mode)
             }
@@ -2400,6 +2447,10 @@ impl<'m> Renderer<'_, 'm> {
                 self.render(body, mode)
             }
             Expr::Let(name, val, body) => {
+                if !matches!(mode, Mode::Builder { env, .. } if self.is_list_valued(val, env)) {
+                    // Only a deferred list binding may name another one.
+                    self.refuse_builder_list_operand(val, mode)?;
+                }
                 if let Some(encoded) = self.utf8_read_binding(name, val, body) {
                     return Ok(format!(
                         "{{ let {} = {}; {} }}",
@@ -2447,6 +2498,7 @@ impl<'m> Renderer<'_, 'm> {
             },
             Expr::Ctor(name, args) if name == "List.cons" && args.len() == 2 => match mode {
                 Mode::Builder { out, env, depth } => {
+                    self.refuse_builder_list_operand(&args[0], mode)?;
                     self.render_cons(&args[0], &args[1], out, env, *depth)
                 }
                 Mode::Value | Mode::OwnedValue if self.is_empty_list(&args[1]) => {
@@ -2495,6 +2547,9 @@ impl<'m> Renderer<'_, 'm> {
                 Mode::Value | Mode::OwnedValue => Ok(rust_local_ident(name)),
             },
             Expr::Call(name, args) => {
+                for argument in args {
+                    self.refuse_builder_list_operand(argument, mode)?;
+                }
                 let rendered = self.render_call_args(name, args)?;
                 let call_name = self.call_name(name);
                 match (mode, self.shape_of(name)) {
@@ -2953,6 +3008,7 @@ impl<'m> Renderer<'_, 'm> {
         let normalize_results = matches!(mode, Mode::Value)
             && branch_borrows.iter().any(|borrowed| *borrowed)
             && branch_borrows.iter().any(|borrowed| !borrowed);
+        self.refuse_builder_list_operand(scrut, mode)?;
         let scrut = self.value(scrut)?;
         // List parameters are slices, but record fields, local aliases and
         // temporaries may be Vecs. Normalize the match place, not its owner:

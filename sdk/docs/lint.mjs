@@ -19,10 +19,11 @@ import { ROOT } from './lib/spec.mjs';
 
 /**
  * Engineering records under docs/ that cite issues and internal names by
- * design, and the vocabulary page, which maps the docs' terms onto the
- * repository's own names and so must name them.
+ * design, and the vocabulary page and the developer glossary, which map the
+ * docs' terms onto the repository's own names and the issues that build them,
+ * and so must name them. The glossary is rendered by its model (#347).
  */
-export const EXCLUDED = ['docs/adr', 'docs/decisions', 'docs/proposals', 'docs/release', 'docs/vocabulary.md'];
+export const EXCLUDED = ['docs/adr', 'docs/decisions', 'docs/developer-glossary.md', 'docs/proposals', 'docs/release', 'docs/vocabulary.md'];
 
 export function defaultTargets() {
   const docs = join(ROOT, 'docs');

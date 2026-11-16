@@ -1,0 +1,4 @@
+{
+  "kib": 9,
+  "reason": "a rule app's page asks for every module at once and keeps its kernel with the library loaded as an image: journey/kernel-image.mjs, keepImage and findImage in journey/kappa-opfs.mjs, and the page in journey/rule-app-site.mjs (about 8.8 KiB)."
+}

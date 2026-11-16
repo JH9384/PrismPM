@@ -11,7 +11,7 @@
   ],
   "distribution": [
     { "name": "Documented API", "value": "1.0", "note": "These docs describe Prism 1.0. Every page says which release it needs in `available_in`." },
-    { "name": "`prism-code` on npm", "value": "0.2.0", "note": "`load`, `dispatch` and `acceptance`, and the `prism-code` command." },
+    { "name": "`prism-code` on npm", "value": "read from version_from", "version_from": "sdk/npm/prism-code/package.json", "note": "The `prism-code` library and command, versioned on their own: `load`, `dispatch` and `acceptance`, and the verbs `check`, `attest`, `verify-attestation`, `inspect`, `run`, `vectors`, `history`, `replay`, `init`, `generate`, `dev`, `push`, `pull`, `export`, `mcp` and `setup`. Its own version numbers are not the release ids below, which plan the `prism` CLI; its CHANGELOG says what each version shipped." },
     { "name": "`prism` CLI", "value": "not shipped", "note": "Today `prism-code check` and `prism-code build` run the build in the pinned SDK image." },
     { "name": "`@prism-code/*` packages", "value": "not published", "note": "`@prism-code/spec` and `@prism-code/verify` are written and publish with 0.5." },
     { "name": "Rust crates", "value": "not published", "note": "The `prism-code` crate ships with 1.0-beta.1." },

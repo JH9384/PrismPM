@@ -60,7 +60,7 @@ The default build uses `--update` because a plain build refuses a lock whose mod
 
 A build command from `prism.toml` runs on your machine with your permissions, as an npm script does. Read the manifest of a project you did not write before you run `dev` in it.
 
-`dev` judges the holo the build reports. A custom command that prints no build result must write a `.holo` during the run, or name its file with `--holo <path>`. A build that exits 0 and names no holo gets no verdict, rather than a verdict on an older file.
+`dev` judges the holo the build reports. A custom command that prints no build result must write a `.holo` during the run, or name its file with `--image <path>`. A build that exits 0 and names no holo gets no verdict, rather than a verdict on an older file.
 
 ## The Check tab
 

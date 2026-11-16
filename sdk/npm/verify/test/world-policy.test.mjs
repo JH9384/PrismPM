@@ -96,7 +96,9 @@ test('the shape of a capability set is checked; its entry syntax is the runtime\
 test('worldPolicy for the reference contract: within, pure, and nothing is claimed for an unknown contract', () => {
   assert.deepEqual(worldPolicy(CONTRACT, null), { known: true, within: true, problems: [], pure: true, effects: [] });
   assert.deepEqual(worldPolicy(CONTRACT, { 'allow-variables': ['*'] }).within, true);
-  assert.deepEqual(checkWorldPolicy('hologram:guest/core-wasm@2', null), { known: false, within: null, problems: [], pure: null, effects: null });
+  assert.deepEqual(checkWorldPolicy('hologram:guest/core-wasm@3', null), { known: false, within: null, problems: [], pure: null, effects: null });
+  // The session world (#629) imports nothing, so it is known, pure and within an empty grant.
+  assert.deepEqual(worldPolicy('hologram:guest/core-wasm@2', null), { known: true, within: true, problems: [], pure: true, effects: [] });
   assert.throws(() => worldPolicy(CONTRACT, { nope: [] }), (e) => e instanceof VerifyError && e.code === 'policy.invalid');
 });
 

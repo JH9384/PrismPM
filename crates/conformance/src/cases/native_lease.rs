@@ -350,7 +350,7 @@ fn accepted(fixture: &Fixture, verified: &prismpm::controller::VerifyResult) {
     let attestation: Value = serde_json::from_slice(&attestation_bytes).unwrap();
     assert_eq!(attestation["status"], "verified");
     let mut observed = BTreeSet::new();
-    for row in attestation["declarations"].as_array().unwrap() {
+    for row in super::owned_audits(&attestation) {
         assert_eq!(row["result"], "ok");
         assert_eq!(row["observed"], json!([]));
         assert!(observed.insert(row["name"].as_str().unwrap().to_owned()));

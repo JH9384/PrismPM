@@ -186,14 +186,6 @@ pub(crate) fn browser_files<T: AsRef<[u8]>>(
         .application
         .ok_or_else(|| failure("release has no browser application"))?;
     let stem = application.cargo_name().replace('-', "_");
-    let expected = BTreeSet::from([
-        "app.css".to_owned(),
-        "app.js".to_owned(),
-        "index.html".to_owned(),
-        format!("{stem}.js"),
-        format!("{stem}_bg.wasm"),
-        "provenance.json".to_owned(),
-    ]);
     let files = build_files
         .iter()
         .filter_map(|(path, bytes)| {
@@ -201,9 +193,12 @@ pub(crate) fn browser_files<T: AsRef<[u8]>>(
                 .map(|name| (name.to_owned(), bytes.as_ref()))
         })
         .collect::<BTreeMap<_, _>>();
-    if expected.len() != 6 || files.keys().cloned().collect::<BTreeSet<_>>() != expected {
+    // Closure v1 (the six-file page) or closure v2 (v1 plus the brand files), exactly.
+    if crate::brand::closure_version(&files.keys().cloned().collect::<BTreeSet<_>>(), &stem)
+        .is_none()
+    {
         return Err(failure(
-            "verified browser projection is not the exact six-file profile",
+            "verified browser projection is neither the exact six-file nor the exact closure v2 profile",
         ));
     }
     Ok(files)
@@ -397,13 +392,13 @@ pub(super) fn export(root: &Path, reference: &str, output: &Path) -> Result<Valu
             .collect::<Vec<_>>();
         let tree_digest = sha(&encode_value(&json!(files))?);
         let result = json!({
-            "schema":"prismpm/browser-export/1", "reference":reference,
+            "schema":"prismpm/browser-export/2", "reference":reference,
             "release_digest":captured.state.root.digest,
             "model_digest":sha(&captured.build_files["model.prism.json"]),
             "build_digest":sha(&captured.build_manifest), "output":output,
             "files":files, "tree_digest":tree_digest
         });
-        CanonicalDocument::from_value("prismpm/browser-export/1", result.clone())?;
+        crate::oci::contract_from_value("prismpm/browser-export/2", result.clone())?;
         publish(&directory, output, &browser)?;
         Ok(result)
     }
@@ -445,6 +440,91 @@ pub(super) fn capture(root: &Path, reference: &str) -> Result<VerifiedReleaseCap
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn browser_export_receipt_binds_exact_identity_and_order_without_authority_claims() {
+        let files = [
+            "app.css",
+            "app.js",
+            "core.js",
+            "core_bg.wasm",
+            "index.html",
+            "provenance.json",
+        ]
+        .map(|path| json!({"path":path,"digest":format!("sha256:{}","1".repeat(64)),"size":1}));
+        let files = json!(files);
+        let digest = format!("sha256:{}", "2".repeat(64));
+        let id = "prismpm/browser-export/1";
+        let receipt = json!({
+            "schema":id,
+            "reference":format!("example.test/product@{digest}"),
+            "release_digest":digest,
+            "model_digest":format!("sha256:{}","3".repeat(64)),
+            "build_digest":format!("sha256:{}","4".repeat(64)),
+            "tree_digest":format!("sha256:{}",crate::holo::canonical::content_id(&crate::holo::canonical::encode_value(&files).unwrap())),
+            "output":"site",
+            "files":files,
+        });
+        crate::oci::contract_from_value(id, receipt.clone()).unwrap();
+        for (field, replacement) in [
+            ("reference", json!("example.test/product:main")),
+            (
+                "release_digest",
+                json!(format!("sha256:{}", "5".repeat(64))),
+            ),
+            ("tree_digest", json!(format!("sha256:{}", "6".repeat(64)))),
+            ("output", json!("../site")),
+            ("output", json!("site/child")),
+            ("output", json!(".prism")),
+            ("output", json!("")),
+            ("authorized", json!(true)),
+            ("accepted", json!(true)),
+        ] {
+            let mut changed = receipt.clone();
+            changed[field] = replacement;
+            assert!(
+                crate::oci::contract_from_value(id, changed).is_err(),
+                "accepted changed {field}"
+            );
+        }
+        for field in receipt.as_object().unwrap().keys() {
+            let mut changed = receipt.clone();
+            changed.as_object_mut().unwrap().remove(field);
+            assert!(
+                crate::oci::contract_from_value(id, changed).is_err(),
+                "accepted missing {field}"
+            );
+        }
+        for mutation in 0..4 {
+            let mut changed = receipt.clone();
+            let files = changed["files"].as_array_mut().unwrap();
+            match mutation {
+                0 => {
+                    files.swap(0, 1);
+                }
+                1 => {
+                    files[1]["path"] = files[0]["path"].clone();
+                }
+                2 => {
+                    files.remove(0);
+                }
+                3 => {
+                    files[0]["path"] = json!("../app.css");
+                }
+                _ => unreachable!(),
+            }
+            changed["tree_digest"] = json!(format!(
+                "sha256:{}",
+                crate::holo::canonical::content_id(
+                    &crate::holo::canonical::encode_value(&changed["files"]).unwrap()
+                )
+            ));
+            assert!(
+                crate::oci::contract_from_value(id, changed).is_err(),
+                "accepted file mutation {mutation}"
+            );
+        }
+    }
 
     #[test]
     fn output_names_are_one_explicit_portable_directory() {

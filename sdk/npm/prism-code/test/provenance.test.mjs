@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseArchive, KIND } from '../src/archive.mjs';
+import { parseArchive, ROLES_V5, ROLE_ATTESTATIONS } from '../src/archive.mjs';
 import { readAttestations, stripAttestations, ATTESTATION_EXTENSION } from '../src/attestations.mjs';
 import {
   HOLO_BUILD_TYPE,
@@ -16,7 +16,7 @@ import {
 } from '../src/provenance.mjs';
 import { load, PrismCodeError } from '../src/index.mjs';
 
-const original = new Uint8Array(readFileSync(new URL('../fixtures/Calculator.holo', import.meta.url)));
+const original = new Uint8Array(readFileSync(new URL('../fixtures/Calculator.v5.holo', import.meta.url)));
 const pristine = original.slice();
 const lockBytes = new Uint8Array(readFileSync(new URL('../../spec/test/fixtures/documents/sdk-lock-v3/calculator.json', import.meta.url)));
 const lock = JSON.parse(new TextDecoder().decode(lockBytes));
@@ -48,7 +48,8 @@ test('the min statement is SLSA provenance v1 over the four content blobs with t
   assert.equal(statement.subject.length, 4);
   assert.equal(statement.predicate.runDetails.builder.id, lock.sdk_image);
   const rows = statement.predicate.buildDefinition.resolvedDependencies;
-  assert.ok(rows.some((r) => r.uri === 'urn:prismpm:sdk-lock' && r.digest.blake3 && r.digest.sha256));
+  assert.ok(rows.some((r) => r.uri === 'urn:prismpm:sdk-lock' && r.digest.sha256 && !('blake3' in r.digest)));
+  assert.ok(statement.subject.every((s) => Object.keys(s.digest).join() === 'sha256'), 'every subject is named by its κ alone');
   assert.deepEqual(rows, [...rows].sort((a, b) => (a.uri === b.uri ? (a.name < b.name ? -1 : 1) : a.uri < b.uri ? -1 : 1)));
   assert.ok(original.every((b, i) => b === pristine[i]), 'the input was modified');
 });
@@ -127,15 +128,15 @@ test('the bundle line is canonical JSON, one line, with an empty signature, and 
   assert.deepEqual(Buffer.from(bundle.dsseEnvelope.payload, 'base64'), Buffer.from(statementBytes(statement)));
 });
 
-test('attachProvenance adds one last Extension row and keeps every original section byte-identical', async () => {
+test('attachProvenance adds one last attestation object and keeps every original object byte-identical', async () => {
   const stamped = await attachProvenance(original, { lock: lockBytes });
   assert.ok(original.every((b, i) => b === pristine[i]), 'the input was modified');
   const parsed = parseArchive(stamped);
-  assert.equal(parsed.sections.length, 9);
-  assert.equal(parsed.sections[8].kind, KIND.EXTENSION);
+  assert.equal(parsed.sections.length, ROLES_V5.length + 1);
+  assert.equal(parsed.sections.at(-1).kind, ROLE_ATTESTATIONS);
   assert.equal(parsed.extensions.at(-1).name, ATTESTATION_EXTENSION);
   const before = parseArchive(original);
-  for (let i = 0; i < 8; i++) assert.deepEqual(parsed.sections[i].body, before.sections[i].body);
+  for (let i = 0; i < ROLES_V5.length; i++) assert.deepEqual(parsed.sections[i].body, before.sections[i].body);
   assert.ok(parsed.verification.footer && parsed.verification.labels);
   assert.deepEqual(stripAttestations(stamped), original, 'the unsigned archive is recoverable byte for byte');
 });

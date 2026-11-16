@@ -1,0 +1,186 @@
+\begin{lexlean}{Foundation.Images.V1.Store}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{prism.bindings@1.0.0}
+\importmodule{Foundation.Bindings.V1.Text}
+\title{Image store rules writer}
+\begin{semanticmodule}
+definition{
+  name: removeOutcome,
+  parameters: [byTag : Bool, otherTags : Bool, referenced : Bool, running : Bool, force : Bool],
+  result: String,
+  body: (if (byTag && otherTags) then "untag" else (if (((not byTag) && otherTags) && (not force)) then "refuse image.tagged" else (if running then "refuse image.in-use" else (if (referenced && (not force)) then "refuse image.in-use" else "delete")))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: pruneOutcome,
+  parameters: [tagged : Bool, referenced : Bool, all : Bool],
+  result: String,
+  body: (if ((not referenced) && ((not tagged) || all)) then "delete" else "keep"),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: isDelete,
+  parameters: [outcome : String],
+  result: Bool,
+  body: (prim equal outcome "delete" : Bool),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: removeSafe,
+  parameters: [byTag : Bool, otherTags : Bool, referenced : Bool, running : Bool, force : Bool],
+  result: Bool,
+  body: ((not (running && (isDelete (removeOutcome byTag otherTags referenced running force)))) && (not ((referenced && (not force)) && (isDelete (removeOutcome byTag otherTags referenced running force))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: pruneSafe,
+  parameters: [tagged : Bool, referenced : Bool, all : Bool],
+  result: Bool,
+  body: ((not (referenced && (isDelete (pruneOutcome tagged referenced all)))) && (not ((tagged && (not all)) && (isDelete (pruneOutcome tagged referenced all))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: bit,
+  parameters: [value : Bool],
+  result: String,
+  body: (if value then "1" else "0"),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: text,
+  parameters: [value : String],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::doubleQuoted value),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: member,
+  parameters: [key : String, value : String],
+  result: String,
+  body: (prim join (cons (text key) (cons ":" (cons value (nil String)))) "" : String),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: object,
+  parameters: [members : (List String)],
+  result: String,
+  body: (prim join (cons "{" (cons (prim join members "," : String) (cons "}" (nil String)))) "" : String),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: texts,
+  parameters: [values : (List String)],
+  result: String,
+  body: (prim join (cons "[" (cons (prim join (Foundation.Bindings.V1.Text::quotedAll values) "," : String) (cons "]" (nil String)))) "" : String),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: entry,
+  parameters: [key : String, value : String],
+  result: String,
+  body: (member key (text value)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: removeRow,
+  parameters: [byTag : Bool, otherTags : Bool, referenced : Bool, running : Bool, force : Bool],
+  result: String,
+  body: (entry (prim join (cons (bit byTag) (cons (bit otherTags) (cons (bit referenced) (cons (bit running) (cons (bit force) (nil String)))))) "" : String) (removeOutcome byTag otherTags referenced running force)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: pruneRow,
+  parameters: [tagged : Bool, referenced : Bool, all : Bool],
+  result: String,
+  body: (entry (prim join (cons (bit tagged) (cons (bit referenced) (cons (bit all) (nil String)))) "" : String) (pruneOutcome tagged referenced all)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: removeRows,
+  parameters: [],
+  result: (List String),
+  body: (cons (removeRow false false false false false) (cons (removeRow false false false false true) (cons (removeRow false false true false false) (cons (removeRow false false true false true) (cons (removeRow false false true true false) (cons (removeRow false false true true true) (cons (removeRow false true false false false) (cons (removeRow false true false false true) (cons (removeRow false true true false false) (cons (removeRow false true true false true) (cons (removeRow false true true true false) (cons (removeRow false true true true true) (cons (removeRow true false false false false) (cons (removeRow true false false false true) (cons (removeRow true false true false false) (cons (removeRow true false true false true) (cons (removeRow true false true true false) (cons (removeRow true false true true true) (cons (removeRow true true false false false) (cons (removeRow true true false false true) (cons (removeRow true true true false false) (cons (removeRow true true true false true) (cons (removeRow true true true true false) (cons (removeRow true true true true true) (nil String))))))))))))))))))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: pruneRows,
+  parameters: [],
+  result: (List String),
+  body: (cons (pruneRow false false false) (cons (pruneRow false false true) (cons (pruneRow false true false) (cons (pruneRow false true true) (cons (pruneRow true false false) (cons (pruneRow true false true) (cons (pruneRow true true false) (cons (pruneRow true true true) (nil String))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: allRemoveSafe,
+  parameters: [],
+  result: Bool,
+  body: ((removeSafe false false false false false) && ((removeSafe false false false false true) && ((removeSafe false false true false false) && ((removeSafe false false true false true) && ((removeSafe false false true true false) && ((removeSafe false false true true true) && ((removeSafe false true false false false) && ((removeSafe false true false false true) && ((removeSafe false true true false false) && ((removeSafe false true true false true) && ((removeSafe false true true true false) && ((removeSafe false true true true true) && ((removeSafe true false false false false) && ((removeSafe true false false false true) && ((removeSafe true false true false false) && ((removeSafe true false true false true) && ((removeSafe true false true true false) && ((removeSafe true false true true true) && ((removeSafe true true false false false) && ((removeSafe true true false false true) && ((removeSafe true true true false false) && ((removeSafe true true true false true) && ((removeSafe true true true true false) && (removeSafe true true true true true)))))))))))))))))))))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: allPruneSafe,
+  parameters: [],
+  result: Bool,
+  body: ((pruneSafe false false false) && ((pruneSafe false false true) && ((pruneSafe false true false) && ((pruneSafe false true true) && ((pruneSafe true false false) && ((pruneSafe true false true) && ((pruneSafe true true false) && (pruneSafe true true true)))))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: writeImageStoreRules,
+  parameters: [],
+  result: String,
+  body: (prim join (cons (object (cons (member "schema" (text "prism/image-store-rules/1")) (cons (member "store" (text "prism/image-store/1")) (cons (member "facts" (object (cons (member "remove" (texts (cons "byTag" (cons "otherTags" (cons "referenced" (cons "running" (cons "force" (nil String)))))))) (cons (member "prune" (texts (cons "tagged" (cons "referenced" (cons "all" (nil String)))))) (nil String))))) (cons (member "remove" (object (removeRows))) (cons (member "prune" (object (pruneRows))) (nil String))))))) (cons "\n" (nil String))) "" : String),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
+}
+
+theorem{
+  name: removeNeverDeletesAHeldImage,
+  parameters: [],
+  statement: ((allRemoveSafe) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: pruneNeverDeletesAHeldOrTaggedImage,
+  parameters: [],
+  statement: ((allPruneSafe) = true),
+  proof: decide{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

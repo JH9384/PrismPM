@@ -13,14 +13,78 @@
           "schema": "prism/verdict/1",
           "holo": "blake3:8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba",
           "level": "P0",
-          "policy": { "name": "default", "minimum": "P2" },
+          "policy": {
+            "name": "default",
+            "minimum": "P2"
+          },
           "passed": false,
           "reasons": {
             "$contains": [
-              { "check": "provenance.statement", "withholds": "P1" },
-              { "check": "proof.statement", "withholds": "P2" },
-              { "check": "replay.statement", "withholds": "P3" },
-              { "check": "policy.level", "code": "PP5601", "withholds": null }
+              {
+                "check": "provenance.statement",
+                "withholds": "P1"
+              },
+              {
+                "check": "proof.statement",
+                "withholds": "P2"
+              },
+              {
+                "check": "replay.statement",
+                "withholds": "P3"
+              },
+              {
+                "check": "policy.level",
+                "code": "PP5601",
+                "withholds": null
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "verify.reference-v5.default-policy",
+      "title": "A holo v5 gets the same verdict as the v4 reference, named by the κ of the file (ADR-017).",
+      "op": "verify",
+      "archive": "reference-v5",
+      "expect": {
+        "ok": true,
+        "result": {
+          "schema": "prism/verdict/1",
+          "holo": "sha256:579982050f4ae916d5d97f6d87d22f6a6228dd92ed1535529ad7b84416ba7581",
+          "level": "P0",
+          "policy": {
+            "name": "default",
+            "minimum": "P2"
+          },
+          "passed": false,
+          "reasons": {
+            "$contains": [
+              {
+                "check": "provenance.statement",
+                "withholds": "P1"
+              },
+              {
+                "check": "proof.statement",
+                "withholds": "P2"
+              },
+              {
+                "check": "replay.statement",
+                "withholds": "P3"
+              },
+              {
+                "check": "policy.level",
+                "code": "PP5601",
+                "withholds": null
+              }
+            ],
+            "$excludes": [
+              {
+                "check": "holo.integrity"
+              },
+              {
+                "check": "holo.documents"
+              }
             ]
           }
         }
@@ -31,27 +95,75 @@
       "title": "A P0 policy accepts the reference holo.",
       "op": "verify",
       "archive": "reference",
-      "input": { "policy": { "minimum": "P0" } },
-      "expect": { "ok": true, "result": { "level": "P0", "policy": { "minimum": "P0" }, "passed": true, "reasons": { "$excludes": [{ "check": "policy.level" }] } } }
+      "input": {
+        "policy": {
+          "minimum": "P0"
+        }
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "level": "P0",
+          "policy": {
+            "minimum": "P0"
+          },
+          "passed": true,
+          "reasons": {
+            "$excludes": [
+              {
+                "check": "policy.level"
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "id": "verify.level.not-raised-by-policy",
       "title": "A policy that asks for P3 does not raise the level.",
       "op": "verify",
       "archive": "reference",
-      "input": { "policy": { "minimum": "P3" } },
-      "expect": { "ok": true, "result": { "level": "P0", "policy": { "minimum": "P3" }, "passed": false } }
+      "input": {
+        "policy": {
+          "minimum": "P3"
+        }
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "level": "P0",
+          "policy": {
+            "minimum": "P3"
+          },
+          "passed": false
+        }
+      }
     },
     {
       "id": "verify.level.unsigned-claim-not-believed",
       "title": "An unsigned statement that claims P3 never raises the level: the holo is P0, or it gets no verdict.",
       "op": "verify",
       "archive": "unsigned-p3-claim",
-      "input": { "policy": { "minimum": "P0" } },
+      "input": {
+        "policy": {
+          "minimum": "P0"
+        }
+      },
       "expect": {
         "anyOf": [
-          { "ok": true, "result": { "level": "P0" } },
-          { "ok": false, "error": { "code": "verification_failed", "check": "format.revision" } }
+          {
+            "ok": true,
+            "result": {
+              "level": "P0"
+            }
+          },
+          {
+            "ok": false,
+            "error": {
+              "code": "verification_failed",
+              "check": "format.revision"
+            }
+          }
         ]
       }
     },
@@ -60,152 +172,429 @@
       "title": "The verdict names the policy it was judged against.",
       "op": "verify",
       "archive": "reference",
-      "input": { "policy": { "name": "ci", "minimum": "P1" } },
-      "expect": { "ok": true, "result": { "policy": { "name": "ci", "minimum": "P1" } } }
+      "input": {
+        "policy": {
+          "name": "ci",
+          "minimum": "P1"
+        }
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "policy": {
+            "name": "ci",
+            "minimum": "P1"
+          }
+        }
+      }
     },
     {
       "id": "verify.damage.footer",
       "title": "A wrong footer is a failed integrity check that withholds P1.",
       "op": "verify",
       "archive": "footer-flipped",
-      "input": { "policy": { "minimum": "P1" } },
-      "expect": { "ok": true, "result": { "level": "P0", "passed": false, "reasons": { "$contains": [{ "check": "holo.integrity", "withholds": "P1" }] } } }
+      "input": {
+        "policy": {
+          "minimum": "P1"
+        }
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "level": "P0",
+          "passed": false,
+          "reasons": {
+            "$contains": [
+              {
+                "check": "holo.integrity",
+                "withholds": "P1"
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "id": "verify.damage.guest-label",
       "title": "A guest that differs from its label fails integrity even under a correct footer.",
       "op": "verify",
       "archive": "guest-data-flipped",
-      "input": { "policy": { "minimum": "P1" } },
-      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "holo.integrity", "withholds": "P1" }] } } }
+      "input": {
+        "policy": {
+          "minimum": "P1"
+        }
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "passed": false,
+          "reasons": {
+            "$contains": [
+              {
+                "check": "holo.integrity",
+                "withholds": "P1"
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "id": "verify.damage.label",
-      "title": "A forged label fails integrity.",
+      "title": "A forged blob label is a table the Wire codec refuses: no verdict.",
       "op": "verify",
       "archive": "label-flipped",
-      "input": { "policy": { "minimum": "P1" } },
-      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "holo.integrity", "withholds": "P1" }] } } }
+      "input": {
+        "policy": {
+          "minimum": "P1"
+        }
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "archive.table",
+          "verdict": {
+            "$absent": true
+          }
+        }
+      }
     },
     {
       "id": "verify.damage.model-document",
       "title": "A damaged model document fails integrity and the document check.",
       "op": "verify",
       "archive": "model-flipped",
-      "input": { "policy": { "minimum": "P1" } },
+      "input": {
+        "policy": {
+          "minimum": "P1"
+        }
+      },
       "expect": {
         "ok": true,
         "result": {
           "passed": false,
-          "reasons": { "$contains": [{ "check": "holo.integrity", "withholds": "P1" }, { "check": "holo.documents", "withholds": "P1" }] }
+          "reasons": {
+            "$contains": [
+              {
+                "check": "holo.integrity",
+                "withholds": "P1"
+              },
+              {
+                "check": "holo.documents",
+                "withholds": "P1"
+              }
+            ]
+          }
         }
       }
     },
     {
       "id": "verify.damage.manifest",
-      "title": "A damaged application manifest fails the document check.",
+      "title": "A damaged application manifest is not the Wire template, which the codec refuses: no verdict.",
       "op": "verify",
       "archive": "manifest-uri",
-      "input": { "policy": { "minimum": "P1" } },
-      "expect": { "ok": true, "result": { "passed": false, "reasons": { "$contains": [{ "check": "holo.documents", "withholds": "P1" }] } } }
+      "input": {
+        "policy": {
+          "minimum": "P1"
+        }
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "archive.table",
+          "verdict": {
+            "$absent": true
+          }
+        }
+      }
     },
     {
-      "id": "verify.damage.p0-has-no-requirement",
-      "title": "P0 asks nothing of a holo, so damage is reported and the P0 policy still passes.",
+      "id": "verify.damage.p0-fails-on-integrity",
+      "title": "Damage fails every policy: under P0 the level is P0, and the policy still fails with policy.integrity.",
       "op": "verify",
       "archive": "footer-flipped",
-      "input": { "policy": { "minimum": "P0" } },
-      "expect": { "ok": true, "result": { "level": "P0", "passed": true, "reasons": { "$contains": [{ "check": "holo.integrity", "withholds": "P1" }] } } }
+      "input": {
+        "policy": {
+          "minimum": "P0"
+        }
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "level": "P0",
+          "passed": false,
+          "reasons": {
+            "$contains": [
+              {
+                "check": "holo.integrity",
+                "withholds": "P1"
+              },
+              {
+                "check": "policy.integrity",
+                "withholds": null
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "id": "verify.no-verdict.empty",
       "title": "An empty file gets no verdict.",
       "op": "verify",
       "archive": "empty",
-      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "archive.magic", "verdict": { "$absent": true } } }
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "archive.magic",
+          "verdict": {
+            "$absent": true
+          }
+        }
+      }
     },
     {
       "id": "verify.no-verdict.bad-magic",
       "title": "A file that is not a holo gets no verdict.",
       "op": "verify",
       "archive": "bad-magic",
-      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "archive.magic", "verdict": { "$absent": true } } }
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "archive.magic",
+          "verdict": {
+            "$absent": true
+          }
+        }
+      }
     },
     {
       "id": "verify.no-verdict.bad-version",
       "title": "An unknown physical version gets no verdict.",
       "op": "verify",
       "archive": "bad-version",
-      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "archive.version", "verdict": { "$absent": true } } }
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "archive.version",
+          "verdict": {
+            "$absent": true
+          }
+        }
+      }
     },
     {
       "id": "verify.no-verdict.bad-flags",
       "title": "Non-zero flags get no verdict.",
       "op": "verify",
       "archive": "bad-flags",
-      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "archive.flags", "verdict": { "$absent": true } } }
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "archive.flags",
+          "verdict": {
+            "$absent": true
+          }
+        }
+      }
     },
     {
       "id": "verify.no-verdict.truncated-table",
       "title": "A truncated table gets no verdict.",
       "op": "verify",
       "archive": "truncated-table",
-      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "archive.table", "verdict": { "$absent": true } } }
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "archive.table",
+          "verdict": {
+            "$absent": true
+          }
+        }
+      }
     },
     {
       "id": "verify.no-verdict.section-overrun",
       "title": "A section that overruns the body gets no verdict.",
       "op": "verify",
       "archive": "section-overrun",
-      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "archive.table", "verdict": { "$absent": true } } }
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "archive.table",
+          "verdict": {
+            "$absent": true
+          }
+        }
+      }
     },
     {
-      "id": "verify.no-verdict.unknown-revision",
-      "title": "A layout that matches no known format revision gets no verdict.",
+      "id": "verify.no-verdict.unknown-kind",
+      "title": "A section kind the Wire codec does not put in that row gets no verdict.",
       "op": "verify",
       "archive": "unknown-kind",
-      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "format.revision", "verdict": { "$absent": true } } }
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "archive.table",
+          "verdict": {
+            "$absent": true
+          }
+        }
+      }
     },
     {
       "id": "verify.policy.unknown-level",
       "title": "A minimum level that does not exist is an invalid policy, not a verdict.",
       "op": "verify",
       "archive": "reference",
-      "input": { "policy": { "minimum": "P9" } },
-      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+      "input": {
+        "policy": {
+          "minimum": "P9"
+        }
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "policy.invalid"
+        }
+      }
     },
     {
       "id": "verify.policy.unknown-member",
       "title": "A policy member nobody defined is an invalid policy, not ignored.",
       "op": "verify",
       "archive": "reference",
-      "input": { "policy": { "colour": "red" } },
-      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+      "input": {
+        "policy": {
+          "colour": "red"
+        }
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "policy.invalid"
+        }
+      }
+    },
+    {
+      "id": "verify.policy.statements-refused",
+      "title": "A policy cannot carry statements or claim their signature was checked: a level comes from the holo, never from an option.",
+      "op": "verify",
+      "archive": "reference",
+      "input": {
+        "policy": {
+          "minimum": "P0",
+          "statements": {
+            "proof": {
+              "statement": {},
+              "envelope": {
+                "verified": true
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "policy.invalid"
+        }
+      }
     },
     {
       "id": "verify.env.sets-minimum",
       "title": "PRISM_MINIMUM_LEVEL sets the minimum when the call names none.",
       "op": "verify",
       "archive": "reference",
-      "env": { "PRISM_MINIMUM_LEVEL": "P0" },
-      "expect": { "ok": true, "result": { "policy": { "minimum": "P0" }, "passed": true } }
+      "env": {
+        "PRISM_MINIMUM_LEVEL": "P0"
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "policy": {
+            "minimum": "P0"
+          },
+          "passed": true
+        }
+      }
     },
     {
       "id": "verify.env.call-wins",
       "title": "A minimum named by the call replaces PRISM_MINIMUM_LEVEL.",
       "op": "verify",
       "archive": "reference",
-      "env": { "PRISM_MINIMUM_LEVEL": "P0" },
-      "input": { "policy": { "minimum": "P1" } },
-      "expect": { "ok": true, "result": { "policy": { "minimum": "P1" }, "passed": false } }
+      "env": {
+        "PRISM_MINIMUM_LEVEL": "P0"
+      },
+      "input": {
+        "policy": {
+          "minimum": "P1"
+        }
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "policy": {
+            "minimum": "P1"
+          },
+          "passed": false
+        }
+      }
     },
     {
       "id": "verify.env.invalid",
       "title": "A PRISM_MINIMUM_LEVEL that names no level is an invalid policy.",
       "op": "verify",
       "archive": "reference",
-      "env": { "PRISM_MINIMUM_LEVEL": "high" },
-      "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+      "env": {
+        "PRISM_MINIMUM_LEVEL": "high"
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "verification_failed",
+          "check": "policy.invalid"
+        }
+      }
+    },
+    {
+      "id": "verify.session-world.documents",
+      "title": "Format revision 2026-10-23 admits only the @1 guest contract in its documents, so an archive naming the session world fails holo.documents and withholds P1 until a revision admits it (#629, #630).",
+      "op": "verify",
+      "archive": "session-world",
+      "input": {
+        "policy": {
+          "minimum": "P1"
+        }
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "passed": false,
+          "reasons": {
+            "$contains": [
+              {
+                "check": "holo.documents",
+                "withholds": "P1"
+              }
+            ]
+          }
+        }
+      }
     }
   ]
 }

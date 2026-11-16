@@ -3,7 +3,7 @@
 //! the generated program.
 
 use lexlean::{CheckRequest, Engine, LockRequest, Selection};
-use prismpm::holo::canonical::{decode_canonical, encode_canonical};
+use prismpm::holo::model_document::{decode_canonical, encode_canonical};
 use prismpm::holo::model_document::{Application, ModelDocument};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
@@ -86,15 +86,13 @@ fn text_cli_contract_roundtrips_and_requires_the_closed_surface() {
         .remove("cli");
     assert!(!schema().is_valid(&missing));
     assert!(
-        prismpm::contracts::CanonicalDocument::from_value("prismpm/model-document/6", missing)
-            .is_err()
+        prismpm::model_contract::contract_from_value("prismpm/model-document/6", missing).is_err()
     );
     let mut unknown = value;
     unknown["application"]["cli"]["extra"] = json!(1);
     assert!(!schema().is_valid(&unknown));
     assert!(
-        prismpm::contracts::CanonicalDocument::from_value("prismpm/model-document/6", unknown)
-            .is_err()
+        prismpm::model_contract::contract_from_value("prismpm/model-document/6", unknown).is_err()
     );
 }
 

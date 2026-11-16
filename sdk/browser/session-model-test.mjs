@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {readSemantic} from '../../scripts/semantic-source.mjs';
 import {lstatSync,readFileSync} from 'node:fs';
 import {join,relative} from 'node:path';
 import test from 'node:test';
@@ -8,8 +9,8 @@ import {sha} from '../../tests/browser-session/compile.mjs';
 import {captureCompilerInputs,createCompilerOwner,requireCompilerOwner} from '../../tests/browser-view/compiler-owner.mjs';
 import {verifyCompilerOwnerSubstitutions} from '../../tests/browser-view/compiler-owner-checks.mjs';
 
-const source = name => JSON.parse(/\\semanticdata\{(.*)\}/.exec(readFileSync(
-  new URL('../../stdlib/src/Foundation/Browser/Application/V1/' + name + '.lex.tex', import.meta.url), 'utf8'))[1]);
+const source = name => readSemantic(readFileSync(
+  new URL('../../stdlib/src/Foundation/Browser/Application/V1/' + name + '.lex.tex', import.meta.url), 'utf8'));
 
 function retainedProducts(inventory,builds) {
  assert.equal(inventory.scope,'original-test-products-only');

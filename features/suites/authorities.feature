@@ -41,3 +41,9 @@ Feature: authorities
     Given the locked PrismPM production fixture
     When the AU-07 contract is exercised
     Then its positive evidence passes and its planted defect is rejected
+
+  @AU-08 @build
+  Scenario: prismpm build emits a checked threat model as a reproducible OSCAL 1.1.0 component definition that the locked structural oracle accepts, and the oracle refuses a planted defect, without claiming implemented controls or whole-standard acceptance.
+    Given the emitted component definition of a checked threat model
+    When the locked OSCAL structural validator reads it
+    Then it is accepted and a copy with a planted defect is refused

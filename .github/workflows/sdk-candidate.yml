@@ -98,6 +98,13 @@ jobs:
     permissions:
       contents: read
     steps:
+      # The amd64 runner ran out of disk when the SBOM step saved the built image to a tar
+      # (run 42057275246). These toolchains are preinstalled on the hosted image and no step
+      # of this job uses them.
+      - name: Free runner disk for the image and its inventory
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
@@ -115,7 +122,8 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain)"
-          test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)" = 0.4.0
+          # The workspace version (scripts/workspace-version.mjs) labels the image.
+          node --input-type=module -e "import {workspaceVersion} from './scripts/workspace-version.mjs'; workspaceVersion()"
           bash -n scripts/sdk-candidate.sh
           node --test scripts/sdk-candidate.test.mjs
           mkdir -p "$RUNNER_TEMP/candidate"
@@ -130,7 +138,7 @@ jobs:
             --label org.opencontainers.image.created=1970-01-01T00:00:00Z \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
-            --label org.opencontainers.image.version=0.4.0
+            --label "org.opencontainers.image.version=$(node --input-type=module -e "import {workspaceVersion} from './scripts/workspace-version.mjs'; process.stdout.write(workspaceVersion())")"
       - name: Test the exact OCI artifact without publication credentials
         id: smoke
         env:
@@ -315,7 +323,7 @@ jobs:
             --label org.opencontainers.image.created=1970-01-01T00:00:00Z \
             --label "org.opencontainers.image.revision=$SOURCE_REVISION" \
             --label org.opencontainers.image.source=https://github.com/UOR-Foundation/PrismPM \
-            --label org.opencontainers.image.version=0.4.0
+            --label "org.opencontainers.image.version=$(node --input-type=module -e "import {workspaceVersion} from './scripts/workspace-version.mjs'; process.stdout.write(workspaceVersion())")"
           node --test scripts/sdk-construction-record.test.mjs
           node scripts/sdk-construction-record.mjs "$RUNNER_TEMP/construction"
           test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
@@ -424,8 +432,7 @@ jobs:
             ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/inner/*.stdout
             ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/inner/*.stderr
             root-a/target/library-sdk-evidence/
-            sdk-${{ matrix.arch }}-full-sdk-vv/
-            sdk-${{ matrix.arch }}-full-sdk-vv-outer-owner/
+            sdk-${{ matrix.arch }}-full-sdk-vv-*/
             sdk-${{ matrix.arch }}-product-cli/
           if-no-files-found: error
           compression-level: 6
@@ -488,8 +495,7 @@ jobs:
             ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/inner/*.stdout
             ${{ runner.temp }}/unpublished-sdk-${{ matrix.arch }}-${{ matrix.phase }}/inner/*.stderr
             root-a/target/library-sdk-evidence/
-            sdk-${{ matrix.arch }}-full-sdk-vv/
-            sdk-${{ matrix.arch }}-full-sdk-vv-outer-owner/
+            sdk-${{ matrix.arch }}-full-sdk-vv-*/
             sdk-${{ matrix.arch }}-product-cli/
           if-no-files-found: error
           compression-level: 6

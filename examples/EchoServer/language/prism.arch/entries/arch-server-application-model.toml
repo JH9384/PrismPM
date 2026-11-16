@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "arch-server-application-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Server.V1.Model"
+component = "ServerApplication"
+
+[[form]]
+id = "arch-server-application-model"
+channel = "text"
+surface = "Server application model"
+canonical_source = true
+features = ["sentence-case", "singular"]

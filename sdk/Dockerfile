@@ -15,7 +15,7 @@ RUN case "$TARGETARCH" in \
     esac \
     && curl --fail --location --silent --show-error "https://nodejs.org/dist/v22.23.2/node-v22.23.2-linux-${node_arch}.tar.xz" --output /tmp/node.tar.xz \
     && echo "${node_sha}  /tmp/node.tar.xz" | sha256sum --check --strict \
-    && tar --extract --xz --file /tmp/node.tar.xz --strip-components=1 --directory /usr/local \
+    && tar --extract --no-same-owner --xz --file /tmp/node.tar.xz --strip-components=1 --directory /usr/local \
     && rm /tmp/node.tar.xz
 
 FROM input_tools AS source_inputs
@@ -47,7 +47,7 @@ RUN case "$TARGETARCH" in \
     esac \
     && curl --fail --location --silent --show-error "https://github.com/oras-project/oras/releases/download/v1.3.0/oras_1.3.0_linux_${oras_arch}.tar.gz" --output /tmp/oras.tar.gz \
     && echo "${oras_sha}  /tmp/oras.tar.gz" | sha256sum --check --strict \
-    && tar --extract --gzip --file /tmp/oras.tar.gz --directory /usr/local/bin oras \
+    && tar --extract --no-same-owner --gzip --file /tmp/oras.tar.gz --directory /usr/local/bin oras \
     && rm /tmp/oras.tar.gz \
     && openssl version \
     && docker buildx version \
@@ -133,7 +133,7 @@ RUN case "$TARGETARCH" in \
     esac \
     && curl --fail --location --silent --show-error "https://github.com/casey/just/releases/download/1.57.0/${archive}" --output /tmp/just.tar.gz \
     && echo "${checksum}  /tmp/just.tar.gz" | sha256sum --check --strict \
-    && tar --extract --gzip --file /tmp/just.tar.gz --directory /usr/local/bin just \
+    && tar --extract --no-same-owner --gzip --file /tmp/just.tar.gz --directory /usr/local/bin just \
     && rm /tmp/just.tar.gz
 
 RUN case "$TARGETARCH" in \
@@ -144,7 +144,7 @@ RUN case "$TARGETARCH" in \
     && archive="cargo-deny-0.20.2-${deny_arch}-unknown-linux-musl.tar.gz" \
     && curl --fail --location --silent --show-error "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/${archive}" --output /tmp/cargo-deny.tar.gz \
     && echo "${deny_sha}  /tmp/cargo-deny.tar.gz" | sha256sum --check --strict \
-    && tar --extract --gzip --file /tmp/cargo-deny.tar.gz --strip-components=1 --directory /usr/local/bin "cargo-deny-0.20.2-${deny_arch}-unknown-linux-musl/cargo-deny" \
+    && tar --extract --no-same-owner --gzip --file /tmp/cargo-deny.tar.gz --strip-components=1 --directory /usr/local/bin "cargo-deny-0.20.2-${deny_arch}-unknown-linux-musl/cargo-deny" \
     && rm /tmp/cargo-deny.tar.gz
 
 RUN case "$TARGETARCH" in \
@@ -154,7 +154,7 @@ RUN case "$TARGETARCH" in \
     esac \
     && curl --fail --location --silent --show-error "https://github.com/oras-project/oras/releases/download/v1.3.0/oras_1.3.0_linux_${oras_arch}.tar.gz" --output /tmp/oras.tar.gz \
     && echo "${oras_sha}  /tmp/oras.tar.gz" | sha256sum --check --strict \
-    && tar --extract --gzip --file /tmp/oras.tar.gz --directory /usr/local/bin oras \
+    && tar --extract --no-same-owner --gzip --file /tmp/oras.tar.gz --directory /usr/local/bin oras \
     && curl --fail --location --silent --show-error "https://github.com/kubernetes-sigs/kind/releases/download/v0.31.0/kind-linux-${oras_arch}" --output /usr/local/bin/kind \
     && echo "${kind_sha}  /usr/local/bin/kind" | sha256sum --check --strict \
     && curl --fail --location --silent --show-error "https://dl.k8s.io/release/v1.36.4/bin/linux/${oras_arch}/kubectl" --output /usr/local/bin/kubectl \
@@ -177,7 +177,7 @@ RUN case "$TARGETARCH" in \
     && echo "${slsa_sha}  /usr/local/bin/slsa-verifier" | sha256sum --check --strict \
     && curl --fail --location --silent --show-error "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.136.0/otelcol-contrib_0.136.0_linux_${otel_arch}.tar.gz" --output /tmp/otelcol.tar.gz \
     && echo "${otel_sha}  /tmp/otelcol.tar.gz" | sha256sum --check --strict \
-    && tar --extract --gzip --file /tmp/otelcol.tar.gz --directory /usr/local/bin otelcol-contrib \
+    && tar --extract --no-same-owner --gzip --file /tmp/otelcol.tar.gz --directory /usr/local/bin otelcol-contrib \
     && curl --fail --location --silent --show-error "https://github.com/google/osv-scanner/releases/download/v2.4.0/osv-scanner_linux_${slsa_arch}" --output /usr/local/bin/osv-scanner \
     && echo "${osv_sha}  /usr/local/bin/osv-scanner" | sha256sum --check --strict \
     && chmod 0755 /usr/local/bin/slsa-verifier /usr/local/bin/otelcol-contrib /usr/local/bin/osv-scanner \
@@ -255,6 +255,9 @@ RUN cargo build --locked --release --package prismpm \
     && cargo fetch --locked \
     && cargo fetch --locked --manifest-path vendor/lexlean/Cargo.toml \
     && bash scripts/fetch-oracle-cargo.sh \
+    && cargo build --locked --offline --release --manifest-path sdk/oracles/oscal/Cargo.toml --target-dir /tmp/oscal-oracle-target \
+    && install -m 0755 /tmp/oscal-oracle-target/release/prismpm-oscal-oracle /usr/local/bin/oscal-validator \
+    && rm -rf /tmp/oscal-oracle-target \
     && mkdir -p /opt/prismpm/share \
     && node sdk/generate-account-genesis.mjs install \
     && install -m 0755 target/release/prismpm /usr/local/bin/prismpm \
@@ -288,6 +291,7 @@ RUN cargo build --locked --release --package prismpm \
     && rm -rf target vendor/lexlean/target
 
 COPY --from=source_inputs --chmod=0755 /prepared/source/sdk/devcontainer-init.sh /usr/local/bin/prismpm-devcontainer-init
+COPY --from=source_inputs --chmod=0755 /prepared/source/sdk/cargo-home.sh /usr/local/libexec/prismpm-cargo-home
 COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/profile.sh /etc/profile.d/prismpm-sdk.sh
 COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/generate-inventory.mjs /opt/prismpm/generate-inventory.mjs
 COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/inventory-metadata.mjs /opt/prismpm/inventory-metadata.mjs
@@ -300,13 +304,20 @@ RUN set -eu; \
 
 RUN chmod -R a+rX,a-w /opt/prismpm/share
 
-RUN mkdir -p /opt/prismpm/cargo-home \
+# Keep the offline dependency content, not Cargo's access-time/GC database or
+# the live crates.io listing and validators its sparse-index cache recorded.
+RUN /usr/bin/python3 -I -B scripts/normalize-cargo-git.py /usr/local/cargo \
+    && /usr/bin/python3 -I -B scripts/normalize-cargo-index.py /usr/local/cargo \
+    && mkdir -p /opt/prismpm/cargo-home \
     && cp -a /usr/local/cargo/registry /opt/prismpm/cargo-home/ \
     && if [ -d /usr/local/cargo/git ]; then cp -a /usr/local/cargo/git /opt/prismpm/cargo-home/; fi \
-    && rm -rf /usr/local/cargo/registry /usr/local/cargo/git /opt/prismpm/source
+    && rm -rf /usr/local/cargo/registry /usr/local/cargo/git /opt/prismpm/source \
+    && rm -f /usr/local/cargo/.global-cache /usr/local/cargo/.global-cache-journal /usr/local/cargo/.global-cache-wal /usr/local/cargo/.global-cache-shm
 
 FROM build AS cli-archive-package
-ARG SDK_VERSION=0.4.0
+# x-release-please-start-version
+ARG SDK_VERSION=0.5.0
+# x-release-please-end
 ARG TARGETARCH
 COPY --from=source_inputs /prepared/source/LICENSE-APACHE /prepared/source/LICENSE-MIT /prepared/source/README.md /tmp/native-licenses/
 RUN set -eu; \
@@ -347,6 +358,8 @@ COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/runtime-sources/fixt
 # Downstream template gates compile their small repository-specific policy
 # crates inside the SDK. Resolve the native linker exclusively from one
 # immutable Ubuntu archive snapshot; no consumer reaches a floating apt mirror.
+# Discard installation logs in this same layer: their contents contain wall
+# clock times that OCI rewrite-timestamp cannot normalize. Keep the package lock.
 RUN set -eu; \
     test "$(wc -l < /tmp/prismpm-runtime-os.lock)" -eq 5; \
     snapshot=$(sed -n 's/^snapshot=//p' /tmp/prismpm-runtime-os.lock); \
@@ -364,7 +377,8 @@ RUN set -eu; \
     && dpkg-query -W -f='${binary:Package}\t${Version}\n' \
       | LC_ALL=C sort > /usr/local/share/prismpm-runtime-dpkg.lock \
     && install -m 0444 /tmp/prismpm-runtime-os.lock /usr/local/share/prismpm-runtime-os.lock \
-    && rm -rf /var/lib/apt/lists/* /tmp/prismpm-runtime-os.lock
+    && rm -rf /var/lib/apt/lists/* /tmp/prismpm-runtime-os.lock \
+    && rm -f /var/log/dpkg.log /var/log/apt/history.log /var/log/apt/term.log /var/log/apt/eipp.log.xz /var/log/alternatives.log /var/cache/ldconfig/aux-cache
 
 COPY --from=build /usr/local/ /usr/local/
 COPY --from=build /opt/prismpm/ /opt/prismpm/
@@ -385,6 +399,7 @@ RUN set -eu; \
     fi; \
     mkdir -p /workspace /home/vscode/.cargo /home/vscode/.elan /home/vscode/.docker \
     && cp -a /opt/prismpm/cargo-home/. /home/vscode/.cargo/ \
+    && : > /home/vscode/.cargo/.seeded \
     && chown -R 1000:1000 /workspace /home/vscode \
     && chmod 0755 /home/vscode \
     && chmod -R a+rwX /home/vscode/.cargo /home/vscode/.elan /home/vscode/.docker \
@@ -469,3 +484,67 @@ FROM runtime AS oracles
 ENV PRISMPM_OCI_PACKAGE=standards-oracles
 LABEL org.opencontainers.image.title="PrismPM standards oracles" \
       org.opencontainers.image.description="Immutable redistributable upstream-oracle runners and corpora"
+
+# Build-only SDK (`prismpm-sdk-build`): what `prismpm check`, `build` and
+# `verify` use, byte-identical to runtime_base, without the release-acceptance
+# oracle runners and their Java runtime, the browsers the Hologram oracle does
+# not pin, the deploy and telemetry CLIs, and the pre-seeded copy of the offline
+# Cargo cache in /home/vscode/.cargo: the entrypoint and login shells seed it
+# on demand from /opt/prismpm/cargo-home for the executing identity
+# (sdk/cargo-home.sh). Application builds bind tool identities, never the
+# image, so they are byte-identical across the two images. `conformance`,
+# `deploy` and the Kubernetes lifecycle need the full SDK. The removed files
+# live in lower layers, so the remaining tree is flattened into one layer.
+FROM runtime_base AS sdk_build_tree
+COPY --from=build --chmod=0444 /opt/prismpm/artifact-inventory.json /tmp/prismpm-build-variant/artifact-inventory.json
+COPY --from=source_inputs --chmod=0444 /prepared/source/sdk/generate-inventory.mjs /prepared/source/sdk/inventory-metadata.mjs /prepared/source/sdk/exporter-seed.mjs /tmp/prismpm-build-variant/
+RUN --network=none set -eu; \
+    cd /ms-playwright; \
+    test -d chromium_headless_shell-cft-157.0.8099.0; \
+    find . -mindepth 1 -maxdepth 1 ! -name chromium_headless_shell-cft-157.0.8099.0 -exec rm -rf {} +; \
+    rm -rf /opt/prismpm/openid-maven /opt/prismpm/openid-java /opt/prismpm/openid-m2 /opt/prismpm/openid-target; \
+    find /home/vscode/.cargo -mindepth 1 -delete; \
+    cd /usr/local/bin; \
+    rm otelcol-contrib kubectl prismpm-conformance openid-conformance \
+      oci-distribution-conformance oci-runtime-validate oci-image-schema-conformance \
+      cloudevents-sdk-conformance cloudevents-validator intoto-statement-validator; \
+    cd /; \
+    rm /opt/prismpm/share/inventory.json /opt/prismpm/share/inventory.sha256; \
+    PRISMPM_SDK_VARIANT=build PRISMPM_ARTIFACT_INVENTORY=/tmp/prismpm-build-variant/artifact-inventory.json \
+      node /tmp/prismpm-build-variant/generate-inventory.mjs /opt/prismpm/share/inventory.json; \
+    sha256sum /opt/prismpm/share/inventory.json > /opt/prismpm/share/inventory.sha256; \
+    chmod 0444 /opt/prismpm/share/inventory.json /opt/prismpm/share/inventory.sha256; \
+    rm -rf /tmp/prismpm-build-variant; \
+    prismpm --json completion bash > /tmp/prismpm-sdk-self-check.json; \
+    grep -Fq '"schema":"prismpm/completion-result/1"' /tmp/prismpm-sdk-self-check.json; \
+    rm /tmp/prismpm-sdk-self-check.json
+
+FROM sdk_build_tree AS sdk_build_metadata
+RUN set -eu; \
+    install -d -m 0755 /sdk-metadata/opt/prismpm/share \
+    && install -m 0444 /opt/prismpm/share/inventory.json /sdk-metadata/opt/prismpm/share/inventory.json \
+    && install -m 0444 /opt/prismpm/share/standards.lock /sdk-metadata/opt/prismpm/share/standards.lock \
+    && test "$(stat -c %s /sdk-metadata/opt/prismpm/share/inventory.json)" -le 8388608 \
+    && test "$(stat -c %s /sdk-metadata/opt/prismpm/share/standards.lock)" -le 16777216 \
+    && touch -d @0 /sdk-metadata/opt /sdk-metadata/opt/prismpm /sdk-metadata/opt/prismpm/share \
+      /sdk-metadata/opt/prismpm/share/inventory.json /sdk-metadata/opt/prismpm/share/standards.lock
+
+FROM scratch AS sdk-build
+COPY --from=sdk_build_tree / /
+COPY --link --from=sdk_build_metadata /sdk-metadata/ /
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    CARGO_HOME=/home/vscode/.cargo \
+    RUSTUP_HOME=/usr/local/rustup \
+    ELAN_HOME=/usr/local/elan \
+    ELAN_TOOLCHAIN=leanprover/lean4:v4.32.1 \
+    PRISMPM_SDK_INVENTORY=/opt/prismpm/share/inventory.json \
+    PRISMPM_OCI_PACKAGE=sdk-build \
+    PATH=/usr/local/elan/bin:/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin
+WORKDIR /workspace
+ENTRYPOINT ["/usr/local/bin/prismpm-devcontainer-init"]
+CMD []
+LABEL org.prismpm.sdk.metadata="prismpm/sdk-metadata/1" \
+      org.opencontainers.image.title="PrismPM build-only SDK" \
+      org.opencontainers.image.description="prismpm check, build and verify without release-acceptance oracles, extra browsers or deploy CLIs"

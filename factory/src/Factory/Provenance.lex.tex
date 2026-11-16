@@ -1,0 +1,81 @@
+\begin{lexlean}{Factory.Provenance}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\title{Boolean}
+\begin{semanticmodule}
+structure{
+  name: Substrate,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: contentAddressed, type: Bool},
+    {name: mutableNames, type: Bool},
+    {name: attachesEvidence, type: Bool}
+  ]
+}
+
+definition{
+  name: suffices,
+  parameters: [substrate : Substrate],
+  result: Bool,
+  body: ((project substrate contentAddressed) && ((project substrate mutableNames) && (project substrate attachesEvidence)))
+}
+
+definition{
+  name: ociArtifacts,
+  parameters: [],
+  result: Substrate,
+  body: (record Substrate {name := "OCI artifacts: digest, tags, referrers", contentAddressed := true, mutableNames := true, attachesEvidence := true})
+}
+
+definition{
+  name: ipfs,
+  parameters: [],
+  result: Substrate,
+  body: (record Substrate {name := "IPFS: CID, IPNS, no native evidence link", contentAddressed := true, mutableNames := true, attachesEvidence := false})
+}
+
+theorem{
+  name: ociSufficesAndIpfsNeedsAConvention,
+  parameters: [],
+  statement: (((suffices (ociArtifacts)) && (not (suffices (ipfs)))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+structure{
+  name: Delta,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: model, type: String}, {name: before, type: String}, {name: after, type: String}]
+}
+
+structure{
+  name: Transition,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: previousRoot, type: String},
+    {name: changes, type: (List Delta)},
+    {name: routing, type: String},
+    {name: receipts, type: (List String)},
+    {name: bumps, type: (List Nat)}
+  ]
+}
+
+structure{
+  name: Realization,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: concept, type: String}, {name: realizedBy, type: String}]
+}
+
+definition{
+  name: realizations,
+  parameters: [],
+  result: (List Realization),
+  body: (cons (record Realization {concept := "identity", realizedBy := "kappa as a sha2-256 multihash"}) (cons (record Realization {concept := "computational identity of a bundle", realizedBy := "LexLean compiler-input ID, SPEC 22.10"}) (cons (record Realization {concept := "bundle", realizedBy := "holo"}) (cons (record Realization {concept := "receipt", realizedBy := "OCI referrer"}) (cons (record Realization {concept := "transition record", realizedBy := "in-toto predicate"}) (cons (record Realization {concept := "release line", realizedBy := "OCI tag"}) (cons (record Realization {concept := "independent check at publication", realizedBy := "lean4-prod differential, validation evidence only"}) (nil Realization))))))))
+}
+\end{semanticmodule}
+\end{lexlean}

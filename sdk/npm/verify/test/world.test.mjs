@@ -134,9 +134,9 @@ test('a contract this package has no world for: documents fail, conformance is n
 });
 
 test('a world the registry lacks prints null members and pins nothing', () => {
-  const world = worldOf('hologram:guest/core-wasm@2', referenceGuest());
-  assert.deepEqual(world, { contract: 'hologram:guest/core-wasm@2', package: null, name: null, file: null, digest: null, imports: null, exports: null, conforms: null, pure: null, effects: null });
-  assert.deepEqual(checkWorld('hologram:guest/core-wasm@2', referenceGuest()), { known: false, conforms: null, problems: [] });
+  const world = worldOf('hologram:guest/core-wasm@3', referenceGuest());
+  assert.deepEqual(world, { contract: 'hologram:guest/core-wasm@3', package: null, name: null, file: null, digest: null, imports: null, exports: null, conforms: null, pure: null, effects: null });
+  assert.deepEqual(checkWorld('hologram:guest/core-wasm@3', referenceGuest()), { known: false, conforms: null, problems: [] });
 });
 
 test('worldOf is the one function that prints a world', () => {

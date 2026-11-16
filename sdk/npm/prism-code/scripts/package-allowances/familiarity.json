@@ -1,0 +1,4 @@
+{
+  "kib": 4,
+  "reason": "Docker's spellings (#347): top-level ps and logs, the singular container, image and volume groups, and run, inspect and containers.run taking a stored image name (about 2 KiB)."
+}

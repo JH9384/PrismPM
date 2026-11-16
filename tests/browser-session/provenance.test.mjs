@@ -173,11 +173,15 @@ test('session pins validate the same once-captured bytes at every fresh barrier'
     fs.readFileSync=()=>{throw Error('raw pin reads cannot validate different bytes from the stable descriptor');};
     syncBuiltinESMExports();
     const inputs=frozenInputs(), paths=Object.keys(inputs).map(path=>join(repository,path));
-    const verifyReads=()=>{
+    // Construction also lists the registered compiler closure (1535aa7d), which
+    // opens both vendor manifests once more to read member names; every listed
+    // member is itself captured below. Each barrier still opens each path once.
+    const enumerated=new Set(['vendor/lexlean/MANIFEST.sha256','vendor/lean4-prod/rust/MANIFEST.sha256'].map(path=>join(repository,path)));
+    const verifyReads=(construction=false)=>{
       assert.deepEqual([...opened.keys()].sort(),[...paths].sort(),'complete original input inventory actually read');
-      assert.ok([...opened.values()].every(count=>count===1),'one stable descriptor capture per path per barrier');
+      assert.ok([...opened].every(([path,count])=>count===(construction&&enumerated.has(path)?2:1)),'one stable descriptor capture per path per barrier');
     };
-    verifyReads();
+    verifyReads(true);
     for(let barrier=0;barrier<2;barrier++) {
       opened=new Map();assertFrozenInputs(inputs);verifyReads();
     }

@@ -110,6 +110,12 @@ export interface HoloviewLimits {
 /** The Core-Wasm guest contract. See `worlds/core-wasm.wit`. */
 export type CoreWasmContract = 'hologram:guest/core-wasm@1';
 
+/** The Core-Wasm session contract (issue #629). See `worlds/core-wasm-2.wit`. */
+export type SessionContract = 'hologram:guest/core-wasm@2';
+
+/** Every guest contract that has a world in `WORLDS`. */
+export type GuestContract = CoreWasmContract | SessionContract;
+
 /** The guest's exports as a host sees them after instantiation. */
 export interface CoreWasmExports {
   memory: WebAssembly.Memory;

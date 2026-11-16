@@ -49,6 +49,13 @@ const LIES = {
   'hide-damage-on-load': (op, answer) => {
     if (op === 'load' && answer.ok) answer.result.verified = true;
   },
+  /** Opens an altered holo without being asked, reporting it unverified (#583). */
+  'open-altered': (op, answer) => {
+    if (op !== 'load' || answer.ok || answer.error?.code !== 'digest_mismatch') return;
+    answer.ok = true;
+    answer.result = { verified: false };
+    delete answer.error;
+  },
   /** Reports only the BLAKE3 of the archive. */
   'one-digest-only': (op, answer) => {
     if (op === 'inspect' && answer.ok) delete answer.result.digest.sha256;

@@ -1,0 +1,31 @@
+{
+  "schema": "prism/history/2",
+  "application": "Counter",
+  "sessions": [
+    {
+      "steps": [
+        {
+          "request": "6",
+          "responses": [
+            "00000001",
+            "61"
+          ]
+        },
+        {
+          "request": "6263",
+          "responses": [
+            "00000002",
+            "616263"
+          ]
+        },
+        {
+          "request": "64",
+          "responses": [
+            "00000003",
+            "61626364"
+          ]
+        }
+      ]
+    }
+  ]
+}

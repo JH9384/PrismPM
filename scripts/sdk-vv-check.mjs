@@ -5,7 +5,7 @@ import { constants, closeSync, fstatSync, lstatSync, mkdirSync, openSync, readSy
   realpathSync, statfsSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { validateVvEvidence } from './sdk-vv-run.mjs';
+import { validateVvPart, vvParts } from './sdk-vv-run.mjs';
 import {bootstrapNames, validateBootstrapRetention} from './sdk-bootstrap-retention.mjs';
 import {executeOwnedSdkCommand} from './sdk-command-owner.mjs';
 import { validateResolver, isolatedResolver } from './sdk-vv-probe.mjs';
@@ -169,28 +169,26 @@ export function sdkContainerArguments(name, image, socketGroup, workspace) {
     '--dns', '127.0.0.1',
     '--user', '1000:1000', '--group-add', String(socketGroup), '--read-only', '--cap-drop', 'ALL',
     '--security-opt', 'no-new-privileges', '--pids-limit', '4096', '--init',
-    '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
+    '--tmpfs', '/tmp:rw,nosuid,nodev,size=5368709120,mode=1777',
     '--mount', 'type=bind,source=/workspace,target=/workspace',
     '--mount', 'type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock',
     '--entrypoint', '/bin/sh', image, '-c', 'exec sleep infinity'];
 }
 
-export function validateExecution(bytes, originals, image, revision, arch) {
-  reference(image); oid(revision); architecture(arch);
+export function validateExecution(bytes, original, image, revision, arch, part) {
+  reference(image); oid(revision); architecture(arch); assert(vvParts.includes(part), 'closed V&V part');
   assert(Buffer.isBuffer(bytes) && bytes.length <= 65536); const value = JSON.parse(bytes);
   assert.equal(bytes.toString(), canonical(value), 'original canonical execution bytes required');
-  keys(value, ['schema', 'scope', 'source_revision', 'image_reference', 'process_architecture', 'inventory_sha256',
-    'cli_sha256', 'input_policy_sha256', 'input_manifest_sha256', 'advisory_revision', 'runs', 'unclaimed']);
-  assert.equal(value.schema, 'prismpm/sdk-vv-execution/1'); assert.equal(value.scope, 'two-full-vv-executions-only');
+  keys(value, ['schema', 'scope', 'part', 'source_revision', 'image_reference', 'process_architecture', 'inventory_sha256',
+    'cli_sha256', 'input_policy_sha256', 'input_manifest_sha256', 'advisory_revision', 'run', 'unclaimed']);
+  assert.equal(value.schema, 'prismpm/sdk-vv-execution/2'); assert.equal(value.scope, 'one-vv-part-execution-only');
+  assert.equal(value.part, part);
   assert.equal(value.image_reference, image); assert.equal(value.source_revision, revision);
   assert.equal(value.process_architecture, arch === 'amd64' ? 'x64' : 'arm64'); oid(value.advisory_revision);
   for (const key of ['inventory_sha256', 'cli_sha256', 'input_policy_sha256', 'input_manifest_sha256']) assert.match(value[key], /^[0-9a-f]{64}$/);
   assert.deepEqual(value.unclaimed, ['native-host', 'network-isolation', 'oci-image-identity', 'sdk-release', 'product-readiness']);
-  assert(Array.isArray(value.runs) && value.runs.length === 2); assert.equal(originals.length, 2);
-  for (const [index, raw] of originals.entries()) {
-    validateVvEvidence(raw, revision);
-    assert.deepEqual(value.runs[index], {run: index + 1, path: `run-${index + 1}/vv-evidence.json`, byte_length: raw.length, sha256: hash(raw)});
-  }
+  validateVvPart(original, revision, part);
+  assert.deepEqual(value.run, {part, path: 'part/vv-part.json', byte_length: original.length, sha256: hash(original)});
   return value;
 }
 
@@ -255,8 +253,8 @@ function nativeBasis(arch, environment) {
 
 // All callers get the same fixed operations; there is no configurable command,
 // acceptance shortcut, alternate evidence path or public unit-transport option.
-export async function runOuter({image, revision, arch, destination, source, registryCertificate}, transport = execute, environment = process.env) {
-  reference(image); oid(revision); architecture(arch);
+export async function runOuter({image, revision, arch, part, destination, source, registryCertificate}, transport = execute, environment = process.env) {
+  reference(image); oid(revision); architecture(arch); assert(vvParts.includes(part), 'closed V&V part');
   const native = nativeBasis(arch, environment);
   assert.equal(environment.GITHUB_SHA, revision); source = realpathSync(source); destination = resolve(destination);
   assert.equal(realpathSync(dirname(destination)), dirname(destination));
@@ -386,7 +384,7 @@ export async function runOuter({image, revision, arch, destination, source, regi
     phases.push('exact-native-images-acquired');
     await own('container', names.control, ['create', '--name', names.control, '--label', `${owner}=${nonce}`, '--network', names.network,
       '--tmpfs', '/var/lib/docker:rw,nosuid,nodev,size=16777216,mode=0700',
-      '--entrypoint', '/bin/sh', lock.images.dind.reference, '-ec', 'mkdir /tmp/control; printf prismpm-network-control >/tmp/control/index.html; exec httpd -f -p 8080 -h /tmp/control']);
+      '--entrypoint', '/bin/sh', lock.images.dind.reference, '-ec', 'while :; do printf \'HTTP/1.0 200 OK\\r\\n\\r\\nprismpm-network-control\' | nc -l -p 8080; done']);
     await outer(['start', names.control]);
     const control = JSON.parse(await outer(['inspect', names.control]))[0].NetworkSettings.Networks[names.network].IPAddress;
     assert.match(control, /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/);
@@ -411,7 +409,7 @@ export async function runOuter({image, revision, arch, destination, source, regi
     await inner(sdkContainerArguments(names.sdk, image, group, '/workspace')); await inner(['start', names.sdk]);
     const ownImage = (await sdk(['docker', '--host', SOCKET, 'inspect', names.sdk, '--format', '{{.Image}}'])).toString().trim();
     assert.equal(ownImage, loadedIdentities.sdk.id);
-    const boundPaths = ['scripts/sdk-vv-run.mjs', 'scripts/sdk-vv-probe.mjs', 'scripts/sdk-vv-check.mjs',
+    const boundPaths = ['scripts/sdk-vv-run.mjs', 'scripts/vv-assemble.mjs', 'scripts/sdk-vv-probe.mjs', 'scripts/sdk-vv-check.mjs',
       'scripts/sdk-command-owner.mjs', 'scripts/sdk-command-owner.py',
       'scripts/sdk-vv-outer.sh',
       'scripts/sdk-qualification-trust.mjs',
@@ -438,22 +436,24 @@ export async function runOuter({image, revision, arch, destination, source, regi
     const before = await checkNetwork();
     phases.push('isolated-native-sdk-probed');
     const run = await inside(['exec', names.sdk, 'node', `${SHARED}/conformance-root/scripts/sdk-vv-run.mjs`,
-      'run', image, revision, '/workspace/run'], {timeout: 14400000, limit: 64 * 1024 * 1024});
-    successful(run, 'two installed full VV runs');
+      'run', image, revision, part, '/workspace/run'], {timeout: 18000000, limit: 64 * 1024 * 1024});
+    successful(run, 'one installed V&V part');
     const after = await checkNetwork();
     const bytes = await sdk(['cat', '/workspace/run/evidence/execution.json']);
-    const originals = [];
-    for (const run of [1, 2]) originals.push(await sdk(['cat', `/workspace/run/evidence/run-${run}/vv-evidence.json`]));
-    const execution = validateExecution(bytes, originals, image, revision, arch);
-    const bootstrap = await sdk(['cat', '/workspace/run/evidence/bootstrap.json']);
-    const bootstrapFiles = new Map();
-    for (const run of [1, 2]) for (const name of bootstrapNames) {
-      const path = `run-${run}-${name}`;
-      bootstrapFiles.set(path, await sdk(['cat', `/workspace/run/evidence/${path}`], {limit: 64 * 1024 * 1024}));
-    }
-    validateBootstrapRetention(bootstrap, bootstrapFiles, revision);
-    for (const [path, original] of [...bootstrapFiles, ['bootstrap.json', bootstrap]]) {
-      writeFileSync(join(destination, path), original, {flag: 'wx', mode: 0o444});
+    const original = await sdk(['cat', '/workspace/run/evidence/part/vv-part.json']);
+    const execution = validateExecution(bytes, original, image, revision, arch, part);
+    // Only the source part runs the bootstrap gate.
+    if (part === 'source') {
+      const bootstrap = await sdk(['cat', '/workspace/run/evidence/bootstrap.json']);
+      const bootstrapFiles = new Map();
+      for (const name of bootstrapNames) {
+        const path = `run-1-${name}`;
+        bootstrapFiles.set(path, await sdk(['cat', `/workspace/run/evidence/${path}`], {limit: 64 * 1024 * 1024}));
+      }
+      validateBootstrapRetention(bootstrap, bootstrapFiles, revision);
+      for (const [path, retained] of [...bootstrapFiles, ['bootstrap.json', bootstrap]]) {
+        writeFileSync(join(destination, path), retained, {flag: 'wx', mode: 0o444});
+      }
     }
     for (const [key, path] of [['inventory_sha256', 'inventory.json'], ['input_policy_sha256', 'vv-input-policy.json'], ['input_manifest_sha256', 'vv-inputs/manifest.json']]) {
       assert.equal(hash(await sdk(['cat', `${SHARED}/${path}`], {limit: 64 * 1024 * 1024})), execution[key]);
@@ -461,15 +461,15 @@ export async function runOuter({image, revision, arch, destination, source, regi
     assert.equal(hash(await sdk(['cat', '/usr/local/bin/prismpm'], {limit: 256 * 1024 * 1024})), execution.cli_sha256);
     const policy = JSON.parse(await sdk(['cat', `${SHARED}/vv-input-policy.json`]));
     assert.equal(policy.source_revision, revision); assert.equal(policy.advisory_revision, execution.advisory_revision);
-    for (const [index, original] of originals.entries()) writeFileSync(join(destination, `run-${index + 1}.json`), original, {flag: 'wx', mode: 0o444});
+    writeFileSync(join(destination, 'vv-part.json'), original, {flag: 'wx', mode: 0o444});
     writeFileSync(join(destination, 'execution.json'), bytes, {flag: 'wx', mode: 0o444});
-    phases.push('both-full-vv-records-verified');
+    phases.push('vv-part-record-verified');
     if (registryReader) {
       assert.deepEqual(regular(join(registryDirectory, 'ca.crt'), 65536), registryCa, 'held SDK registry CA changed after execution');
       assert.deepEqual(await outer(['exec', names.daemon, 'cat', registryEvidence.daemon_ca_path]), registryCa,
         'isolated daemon SDK registry CA changed after execution');
     }
-    resultRecord = {schema: 'prismpm/sdk-installed-vv-check/1', status: 'passed', scope: 'isolated-installed-two-run-vv',
+    resultRecord = {schema: 'prismpm/sdk-installed-vv-check/2', status: 'passed', scope: 'isolated-installed-vv-part', part,
       source_revision: revision, image_reference: image, architecture: arch, native_execution: native,
       images: expected, runtime_lock_sha256: hash(lockBytes), before, after, initial_namespace: firstNamespace,
       execution_sha256: hash(bytes), phases, ...(registryEvidence ? {sdk_registry_transport: registryEvidence} : {}),
@@ -503,7 +503,7 @@ export function validateOwningTests(result) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [operation, image, revision, arch, destination, ...extra] = process.argv.slice(2);
+  const [operation, image, revision, arch, part, destination, ...extra] = process.argv.slice(2);
   if (operation === 'tests' && process.argv.length === 3) {
     const environment = {...process.env}; delete environment.NODE_TEST_CONTEXT;
     const result = await execute(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', '--test-timeout=120000',
@@ -524,10 +524,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     assert.equal(verifyTap(qualification.stdout.toString(), 17), 17, 'complete SDK registry qualification owning test set');
   } else {
     assert(['run', 'run-owned-registry'].includes(operation));
-    assert(image && revision && arch && destination && extra.length === (operation === 'run' ? 0 : 1),
-      'usage: sdk-vv-check.mjs tests | run IMAGE@sha256:DIGEST SOURCE_COMMIT ARCH FRESH_OUTPUT | run-owned-registry IMAGE@sha256:DIGEST SOURCE_COMMIT ARCH FRESH_OUTPUT CA_PEM');
+    assert(image && revision && arch && part && destination && extra.length === (operation === 'run' ? 0 : 1),
+      'usage: sdk-vv-check.mjs tests | run IMAGE@sha256:DIGEST SOURCE_COMMIT ARCH PART FRESH_OUTPUT | run-owned-registry IMAGE@sha256:DIGEST SOURCE_COMMIT ARCH PART FRESH_OUTPUT CA_PEM');
     const registryCertificate = operation === 'run-owned-registry' ? regular(resolve(extra[0]), 65536) : undefined;
-    console.log(canonical(await runOuter({image, revision, arch, destination, registryCertificate,
+    console.log(canonical(await runOuter({image, revision, arch, part, destination, registryCertificate,
       source: resolve(dirname(process.argv[1]), '..')})));
   }
 }

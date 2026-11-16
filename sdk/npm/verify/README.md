@@ -114,9 +114,9 @@ Serve `Calculator.holo` next to this page and open it.
 
 ```text
 fail P0
-provenance.statement: The holo carries no provenance statement; format revision 2026-10-23 has no attestation bundle (issues #267 and #268).
-proof.statement: The holo carries no proof statement (issue #266).
-replay.statement: The holo carries no replay statement (issue #284).
+provenance.statement: The holo carries no provenance statement.
+proof.statement: The holo carries no proof statement.
+replay.statement: The holo carries no replay statement.
 policy.level: The level is P0; the policy requires P2 or above.
 ```
 
@@ -189,8 +189,8 @@ Not checked: the DSSE signature, the signing identity, revocation and checkpoint
 | `input` | `bytes` is not a typed array, a `DataView` or an `ArrayBuffer`. |
 | `policy.invalid` | The policy has an unknown member, an unknown level, a digest or `policy.world` digest that is not 64 lowercase hex characters, a `policy.world` with an unknown member, or a `policy.capabilities` with an unknown member or a list that is not strings. |
 | `trustedroot.invalid` | `verifyTransparency` only: the trusted root has the wrong media type, a missing validity period or a certificate that does not parse. |
-| `archive.magic`, `archive.version`, `archive.flags`, `archive.table` | The file is not a readable holo: wrong magic, another physical version, or a section table that does not end at the footer, as in a truncated file. |
-| `format.revision` | `verify` only: the holo is intact, but its sections or extensions match no format revision this package knows. Upgrade the package. |
+| `archive.magic`, `archive.version`, `archive.flags`, `archive.table` | The file is not a readable holo: wrong magic, another physical version, a section table that does not end at the footer, as in a truncated file, or a table the Wire codec refuses (SPEC section 3): rows other than the eight Holo/1 rows (nine with the attestation row last), a manifest that is not the Wire template, content blobs out of label order, or a manifest reference that names no blob. |
+| `format.revision` | `verify` only: the Wire codec admits the table, but its sections or extensions match no format revision this package knows, as with the attestation row no revision packs yet. Upgrade the package. |
 
 A failed check is a reason in a verdict, not an error.
 

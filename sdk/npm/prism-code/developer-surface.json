@@ -1,0 +1,969 @@
+{
+  "schema": "prism-code/developer-surface/1",
+  "names": [
+    {
+      "kind": "verb",
+      "place": "prism-code attest",
+      "name": "attest"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code axioms",
+      "name": "axioms"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code build",
+      "name": "build"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code check",
+      "name": "check"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code conformance",
+      "name": "conformance"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code dev",
+      "name": "dev"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code export",
+      "name": "export"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code export-browser",
+      "name": "export-browser"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code generate",
+      "name": "generate"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code images",
+      "name": "images"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code init",
+      "name": "init"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code inspect",
+      "name": "inspect"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code lock",
+      "name": "lock"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code login",
+      "name": "login"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code logout",
+      "name": "logout"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code logs",
+      "name": "logs"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code manifest",
+      "name": "manifest"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code mcp",
+      "name": "mcp"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code open",
+      "name": "open"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code providers",
+      "name": "providers"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code ps",
+      "name": "ps"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code pull",
+      "name": "pull"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code push",
+      "name": "push"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code record",
+      "name": "record"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code replay",
+      "name": "replay"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code rm",
+      "name": "rm"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code rmi",
+      "name": "rmi"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code run",
+      "name": "run"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code setup",
+      "name": "setup"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code tag",
+      "name": "tag"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code template",
+      "name": "template"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code vectors",
+      "name": "vectors"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code verify",
+      "name": "verify"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code verify-attestation",
+      "name": "verify-attestation"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code auth login",
+      "name": "login"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code auth logout",
+      "name": "logout"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code containers create",
+      "name": "create"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code containers inspect",
+      "name": "inspect"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code containers logs",
+      "name": "logs"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code containers ls",
+      "name": "ls"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code containers ps",
+      "name": "ps"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code containers rm",
+      "name": "rm"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code containers run",
+      "name": "run"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code containers start",
+      "name": "start"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code images build",
+      "name": "build"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code images inspect",
+      "name": "inspect"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code images ls",
+      "name": "ls"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code images prune",
+      "name": "prune"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code images pull",
+      "name": "pull"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code images push",
+      "name": "push"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code images rm",
+      "name": "rm"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code images tag",
+      "name": "tag"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code images verify",
+      "name": "verify"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code system df",
+      "name": "df"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code system events",
+      "name": "events"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code system info",
+      "name": "info"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code system prune",
+      "name": "prune"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code system version",
+      "name": "version"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code volumes create",
+      "name": "create"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code volumes inspect",
+      "name": "inspect"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code volumes ls",
+      "name": "ls"
+    },
+    {
+      "kind": "verb",
+      "place": "prism-code volumes rm",
+      "name": "rm"
+    },
+    {
+      "kind": "flag",
+      "place": "--agent",
+      "name": "agent"
+    },
+    {
+      "kind": "flag",
+      "place": "--agents-only",
+      "name": "agents-only"
+    },
+    {
+      "kind": "flag",
+      "place": "--all",
+      "name": "all"
+    },
+    {
+      "kind": "flag",
+      "place": "--allow-dirty",
+      "name": "allow-dirty"
+    },
+    {
+      "kind": "flag",
+      "place": "--allow-unverified",
+      "name": "allow-unverified"
+    },
+    {
+      "kind": "flag",
+      "place": "--build",
+      "name": "build"
+    },
+    {
+      "kind": "flag",
+      "place": "--capabilities",
+      "name": "capabilities"
+    },
+    {
+      "kind": "flag",
+      "place": "--capability-set",
+      "name": "capability-set"
+    },
+    {
+      "kind": "flag",
+      "place": "--certificate-identity",
+      "name": "certificate-identity"
+    },
+    {
+      "kind": "flag",
+      "place": "--certificate-identity-regexp",
+      "name": "certificate-identity-regexp"
+    },
+    {
+      "kind": "flag",
+      "place": "--certificate-oidc-issuer",
+      "name": "certificate-oidc-issuer"
+    },
+    {
+      "kind": "flag",
+      "place": "--check",
+      "name": "check"
+    },
+    {
+      "kind": "flag",
+      "place": "--dangling",
+      "name": "dangling"
+    },
+    {
+      "kind": "flag",
+      "place": "--dry-run",
+      "name": "dry-run"
+    },
+    {
+      "kind": "flag",
+      "place": "--entries",
+      "name": "entries"
+    },
+    {
+      "kind": "flag",
+      "place": "--filter",
+      "name": "filter"
+    },
+    {
+      "kind": "flag",
+      "place": "--force",
+      "name": "force"
+    },
+    {
+      "kind": "flag",
+      "place": "--format",
+      "name": "format"
+    },
+    {
+      "kind": "flag",
+      "place": "--help",
+      "name": "help"
+    },
+    {
+      "kind": "flag",
+      "place": "--host",
+      "name": "host"
+    },
+    {
+      "kind": "flag",
+      "place": "--hosted",
+      "name": "hosted"
+    },
+    {
+      "kind": "flag",
+      "place": "--image",
+      "name": "image"
+    },
+    {
+      "kind": "flag",
+      "place": "--input",
+      "name": "input"
+    },
+    {
+      "kind": "flag",
+      "place": "--json",
+      "name": "json"
+    },
+    {
+      "kind": "flag",
+      "place": "--key",
+      "name": "key"
+    },
+    {
+      "kind": "flag",
+      "place": "--keyless",
+      "name": "keyless"
+    },
+    {
+      "kind": "flag",
+      "place": "--lang",
+      "name": "lang"
+    },
+    {
+      "kind": "flag",
+      "place": "--lean",
+      "name": "lean"
+    },
+    {
+      "kind": "flag",
+      "place": "--local",
+      "name": "local"
+    },
+    {
+      "kind": "flag",
+      "place": "--machine-only",
+      "name": "machine-only"
+    },
+    {
+      "kind": "flag",
+      "place": "--model",
+      "name": "model"
+    },
+    {
+      "kind": "flag",
+      "place": "--name",
+      "name": "name"
+    },
+    {
+      "kind": "flag",
+      "place": "--no-attestations",
+      "name": "no-attestations"
+    },
+    {
+      "kind": "flag",
+      "place": "--no-open",
+      "name": "no-open"
+    },
+    {
+      "kind": "flag",
+      "place": "--no-pull",
+      "name": "no-pull"
+    },
+    {
+      "kind": "flag",
+      "place": "--out",
+      "name": "out"
+    },
+    {
+      "kind": "flag",
+      "place": "--output",
+      "name": "output"
+    },
+    {
+      "kind": "flag",
+      "place": "--password-stdin",
+      "name": "password-stdin"
+    },
+    {
+      "kind": "flag",
+      "place": "--plain-http",
+      "name": "plain-http"
+    },
+    {
+      "kind": "flag",
+      "place": "--policy",
+      "name": "policy"
+    },
+    {
+      "kind": "flag",
+      "place": "--port",
+      "name": "port"
+    },
+    {
+      "kind": "flag",
+      "place": "--predicate",
+      "name": "predicate"
+    },
+    {
+      "kind": "flag",
+      "place": "--project",
+      "name": "project"
+    },
+    {
+      "kind": "flag",
+      "place": "--pull",
+      "name": "pull"
+    },
+    {
+      "kind": "flag",
+      "place": "--record",
+      "name": "record"
+    },
+    {
+      "kind": "flag",
+      "place": "--ref",
+      "name": "ref"
+    },
+    {
+      "kind": "flag",
+      "place": "--remote",
+      "name": "remote"
+    },
+    {
+      "kind": "flag",
+      "place": "--replay",
+      "name": "replay"
+    },
+    {
+      "kind": "flag",
+      "place": "--repo",
+      "name": "repo"
+    },
+    {
+      "kind": "flag",
+      "place": "--rm",
+      "name": "rm"
+    },
+    {
+      "kind": "flag",
+      "place": "--sdk-image",
+      "name": "sdk-image"
+    },
+    {
+      "kind": "flag",
+      "place": "--signing-config",
+      "name": "signing-config"
+    },
+    {
+      "kind": "flag",
+      "place": "--since",
+      "name": "since"
+    },
+    {
+      "kind": "flag",
+      "place": "--spec",
+      "name": "spec"
+    },
+    {
+      "kind": "flag",
+      "place": "--statement",
+      "name": "statement"
+    },
+    {
+      "kind": "flag",
+      "place": "--store",
+      "name": "store"
+    },
+    {
+      "kind": "flag",
+      "place": "--subject",
+      "name": "subject"
+    },
+    {
+      "kind": "flag",
+      "place": "--tar",
+      "name": "tar"
+    },
+    {
+      "kind": "flag",
+      "place": "--target",
+      "name": "target"
+    },
+    {
+      "kind": "flag",
+      "place": "--template",
+      "name": "template"
+    },
+    {
+      "kind": "flag",
+      "place": "--timeout",
+      "name": "timeout"
+    },
+    {
+      "kind": "flag",
+      "place": "--timestamps",
+      "name": "timestamps"
+    },
+    {
+      "kind": "flag",
+      "place": "--trusted-root",
+      "name": "trusted-root"
+    },
+    {
+      "kind": "flag",
+      "place": "--type",
+      "name": "type"
+    },
+    {
+      "kind": "flag",
+      "place": "--unsigned",
+      "name": "unsigned"
+    },
+    {
+      "kind": "flag",
+      "place": "--until",
+      "name": "until"
+    },
+    {
+      "kind": "flag",
+      "place": "--update",
+      "name": "update"
+    },
+    {
+      "kind": "flag",
+      "place": "--username",
+      "name": "username"
+    },
+    {
+      "kind": "flag",
+      "place": "--verbose",
+      "name": "verbose"
+    },
+    {
+      "kind": "flag",
+      "place": "--version",
+      "name": "version"
+    },
+    {
+      "kind": "flag",
+      "place": "--volume",
+      "name": "volume"
+    },
+    {
+      "kind": "flag",
+      "place": "--write",
+      "name": "write"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism-code container",
+      "name": "container"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism-code image",
+      "name": "image"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism-code volume",
+      "name": "volume"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism.auth",
+      "name": "auth"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism.auth.identities",
+      "name": "identities"
+    },
+    {
+      "kind": "method",
+      "place": "prism.auth.identities.fromKey",
+      "name": "fromKey"
+    },
+    {
+      "kind": "method",
+      "place": "prism.auth.identities.keyless",
+      "name": "keyless"
+    },
+    {
+      "kind": "method",
+      "place": "prism.auth.inspect",
+      "name": "inspect"
+    },
+    {
+      "kind": "method",
+      "place": "prism.auth.login",
+      "name": "login"
+    },
+    {
+      "kind": "method",
+      "place": "prism.auth.logout",
+      "name": "logout"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism.auth.stores",
+      "name": "stores"
+    },
+    {
+      "kind": "method",
+      "place": "prism.auth.stores.get",
+      "name": "get"
+    },
+    {
+      "kind": "method",
+      "place": "prism.auth.stores.list",
+      "name": "list"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism.containers",
+      "name": "containers"
+    },
+    {
+      "kind": "method",
+      "place": "prism.containers.create",
+      "name": "create"
+    },
+    {
+      "kind": "method",
+      "place": "prism.containers.dispatch",
+      "name": "dispatch"
+    },
+    {
+      "kind": "method",
+      "place": "prism.containers.get",
+      "name": "get"
+    },
+    {
+      "kind": "method",
+      "place": "prism.containers.inspect",
+      "name": "inspect"
+    },
+    {
+      "kind": "method",
+      "place": "prism.containers.list",
+      "name": "list"
+    },
+    {
+      "kind": "method",
+      "place": "prism.containers.logs",
+      "name": "logs"
+    },
+    {
+      "kind": "method",
+      "place": "prism.containers.prune",
+      "name": "prune"
+    },
+    {
+      "kind": "method",
+      "place": "prism.containers.remove",
+      "name": "remove"
+    },
+    {
+      "kind": "method",
+      "place": "prism.containers.run",
+      "name": "run"
+    },
+    {
+      "kind": "method",
+      "place": "prism.containers.start",
+      "name": "start"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism.errors",
+      "name": "errors"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism.images",
+      "name": "images"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.build",
+      "name": "build"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.get",
+      "name": "get"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.inspect",
+      "name": "inspect"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.list",
+      "name": "list"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.prune",
+      "name": "prune"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.pull",
+      "name": "pull"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.push",
+      "name": "push"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.remove",
+      "name": "remove"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.tag",
+      "name": "tag"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.usage",
+      "name": "usage"
+    },
+    {
+      "kind": "method",
+      "place": "prism.images.verify",
+      "name": "verify"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism.networks",
+      "name": "networks"
+    },
+    {
+      "kind": "method",
+      "place": "prism.networks.connect",
+      "name": "connect"
+    },
+    {
+      "kind": "method",
+      "place": "prism.networks.create",
+      "name": "create"
+    },
+    {
+      "kind": "method",
+      "place": "prism.networks.disconnect",
+      "name": "disconnect"
+    },
+    {
+      "kind": "method",
+      "place": "prism.networks.inspect",
+      "name": "inspect"
+    },
+    {
+      "kind": "method",
+      "place": "prism.networks.list",
+      "name": "list"
+    },
+    {
+      "kind": "method",
+      "place": "prism.networks.remove",
+      "name": "remove"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism.system",
+      "name": "system"
+    },
+    {
+      "kind": "method",
+      "place": "prism.system.df",
+      "name": "df"
+    },
+    {
+      "kind": "method",
+      "place": "prism.system.events",
+      "name": "events"
+    },
+    {
+      "kind": "method",
+      "place": "prism.system.info",
+      "name": "info"
+    },
+    {
+      "kind": "method",
+      "place": "prism.system.prune",
+      "name": "prune"
+    },
+    {
+      "kind": "method",
+      "place": "prism.system.version",
+      "name": "version"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism.verify",
+      "name": "verify"
+    },
+    {
+      "kind": "namespace",
+      "place": "prism.volumes",
+      "name": "volumes"
+    },
+    {
+      "kind": "method",
+      "place": "prism.volumes.create",
+      "name": "create"
+    },
+    {
+      "kind": "method",
+      "place": "prism.volumes.inspect",
+      "name": "inspect"
+    },
+    {
+      "kind": "method",
+      "place": "prism.volumes.list",
+      "name": "list"
+    },
+    {
+      "kind": "method",
+      "place": "prism.volumes.remove",
+      "name": "remove"
+    }
+  ],
+  "aliases": [
+    {
+      "kind": "verb",
+      "name": "history",
+      "target": "record",
+      "removal": "0.9.0"
+    },
+    {
+      "kind": "flag",
+      "name": "holo",
+      "target": "image",
+      "removal": "0.9.0"
+    }
+  ]
+}

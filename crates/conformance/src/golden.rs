@@ -345,7 +345,7 @@ fn validate(files: &[(String, Vec<u8>)]) -> Result<(Value, Value, Value), String
         "golden build closure differs",
     )?;
     let model_bytes = file(&files, "build/model.prism.json")?;
-    let model = prismpm::holo::canonical::decode_canonical(model_bytes)
+    let model = prismpm::holo::model_document::decode_canonical(model_bytes)
         .map_err(|error| error.to_string())?;
     ensure(
         golden["compiler_semantics_id"] == model.provenance.compiler_semantics_id

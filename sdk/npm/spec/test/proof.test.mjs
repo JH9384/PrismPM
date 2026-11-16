@@ -16,7 +16,6 @@ const build = readJson('fixtures/documents/build-manifest-v1/calculator.json');
 const fixture = readJson('fixtures/attestation/statement/calculator.json');
 const copy = (value) => JSON.parse(JSON.stringify(value));
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
-const unlabel = (label) => label.slice('blake3:'.length);
 
 const statementErrors = (statement) => validate(schema(ATTESTATION.STATEMENT_SCHEMA), statement);
 const predicateErrors = (predicate) => validate(schema(PROOF_SCHEMA), predicate);
@@ -28,7 +27,7 @@ function subjectAgrees(statement) {
   const [{ name, digest }] = statement.subject;
   const row = build.files.find((file) => file.path === name && file.kind === 'artifact');
   return (
-    digest.blake3 === unlabel(ref.resolved.guest.label) &&
+    Object.keys(digest).join() === 'sha256' &&
     digest.sha256 === sha256(ref.guest) &&
     row !== undefined &&
     row.sha256 === digest.sha256
@@ -58,8 +57,7 @@ test('the calculator statement agrees with the reference archive and its build m
   const { provenance } = ref;
   assert.equal(model.document.sha256, provenance.model_id);
   assert.equal(model.document.sha256, sha256(ref.resolved.model.content));
-  assert.equal(model.document.blake3, unlabel(provenance.model_content_kappa));
-  assert.equal(model.document.blake3, unlabel(ref.resolved.model.label));
+  assert.deepEqual(Object.keys(model.document), ['sha256'], 'the model document is named by its κ alone (ADR-017)');
   const ids = ref.modelDocument.provenance;
   assert.deepEqual(
     [model.sourceId, model.semanticId, model.snapshotId, model.compilerSemanticsId],
@@ -84,13 +82,13 @@ test('a tampered subject is well formed but fails the subject check; a malformed
 
   const relabeled = copy(fixture);
   relabeled.subject[0].digest.blake3 = ref.parsed.footer;
-  assert.equal(subjectAgrees(relabeled), false, 'the archive footer is not the guest blob');
+  assert.equal(subjectAgrees(relabeled), false, 'a second digest beside the κ is not the guest');
 
   const prefixed = copy(fixture);
   prefixed.subject[0].digest.sha256 = `sha256:${hex}`;
   assert.notDeepEqual(statementErrors(prefixed), []);
   const upper = copy(fixture);
-  upper.subject[0].digest.blake3 = upper.subject[0].digest.blake3.toUpperCase();
+  upper.subject[0].digest.sha256 = upper.subject[0].digest.sha256.toUpperCase();
   assert.notDeepEqual(statementErrors(upper), []);
 });
 
@@ -115,7 +113,7 @@ test('negative controls: the proof schema rejects what the proposal forbids', ()
   rejects({ ...copy(p), verifier: { ...p.verifier, id: 'lean4' } }, 'a bare verifier id');
   rejects({ ...copy(p), verifier: { ...p.verifier, sdkImage: 'ghcr.io/uor-foundation/prismpm:0.3.0' } }, 'an SDK image by tag');
   rejects({ ...copy(p), verifier: { ...p.verifier, lean: { ...p.verifier.lean, commit: 'main' } } }, 'a branch for a commit');
-  rejects({ ...copy(p), model: { ...p.model, document: { sha256: p.model.document.sha256 } } }, 'a model document without blake3');
+  rejects({ ...copy(p), model: { ...p.model, document: { blake3: '0'.repeat(64) } } }, 'a model document without its sha256');
   rejects({ ...copy(p), model: { ...p.model, modules: [] } }, 'no modules');
   rejects({ ...copy(p), timeVerified: '2026-10-23T00:00:00+02:00' }, 'a non-UTC time');
 

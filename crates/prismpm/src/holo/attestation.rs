@@ -1,8 +1,9 @@
 //! The attestation bundle section of a `.holo` (issue #267, design
 //! `docs/proposals/267-attestation-bundle.md`).
 //!
-//! The section is the last Extension row (kind 14) of the archive, named
-//! [`ATTESTATION_EXTENSION`]. Its payload is JSON Lines: one Sigstore bundle
+//! In a holo v5 the bundles are the archive's last object (role
+//! `attestations`, ADR-017). In a legacy v4 holo they are the last Extension
+//! row (kind 14), named [`ATTESTATION_EXTENSION`]. Its payload is JSON Lines: one Sigstore bundle
 //! v0.3 per line, each line ended by LF. The wire model owns the row, its name,
 //! its position and the line framing; this module only reads what a line says.
 //! It does not verify signatures. That is verifier policy (#272, #273).
@@ -38,9 +39,11 @@ pub struct AttestationSubject {
     pub name: String,
     /// Lowercase hex SHA-256 over the blob content.
     pub sha256: String,
-    /// Lowercase hex BLAKE3 over the same bytes, the blob label without `blake3:`.
-    pub blake3: String,
-    /// The label of the content blob whose BLAKE3 this subject names, if the archive holds it.
+    /// Lowercase hex BLAKE3 over the same bytes, carried only by subjects of a
+    /// legacy physical-v4 holo (ADR-015). A holo v5 subject is sha256 alone.
+    pub blake3: Option<String>,
+    /// The κ-label (or, in a v4 holo, the BLAKE3 label) of the content object
+    /// this subject names, if the archive holds it.
     pub blob: Option<String>,
     /// Whether the named blob's SHA-256 equals the subject's. `None` when the archive has no such blob.
     pub sha256_matches: Option<bool>,
@@ -173,11 +176,6 @@ fn subject_of(
         .get("digest")
         .and_then(Value::as_object)
         .ok_or_else(|| bundle_error(format!("{where_} has no digest set")))?;
-    if digest.len() != 2 || !digest.contains_key("blake3") || !digest.contains_key("sha256") {
-        return Err(bundle_error(format!(
-            "{where_} must carry exactly blake3 and sha256 (ADR-015)"
-        )));
-    }
     let hex = |key: &str| {
         lowercase_hex64(&digest[key])
             .map(str::to_owned)
@@ -185,15 +183,41 @@ fn subject_of(
                 bundle_error(format!("{where_} {key} is not 64 lowercase hex characters"))
             })
     };
-    let (blake3, sha256) = (hex("blake3")?, hex("sha256")?);
-    let label = format!("blake3:{blake3}");
+    // A holo v5 names its content objects by κ (`sha256:<hex>`), so a subject's
+    // sha256 is the object's κ and nothing else is needed (ADR-017). Only a
+    // legacy v4 holo, whose labels are BLAKE3, carries both (ADR-015).
+    let legacy = blobs.keys().any(|label| label.starts_with("blake3:"));
+    if legacy {
+        if digest.len() != 2 || !digest.contains_key("blake3") || !digest.contains_key("sha256") {
+            return Err(bundle_error(format!(
+                "{where_} of a v4 holo must carry exactly blake3 and sha256 (ADR-015)"
+            )));
+        }
+        let (blake3, sha256) = (hex("blake3")?, hex("sha256")?);
+        let label = format!("blake3:{blake3}");
+        let content = blobs.get(&label);
+        return Ok(AttestationSubject {
+            name: name.to_owned(),
+            sha256_matches: content.map(|bytes| format!("{:x}", Sha256::digest(bytes)) == sha256),
+            blob: content.map(|_| label),
+            sha256,
+            blake3: Some(blake3),
+        });
+    }
+    if digest.len() != 1 || !digest.contains_key("sha256") {
+        return Err(bundle_error(format!(
+            "{where_} must carry exactly sha256, the κ of the object it names (ADR-017)"
+        )));
+    }
+    let sha256 = hex("sha256")?;
+    let label = format!("sha256:{sha256}");
     let content = blobs.get(&label);
     Ok(AttestationSubject {
         name: name.to_owned(),
-        sha256_matches: content.map(|bytes| format!("{:x}", Sha256::digest(bytes)) == sha256),
+        sha256_matches: content.map(|_| true),
         blob: content.map(|_| label),
         sha256,
-        blake3,
+        blake3: None,
     })
 }
 

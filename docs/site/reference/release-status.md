@@ -5,7 +5,7 @@ available_in: "0.2.0"
 ---
 These docs describe Prism 1.0. Use this page to see what works today and what each release adds. Every other page names the release it needs in its `available_in` field, and that value comes from the table below.
 
-Today `prism-code` 0.2.0 is on npm. It loads a holo, dispatches a request to it, and replays the examples it carries. Its command serves a holo and runs the build in the pinned SDK image. The `prism` CLI has not shipped.
+Today `prism-code` is on npm, at the version the first table names. It loads a holo, dispatches a request to it and replays the examples it carries, and its command checks, attests, replays, builds and serves holos. Many features listed below under a planned release already work as `prism-code` verbs; the release ids plan the `prism` CLI, which has not shipped, and are not `prism-code` version numbers. The `prism-code` CHANGELOG says what each of its versions shipped.
 
 ## What is published
 

@@ -19,9 +19,11 @@ import { sha256Hex } from '../sha256.mjs';
 import { fail } from '../errors.mjs';
 import { codeModel } from './model.mjs';
 import * as js from './js.mjs';
+import * as python from './python.mjs';
+import * as rust from './rust.mjs';
 
-/** The writer of each language. Rust and Python follow as further parts of #289. */
-export const WRITERS = Object.freeze({ js });
+/** The writer of each language: `--lang js`, `rust` and `python`. */
+export const WRITERS = Object.freeze({ js, rust, python });
 export const RECORD = 'prism-generate.json';
 export const RECORD_SCHEMA = 'prismpm/generate-record/1';
 
@@ -74,7 +76,7 @@ function recordText(record) {
  */
 export async function generate({ holo, out, language = 'js' } = {}) {
   if (typeof out !== 'string' || out === '') fail('generate.output', 'generate needs an output directory; it never writes to a default place');
-  if (!Object.hasOwn(WRITERS, language)) fail('generate.language', `generate writes ${Object.keys(WRITERS).join(', ')}; ${language} is not written yet (#289)`);
+  if (!Object.hasOwn(WRITERS, language)) fail('generate.language', `generate writes ${Object.keys(WRITERS).join(', ')}; there is no ${language} writer`);
   const directory = resolve(out);
   const model = await codeModel(holo);
   const files = WRITERS[language].write(model);

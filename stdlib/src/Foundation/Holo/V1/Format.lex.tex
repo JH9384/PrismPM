@@ -10,11 +10,128 @@ inductive{
   parameters: [],
   constructors: [
     {name: KernelCalls, fields: []},
+    {name: Schedule, fields: []},
+    {name: Weights, fields: []},
+    {name: ShapeRegistry, fields: []},
+    {name: DTypeRegistry, fields: []},
+    {name: Certificates, fields: []},
+    {name: Trace, fields: []},
     {name: Metadata, fields: []},
+    {name: Inputs, fields: []},
+    {name: Outputs, fields: []},
+    {name: Constants, fields: []},
+    {name: ExecPlan, fields: []},
+    {name: WarmStart, fields: []},
     {name: Extension, fields: []},
     {name: AppManifest, fields: []},
     {name: ContentBlob, fields: []}
   ]
+}
+
+definition{
+  name: sectionKindCode,
+  parameters: [kind : SectionKind],
+  result: Nat,
+  body: (match kind
+    | SectionKind.KernelCalls => 1
+    | SectionKind.Schedule => 2
+    | SectionKind.Weights => 3
+    | SectionKind.ShapeRegistry => 4
+    | SectionKind.DTypeRegistry => 5
+    | SectionKind.Certificates => 6
+    | SectionKind.Trace => 7
+    | SectionKind.Metadata => 8
+    | SectionKind.Inputs => 9
+    | SectionKind.Outputs => 10
+    | SectionKind.Constants => 11
+    | SectionKind.ExecPlan => 12
+    | SectionKind.WarmStart => 13
+    | SectionKind.Extension => 14
+    | SectionKind.AppManifest => 15
+    | SectionKind.ContentBlob => 16),
+  axioms: []
+}
+
+definition{
+  name: sectionKindOfCode,
+  parameters: [code : Nat],
+  result: (Option SectionKind),
+  body: (if (code =? 1) then (ctor Option.some [SectionKind] (ctor SectionKind.KernelCalls)) else (if (code =? 2) then (ctor Option.some [SectionKind] (ctor SectionKind.Schedule)) else (if (code =? 3) then (ctor Option.some [SectionKind] (ctor SectionKind.Weights)) else (if (code =? 4) then (ctor Option.some [SectionKind] (ctor SectionKind.ShapeRegistry)) else (if (code =? 5) then (ctor Option.some [SectionKind] (ctor SectionKind.DTypeRegistry)) else (if (code =? 6) then (ctor Option.some [SectionKind] (ctor SectionKind.Certificates)) else (if (code =? 7) then (ctor Option.some [SectionKind] (ctor SectionKind.Trace)) else (if (code =? 8) then (ctor Option.some [SectionKind] (ctor SectionKind.Metadata)) else (if (code =? 9) then (ctor Option.some [SectionKind] (ctor SectionKind.Inputs)) else (if (code =? 10) then (ctor Option.some [SectionKind] (ctor SectionKind.Outputs)) else (if (code =? 11) then (ctor Option.some [SectionKind] (ctor SectionKind.Constants)) else (if (code =? 12) then (ctor Option.some [SectionKind] (ctor SectionKind.ExecPlan)) else (if (code =? 13) then (ctor Option.some [SectionKind] (ctor SectionKind.WarmStart)) else (if (code =? 14) then (ctor Option.some [SectionKind] (ctor SectionKind.Extension)) else (if (code =? 15) then (ctor Option.some [SectionKind] (ctor SectionKind.AppManifest)) else (if (code =? 16) then (ctor Option.some [SectionKind] (ctor SectionKind.ContentBlob)) else (ctor Option.none [SectionKind]))))))))))))))))),
+  axioms: []
+}
+
+definition{
+  name: sectionKindRoundTrip,
+  parameters: [code : Nat],
+  result: Bool,
+  body: (match (sectionKindOfCode code)
+    | Option.none => false
+    | Option.some kind => ((sectionKindCode kind) =? code)),
+  axioms: []
+}
+
+definition{
+  name: sectionKindCodesClosed,
+  parameters: [],
+  result: Bool,
+  body: ((sectionKindRoundTrip 1) && ((sectionKindRoundTrip 2) && ((sectionKindRoundTrip 3) && ((sectionKindRoundTrip 4) && ((sectionKindRoundTrip 5) && ((sectionKindRoundTrip 6) && ((sectionKindRoundTrip 7) && ((sectionKindRoundTrip 8) && ((sectionKindRoundTrip 9) && ((sectionKindRoundTrip 10) && ((sectionKindRoundTrip 11) && ((sectionKindRoundTrip 12) && ((sectionKindRoundTrip 13) && ((sectionKindRoundTrip 14) && ((sectionKindRoundTrip 15) && ((sectionKindRoundTrip 16) && ((not (sectionKindRoundTrip 0)) && ((not (sectionKindRoundTrip 17)) && true)))))))))))))))))),
+  axioms: []
+}
+
+theorem{
+  name: sectionKindCodesBijective,
+  parameters: [],
+  statement: ((sectionKindCodesClosed) = true),
+  proof: reflexivity{},
+  axioms: []
+}
+
+definition{
+  name: sectionKindRepeatable,
+  parameters: [kind : SectionKind],
+  result: Bool,
+  body: (match kind
+    | SectionKind.Extension => true
+    | SectionKind.ContentBlob => true
+    | SectionKind.KernelCalls => false
+    | SectionKind.Schedule => false
+    | SectionKind.Weights => false
+    | SectionKind.ShapeRegistry => false
+    | SectionKind.DTypeRegistry => false
+    | SectionKind.Certificates => false
+    | SectionKind.Trace => false
+    | SectionKind.Metadata => false
+    | SectionKind.Inputs => false
+    | SectionKind.Outputs => false
+    | SectionKind.Constants => false
+    | SectionKind.ExecPlan => false
+    | SectionKind.WarmStart => false
+    | SectionKind.AppManifest => false),
+  axioms: []
+}
+
+definition{
+  name: sectionKindRank,
+  parameters: [kind : SectionKind],
+  result: Nat,
+  body: (match kind
+    | SectionKind.AppManifest => 1
+    | SectionKind.KernelCalls => 2
+    | SectionKind.Schedule => 3
+    | SectionKind.Weights => 4
+    | SectionKind.ShapeRegistry => 5
+    | SectionKind.DTypeRegistry => 6
+    | SectionKind.Certificates => 7
+    | SectionKind.Trace => 8
+    | SectionKind.Metadata => 9
+    | SectionKind.Inputs => 10
+    | SectionKind.Outputs => 11
+    | SectionKind.Constants => 12
+    | SectionKind.ExecPlan => 13
+    | SectionKind.WarmStart => 14
+    | SectionKind.Extension => 15
+    | SectionKind.ContentBlob => 16),
+  axioms: []
 }
 
 structure{

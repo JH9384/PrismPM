@@ -1,0 +1,440 @@
+\begin{lexlean}{Foundation.Bindings.V1.Js}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.bindings@1.0.0}
+\importmodule{Foundation.Bindings.V1.Model}
+\importmodule{Foundation.Bindings.V1.Text}
+\title{JavaScript bindings writer}
+\begin{semanticmodule}
+definition{
+  name: docLinesFrom,
+  parameters: [indent : String, docs : (List String)],
+  result: (List String),
+  body: (match docs
+    | List.nil => (nil String)
+    | List.cons line rest => (cons (Foundation.Bindings.V1.Text::trimEnd (Foundation.Bindings.V1.Text::concat (cons indent (cons " * " (cons line (nil String)))))) (docLinesFrom indent rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: docs
+}
+
+definition{
+  name: docComment,
+  parameters: [indent : String, docs : (List String)],
+  result: (List String),
+  body: (match docs
+    | List.nil => (nil String)
+    | List.cons only rest => (match rest
+      | List.nil => (cons (Foundation.Bindings.V1.Text::concat (cons indent (cons "/** " (cons only (cons " */" (nil String)))))) (nil String))
+      | List.cons next others => (prim append (cons (Foundation.Bindings.V1.Text::concat (cons indent (cons "/**" (nil String)))) (docLinesFrom indent docs)) (cons (Foundation.Bindings.V1.Text::concat (cons indent (cons " */" (nil String)))) (nil String)) : (List String)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: scalars,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("bool", "boolean") (cons ("u8", "number") (cons ("u16", "number") (cons ("u32", "number") (cons ("s8", "number") (cons ("s16", "number") (cons ("s32", "number") (cons ("char", "number") (cons ("u64", "bigint") (cons ("s64", "bigint") (cons ("f32", "number") (cons ("f64", "number") (nil (String * String)))))))))))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: scalarType,
+  parameters: [scalar : String],
+  result: String,
+  body: (if (prim equal scalar "bool" : Bool) then "boolean" else (if ((prim equal scalar "u64" : Bool) || (prim equal scalar "s64" : Bool)) then "bigint" else "number")),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: lift,
+  parameters: [scalar : String, call : String],
+  result: String,
+  body: (if (prim equal scalar "bool" : Bool) then (Foundation.Bindings.V1.Text::concat (cons call (cons " !== 0" (nil String)))) else (if ((prim equal scalar "u8" : Bool) || ((prim equal scalar "u16" : Bool) || ((prim equal scalar "u32" : Bool) || (prim equal scalar "char" : Bool)))) then (Foundation.Bindings.V1.Text::concat (cons call (cons " >>> 0" (nil String)))) else (if ((prim equal scalar "s8" : Bool) || ((prim equal scalar "s16" : Bool) || (prim equal scalar "s32" : Bool))) then (Foundation.Bindings.V1.Text::concat (cons call (cons " | 0" (nil String)))) else (if (prim equal scalar "u64" : Bool) then (Foundation.Bindings.V1.Text::concat (cons "BigInt.asUintN(64, " (cons call (cons ")" (nil String))))) else (if (prim equal scalar "s64" : Bool) then (Foundation.Bindings.V1.Text::concat (cons "BigInt.asIntN(64, " (cons call (cons ")" (nil String))))) else call))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: parameterNames,
+  parameters: [parameters : (List Foundation.Bindings.V1.Model::BindingParameter)],
+  result: (List String),
+  body: (match parameters
+    | List.nil => (nil String)
+    | List.cons parameter rest => (cons (project parameter name) (parameterNames rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: parameters
+}
+
+definition{
+  name: loweredArguments,
+  parameters: [parameters : (List Foundation.Bindings.V1.Model::BindingParameter)],
+  result: (List String),
+  body: (match parameters
+    | List.nil => (nil String)
+    | List.cons parameter rest => (cons (if (prim equal (project parameter scalar) "bool" : Bool) then (Foundation.Bindings.V1.Text::concat (cons (project parameter name) (cons " ? 1 : 0" (nil String)))) else (project parameter name)) (loweredArguments rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: parameters
+}
+
+definition{
+  name: typedParameters,
+  parameters: [parameters : (List Foundation.Bindings.V1.Model::BindingParameter)],
+  result: (List String),
+  body: (match parameters
+    | List.nil => (nil String)
+    | List.cons parameter rest => (cons (Foundation.Bindings.V1.Text::concat (cons (project parameter name) (cons ": " (cons (scalarType (project parameter scalar)) (nil String))))) (typedParameters rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: parameters
+}
+
+definition{
+  name: boundExport,
+  parameters: [function : Foundation.Bindings.V1.Model::BindingFunction],
+  result: (List String),
+  body: (let call : String := (Foundation.Bindings.V1.Text::concat (cons "exports." (cons (project function name) (cons "(" (cons (prim join (loweredArguments (project function parameters)) ", " : String) (cons ")" (nil String))))))); (prim append (docComment "    " (project function docs)) (cons (Foundation.Bindings.V1.Text::concat (cons "    " (cons (Foundation.Bindings.V1.Text::camel (project function name)) (cons ": (" (cons (prim join (parameterNames (project function parameters)) ", " : String) (cons ") => " (cons (match (project function result)
+    | Option.none => (Foundation.Bindings.V1.Text::concat (cons "void " (cons call (nil String))))
+    | Option.some scalar => (lift scalar call)) (cons "," (nil String))))))))) (nil String)) : (List String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: boundExports,
+  parameters: [functions : (List Foundation.Bindings.V1.Model::BindingFunction)],
+  result: (List String),
+  body: (match functions
+    | List.nil => (nil String)
+    | List.cons function rest => (prim append (boundExport function) (boundExports rest) : (List String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: functions
+}
+
+definition{
+  name: guestMember,
+  parameters: [function : Foundation.Bindings.V1.Model::BindingFunction],
+  result: (List String),
+  body: (prim append (docComment "  " (project function docs)) (cons (Foundation.Bindings.V1.Text::concat (cons "  " (cons (Foundation.Bindings.V1.Text::camel (project function name)) (cons "(" (cons (prim join (typedParameters (project function parameters)) ", " : String) (cons "): " (cons (match (project function result)
+    | Option.none => "void"
+    | Option.some scalar => (scalarType scalar)) (cons ";" (nil String))))))))) (nil String)) : (List String)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: guestMembers,
+  parameters: [functions : (List Foundation.Bindings.V1.Model::BindingFunction)],
+  result: (List String),
+  body: (match functions
+    | List.nil => (nil String)
+    | List.cons function rest => (prim append (guestMember function) (guestMembers rest) : (List String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: functions
+}
+
+definition{
+  name: textLess,
+  parameters: [left : String, right : String],
+  result: Bool,
+  body: (prim equal (prim compare_bytes (prim utf8_encode left : Bytes) (prim utf8_encode right : Bytes) : Ordering) (prim compare_bytes 0x00 0x01 : Ordering) : Bool),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: insertName,
+  parameters: [entry : (String * String), sorted : (List (String * String))],
+  result: (List (String * String)),
+  body: (match sorted
+    | List.nil => (cons entry (nil (String * String)))
+    | List.cons head rest => (if (textLess (first entry) (first head)) then (cons entry (cons head rest)) else (cons head (insertName entry rest)))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: sorted
+}
+
+definition{
+  name: sortNames,
+  parameters: [entries : (List (String * String))],
+  result: (List (String * String)),
+  body: (match entries
+    | List.nil => (nil (String * String))
+    | List.cons head rest => (insertName head (sortNames rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: entries
+}
+
+definition{
+  name: exportKinds,
+  parameters: [functions : (List Foundation.Bindings.V1.Model::BindingFunction)],
+  result: (List (String * String)),
+  body: (match functions
+    | List.nil => (nil (String * String))
+    | List.cons function rest => (cons ((project function name), "function") (exportKinds rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: functions
+}
+
+definition{
+  name: kindLines,
+  parameters: [entries : (List (String * String))],
+  result: (List String),
+  body: (match entries
+    | List.nil => (nil String)
+    | List.cons entry rest => (cons (Foundation.Bindings.V1.Text::concat (cons "  " (cons (first entry) (cons ": " (cons (Foundation.Bindings.V1.Text::singleQuoted (second entry)) (cons "," (nil String))))))) (kindLines rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: entries
+}
+
+definition{
+  name: coreWasmDispatchJs,
+  parameters: [],
+  result: String,
+  body: "/**\n * Send one request to a fresh instance of the guest and return a copy of its response.\n * The guest allocator never frees, so every request gets its own instance.\n * @param {WebAssembly.Module} module\n * @param {Uint8Array} request\n * @returns {Uint8Array}\n */\nexport function dispatch(module, request) {\n  const guest = instantiate(module);\n  const offset = guest.holoAlloc(request.length);\n  new Uint8Array(guest.memory.buffer, offset, request.length).set(request);\n  const packed = guest.holoRun(offset, request.length);\n  const at = Number(packed >> 32n);\n  const length = Number(packed & 0xffffffffn);\n  if (at + length > guest.memory.buffer.byteLength) {\n    throw new RangeError(`the guest answered ${length} bytes at ${at}, outside its memory`);\n  }\n  return new Uint8Array(guest.memory.buffer.slice(at, at + length));\n}",
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: coreWasmDispatchTs,
+  parameters: [],
+  result: String,
+  body: "/**\n * Send one request to a fresh instance of the guest and return a copy of its response.\n * The guest allocator never frees, so every request gets its own instance.\n */\nexport declare function dispatch(module: WebAssembly.Module, request: Uint8Array): Uint8Array;",
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: worldJs,
+  parameters: [generator : String, world : Foundation.Bindings.V1.Model::BindingWorld],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::block (prim append (cons (Foundation.Bindings.V1.Text::header "//" generator (Foundation.Bindings.V1.Text::worldSource world)) (cons "/** The world these bindings were generated from. It equals `inputs.world` in prismpm.lock. */\nexport const WORLD = Object.freeze({" (cons (Foundation.Bindings.V1.Text::concat (cons "  contract: " (cons (Foundation.Bindings.V1.Text::singleQuoted (project world contract)) (cons "," (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "  blake3: " (cons (Foundation.Bindings.V1.Text::singleQuoted (project world blake3)) (cons "," (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "  sha256: " (cons (Foundation.Bindings.V1.Text::singleQuoted (project world sha256)) (cons "," (nil String))))) (cons "});\n\n/** Every export the world requires, and its kind. */\nconst EXPORTS = Object.freeze({" (nil String))))))) (prim append (kindLines (sortNames (cons ((project world memory), "memory") (exportKinds (project world exports))))) (prim append (cons "});\n\n/**\n * Instantiate a compiled guest and check that it offers exactly the world's exports.\n * The guest imports nothing.\n * @param {WebAssembly.Module} module\n */\nexport function instantiate(module) {\n  const { exports } = new WebAssembly.Instance(module, {});\n  const names = Object.keys(exports).sort();\n  const expected = Object.keys(EXPORTS).sort();\n  if (names.join() !== expected.join() || names.some((name) => kindOf(exports[name]) !== EXPORTS[name])) {\n    throw new TypeError(`the guest exports ${names.join(', ')}; ${WORLD.contract} requires ${expected.join(', ')}`);\n  }\n  return {" (cons (Foundation.Bindings.V1.Text::concat (cons "    " (cons (project world memory) (cons ": exports." (cons (project world memory) (cons "," (nil String))))))) (nil String))) (prim append (boundExports (project world exports)) (cons "  };\n}\n\nfunction kindOf(value) {\n  return value instanceof WebAssembly.Memory ? 'memory' : typeof value === 'function' ? 'function' : 'other';\n}\n" (cons (coreWasmDispatchJs) (nil String))) : (List String)) : (List String)) : (List String)) : (List String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: worldTs,
+  parameters: [generator : String, world : Foundation.Bindings.V1.Model::BindingWorld],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::block (prim append (cons (Foundation.Bindings.V1.Text::header "//" generator (Foundation.Bindings.V1.Text::worldSource world)) (cons "/** The world these bindings were generated from. It equals `inputs.world` in prismpm.lock. */\nexport declare const WORLD: {" (cons (Foundation.Bindings.V1.Text::concat (cons "  readonly contract: " (cons (Foundation.Bindings.V1.Text::singleQuoted (project world contract)) (cons ";" (nil String))))) (cons "  readonly blake3: string;\n  readonly sha256: string;\n};\n" (cons (Foundation.Bindings.V1.Text::concat (cons "/** A guest of " (cons (project world contract) (cons ", instantiated. */\nexport interface Guest {" (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "  readonly " (cons (project world memory) (cons ": WebAssembly.Memory;" (nil String))))) (nil String))))))) (prim append (guestMembers (project world exports)) (cons "}\n\n/** Instantiate a compiled guest and check that it offers exactly the world's exports. */\nexport declare function instantiate(module: WebAssembly.Module): Guest;\n" (cons (coreWasmDispatchTs) (nil String))) : (List String)) : (List String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: isPlainKey,
+  parameters: [code : String],
+  result: Bool,
+  body: (prim equal (Foundation.Bindings.V1.Text::camel code) code : Bool),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: messageLines,
+  parameters: [
+    application : Foundation.Bindings.V1.Model::BindingApplication,
+    version : String,
+    cases : (List Foundation.Bindings.V1.Model::BindingErrorCase)
+  ],
+  result: (List String),
+  body: (match cases
+    | List.nil => (nil String)
+    | List.cons case rest => (cons (Foundation.Bindings.V1.Text::concat (cons "  " (cons (if (isPlainKey (project case code)) then (project case code) else (Foundation.Bindings.V1.Text::singleQuoted (project case code))) (cons ": " (cons (Foundation.Bindings.V1.Text::singleQuoted (Foundation.Bindings.V1.Text::errorText application version case)) (cons "," (nil String))))))) (messageLines application version rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: cases
+}
+
+definition{
+  name: quotedOperations,
+  parameters: [operations : (List Foundation.Bindings.V1.Model::BindingOperation)],
+  result: (List String),
+  body: (match operations
+    | List.nil => (nil String)
+    | List.cons operation rest => (cons (Foundation.Bindings.V1.Text::singleQuoted (project operation name)) (quotedOperations rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: operations
+}
+
+definition{
+  name: quotedCodes,
+  parameters: [cases : (List Foundation.Bindings.V1.Model::BindingErrorCase)],
+  result: (List String),
+  body: (match cases
+    | List.nil => (nil String)
+    | List.cons case rest => (cons (Foundation.Bindings.V1.Text::singleQuoted (project case code)) (quotedCodes rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: cases
+}
+
+definition{
+  name: firstCode,
+  parameters: [cases : (List Foundation.Bindings.V1.Model::BindingErrorCase)],
+  result: String,
+  body: (match cases | List.nil => "an error code" | List.cons case rest => (project case code)),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: operationSummary,
+  parameters: [method : String, operation : Foundation.Bindings.V1.Model::BindingOperation],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::concat (cons "/** " (cons (project operation label) (cons ": `" (cons method (cons "(" (cons (Foundation.Bindings.V1.Text::singleQuoted (project operation name)) (cons ", left, right)`. */" (nil String))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: operationMethods,
+  parameters: [method : String, operations : (List Foundation.Bindings.V1.Model::BindingOperation)],
+  result: (List String),
+  body: (match operations
+    | List.nil => (nil String)
+    | List.cons operation rest => (cons (Foundation.Bindings.V1.Text::concat (cons "\n  " (cons (operationSummary method operation) (cons "\n  " (cons (Foundation.Bindings.V1.Text::camel (project operation name)) (cons "(left, right) {\n    return this." (cons method (cons "(" (cons (Foundation.Bindings.V1.Text::singleQuoted (project operation name)) (cons ", left, right);\n  }" (nil String))))))))))) (operationMethods method rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: operations
+}
+
+definition{
+  name: operationDeclarations,
+  parameters: [method : String, operations : (List Foundation.Bindings.V1.Model::BindingOperation)],
+  result: (List String),
+  body: (match operations
+    | List.nil => (nil String)
+    | List.cons operation rest => (cons (Foundation.Bindings.V1.Text::concat (cons "  " (cons (operationSummary method operation) (cons "\n  " (cons (Foundation.Bindings.V1.Text::camel (project operation name)) (cons "(left: Int64, right: Int64): Promise<bigint>;" (nil String))))))) (operationDeclarations method rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: operations
+}
+
+definition{
+  name: docBody,
+  parameters: [lines : (List String)],
+  result: (List String),
+  body: (match lines
+    | List.nil => (nil String)
+    | List.cons line rest => (cons (Foundation.Bindings.V1.Text::trimEnd (Foundation.Bindings.V1.Text::concat (cons " * " (cons line (nil String))))) (docBody rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: lines
+}
+
+definition{
+  name: modelConstant,
+  parameters: [application : Foundation.Bindings.V1.Model::BindingApplication],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::concat (cons "/** The model this client was generated from. It equals `inputs.model` in prismpm.lock. */\nexport const MODEL = Object.freeze({\n  name: " (cons (Foundation.Bindings.V1.Text::singleQuoted (project application name)) (cons ",\n  blake3: " (cons (Foundation.Bindings.V1.Text::singleQuoted (project application blake3)) (cons ",\n  sha256: " (cons (Foundation.Bindings.V1.Text::singleQuoted (project application sha256)) (cons ",\n});" (nil String))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: modelDeclaration,
+  parameters: [application : Foundation.Bindings.V1.Model::BindingApplication],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::concat (cons "/** The model this client was generated from. It equals `inputs.model` in prismpm.lock. */\nexport declare const MODEL: {\n  readonly name: " (cons (Foundation.Bindings.V1.Text::singleQuoted (project application name)) (cons ";\n  readonly blake3: string;\n  readonly sha256: string;\n};" (nil String))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: dispatchConstructor,
+  parameters: [typeName : String],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::concat (cons "export class " (cons typeName (cons " {\n  #dispatch;\n\n  /** @param {(request: Uint8Array) => Uint8Array | Promise<Uint8Array>} dispatch */\n  constructor(dispatch) {\n    if (typeof dispatch !== 'function') throw new TypeError('" (cons typeName (cons " needs a dispatch function');\n    this.#dispatch = dispatch;\n  }" (nil String))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: operationsJs,
+  parameters: [
+    generator : String,
+    application : Foundation.Bindings.V1.Model::BindingApplication,
+    api : Foundation.Bindings.V1.Model::BindingOperations
+  ],
+  result: String,
+  body: (let name : String := (project application name); (let errorType : String := (project api errorType); (let method : String := (project api method); (Foundation.Bindings.V1.Text::block (prim append (cons (Foundation.Bindings.V1.Text::header "//" generator (Foundation.Bindings.V1.Text::modelSource application)) (cons (modelConstant application) (cons (Foundation.Bindings.V1.Text::concat (cons "\n/** Every operation " (cons name (cons " accepts, by its request name. */\nexport const OPERATIONS = Object.freeze([" (cons (prim join (quotedOperations (project api operations)) ", " : String) (cons "]);\n\nconst VERSION = " (cons (Foundation.Bindings.V1.Text::singleQuoted (project api version)) (cons ";\nconst MIN = -(2n ** 63n);\nconst MAX = 2n ** 63n - 1n;\nconst MESSAGES = Object.freeze({" (nil String))))))))) (nil String)))) (prim append (messageLines application (project api version) (project api errors)) (prim append (cons (Foundation.Bindings.V1.Text::concat (cons "});\n\nconst encoder = new TextEncoder();\nconst decoder = new TextDecoder('utf-8', { fatal: true });\n\n/** A request " (cons name (cons " refused. `code` is the guest's answer, such as `" (cons (firstCode (project api errors)) (cons "`. */\nexport class " (cons errorType (cons " extends Error {\n  constructor(code) {\n    super(MESSAGES[code] ?? `" (cons name (cons " refused the request: ${code}.`);\n    this.name = " (cons (Foundation.Bindings.V1.Text::singleQuoted errorType) (cons ";\n    this.code = code;\n  }\n}\n\n/**" (nil String))))))))))))) (nil String)) (prim append (docBody (prim append (Foundation.Bindings.V1.Text::described application (Foundation.Bindings.V1.Text::concat (cons "A client for " (cons name (cons "." (nil String)))))) (cons "" (nil String)) : (List String))) (prim append (cons (Foundation.Bindings.V1.Text::concat (cons " * `dispatch` sends request bytes to the guest and returns its response bytes:\n * `app.dispatch` of an application prism-code's `load()` opened, or\n * `(request) => dispatch(module, request)` with `dispatch` from ./world.js.\n */\n" (cons (dispatchConstructor (project application typeName)) (nil String)))) (nil String)) (prim append (operationMethods method (project api operations)) (cons (Foundation.Bindings.V1.Text::concat (cons "\n  /**\n   * Apply `operation` to two signed 64-bit integers. Resolves to the result;\n   * rejects with " (cons errorType (cons " when " (cons name (cons " refuses, for example on overflow.\n   */\n  async " (cons method (cons "(operation, left, right) {\n    if (!OPERATIONS.includes(operation)) throw new TypeError(`unknown operation ${operation}`);\n    const request = encoder.encode(`${VERSION}\\t${operation}\\t${int64(left)}\\t${int64(right)}`);\n    const [version, status, value] = decoder.decode(await this.#dispatch(request)).split('\\t');\n    if (version !== VERSION) throw new " (cons errorType (cons "('unsupported-version');\n    if (status === 'ok') return BigInt(value);\n    throw new " (cons errorType (cons "(value);\n  }\n}\n\nfunction int64(value) {\n  const n = typeof value === 'bigint' ? value : Number.isSafeInteger(value) ? BigInt(value) : null;\n  if (n === null || n < MIN || n > MAX) throw new RangeError(`${value} is not a signed 64-bit integer`);\n  return n.toString();\n}" (nil String))))))))))))) (nil String)) : (List String)) : (List String)) : (List String)) : (List String)) : (List String)) : (List String)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: operationsTs,
+  parameters: [
+    generator : String,
+    application : Foundation.Bindings.V1.Model::BindingApplication,
+    api : Foundation.Bindings.V1.Model::BindingOperations
+  ],
+  result: String,
+  body: (let name : String := (project application name); (let errorType : String := (project api errorType); (let codeType : String := (Foundation.Bindings.V1.Text::concat (cons errorType (cons "Code" (nil String)))); (Foundation.Bindings.V1.Text::block (prim append (cons (Foundation.Bindings.V1.Text::header "//" generator (Foundation.Bindings.V1.Text::modelSource application)) (cons (modelDeclaration application) (cons (Foundation.Bindings.V1.Text::concat (cons "\n/** An operation " (cons name (cons " accepts, by its request name. */\nexport type " (cons (project api operationType) (cons " = " (cons (prim join (quotedOperations (project api operations)) " | " : String) (cons ";\nexport declare const OPERATIONS: readonly " (cons (project api operationType) (cons "[];\n\n/** A signed 64-bit integer: a bigint, or a number that is a safe integer. */\nexport type Int64 = bigint | number;\n\n/** Every answer with which " (cons name (cons " refuses a request. */\nexport type " (cons codeType (cons " = " (cons (prim join (quotedCodes (project api errors)) " | " : String) (cons ";\n\n/** A request " (cons name (cons " refused. `code` is the guest's answer. */\nexport declare class " (cons errorType (cons " extends Error {\n  constructor(code: " (cons codeType (cons ");\n  readonly code: " (cons codeType (cons ";\n}\n\n/** Sends request bytes to the guest and returns its response bytes. */\nexport type Dispatch = (request: Uint8Array) => Uint8Array | Promise<Uint8Array>;\n" (nil String))))))))))))))))))))))))) (nil String)))) (prim append (docComment "" (Foundation.Bindings.V1.Text::described application (Foundation.Bindings.V1.Text::concat (cons "A client for " (cons name (cons "." (nil String))))))) (prim append (cons (Foundation.Bindings.V1.Text::concat (cons "export declare class " (cons (project application typeName) (cons " {\n  constructor(dispatch: Dispatch);" (nil String))))) (nil String)) (prim append (operationDeclarations (project api method) (project api operations)) (cons (Foundation.Bindings.V1.Text::concat (cons "  /** Apply `operation` to two signed 64-bit integers; rejects with " (cons errorType (cons " when " (cons name (cons " refuses. */\n  " (cons (project api method) (cons "(operation: " (cons (project api operationType) (cons ", left: Int64, right: Int64): Promise<bigint>;\n}" (nil String))))))))))) (nil String)) : (List String)) : (List String)) : (List String)) : (List String)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: bytesJs,
+  parameters: [generator : String, application : Foundation.Bindings.V1.Model::BindingApplication],
+  result: String,
+  body: (let name : String := (project application name); (Foundation.Bindings.V1.Text::block (prim append (cons (Foundation.Bindings.V1.Text::header "//" generator (Foundation.Bindings.V1.Text::modelSource application)) (cons (modelConstant application) (cons "\n/**" (nil String)))) (prim append (docBody (prim append (Foundation.Bindings.V1.Text::described application (Foundation.Bindings.V1.Text::concat (cons "A client for " (cons name (cons ", over request and response bytes." (nil String)))))) (cons "" (nil String)) : (List String))) (cons (Foundation.Bindings.V1.Text::concat (cons " * " (cons name (cons "'s model describes no typed operations, so the client sends bytes.\n * `dispatch` is `app.dispatch` of an application prism-code's `load()` opened, or\n * `(request) => dispatch(module, request)` with `dispatch` from ./world.js.\n */\n" (cons (dispatchConstructor (project application typeName)) (cons "\n\n  /** Send one request and resolve to the response bytes. */\n  async invoke(request) {\n    return this.#dispatch(request);\n  }\n}" (nil String))))))) (nil String)) : (List String)) : (List String)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: bytesTs,
+  parameters: [generator : String, application : Foundation.Bindings.V1.Model::BindingApplication],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::block (prim append (cons (Foundation.Bindings.V1.Text::header "//" generator (Foundation.Bindings.V1.Text::modelSource application)) (cons (modelDeclaration application) (cons "\n/** Sends request bytes to the guest and returns its response bytes. */\nexport type Dispatch = (request: Uint8Array) => Uint8Array | Promise<Uint8Array>;\n" (nil String)))) (prim append (docComment "" (Foundation.Bindings.V1.Text::described application (Foundation.Bindings.V1.Text::concat (cons "A client for " (cons (project application name) (cons ", over request and response bytes." (nil String))))))) (cons (Foundation.Bindings.V1.Text::concat (cons "export declare class " (cons (project application typeName) (cons " {\n  constructor(dispatch: Dispatch);\n  /** Send one request and resolve to the response bytes. */\n  invoke(request: Uint8Array): Promise<Uint8Array>;\n}" (nil String))))) (nil String)) : (List String)) : (List String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: file,
+  parameters: [path : String, text : String],
+  result: Foundation.Bindings.V1.Model::BindingFile,
+  body: (record Foundation.Bindings.V1.Model::BindingFile {path := path, text := text}),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: files,
+  parameters: [model : Foundation.Bindings.V1.Model::BindingModel],
+  result: (List Foundation.Bindings.V1.Model::BindingFile),
+  body: (let generator : String := (project model generator); (let application : Foundation.Bindings.V1.Model::BindingApplication := (project model application); (let stem : String := (project application file); (cons (file "world.js" (worldJs generator (project model world))) (cons (file "world.d.ts" (worldTs generator (project model world))) (match (project application interface)
+    | Foundation.Bindings.V1.Model::BindingInterface.RequestBytes => (cons (file (Foundation.Bindings.V1.Text::concat (cons stem (cons ".js" (nil String)))) (bytesJs generator application)) (cons (file (Foundation.Bindings.V1.Text::concat (cons stem (cons ".d.ts" (nil String)))) (bytesTs generator application)) (nil Foundation.Bindings.V1.Model::BindingFile)))
+    | Foundation.Bindings.V1.Model::BindingInterface.Operations api => (cons (file (Foundation.Bindings.V1.Text::concat (cons stem (cons ".js" (nil String)))) (operationsJs generator application api)) (cons (file (Foundation.Bindings.V1.Text::concat (cons stem (cons ".d.ts" (nil String)))) (operationsTs generator application api)) (nil Foundation.Bindings.V1.Model::BindingFile))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: writeJsBindings,
+  parameters: [model : Foundation.Bindings.V1.Model::BindingModel],
+  result: Foundation.Bindings.V1.Model::BindingOutput,
+  body: (Foundation.Bindings.V1.Text::generated (Foundation.Bindings.V1.Text::either (Foundation.Bindings.V1.Text::worldRefusal "js" (project model world)) (Foundation.Bindings.V1.Text::exportRefusal "js" false (scalars) (project (project model world) exports))) (files model)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
+}
+\end{semanticmodule}
+\end{lexlean}

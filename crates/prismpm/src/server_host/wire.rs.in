@@ -1,0 +1,113 @@
+// Fixed codec primitives of the generated host adapter. All integers are
+// big-endian and every length is a 32-bit word. Nothing here depends on a
+// declared effect: the typed codecs are rendered into the protocol module.
+
+/// Why bytes are not a value of the declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Refusal {
+    /// The bytes end inside a value.
+    Truncated,
+    /// Bytes remain after the last value.
+    Trailing,
+    /// A flag is neither zero nor one.
+    Flag,
+    /// Text is not UTF-8.
+    Utf8,
+    /// An outcome status is neither completed nor failed.
+    Status,
+    /// A failure index is not declared.
+    Failure,
+    /// An effect tag is not declared.
+    Undeclared,
+    /// A value is longer than a 32-bit length can express.
+    Length,
+}
+
+/// Cursor over bytes that never reads past them.
+pub struct Reader<'a> {
+    bytes: &'a [u8],
+    at: usize,
+}
+
+impl<'a> Reader<'a> {
+    pub fn new(bytes: &'a [u8]) -> Self {
+        Reader { bytes, at: 0 }
+    }
+
+    pub fn take(&mut self, count: usize) -> Result<&'a [u8], Refusal> {
+        let end = self.at.checked_add(count).ok_or(Refusal::Truncated)?;
+        let slice = self.bytes.get(self.at..end).ok_or(Refusal::Truncated)?;
+        self.at = end;
+        Ok(slice)
+    }
+
+    pub fn u32(&mut self) -> Result<u32, Refusal> {
+        let word = self.take(4)?;
+        Ok(u32::from_be_bytes([word[0], word[1], word[2], word[3]]))
+    }
+
+    pub fn u64(&mut self) -> Result<u64, Refusal> {
+        let word = self.take(8)?;
+        let mut array = [0u8; 8];
+        array.copy_from_slice(word);
+        Ok(u64::from_be_bytes(array))
+    }
+
+    pub fn flag(&mut self) -> Result<bool, Refusal> {
+        match self.take(1)?[0] {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(Refusal::Flag),
+        }
+    }
+
+    pub fn chunk(&mut self) -> Result<&'a [u8], Refusal> {
+        let length = usize::try_from(self.u32()?).map_err(|_| Refusal::Truncated)?;
+        self.take(length)
+    }
+
+    pub fn text(&mut self) -> Result<String, Refusal> {
+        ::std::str::from_utf8(self.chunk()?)
+            .map(str::to_owned)
+            .map_err(|_| Refusal::Utf8)
+    }
+
+    /// Whether every byte was read.
+    pub fn is_empty(&self) -> bool {
+        self.at == self.bytes.len()
+    }
+
+    /// Everything not yet read.
+    pub fn rest(&mut self) -> &'a [u8] {
+        let rest = &self.bytes[self.at..];
+        self.at = self.bytes.len();
+        rest
+    }
+
+    /// Succeeds only when every byte was read.
+    pub fn finish(&self) -> Result<(), Refusal> {
+        if self.at == self.bytes.len() {
+            Ok(())
+        } else {
+            Err(Refusal::Trailing)
+        }
+    }
+}
+
+pub fn put_u32(out: &mut Vec<u8>, value: u32) {
+    out.extend_from_slice(&value.to_be_bytes());
+}
+
+pub fn put_u64(out: &mut Vec<u8>, value: u64) {
+    out.extend_from_slice(&value.to_be_bytes());
+}
+
+pub fn put_flag(out: &mut Vec<u8>, value: bool) {
+    out.push(u8::from(value));
+}
+
+pub fn put_chunk(out: &mut Vec<u8>, value: &[u8]) -> Result<(), Refusal> {
+    put_u32(out, u32::try_from(value.len()).map_err(|_| Refusal::Length)?);
+    out.extend_from_slice(value);
+    Ok(())
+}

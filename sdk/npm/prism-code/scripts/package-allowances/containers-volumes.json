@@ -1,0 +1,4 @@
+{
+  "kib": 12,
+  "reason": "The rest of prism.containers and prism.volumes (#443, #445): dispatch, inspect, logs, stop, the recorded bypass, volumes on create, and their types (about 8 KiB), and the containers and volumes CLI groups (about 4 KiB)."
+}

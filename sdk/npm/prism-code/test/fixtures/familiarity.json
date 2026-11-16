@@ -1,0 +1,43 @@
+{
+  "schema": "prism-code/familiarity/1",
+  "issue": 347,
+  "about": "The ten most common Docker tasks, as Docker's CLI and Docker's SDK spell them, done against Prism. Each CLI step is Docker's command with docker renamed prism-code; each SDK step is the call a Docker SDK user reaches for, on the prism client. test/familiarity.test.mjs runs every step against a local registry and keeps this transcript equal to what happened.",
+  "words": {
+    "$REGISTRY": "the host of a local registry",
+    "$IMAGE": "fixtures/Calculator.holo",
+    "$INPUT": "the Calculator's request to add 20 and 22, 1<tab>add<tab>20<tab>22",
+    "$CONTAINER": "the id of the container the run made"
+  },
+  "setup": [
+    { "prism": "prism-code push $IMAGE $REGISTRY/calc:1", "why": "a registry that holds the Calculator image; Docker's push takes no file" }
+  ],
+  "cli": [
+    { "task": "build", "docker": "docker build", "exit": 0, "stdout": "^docker run .* prismpm build$", "note": "PrismPM builds in the builder image the lock pins; the check runs it as PRISM_CODE_DRY_RUN, which prints the Docker command" },
+    { "task": "pull", "docker": "docker pull $REGISTRY/calc:1", "exit": 0, "stdout": "blake3:[0-9a-f]{64}" },
+    { "task": "list images", "docker": "docker images", "exit": 0, "stdout": "calc" },
+    { "task": "list images", "docker": "docker image ls", "exit": 0, "stdout": "calc" },
+    { "task": "tag", "docker": "docker tag $REGISTRY/calc:1 calc:latest", "exit": 0, "stdout": "" },
+    { "task": "inspect", "docker": "docker inspect calc:latest", "exit": 0, "stdout": "Calculator" },
+    { "task": "inspect", "docker": "docker image inspect calc:latest", "exit": 0, "stdout": "Calculator" },
+    { "task": "run", "docker": "docker run calc:latest $INPUT", "exit": 0, "stdout": "^1\\tok\\t42$" },
+    { "task": "list containers", "docker": "docker ps -a", "exit": 0, "stdout": "exited" },
+    { "task": "list containers", "docker": "docker container ls -a", "exit": 0, "stdout": "exited" },
+    { "task": "logs", "docker": "docker logs $CONTAINER", "exit": 0, "stdout": "^1\\tok\\t42$" },
+    { "task": "remove", "docker": "docker rm $CONTAINER", "exit": 0, "stdout": "$CONTAINER" },
+    { "task": "push", "docker": "docker tag calc:latest $REGISTRY/calc:2", "exit": 0, "stdout": "" },
+    { "task": "push", "docker": "docker push $REGISTRY/calc:2", "exit": 0, "stdout": "blake3:[0-9a-f]{64}" },
+    { "task": "remove", "docker": "docker rmi calc:latest", "exit": 0, "stdout": "calc:latest" }
+  ],
+  "sdk": [
+    { "task": "build", "docker": "docker.buildImage(context)", "prism": "prism.images.build({ path })" },
+    { "task": "pull", "docker": "docker.pull(reference)", "prism": "prism.images.pull(reference)" },
+    { "task": "list images", "docker": "docker.listImages()", "prism": "prism.images.list()" },
+    { "task": "tag", "docker": "docker.getImage(name).tag({ repo, tag })", "prism": "prism.images.tag(name, target)" },
+    { "task": "inspect", "docker": "docker.getImage(name).inspect()", "prism": "prism.images.inspect(name)" },
+    { "task": "run", "docker": "docker.run(image, command)", "prism": "prism.containers.run(image, input)" },
+    { "task": "list containers", "docker": "docker.listContainers({ all: true })", "prism": "prism.containers.list({ all: true })" },
+    { "task": "logs", "docker": "docker.getContainer(id).logs()", "prism": "prism.containers.logs(id)" },
+    { "task": "remove", "docker": "docker.getContainer(id).remove()", "prism": "prism.containers.remove(id)" },
+    { "task": "push", "docker": "docker.getImage(name).push()", "prism": "prism.images.push(reference)" }
+  ]
+}

@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import {lexiconPaths} from '../../tests/browser-view/lexicon-inputs.mjs';
+import {readSemantic, writeSemantic} from '../../scripts/semantic-source.mjs';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {
@@ -94,12 +96,9 @@ function verifyPins() {
 }
 
 function corpus(source) {
-  const match = /\\semanticdata\{([^\n]+)\}\n/.exec(source);
-  assert.ok(match, 'one canonical semantic module');
-  assert.equal(source.match(/\\semanticdata\{/g)?.length, 1);
-  const data = JSON.parse(match[1]);
-  assert.equal(JSON.stringify(canonical(data)), match[1]);
-  assert.equal(data.spec, 'lexlean/semantic-module/1');
+  // LexLean reads exactly one module from either source surface.
+  const data = readSemantic(source);
+  assert.equal(data.spec, 'lexlean/semantic-module/2');
   const declarations = new Map(data.declarations.map(declaration => [declaration.name, declaration]));
   assert.equal(declarations.size, data.declarations.length);
   const requests = [...declarations.keys()].filter(name => name.startsWith('request'));
@@ -186,14 +185,16 @@ function corpus(source) {
 test('corpus collector rejects altered probe bindings and non-data fixture expressions', () => {
   const source = readRegular(join(repository,
     'stdlib/src/Foundation/Browser/V1/WorkspaceCorpus.lex.tex')).toString('utf8');
-  const match = /\\semanticdata\{([^\n]+)\}\n/.exec(source);
   function changed(mutate) {
-    const data = JSON.parse(match[1]);
+    const data = readSemantic(source);
     mutate(data.declarations);
-    return source.replace(match[1], JSON.stringify(canonical(data)));
+    return writeSemantic(source, canonical(data));
   }
-  assert.throws(() => corpus(changed(rows => rows.pop())));
-  assert.throws(() => corpus(changed(rows => rows.push(rows[0]))));
+  // Build each planted source outside the refusal check, so a source that
+  // cannot be written fails the test instead of passing as refused.
+  const refusedBy = (check, text, expected) => assert.throws(() => check(text), expected);
+  refusedBy(corpus, changed(rows => rows.pop()));
+  refusedBy(corpus, changed(rows => rows.push(rows[0])));
   for (const mutate of [
     rows => {
       const helper = rows.find(row => row.name.startsWith('fixtureLiteral') && row.body.hex.length > 0);
@@ -201,8 +202,8 @@ test('corpus collector rejects altered probe bindings and non-data fixture expre
     },
     rows => rows.push({...structuredClone(rows[0]), name: 'fixtureLiteralUnused'}),
     rows => rows.splice(0, 1),
-  ]) assert.throws(() => corpus(changed(mutate)));
-  assert.throws(() => corpus(changed(rows => {
+  ]) refusedBy(corpus, changed(mutate));
+  refusedBy(corpus, changed(rows => {
     const helper = rows.find(row => row.name.startsWith('fixtureLiteral') && row.body.hex === '');
     assert.ok(helper, 'exact empty literal helper');
     function inline(value) {
@@ -213,19 +214,19 @@ test('corpus collector rejects altered probe bindings and non-data fixture expre
     }
     for (const row of rows) row.body = inline(row.body);
     assert.equal(rows.length, 847, 'unused-helper mutation preserves cardinality and bytes');
-  })), /complete request\/response\/probe\/data closure/);
-  assert.throws(() => corpus(changed(rows => {
+  }), /complete request\/response\/probe\/data closure/);
+  refusedBy(corpus, changed(rows => {
     rows.find(row => row.name === 'probeGenesis').body.arguments[0].function.name = 'encodeWorkspaceError';
-  })));
+  }));
   for (const body of [
     {kind: 'call', function: {name: 'fixtureMaximumBody'}, arguments: []},
     {kind: 'call', function: {name: 'fixtureMissing'}, arguments: []},
     {kind: 'call', function: {module: moduleName, name: 'reduceWorkspaceBytes'}, arguments: []},
     {kind: 'if', condition: {kind: 'bool', value: true}, then_value: {kind: 'bytes', hex: '00'}, else_value: {kind: 'bytes', hex: '01'}},
     {kind: 'bytes', hex: '00'.repeat(1_104_666)},
-  ]) assert.throws(() => corpus(changed(rows => {
+  ]) refusedBy(corpus, changed(rows => {
     rows.find(row => row.name === 'fixtureMaximumBody').body = body;
-  })));
+  }));
 });
 
 test('fresh LexLean workspace corpus executes completely through pinned production codegen', {timeout: 1_200_000}, async t => {
@@ -233,7 +234,7 @@ test('fresh LexLean workspace corpus executes completely through pinned producti
   const sources = new Map(files.map(file => [file, readRegular(join(repository,
     'stdlib/src/Foundation/Browser/V1', file))]));
   const vectors = corpus(sources.get('WorkspaceCorpus.lex.tex').toString('utf8'));
-  const workspace = JSON.parse(/\\semanticdata\{([^\n]+)\}\n/.exec(sources.get('Workspace.lex.tex').toString('utf8'))[1]);
+  const workspace = readSemantic(sources.get('Workspace.lex.tex').toString('utf8'));
   const errors = workspace.declarations.find(declaration => declaration.name === 'WorkspaceError');
   assert.equal(errors.kind, 'inductive');
   assert.deepEqual([...new Set(vectors.filter(vector => /^[0-9a-f]{2}$/.test(vector.response))
@@ -255,9 +256,13 @@ test('fresh LexLean workspace corpus executes completely through pinned producti
   for (const [file, bytes] of sources) writeFileSync(join(sourceRoot, file), bytes, {flag: 'wx'});
   writeFileSync(join(project, 'lean-toolchain'), 'leanprover/lean4:v4.32.1\n', {flag: 'wx'});
   writeFileSync(join(project, 'lakefile.toml'), 'name = "workspace_verification"\nversion = "0.1.0"\n', {flag: 'wx'});
+  for (const path of lexiconPaths(repository)) {
+    const destination = join(project, path);
+    mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, readRegular(join(repository, path)), {flag: 'wx'});
+  }
   writeFileSync(join(project, 'lexlean.toml'), `spec = "lexlean/project/1"
 name = "workspace-model-verification"
-language = "1.1"
+language = "1.2"
 module_prefix = "PrismPM"
 source_roots = ["src"]
 entrypoints = ["src/Foundation/Browser/V1/WorkspaceCorpus.lex.tex"]
@@ -266,8 +271,15 @@ lockfile = "lexlean.lock"
 lean_workspace = "."
 lean_toolchain = "leanprover/lean4:v4.32.1"
 [[lexicon_source]]
+package = "lexlean.std.bool"
+kind = "builtin"
+[[lexicon_source]]
 package = "lexlean.std.nat"
 kind = "builtin"
+[[lexicon_source]]
+package = "prism.arch"
+kind = "path"
+path = "language/prism.arch"
 [limits]
 max_file_bytes = 4194304
 max_total_source_bytes = 67108864

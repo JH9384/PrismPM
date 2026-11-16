@@ -6,6 +6,13 @@ name: Golden refresh proposal
 # the native-source-review jobs once the refreshed goldens are committed.
 
 on:
+  # Explicit proposal branches make generation available through a normal
+  # repository push. Importing only generated records does not regenerate them.
+  push:
+    branches: ['golden-proposal/**']
+    paths:
+      - '**'
+      - '!tests/golden/**'
   workflow_dispatch:
     inputs:
       ref:
@@ -21,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: golden-refresh-${{ inputs.ref }}
+  group: golden-refresh-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -31,17 +38,22 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
+      - uses: ./.github/actions/prepare-devcontainer-runner
+      - id: cache
+        uses: ./.github/actions/devcontainer-cache
       - name: Regenerate the shared goldens through the pinned devcontainer
         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca
         env:
-          GOLDEN_REASON: ${{ inputs.reason }}
+          GOLDEN_REASON: ${{ inputs.reason || format('Review exact proposed golden source at {0}.', github.sha) }}
         with:
           push: never
+          cacheFrom: ${{ steps.cache.outputs.cache-from }}
           env: GOLDEN_REASON
           runCmd: |
             set -euo pipefail
+            node --test scripts/text-workbench.test.mjs
             just golden-write "$GOLDEN_REASON"
       - name: Preserve the proposal as a binary patch
         shell: bash

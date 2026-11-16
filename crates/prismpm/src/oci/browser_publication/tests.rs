@@ -352,7 +352,7 @@ fn receipt_contract_rejects_inconsistent_identities_profiles_and_targets() {
         "requests":7, "redirects":0, "files":files,
     });
     let schema = "prismpm/browser-publication-integrity/1";
-    CanonicalDocument::from_value(schema, value.clone()).unwrap();
+    crate::oci::contract_from_value(schema, value.clone()).unwrap();
     for (field, replacement) in [
         (
             "release_digest",
@@ -370,7 +370,7 @@ fn receipt_contract_rejects_inconsistent_identities_profiles_and_targets() {
         let mut changed = value.clone();
         changed[field] = replacement;
         assert!(
-            CanonicalDocument::from_value(schema, changed).is_err(),
+            crate::oci::contract_from_value(schema, changed).is_err(),
             "{field}"
         );
     }
@@ -401,7 +401,7 @@ fn receipt_contract_rejects_inconsistent_identities_profiles_and_targets() {
             changed["tree_digest"] = json!(sha(&encode_value(&changed["files"]).unwrap()));
         }
         assert!(
-            CanonicalDocument::from_value(schema, changed).is_err(),
+            crate::oci::contract_from_value(schema, changed).is_err(),
             "mutation {mutation}"
         );
     }
@@ -509,10 +509,11 @@ fn source_free_release_binds_complete_observation_and_rejects_graph_mutation() {
             }
             _ => unreachable!(),
         }
-        assert!(
-            CanonicalDocument::from_value("prismpm/browser-publication-integrity/1", changed)
-                .is_err()
-        );
+        assert!(crate::oci::contract_from_value(
+            "prismpm/browser-publication-integrity/1",
+            changed
+        )
+        .is_err());
     }
     // The root document and every build/browser edge are reverified, not an
     // unsigned receipt or previously exported directory supplied by the caller.

@@ -17,6 +17,53 @@ inductive{
   ]
 }
 
+definition{
+  name: layerKindCode,
+  parameters: [kind : LayerKind],
+  result: Nat,
+  body: (match kind
+    | LayerKind.WasmCodemodule => 0
+    | LayerKind.TensorPlan => 1
+    | LayerKind.RootfsImage => 2
+    | LayerKind.View => 3
+    | LayerKind.InferenceModel => 4),
+  axioms: []
+}
+
+definition{
+  name: layerKindOfCode,
+  parameters: [code : Nat],
+  result: (Option LayerKind),
+  body: (if (code =? 0) then (ctor Option.some [LayerKind] (ctor LayerKind.WasmCodemodule)) else (if (code =? 1) then (ctor Option.some [LayerKind] (ctor LayerKind.TensorPlan)) else (if (code =? 2) then (ctor Option.some [LayerKind] (ctor LayerKind.RootfsImage)) else (if (code =? 3) then (ctor Option.some [LayerKind] (ctor LayerKind.View)) else (if (code =? 4) then (ctor Option.some [LayerKind] (ctor LayerKind.InferenceModel)) else (ctor Option.none [LayerKind])))))),
+  axioms: []
+}
+
+definition{
+  name: layerKindRoundTrip,
+  parameters: [code : Nat],
+  result: Bool,
+  body: (match (layerKindOfCode code)
+    | Option.none => false
+    | Option.some kind => ((layerKindCode kind) =? code)),
+  axioms: []
+}
+
+definition{
+  name: layerKindCodesClosed,
+  parameters: [],
+  result: Bool,
+  body: ((layerKindRoundTrip 0) && ((layerKindRoundTrip 1) && ((layerKindRoundTrip 2) && ((layerKindRoundTrip 3) && ((layerKindRoundTrip 4) && ((not (layerKindRoundTrip 5)) && true)))))),
+  axioms: []
+}
+
+theorem{
+  name: layerKindCodesBijective,
+  parameters: [],
+  statement: ((layerKindCodesClosed) = true),
+  proof: reflexivity{},
+  axioms: []
+}
+
 structure{
   name: Layer,
   type_parameters: [],

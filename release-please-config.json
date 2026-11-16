@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "2e44eed0a426c0e6b0d513e161358c059a9e26db",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "include-v-in-tag": true,
+  "separate-pull-requests": true,
+  "changelog-sections": [
+    { "type": "feat", "section": "Features Added" },
+    { "type": "fix", "section": "Bugs Fixed" },
+    { "type": "perf", "section": "Other Changes" },
+    { "type": "refactor", "section": "Other Changes" },
+    { "type": "docs", "section": "Other Changes" },
+    { "type": "test", "section": "Other Changes" },
+    { "type": "build", "section": "Other Changes" },
+    { "type": "ci", "section": "Other Changes" },
+    { "type": "chore", "section": "Other Changes" },
+    { "type": "revert", "section": "Other Changes" }
+  ],
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "component": "prismpm",
+      "include-component-in-tag": false,
+      "skip-github-release": true,
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        { "type": "toml", "path": "Cargo.toml", "jsonpath": "$.workspace.package.version" },
+        { "type": "toml", "path": "Cargo.toml", "jsonpath": "$.workspace.dependencies.repo-model.version" },
+        { "type": "toml", "path": "Cargo.toml", "jsonpath": "$.workspace.dependencies.repo-conformance.version" },
+        { "type": "toml", "path": "Cargo.toml", "jsonpath": "$.workspace.dependencies.prismpm.version" },
+        { "type": "generic", "path": "sdk/generate-inventory.mjs" },
+        { "type": "generic", "path": "sdk/Dockerfile" },
+        { "type": "json", "path": "sdk/oracles/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "sdk/runtime/package.json", "jsonpath": "$.version" }
+      ]
+    },
+    "sdk/npm/prism-code": { "release-type": "node", "component": "prism-code", "extra-files": [{ "type": "generic", "path": "src/version.mjs" }] },
+    "sdk/npm/spec": { "release-type": "node", "component": "prism-code-spec" },
+    "sdk/npm/verify": { "release-type": "node", "component": "prism-code-verify" },
+    "sdk/npm/create-prism-code": { "release-type": "node", "component": "create-prism-code" },
+    "sdk/npm/conformance": { "release-type": "node", "component": "prism-code-conformance" },
+    "sdk/npm/testing": { "release-type": "node", "component": "prism-code-testing" }
+  }
+}

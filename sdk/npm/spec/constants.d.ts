@@ -9,9 +9,11 @@ import type {
   ExtensionName,
   FormatRevision,
   FormatRevisionIdentifiers,
+  GuestContract,
   HoloviewLimits,
   SectionKind,
   SectionKindCode,
+  SessionContract,
   World,
 } from './types/holo.js';
 
@@ -59,8 +61,17 @@ export declare const CORE_WASM: Readonly<{
   WORLD: 'worlds/core-wasm.wit';
 }>;
 
-/** The WIT world of each guest contract (issue #278). */
-export declare const WORLDS: Readonly<Record<CoreWasmContract, World>>;
+/** The Core-Wasm session contract (issue #629). */
+export declare const CORE_WASM_SESSION: Readonly<{
+  CONTRACT: SessionContract;
+  EXPORTS: readonly ['holo_alloc', 'holo_step', 'memory'];
+  ALLOCATOR: 'holo_alloc';
+  ENTRY: 'holo_step';
+  WORLD: 'worlds/core-wasm-2.wit';
+}>;
+
+/** The WIT world of each guest contract (issues #278, #629). */
+export declare const WORLDS: Readonly<Record<GuestContract, World>>;
 
 export declare const HOLOVIEW: Readonly<HoloviewLimits>;
 
@@ -97,6 +108,16 @@ export declare const OCI: Readonly<{
 }>;
 
 /** Build provenance of a holo (#268). */
+/** Holo v5 (ADR-017): a raw self-contained UORC archive of ordered objects named by κ. */
+export declare const HOLO_V5: Readonly<{
+  MAGIC_HEX: '554f52430201';
+  MANIFEST_SCHEMA: 'prism/holo/5';
+  PROVENANCE_SCHEMA: 'prismpm/model-provenance/2';
+  ROLES: readonly ['manifest', 'source-manifest', 'provenance', 'capabilities', 'guest', 'view', 'model'];
+  ROLE_ATTESTATIONS: 'attestations';
+  KAPPA_PREFIX: 'sha256:';
+}>;
+
 export declare const PROVENANCE: Readonly<{
   PREDICATE_TYPE: 'https://slsa.dev/provenance/v1';
   BUILD_TYPE: 'https://uor.foundation/prism/holo-build/v1';

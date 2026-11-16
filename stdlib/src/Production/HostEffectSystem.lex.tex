@@ -345,26 +345,6 @@ definition{
 }
 
 definition{
-  name: networkIsOpen,
-  parameters: [rows : (List Network), wanted : String],
-  result: Bool,
-  body: (match rows
-    | List.nil => false
-    | List.cons head tail => (((prim equal (project head id) wanted : Bool) && (not (project head internal))) || (networkIsOpen tail wanted))),
-  recursive_argument: rows
-}
-
-definition{
-  name: anyOpenNetwork,
-  parameters: [names : (List String), rows : (List Network)],
-  result: Bool,
-  body: (match names
-    | List.nil => false
-    | List.cons head tail => ((networkIsOpen rows head) || (anyOpenNetwork tail rows))),
-  recursive_argument: names
-}
-
-definition{
   name: isApiComponent,
   parameters: [rows : (List Component), wanted : String],
   result: Bool,
@@ -375,13 +355,17 @@ definition{
 }
 
 definition{
-  name: componentHasOpenNetwork,
-  parameters: [rows : (List Component), networks : (List Network), wanted : String],
+  name: validNetworkSet,
+  parameters: [component : Component],
   result: Bool,
-  body: (match rows
-    | List.nil => false
-    | List.cons head tail => (((prim equal (project head id) wanted : Bool) && (anyOpenNetwork (project head networks) networks)) || (componentHasOpenNetwork tail networks wanted))),
-  recursive_argument: rows
+  body: ((((prim equal (project component kind) "api" : Bool) && (not (nonEmptyStrings (project component networks)))) || ((not (prim equal (project component kind) "api" : Bool)) && (nonEmptyStrings (project component networks)))) && true)
+}
+
+definition{
+  name: apiRunsOnce,
+  parameters: [component : Component],
+  result: Bool,
+  body: ((not (prim equal (project component kind) "api" : Bool)) || ((project (project component resources) replicasMax) =? 1))
 }
 
 definition{
@@ -426,7 +410,7 @@ definition{
   name: validComponent,
   parameters: [model : SystemModel, earlier : (List String), component : Component],
   result: Bool,
-  body: ((nonEmpty (project component id)) && ((nonEmpty (project component version)) && ((validKind (project component kind)) && ((memberString (project component artifact) (artifactIds (project model artifacts))) && ((nonEmptyStrings (project component command)) && ((allNonEmpty (project component command)) && ((allMembers (project component dependsOn) earlier) && (((prim equal (project component kind) "job" : Bool) || (nonEmptyStrings (project component readiness))) && ((allMembers (project component parameters) (parameterIds (project model parameters))) && ((allMembers (project component secrets) (secretIds (project model secretReferences))) && ((allMembers (project component volumes) (volumeIds (project model volumes))) && ((nonEmptyStrings (project component networks)) && ((allMembers (project component networks) (networkIds (project model networks))) && (validResources (project component resources)))))))))))))))
+  body: ((nonEmpty (project component id)) && ((nonEmpty (project component version)) && ((validKind (project component kind)) && ((memberString (project component artifact) (artifactIds (project model artifacts))) && ((nonEmptyStrings (project component command)) && ((allNonEmpty (project component command)) && ((allMembers (project component dependsOn) earlier) && (((prim equal (project component kind) "job" : Bool) || (nonEmptyStrings (project component readiness))) && ((allMembers (project component parameters) (parameterIds (project model parameters))) && ((allMembers (project component secrets) (secretIds (project model secretReferences))) && ((allMembers (project component volumes) (volumeIds (project model volumes))) && ((validNetworkSet component) && ((apiRunsOnce component) && ((allMembers (project component networks) (networkIds (project model networks))) && (validResources (project component resources))))))))))))))))
 }
 
 definition{
@@ -490,7 +474,7 @@ definition{
   name: validListener,
   parameters: [model : SystemModel, listener : Listener],
   result: Bool,
-  body: ((nonEmpty (project listener id)) && ((0 <? (project listener port)) && (((project listener port) <? 65536) && ((prim equal (project listener protocol) "tcp" : Bool) && ((prim equal (project listener bindAddress) (loopbackAddress) : Bool) && ((isApiComponent (project model components) (project listener component)) && (componentHasOpenNetwork (project model components) (project model networks) (project listener component))))))))
+  body: ((nonEmpty (project listener id)) && ((0 <? (project listener port)) && (((project listener port) <? 65536) && ((prim equal (project listener protocol) "tcp" : Bool) && ((prim equal (project listener bindAddress) (loopbackAddress) : Bool) && (isApiComponent (project model components) (project listener component)))))))
 }
 
 definition{
@@ -677,7 +661,7 @@ definition{
   name: exampleNetworks,
   parameters: [],
   result: (List Network),
-  body: (cons (record Network {id := "backend", internal := true}) (cons (record Network {id := "edge", internal := false}) (nil Network)))
+  body: (cons (record Network {id := "backend", internal := true}) (nil Network))
 }
 
 definition{
@@ -724,7 +708,7 @@ definition{
   name: goodGateway,
   parameters: [],
   result: Component,
-  body: (exampleGateway (cons "backend" (cons "edge" (nil String))))
+  body: (exampleGateway (nil String))
 }
 
 definition{
@@ -815,7 +799,7 @@ theorem{
 theorem{
   name: listenerOnAWorkerIsRefused,
   parameters: [],
-  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (exampleComponent "gateway" "worker" "gateway-image" (cons "/usr/local/bin/gateway" (nil String)) (cons "engine-host" (cons "signer" (nil String))) (cons "/usr/local/bin/gateway" (cons "--ready" (nil String))) (cons "listen-port" (cons "log-level" (nil String))) (nil String) (nil String) (cons "backend" (cons "edge" (nil String))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (exampleComponent "gateway" "worker" "gateway-image" (cons "/usr/local/bin/gateway" (nil String)) (cons "engine-host" (cons "signer" (nil String))) (cons "/usr/local/bin/gateway" (cons "--ready" (nil String))) (cons "listen-port" (cons "log-level" (nil String))) (nil String) (nil String) (cons "backend" (nil String)))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
   proof: decide{},
   axioms: []
 }
@@ -829,9 +813,33 @@ theorem{
 }
 
 theorem{
-  name: apiOnlyOnAnInternalNetworkCannotPublishAPort,
+  name: apiComponentOnANetworkIsRefused,
   parameters: [],
   statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (exampleGateway (cons "backend" (nil String)))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: workerWithoutANetworkIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (cons (exampleVerifier) (cons (exampleComponent "signer" "worker" "signer-image" (cons "/usr/local/bin/signer" (nil String)) (nil String) (cons "/usr/local/bin/signer" (cons "--ready" (nil String))) (nil String) (cons "signing-key" (nil String)) (nil String) (nil String)) (cons (exampleEngineHost) (cons (goodGateway) (cons (exampleCollector) (nil Component)))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: apiComponentWithASecondReplicaIsRefused,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (record Component {id := "gateway", kind := "api", version := "0.1.0", artifact := "gateway-image", command := (cons "/usr/local/bin/gateway" (nil String)), dependsOn := (cons "engine-host" (cons "signer" (nil String))), readiness := (cons "/usr/local/bin/gateway" (cons "--ready" (nil String))), parameters := (cons "listen-port" (cons "log-level" (nil String))), secrets := (nil String), volumes := (nil String), networks := (nil String), resources := (record Resources {cpuMillis := 500, memoryBytes := 268435456, replicasMin := 1, replicasMax := 2})})) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: workerWithSeveralReplicasIsAdmitted,
+  parameters: [],
+  statement: ((validateManifest (exampleModel (goodProfile) (cons (exampleVerifier) (cons (record Component {id := "signer", kind := "worker", version := "0.1.0", artifact := "signer-image", command := (cons "/usr/local/bin/signer" (nil String)), dependsOn := (nil String), readiness := (cons "/usr/local/bin/signer" (cons "--ready" (nil String))), parameters := (nil String), secrets := (cons "signing-key" (nil String)), volumes := (nil String), networks := (cons "backend" (nil String)), resources := (record Resources {cpuMillis := 500, memoryBytes := 268435456, replicasMin := 1, replicasMax := 3})}) (cons (exampleEngineHost) (cons (goodGateway) (cons (exampleCollector) (nil Component)))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = true),
   proof: decide{},
   axioms: []
 }
@@ -927,7 +935,7 @@ theorem{
 theorem{
   name: componentWithAnUnknownImageIsRefused,
   parameters: [],
-  statement: ((validateManifest (exampleModel (goodProfile) (cons (exampleVerifier) (cons (exampleSigner) (cons (exampleEngineHost) (cons (exampleComponent "gateway" "api" "absent-image" (cons "/usr/local/bin/gateway" (nil String)) (cons "engine-host" (cons "signer" (nil String))) (cons "/usr/local/bin/gateway" (nil String)) (cons "listen-port" (nil String)) (nil String) (nil String) (cons "backend" (cons "edge" (nil String)))) (cons (exampleCollector) (nil Component)))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  statement: ((validateManifest (exampleModel (goodProfile) (cons (exampleVerifier) (cons (exampleSigner) (cons (exampleEngineHost) (cons (exampleComponent "gateway" "api" "absent-image" (cons "/usr/local/bin/gateway" (nil String)) (cons "engine-host" (cons "signer" (nil String))) (cons "/usr/local/bin/gateway" (nil String)) (cons "listen-port" (nil String)) (nil String) (nil String) (nil String)) (cons (exampleCollector) (nil Component)))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
   proof: decide{},
   axioms: []
 }
@@ -935,7 +943,7 @@ theorem{
 theorem{
   name: componentWithAnUnknownNetworkIsRefused,
   parameters: [],
-  statement: ((validateManifest (exampleModel (goodProfile) (exampleComponents (exampleGateway (cons "backend" (cons "absent" (cons "edge" (nil String)))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
+  statement: ((validateManifest (exampleModel (goodProfile) (cons (exampleVerifier) (cons (exampleComponent "signer" "worker" "signer-image" (cons "/usr/local/bin/signer" (nil String)) (nil String) (cons "/usr/local/bin/signer" (cons "--ready" (nil String))) (nil String) (cons "signing-key" (nil String)) (nil String) (cons "backend" (cons "absent" (nil String)))) (cons (exampleEngineHost) (cons (goodGateway) (cons (exampleCollector) (nil Component)))))) (exampleNetworks) (goodListeners "127.0.0.1")) (goodManifest)) = false),
   proof: decide{},
   axioms: []
 }

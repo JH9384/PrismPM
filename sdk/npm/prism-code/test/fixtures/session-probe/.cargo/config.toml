@@ -1,0 +1,5 @@
+[build]
+target = "wasm32-unknown-unknown"
+
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--export-memory", "-C", "link-arg=--max-memory=131072", "-C", "link-arg=-zstack-size=16384"]

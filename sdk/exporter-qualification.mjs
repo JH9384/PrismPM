@@ -67,7 +67,7 @@ export function validateQualification(value, binding, authority, nativeInventory
     const archive = record.extraction.argv[3];
     assert.match(archive, /^\/work\/prismpm-exporter-qualification-[A-Za-z0-9]+\/source-[ab]\/vendor\/lean4-prod\/lean\.tar$/);
     roots.push(archive);
-    process(record.extraction, ['/usr/bin/tar', '--extract', '--file', archive, '--directory', '/proc/self/fd/3'], '/proc/self/fd/4');
+    process(record.extraction, ['/usr/bin/tar', '--extract', '--file', archive, '--directory', '/proc/self/fd/3', '--same-permissions'], '/proc/self/fd/4');
     process(record.build, [lake, 'build', 'prod-export'], '/proc/self/fd/4');
   }
   assert.equal(new Set(roots).size, 2, 'distinct construction roots required');
@@ -98,7 +98,7 @@ export function validateQualification(value, binding, authority, nativeInventory
     }
     const temporary = row.build.environment.TMPDIR;
     assert.match(temporary, /^\/tmp\/exporter-relocation-[A-Za-z0-9]+$/);
-    process(row.extraction, ['/usr/bin/tar', '--extract', '--file', roots[0], '--directory', row.root], temporary);
+    process(row.extraction, ['/usr/bin/tar', '--extract', '--file', roots[0], '--directory', row.root, '--same-permissions'], temporary);
     process(row.build, [lake, 'build', 'prod-export'], temporary);
     process(row.module, [lake, 'build', 'Conformance.LexLean11'], temporary);
     process(row.kernel, [lake, 'env', 'leanchecker', 'Conformance.LexLean11'], temporary);

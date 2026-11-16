@@ -18,9 +18,9 @@ pub(crate) const SDK_LOCK_V2: &str = "prismpm/sdk-lock/2";
 pub(crate) const SDK_LOCK_V3: &str = "prismpm/sdk-lock/3";
 
 /// The Rust toolchain inside the SDK image (`tools.lock` `[rust]`).
-const RUSTC_VERSION: &str = "1.97.1";
+pub(crate) const RUSTC_VERSION: &str = "1.97.1";
 /// The wasm-bindgen CLI inside the SDK image (`tools.lock` `[sdk-tools]`).
-const WASM_BINDGEN_VERSION: &str = "0.2.122";
+pub(crate) const WASM_BINDGEN_VERSION: &str = "0.2.122";
 /// The only guest contract today, and the digests of its committed WIT world
 /// (`sdk/npm/spec/worlds/core-wasm.wit`). A test recomputes both.
 const CORE_WASM_CONTRACT: &str = "hologram:guest/core-wasm@1";
@@ -32,7 +32,8 @@ const CORE_WASM_WORLD_SHA256: &str =
 const SPEC_DOMAIN: &[u8] = b"prismpm/spec-inputs/1\n";
 const SPEC_MAX_FILES: usize = 4096;
 const SPEC_MAX_BYTES: u64 = 512 * 1024 * 1024;
-const SPEC_TREES: [&str; 3] = ["examples", "intent", "types"];
+const SPEC_INTENT: &str = "intent.md";
+const SPEC_TREES: [&str; 2] = ["examples", "types"];
 
 /// Everything a build knows that the input lock pins.
 pub(crate) struct InputSources<'a> {
@@ -49,6 +50,8 @@ pub(crate) fn sdk_projection(lock: &Value) -> Value {
     let mut value = lock.clone();
     if let Some(object) = value.as_object_mut() {
         object.remove("inputs");
+        // Written by the removed `prism-code build --unstable-author` (#325); kept so older locks still parse. The SDK rules never read it.
+        object.remove("authoring");
         object.insert("schema".to_owned(), Value::String(SDK_LOCK_V2.to_owned()));
     }
     value
@@ -157,7 +160,7 @@ pub(crate) fn with_inputs(lock: &Value, inputs: Value) -> Result<CanonicalDocume
         .ok_or_else(|| PrismError::new("PP5401", "prismpm.lock is not a JSON object"))?;
     object.insert("inputs".to_owned(), inputs);
     object.insert("schema".to_owned(), Value::String(SDK_LOCK_V3.to_owned()));
-    CanonicalDocument::from_value(SDK_LOCK_V3, value)
+    crate::sdk::contract_from_value(SDK_LOCK_V3, value)
 }
 
 /// Replace `prismpm.lock` atomically, never over bytes this build did not read.
@@ -267,6 +270,9 @@ fn spec_files(
     let mut files = SpecFiles::default();
     if exists(&root.join("prism.toml"))? {
         files.add(root, "prism.toml")?;
+        if exists(&root.join(SPEC_INTENT))? {
+            files.add(root, SPEC_INTENT)?;
+        }
         for tree in SPEC_TREES {
             if exists(&root.join(tree))? {
                 files.walk(root, tree, |_| true)?;
@@ -593,12 +599,32 @@ mod tests {
         calculator_like(root.path());
         write(root.path(), "prism.toml", b"name = \"calculator\"\n");
         write(root.path(), "examples/add.json", b"{}");
-        write(root.path(), "intent/README.md", b"intent");
+        write(root.path(), "intent.md", b"add never overflows.\n");
+        write(root.path(), "types/calculator.ts", b"export type T = 1;\n");
+        write(root.path(), "intent/README.md", b"not part of the spec");
         let (basis, files) = spec_files(root.path(), "lexlean.toml").unwrap();
         assert_eq!(basis, "prism-toml");
         assert_eq!(
             files.keys().map(String::as_str).collect::<Vec<_>>(),
-            ["examples/add.json", "intent/README.md", "prism.toml"]
+            [
+                "examples/add.json",
+                "intent.md",
+                "prism.toml",
+                "types/calculator.ts"
+            ]
+        );
+    }
+
+    #[test]
+    fn the_calculator_authoring_fixture_has_the_digest_javascript_pins() {
+        // sdk/npm/prism-code/test/author.test.mjs pins the same value, so the two readers cannot drift.
+        let root =
+            manifest_dir().join("../../sdk/npm/prism-code/test/fixtures/authoring/calculator");
+        let (basis, files) = spec_files(&root, "lexlean.toml").unwrap();
+        assert_eq!(basis, "prism-toml");
+        assert_eq!(
+            spec_digest(&files),
+            "5487513160c873eb0dcf02a42146fc8bbadc06d1d701ea2b08a3169d4c814d1a"
         );
     }
 
@@ -641,8 +667,31 @@ mod tests {
     }
 
     #[test]
+    fn the_authoring_record_stays_in_the_lock_and_out_of_the_projection() {
+        let v2 = crate::sdk::contract_from_value(SDK_LOCK_V2, platform_lock()).unwrap();
+        let mut value = with_inputs(v2.value(), sample_inputs())
+            .unwrap()
+            .value()
+            .clone();
+        value["authoring"] = json!({
+            "agent": {"adapter": "anthropic", "model": "claude-opus-5-5"},
+            "model_tree": {"blake3": "a".repeat(64)},
+            "spec": {"blake3": "b".repeat(64)}
+        });
+        let v3 = crate::sdk::contract_from_value(SDK_LOCK_V3, value.clone()).unwrap();
+        assert_eq!(
+            crate::sdk::parse_lock(v3.bytes()).unwrap().bytes(),
+            v2.bytes()
+        );
+        let updated = with_inputs(v3.value(), sample_inputs()).unwrap();
+        assert_eq!(updated.value()["authoring"], value["authoring"]);
+        value["authoring"]["surprise"] = json!(true);
+        assert!(crate::sdk::contract_from_value(SDK_LOCK_V3, value).is_err());
+    }
+
+    #[test]
     fn a_v3_lock_projects_to_the_exact_v2_lock() {
-        let v2 = CanonicalDocument::from_value(SDK_LOCK_V2, platform_lock()).unwrap();
+        let v2 = crate::sdk::contract_from_value(SDK_LOCK_V2, platform_lock()).unwrap();
         let v3 = with_inputs(v2.value(), sample_inputs()).unwrap();
         assert_eq!(v3.schema(), SDK_LOCK_V3);
         let projected = crate::sdk::parse_lock(v3.bytes()).unwrap();
@@ -656,7 +705,7 @@ mod tests {
             "example.invalid/test-sdk@sha256:{}",
             "0".repeat(64)
         ));
-        assert!(CanonicalDocument::from_value(SDK_LOCK_V3, broken.clone()).is_err());
+        assert!(crate::sdk::contract_from_value(SDK_LOCK_V3, broken.clone()).is_err());
         assert!(
             crate::sdk::parse_lock(&crate::holo::canonical::encode_value(&broken).unwrap())
                 .is_err()
@@ -668,7 +717,7 @@ mod tests {
         let never = || -> Result<Value, PrismError> { panic!("inputs must not be computed") };
         assert!(reconcile(None, false, never).unwrap().is_none());
         assert_eq!(reconcile(None, true, never).unwrap_err().code, "PP5401");
-        let v2 = CanonicalDocument::from_value(SDK_LOCK_V2, platform_lock()).unwrap();
+        let v2 = crate::sdk::contract_from_value(SDK_LOCK_V2, platform_lock()).unwrap();
         assert!(reconcile(Some(&v2), false, never).unwrap().is_none());
         let upgraded = reconcile(Some(&v2), true, || Ok(sample_inputs()))
             .unwrap()
@@ -718,7 +767,7 @@ mod tests {
     #[test]
     fn update_writes_atomically_and_refuses_a_concurrent_edit() {
         let root = tempfile::tempdir().unwrap();
-        let v2 = CanonicalDocument::from_value(SDK_LOCK_V2, platform_lock()).unwrap();
+        let v2 = crate::sdk::contract_from_value(SDK_LOCK_V2, platform_lock()).unwrap();
         let path = root.path().join("prismpm.lock");
         std::fs::write(&path, v2.bytes()).unwrap();
         let v3 = with_inputs(v2.value(), sample_inputs()).unwrap();

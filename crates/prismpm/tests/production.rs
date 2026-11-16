@@ -2,7 +2,8 @@
 
 use lexlean::{CheckRequest as LexCheckRequest, Engine, Selection};
 use prismpm::controller::{BuildRequest, CheckRequest, Controller};
-use prismpm::holo::canonical::{content_id, decode_canonical, encode_canonical};
+use prismpm::holo::canonical::content_id;
+use prismpm::holo::model_document::{decode_canonical, encode_canonical};
 use prismpm::holo::projector::project_snapshot;
 use proptest::prelude::*;
 use std::path::{Path, PathBuf};
@@ -66,6 +67,32 @@ fn copy_tree(from: &Path, to: &Path) {
     ] {
         std::fs::copy(from.join(relative), to.join(relative)).expect("copy project file");
     }
+}
+
+fn project_tree(root: &Path) -> std::collections::BTreeMap<PathBuf, Option<String>> {
+    walkdir::WalkDir::new(root)
+        .into_iter()
+        .map(|entry| {
+            let entry = entry.expect("project tree entry");
+            let relative = entry
+                .path()
+                .strip_prefix(root)
+                .expect("relative")
+                .to_path_buf();
+            let bytes = if entry.file_type().is_file() {
+                Some(content_id(
+                    &std::fs::read(entry.path()).expect("project file bytes"),
+                ))
+            } else {
+                assert!(
+                    entry.file_type().is_dir(),
+                    "fixture contains only files and directories"
+                );
+                None
+            };
+            (relative, bytes)
+        })
+        .collect()
 }
 
 #[test]
@@ -147,10 +174,18 @@ fn check_is_no_write_and_build_detects_tampering() {
     let temp = tempfile::tempdir().expect("tempdir");
     copy_tree(&root(), temp.path());
     let controller = Controller::load(temp.path()).expect("controller");
+    let before_check = project_tree(temp.path());
     let checked = controller
         .check(CheckRequest { config_path: None })
         .expect("check");
-    assert_eq!(checked.entity_count, 18);
+    // The committed fixture has 8 architecture, 6 security and 8 quality
+    // records, including the registered WCAG requirements.
+    assert_eq!(checked.entity_count, 22);
+    assert_eq!(
+        project_tree(temp.path()),
+        before_check,
+        "check changes no project bytes or paths"
+    );
     assert!(!temp.path().join(".prism").exists());
     assert!(!temp.path().join(".lexlean").exists());
 

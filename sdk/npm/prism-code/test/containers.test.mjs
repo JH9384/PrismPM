@@ -388,6 +388,70 @@ test('allowUnverified runs a holo that fails check, warns on every start, and th
   assert.equal(warnings.length, 2);
 });
 
+test('the bypass is explicit and on the record: allowUnverified, when, why, and the warning given', async () => {
+  const warnings = [];
+  const { containers } = createPrism({ warn: (message) => warnings.push(message) });
+  const bypassed = await containers.run(fixture, ADD, { allowUnverified: true });
+  const record = await bypassed.inspect();
+  assert.equal(record.allowUnverified, true);
+  assert.equal(record.unverified.warning, warnings[0]);
+  assert.equal(record.unverified.code, 'verification_failed');
+  assert.ok(Date.parse(record.unverified.at) <= Date.parse(record.state.startedAt));
+  // A holo that passes runs gated, even with the flag: nothing was bypassed, and the record says that too.
+  const passed = await (await containers.run(fixture, ADD, { ...P0, allowUnverified: true })).inspect();
+  assert.equal(passed.allowUnverified, true);
+  assert.equal(passed.unverified, null);
+  const plain = await (await containers.run(fixture, ADD, P0)).inspect();
+  assert.equal(plain.allowUnverified, false);
+  assert.equal(plain.unverified, null);
+  // A refused run without the flag ran nothing, so it bypassed nothing.
+  const refused = await (await containers.run(fixture, ADD)).inspect();
+  assert.equal(refused.unverified, null);
+  assert.equal(refused.state.startedAt, null);
+  await assert.rejects(containers.create(fixture, ADD, { allowUnverified: 'yes' }), { code: 'container.option' });
+});
+
+test('containers.inspect, logs and start take an id or a unique prefix, as the container itself does', async () => {
+  const { containers } = quiet();
+  const created = await containers.create(fixture, ADD, P0);
+  assert.deepEqual(await containers.logs(created.id), new Uint8Array(0), 'no run, no output');
+  assert.deepEqual(await containers.inspect(created.id.slice(0, 12)), await created.inspect());
+  await containers.start(created.id);
+  assert.equal(new TextDecoder().decode(await containers.logs(created.id.slice(0, 12))), SUM);
+  assert.deepEqual(await containers.logs(created.id), await created.logs());
+  assert.equal((await containers.inspect(created.id)).state.status, 'exited');
+  await assert.rejects(containers.logs(created.id, { follow: true }), { code: 'container.option' });
+  await containers.remove(created.id);
+  await assert.rejects(containers.inspect(created.id), { code: 'container.missing' });
+  await assert.rejects(containers.logs(created.id), { code: 'container.missing' });
+  await assert.rejects(created.logs(), { code: 'container.missing' });
+});
+
+test('logs are served from the stored output, so a container read back from the file store has them', async () => {
+  const directory = join(scratch(), 'containers');
+  const app = { ...(await load(fixture)), dispatch: async () => Uint8Array.from([0xff, 0x00, 0xfe]) };
+  const first = createPrism({ store: fileContainerStore(directory), warn: () => {} });
+  const container = await first.containers.run(app, ADD, { allowUnverified: true });
+  const second = createPrism({ store: fileContainerStore(directory) });
+  assert.deepEqual(await second.containers.logs(container.id), Uint8Array.from([0xff, 0x00, 0xfe]));
+  assert.equal((await second.containers.inspect(container.id)).unverified.code, 'verification_failed', 'the bypass outlives the process');
+});
+
+test('dispatch is a call: it returns the output, leaves no container, and a refused image rejects without running', async () => {
+  const { containers } = quiet();
+  assert.equal(new TextDecoder().decode(await containers.dispatch(fixture, ADD, P0)), SUM);
+  assert.deepEqual(await containers.list({ all: true }), []);
+  let ran = false;
+  const app = { ...(await load(fixture)), dispatch: async () => { ran = true; return new Uint8Array(0); } };
+  await assert.rejects(containers.dispatch(app, ADD), (error) => error instanceof VerificationError && error.verdict?.passed === false);
+  assert.equal(ran, false, 'a refused image never instantiates');
+  assert.deepEqual(await containers.list({ all: true }), []);
+  await assert.rejects(containers.dispatch(await throwing(new ReplayError('replayed wrong')), ADD, P0), ReplayError);
+  // rm: false keeps the container, as run does.
+  await containers.dispatch(fixture, ADD, { ...P0, rm: false });
+  assert.equal((await containers.list({ all: true })).length, 1);
+});
+
 test('an id that is not hex, or a prefix that names two, is not looked up as a path', async () => {
   const { containers } = quiet();
   for (const id of ['../../etc/passwd', 'XYZ', '', null, undefined, 7]) {
@@ -433,6 +497,25 @@ test('the file store keeps the record across clients, never the input, and a rea
   const removed = await gone.containers.run(fixture, ADD, { ...P0, rm: true });
   assert.equal(removed.exitCode, 0);
   assert.deepEqual(readdirSync(directory), [], '--rm leaves nothing');
+});
+
+test('a long-lived client sees what another client did to the shared store', async () => {
+  const directory = join(scratch(), 'containers');
+  const watcher = createPrism({ store: fileContainerStore(directory), warn: () => {} });
+  const worker = createPrism({ store: fileContainerStore(directory), warn: () => {} });
+  const created = await worker.containers.create(fixture, ADD, P0);
+  const seen = await watcher.containers.get(created.id);
+  assert.equal(seen.status, 'created');
+  assert.deepEqual(await watcher.containers.logs(created.id), new Uint8Array(0));
+  await created.start();
+  // The same object, read again: the record the worker wrote, not the one first read.
+  assert.equal(await watcher.containers.get(created.id), seen);
+  assert.equal(seen.status, 'exited');
+  assert.equal(new TextDecoder().decode(await watcher.containers.logs(created.id)), SUM);
+  assert.deepEqual((await watcher.containers.list({ all: true })).map((container) => container.exitCode), [0]);
+  await worker.containers.remove(created.id);
+  await assert.rejects(watcher.containers.get(created.id), { code: 'container.missing' });
+  assert.deepEqual(await watcher.containers.list({ all: true }), []);
 });
 
 test('the file store keeps output that is not text, and names the directory it cannot write', async () => {
@@ -612,4 +695,50 @@ test('usage: exit 64', () => {
   assert.equal(rm.code, 64);
   assert.match(rm.err, /--rm needs an input/);
   assert.equal(cli(['rm']).code, 64);
+});
+
+test('the containers CLI group: create prints the id, ps, logs and inspect read the record, rm removes it', () => {
+  const policy = policyFile();
+  const ran = cli(['containers', 'run', fixture, ADD, '--policy', policy]);
+  assert.equal(ran.code, 0, ran.err);
+  assert.equal(ran.out, SUM);
+  const id = ran.err.match(/^container ([0-9a-f]{64}) exited 0$/m)?.[1];
+  assert.ok(id, ran.err);
+  const created = cli(['containers', 'create', fixture, ADD, '--policy', policy], ran.home);
+  assert.equal(created.code, 0, created.err);
+  const fresh = created.out.trim();
+  assert.match(fresh, /^[0-9a-f]{64}$/);
+
+  const running = cli(['containers', 'ps', '--json'], ran.home);
+  assert.deepEqual(JSON.parse(running.out), [], 'nothing is running');
+  const all = cli(['containers', 'ps', '-a'], ran.home);
+  assert.equal(all.code, 0, all.err);
+  assert.match(all.out, new RegExp(`^${id.slice(0, 12)} +Calculator +exited +0 `, 'm'));
+  assert.match(all.out, new RegExp(`^${fresh.slice(0, 12)} +Calculator +created +- `, 'm'));
+
+  const logs = cli(['containers', 'logs', id.slice(0, 12)], ran.home);
+  assert.equal(logs.code, 0, logs.err);
+  assert.equal(logs.out, SUM);
+  assert.equal(cli(['containers', 'logs', fresh], ran.home).out, '', 'no run, no output');
+  assert.equal(JSON.parse(cli(['containers', 'inspect', id, '--json'], ran.home).out).id, id);
+
+  // The store never keeps the input, so another process cannot start what this one created.
+  const start = cli(['containers', 'start', fresh], ran.home);
+  assert.equal(start.code, 2);
+  assert.match(start.err, /^container\.state: /m);
+  assert.equal(cli(['containers', 'stop', id], ran.home).code, 64, 'stop waits for #350');
+
+  assert.equal(cli(['containers', 'rm', id, fresh], ran.home).code, 0);
+  assert.deepEqual(stored(ran.home), []);
+  assert.equal(cli(['containers', 'logs'], ran.home).code, 64);
+  assert.equal(cli(['containers', 'ps', '--filter', 'x'], ran.home).code, 64);
+  assert.equal(cli(['containers', 'create', fixture], ran.home).code, 64);
+});
+
+test('containers create --volume keeps the refusal on the record, and the run never starts', () => {
+  const created = cli(['containers', 'create', fixture, ADD, '--policy', policyFile(), '--volume', 'rates']);
+  assert.equal(created.code, 0, created.err);
+  const record = JSON.parse(cli(['inspect', created.out.trim(), '--json'], created.home).out);
+  assert.equal(record.volumes[0].name, 'rates');
+  assert.equal(record.volumes[0].refusal.name, 'CapabilityDeniedError');
 });

@@ -1,6 +1,5 @@
 //! Closed resource-bearing text profile contracts, distinct from text/1.
 
-use prismpm::contracts::CanonicalDocument;
 use serde_json::{json, Value};
 
 #[test]
@@ -70,7 +69,8 @@ fn fixture() -> Value {
 #[test]
 fn text_v2_resource_bounds_contract_accepts_only_closed_v2_shape() {
     let value = fixture();
-    CanonicalDocument::from_value("prismpm/model-document/5", value.clone()).unwrap();
+    prismpm::model_contract::contract_from_value("prismpm/model-document/5", value.clone())
+        .unwrap();
     let schema: Value = serde_json::from_slice(include_bytes!(
         "../../../schemas/model-document-v5.schema.json"
     ))
@@ -81,7 +81,10 @@ fn text_v2_resource_bounds_contract_accepts_only_closed_v2_shape() {
         let mut missing = value.clone();
         missing["application"].as_object_mut().unwrap().remove(name);
         assert!(!validator.is_valid(&missing));
-        assert!(CanonicalDocument::from_value("prismpm/model-document/5", missing).is_err());
+        assert!(
+            prismpm::model_contract::contract_from_value("prismpm/model-document/5", missing)
+                .is_err()
+        );
     }
     for pointer in ["", "/application"] {
         let mut unknown = value.clone();
@@ -92,7 +95,10 @@ fn text_v2_resource_bounds_contract_accepts_only_closed_v2_shape() {
             .unwrap()
             .insert("unknown_resource".to_owned(), json!(1));
         assert!(!validator.is_valid(&unknown));
-        assert!(CanonicalDocument::from_value("prismpm/model-document/5", unknown).is_err());
+        assert!(
+            prismpm::model_contract::contract_from_value("prismpm/model-document/5", unknown)
+                .is_err()
+        );
     }
 }
 
@@ -122,7 +128,8 @@ fn text_v2_resource_bounds_contract_rejects_invalid_budget_and_profile_substitut
         let mut value = fixture();
         *value.pointer_mut(pointer).unwrap() = replacement;
         assert!(
-            CanonicalDocument::from_value("prismpm/model-document/5", value).is_err(),
+            prismpm::model_contract::contract_from_value("prismpm/model-document/5", value)
+                .is_err(),
             "substituted or invalid text/2 field {pointer}"
         );
     }
@@ -130,10 +137,15 @@ fn text_v2_resource_bounds_contract_rejects_invalid_budget_and_profile_substitut
         "../../../tests/data/text-model-document.json"
     ))
     .unwrap();
-    CanonicalDocument::from_value("prismpm/model-document/2", legacy.clone()).unwrap();
+    prismpm::model_contract::contract_from_value("prismpm/model-document/2", legacy.clone())
+        .unwrap();
     let mut injected = legacy.clone();
     injected["application"]["core_memory_pages"] = json!(64);
     injected["application"]["core_stack_bytes"] = json!(131072);
-    assert!(CanonicalDocument::from_value("prismpm/model-document/2", injected).is_err());
-    assert!(CanonicalDocument::from_value("prismpm/model-document/5", legacy).is_err());
+    assert!(
+        prismpm::model_contract::contract_from_value("prismpm/model-document/2", injected).is_err()
+    );
+    assert!(
+        prismpm::model_contract::contract_from_value("prismpm/model-document/5", legacy).is_err()
+    );
 }

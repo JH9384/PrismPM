@@ -1,0 +1,6 @@
+name = "PrismFactory"
+version = "0.1.0"
+defaultTargets = ["PrismFactory"]
+
+[[lean_lib]]
+name = "PrismFactory"

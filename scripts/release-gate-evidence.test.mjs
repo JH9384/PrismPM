@@ -9,9 +9,10 @@ import {once} from 'node:events';
 import test from 'node:test';
 import {bootstrapFixture} from './sdk-bootstrap-retention-fixture.mjs';
 import {bootstrapNames, canonical, hash, readOriginal, validateBootstrapRetention} from './sdk-bootstrap-retention.mjs';
-import {captureCommand, nativeInvocations, releaseContext, validateCommand} from './release-gate-evidence.mjs';
+import {assembleSourceEvidence, captureCommand, nativeInvocations, releaseContext, sourceEvidenceNames, validateCommand, validateSourcePart, validateSourceReceipt} from './release-gate-evidence.mjs';
 import {captureEvidence, packEvidence} from './sdk-release-evidence.mjs';
-import {retainTwoRuns} from './sdk-vv-run.mjs';
+import {retainPart, vvParts} from './sdk-vv-run.mjs';
+import {workspaceVersion} from './workspace-version.mjs';
 const require = createRequire('/opt/prismpm/oracles/package.json'), {load} = require('js-yaml');
 const revision = 'a'.repeat(40), image = 'ghcr.io/uor-foundation/prismpm-sdk@sha256:' + 'b'.repeat(64);
 const context = releaseContext(revision, 'amd64', image, '123', '1');
@@ -20,6 +21,7 @@ const temporary = t => {const path = mkdtempSync(join(tmpdir(), 'release-origina
 const put = (path, name, value) => writeFileSync(join(path, name), Buffer.isBuffer(value) || typeof value === 'string' ? value : canonical(value));
 const descriptor = (path, bytes) => ({path, byte_length: bytes.length, sha256: hash(bytes)});
 const rawVv = () => Buffer.from(canonical({schema: 'prismpm/vv-evidence/1', commit: revision, status: 'passed', gates: Array.from({length: 15}, (_, i) => i + 1)}));
+const rawPart = part => Buffer.from(canonical({commit: revision, part, schema: 'prismpm/vv-part/1', status: 'passed'}));
 function commandFixture(root, prefix, command, args, status, stdout = 'unit-only output\n', stderr = '') {
   const out = Buffer.from(stdout), err = Buffer.from(stderr);
   put(root, `${prefix}.stdout`, out); put(root, `${prefix}.stderr`, err);
@@ -27,23 +29,37 @@ function commandFixture(root, prefix, command, args, status, stdout = 'unit-only
     stdout: descriptor(`${prefix}.stdout`, out), stderr: descriptor(`${prefix}.stderr`, err)});
 }
 function sourceFixture(root) {
-  for (const run of [1, 2]) {
-    const bootstrap = bootstrapFixture(revision), raw = rawVv();
-    commandFixture(root, `source-${run}`, 'just', ['vv'], 0);
-    put(root, `source-${run}-vv.json`, raw);
-    const rows = [...bootstrap.files].map(([name, bytes]) => {
-      const path = `run-${run}-${name}`; put(root, path, bytes); return descriptor(path, bytes);
-    });
-    put(root, `source-${run}-result.json`, {schema: 'prismpm/source-vv-retention/1', scope: 'original-source-run-only',
-      ...sourceContext, run, vv: descriptor(`source-${run}-vv.json`, raw), bootstrap: {run, files: rows}});
+  for (const part of vvParts) {
+    const raw = rawPart(part), prefix = `source-${part}`;
+    commandFixture(root, prefix, 'just', ['vv-part', part], 0);
+    put(root, `${prefix}-vv.json`, raw);
+    let bootstrap = null;
+    if (part === 'source') {
+      const rows = [...bootstrapFixture(revision).files].map(([name, bytes]) => {
+        const path = `run-1-${name}`; put(root, path, bytes); return descriptor(path, bytes);
+      });
+      bootstrap = {run: 1, files: rows};
+    }
+    put(root, `${prefix}-result.json`, {schema: 'prismpm/source-vv-retention/2', scope: 'original-source-part-only',
+      ...sourceContext, part, vv: descriptor(`${prefix}-vv.json`, raw), bootstrap});
   }
+  put(root, 'source-vv.json', rawVv());
 }
 function nativeFixture(root) {
   const source = '/unit-only/source';
   for (const [prefix, args, status] of nativeInvocations(source, image, 'amd64', 1000, 1000)) commandFixture(root, prefix, 'docker', args, status);
   put(root, 'native-result.json', {schema: 'prismpm/native-equivalence-retention/1', scope: 'original-native-sdk-comparison-only',
-    ...context, root: source, uid: 1000, gid: 1000, archive: descriptor('prismpm-0.3.0-x86_64-unknown-linux-gnu.tar.gz', Buffer.from('fixture archive'))});
+    ...context, root: source, uid: 1000, gid: 1000, archive: descriptor(`prismpm-${workspaceVersion()}-x86_64-unknown-linux-gnu.tar.gz`, Buffer.from('fixture archive'))});
 }
+
+test('native and container mutable references use the PP6101 exit class', () => {
+  for (const architecture of ['amd64', 'arm64']) {
+    const invocations = nativeInvocations('/unit-only/source', image, architecture, 1000, 1000);
+    assert.deepEqual(invocations.map(([prefix, , status]) => [prefix, status]), [
+      ['native-check', 0], ['container-check', 0], ['native-error', 5], ['container-error', 5],
+    ]);
+  }
+});
 
 test('actual child execution preserves exact binary stdout, stderr and nonzero status', async t => {
   const root = temporary(t), args = ['-e', 'process.stdout.write(Buffer.from([0,255,10]));process.stderr.write("original error\\n");process.exitCode=7'];
@@ -337,26 +353,55 @@ test('source and native archives preserve complete originals without promoting t
     const captured = packEvidence(root, kind, output, binding);
     assert.equal(captured.scope, 'original-gate-evidence-only'); assert(captured.unclaimed.includes('sdk-acceptance'));
     for (const row of captured.files) assert.deepEqual(execFileSync('tar', ['-xOf', output, row.path]), readFileSync(join(root, row.path)));
-    for (const changed of [{source_revision: 'c'.repeat(40)}, {run_id: '124'}, {run_attempt: '2'}, {architecture: 'arm64'}]) {
+    for (const changed of [{source_revision: 'c'.repeat(40)}, {run_id: '124'}, {architecture: 'arm64'}]) {
       assert.throws(() => captureEvidence(root, kind, {...binding, ...changed}));
     }
+    // A later attempt may keep this earlier job's results; an earlier one may not.
+    assert.equal(captureEvidence(root, kind, {...binding, run_attempt: '2'}).manifest.run_attempt, '2');
+    const later = temporary(t); fixture(later);
+    const result = kind === 'source-vv' ? 'source-dk-2-result.json' : 'native-result.json';
+    put(later, result, {...JSON.parse(readFileSync(join(later, result))), run_attempt: '2'});
+    assert.throws(() => captureEvidence(later, kind, binding), /attempt later/);
+    assert.equal(captureEvidence(later, kind, {...binding, run_attempt: '2'}).manifest.run_attempt, '2');
   }
+});
+
+test('a factory receipt is the complete source evidence of its own run, never a relabelled one', t => {
+  const root = temporary(t); sourceFixture(root);
+  const files = new Map(sourceEvidenceNames().map(name => [name, readOriginal(join(root, name), 256 * 1024 * 1024)]));
+  validateSourceReceipt(files, sourceContext);
+  // The receipt keeps its own commit and run; it is not accepted as this run's.
+  assert.throws(() => validateSourceReceipt(files, {...sourceContext, source_revision: 'c'.repeat(40)}));
+  assert.throws(() => validateSourceReceipt(files, {...sourceContext, run_id: '124'}));
+  const partial = new Map(files); partial.delete('source-gates-vv.json');
+  assert.throws(() => validateSourceReceipt(partial, sourceContext));
+  const extra = new Map(files); extra.set('factory-route.json', Buffer.from('{}'));
+  assert.throws(() => validateSourceReceipt(extra, sourceContext));
+  const changed = new Map(files); changed.set('source-vv.json', Buffer.from(canonical({schema: 'prismpm/vv-evidence/1', commit: revision, status: 'passed', gates: [1]})));
+  assert.throws(() => validateSourceReceipt(changed, sourceContext));
 });
 
 test('missing bootstrap, failed command, substituted bytes and wrong native invocation fail closed', t => {
   for (const [kind, fixture, binding, changes] of [
     ['source-vv', sourceFixture, sourceContext, [
-      root => rmSync(join(root, 'run-2-bootstrap-prior-capture.json')),
-      root => put(root, 'source-2-vv.json', rawVv().subarray(1)),
-      root => put(root, 'source-1.stdout', 'changed original'),
-      root => {const row = JSON.parse(readFileSync(join(root, 'source-2.json'))); row.status = 1; put(root, 'source-2.json', row);},
-      root => {const row = JSON.parse(readFileSync(join(root, 'source-2.json'))); row.arguments = ['check']; put(root, 'source-2.json', row);},
+      root => rmSync(join(root, 'run-1-bootstrap-prior-capture.json')),
+      root => rmSync(join(root, 'source-dk-2.json')),
+      root => put(root, 'source-dk-2-vv.json', rawPart('dk-2').subarray(1)),
+      root => put(root, 'source-dk-2-vv.json', rawPart('source')),
+      root => put(root, 'source-source.stdout', 'changed original'),
+      root => {const row = JSON.parse(readFileSync(join(root, 'source-conformance.json'))); row.status = 1; put(root, 'source-conformance.json', row);},
+      root => {const row = JSON.parse(readFileSync(join(root, 'source-conformance.json'))); row.arguments = ['vv-part', 'dk-2']; put(root, 'source-conformance.json', row);},
+      root => put(root, 'source-vv.json', Buffer.from(rawVv().toString().replace('"passed"', '"failed"'))),
+      root => rmSync(join(root, 'source-vv.json')),
+      root => put(root, 'run-1-extra.json', '{}'),
     ]],
     ['native-equivalence', nativeFixture, context, [
       root => rmSync(join(root, 'container-error.stderr')),
+      root => {const row = JSON.parse(readFileSync(join(root, 'native-result.json'))); row.archive.path = 'prismpm-0.3.0-x86_64-unknown-linux-gnu.tar.gz'; put(root, 'native-result.json', row);},
+      root => {const row = JSON.parse(readFileSync(join(root, 'native-error.json'))); row.status = 6; put(root, 'native-error.json', row);},
       root => commandFixture(root, 'container-error', 'docker', ['run', 'changed'], 6),
       root => {const row = JSON.parse(readFileSync(join(root, 'native-error.json'))); row.status = 0; put(root, 'native-error.json', row);},
-      root => {const row = JSON.parse(readFileSync(join(root, 'native-result.json'))); row.archive.path = 'prismpm-0.3.0-aarch64-unknown-linux-gnu.tar.gz'; put(root, 'native-result.json', row);},
+      root => {const row = JSON.parse(readFileSync(join(root, 'native-result.json'))); row.archive.path = `prismpm-${workspaceVersion()}-aarch64-unknown-linux-gnu.tar.gz`; put(root, 'native-result.json', row);},
       root => {const row = JSON.parse(readFileSync(join(root, 'container-check.json'))); commandFixture(root, 'container-check', row.command, row.arguments, 0, 'different success');},
     ]],
   ]) for (const mutate of changes) {
@@ -365,21 +410,19 @@ test('missing bootstrap, failed command, substituted bytes and wrong native invo
   }
 });
 
-test('retention requires fresh complete bootstrap outputs on each real callback invocation', async t => {
-  for (const fault of ['none', 'unicode', 'missing', 'changed', 'stale', 'first-modified']) {
+test('retention requires fresh complete bootstrap outputs from the source part', async t => {
+  for (const fault of ['none', 'unicode', 'missing', 'changed', 'stale']) {
     const source = temporary(t), output = temporary(t); mkdirSync(join(source, 'target'));
     const bootstrap = bootstrapFixture(revision, fault === 'unicode'); let calls = 0;
-    const pending = retainTwoRuns(source, output, revision, async run => {
+    for (const [name, bytes] of bootstrap.files) put(join(source, 'target'), name, bytes);
+    const pending = retainPart(source, output, revision, 'source', async () => {
       calls++;
       for (const name of bootstrapNames) assert(!existsSync(join(source, 'target', name)), 'old success must be invalidated');
-      put(join(source, 'target'), 'vv-evidence.json', rawVv());
-      if (run === 2 && fault === 'stale') return 0;
+      put(join(source, 'target'), 'vv-part-source.json', rawPart('source'));
+      if (fault === 'stale') return 0;
       for (const [name, bytes] of bootstrap.files) {
-        if (run === 2 && fault === 'missing' && name === 'bootstrap-evidence.json') continue;
-        put(join(source, 'target'), name, run === 2 && fault === 'changed' && name === 'bootstrap-current-capture.json' ? '{}' : bytes);
-      }
-      if (run === 2 && fault === 'first-modified') {
-        const path = join(output, 'run-1-bootstrap-prior-capture.json'); chmodSync(path, 0o644); writeFileSync(path, '{}');
+        if (fault === 'missing' && name === 'bootstrap-evidence.json') continue;
+        put(join(source, 'target'), name, fault === 'changed' && name === 'bootstrap-current-capture.json' ? '{}' : bytes);
       }
       return 0;
     });
@@ -388,7 +431,7 @@ test('retention requires fresh complete bootstrap outputs on each real callback 
       await pending;
       validateBootstrapRetention(readFileSync(join(output, 'bootstrap.json')), new Map([...bootstrap.retained.keys()].map(name => [name, readFileSync(join(output, name))])), revision);
     }
-    assert.equal(calls, 2);
+    assert.equal(calls, 1);
   }
 });
 
@@ -403,12 +446,26 @@ test('original files reject symbolic links, hardlinks and parent aliases before 
 });
 
 function workflowContract(value) {
-  const source = value.jobs.gate.steps.find(step => step.with?.runCmd);
+  const source = value.jobs['source-vv'].steps.find(step => step.with?.runCmd);
   assert.equal(source.if, undefined); assert.equal(source['continue-on-error'], undefined);
-  assert.equal(source.with.runCmd, "set -euo pipefail\nbash scripts/vv.sh --with-sdk bash -euo pipefail -c \"$(cat <<'PRISMPM_VV'\n" + [1, 2].map(run =>
-    `node scripts/release-gate-evidence.mjs source-run . target/source-vv-evidence '\${{ github.sha }}' amd64 - '\${{ github.run_id }}' '\${{ github.run_attempt }}' ${run}\n`).join('') + 'PRISMPM_VV\n)"\n');
-  const sourceUpload = value.jobs.gate.steps.find(step => step.with?.name === 'source-vv');
-  assert.equal(sourceUpload.if, 'always()'); assert.equal(sourceUpload.with['if-no-files-found'], 'error');
+  assert.equal(source.with.runCmd, "set -euo pipefail\nexport PRISMPM_TEST_SDK_IMAGE='${{ steps.sdk.outputs.image }}'\nbash scripts/vv.sh --with-sdk bash -euo pipefail -c \"$(cat <<'PRISMPM_VV'\n"
+    + "node scripts/release-gate-evidence.mjs source-run . target/source-vv-evidence '${{ github.sha }}' amd64 - '${{ github.run_id }}' '${{ github.run_attempt }}' '${{ matrix.part }}'\n" + 'PRISMPM_VV\n)"\n');
+  assert.deepEqual(value.jobs['source-vv'].strategy.matrix.include.map(row => row.part).sort(), [...vvParts].sort());
+  assert.equal(value.jobs['source-vv'].strategy.matrix.include.length, vvParts.length);
+  assert.equal(value.jobs['source-vv'].strategy['max-parallel'], 8);
+  for (const [name, job] of Object.entries(value.jobs)) assert(job['timeout-minutes'] > 0 && job['timeout-minutes'] <= 360, `${name} is bounded by one hosted-job limit`);
+  const partUpload = value.jobs['source-vv'].steps.find(step => step.with?.name === 'source-vv-part-${{ matrix.part }}');
+  assert.equal(partUpload.if, 'always()'); assert.equal(partUpload.with['if-no-files-found'], 'error');
+  assert.equal(partUpload.with.path, 'target/source-vv-evidence/');
+  assert.deepEqual(value.jobs.gate.needs, ['policy', 'factory', 'devcontainer-image', 'source-vv']);
+  assert(value.jobs.gate.if.includes("(needs.factory.outputs.route == 'establish' && needs.source-vv.result == 'success')"));
+  assert(value.jobs.gate.if.includes("(needs.factory.outputs.route == 'proved' && needs.source-vv.result == 'skipped')"));
+  const assemble = value.jobs.gate.steps.find(step => step.run?.includes('release-gate-evidence.mjs source-assemble'));
+  assert.equal(assemble.if, "${{ needs.factory.outputs.route == 'establish' }}"); assert.equal(assemble['continue-on-error'], undefined); assert(!assemble.run.includes('||'));
+  const receipt = value.jobs.gate.steps.find(step => step.run?.includes('release-gate-evidence.mjs source-receipt'));
+  assert.equal(receipt.if, "${{ needs.factory.outputs.route == 'proved' }}"); assert.equal(receipt['continue-on-error'], undefined); assert(!receipt.run.includes('||'));
+  const sourceUpload = value.jobs.gate.steps.find(step => step.uses?.startsWith('actions/upload-artifact') && step.with?.name === 'source-vv');
+  assert.equal(sourceUpload.if, undefined); assert.equal(sourceUpload.with['if-no-files-found'], 'error');
   assert.equal(sourceUpload.with.path, 'target/source-vv-evidence/');
   const native = value.jobs.native.steps.find(step => step.run?.includes('release-gate-evidence.mjs native'));
   assert.equal(native.if, undefined); assert.equal(native['continue-on-error'], undefined);
@@ -417,18 +474,27 @@ function workflowContract(value) {
   const nativeUpload = value.jobs.native.steps.find(step => step.with?.name === 'sdk-equivalence-${{ matrix.arch }}');
   assert.equal(nativeUpload.if, 'always()'); assert.equal(nativeUpload.with.path, '.native-equivalence/');
   assert.equal(nativeUpload.with['if-no-files-found'], 'error');
+  assert.equal(nativeUpload.with['include-hidden-files'], true, 'the hidden native evidence directory must be uploaded');
   assert.deepEqual(value.jobs.native.strategy.matrix.include, [
-    {platform: 'linux/amd64', target: 'x86_64-unknown-linux-gnu', arch: 'amd64'},
-    {platform: 'linux/arm64', target: 'aarch64-unknown-linux-gnu', arch: 'arm64'},
+    {os: 'ubuntu-24.04', platform: 'linux/amd64', target: 'x86_64-unknown-linux-gnu', arch: 'amd64'},
+    {os: 'ubuntu-24.04-arm', platform: 'linux/arm64', target: 'aarch64-unknown-linux-gnu', arch: 'arm64'},
   ]);
+  assert.equal(value.jobs.native['runs-on'], '${{ matrix.os }}', 'each native archive is built on its own platform');
 }
-test('actual workflow retains both unchanged full source runs and complete native failure originals', () => {
+test('actual workflow retains every source part and complete native failure originals', () => {
   const value = load(readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8')); workflowContract(value);
   for (const mutate of [
-    v => {v.jobs.gate.steps.find(s => s.with?.runCmd).with.runCmd = 'just vv\n';},
-    v => {v.jobs.gate.steps.find(s => s.with?.name === 'source-vv').if = 'success()';},
+    v => {v.jobs['source-vv'].steps.find(s => s.with?.runCmd).with.runCmd = 'just vv\n';},
+    v => {v.jobs['source-vv'].strategy.matrix.include.pop();},
+    v => {v.jobs['source-vv'].steps.find(s => s.with?.name === 'source-vv-part-${{ matrix.part }}').if = 'success()';},
+    v => {v.jobs.gate.needs.pop();},
+    v => {v.jobs.gate.steps.find(s => s.run?.includes('source-assemble')).run += ' || true';},
+    v => {v.jobs.gate.steps.find(s => s.uses?.startsWith('actions/upload-artifact') && s.with?.name === 'source-vv').if = 'always()';},
+    v => {v.jobs.gate.steps.find(s => s.run?.includes('source-receipt')).run += ' || true';},
+    v => {v.jobs.gate.if = '${{ always() }}';},
     v => {v.jobs.native.steps.find(s => s.run?.includes('release-gate-evidence.mjs native')).run += ' || true';},
     v => {v.jobs.native.steps.find(s => s.with?.name === 'sdk-equivalence-${{ matrix.arch }}').with.path = '.';},
+    v => {delete v.jobs.native.steps.find(s => s.with?.name === 'sdk-equivalence-${{ matrix.arch }}').with['include-hidden-files'];},
     v => {v.jobs.native.strategy.matrix.include[1].arch = 'amd64';},
   ]) {
     const changed = structuredClone(value); mutate(changed);

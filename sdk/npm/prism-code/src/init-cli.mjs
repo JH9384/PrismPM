@@ -12,8 +12,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { userInfo } from 'node:os';
-import { DEFAULT_TEMPLATE, TEMPLATES, bindCommands, nameFromDirectory, planInit } from './init.mjs';
+import { DEFAULT_TEMPLATE, NOT_AN_APP, TEMPLATES, bindCommands, nameFromDirectory, nextSteps, planInit } from './init.mjs';
 import { PrismCodeError } from './errors.mjs';
+import { cacheVolumeName } from './docker.mjs';
+import { hostDocker } from './host.mjs';
+import { prismHome } from './agents.mjs';
 
 export const INIT_USAGE = `Usage: init [<dir>] [--name <name>] [--template <name>] [--sdk-image <ref>] [--force]
 
@@ -46,10 +49,10 @@ function parse(argv) {
   return { positional, options };
 }
 
-/** Run docker; resolve to `{ code, stdout }`. stdout is captured only when asked. */
-function docker(args, { capture = false } = {}) {
+/** Run docker through the program that reaches it here; resolve to `{ code, stdout }`. stdout is captured only when asked. */
+function docker(host, args, { capture = false } = {}) {
   return new Promise((done) => {
-    const child = spawn('docker', args, { stdio: ['ignore', capture ? 'pipe' : 'inherit', 'inherit'] });
+    const child = spawn(host.command, [...host.args, ...args], { stdio: ['ignore', capture ? 'pipe' : 'inherit', 'inherit'], windowsHide: true });
     const chunks = [];
     if (capture) child.stdout.on('data', (c) => chunks.push(c));
     child.on('error', (error) => done({ code: error.code === 'ENOENT' ? 69 : 70, stdout: null, error }));
@@ -101,10 +104,12 @@ export async function runInit(argv, { out = process.stdout, err = process.stderr
     writeFileSync(join(directory, path), bytes);
   }
   out.write(`  prism.toml         application ${name} 0.1.0, no capabilities granted\n`);
-  out.write(`  ${options.template ?? DEFAULT_TEMPLATE} template  ${files.size - 1} files (model, lexicon, Lean workspace, lexlean.lock)\n`);
+  out.write(`  ${options.template ?? DEFAULT_TEMPLATE} template  ${files.size - 2} files (model, lexicon, Lean workspace, lexlean.lock)\n`);
+  out.write('  .gitattributes     * text eol=lf, because LexLean refuses a CRLF source\n');
 
   if (!options['sdk-image']) {
     out.write(`Not bound to an SDK. No PrismPM SDK release exists yet; bind an image with\n  prism-code init ${positional[0] ?? '.'} --sdk-image <NAME@sha256:DIGEST> --force\n`);
+    out.write(`${NOT_AN_APP}\n`);
     return 0;
   }
 
@@ -112,19 +117,23 @@ export async function runInit(argv, { out = process.stdout, err = process.stderr
   let gid = null;
   if (process.platform !== 'win32') ({ uid, gid } = userInfo());
   let commands;
+  let host;
   try {
-    commands = bindCommands({ image: options['sdk-image'], cwd: directory, uid, gid });
+    // The program that reaches Docker here, from setup's record; a dry run assumes `docker` and probes nothing.
+    host = hostDocker({ configDir: prismHome(env), env, probe: !env.PRISM_CODE_DRY_RUN });
+    const cache = host.cache ? cacheVolumeName(options['sdk-image']) : null;
+    commands = bindCommands({ image: options['sdk-image'], cwd: directory, uid, gid, mount: host.mount, cache });
   } catch (error) {
     if (!(error instanceof PrismCodeError)) throw error;
     err.write(`${error.code}: ${error.message}\n`);
-    return 2;
+    return error.code === 'docker.missing' ? 69 : 2;
   }
   if (env.PRISM_CODE_DRY_RUN) {
-    out.write(`${show(commands.standards)} > standards.lock\n${show(commands.update)}\n`);
+    out.write(`${show(commands.standards)} > standards.lock\n${show(commands.lock)}\n${show(commands.update)}\n`);
     return 0;
   }
 
-  const standards = await docker(commands.standards, { capture: true });
+  const standards = await docker(host, commands.standards, { capture: true });
   if (standards.code !== 0) {
     err.write(standards.code === 69 ? 'docker is not installed or not on PATH; binding an SDK image needs Docker\n' : `init.bind: could not read ${options['sdk-image']}'s standards.lock (docker exited ${standards.code})\n`);
     return standards.code === 69 ? 69 : 2;
@@ -137,11 +146,18 @@ export async function runInit(argv, { out = process.stdout, err = process.stderr
   writeFileSync(standardsPath, standards.stdout);
   out.write('  standards.lock     from the SDK image\n');
 
-  const update = await docker(commands.update);
+  // The template's lexlean.lock can predate the image's compiler (LLC0102), so the image relocks it first.
+  const lock = await docker(host, commands.lock);
+  if (lock.code !== 0) {
+    err.write(`init.bind: lexlean lock exited ${lock.code} in the SDK image; the project is scaffolded but not bound\n`);
+    return lock.code === 69 ? 69 : 2;
+  }
+  out.write('  lexlean.lock       relocked by the image\'s compiler\n');
+  const update = await docker(host, commands.update);
   if (update.code !== 0) {
     err.write(`init.bind: prismpm update --toolchain exited ${update.code}; the project is scaffolded but prismpm.lock was not written\n`);
     return update.code === 69 ? 69 : 2;
   }
-  out.write(`  prismpm.lock       ${options['sdk-image']}\nDone. Next: cd ${positional[0] ?? '.'} && npx prism-code build --check\n`);
+  out.write(`  prismpm.lock       ${options['sdk-image']}\nDone. ${nextSteps(positional[0] ?? '.')}`);
   return 0;
 }

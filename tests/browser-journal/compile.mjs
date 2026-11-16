@@ -11,6 +11,7 @@ export const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 export {createPrivateDriverTarget, ensureProdExport} from '../browser-view/compile.mjs';
 import {createPrivateDriverTarget, ensureProdExport, observeCompilerPhase, stageLeanRuntime} from '../browser-view/compile.mjs';
 import {retireCompletedCompilerCaches} from '../browser-view/driver-cache.mjs';
+import {lexiconPaths} from '../browser-view/lexicon-inputs.mjs';
 function verifyPins(){
   const artifacts=readFileSync(join(repository,'model/dependencies.toml'),'utf8').split('[[dependency.artifact]]').slice(1).map(section=>{
     const text=section.split('[[dependency]]')[0];return {path:/^path = "([^"]+)"$/m.exec(text)?.[1],hash:/^sha256 = "([0-9a-f]{64})"$/m.exec(text)?.[1],tree:/^tree_root = "([^"]+)"$/m.exec(text)?.[1]};
@@ -139,11 +140,12 @@ export function prepare(){
   try {
   const files=['Workspace','WorkspaceEnvelope','WorkspaceJournal','WorkspaceJournalCorpus'];
   const sources=new Map(files.map(name=>[name,readFileSync(join(repository,'stdlib/src/Foundation/Browser/V1',name+'.lex.tex'))]));
-  assert.equal(sha(sources.get('Workspace')),'32e718bc606af3cd00703558ec4c1ecdcf1e69239e88adb6ad3a364e69aacc4e');
-  assert.equal(sha(sources.get('WorkspaceEnvelope')),'ab5ca1097924ab1286c66cb7e8163ba9429153175c386b674af5e75f86f8855c');
+  assert.equal(sha(sources.get('Workspace')),'3e080c15e7324a9865e4520f9ef1cc7ab23e5f6a9af400b3a0ff15462c086234');
+  assert.equal(sha(sources.get('WorkspaceEnvelope')),'2da49879dc811accffa2aee64ab924283eeaa41acf621e4c090d8923f18dd9db');
   const project=join(work,'project'),sourceRoot=join(project,'src/Foundation/Browser/V1');mkdirSync(sourceRoot,{recursive:true});
   for(const [name,bytes]of sources)writeFileSync(join(sourceRoot,name+'.lex.tex'),bytes,{flag:'wx'});
   for(const file of ['lexlean.toml','lakefile.toml','lean-toolchain'])copyFileSync(join(draft,file),join(project,file));
+  for(const path of lexiconPaths(repository)){const destination=join(project,path);mkdirSync(dirname(destination),{recursive:true});copyFileSync(join(repository,path),destination);}
   copyFileSync(join(repository,'rust-toolchain.toml'),join(work,'rust-toolchain.toml'));
   const driverTarget=createPrivateDriverTarget(work);
   run('cargo',['build','--locked','--offline','--jobs','1','--config','profile.dev.debug=0','--config','build.incremental=false','--config','profile.dev.package.sha2.opt-level=3','--manifest-path',join(draft,'driver/Cargo.toml')],repository,{CARGO_TARGET_DIR:driverTarget});

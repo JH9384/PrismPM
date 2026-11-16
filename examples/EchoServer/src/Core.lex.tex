@@ -1,0 +1,219 @@
+\begin{lexlean}{Core}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{echo.server@1.0.0}
+\title{Echo core}
+\begin{semanticmodule}
+structure{
+  name: Chunk,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: bytes, type: Bytes}, {name: next, type: Nat}]
+}
+
+definition{
+  name: byteAt,
+  parameters: [source : Bytes, position : Nat],
+  result: Nat,
+  body: (match (prim index source position : (Option UInt8))
+    | Option.some octet => (prim to_nat octet : Nat)
+    | Option.none => 0),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: u32At,
+  parameters: [source : Bytes, position : Nat],
+  result: (Option Nat),
+  body: (if ((position + 4) <=? (prim length source : Nat)) then (ctor Option.some [Nat] ((prim multiply (byteAt source position) 16777216 : Nat) + ((prim multiply (byteAt source (position + 1)) 65536 : Nat) + ((prim multiply (byteAt source (position + 2)) 256 : Nat) + (byteAt source (position + 3)))))) else (ctor Option.none [Nat])),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: chunkAt,
+  parameters: [source : Bytes, position : Nat],
+  result: (Option Chunk),
+  body: (match (u32At source position)
+    | Option.none => (ctor Option.none [Chunk])
+    | Option.some size => (match (prim slice source (position + 4) size : (Option Bytes))
+      | Option.none => (ctor Option.none [Chunk])
+      | Option.some taken => (ctor Option.some [Chunk] (record Chunk {bytes := taken, next := ((position + 4) + size)})))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: skipFields,
+  parameters: [source : Bytes, position : Nat, count : Nat],
+  result: (Option Nat),
+  body: (match count
+    | Nat.zero => (ctor Option.some [Nat] position)
+    | Nat.succ below => (match (chunkAt source position)
+      | Option.none => (ctor Option.none [Nat])
+      | Option.some named => (match (chunkAt source (project named next))
+        | Option.none => (ctor Option.none [Nat])
+        | Option.some valued => (skipFields source (project valued next) below)))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: count
+}
+
+definition{
+  name: u32List,
+  parameters: [value : Nat],
+  result: (List Nat),
+  body: (cons (prim remainder (prim quotient value 16777216 0 : Nat) 256 0 : Nat) (cons (prim remainder (prim quotient value 65536 0 : Nat) 256 0 : Nat) (cons (prim remainder (prim quotient value 256 0 : Nat) 256 0 : Nat) (cons (prim remainder value 256 0 : Nat) (nil Nat))))),
+  executable: true
+}
+
+definition{
+  name: bytesFrom,
+  parameters: [source : Bytes, position : Nat, collected : (List Nat)],
+  result: (List Nat),
+  body: (match position
+    | Nat.zero => collected
+    | Nat.succ below => (bytesFrom source below (cons (byteAt source below) collected))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  recursive_argument: position
+}
+
+definition{
+  name: bytesToList,
+  parameters: [source : Bytes],
+  result: (List Nat),
+  body: (bytesFrom source (prim length source : Nat) (nil Nat)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: contentType,
+  parameters: [],
+  result: (List Nat),
+  body: (bytesToList 0x436f6e74656e742d54797065),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: octetStream,
+  parameters: [],
+  result: (List Nat),
+  body: (bytesToList 0x6170706c69636174696f6e2f6f637465742d73747265616d),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: respond,
+  parameters: [status : Nat, body : (List Nat)],
+  result: (List Nat),
+  body: (prim append (u32List status) (prim append (u32List 1) (prim append (u32List (prim length (contentType) : Nat)) (prim append (contentType) (prim append (u32List (prim length (octetStream) : Nat)) (prim append (octetStream) (prim append (u32List 0) (prim append (u32List (prim length body : Nat)) body : (List Nat)) : (List Nat)) : (List Nat)) : (List Nat)) : (List Nat)) : (List Nat)) : (List Nat)) : (List Nat)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: answer,
+  parameters: [source : Bytes, body : Chunk, stamp : (List Nat)],
+  result: (List Nat),
+  body: (match (prim slice source (project body next) 8 : (Option Bytes))
+    | Option.none => (respond 400 (nil Nat))
+    | Option.some calls => (if (((project body next) + 8) =? (prim length source : Nat)) then (respond 200 (prim append (bytesToList (project body bytes)) (prim append (bytesToList calls) stamp : (List Nat)) : (List Nat))) else (respond 400 (nil Nat)))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: afterFields,
+  parameters: [source : Bytes, position : (Option Nat), stamp : (List Nat)],
+  result: (List Nat),
+  body: (match position
+    | Option.none => (respond 400 (nil Nat))
+    | Option.some at => (match (chunkAt source at)
+      | Option.none => (respond 400 (nil Nat))
+      | Option.some body => (answer source body stamp))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: afterTarget,
+  parameters: [source : Bytes, target : Chunk, stamp : (List Nat)],
+  result: (List Nat),
+  body: (match (u32At source (project target next))
+    | Option.none => (respond 400 (nil Nat))
+    | Option.some count => (afterFields source (skipFields source ((project target next) + 4) count) stamp)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: afterMethod,
+  parameters: [source : Bytes, method : Chunk, stamp : (List Nat)],
+  result: (List Nat),
+  body: (match (chunkAt source (project method next))
+    | Option.none => (respond 400 (nil Nat))
+    | Option.some target => (afterTarget source target stamp)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: handle,
+  parameters: [input : Bytes, stamp : (List Nat)],
+  result: (List Nat),
+  body: (match (chunkAt input 0)
+    | Option.none => (respond 400 (nil Nat))
+    | Option.some method => (afterMethod input method stamp)),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: done,
+  parameters: [response : (List Nat)],
+  result: (List Nat),
+  body: (prim append (u32List 0) response : (List Nat)),
+  executable: true
+}
+
+definition{
+  name: perform,
+  parameters: [],
+  result: (List Nat),
+  body: (prim append (u32List 1) (prim append (u32List 1) (nil Nat) : (List Nat)) : (List Nat)),
+  executable: true
+}
+
+definition{
+  name: finish,
+  parameters: [frame : Bytes, outcome : Bytes],
+  result: (List Nat),
+  body: (match (prim slice outcome 4 8 : (Option Bytes))
+    | Option.none => (done (respond 400 (nil Nat)))
+    | Option.some taken => (done (handle frame (bytesToList taken)))),
+  axioms: [Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: run,
+  parameters: [input : Bytes],
+  result: (List Nat),
+  body: (match (chunkAt input 0)
+    | Option.none => (done (respond 400 (nil Nat)))
+    | Option.some request => (match (u32At input (project request next))
+      | Option.none => (done (respond 400 (nil Nat)))
+      | Option.some count => (if (count =? 0) then (perform) else (if (count =? 1) then (match (chunkAt input ((project request next) + 8))
+        | Option.none => (done (respond 400 (nil Nat)))
+        | Option.some outcome => (finish (project request bytes) (project outcome bytes))) else (done (respond 400 (nil Nat))))))),
+  axioms: [Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow], targets: [rust-std]}
+}
+\end{semanticmodule}
+\end{lexlean}

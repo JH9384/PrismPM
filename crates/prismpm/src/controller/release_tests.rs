@@ -96,10 +96,16 @@ fn bind_application_digest(root: &Path) {
 /// Bind every `applicationModelDigest` of `src/Release.lex.tex` to the model
 /// that `application` projects, expecting exactly `bindings` occurrences.
 fn bind_application_digest_of(root: &Path, application: &str, bindings: usize) {
+    bind_application_digest_of_files(root, &[application], bindings);
+}
+
+/// As [`bind_application_digest_of`], for an application projected from
+/// several files: a server application and the module of its core root.
+fn bind_application_digest_of_files(root: &Path, files: &[&str], bindings: usize) {
     let snapshot = Engine::load(&utf8(root.join("lexlean.toml")).unwrap())
         .unwrap()
         .snapshot(LexCheckRequest {
-            selection: Selection::Files([Utf8PathBuf::from(application)].into()),
+            selection: Selection::Files(files.iter().map(Utf8PathBuf::from).collect()),
         })
         .unwrap();
     let application = crate::holo::application::project_application(&snapshot)
@@ -345,23 +351,42 @@ fn browser_system_source_selection_and_requirements_fail_closed() {
     relock(root);
 }
 
-/// The mcp-loopback host-effect service of `tests/host-effect-system`, bound to
-/// the Calculator application model as the stand-in for the server application
-/// that issue 216 will supply.
-fn host_effect_system_project() -> tempfile::TempDir {
-    let temporary = calculator_project();
+/// The Echo Server example as a project of its own: the server application
+/// whose declared host effects a host-effect system release is held to.
+fn echo_server_project() -> tempfile::TempDir {
+    let temporary = tempfile::tempdir().unwrap();
+    let example = repository().join("examples/EchoServer");
+    for directory in ["src", "language"] {
+        copy_tree(&example.join(directory), &temporary.path().join(directory));
+    }
+    for path in [
+        "lexlean.toml",
+        "prismpm.toml",
+        "lakefile.toml",
+        "lake-manifest.json",
+        "lean-toolchain",
+    ] {
+        copy_fixture_file(example.join(path), temporary.path().join(path));
+    }
+    relock(temporary.path());
+    temporary
+}
+
+/// Add the Production modules and the release of `tests/host-effect-system`
+/// to `temporary`, select the release, and bind it to the application model
+/// that `application` projects.
+fn with_host_effect_release(
+    temporary: tempfile::TempDir,
+    application: &[&str],
+) -> tempfile::TempDir {
     let root = temporary.path();
-    std::fs::create_dir(root.join("src/Production")).unwrap();
+    std::fs::create_dir_all(root.join("src/Production")).unwrap();
     for name in ["Core", "HostEffectSystem"] {
         copy_fixture_file(
             repository().join(format!("stdlib/src/Production/{name}.lex.tex")),
             root.join(format!("src/Production/{name}.lex.tex")),
         );
     }
-    copy_fixture_file(
-        repository().join("tests/browser-system/Calculator.lex.tex"),
-        root.join("src/Calculator.lex.tex"),
-    );
     let fixture = repository().join("tests/host-effect-system");
     copy_fixture_file(
         fixture.join("Release.lex.tex"),
@@ -370,8 +395,17 @@ fn host_effect_system_project() -> tempfile::TempDir {
     copy_fixture_file(fixture.join("lexlean.toml"), root.join("lexlean.toml"));
     copy_stdlib_lexicon(root);
     relock(root);
-    bind_application_digest_of(root, "src/Calculator.lex.tex", 2);
+    bind_application_digest_of_files(root, application, 2);
     temporary
+}
+
+/// The mcp-loopback host-effect service of `tests/host-effect-system`, bound to
+/// the Echo Server, whose declared effects it lists.
+fn host_effect_system_project() -> tempfile::TempDir {
+    with_host_effect_release(
+        echo_server_project(),
+        &["src/Application.lex.tex", "src/Core.lex.tex"],
+    )
 }
 
 #[test]
@@ -382,38 +416,63 @@ fn host_effect_system_named_release_selects_and_binds_its_source() {
     let system = prepared.system.as_ref().unwrap();
     assert_eq!(system.schema(), "prismpm/system-model/3");
     // The proved Lean value is the registered example, up to the digest of
-    // the application model the fixture binds.
+    // the application model the fixture binds and the effects that
+    // application declares.
     let (example, _) = crate::system::host_effect::example();
     let mut projected = system.value().clone();
     assert_eq!(
         projected["application_profile"]["application_model_digest"],
         format!("sha256:{}", content_id(&prepared.model_bytes))
     );
+    assert_eq!(
+        projected["application_profile"]["effects"],
+        json!(["tool.calls", "echo.stamp"])
+    );
     projected["application_profile"]["application_model_digest"] =
         example.value()["application_profile"]["application_model_digest"].clone();
+    projected["application_profile"]["effects"] =
+        example.value()["application_profile"]["effects"].clone();
     assert_eq!(&projected, example.value());
     let projections = crate::system::projections(system, &[]).unwrap();
     let compose: Value = serde_json::from_slice(&projections[0].bytes).unwrap();
     assert_eq!(projections[0].path, "projections/compose.json");
-    assert_eq!(
-        compose["services"]["gateway"]["ports"][0]["host_ip"],
-        "127.0.0.1"
-    );
+    assert_eq!(compose["services"]["gateway"]["network_mode"], "host");
     drop(prepared);
 
     let path = root.join("src/Release.lex.tex");
     let original = std::fs::read_to_string(&path).unwrap();
     let adapter = crate::deployment::digest("compose").unwrap();
-    for (changed, code) in [
-        (original.replace("\"127.0.0.1\"", "\"0.0.0.0\""), "PP1101"),
-        (original.replace("\"api\"", "\"worker\""), "PP2101"),
+    // The third field marks the mutations only the application check can
+    // refuse: the system's model and manifest still agree with each other.
+    for (changed, code, application) in [
+        (
+            original.replace("\"127.0.0.1\"", "\"0.0.0.0\""),
+            "PP1101",
+            false,
+        ),
+        (original.replace("\"api\"", "\"worker\""), "PP2101", false),
         (
             original.replace(&adapter, &format!("sha256:{}", "0".repeat(64))),
             "PP7101",
+            false,
         ),
         (
-            original.replacen("\"engine.check\"", "\"engine.other\"", 1),
+            original.replacen("\"tool.calls\"", "\"tool.other\"", 1),
             "PP2101",
+            false,
+        ),
+        (
+            original.replace("\"echo.stamp\"", "\"echo.other\""),
+            "PP2101",
+            true,
+        ),
+        (
+            original.replace(
+                "(cons \"tool.calls\" (cons \"echo.stamp\" (nil String)))",
+                "(cons \"tool.calls\" (nil String))",
+            ),
+            "PP2101",
+            true,
         ),
         (
             original.replace(
@@ -421,6 +480,7 @@ fn host_effect_system_named_release_selects_and_binds_its_source() {
                 "name: mcpLoopbackReady,",
             ),
             "PP2101",
+            false,
         ),
     ] {
         assert_ne!(
@@ -435,10 +495,73 @@ fn host_effect_system_named_release_selects_and_binds_its_source() {
             .err()
             .expect("changed host-effect source was accepted");
         assert_eq!(error.code, code, "{}", error.message);
+        assert_eq!(
+            error
+                .message
+                .contains("but its server application declares"),
+            application,
+            "{}",
+            error.message
+        );
         assert!(!root.join(".prism/build").exists());
     }
     std::fs::write(&path, original).unwrap();
     relock(root);
+}
+
+/// A host-effect system names the effects of a server application. Bound to
+/// the Calculator, a browser application with no host protocol, it is refused
+/// even though its own model and manifest agree.
+#[test]
+fn host_effect_system_refuses_an_application_that_is_not_a_server() {
+    let temporary = calculator_project();
+    let root = temporary.path();
+    let release = repository().join("tests/host-effect-system/Release.lex.tex");
+    let source = std::fs::read_to_string(release)
+        .unwrap()
+        .replace("\\importmodule{Application}", "\\importmodule{Calculator}");
+    std::fs::create_dir_all(root.join("src/Production")).unwrap();
+    for name in ["Core", "HostEffectSystem"] {
+        copy_fixture_file(
+            repository().join(format!("stdlib/src/Production/{name}.lex.tex")),
+            root.join(format!("src/Production/{name}.lex.tex")),
+        );
+    }
+    std::fs::write(root.join("src/Release.lex.tex"), source).unwrap();
+    copy_fixture_file(
+        repository().join("tests/browser-system/Calculator.lex.tex"),
+        root.join("src/Calculator.lex.tex"),
+    );
+    let configuration = std::fs::read_to_string(repository().join("tests/host-effect-system/lexlean.toml"))
+        .unwrap()
+        .replace("name = \"echo-server\"", "name = \"prism-calculator\"")
+        .replace("module_prefix = \"EchoServer\"", "module_prefix = \"PrismCalculator\"")
+        .replace(
+            "entrypoints = [\"src/Core.lex.tex\", \"src/Release.lex.tex\"]",
+            "entrypoints = [\"src/Release.lex.tex\"]",
+        )
+        .replace(
+            "[[lexicon_source]]\npackage = \"echo.server\"\nkind = \"path\"\npath = \"language/echo.server\"\n\n",
+            "",
+        );
+    std::fs::write(root.join("lexlean.toml"), configuration).unwrap();
+    copy_stdlib_lexicon(root);
+    relock(root);
+    bind_application_digest_of(root, "src/Calculator.lex.tex", 2);
+    let error = Controller::load(root)
+        .unwrap()
+        .prepare(None)
+        .err()
+        .expect("a host-effect system bound to a browser application was accepted");
+    assert_eq!(error.code, "PP2101", "{}", error.message);
+    assert!(
+        error
+            .message
+            .contains("host-effect system requires a selected server application"),
+        "{}",
+        error.message
+    );
+    assert!(!root.join(".prism/build").exists());
 }
 
 /// The text/3 command-line system fixture: the ho-11 text application raised

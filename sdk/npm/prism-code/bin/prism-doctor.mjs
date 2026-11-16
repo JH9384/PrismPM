@@ -16,14 +16,16 @@ import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
-import { sdkImageFromLock } from '../src/docker.mjs';
+import { prismHome } from '../src/agents.mjs';
+import { commandDisplay, sdkImageFromLock } from '../src/docker.mjs';
+import { hostDocker } from '../src/host.mjs';
 import { HOOK_COMMAND, METADATA_COMMAND, PLUGIN_SCHEMA_VERSION } from '../src/plugins.mjs';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
 
-// The verbs that run prismpm in the SDK image, and so need Docker and ./prismpm.lock.
-const HOOKED = ['check', 'build', 'verify', 'conformance', 'export-browser'];
+// The verbs that run in the SDK image, and so need Docker and ./prismpm.lock.
+const HOOKED = ['check', 'build', 'verify', 'axioms', 'conformance', 'export-browser'];
 
 const METADATA = {
   schemaVersion: PLUGIN_SCHEMA_VERSION,
@@ -54,11 +56,30 @@ function node() {
   return major >= 22 ? ['ok', `node ${process.versions.node}`] : ['fail', `node ${process.versions.node}; prism-code needs 22 or later`];
 }
 
+/**
+ * Docker as the delegated verbs reach it: the program `setup` recorded in
+ * `$PRISM_HOME/config.json` (Docker inside WSL on Windows, say), `PRISM_DOCKER`,
+ * or a fresh probe of the PATH. A record is not proof the daemon answers now,
+ * so the resolved program is asked for its version either way.
+ */
 function docker() {
-  const result = spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', timeout: 15000, windowsHide: true });
-  if (result.error?.code === 'ENOENT') return ['fail', 'docker is not on the PATH; check, build, verify and conformance need it'];
-  if (result.error || result.status !== 0) return ['fail', 'docker is installed but its daemon did not answer; start Docker'];
-  return ['ok', `docker ${result.stdout.trim()}`];
+  let resolved;
+  try {
+    resolved = hostDocker({ configDir: prismHome() });
+  } catch (error) {
+    return ['fail', `${error.message}; check, build, verify and axioms need it. Run \`npx prism-code@latest setup\` to find and record it`];
+  }
+  const display = commandDisplay(resolved.command, resolved.args);
+  const result = spawnSync(resolved.command, [...resolved.args, 'version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', timeout: 20000, windowsHide: true });
+  const version = result.error || result.status !== 0 ? '' : String(result.stdout ?? '').trim();
+  if (!version) return ['fail', `${display} did not answer docker version; start Docker`];
+  const recorded = resolved.source === 'config' ? ', as setup recorded it' : '';
+  if (resolved.mount === 'wsl') {
+    const at = resolved.args.indexOf('-d');
+    const distro = at >= 0 ? resolved.args[at + 1] : null;
+    return ['ok', `docker ${version} inside WSL${distro ? ` ${distro}` : ''}, host paths mounted under /mnt${recorded}`];
+  }
+  return ['ok', `docker ${version}, ${display}${recorded}`];
 }
 
 function lock() {
@@ -66,7 +87,7 @@ function lock() {
   try {
     text = readFileSync(resolve('prismpm.lock'), 'utf8');
   } catch {
-    return ['warn', 'no prismpm.lock here; check, build, verify and conformance run in a project that has one'];
+    return ['warn', 'no prismpm.lock here; check, build, verify and axioms run in a project that has one'];
   }
   try {
     return ['ok', `prismpm.lock pins ${sdkImageFromLock(text)}`];

@@ -1,0 +1,266 @@
+\begin{lexlean}{RuleAppProofs}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\importmodule{RuleApp}
+\title{Boolean}
+\begin{semanticmodule}
+definition{
+  name: breaksHoloIdentity,
+  parameters: [r : RuleApp::Record],
+  result: Bool,
+  body: ((RuleApp::admits r) && (not ((project r holoNamed) =? (project r holoPinned))))
+}
+
+theorem{
+  name: noAdmissionUnderAnotherHolo,
+  parameters: [r : RuleApp::Record],
+  statement: ((breaksHoloIdentity r) = false),
+  proof: linear_arithmetic{
+    definitions: [
+      RuleApp::admits,
+      RuleApp::holoAdmitted,
+      RuleApp::numbersAdmitted,
+      RuleApp::proofAdmitted,
+      RuleApp::schemaOne,
+      RuleApp::wordsMaximum,
+      breaksHoloIdentity
+    ]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: breaksHoloVerification,
+  parameters: [r : RuleApp::Record],
+  result: Bool,
+  body: ((RuleApp::admits r) && ((not ((project r holoVerified) =? 1)) || (0 <? (project r holoVectorsFailed))))
+}
+
+theorem{
+  name: noAdmissionOfAnUnverifiedOrFailingHolo,
+  parameters: [r : RuleApp::Record],
+  statement: ((breaksHoloVerification r) = false),
+  proof: linear_arithmetic{
+    definitions: [
+      RuleApp::admits,
+      RuleApp::holoAdmitted,
+      RuleApp::numbersAdmitted,
+      RuleApp::proofAdmitted,
+      RuleApp::schemaOne,
+      RuleApp::wordsMaximum,
+      breaksHoloVerification
+    ]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: breaksProofBinding,
+  parameters: [r : RuleApp::Record],
+  result: Bool,
+  body: (((RuleApp::admits r) && ((project r hasProof) =? 1)) && (not ((project r proofStatement) =? (project r recordStatement))))
+}
+
+theorem{
+  name: noAdmissionWithAProofOfAnotherStatement,
+  parameters: [r : RuleApp::Record],
+  statement: ((breaksProofBinding r) = false),
+  proof: linear_arithmetic{
+    definitions: [
+      RuleApp::admits,
+      RuleApp::holoAdmitted,
+      RuleApp::numbersAdmitted,
+      RuleApp::proofAdmitted,
+      RuleApp::schemaOne,
+      RuleApp::wordsMaximum,
+      breaksProofBinding
+    ]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: breaksKernelChecked,
+  parameters: [r : RuleApp::Record],
+  result: Bool,
+  body: ((RuleApp::kernelChecked r) && (not ((((project r hasProof) =? 1) && ((project r proofStatement) =? (project r recordStatement))) && ((project r holoNamed) =? (project r holoPinned)))))
+}
+
+theorem{
+  name: kernelCheckedNeedsItsOwnProofAndThePinnedHolo,
+  parameters: [r : RuleApp::Record],
+  statement: ((breaksKernelChecked r) = false),
+  proof: linear_arithmetic{
+    definitions: [
+      RuleApp::admits,
+      RuleApp::holoAdmitted,
+      RuleApp::kernelChecked,
+      RuleApp::numbersAdmitted,
+      RuleApp::proofAdmitted,
+      RuleApp::schemaOne,
+      RuleApp::wordsMaximum,
+      breaksKernelChecked
+    ]
+  },
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: breaksNumbers,
+  parameters: [r : RuleApp::Record],
+  result: Bool,
+  body: ((RuleApp::admits r) && (((not ((project r fieldsStated) =? (project r fields))) || (not ((project r boundsAgree) =? 1))) || (1024 <? ((project r words) + (project r fields)))))
+}
+
+theorem{
+  name: noAdmissionWhenTheNumbersAndTheFieldsDisagree,
+  parameters: [r : RuleApp::Record],
+  statement: ((breaksNumbers r) = false),
+  proof: linear_arithmetic{
+    definitions: [
+      RuleApp::admits,
+      RuleApp::holoAdmitted,
+      RuleApp::numbersAdmitted,
+      RuleApp::proofAdmitted,
+      RuleApp::schemaOne,
+      RuleApp::wordsMaximum,
+      breaksNumbers
+    ]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: breaksSchema,
+  parameters: [r : RuleApp::Record],
+  result: Bool,
+  body: ((RuleApp::admits r) && (not ((project r schema) =? 1)))
+}
+
+theorem{
+  name: noAdmissionOfAnotherSchema,
+  parameters: [r : RuleApp::Record],
+  statement: ((breaksSchema r) = false),
+  proof: linear_arithmetic{
+    definitions: [
+      RuleApp::admits,
+      RuleApp::holoAdmitted,
+      RuleApp::numbersAdmitted,
+      RuleApp::proofAdmitted,
+      RuleApp::schemaOne,
+      RuleApp::wordsMaximum,
+      breaksSchema
+    ]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: breaksLayout,
+  parameters: [field : Nat, fields : Nat],
+  result: Bool,
+  body: ((field <? fields) && ((not ((RuleApp::greatestAt field) =? ((RuleApp::leastAt field) + 1))) || (not ((RuleApp::greatestAt field) <? (RuleApp::rulesAt fields)))))
+}
+
+theorem{
+  name: everyBoundLiesBeforeTheRules,
+  parameters: [field : Nat, fields : Nat],
+  statement: ((breaksLayout field fields) = false),
+  proof: linear_arithmetic{
+    definitions: [RuleApp::greatestAt, RuleApp::leastAt, RuleApp::rulesAt, breaksLayout]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: breaksLayoutOrder,
+  parameters: [field : Nat, later : Nat],
+  result: Bool,
+  body: ((field <? later) && (not ((RuleApp::greatestAt field) <? (RuleApp::leastAt later))))
+}
+
+theorem{
+  name: noTwoFieldsShareABound,
+  parameters: [field : Nat, later : Nat],
+  statement: ((breaksLayoutOrder field later) = false),
+  proof: linear_arithmetic{definitions: [RuleApp::greatestAt, RuleApp::leastAt, breaksLayoutOrder]},
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: breaksReading,
+  parameters: [wellFormed : Nat, inBounds : Nat, judgeAnswered : Nat],
+  result: Bool,
+  body: (((RuleApp::answerKind wellFormed inBounds judgeAnswered) =? (RuleApp::answerOutcome)) && (not (((wellFormed =? 1) && (inBounds =? 1)) && (judgeAnswered =? 1))))
+}
+
+theorem{
+  name: anOutcomeNeedsAWellFormedRequestInBoundsAndTheJudge,
+  parameters: [wellFormed : Nat, inBounds : Nat, judgeAnswered : Nat],
+  statement: ((breaksReading wellFormed inBounds judgeAnswered) = false),
+  proof: linear_arithmetic{
+    definitions: [
+      RuleApp::answerFault,
+      RuleApp::answerInvalid,
+      RuleApp::answerKind,
+      RuleApp::answerOutcome,
+      breaksReading
+    ]
+  },
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: breaksFault,
+  parameters: [wellFormed : Nat, inBounds : Nat, judgeAnswered : Nat],
+  result: Bool,
+  body: (((RuleApp::answerKind wellFormed inBounds judgeAnswered) =? (RuleApp::answerInvalid)) && ((wellFormed =? 1) && (inBounds =? 1)))
+}
+
+theorem{
+  name: aJudgeThatDoesNotAnswerIsAFaultNeverInvalid,
+  parameters: [wellFormed : Nat, inBounds : Nat, judgeAnswered : Nat],
+  statement: ((breaksFault wellFormed inBounds judgeAnswered) = false),
+  proof: linear_arithmetic{
+    definitions: [
+      RuleApp::answerFault,
+      RuleApp::answerInvalid,
+      RuleApp::answerKind,
+      RuleApp::answerOutcome,
+      breaksFault
+    ]
+  },
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: breaksReuse,
+  parameters: [s : RuleApp::Stored],
+  result: Bool,
+  body: ((RuleApp::reuseAdmits s) && (((not ((project s present) =? 1)) || (not ((project s storedKey) =? (project s computedKey)))) || (((not ((project s storedKernel) =? (project s kernelPinned))) || (not ((project s storedLibrary) =? (project s libraryPinned)))) || (not ((project s storedBytes) =? (project s derivedBytes))))))
+}
+
+theorem{
+  name: reuseOnlyUnderTheSameKeyKernelLibraryAndBytes,
+  parameters: [s : RuleApp::Stored],
+  statement: ((breaksReuse s) = false),
+  proof: linear_arithmetic{definitions: [RuleApp::reuseAdmits, breaksReuse]},
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: breaksNothingStored,
+  parameters: [s : RuleApp::Stored],
+  result: Bool,
+  body: ((RuleApp::reuseAdmits s) && ((project s present) =? 0))
+}
+
+theorem{
+  name: nothingStoredIsNeverReused,
+  parameters: [s : RuleApp::Stored],
+  statement: ((breaksNothingStored s) = false),
+  proof: linear_arithmetic{definitions: [RuleApp::reuseAdmits, breaksNothingStored]},
+  axioms: [Quot.sound, propext]
+}
+\end{semanticmodule}
+\end{lexlean}

@@ -1,0 +1,19 @@
+\begin{lexlean}{Foundation.Stream.V1.Model}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\title{Natural number}
+\begin{semanticmodule}
+inductive{
+  name: InputEvent, type_parameters: [], parameters: [],
+  constructors: [{name: Tick, fields: []}, {name: Chunk, fields: [Bytes]}, {name: EndOfInput, fields: []}, {name: Cancel, fields: []}]
+}
+inductive{
+  name: PublicationDisposition, type_parameters: [], parameters: [],
+  constructors: [{name: NotPublished, fields: []}, {name: Unknown, fields: []}]
+}
+structure{
+  name: ResourceAdapter, type_parameters: [], parameters: [],
+  fields: [{name: profile, type: String}, {name: configDecodeRoot, type: String}, {name: initRoot, type: String}, {name: stepRoot, type: String}, {name: errorEncodeRoot, type: String}, {name: dispositionEncodeRoot, type: String}, {name: summaryEncodeRoot, type: String}]
+}
+\end{semanticmodule}
+\end{lexlean}

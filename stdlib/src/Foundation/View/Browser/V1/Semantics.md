@@ -27,15 +27,30 @@ Section, Navigation or Form. They never reorder the underlying reading/focus
 sequence or remove an enabled action. The private adapter collapses multi-column
 layouts according to source-owned responsive tokens and preserves content reflow.
 
-`Design.lex.tex` defines 1–16 immutable light/dark pairs. Each pair has seven
-opaque 24-bit sRGB colors, system/serif/monospace font family, text size
-(1000–4000 thousandths of rem), line-height (1000–3000 thousandths), spacing and
-radius (0–4000 thousandths of rem), content width (16–120 rem), sidebar width
-(8–40 rem), collapse width (20–100 rem), and minimum target size (24–96 CSS px).
+`Design.lex.tex` defines 1–16 immutable light/dark pairs. Each theme has 25
+tokens: seven original opaque 24-bit sRGB colors (surface, text, border, accent,
+accent text, danger, focus), a system/serif/monospace/Hologram font family, text
+size (1000–4000 thousandths of rem), line-height (1000–3000 thousandths), spacing
+and radius (0–4000 thousandths of rem), content width (16–120 rem), sidebar width
+(8–40 rem), collapse width (20–100 rem), minimum target size (24–96 CSS px), then
+nine appended colors (card, muted, muted text, hover, input, brand, brand text,
+success, warning). Appending keeps every original wire position. The Hologram
+family is Geist, Archivo for display and Geist Mono, with system fallbacks.
 These are engineering bounds, not claims of standards-prescribed design values.
 No raw CSS, remote font, image, URL or arbitrary property name is admitted.
-Contrast, actual reflow and usability require the complete rendered assessments;
-well-shaped color values alone do not establish them.
+
+`designTokensValid` remains a shape predicate. Admission
+(`designCatalogueAdmitted`) also requires WCAG contrast: text, muted text,
+accent text, danger, brand text, success and warning reach 4.5:1 on their
+grounds and focus reaches 3:1 on surface and card. Luminance uses a 256-entry
+linearized sRGB table at scale 10^7, so the integer rule
+`den*(high+O-E) >= num*(low+O+E)` with E = 5000 bounds the table's rounding and
+never overstates contrast. `scripts/hologram-design.mjs` re-derives the table
+from the WCAG formula, and `sdk/browser/design-contrast.mjs` states the same
+rule for the decoder. `HologramDesign.lex.tex`, generated from the brand kit's
+tokens, proves its catalogue admitted by kernel evaluation with no axioms.
+Contrast of these pairs is necessary, not sufficient: reflow, other pairs and
+usability still require the complete rendered assessments.
 
 The whole canonical envelope, including its nested Presentation, remains at most
 64 MiB. Node/action/field/table/depth maxima and the generated-Wasm 1-GiB ceiling

@@ -26,7 +26,9 @@ try {
     for (const acquisition of ['cold', 'relocated']) {
       const root = join(output, location, acquisition); mkdirSync(root, {recursive: true});
       const extraction = runConstruction('/usr/bin/tar',
-        ['--extract', '--file', join(source, 'vendor/lean4-prod/lean.tar'), '--directory', root], source, environment);
+        // Archive modes for every builder, as the seed construction keeps them:
+        // the qualification runs as uid 1000, where tar otherwise applies the umask.
+        ['--extract', '--file', join(source, 'vendor/lean4-prod/lean.tar'), '--directory', root, '--same-permissions'], source, environment);
       assert.deepEqual(snapshotTree(root), manifest.source_files);
       if (acquisition === 'relocated') {
         const staging = mkdtempSync(join(output, 'private-copy-'));

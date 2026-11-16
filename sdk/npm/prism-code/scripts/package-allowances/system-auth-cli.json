@@ -1,0 +1,4 @@
+{
+  "kib": 20,
+  "reason": "The prism-code system and auth command groups (#446, #447): src/cli/system.mjs, src/cli/auth.mjs, their argument reader and the registry login check (about 21.2 KiB, with the 2.6 KiB left before them)."
+}

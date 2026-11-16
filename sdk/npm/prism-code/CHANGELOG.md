@@ -6,9 +6,254 @@ Version 0.1.0 was a canonicalization library with no entry here; its API lives o
 
 To move to 1.0, read the [migration guide](../../../docs/site/migration/to-1-0.md).
 
-## [Unreleased]
+## [0.9.5](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.4...prism-code-v0.9.5) (2026-11-16)
 
 ### Features Added
+
+* **prism-code:** a rule app's page asks for every module at once and keeps its kernel's library load as an image ([#709](https://github.com/UOR-Foundation/prismpm/issues/709)) ([ed8c819](https://github.com/UOR-Foundation/prismpm/commit/ed8c819c539956b6b730171769553c34b0c56009))
+* **prism-code:** a rule app's page reuses what this browser already fetched and proved ([#706](https://github.com/UOR-Foundation/prismpm/issues/706)) ([4dc9e88](https://github.com/UOR-Foundation/prismpm/commit/4dc9e8866791658b858d4cc58050fa7e82579934))
+* **prism-code:** prove and build a rule app with no Docker, modelled in LexLean ([#692](https://github.com/UOR-Foundation/prismpm/issues/692)) ([#694](https://github.com/UOR-Foundation/prismpm/issues/694)) ([81af326](https://github.com/UOR-Foundation/prismpm/commit/81af3265299fac2f25949c70a10a76d77727351a))
+
+### Breaking Changes
+
+None.
+
+### Bugs Fixed
+
+* **prism-code:** setup --pull pulls outside a project, and Claude Desktop keeps the prism server ([#705](https://github.com/UOR-Foundation/prismpm/issues/705)) ([812e053](https://github.com/UOR-Foundation/prismpm/commit/812e05358785c1928fa206afcc02d4781579b7e7))
+* **prism-code:** the missing-image refusal names a setup that only gets the image ([#707](https://github.com/UOR-Foundation/prismpm/issues/707)) ([1811d50](https://github.com/UOR-Foundation/prismpm/commit/1811d507af53d345795e70e2e7f5ad94e5c8baa3))
+
+## [0.9.4](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.3...prism-code-v0.9.4) (2026-11-16)
+
+### Breaking Changes
+
+None.
+
+### Bugs Fixed
+
+* **prism-code:** setup without --hosted adds no hosted server, and backs up what it changes ([#699](https://github.com/UOR-Foundation/prismpm/issues/699)) ([9808c28](https://github.com/UOR-Foundation/prismpm/commit/9808c28fb979a129746155483eb6ff0f36b0675e))
+* **prism-code:** the open defects of the journey qualification ([#702](https://github.com/UOR-Foundation/prismpm/issues/702)) ([9663358](https://github.com/UOR-Foundation/prismpm/commit/96633586c9c9834af7a356644b96108ac08a5537))
+
+## [0.9.3](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.2...prism-code-v0.9.3) (2026-11-16)
+
+### Breaking Changes
+
+None.
+
+### Bugs Fixed
+
+* **prism-code:** a session started over does not approve the app before it ([#698](https://github.com/UOR-Foundation/prismpm/issues/698)) ([025013b](https://github.com/UOR-Foundation/prismpm/commit/025013bbdb8b669966bf9eef8c3f2939875f271d))
+
+## [0.9.2](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.1...prism-code-v0.9.2) (2026-11-16)
+
+### Breaking Changes
+
+None.
+
+### Bugs Fixed
+
+* **prism-code:** a draft's comparison word is read for the kind of field it compares ([#684](https://github.com/UOR-Foundation/prismpm/issues/684)) ([dd94bcf](https://github.com/UOR-Foundation/prismpm/commit/dd94bcf41beea21d84be2a3500e8e270f9217b32))
+* **prism-code:** a stress suite for the agent journey, and the ten defects it found ([#695](https://github.com/UOR-Foundation/prismpm/issues/695)) ([8ea4a3b](https://github.com/UOR-Foundation/prismpm/commit/8ea4a3bcd073b9ef3af64246555e53c909bfd8fb))
+
+## [0.9.1](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.0...prism-code-v0.9.1) (2026-11-14)
+
+### Breaking Changes
+
+None.
+
+### Bugs Fixed
+
+* **prism-code:** the version constant is 0.9.0, and release-please writes it from now on ([#674](https://github.com/UOR-Foundation/prismpm/issues/674)) ([e7b75b0](https://github.com/UOR-Foundation/prismpm/commit/e7b75b00a299f65e9c74a90d128e2ac1a5692d97))
+
+## [0.9.0](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.8.0...prism-code-v0.9.0) (2026-11-14)
+
+### Features Added
+
+* **holo:** holo v5 is a UORC archive named by κ (ADR-017) ([#663](https://github.com/UOR-Foundation/prismpm/issues/663)) ([7b48b4d](https://github.com/UOR-Foundation/prismpm/commit/7b48b4d4939a7fa42c623c4a596357384fbe1566))
+* **prism-code:** a draft form of prism/spec/1, so a model only translates ([#667](https://github.com/UOR-Foundation/prismpm/issues/667)) ([cdced92](https://github.com/UOR-Foundation/prismpm/commit/cdced9240fd8456c215d56bb4982fa38136a8ad5))
+* **prism-code:** prism/spec/2, a sealed JSON spec for apps that keep state ([#665](https://github.com/UOR-Foundation/prismpm/issues/665)) ([33a4b48](https://github.com/UOR-Foundation/prismpm/commit/33a4b48e477bfe1d1a0855e4150160cb87294707))
+
+- A draft form of `prism/spec/1`, so a model only translates (#666, experimental). A draft holds what the user said: a `title`, the `fields`, the `rules` and the `otherwise` answer, and leaves out any of `purpose`, `outcomes`, `properties` and `examples`. `completeSpec` (`src/journey/complete.mjs`, pure: no clock, no randomness, no I/O) turns it into an ordinary whole spec, the same bytes from the same draft: the answers the rules give, in first-appearance order; a purpose from the answers and the fields and a name from the title; the first request each rule decides and one for `otherwise` as examples, at most six; and, when the draft has fewer than three guarantees, proposals read off the rules, up to three in all, each kept only when no request breaks it and each with a `why` that starts "Proposed by Prism". A spec that holds all four members is not a draft: it comes back as before and nothing is proposed again, so a struck guarantee stays struck. It is still `prism/spec/1`; there is no new schema version.
+- `prism_spec` takes a draft and completes it, returning `proposed` (the ids of proposed guarantees) and `notes`; a draft written to `prism/spec.json` is completed when Prism next reads it. The review lists proposed guarantees first, marked as proposed. The `prism_spec` input no longer requires `purpose` and `outcomes`. The MCP instructions and the skill tell a model to write only what the user said, compactly, and a guarantee only when the user stated one.
+- A number field compared with a bare word that names another number field (`"value": "limit"`) is read as that field (`{"field": "limit"}`) when a spec is passed to `prism_spec`, and named in `notes`: a number is never compared with text, so it has one meaning. Measured with Qwen3 30B, it was every refusal of a rules-only draft. Reading `spec.json` strictly still refuses it, now saying how to write it.
+- Two clean-ups when a spec is passed to `prism_spec`, each named in `notes`: an `invalid` listed among the answers that no rule, `otherwise` or guarantee answers is dropped (it used to be refused as `outcomes.reserved`), and a guarantee whose conditions no request can meet is dropped, only when every candidate request was tried. The stored `spec.json` is the spec after the drops, and its address is the seal.
+- `checkSpec` completes and checks a spec in one call, and `repairMessage` says what to tell its author: a guarantee the rules break is named as the JSON that was written, beside the rule that decides against it and the request that shows the conflict, with the two ways out; any other refusal is given in the checker's words. `prism_spec` returns it as `repair`.
+- `DRAFT_JSON_SCHEMA` and `SPEC_JSON_SCHEMA` (`src/journey/spec-schema.mjs`): `prism/spec/1` as JSON Schema, the draft form and the whole spec, for a caller that can hold a model's answer to a schema. Both are closed, and number bounds are whole and not negative.
+- `prism/spec/2`, the JSON spec of an app that keeps state between steps (#664, `docs/proposals/664-stateful-spec.md`, experimental). Bounded `state` with a start, `actions` with inputs and ordered rules whose `change` sets, adds to or subtracts from the state, an `otherwise` per action, properties over every reachable state, and examples as sessions. It is read as strictly as `prism/spec/1`, with its own registered refusals (`STATEFUL_REFUSALS`), renders to the same bytes from the same JSON, and carries the same seal, `[prism/spec/2 blake3:<hex>]`, so `prism-code check --spec` holds a stateful app to its JSON. Lean proves the bounds and each property by induction over a session's steps, every theorem `linear_arithmetic`. A session runs on the text profile as one request, its steps separated by `;`, answered with the last outcome and the state. `prism_spec` takes either schema; a model still writes only JSON. A stateful app builds on this machine only for now: the GitHub template is for decision apps.
+- An unknown `schema` in a spec is refused as `spec.schema`, naming both schemas, rather than as an unknown member.
+
+### Breaking Changes
+
+* **holo:** holo v5 is a UORC archive named by κ (ADR-017) ([#663](https://github.com/UOR-Foundation/prismpm/issues/663))
+
+### Bugs Fixed
+
+* **prism-code:** the 0.8.0 changelog entry lists its sections in the required order ([#671](https://github.com/UOR-Foundation/prismpm/issues/671)) ([d017786](https://github.com/UOR-Foundation/prismpm/commit/d017786d78e20993f8732712882d34b165b26f31))
+
+## [0.8.0] - 2026-11-13
+
+### Features Added
+
+- Docker's spellings work as Docker users type them (#347). `prism-code ps` and `prism-code logs` are `containers ps` and `containers logs`; `container`, `image` and `volume` name the same groups as `containers`, `images` and `volumes`, so `prism-code container ls -a` and `prism-code image ls` work; `containers ls` lists as `ps` does. `prism-code run calc:latest <input>`, `prism-code inspect calc:latest`, `prism.containers.run('calc:latest', input)` and `prism.images.inspect('calc:latest')` open the image the local store keeps under that name; a path that exists still wins. The ten most common Docker tasks, spelled as Docker's CLI and SDK spell them, are a committed transcript (`test/fixtures/familiarity.json`) that `test/familiarity.test.mjs` runs against a local registry.
+- `prism-code containers create|inspect|logs|ps|rm|run|start` and `prism-code volumes create|inspect|ls|rm` (#443, #445). `containers create` prints the id and takes `--volume <name>`. `ps` lists running containers, or every container with `--all`. `logs` prints the stored output. `start` runs a container created in the same process, because the store never keeps the input. `volumes` reads the capability grant and provider declarations of `--project <dir>` (default `.`). `create` prints the names of the variables a provider returned, and never their values.
+- A client re-reads a container's record from its store on every `get`, `list`, `inspect` and `logs`, so a long-lived client sees what another client did: a start, an exit or a removal (#443). A run in progress in this process keeps its own record.
+- The developer glossary marks `ps` and `logs` as available now (#443), since `containers.list` and `containers.logs` have their behaviour, and adds `ls` for listing store capability grants. `stop` still waits for #350.
+- `prism.containers` has the rest of the module's verbs (#443): `dispatch(image, input)` runs once and returns the output as a call, removing the container and rejecting with the typed error of a failed run; `inspect(id)` and `logs(id)` take an id or unique prefix, and logs are served from the stored output, so a container read back from `PRISM_HOME` has them. `stop` waits for #350, which makes a run interruptible. A container records `allowUnverified`, and `unverified` says when a start ran past a refusing check, with the error and the warning given. `create` takes `volumes`, which go through `prism.volumes`; until host effects land (#216, #217) each is refused with its typed `CapabilityDeniedError`, kept on the record, before check runs, and the guest never starts (#445). `prism.volumes` and its records have real types. Conformance DK-43.
+- `prism-code <module> <verb>` (#441): the command line has groups named after the modules. `images build|inspect|pull|push|verify` and `containers run|rm|inspect` are, for now, the same commands as the flat verbs they name, which stay. A module's verbs are listed once, in `src/cli/<module>.mjs`; `prism-code images` alone is a usage error naming its verbs, and `prism-code images --help` prints them.
+- The developer surface is checked against the developer view's glossary (#347). The glossary is declared once, as the LexLean model `bindings/src/Foundation/Views/V1/Developer.lex.tex`, which renders [docs/developer-glossary.md](../../../docs/developer-glossary.md). `developer-surface.json` lists every verb and flag of the help, every namespace and method of the client, and the deprecated aliases; a test keeps it equal to the package, and `cargo xtask check-developer-view` refuses a name outside the glossary, a canonical term the view renames (`holo`, `history`, `instance`, `fingerprint`), a Docker verb taken before Prism has its behaviour (`ps`, `stop`, `logs`, `images`, `tag`, `rmi`), and an alias the model does not declare.
+- Trust in `verify`, signing in `auth` (#449, #447, experimental). `prism.verify.pullClosure` judges what a pull fetched, steps 4 to 8 of the push and pull design: the claims about the bytes, the attestation subjects, the verdict under the policy and, with a signer, a passing bundle; `images.pull` and `experimental_pull` now get their answer only from it, with the same checks and errors as before. Every signature goes through an `auth` identity: `auth.identities.from(options)` turns the flat signer options `attest`, `signStatements` and `push` take into one, and the signing code moves out of `attest.mjs` into `auth`'s own `signing.mjs`. `experimental_attest` and `experimental_signStatements` are unchanged in `prism-code/node`. A keyless failure before any token was read keeps its `cause` through `auth`, as it did through `attest`.
+- Every error code prism-code raises is registered (#448). model/sdk-diagnostics.toml now holds all 172: the code of each error class with its class, and every check code of a `PrismCodeError`, each owned by its module's capability (AL-07 verify, OC-11 images, SE-09 auth, DK-39 networks, DK-41 client, containers and system, CT-12 errors), and ERRORS.md lists them. test/fixtures/unregistered-codes.json is gone: the test fails on any code raised without a row, any code built from a variable, and any row no longer raised. The `export.*` refusals are raised as literal codes.
+- `prism-code attest --unsigned` and `--statement <file>` (#582) sign what `prismpm` wrote: `--unsigned` signs each unsigned statement in the holo, such as the provenance `prismpm build` writes, in its place and over the same payload bytes; `--statement` signs a whole statement, such as the `proof-statement.json` `prismpm verify` writes, after checking that every subject is a content blob of the holo. Keyless on a GitHub Actions runner, or with `--key`. `experimental_signStatements` is the same from `prism-code/node`. A holo built on Actions and signed this way reaches P2 under a signer policy that names the workflow.
+- `prism-code build --remote github` trusts the repository's own workflows as the signer when it checks the holo that comes back (#582). The verdict counts a statement signed into the holo only when a workflow of that repository signed it through GitHub's OIDC issuer, so a build that signs its proof statement keylessly reaches P2. Before, the check named no signer and every remote build was P0. `repositorySigner(repo)` is that signer policy.
+- `prism-code generate --lang python` (#289): a package from the same code model, importing only the standard library (Python 3.9 and later), typed so that `mypy --strict` passes and laid out as `black` lays it out at 100 columns. `world.py` holds `WORLD`, `EXPORTS`, the protocol `Guest` and `dispatch`; the application's module holds the typed client (`Calculator`, `Operation`, `CalculatorErrorCode` with the model's messages, `CalculatorError`, `ResponseError`, `MODEL`), or a client over bytes. The test replays every typed acceptance vector, as the real guest answers it, through the Python client with `python3`. `--lang` now takes `js`, `rust` and `python`.
+- `prism-code generate --lang rust` (#289): a crate from the same code model as `--lang js`, with no dependencies and no `unsafe`, already formatted as `rustfmt` lays it out. `world.rs` holds `WORLD`, `EXPORTS`, the trait `Guest` (the world's exports and memory, to implement over any WebAssembly engine) and `dispatch`, the world's request protocol over it; the application's module holds the typed client (`Calculator`, `Operation`, `CalculatorErrorCode` with the model's messages, `CalculatorError`, `MODEL`), or a client over bytes when the model has no typed operations. The test builds the generated crate, runs clippy with warnings denied, and replays every typed acceptance vector, as the real guest answers it, through the Rust client.
+- `prism_build` names the stage that is running (#585). Each step of the build script, and each stage `prismpm verify` reports under `PRISMPM_PROGRESS` (Lean proof, Lean export, Rust, WebAssembly, the holo, the acceptance run), becomes a `Stage: ...` line, so `latest` changes as the build moves on. An SDK image whose prismpm predates those lines still reports the script's steps.
+- Gap telemetry (experimental). The journey records, as a fingerprint in `$PRISM_HOME/gaps.jsonl`, what a user asked for that Prism or Lean could not do: an answer or spec a validation rule refused (each refusal now names its rule), a valid spec that does not come back from its own answers, a property Lean did not prove that no sampled request breaks, and a generated model the toolchain refused. A fingerprint holds the kind, a construct from a fixed vocabulary, the diagnostic code and the version, and nothing the user wrote. The next call to the hosted verifier carries the unsent fingerprints, counted, in its `_meta` under `foundation.uor/prism-gaps` (`prism/gaps/1`), with a random install ID. `PRISM_TELEMETRY=0` or `DO_NOT_TRACK=1` turns it off; `setup` prints one line saying so, and `--json` reports it as `telemetry`.
+- `src/images-namespace.mjs`, the `prism.images` namespace (#442, experimental): `build`, `pull`, `push`, `inspect` and `verify`, reached as `prism.images` on the client (#441). See the root CHANGELOG.
+- `src/image-store.mjs`, the local image store (#349, experimental): `prism.images.list`, `get`, `tag`, `remove` and `prune`; `build` and `pull` write into it, `push` reads from it, and `system.df` and `system.prune` cover images. `fileImageStore`, `memoryImageStore` and `imagesDirectory` in `prism-code/node`; `createPrism({ imageStore })`. The CLI gains `images ls|tag|rm|prune` and the top-level `images`, `tag` and `rmi`. See the root CHANGELOG.
+- The nine modules on one client (#441, #446, experimental): `createPrism()` returns `images`, `containers`, `networks`, `volumes`, `system`, `auth`, `errors` and `verify`; `Prism.fromEnv()` in `prism-code/node` configures it from this machine. `prism.system` (`info`, `version`, `df`, `prune`, `events`), `containers.list` and `containers.prune` are new. See the root CHANGELOG.
+- `prism-code system info|version|events|df|prune` and `prism-code auth login|logout` (#446, #447, experimental), with `login` and `logout` as top-level spellings. `info` and `version` name the toolchain and builder image the project's `prismpm.lock` pins; `events` reads create, start, die and destroy from the container store, since there is no daemon, and follows it until `--until`; `prune` asks first unless `--force`. `login` checks the credential with the registry (`GET /v2/`) before storing it where Docker would, and reads the password only from `--password-stdin` or a prompt that does not echo: `-p` and `--password` are refused, and nothing printed or thrown holds the secret. Every verb takes `--json`.
+
+### Breaking Changes
+
+- Every app carries a seal: the UOR content address of the `prism/spec.json` it was built from (`blake3:<hex>`, the kappa its canonical bytes hash to, the same name a holo labels its own blobs with). It rides in the model's description, so it is inside the holo's model blob, whose label is that blob's content address and whose bytes the footer covers; changing the seal changes the holo and the integrity check refuses it. `prism-code check <holo> --spec <file>` holds an app to a spec and fails when it was built from another, or carries no seal; with no flag, a `spec.json` beside the holo is reported. A build whose holo seals another spec is refused.
+- `prism/spec.json` is the one input of every Prism app, and the model is rendered from it alone. An agent writes or edits that JSON; Prism reads it strictly, keeps it as canonical JSON (RFC 8785) and records its SHA-256 as `specHash`. The same JSON always gives the same LexLean, byte for byte, whatever the clock, time zone, locale or working directory.
+- Reading a spec refuses what it used to accept: a member `prism/spec/1` does not define (`json.member`), a duplicate key (`json.duplicate`), a number that is not a whole number within plus or minus 2^53 (`json.number`), and text that is not JSON (`json.syntax`), each naming its JSON path. `prism_spec` holds an agent's spec to the same rules, so a tool call and a hand-edited file are refused alike.
+- A model that is not what `prism/spec.json` renders to is refused at build, naming the files that differ. The model is generated, never edited.
+- `prism_start` and `prism_spec` read `prism/spec.json` each call: an edit an agent made to that file directly becomes the spec, reported as a note. A `spec.json` that does not read blocks `prism_prove` and `prism_build` with its refusal, instead of building from a stale session.
+- `spec.json` holds canonical bytes, not pretty-printed JSON. A tool that read the old formatting still parses it; nothing else changes.
+
+- `setup` adds the hosted lexlean server (`https://mcp.uor.foundation/`) to agents only with `--hosted`. Without it, each agent gets the local Prism server and nothing else; an entry already there is left as it is.
+- A proof may rest only on `propext`, `Quot.sound` and `Classical.choice`. The guided path used to record whatever axiom set Lean observed and prove again, so a proof resting on `sorryAx` or `Lean.ofReduceBool` (native_decide) passed; it is now refused, naming the declaration and the axiom.
+- `init --sdk-image` relocks the template's LexLean project with the image's own compiler before `prismpm update`, so a template lock older than the image no longer fails with `LLC0102`. Every bind run has `--network none`. `prismpm update --toolchain` still reads the image's index from its registry, so binding is not yet fully offline.
+- The build result says where Lean proved the model (this machine, the hosted verifier or the GitHub gate), and claims nothing when no proof of the model is recorded. Acceptance vectors are reported as tested, never as verified.
+
+- One canonical path for every app. `build --unstable-author` and `check <holo> --unstable-author`, where an agent wrote the model, are removed; `build --unstable-author` now exits 64 with `unknown option --unstable-author`. An app comes from one `prism/spec/1` spec through the guided path.
+- Nothing is sent to the hosted verifier unless asked. `verify --lean` and `build --check` run in the SDK image on this machine and use the hosted verifier only with `--hosted`; with no lockfile they exit 64 and name `--hosted`. The guided path proves locally unless `PRISM_CODE_TIER=hosted`, and builds locally unless the caller names a repository or `remote: github`.
+- An integrity failure fails every policy, P0 included. `check` adds the reason `policy.integrity` and exits 1 for a damaged holo whatever the policy's minimum; `run-policy.json` with `minimum: P0` no longer passes one.
+- The spec is never altered. Text that the model or its documents cannot carry as written is refused as `text.character`, `text.length` or `text.space`, naming the character, its code point and its JSON path, instead of being stripped, collapsed or cut.
+
+- The developer view's glossary (#346, #347) renames two spellings of the command line, each kept as a deprecated alias through 0.8 that prints one warning naming the new term and is removed in 0.9.0:
+
+  | Was | Now | Why |
+  |---|---|---|
+  | `prism-code history <app.holo>` | `prism-code record <app.holo>` | the developer view calls a history a recording, and `docker history` lists an image's layers |
+  | `--holo <path>` (`replay`, `dev`) | `--image <path>` | the developer view calls a holo an image; `.holo` files keep their name |
+
+  Verbs that `prism-code` hands to `prismpm` keep `prismpm`'s flags. Nothing below the developer surface changes: the `prism/history/1` schema, `Application.history()`, predicate URIs and error codes keep their names.
+- `prism-code check` without a holo is removed (#584). It was the 0.2.0 spelling of `build --check`, announced as removed in 0.4.0, and still ran through 0.7.2 with a warning that named that version. It is now a usage error (exit 64) that names `prism-code build --check`. Migration: replace `prism-code check [args]` with `prism-code build --check [args]`.
+- `load()` refuses an altered holo (#583). When the footer is not the BLAKE3 of the body, a content blob does not hash to its label, or the manifest, directory and provenance name different blobs, `load`, `loadArchive` and `fromFile` reject with `DigestMismatchError` (`code` `digest_mismatch`, `check` `holo.integrity`), and so does `loadClosure` when a closure file does not match its provenance. Before, the application opened and dispatched, and only `identities.verified` said otherwise. `{ allowUnverified: true }` opens it as before. `prism-code vectors` and `history` refuse it too; `--allow-unverified` replays it, and `vectors` then exits 1.
+- `holo.verify()`, `holo.inspect()` and `prism-code check` give no verdict (`archive.table`) on any archive the Wire codec refuses (SPEC section 3), as the Rust verifier does: content blobs out of label order, an application manifest that is not the Wire template, a manifest reference that names no blob, a section kind or extension name out of place, or a row count other than eight (nine with the attestation row last). Such an archive used to get a failing verdict.
+
+### Bugs Fixed
+- A holo with one byte altered is refused as an integrity failure at load and at `run`, under every policy, before anything inside it is read. Before, a flip that left a text section invalid UTF-8 escaped as a raw `TypeError` (exit 70), and a flip inside a document or the manifest was named as that document's error. Every such refusal is now `digest_mismatch` with check `holo.integrity`, its message starts with `integrity failure:`, and `run` exits 1; only damage to the header or the section table, which locate the footer, is still refused structurally.
+- A built holo says plainly that it does not carry its proof (#582). `prism_build` and its run note now say that the holo holds no signed proof statement, so the default `prism-code check` reports P0. The verdict's reasons for a holo with no attestation section no longer cite closed issues #266, #267 and #284, and now read as the Rust verifier's do: "The holo carries no provenance statement." and the same for proof and replay.
+
+
+## [0.7.2] - 2026-11-09
+
+### Breaking Changes
+None.
+
+### Bugs Fixed
+- The approval card starts with an editable App name field. The instructions said "app name" without saying it is an input, and an agent showed it in the card's header, where it cannot be changed. The instructions and the skill now ask for an App name field, with the ID and repository name it gives shown under it.
+
+## [0.7.1] - 2026-11-09
+
+### Breaking Changes
+None.
+
+### Bugs Fixed
+- The review no longer says a rule "never decides anything" when it does. The check samples requests like an odometer, last field fastest, and stops at a limit, so in a spec with many fields the first field barely moves and its later choices are never reached; a seven-field filing spec had nine such rules flagged. A rule is now called unreachable only when every combination was tried.
+- The approval form is an editable card, not a multiple-choice question. The instructions said "one editable form with an approve button", and an agent read its own question dialog as that form, which shows the spec as fixed text. The instructions and the skill now ask for an editable card, the app name first and a text box per part, and never a multiple-choice question.
+- setup describes the prism server as checking the spec the agent drafts, not asking for it.
+
+## [0.7.0] - 2026-11-09
+
+### Features Added
+- The guided journey starts from one sentence (experimental). The agent drafts the whole spec, passes it to `prism_spec` to be checked (every example against the rules, every property for a counterexample), and shows it once for approval, properties first; `prism_build` waits for that approval. The six questions remain for what the agent cannot infer. `prism_spec` now declares the `prism/spec/1` shape as its input schema, so any agent can draft a spec without reading the source.
+- A spec can say why: a reason (`why`) for each rule and property and for the fallback (`otherwiseWhy`), what each field (`means`) and answer (`meanings`) means, and what the app does not decide (`limits`). They are optional and no proof depends on them. Each is kept with what it describes, so a rule's reason survives a revision and is dropped when that rule changes. The review lists guarantees first, then rules, request and answers, and notes a property with no reason.
+- `prism/SPEC.md` is an [OpenSpec](https://openspec.dev) spec: `## Purpose`, then a `### Requirement:` with SHALL and a `#### Scenario:` with WHEN and THEN for every guarantee and rule, each marked proved by Lean or tested. A scenario uses the user's own example when one fits, else a request the rules decide. A template instance carries it at `openspec/specs/<name>/spec.md`.
+- The prism skill and the server's instructions ask an agent that can show UI in the chat for one editable approval form: the app name first, with the ID and repository name it gives, then the spec's parts, and an approve button that sends the reply.
+
+### Breaking Changes
+- `prism/SPEC.md` has a new layout (the OpenSpec one above); a reader of the old headings (`## Request`, `## Rules`, `## Properties`) finds them gone.
+- A property is now stated only over the choice codes a request can carry, so the proofs module of an app with a choice field changes, and a rebuild of such an app has a new fingerprint.
+- The server's greeting and instructions describe the one-sentence flow, not six questions.
+
+### Bugs Fixed
+- An `always` property over an app with a choice field could not be proved: the generated theorem also covered choice codes no request can carry, where no rule naming a choice matches. Each property's test now bounds every choice field, as SPEC.md already claimed (every property holds for every request that decodes).
+
+## [0.6.0] - 2026-11-09
+
+### Features Added
+- Every new app the guided journey builds is an instance of `UOR-Foundation/template` (experimental), with the template's frame, page, gate and a GitHub Pages URL. Once the user approves a repository name, `prism_build` with `repository` creates it from the template (public, Pages built by workflow), clones it beside the app's folder and writes the app into it:
+  - the model and proofs in `app/`, both as entrypoints, so `prismpm verify` has the Lean kernel check every property's theorem in the gate;
+  - `app/lexlean.lock` recomputed for the app's project files;
+  - one claim per stated property (`XX-01`, two letters from the app's name): a row in `model/ids.toml`, a scenario in `features/suites/<suite>.feature`, and a test in `crates/conformance/tests/<suite>.rs` that pins the theorem's condition and statement;
+  - `CONFORMANCE.md`, and `site/app.json` with the app's name, purpose, live URL, repository, claims, theorems and the hosted proof's attestation. The template's example app is removed.
+
+  It then pushes and waits for the gate (`bootstrap`) and the page (`pages`). When both pass, it fetches the live holo, replays its acceptance vectors here and returns the live URL. A later build reuses the clone. The page's social card and icons are drawn by the template's Pages run (UOR-Foundation/template#58), so the author needs neither Python nor Pillow.
+- The generated LexLean is canonical as written, so a template instance's `lexlean fmt --check` passes with no SDK image here. Declarations are laid out as `lexlean fmt` lays them out: a record or list stays on one line when it fits in 100 columns, and otherwise breaks one entry per line. The model and proofs of three specs of different shapes are pinned by digest, after `lexlean fmt` left them unchanged.
+- The guided journey builds without Docker by default. `prism_build` builds in the SDK image when it is on this machine, else on GitHub Actions when a GitHub token is there (`GITHUB_TOKEN`, `GH_TOKEN` or `gh`), else in the image after downloading it; `remote: "github" | "local"` and `PRISM_CODE_TIER=local` choose. An app with no repository gets `needs: "repository"` and a suggested `<login>/prism-<name>`. In an existing repository with a github.com origin, `prism_build` commits only Prism's paths (the app folder, `.github/workflows/build.yml`, the root `prismpm.lock`) and builds that commit, which this machine verifies as `build --remote github` does; a user file the commit does not name stays out.
+- An app is pinned to the default SDK image without Docker. `prismpm.lock` and `standards.lock` depend on the image alone, so the GitHub path reads them, and the template's `build.yml`, from `UOR-Foundation/template` at a pinned commit, each checked against a pinned SHA-256 before it is written; a file that differs is refused.
+- A local run keeps the SDK's caches on disk without `setup --local`. When no config records Docker, the first command that runs the image records what it found in `$PRISM_HOME/config.json` with `cache: true`, so later runs skip the probe and mount the per-image cache volume (Docker creates it on first mount) in place of the 2 GB tmpfs. A record without `cache` now counts as on; `cache: false` or `PRISM_CODE_NO_CACHE=1` turns it off, and `PRISM_DOCKER` is never recorded.
+- `setup` ends with numbered next steps: `gh auth login` when there is no GitHub sign-in, a restart of the preferred agent when setup added a server to it, and the first sentence to ask it. `--json` reports them as `next`.
+
+### Breaking Changes
+- A plain `setup` no longer looks at Docker, the SDK image or its cache volume, so its machine rows are `node`, `endings` and `github`. `--local` plans the other three, and `--pull`, `--image` and `--machine-only` imply it. Outside a repository the `github` row now reports the GitHub sign-in (`ok` or `manual`) where it said `skipped`. The agent rows print under `your agents`, with a line naming each server, `lexlean` and `prism`.
+
+## [0.5.1] - 2026-11-07
+
+### Breaking Changes
+None.
+
+### Bugs Fixed
+- The tiers find `prismpm.lock` here or in a parent directory, up to the repository's root. In a template instance's `app/`, `build --check` and `verify --lean` used to run hosted even with the SDK image on the machine, and said there was no image; `verify --lean --local` there now runs in the image the root lockfile pins. A hosted tier's first line says why it is hosted (`--hosted`, no lockfile, no image, or, for `build --check`, no `prismpm.toml` for `prismpm check` to read), and the `skipped prismpm check` line no longer offers to pull an image that is already here.
+- A proof the hosted verifier refuses is printed as `file:line:column: CODE message`, with Lean's goal under it (at most 20 lines), where it used to stop at the message's first line.
+- `--help` after any built-in command prints that command's usage and options and exits 0, without reading a lockfile or reaching Docker. `build --help` at a project's root used to announce a 5.5 GB download and start the image for `prismpm build --help`; `setup --help` and `build --remote github --help` were refused as unknown options.
+- `setup` leaves a `.gitattributes` whose root rule turns conversion off (`* -text` or `* binary`) as it is, since such a file already keeps sources LF as committed, and an appended `* text eol=lf` would have overridden it.
+- A hosted `build --check` checks exactly the files under `src/`. It asked the server for `all`, which on a draft also covers the profile's own `Contract` module, so the count read "sending 4 files" then "5 modules"; it now sends no `all` and the server selects the draft's files (lexlean-mcp#88).
+- `build --check` says that it checks syntax and types, not proofs. The hosted tiers say what "unlisted" means: nothing lists or searches a draft, but anyone with its ID can read it.
+
+## [0.5.0] - 2026-11-07
+
+### Features Added
+- `build --remote github` (experimental): the repository's own GitHub Actions builds one commit and this machine verifies what comes back, so no Docker, SDK image or toolchain is needed here. The commit is pushed to `refs/heads/prism/build/<sha>`, the template's `build.yml` runs `prismpm verify` in the SDK image and uploads `prism-build-<sha>` with the holo, its build directory, `build.json` and the run's provenance signed by `actions/attest-build-provenance`. Before anything lands under `.prism/build/`: the artifact names this commit and repository, the holo's SHA-256 is the one recorded, the provenance's subject is that digest and its build names this repository and commit, the signature verifies for a workflow of this repository through GitHub's issuer (prism-code's Sigstore verifier, else `gh attestation verify`, else refused), `check` passes at the P0 policy (or `--policy`), the fingerprint matches, and every vector replays here. Refusals are `remote.*` (exit 2); a flipped byte is `DigestMismatchError` (exit 1). `setup` gains a read-only `github` row (origin, token source, `build.yml`), and the journey's `prism_build` takes `remote: "github"`. The template's `pages.yml` carries a copy of `build.yml`'s SDK and signing steps (its gate forbids calling a workflow by path), so the published page and the remote build come from the same step with the same signed provenance.
+- The hosted tiers (experimental). `verify --lean` and `build --check` run on the hosted verifier at `https://mcp.uor.foundation/` (profile `prism-app`) when the SDK image is not on this machine, and in the image when it is; `--hosted` and `--local` choose, and a flag of `lexlean` or `prismpm check` keeps the tier in the image. Only the files under `src/` are sent, unlisted but not private, and each run says so. A project whose only source root is not `src`, or that names a lexicon package the profile does not carry, is refused with `hosted.layout`. `verify --lean` names the project's entrypoints as the files to verify and passes only when each entrypoint's module comes back verified (`hosted.coverage`); its record goes to `.lexlean/hosted/<attestation_id>.json` (`prism/hosted-verification/1`). A hosted `build --check` checks `prism.toml` here and `lexlean check --all` there, and prints that the lockfile and SDK pins were skipped. Not the same bytes as a local verify: the profile has its own `module_prefix`, and `axioms` still needs the image.
+- The guided journey proves without the image (experimental). `prism_prove`, and the proof `prism_build` starts with, runs on the hosted verifier when Docker or the SDK image is missing (`PRISM_CODE_TIER=local|hosted` chooses), naming every module under `prism/src/`, the proofs module included, so the answer counts only when each comes back verified. Wrong axiom sets are corrected and proved again as in the image, a property Lean refuses is found by the line the verifier names, and Lean warnings filed under LLV7002 no longer read as failures. `prism_build` downloads a missing image itself, saying so first, instead of refusing; the old refusal pointed at `setup`, which no longer downloads it.
+- `prism-code mcp`, the local Prism MCP server, and its place in `setup` (#325, `docs/proposals/325-prism-journey.md`, experimental). The server asks six questions (purpose, fields, outcomes, rules, properties, examples) and checks each answer as it arrives: a property the rules break returns the request that breaks it, and an example the rules contradict returns the rule that decides it. The spec (`prism/spec/1`) becomes a LexLean text application written for the user, each property a `linear_arithmetic` theorem in a proofs module that the build does not compile, and acceptance vectors from an evaluator with the model's semantics. `prism_build` proves, corrects axiom sets, builds the holo in the SDK image through the Docker and cache volume `setup` recorded, and replays the vectors through the guest. Proving and building run as jobs that outlast an agent's tool timeout and are not started twice by a second server. `setup` adds `prism` beside `lexlean` in each agent it configures, Claude Desktop included, and the `prism` skill describes the guided path.
+
+### Breaking Changes
+- `setup` no longer pulls the SDK image (`docs/proposals/lean-sdk-image.md`, steps 3 and the no-image default, experimental). The image row is `deferred` unless `--pull` is given or `--image` names one; `--no-pull` is now the default and is still accepted. The first `build`, `verify`, `axioms` or `conformance` that needs a missing image says it is about to download about 5.5 GB before Docker pulls it.
+
+## [0.4.2] - 2026-11-05
+
+### Features Added
+- Browser closure v2: `verifyClosure` accepts `prismpm/browser-provenance/2` beside `/1` and checks every file digest it names; a file the caller did not supply, such as a font the browser fetches, is reported as unverifiable, and a supplied file it does not name is a mismatch. `export` accepts a release whose browser rows are exactly closure v1 or closure v2 and prints `prismpm/browser-export/2`. `BRAND_FILES`, `closureProfiles(stem)` and `PROVENANCE_SCHEMA_V2` are exported from the closure module.
+- The `dev` studio uses the Hologram tokens on shadcn/ui anatomy: warm grounds, one brand mark, segmented tabs and cards, with text-safe pass, fail and warn colors in both schemes.
+- The machine half of `prism-code setup`, the build tiers and `prism-code axioms` (experimental). `setup` now runs five rows before the agents: `node` (22 or later), `docker` (`docker` or `podman` on the PATH, or on Windows without Docker Desktop the first WSL distribution whose `docker version` answers, recorded in `$PRISM_HOME/config.json` so `check`, `build` and `verify` spawn it and mount the project under `/mnt/<drive>/`), `image` (the SDK image `prismpm.lock` pins or `--image <ref>`, pulled with its progress when missing; `--no-pull`), `cache` (a volume per image digest mounted at `/tmp` in place of the 2 GB in-memory tmpfs, which holds the SDK's 1.2 GB Cargo home on disk instead of in memory: a full verify of a chess model went from 814 s to 284 s on WSL; `PRISM_CODE_NO_CACHE=1` restores the tmpfs) and `endings` (`* text eol=lf` in the project's `.gitattributes`, with CRLF files counted). `--machine-only` and `--agents-only` take one half, `--json` prints `prism/setup-report/1`. `PRISM_DOCKER="<command>"` and `PRISM_DOCKER_MOUNT=wsl|native` override the probe; a delegated verb with no Docker exits 69 with the reason (`docker.missing`). `prism-code verify --lean` runs `lexlean verify` on the project's `lexlean.toml` (at the root or under `[model] source`) in the image without the Docker socket: every theorem and its exact axiom policy, about a minute. `prism-code axioms` compiles the project once and prints the axiom set Lean observes for every definition and theorem beside the declared one (`axioms.probe`, `axioms.project`, `tier.project` codes); `--write` sets each `axioms` member in its canonical place and runs `lexlean fmt`.
+
+### Breaking Changes
+None.
+
+### Bugs Fixed
+- `prism-code doctor` finds Docker the way `check`, `build`, `verify` and `axioms` reach it: the program `setup` recorded in `$PRISM_HOME/config.json` (Docker inside WSL on Windows included), `PRISM_DOCKER`, or a probe of the PATH. It used to look only on the PATH, so on Windows without Docker Desktop it reported "docker is not on the PATH" right after `setup` had configured Docker. Its error hook now covers `axioms` too.
+
+## [0.4.1] - 2026-11-05
+
+### Features Added
+- `setup` installs one skill, `prism`, which ships in the package (`skill/SKILL.md`, the repository's `skills/prism/SKILL.md` byte for byte). It now covers building a new app from one sentence, every command, and the `lexlean` MCP server. It replaces the `prism-sdk` skill 0.4.0 fetched from uor.foundation: setup reads no network for skills, and removes the `prism-sdk` folder it installed, only where its marker is. The skill's generated tables are no longer padded, so it is 16 KB instead of 39 KB.
+
+### Breaking Changes
+None.
+
+## [0.4.0] - 2026-11-05
+
+### Features Added
+- `prism-code setup [--agent <id>] [--dry-run]` and `prism-code open <holo://build link> [--dry-run]` (experimental): configure the UOR MCP server in Claude Code, Codex, Cursor and VS Code, install the Prism skills from uor.foundation, register the `holo://` handler, and hand the website's sentence to the agent. New modules `src/agents.mjs`, `src/open.mjs`, `src/handler.mjs`, `src/setup.mjs` and `src/setup-cli.mjs`, with no new dependencies. See the root CHANGELOG and the README section Set up your agents.
+- `src/volumes.mjs`, the `prism.volumes` namespace (#445, experimental): `create`, `list`, `inspect` and `remove` over the capability file, not yet reachable from the package, because #441 connects the modules. See the root CHANGELOG.
+- `pull` reads signed statements (#292, #270, experimental): its verdict is now `check`'s, so a signed holo reaches P1 and P2 with the signer named, and `experimental_pull` refuses a policy object that carries evidence. See the root CHANGELOG.
 - `check` reaches P1 and P2 from the signed statements in a holo (#270, experimental): name the signer with `--key`, or `--certificate-identity`/`--certificate-identity-regexp` with `--certificate-oidc-issuer`, and pin `--trusted-root`. Without a signer a signed holo is P0. A holo with an attestation section no longer exits 2 with `format.revision`. See the root CHANGELOG.
 - `prism-code dev [<dir>]` and the local studio (#288, `docs/proposals/288-prism-dev.md`, experimental): watches the model, rebuilds when the bytes of its sources change, judges the new holo with the `check` the command line runs, and serves a page on `http://localhost:4100` (`--port` moves it; a port in use is the error `dev.port`, never a silent move) with a Check tab (the verdict, the level, every reason, the time from the edit to the verdict) and a Replay tab, which says `unavailable` until `prism replay` reaches main and reads one file, `src/dev-replay.mjs`. The page is plain HTML with no framework, loads nothing from outside its origin, and judges the same bytes again with `@prism-code/verify`. A build that fails, or names no holo, leaves no current verdict. `--policy <file>` re-checks on an edit to the policy with no build; `--build <command>` and `--holo <path>` name a build of your own. `.github/workflows/dev-e2e.yml` measures edit to verdict with the real build and runs the page in a network namespace with only loopback.
 - Policy files for `prism-code check` and `run` (#285, `docs/proposals/285-policy-file.md`, experimental): `--policy` takes a Rego file (`.rego`) or the name of a shipped policy. `default` (P2 or above, and the declared world within the granted capabilities) is now a file that goes through the same evaluator as a user policy, and `pure-only` and `provenance-only` ship beside it. A policy reads one versioned document, `prism/policy-input/1` (schema and types in `@prism-code/spec`), and decides with `minimum` and `deny`; it never changes the level and never lives in the holo. The evaluator in `@prism-code/verify` is a closed subset of Rego v1 with no dependencies, which refuses what it does not implement and whose answers are pinned against OPA; `parsePolicy`, `evaluatePolicy`, `policyInput` and `POLICIES` are exported. A policy that does not parse is `PolicyParseError` (`policy_parse_failed`) and one that cannot be evaluated is `PolicyEvaluationError` (`policy_evaluation_failed`), both exit 2; a denial is a verdict reason named by its rule, `PolicyDeniedError` (`policy_denied`), exit 1. CUE is not evaluated yet, and a `.cue` file exits 2. JSON policy files keep working. Every holo is still P0 until holos carry signed statements (#267, #268), so the default policy still fails every real holo.
@@ -16,8 +261,13 @@ To move to 1.0, read the [migration guide](../../../docs/site/migration/to-1-0.m
 - `EXIT_CODES` and `exitCodeFor(error)` in `prism-code` (#348): 0 on success and a non-zero code for each `PrismError` subclass, the single table containers and the command line share. New codes: 10 `ProofMismatchError`, 11 `WorldMismatchError`, 12 `DeterminismViolationError`, 13 `ReplayError`.
 
 ### Breaking Changes
+- `experimental_verify`, `experimental_createClient` and `Application.experimental_verify` no longer take `statements` (experimental). Self-written statements with `envelope: { verified: true }` raised a holo from P0 to a passing P2 with no signature checked. They are now refused as an unknown option, `policy.invalid`. `check` with a signer still reaches P1 and P2 from the signed statements in the holo. `@prism-code/verify` keeps the option, for callers that check signatures against a trust root they hold.
 - `prism-code run <holo>` no longer exits 1 for every failed verdict (#348): it exits with the code of the error that explains the verdict. A provenance, document or policy reason, which is every holo today, stays 1; a proof reason is 10; a world outside the grant is 2.
 - A `VerificationError` with no verdict that reaches the top of `prism-code` exits 2 instead of 1 (#348), such as `attest` on a holo whose footer does not verify. `check` keeps 0, 1 and 2 unchanged.
+
+### Bugs Fixed
+- `prism-code`, `prism-code/browser` and `prism-code/canonical` load where `node:` imports are unavailable, as the README always said: `prism-code/canonical` no longer imports `node:crypto`, a bundler targeting the browser leaves out `prism-code/node`, and a webpack bundle can open a closure by URL. The canonical API stays synchronous and its hashes do not change. Without `node:crypto`, `codeHash` computes SHA-256 in JavaScript and any other `algorithm` throws `canonical.algorithm`; Node 22.0 to 22.2 have no `process.getBuiltinModule` and count as such a host.
+- Keyless `attest` and `push` no longer put the OIDC identity token in an error (#272). `@sigstore/sign` quotes a token it cannot parse, so a malformed `identityToken` or `SIGSTORE_ID_TOKEN` reached the message and stderr, and a service that quoted the token back did the same. The token and its JWT parts are now replaced with `[redacted]`. The class, `code` and `check` are unchanged, and a `SigningError` raised after a token was read has no `cause`.
 
 ## [0.3.0] - 2026-10-27
 

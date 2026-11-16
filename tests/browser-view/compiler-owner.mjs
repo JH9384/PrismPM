@@ -168,6 +168,22 @@ export function captureCompilerRuntime(root) {
 }
 
 export function createCompilerOwner(name, selectedInputs = captureCompilerInputs(name)) {
+  return constructCompilerOwner(name, selectedInputs, () => mkdtempSync(join(tmpdir(), 'prismpm-compiler-owner-')));
+}
+
+// SDK image construction has an isolated filesystem and one install invocation.
+// A fresh stable path keeps Cargo's path-package identities reproducible. Never
+// reuse an existing path; normal owners retain independent random workspaces.
+export function createSdkAccountGenesisCompilerOwner() {
+  assert.equal(repository, '/opt/prismpm/source', 'SDK construction source root required');
+  return constructCompilerOwner('account-genesis', captureCompilerInputs('account-genesis'), () => {
+    const work = '/tmp/prismpm-sdk-account-genesis-compiler';
+    mkdirSync(work, {mode: 0o700});
+    return work;
+  });
+}
+
+function constructCompilerOwner(name, selectedInputs, makeWorkspace) {
   const selected = family(name), inputs = inputMap(selectedInputs);
   assert.deepEqual(Object.keys(inputs), requiredInputs(name), 'complete closed compiler input closure required');
   const manifest = driverManifest(selected);
@@ -183,7 +199,7 @@ export function createCompilerOwner(name, selectedInputs = captureCompilerInputs
       assert.equal(inputs[tree + '/' + match[2]], match[1], 'complete registered compiler source inventory');
     }
   }
-  const work = mkdtempSync(join(tmpdir(), 'prismpm-compiler-owner-')), staged = new Map();
+  const work = makeWorkspace(), staged = new Map();
   function stage(path, bytes) {
     const target = join(work, path); mkdirSync(dirname(target), {recursive: true, mode: 0o700});
     writeFileSync(target, bytes, {flag: 'wx', mode: 0o600}); staged.set(path, sha(bytes));

@@ -17,6 +17,7 @@ import { historyVisibility, validOidcSubject, validateApplicationProfile } from 
 
 const { Pool } = pg;
 const role = process.argv[2] ?? 'help';
+const usage = 'usage: runtime.mjs acceptance|api|browser|contract|issuer|migrate|worker|probe COMPONENT\n';
 const releaseRoot = process.env.PRISM_RELEASE_ROOT ?? '/opt/prism/release';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true });
@@ -790,7 +791,9 @@ if (role === 'probe') {
   await browser();
 } else if (role === 'acceptance') {
   await acceptance();
+} else if (role === 'help') {
+  process.stdout.write(usage);
 } else {
-  process.stderr.write('usage: runtime.mjs acceptance|api|browser|contract|issuer|migrate|worker|probe COMPONENT\n');
+  process.stderr.write(usage);
   process.exitCode = 64;
 }

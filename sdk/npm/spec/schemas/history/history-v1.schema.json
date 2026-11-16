@@ -95,11 +95,10 @@
       "pattern": "^([0-9a-f]{2})*$"
     },
     "PrismDigestSet": {
-      "description": "Exactly sha256 and blake3, lowercase hex, over the same bytes (ADR-015).",
+      "description": "sha256, the κ of the bytes (ADR-017); blake3 beside it only in statements and documents about a v4 holo (ADR-015). Lowercase hex.",
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "blake3",
         "sha256"
       ],
       "properties": {

@@ -67,7 +67,7 @@ export const suites=Object.freeze([
  {id:'DK-31',minimum:8,files:['tests/browser-dynamic-choice/wire.test.mjs','tests/browser-dynamic-choice/component.test.mjs','dynamic-choice.test.mjs']},
  {id:'DK-32',minimum:21,files:['tests/browser-signed-context/corpus.test.mjs','tests/browser-signed-context/bridge.test.mjs','tests/browser-signed-context/wpt.test.mjs','tests/browser-signed-context/aggregate.test.mjs','signed-context-test.mjs']},
  {id:'DK-33',minimum:17,files:['tests/browser-account-genesis/corpus.test.mjs','tests/browser-account-genesis/bridge.test.mjs','tests/browser-account-genesis/owner.test.mjs']},
- {id:'DK-34',minimum:22,files:['tests/browser-p256/oracles.test.mjs','tests/browser-p256/corpus.test.mjs','tests/browser-p256/bridge.test.mjs','tests/browser-p256/owner.test.mjs','tests/browser-view/local-module-inputs.test.mjs']},
+ {id:'DK-34',minimum:16,files:['tests/browser-p256/oracles.test.mjs','tests/browser-p256/corpus.test.mjs','tests/browser-p256/bridge.test.mjs','tests/browser-p256/owner.test.mjs']},
  {id:'DK-35',minimum:97,files:['tests/browser-session-operation/boundary.test.mjs','tests/browser-view/kernel-provenance.test.mjs','tests/browser-view/local-module-inputs.test.mjs','tests/browser-view/file-custody.test.mjs','tests/browser-session-operation/owner.test.mjs']},
  {id:'DK-37',minimum:24,files:['contextual-effects.test.mjs']},
  {id:'DK-38',minimum:29,files:['tests/browser-semantic-presentation/wire.test.mjs','tests/browser-semantic-presentation/dom.test.mjs','semantic-presentation.test.mjs']},
@@ -152,6 +152,11 @@ export function verifyModules(root,installed){
  }
 }
 
+// The [workspace.package] version of the checked-out Cargo.toml (the same
+// rule as scripts/workspace-version.mjs, read here so the frozen private
+// prerequisite closure keeps its exact registered module set).
+const workspaceVersion=()=>{const manifest=readFileSync(new URL('../Cargo.toml',import.meta.url),'utf8');const section=manifest.slice(manifest.indexOf('[workspace.package]'));const version=/^version = "([^"]+)"$/m.exec(section.split(/\n\[/)[0])?.[1];assert.ok(version,'workspace version');return version;};
+
 export function verifyImage(value,image,architecture,revision){
  assert.equal(typeof image,'string');assert.match(image,/^[a-z0-9][a-z0-9./:_-]*@sha256:[0-9a-f]{64}$/);
  assert.ok(['amd64','arm64'].includes(architecture));hex(revision,40);
@@ -162,8 +167,8 @@ export function verifyImage(value,image,architecture,revision){
  const volumes=config.Config.Volumes;
  assert.ok(volumes===null||volumes===undefined||typeof volumes==='object'&&!Array.isArray(volumes)&&Object.keys(volumes).length===0,'no image-declared writable volumes');
  assert.equal(config.Config.Labels['org.opencontainers.image.revision'],revision);
- assert.equal(config.Config.Labels['org.opencontainers.image.source'],'https://github.com/UOR-Foundation/PrismPM');
- assert.equal(config.Config.Labels['org.opencontainers.image.version'],'0.3.0');
+ assert.equal(config.Config.Labels['org.opencontainers.image.source'],'https://github.com/UOR-Foundation/prismpm');
+ assert.equal(config.Config.Labels['org.opencontainers.image.version'],workspaceVersion());
 }
 
 export function verifyTap(tap,minimum){

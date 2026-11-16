@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { generateKeyPairSync } from 'node:crypto';
 
 const bin = fileURLToPath(new URL('../bin/prism-code.mjs', import.meta.url));
-const fixture = fileURLToPath(new URL('../fixtures/Calculator.holo', import.meta.url));
+const fixture = fileURLToPath(new URL('../fixtures/Calculator.v5.holo', import.meta.url));
 const PROOF = 'https://uor.foundation/prism/proof/v1';
 
 const run = (...args) => {
@@ -101,6 +101,24 @@ test('unreadable operands are PrismCodeErrors, exit 2', () => {
   assert.equal(missing.code, 2);
   assert.match(missing.stderr, /load\.path: the predicate/);
   assert.equal(run('verify-attestation', fixture, '--key', p('nope.pem')).code, 2);
+});
+
+test('a malformed SIGSTORE_ID_TOKEN is not printed: attest exits 3 and the log never holds it', () => {
+  const malformed = 'test-malformed-token-a4b7c2';
+  copyFileSync(fixture, p('malformed.holo'));
+  writeFileSync(p('fulcio-only.json'), JSON.stringify({
+    mediaType: 'application/vnd.dev.sigstore.signingconfig.v0.2+json',
+    caUrls: [{ url: 'http://127.0.0.1:1', majorApiVersion: 1, validFor: { start: '2020-01-01T00:00:00Z' }, operator: 'test' }],
+    oidcUrls: [],
+    rekorTlogUrls: [],
+    tsaUrls: [],
+  }));
+  const env = { ...process.env, SIGSTORE_ID_TOKEN: malformed };
+  for (const name of ['ACTIONS_ID_TOKEN_REQUEST_URL', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN']) delete env[name];
+  const out = spawnSync(process.execPath, [bin, 'attest', p('malformed.holo'), '--predicate', p('predicate.json'), '--type', PROOF, '--signing-config', p('fulcio-only.json')], { encoding: 'utf8', env });
+  assert.equal(out.status, 3, out.stderr);
+  assert.match(out.stderr, /identity token/);
+  assert.equal(`${out.stdout}${out.stderr}`.includes(malformed), false, out.stderr);
 });
 
 test('keyless attest with no identity token exits 3 and says how to give one', () => {

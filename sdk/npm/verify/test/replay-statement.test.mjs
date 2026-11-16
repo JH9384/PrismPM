@@ -9,7 +9,8 @@ import { here, ADR_015 } from './helpers.mjs';
 
 const STATEMENT = JSON.parse(readFileSync(here('../../spec/test/fixtures/attestation/statement/calculator-replay.json'), 'utf8'));
 const SIGNED = { verified: true };
-const HOLO = Object.freeze({ guest: ADR_015.guest, model: ADR_015.model });
+// A holo v5 names each object by its κ alone (ADR-017).
+const HOLO = Object.freeze({ guest: { sha256: ADR_015.guest.sha256 }, model: { sha256: ADR_015.model.sha256 } });
 const CHANGED = Object.freeze({ guest: { sha256: 'a'.repeat(64), blake3: 'b'.repeat(64) }, model: { sha256: 'c'.repeat(64), blake3: 'd'.repeat(64) } });
 
 const statement = (edit = () => {}) => {
@@ -82,8 +83,9 @@ test('an unsigned statement fails replay.envelope, and the message is the caller
 test('one digest of a pair is enough to fail, and each check has its own diagnostic', () => {
   const guest = { ...ADR_015.guest, sha256: '0'.repeat(64) };
   assert.deepEqual(checks(checkReplayStatement(STATEMENT, { ...HOLO, guest }, SIGNED)), ['replay.subject']);
-  const model = { ...ADR_015.model, blake3: '0'.repeat(64) };
-  assert.deepEqual(checks(checkReplayStatement(STATEMENT, { ...HOLO, model }, SIGNED)), ['replay.model']);
+  // A legacy v4 statement names the model by both digests: a blake3 beside the κ must agree too.
+  const legacy = statement((s) => (s.predicate.model.blake3 = '0'.repeat(64)));
+  assert.deepEqual(checks(checkReplayStatement(legacy, { ...HOLO, model: ADR_015.model }, SIGNED)), ['replay.model']);
   assert.deepEqual(Object.values(REPLAY_CODES), ['PP5701', 'PP5702', 'PP5703', 'PP5704', 'PP5705']);
 });
 

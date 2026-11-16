@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-bindings-source-reader"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Bindings.V1.Source"
+component = "bindingModel"
+
+[[form]]
+id = "prism-bindings-source-reader"
+channel = "text"
+surface = "Bindings source reader"
+canonical_source = true
+features = ["sentence-case", "singular"]

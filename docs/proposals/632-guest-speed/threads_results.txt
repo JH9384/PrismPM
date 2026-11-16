@@ -1,0 +1,12 @@
+| simd_Os_shared [dot_i16x8], 1 worker(s) | matvec 4096x4096 | 1131375 | 0.0674 | 14.83 |
+| simd_Os_shared [dot_i16x8], 2 worker(s) | matvec 4096x4096 | 616537.5 | 0.0367 | 27.21 |
+| simd_Os_shared [dot_i16x8], 4 worker(s) | matvec 4096x4096 | 475600 | 0.0283 | 35.28 |
+| simd_Os_shared [dot_i16x8], 8 worker(s) | matvec 4096x4096 | 259312.5 | 0.0155 | 64.70 |
+| simd_Os_shared [dot_i16x8], 1 worker(s) | matvec 4096x4096 | 1317150 | 0.0785 | 12.74 |
+| simd_Os_shared [dot_i16x8], 2 worker(s) | matvec 4096x4096 | 770812.5 | 0.0459 | 21.77 |
+| simd_Os_shared [dot_i16x8], 4 worker(s) | matvec 4096x4096 | 565225 | 0.0337 | 29.68 |
+| simd_Os_shared [dot_i16x8], 8 worker(s) | matvec 4096x4096 | 296025 | 0.0176 | 56.67 |
+| simd_Os_shared [dot_i16x8], 1 worker(s) | matvec 4096x4096 | 1160987.5 | 0.0692 | 14.45 |
+| simd_Os_shared [dot_i16x8], 2 worker(s) | matvec 4096x4096 | 659562.5 | 0.0393 | 25.44 |
+| simd_Os_shared [dot_i16x8], 4 worker(s) | matvec 4096x4096 | 387475 | 0.0231 | 43.30 |
+| simd_Os_shared [dot_i16x8], 8 worker(s) | matvec 4096x4096 | 234225 | 0.0140 | 71.63 |

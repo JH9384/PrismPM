@@ -1,0 +1,58 @@
+{
+  "comment": "What the uorc CLI reports for each holo v5 fixture (uorc inspect --json). Regenerate with: uorc inspect --json <holo>. A holo's seal is the archive's UORC-SHA256-CHAIN-v1 digest; the Rust and JS readers must agree with it.",
+  "uorc": "uorc 0.5.0",
+  "archives": [
+    {
+      "path": "sdk/npm/prism-code/fixtures/Calculator.v5.holo",
+      "scope": "self-contained",
+      "representation": "raw",
+      "object_lengths": [
+        1030,
+        610,
+        2143,
+        104,
+        10498,
+        3570,
+        5873
+      ],
+      "archive_bytes": 23885,
+      "digest": "4e06fe6eb1449244d1c3228cdb45ce1a3c0c03b650c3a0f539abf7d6bee0448e",
+      "integrity_ok": true
+    },
+    {
+      "path": "sdk/npm/prism-code/fixtures/PaymentApproval.v5.holo",
+      "scope": "self-contained",
+      "representation": "raw",
+      "object_lengths": [
+        1035,
+        610,
+        2149,
+        104,
+        10130,
+        6113,
+        4401
+      ],
+      "archive_bytes": 24599,
+      "digest": "41de2a823ba0bdf49be62d7eeaacdc15ff171c4c3510c801804ff928db8d99b0",
+      "integrity_ok": true
+    },
+    {
+      "path": "sdk/npm/prism-code/test/fixtures/attestation/Calculator.v5.signed.holo",
+      "scope": "self-contained",
+      "representation": "raw",
+      "object_lengths": [
+        1030,
+        610,
+        2143,
+        104,
+        10498,
+        3570,
+        5873,
+        1434
+      ],
+      "archive_bytes": 25321,
+      "digest": "7dc95e4bb507d53659b16116bb74dd38bb8a7fc0c4274395f2b18f97982f85c1",
+      "integrity_ok": true
+    }
+  ]
+}

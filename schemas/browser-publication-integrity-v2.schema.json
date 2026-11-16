@@ -1,0 +1,93 @@
+{
+  "$id": "https://schemas.uor.foundation/prismpm/browser-publication-integrity/2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Browser publication byte integrity; not authorization or application acceptance",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "properties": {
+    "schema": {
+      "const": "prismpm/browser-publication-integrity/2"
+    },
+    "scope": {
+      "const": "browser-byte-integrity-only"
+    },
+    "reference": {
+      "type": "string",
+      "maxLength": 512,
+      "pattern": "^[a-z0-9.-]+(?::[0-9]+)?/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$"
+    },
+    "release_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "model_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "build_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "tree_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "url": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 2048,
+      "pattern": "^https://[a-z0-9.-]+/[A-Za-z0-9_/-]*$"
+    },
+    "requests": {
+      "const": 7
+    },
+    "redirects": {
+      "const": 0
+    },
+    "files": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]*$"
+          },
+          "digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 67108864
+          }
+        },
+        "required": [
+          "path",
+          "digest",
+          "size"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "scope",
+    "reference",
+    "release_digest",
+    "model_digest",
+    "build_digest",
+    "tree_digest",
+    "url",
+    "requests",
+    "redirects",
+    "files"
+  ]
+}

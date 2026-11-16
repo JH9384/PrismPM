@@ -1,0 +1,50 @@
+
+  # One source pass, as the eight `just vv-part` parts of scripts/vv-assemble.mjs,
+  # each under one 6 h hosted-job limit. Longest parts first so max-parallel
+  # starts them before the short ones; tests derive the set from `parts`.
+  # GitHub keeps PR caches on the PR ref, so a release-branch or tag run never
+  # sees the layers a pull request wrote. Build the pinned devcontainer once on
+  # this ref first; the source shards then import its layers instead of each
+  # repeating every package, toolchain and snapshot.debian.org download.
+  devcontainer-image:
+    name: Devcontainer image cache and plumbing checks
+    needs: [policy, factory]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: false
+      - uses: ./.github/actions/prepare-devcontainer-runner
+      - id: cache
+        uses: ./.github/actions/devcontainer-cache
+      # The SBOM transport tests drive the exact pinned ORAS and cosign the SDK
+      # image carries; the devcontainer has neither. Checksummed downloads,
+      # retried because GitHub release assets intermittently return 5xx.
+      - name: Install the pinned transport and verifier tools
+        run: |
+          set -euo pipefail
+          tools="$GITHUB_WORKSPACE/target/release-tools"
+          for tool in oras cosign; do
+            for attempt in 1 2 3 4; do
+              bash scripts/sdk-candidate.sh "install-$tool" "$tools" && break
+              test "$attempt" -lt 4
+              sleep $((attempt * 15))
+            done
+          done
+          "$tools/oras" version
+          "$tools/cosign" version
+      - uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca
+        with:
+          push: never
+          cacheFrom: ${{ steps.cache.outputs.cache-from }}
+          cacheTo: ${{ steps.cache.outputs.cache-to }}
+          # κ leaves the plumbing out, so its own tests and the factory model
+          # are checked on every run, whichever route source V&V takes.
+          runCmd: |
+            set -euo pipefail
+            cargo fetch --locked
+            PATH="$PWD/target/release-tools:$PATH" node scripts/factory.mjs checks
+            cargo run --locked --quiet --release --manifest-path vendor/lexlean/Cargo.toml --bin lexlean -- --project factory/lexlean.toml verify

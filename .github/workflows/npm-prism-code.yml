@@ -3,14 +3,22 @@ name: npm prism-code
 # The JavaScript runtime and CLI in sdk/npm/prism-code. Short, path-filtered,
 # and outside the devcontainer: the package has no dependencies and must work
 # on a plain Node 22 or 24 on every host a consumer has. Publishing runs only
-# on a `prism-code-v*` tag, with npm provenance.
+# on a `prism-code-v*` tag, with npm provenance. A tag release-please created starts
+# no workflow, so a maintainer publishes it by hand:
+#   gh workflow run npm-prism-code.yml --ref prism-code-v<version>
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - sdk/npm/prism-code/**
       # test/inspect.test.mjs checks its format revision table against the spec's.
       - sdk/npm/spec/constants.mjs
+      # src/vendor/spec is a copy of this file and the one above; test/errors-namespace.test.mjs checks them (#448).
+      - sdk/npm/spec/assurance-levels.mjs
+      # test/errors-registered.test.mjs compares the codes the package raises with these (#448).
+      - model/errors.toml
+      - ERRORS.md
       # src/vendor/verify.mjs is a copy of this file; test/verify.test.mjs checks it.
       - sdk/npm/verify/browser.js
       # test/manifest.test.mjs and test/capabilities.test.mjs run the spec's schema fixtures through the runtime.
@@ -25,12 +33,19 @@ on:
       # templates/text-request is a byte copy of this fixture (#281); sync-templates --check holds them equal.
       - tests/fixtures/holo/ho-11-text-application/project/**
       - sdk/npm/create-prism-code/**
+      # test/reference-archives.test.mjs is written with @prism-code/testing (#286).
+      - sdk/npm/testing/**
       - .github/workflows/npm-prism-code.yml
   push:
     branches: [main]
     paths:
       - sdk/npm/prism-code/**
       - sdk/npm/spec/constants.mjs
+      # src/vendor/spec is a copy of this file and the one above; test/errors-namespace.test.mjs checks them (#448).
+      - sdk/npm/spec/assurance-levels.mjs
+      # test/errors-registered.test.mjs compares the codes the package raises with these (#448).
+      - model/errors.toml
+      - ERRORS.md
       - sdk/npm/verify/browser.js
       # test/manifest.test.mjs and test/capabilities.test.mjs run the spec's schema fixtures through the runtime.
       - sdk/npm/spec/test/fixtures/manifest/**
@@ -44,6 +59,8 @@ on:
       # templates/text-request is a byte copy of this fixture (#281); sync-templates --check holds them equal.
       - tests/fixtures/holo/ho-11-text-application/project/**
       - sdk/npm/create-prism-code/**
+      # test/reference-archives.test.mjs is written with @prism-code/testing (#286).
+      - sdk/npm/testing/**
       - .github/workflows/npm-prism-code.yml
     tags:
       - prism-code-v*
@@ -90,8 +107,12 @@ jobs:
       # verify-attestation (#272); the attest tests need them installed.
       - name: Install the optional sigstore packages
         run: npm install --no-package-lock --no-audit --no-fund --ignore-scripts
+      # test/reference-archives.test.mjs imports @prism-code/testing, which resolves prism-code through a link.
+      - name: Link prism-code for @prism-code/testing
+        working-directory: sdk/npm/testing
+        run: npm install --no-package-lock --no-audit --no-fund --ignore-scripts
       - name: Unit tests
-        run: node --test "test/*.test.mjs"
+        run: npm test
       - name: The init templates are their fixtures
         run: node scripts/sync-templates.mjs --check
       - name: create-prism-code
@@ -104,8 +125,8 @@ jobs:
           npm pack --dry-run --json > pack.json
           size=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("pack.json","utf8"))[0].unpackedSize)')
           echo "unpacked size: $size bytes"
-          # 1 MiB is the prism-code package cap. prism-code vendors the @prism-code/verify build (src/vendor/verify.mjs, about 288 KiB, so holo.verify() has no dependency) and adds its own code. Raised from 768 KiB to fit the M3 features in flight (export, middleware, generate, replay, about 115 KiB together); the next lever is depending on @prism-code/verify once it is published instead of vendoring it.
-          test "$size" -le 1048576
+          # The cap and the reviewed file list live in scripts/check-package.mjs, once, so this step holds no second copy of them.
+          node scripts/check-package.mjs pack.json
           rm pack.json
       - name: The entry points import cleanly
         shell: bash
@@ -174,7 +195,7 @@ jobs:
         run: |
           set -euo pipefail
           printf '{"run":"%s","note":"keyless attest round trip of #272"}\n' "$RUN_ID" > "$RUNNER_TEMP/predicate.json"
-          node bin/prism-code.mjs attest fixtures/Calculator.holo \
+          node bin/prism-code.mjs attest fixtures/Calculator.v5.holo \
             --predicate "$RUNNER_TEMP/predicate.json" \
             --type https://example.com/prism/ci-round-trip/v1 \
             --output "$RUNNER_TEMP/attested.holo"
@@ -238,5 +259,12 @@ jobs:
           npm install --global npm@11
           npm --version
           node -e 'const [a, b] = process.argv[1].split(".").map(Number); if (a < 11 || (a === 11 && b < 5)) throw new Error("npm 11.5+ required")' "$(npm --version)"
+      # npm refuses a prerelease without --tag, and a candidate must not become latest.
       - name: Publish with provenance
-        run: npm publish --provenance --access public
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$(node -p 'require("./package.json").version')" in
+            *-*) npm publish --provenance --access public --tag next ;;
+            *) npm publish --provenance --access public ;;
+          esac

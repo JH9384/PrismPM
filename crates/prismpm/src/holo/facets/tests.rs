@@ -545,9 +545,9 @@ mod document {
         let doc = with_facets();
         validate(&doc).unwrap();
         assert!(schema_accepts(&doc));
-        let bytes = crate::holo::canonical::encode_canonical(&doc).unwrap();
+        let bytes = crate::holo::model_document::encode_canonical(&doc).unwrap();
         assert_eq!(
-            crate::holo::canonical::decode_canonical(&bytes).unwrap(),
+            crate::holo::model_document::decode_canonical(&bytes).unwrap(),
             doc
         );
     }

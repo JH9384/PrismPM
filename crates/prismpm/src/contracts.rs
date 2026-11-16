@@ -12,12 +12,24 @@ struct Contract {
     schema: &'static [u8],
 }
 
-const CONTRACTS: [Contract; 67] = [
+const CONTRACTS: [Contract; 73] = [
+    Contract {
+        id: "prismpm/model-document/8",
+        maximum_bytes: 16_777_216,
+        maximum_items: 65_536,
+        schema: include_bytes!("../schemas/model-document-v8.schema.json"),
+    },
     Contract {
         id: "prismpm/workbench-view-projection/1",
         maximum_bytes: 1_048_576,
         maximum_items: 4096,
         schema: include_bytes!("../schemas/workbench-view-projection.schema.json"),
+    },
+    Contract {
+        id: "prismpm/model-document/7",
+        maximum_bytes: 16_777_216,
+        maximum_items: 65_536,
+        schema: include_bytes!("../schemas/model-document-v7.schema.json"),
     },
     Contract {
         id: "prismpm/model-document/6",
@@ -50,6 +62,12 @@ const CONTRACTS: [Contract; 67] = [
         schema: include_bytes!("../schemas/browser-publication-integrity.schema.json"),
     },
     Contract {
+        id: "prismpm/browser-publication-integrity/2",
+        maximum_bytes: 1_048_576,
+        maximum_items: 4_096,
+        schema: include_bytes!("../schemas/browser-publication-integrity-v2.schema.json"),
+    },
+    Contract {
         id: "prismpm/library-build-binding/1",
         maximum_bytes: 4_194_304,
         maximum_items: 4_096,
@@ -80,10 +98,22 @@ const CONTRACTS: [Contract; 67] = [
         schema: include_bytes!("../schemas/model-document-v3.schema.json"),
     },
     Contract {
+        id: "prismpm/server-release-replay/1",
+        maximum_bytes: 1_048_576,
+        maximum_items: 4_096,
+        schema: include_bytes!("../schemas/server-release-replay.schema.json"),
+    },
+    Contract {
         id: "prismpm/browser-export/1",
         maximum_bytes: 1_048_576,
         maximum_items: 4_096,
         schema: include_bytes!("../schemas/browser-export.schema.json"),
+    },
+    Contract {
+        id: "prismpm/browser-export/2",
+        maximum_bytes: 1_048_576,
+        maximum_items: 4_096,
+        schema: include_bytes!("../schemas/browser-export-v2.schema.json"),
     },
     Contract {
         id: "prismpm/workspace-view-labels/1",
@@ -247,6 +277,12 @@ const CONTRACTS: [Contract; 67] = [
         maximum_bytes: 16_777_216,
         maximum_items: 65_536,
         schema: include_bytes!("../schemas/fetch-result.schema.json"),
+    },
+    Contract {
+        id: "prismpm/generate-result/1",
+        maximum_bytes: 16_777_216,
+        maximum_items: 65_536,
+        schema: include_bytes!("../schemas/generate-result.schema.json"),
     },
     Contract {
         id: "prismpm/inspect-result/1",
@@ -447,7 +483,9 @@ pub(crate) fn satisfies_subschema(
     Ok(validator.is_valid(value))
 }
 
-fn strictly_ordered(rows: &[Value], key: impl Fn(&Value) -> Option<String>) -> bool {
+/// Whether the rows have strictly increasing keys by bytes, the identity order
+/// every contract and owner check uses.
+pub(crate) fn strictly_ordered(rows: &[Value], key: impl Fn(&Value) -> Option<String>) -> bool {
     let keys = rows.iter().map(key).collect::<Option<Vec<_>>>();
     keys.is_some_and(|keys| {
         keys.windows(2)
@@ -478,93 +516,8 @@ fn validate_semantic_order(id: &str, value: &Value) -> Result<(), PrismError> {
     }
     if matches!(
         id,
-        "prismpm/library-build-binding/1" | "prismpm/library-acceptance/1"
-    ) {
-        let invalid =
-            || PrismError::new("PP4004", "native-library evidence roots are inconsistent");
-        let roots = |rows: &Value| -> Result<Vec<String>, PrismError> {
-            let rows = rows.as_array().ok_or_else(invalid)?;
-            let names = rows
-                .iter()
-                .map(|row| row.as_str().map(str::to_owned).ok_or_else(invalid))
-                .collect::<Result<Vec<_>, _>>()?;
-            if names.is_empty()
-                || names.len() > 1024
-                || names
-                    .iter()
-                    .any(|name| !crate::holo::library::qualified(name))
-                || names.windows(2).any(|rows| rows[0] >= rows[1])
-            {
-                return Err(invalid());
-            }
-            Ok(names)
-        };
-        let exports = roots(&value["export_roots"])?;
-        let acceptance = if id == "prismpm/library-build-binding/1" {
-            roots(&value["acceptance_roots"])?
-        } else {
-            let first = roots(&value["executions"][0]["roots"])?;
-            if first != roots(&value["executions"][1]["roots"])? {
-                return Err(invalid());
-            }
-            first
-        };
-        if acceptance
-            .iter()
-            .any(|root| exports.binary_search(root).is_err())
-        {
-            return Err(invalid());
-        }
-        return Ok(());
-    }
-    if matches!(
-        id,
         "prismpm/library-verification-manifest/1" | "prismpm/library-verification-manifest/2"
     ) {
-        if id == "prismpm/library-verification-manifest/2" {
-            crate::exporter::validate_owner_record(
-                &value["exporter_owner"],
-                value["model_sha256"]
-                    .as_str()
-                    .expect("schema-validated model hash"),
-                "library",
-            )
-            .map_err(|error| PrismError::new("PP4004", error.message))?;
-            if value["exporter_owner"]["phases"][1]["artifacts"] != value["artifacts"] {
-                return Err(PrismError::new(
-                    "PP4004",
-                    "library owner products differ from the complete artifact bindings",
-                ));
-            }
-            let processes =
-                crate::release_verification::process_records(&value["processes"], false)
-                    .map_err(|error| PrismError::new("PP4004", error.message))?;
-            let replay = value["exporter_owner"]["phases"][1]["processes"]
-                .as_array()
-                .expect("validated owner replay");
-            if processes
-                .windows(replay.len())
-                .filter(|rows| *rows == replay.as_slice())
-                .count()
-                != 1
-                || processes
-                    .get(1)
-                    .is_none_or(|row| row["tool"] != "lake-version")
-                || value["exporter_owner"]["phases"]
-                    .as_array()
-                    .expect("validated phases")
-                    .iter()
-                    .any(|phase| {
-                        phase["processes"][0]["executable_sha256"]
-                            != processes[1]["executable_sha256"]
-                    })
-            {
-                return Err(PrismError::new(
-                    "PP4004",
-                    "library owner differs from original replay or native preflight",
-                ));
-            }
-        }
         let mut prior = None;
         for row in value["artifacts"]
             .as_array()
@@ -598,35 +551,11 @@ fn validate_semantic_order(id: &str, value: &Value) -> Result<(), PrismError> {
             }
         }
     }
-    if matches!(
-        id,
-        "prismpm/model-document/2"
-            | "prismpm/model-document/3"
-            | "prismpm/model-document/4"
-            | "prismpm/model-document/5"
-            | "prismpm/model-document/6"
-    ) {
-        let document = serde_json::from_value(value.clone()).map_err(|error| {
-            PrismError::new(
-                if id == "prismpm/model-document/4" {
-                    "PP2010"
-                } else if matches!(
-                    id,
-                    "prismpm/model-document/2"
-                        | "prismpm/model-document/5"
-                        | "prismpm/model-document/6"
-                ) {
-                    "PP2009"
-                } else {
-                    "PP4004"
-                },
-                format!("model document shape: {error}"),
-            )
-        })?;
-        return crate::holo::validate::validate(&document);
-    }
     let arrays: Vec<(&str, &str)> = match id {
-        "prismpm/browser-export/1" | "prismpm/browser-publication-integrity/1" => {
+        "prismpm/browser-export/1"
+        | "prismpm/browser-publication-integrity/1"
+        | "prismpm/browser-export/2"
+        | "prismpm/browser-publication-integrity/2" => {
             vec![("files", "path")]
         }
         "prismpm/capability-coverage/1" => {
@@ -700,35 +629,6 @@ fn validate_semantic_order(id: &str, value: &Value) -> Result<(), PrismError> {
             return Err(PrismError::new(
                 "PP1101",
                 format!("{id}.{field} identities are duplicate or noncanonical"),
-            ));
-        }
-    }
-    // A /3 lock carries every /2 field unchanged, so the same platform rules apply.
-    if id == "prismpm/sdk-lock/2" || id == "prismpm/sdk-lock/3" {
-        crate::sdk::validate_platform_lock(value)?;
-    }
-    if id == "prismpm/sdk-lock-migration/1" {
-        CanonicalDocument::from_value("prismpm/sdk-lock/1", value["patch"][0]["value"].clone())?;
-        CanonicalDocument::from_value("prismpm/sdk-lock/2", value["patch"][1]["value"].clone())?;
-    }
-    if id == "prismpm/sdk-lock-update/2" {
-        crate::sdk::validate_platform_lock(&value["proposed_lock"])?;
-        let changes = value["changes"]
-            .as_array()
-            .expect("schema-validated changes");
-        if !strictly_ordered(changes, |row| row["path"].as_str().map(str::to_owned))
-            || changes.iter().any(|row| {
-                row["from"] == row["to"]
-                    || row["to"]
-                        != value["proposed_lock"][row["path"]
-                            .as_str()
-                            .unwrap_or_default()
-                            .trim_start_matches('/')]
-            })
-        {
-            return Err(PrismError::new(
-                "PP5401",
-                "SDK update changes do not exactly describe the proposed fields",
             ));
         }
     }
@@ -818,23 +718,6 @@ fn validate_semantic_order(id: &str, value: &Value) -> Result<(), PrismError> {
                 ));
             }
         }
-    }
-    if id == "prismpm/production-acceptance/1" {
-        crate::acceptance::verify_transcript(value)?;
-        let rows = value["cases"].as_array().expect("schema-validated array");
-        if !strictly_ordered(rows, |row| match row["kind"].as_str()? {
-            "feature" => Some(format!("0/{}", row["feature_id"].as_str()?)),
-            "diagnostic" => Some(format!("1/{}", row["diagnostic"].as_str()?)),
-            _ => None,
-        }) {
-            return Err(PrismError::new(
-                "PP1101",
-                "production acceptance cases are duplicate or noncanonical",
-            ));
-        }
-    }
-    if id == "prismpm/conformance-result/1" {
-        crate::acceptance::verify_result_counts(value)?;
     }
     if id == "prismpm/ecosystem-release/2" {
         let platforms = value
@@ -989,26 +872,54 @@ fn validate_semantic_order(id: &str, value: &Value) -> Result<(), PrismError> {
             }
         }
     }
-    if matches!(
-        id,
-        "prismpm/browser-export/1" | "prismpm/browser-publication-integrity/1"
-    ) {
-        let reference = value["reference"]
-            .as_str()
-            .expect("schema-validated reference");
-        let digest = crate::oci::validate_reference(reference, true)?;
-        let tree_digest = format!("sha256:{}", content_id(&encode_value(&value["files"])?));
-        if value["release_digest"] != digest || value["tree_digest"] != tree_digest {
-            return Err(PrismError::new(
-                "PP1101",
-                "browser export receipt identities disagree",
-            ));
-        }
-    }
-    if id == "prismpm/browser-publication-integrity/1" {
-        crate::oci::validate_browser_publication_receipt(value)?;
-    }
     Ok(())
+}
+
+/// The semantic check that the module owning a contract's meaning runs on a
+/// schema-valid value. Each owner declares one, naming itself.
+#[derive(Clone, Copy)]
+pub(crate) struct OwnerCheck {
+    pub(crate) owner: &'static str,
+    pub(crate) check: fn(&str, &Value) -> Result<(), PrismError>,
+}
+
+/// Contracts whose semantic checks live with the module that owns them
+/// (docs/proposals/440-nine-modules.md, "contracts splits"). The schema table
+/// and closed-shape checks stay here. `parse` and `from_value` refuse these
+/// ids, and the owned forms refuse a check from any other module, so a value
+/// of one of them can only be held after its owner's check ran.
+pub(crate) const OWNER_CHECKED: [(&str, &str); 20] = [
+    ("prismpm/browser-export/1", "oci"),
+    ("prismpm/browser-export/2", "oci"),
+    ("prismpm/browser-publication-integrity/1", "oci"),
+    ("prismpm/browser-publication-integrity/2", "oci"),
+    ("prismpm/conformance-result/1", "acceptance"),
+    ("prismpm/library-acceptance/1", "library_verification"),
+    ("prismpm/library-build-binding/1", "library_build"),
+    (
+        "prismpm/library-verification-manifest/2",
+        "library_verification",
+    ),
+    ("prismpm/model-document/2", "model_contract"),
+    ("prismpm/model-document/3", "model_contract"),
+    ("prismpm/model-document/4", "model_contract"),
+    ("prismpm/model-document/5", "model_contract"),
+    ("prismpm/model-document/6", "model_contract"),
+    ("prismpm/model-document/7", "model_contract"),
+    ("prismpm/model-document/8", "model_contract"),
+    ("prismpm/production-acceptance/1", "acceptance"),
+    ("prismpm/sdk-lock-migration/1", "sdk"),
+    ("prismpm/sdk-lock-update/2", "sdk"),
+    ("prismpm/sdk-lock/2", "sdk"),
+    ("prismpm/sdk-lock/3", "sdk"),
+];
+
+/// The module that owns the semantic checks of `id`, if any.
+pub(crate) fn owner_of(id: &str) -> Option<&'static str> {
+    OWNER_CHECKED
+        .iter()
+        .find(|(contract, _)| *contract == id)
+        .map(|(_, owner)| *owner)
 }
 
 /// One validated canonical contract value and its exact content identity.
@@ -1021,7 +932,49 @@ pub struct CanonicalDocument {
 
 impl CanonicalDocument {
     /// Validate exact canonical bytes against a registered closed schema.
+    ///
+    /// A contract whose semantic checks belong to another module is refused
+    /// here; parse it with that module's `parse_contract`.
     pub fn parse(id: &'static str, bytes: &[u8]) -> Result<Self, PrismError> {
+        if let Some(owner) = owner_of(id) {
+            return Err(PrismError::new(
+                "PP9001",
+                format!("{id} carries semantic checks owned by {owner}; parse it with {owner}::parse_contract"),
+            ));
+        }
+        Self::validated(id, bytes, None)
+    }
+
+    /// Validate a contract whose semantic checks its owner module supplies.
+    pub(crate) fn parse_owned(
+        id: &'static str,
+        bytes: &[u8],
+        check: OwnerCheck,
+    ) -> Result<Self, PrismError> {
+        if owner_of(id) != Some(check.owner) {
+            return Err(PrismError::new(
+                "PP9001",
+                format!("{} does not own the semantic checks of {id}", check.owner),
+            ));
+        }
+        Self::validated(id, bytes, Some(check))
+    }
+
+    /// Construct and validate an owner-checked contract from an in-memory value.
+    pub(crate) fn from_value_owned(
+        id: &'static str,
+        value: Value,
+        check: OwnerCheck,
+    ) -> Result<Self, PrismError> {
+        let bytes = encode_value(&value)?;
+        Self::parse_owned(id, &bytes, check)
+    }
+
+    fn validated(
+        id: &'static str,
+        bytes: &[u8],
+        owner: Option<OwnerCheck>,
+    ) -> Result<Self, PrismError> {
         let contract = contract(id)?;
         if bytes.len() > contract.maximum_bytes {
             return Err(PrismError::new(
@@ -1078,6 +1031,9 @@ impl CanonicalDocument {
             ));
         }
         validate_semantic_order(id, &value)?;
+        if let Some(owner) = owner {
+            (owner.check)(id, &value)?;
+        }
         Ok(Self {
             id,
             bytes: bytes.to_vec(),
@@ -1318,88 +1274,43 @@ mod tests {
     }
 
     #[test]
-    fn browser_export_receipt_binds_exact_identity_and_order_without_authority_claims() {
-        let files = [
-            "app.css",
-            "app.js",
-            "core.js",
-            "core_bg.wasm",
-            "index.html",
-            "provenance.json",
-        ]
-        .map(|path| json!({"path":path,"digest":format!("sha256:{}","1".repeat(64)),"size":1}));
-        let files = json!(files);
-        let digest = format!("sha256:{}", "2".repeat(64));
-        let id = "prismpm/browser-export/1";
-        let receipt = json!({
-            "schema":id,
-            "reference":format!("example.test/product@{digest}"),
-            "release_digest":digest,
-            "model_digest":format!("sha256:{}","3".repeat(64)),
-            "build_digest":format!("sha256:{}","4".repeat(64)),
-            "tree_digest":format!("sha256:{}",crate::holo::canonical::content_id(&crate::holo::canonical::encode_value(&files).unwrap())),
-            "output":"site",
-            "files":files,
-        });
-        CanonicalDocument::from_value(id, receipt.clone()).unwrap();
-        for (field, replacement) in [
-            ("reference", json!("example.test/product:main")),
-            (
-                "release_digest",
-                json!(format!("sha256:{}", "5".repeat(64))),
-            ),
-            ("tree_digest", json!(format!("sha256:{}", "6".repeat(64)))),
-            ("output", json!("../site")),
-            ("output", json!("site/child")),
-            ("output", json!(".prism")),
-            ("output", json!("")),
-            ("authorized", json!(true)),
-            ("accepted", json!(true)),
-        ] {
-            let mut changed = receipt.clone();
-            changed[field] = replacement;
+    fn owner_checked_contracts_are_registered_ordered_and_refused_without_their_owner() {
+        let ids = super::OWNER_CHECKED.map(|(id, _)| id);
+        assert!(
+            ids.windows(2).all(|pair| pair[0] < pair[1]),
+            "OWNER_CHECKED is sorted and unique"
+        );
+        for (id, owner) in super::OWNER_CHECKED {
             assert!(
-                CanonicalDocument::from_value(id, changed).is_err(),
-                "accepted changed {field}"
+                CONTRACTS.iter().any(|contract| contract.id == id),
+                "{id} is registered"
+            );
+            let error = CanonicalDocument::from_value(id, json!({"schema": id})).unwrap_err();
+            assert_eq!(error.code, "PP9001", "{id}");
+            assert!(error.message.contains(owner), "{id}: {}", error.message);
+            let impostor = super::OwnerCheck {
+                owner: "errors",
+                check: |_, _| Ok(()),
+            };
+            let error = CanonicalDocument::from_value_owned(id, json!({"schema": id}), impostor)
+                .unwrap_err();
+            assert_eq!(
+                error.code, "PP9001",
+                "{id} refuses a check from another module"
             );
         }
-        for field in receipt.as_object().unwrap().keys() {
-            let mut changed = receipt.clone();
-            changed.as_object_mut().unwrap().remove(field);
-            assert!(
-                CanonicalDocument::from_value(id, changed).is_err(),
-                "accepted missing {field}"
-            );
-        }
-        for mutation in 0..4 {
-            let mut changed = receipt.clone();
-            let files = changed["files"].as_array_mut().unwrap();
-            match mutation {
-                0 => {
-                    files.swap(0, 1);
-                }
-                1 => {
-                    files[1]["path"] = files[0]["path"].clone();
-                }
-                2 => {
-                    files.remove(0);
-                }
-                3 => {
-                    files[0]["path"] = json!("../app.css");
-                }
-                _ => unreachable!(),
-            }
-            changed["tree_digest"] = json!(format!(
-                "sha256:{}",
-                crate::holo::canonical::content_id(
-                    &crate::holo::canonical::encode_value(&changed["files"]).unwrap()
-                )
-            ));
-            assert!(
-                CanonicalDocument::from_value(id, changed).is_err(),
-                "accepted file mutation {mutation}"
-            );
-        }
+        let unowned = super::OwnerCheck {
+            owner: "oci",
+            check: |_, _| Ok(()),
+        };
+        let id = "prismpm/product-release-result/1";
+        assert_eq!(
+            CanonicalDocument::from_value_owned(id, json!({"schema": id}), unowned)
+                .unwrap_err()
+                .code,
+            "PP9001",
+            "a contract without an owner check takes no owner's check"
+        );
     }
 
     #[test]

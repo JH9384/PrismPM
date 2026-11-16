@@ -70,14 +70,14 @@ fn aggregate_contracts_admit_bounded_documents_and_reject_oversized_envelopes() 
         "generated_output_diff":"required", "security_review":"required"});
     let proposal_bytes = serde_json::to_vec(&proposal).unwrap();
     assert!(proposal_bytes.len() > 32 * 1024 * 1024);
-    CanonicalDocument::parse("prismpm/sdk-lock-update/2", &proposal_bytes).unwrap();
+    prismpm::sdk::parse_contract("prismpm/sdk-lock-update/2", &proposal_bytes).unwrap();
 
     for (schema, maximum) in [
         ("prismpm/sdk-lock/2", 64 * 1024 * 1024),
         ("prismpm/sdk-lock-update/2", 192 * 1024 * 1024),
     ] {
         let oversized = vec![b' '; maximum + 1];
-        let error = CanonicalDocument::parse(schema, &oversized).unwrap_err();
+        let error = prismpm::sdk::parse_contract(schema, &oversized).unwrap_err();
         assert_eq!(error.code, "PP7601");
         assert!(error.message.contains(&format!("{maximum} byte limit")));
     }
@@ -86,7 +86,7 @@ fn aggregate_contracts_admit_bounded_documents_and_reject_oversized_envelopes() 
 #[test]
 fn registered_platform_lock_accepts_exact_index_and_rejects_missing_or_swapped_children() {
     let (lock, _) = fixture();
-    CanonicalDocument::from_value("prismpm/sdk-lock/2", lock.clone()).unwrap();
+    prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", lock.clone()).unwrap();
     for mutation in 0..5 {
         let mut changed = lock.clone();
         match mutation {
@@ -108,7 +108,7 @@ fn registered_platform_lock_accepts_exact_index_and_rejects_missing_or_swapped_c
             }
         }
         assert!(
-            CanonicalDocument::from_value("prismpm/sdk-lock/2", changed).is_err(),
+            prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", changed).is_err(),
             "mutation {mutation}"
         );
     }
@@ -117,7 +117,7 @@ fn registered_platform_lock_accepts_exact_index_and_rejects_missing_or_swapped_c
 #[test]
 fn current_platform_requires_its_actual_bytes_not_another_architecture_or_a_partial_inventory() {
     let (value, inventories) = fixture();
-    let lock = CanonicalDocument::from_value("prismpm/sdk-lock/2", value).unwrap();
+    let lock = prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", value).unwrap();
     for (index, platform) in ["linux/amd64", "linux/arm64"].into_iter().enumerate() {
         prismpm::sdk::validate_running_inventory(&lock, platform, &inventories[index]).unwrap();
         assert!(
@@ -202,7 +202,7 @@ fn every_platform_inventory_document_binds_its_digest_and_complete_rows() {
                 }
             }
             assert!(
-                CanonicalDocument::from_value("prismpm/sdk-lock/2", changed).is_err(),
+                prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", changed).is_err(),
                 "platform {index}, mutation {mutation}"
             );
         }

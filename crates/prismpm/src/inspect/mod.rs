@@ -17,7 +17,7 @@
 //! label. The footer is BLAKE3 of the body, never of the file.
 
 use crate::error::PrismError;
-use crate::holo::archive::{content_kappa, parse_application};
+use crate::holo::archive::{parse_application, v4_label};
 use crate::holo::attestation::{self, ATTESTATION_EXTENSION};
 use prism_stdlib as wire;
 use serde_json::{json, Map, Value};
@@ -719,10 +719,11 @@ fn attestations_member(bytes: &[u8], sections: &[Section]) -> Result<Vec<Value>,
                     .subjects
                     .iter()
                     .map(|subject| {
-                        json!({
-                            "name": subject.name,
-                            "digest": { "sha256": subject.sha256, "blake3": subject.blake3 },
-                        })
+                        let mut digest = json!({ "sha256": subject.sha256 });
+                        if let Some(blake3) = &subject.blake3 {
+                            digest["blake3"] = json!(blake3);
+                        }
+                        json!({ "name": subject.name, "digest": digest })
                     })
                     .collect::<Vec<Value>>(),
             })
@@ -851,7 +852,7 @@ pub fn inspect(bytes: &[u8]) -> Result<Value, PrismError> {
         .filter(|section| section.kind == KIND_CONTENT_BLOB)
         .all(|section| {
             let content = section.content.as_deref().unwrap_or_default();
-            section.label.as_deref() == Some(content_kappa(content).as_str())
+            section.label.as_deref() == Some(v4_label(content).as_str())
         });
     Ok(json!({
         "schema": INSPECTION_SCHEMA,

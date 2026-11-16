@@ -16,6 +16,7 @@ import {retireConstructionStage} from './sdk-construction-stage.mjs';
 import {createUnpublishedRegistry,importUnpublishedStage,publishUnpublishedIndex,closeUnpublishedRegistry} from './unpublished-sdk-registry.mjs';
 import {executeOwnedSdkCommand} from './sdk-command-owner.mjs';
 import {probeQualificationRegistry} from './sdk-registry-qualification.mjs';
+import {parts as vvParts} from './vv-assemble.mjs';
 
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const canonical=v=>JSON.stringify(v,(_,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(k=>[k,item[k]])):item);
@@ -81,7 +82,7 @@ export async function qualifyUnpublishedSdk(plan,destination,secret){
  assert.equal(process.platform,'linux');assert.equal(process.arch,plan.arch==='amd64'?'x64':'arm64');
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.RUNNER_ENVIRONMENT,'github-hosted');
  assert.equal(process.env.RUNNER_OS,'Linux');assert.equal(process.env.RUNNER_ARCH,plan.arch==='amd64'?'X64':'ARM64');
- assert.equal(process.env.GITHUB_REPOSITORY,'UOR-Foundation/PrismPM');assert.equal(process.env.GITHUB_SHA,plan.selection.qualifier);
+ assert.equal(process.env.GITHUB_REPOSITORY,'UOR-Foundation/prismpm');assert.equal(process.env.GITHUB_SHA,plan.selection.qualifier);
  assert.match(process.env.GITHUB_RUN_ID,/^[1-9][0-9]*$/);assert.match(process.env.GITHUB_RUN_ATTEMPT,/^[1-9][0-9]*$/);
  assert.equal(realpathSync(source),source);assert.equal(source,join(dirname(source),'root-a'));
  const out=resolve(destination);assert.equal(realpathSync(dirname(out)),dirname(out));
@@ -240,7 +241,7 @@ export async function qualifyUnpublishedSdk(plan,destination,secret){
   const trustCa='/run/prismpm-qualification-ca.crt';
   const script=plan.phase==='prerequisites'?
    'bash root-a/scripts/browser-api-sdk-check.sh "$1" "$2" "$3"; node root-a/scripts/library-sdk-check.mjs tests; bash root-a/scripts/library-sdk-check.sh "$1" "$2" "$3"':
-   'bash root-a/scripts/sdk-vv-outer.sh "$1" "$2" "$4" "sdk-$4-full-sdk-vv" "$3"; node root-a/scripts/product-sdk-check.mjs tests; bash root-a/scripts/product-sdk-check.sh "$1" "$2" "sdk-$4-product-cli" "$3"';
+   'for part in '+vvParts.join(' ')+'; do bash root-a/scripts/sdk-vv-outer.sh "$1" "$2" "$4" "$part" "sdk-$4-full-sdk-vv-$part" "$3"; done; node root-a/scripts/product-sdk-check.mjs tests; bash root-a/scripts/product-sdk-check.sh "$1" "$2" "sdk-$4-product-cli" "$3"';
   const runner=await own('container',prefix+'-owner',['container','create','--name',prefix+'-owner','--label',ownerLabel+'='+nonce,'--init','--read-only','--network',network.name,
    '--user',uid+':'+gid,'--group-add','0','--cap-drop','ALL','--security-opt','no-new-privileges',
    '--cpus','2','--memory','1g','--memory-swap','1g','--pids-limit','256',

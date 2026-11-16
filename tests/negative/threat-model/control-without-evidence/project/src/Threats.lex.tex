@@ -1,0 +1,83 @@
+\begin{lexlean}{Threats}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\useglossary{prism.qual@1.0.0}
+\useglossary{prism.sec@1.0.0}
+\importmodule{Foundation.Arch}
+\importmodule{Foundation.Qual}
+\importmodule{Foundation.Sec}
+\importmodule{Production.ThreatModel}
+\title{Boolean}
+\begin{semanticmodule}
+definition{
+  name: component,
+  parameters: [],
+  result: Foundation.Arch::Component,
+  body: (record Foundation.Arch::Component {index := 0, kind := (ctor Foundation.Arch::ComponentKind.staticSite), name := "Page", text := "The static page."})
+}
+
+definition{
+  name: asset,
+  parameters: [],
+  result: Foundation.Sec::Asset,
+  body: (record Foundation.Sec::Asset {index := 0, componentIndex := 0})
+}
+
+definition{
+  name: threat,
+  parameters: [],
+  result: Foundation.Sec::Threat,
+  body: (record Foundation.Sec::Threat {index := 0})
+}
+
+definition{
+  name: risk,
+  parameters: [],
+  result: Foundation.Sec::Risk,
+  body: (record Foundation.Sec::Risk {index := 0, assetIndex := 0, threatIndex := 0, likelihood := (ctor Foundation.Sec::Likelihood.low), impact := (ctor Foundation.Sec::Impact.major)})
+}
+
+definition{
+  name: control,
+  parameters: [],
+  result: Foundation.Sec::ApplicationSecurityControl,
+  body: (record Foundation.Sec::ApplicationSecurityControl {index := 0, riskIndex := 0})
+}
+
+definition{
+  name: controlSet,
+  parameters: [],
+  result: Production.ThreatModel::ControlSet,
+  body: (record Production.ThreatModel::ControlSet {title := "Page controls", text := "A static page.", version := "1.0.0", lastModified := "2026-10-30T00:00:00Z"})
+}
+
+definition{
+  name: modeledAsset,
+  parameters: [],
+  result: Production.ThreatModel::ModeledAsset,
+  body: (record Production.ThreatModel::ModeledAsset {asset := "Threats::asset", name := "Page", text := "The published page."})
+}
+
+definition{
+  name: modeledThreat,
+  parameters: [],
+  result: Production.ThreatModel::ModeledThreat,
+  body: (record Production.ThreatModel::ModeledThreat {threat := "Threats::threat", name := "Tampered page", text := "The page is altered.", category := (ctor Production.ThreatModel::Stride.tampering)})
+}
+
+definition{
+  name: modeledControl,
+  parameters: [],
+  result: Production.ThreatModel::ModeledControl,
+  body: (record Production.ThreatModel::ModeledControl {control := "Threats::control", name := "Artifact closure", text := "Every file is listed with its digest.", evidence := (nil Production.ThreatModel::Evidence)})
+}
+
+definition{
+  name: mapping,
+  parameters: [],
+  result: Production.ThreatModel::ThreatMapping,
+  body: (record Production.ThreatModel::ThreatMapping {threat := "Threats::threat", controls := (cons "Threats::control" (nil String))})
+}
+\end{semanticmodule}
+\end{lexlean}

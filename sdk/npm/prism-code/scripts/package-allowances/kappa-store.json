@@ -1,0 +1,4 @@
+{
+  "kib": 16,
+  "reason": "The addressed proof store (#692): proofs kept by their content address and reused under the rule the model proves, and the kernel warmed before the first check (about 11 KiB)."
+}

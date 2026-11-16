@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-system-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "System"
+component = "systemModel"
+
+[[form]]
+id = "prism-system-model"
+channel = "text"
+surface = "Prism-code system model"
+canonical_source = true
+features = ["sentence-case", "singular"]

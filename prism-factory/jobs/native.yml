@@ -1,0 +1,86 @@
+
+  native:
+    needs: [policy, factory, images]
+    if: ${{ needs.factory.outputs.build-route == 'establish' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux/amd64
+            target: x86_64-unknown-linux-gnu
+            arch: amd64
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            target: aarch64-unknown-linux-gnu
+            arch: arm64
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: false
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sdk-image
+          path: .release-sdk
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          VERSION: ${{ needs.policy.outputs.version }}
+        run: |
+          set -euo pipefail
+          node scripts/sdk-image-inputs.mjs build . "$GITHUB_SHA" cli-archive \
+            --build-arg "SDK_VERSION=$VERSION" \
+            --platform "$PLATFORM" \
+            --output type=local,dest=.native-release
+          archive=$(find .native-release -maxdepth 1 -type f -name 'prismpm-*.tar.gz' -print)
+          test -n "$archive"
+          test -f "$archive.sha256"
+          docker run --rm \
+            --mount "type=bind,source=$PWD/.native-release,target=/release,readonly" \
+            docker.io/library/debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 \
+            sh -ec 'cd /release && sha256sum --check "$(basename "$1").sha256"' sh "$archive"
+          sdk_image=$(cat .release-sdk/sdk-image.txt)
+          case "$sdk_image" in
+            ghcr.io/uor-foundation/prismpm-sdk@sha256:????????????????????????????????????????????????????????????????) ;;
+            *) printf 'invalid SDK image identity: %s\n' "$sdk_image" >&2; exit 64 ;;
+          esac
+          mkdir .native-cli
+          tar --extract --gzip --file "$archive" --directory .native-cli
+          node scripts/release-gate-evidence.mjs native . .native-equivalence "$GITHUB_SHA" \
+            "${PLATFORM#linux/}" "$sdk_image" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$archive"
+          mv "$archive" "$archive.sha256" .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: sdk-equivalence-${{ matrix.arch }}
+          path: .native-equivalence/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+          # The evidence directory is hidden; upload-artifact skips hidden files by default.
+          include-hidden-files: true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-${{ matrix.target }}
+          path: |
+            prismpm-*.tar.gz
+            prismpm-*.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 30

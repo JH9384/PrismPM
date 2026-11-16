@@ -1,9 +1,15 @@
 \begin{lexlean}{Fixture}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Browser.Application.V1.CustodyWire}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"axioms":["Classical.choice","Quot.sound","propext"],"body":{"arguments":[{"kind":"var","name":"input"}],"function":{"module":"Foundation.Browser.Application.V1.CustodyWire","name":"custodyWireBytes"},"kind":"call"},"kind":"definition","name":"fixtureCustodyBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}}],"spec":"lexlean/semantic-module/1"}}
+definition{
+  name: fixtureCustodyBytes,
+  parameters: [input : Bytes],
+  result: Bytes,
+  body: (Foundation.Browser.Application.V1.CustodyWire::custodyWireBytes input),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
 \end{semanticmodule}
 \end{lexlean}

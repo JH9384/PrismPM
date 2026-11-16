@@ -1,0 +1,122 @@
+\begin{lexlean}{Foundation.Bindings.V1.Model}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.bindings@1.0.0}
+\title{Bindings code model}
+\begin{semanticmodule}
+structure{
+  name: BindingParameter,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: name, type: String}, {name: scalar, type: String}]
+}
+
+structure{
+  name: BindingFunction,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: parameters, type: (List BindingParameter)},
+    {name: result, type: (Option String)},
+    {name: docs, type: (List String)}
+  ]
+}
+
+structure{
+  name: BindingWorld,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: contract, type: String},
+    {name: package, type: String},
+    {name: name, type: String},
+    {name: file, type: String},
+    {name: blake3, type: String},
+    {name: sha256, type: String},
+    {name: memory, type: String},
+    {name: imports, type: (List BindingFunction)},
+    {name: exports, type: (List BindingFunction)}
+  ]
+}
+
+structure{
+  name: BindingOperation,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: name, type: String}, {name: label, type: String}, {name: discriminant, type: Nat}]
+}
+
+structure{
+  name: BindingErrorCase,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: code, type: String}, {name: message, type: (Option String)}]
+}
+
+structure{
+  name: BindingOperations,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: version, type: String},
+    {name: method, type: String},
+    {name: operationType, type: String},
+    {name: errorType, type: String},
+    {name: operations, type: (List BindingOperation)},
+    {name: errors, type: (List BindingErrorCase)}
+  ]
+}
+
+inductive{
+  name: BindingInterface,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: RequestBytes, fields: []}, {name: Operations, fields: [BindingOperations]}]
+}
+
+structure{
+  name: BindingApplication,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: typeName, type: String},
+    {name: file, type: String},
+    {name: description, type: (Option String)},
+    {name: schema, type: String},
+    {name: blake3, type: String},
+    {name: sha256, type: String},
+    {name: interface, type: BindingInterface}
+  ]
+}
+
+structure{
+  name: BindingModel,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: generator, type: String},
+    {name: world, type: BindingWorld},
+    {name: application, type: BindingApplication}
+  ]
+}
+
+structure{
+  name: BindingFile,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: path, type: String}, {name: text, type: String}]
+}
+
+inductive{
+  name: BindingOutput,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Files, fields: [(List BindingFile)]},
+    {name: Refused, fields: [String, String]}
+  ]
+}
+\end{semanticmodule}
+\end{lexlean}

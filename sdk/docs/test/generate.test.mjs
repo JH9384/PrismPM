@@ -5,7 +5,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { EXAMPLES, lintFiles, readPages, render, renderSite } from '../lib/generate.mjs';
+import { EXAMPLES, lintFiles, moduleMap, readPages, render, renderSite } from '../lib/generate.mjs';
 import { runExample } from '../lib/examples.mjs';
 import { FIXTURE_DIR, prismCode } from '../lib/runtime.mjs';
 import { ROOT, headCommit, loadSpec } from '../lib/spec.mjs';
@@ -61,7 +61,7 @@ test('the spec package page lists every schema and predicate between generated-r
 });
 
 test('the executed examples print what the pages show', () => {
-  const map = { 'prism-code': runtime.url, '@prism-code/spec': spec.url };
+  const map = moduleMap(runtime, spec);
   const outputs = Object.fromEntries(EXAMPLES.map((n) => [n, runExample(n, { map, cwd: FIXTURE_DIR }).output]));
   assert.equal(outputs.load, 'Calculator\ntrue\n{ request: 52, response: 27, guestAllocation: 65536 }\n');
   assert.equal(outputs.dispatch, '"1\\tok\\t42"\n');
@@ -123,7 +123,7 @@ test('verify names every page that shows an example the runtime cannot run', asy
     const { files: rendered, problems } = await renderSite({ spec, runtime: { ...runtime, url: pathToFileURL(entry).href } });
     assert.deepEqual(
       problems.map((p) => `${p.page} ${p.kind}`).sort(),
-      ['api/history-and-replay example', 'api/dispatch example', 'api/index example', 'api/load example', 'api/verify example', 'examples/call-a-holo example', 'examples/check-a-holo example', 'examples/inspect-a-holo example', 'examples/replay-examples example', 'guides/run-a-holo example', 'guides/write-a-middleware example', 'sdks/typescript example'].sort(),
+      ['api/history-and-replay example', 'api/dispatch example', 'api/index example', 'api/load example', 'api/verify example', 'examples/call-a-holo example', 'examples/check-a-holo example', 'examples/inspect-a-holo example', 'examples/replay-examples example', 'guides/run-a-holo example', 'guides/test-your-application example', 'guides/write-a-middleware example', 'sdks/typescript example'].sort(),
     );
     assert.ok(rendered.has('reference/holo-format.md'), 'pages that run nothing still render');
     assert.ok(!rendered.has('llms.txt'), 'the site index is not written from a partial site');

@@ -1,0 +1,200 @@
+// Generated acceptance of the host adapter against the generated application core.
+// Every vector replays its transcript to its response, every declared effect is
+// performed by some vector, and nothing undeclared can be encoded, decoded or run.
+use @HOST@::acceptance::{steps, TRANSCRIPTS, VECTORS};
+use @HOST@::exchange::{drive, step, turn, Step};
+use @HOST@::protocol::{self, Request, CORE, EFFECTS, REQUEST_MAXIMA};
+use @HOST@::script::{self, ScriptedHost};
+use @HOST@::wire::Refusal;
+use @HOST@::{surface, Failure};
+
+fn perform(tag: u32, payload: &[u8]) -> Vec<u8> {
+    let mut out = vec![0, 0, 0, 1];
+    out.extend_from_slice(&tag.to_be_bytes());
+    out.extend_from_slice(payload);
+    out
+}
+
+/// Whether the core may request an effect at all; otherwise it is the plain frame function.
+fn performs() -> bool {
+    CORE.contains(&true)
+}
+
+/// The tag of the first effect the core may request.
+fn first() -> u32 {
+    CORE.iter().position(|core| *core).expect("the core requests an effect") as u32
+}
+
+fn first_step() -> script::Step {
+    steps(
+        TRANSCRIPTS
+            .iter()
+            .find(|transcript| transcript.steps.iter().any(|step| step.tag == first()))
+            .expect("some transcript performs the first effect")
+            .vector,
+    )
+    .into_iter()
+    .find(|step| step.tag == first())
+    .expect("the first effect is scripted")
+}
+
+#[test]
+fn every_vector_replays_its_transcript_to_its_response() {
+    assert!(!VECTORS.is_empty());
+    for (index, vector) in VECTORS.iter().enumerate() {
+        let scripted = script::encode(&steps(index)).unwrap();
+        assert_eq!(
+            script::replay(&scripted, vector.request).as_deref(),
+            Ok(vector.response),
+            "vector {index}"
+        );
+    }
+}
+
+#[test]
+fn every_declared_effect_is_performed_by_some_vector() {
+    for tag in (0..EFFECTS.len() as u32).filter(|tag| CORE[*tag as usize]) {
+        assert!(
+            TRANSCRIPTS.iter().any(|transcript| transcript.steps.iter().any(|step| step.tag == tag)),
+            "effect {} is exercised by no vector",
+            EFFECTS[tag as usize]
+        );
+    }
+}
+
+#[test]
+fn transcripts_are_the_canonical_encoding_of_their_typed_values() {
+    for transcript in TRANSCRIPTS {
+        for recorded in transcript.steps {
+            let request = Request::decode(recorded.tag, recorded.request).unwrap();
+            assert_eq!(request.tag(), recorded.tag);
+            assert_eq!(request.name(), EFFECTS[recorded.tag as usize]);
+            assert_eq!(request.encode().unwrap(), recorded.request);
+            protocol::check_outcome(recorded.tag, recorded.outcome).unwrap();
+        }
+        let scripted = steps(transcript.vector);
+        assert_eq!(script::parse(&script::encode(&scripted).unwrap()).unwrap(), scripted);
+    }
+}
+
+#[test]
+fn undeclared_effects_cannot_be_decoded_or_scripted() {
+    let undeclared = EFFECTS.len() as u32;
+    for tag in [undeclared, undeclared + 1, u32::MAX] {
+        assert_eq!(Request::decode(tag, &[]).err(), Some(Refusal::Undeclared));
+        assert_eq!(protocol::check_outcome(tag, &[]), Err(Refusal::Undeclared));
+        let mut scripted = tag.to_be_bytes().to_vec();
+        scripted.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(script::parse(&scripted), Err(Failure::ScriptMalformed));
+    }
+}
+
+#[test]
+fn a_root_cannot_step_outside_the_protocol() {
+    let mut host = ScriptedHost::new(Vec::new());
+    assert_eq!(step(&[0, 0, 0, 2]), Err(Failure::StepMalformed));
+    assert_eq!(step(&[0, 0, 0]), Err(Failure::StepMalformed));
+    assert_eq!(step(&[0, 0, 0, 1, 0, 0]), Err(Failure::StepMalformed));
+    assert_eq!(step(&[0, 0, 0, 0, 7]), Ok(Step::Done(&[7])));
+    let too_long = vec![0u8; surface::RESPONSE_MAXIMUM + 1];
+    let response = if !performs() { too_long } else { [vec![0, 0, 0, 0], too_long].concat() };
+    assert_eq!(drive(|_| Ok(response.clone()), &mut host, b""), Err(Failure::ResponseLimit));
+    let request = vec![0u8; surface::REQUEST_MAXIMUM + 1];
+    assert_eq!(drive(|_| Ok(Vec::new()), &mut host, &request), Err(Failure::InputLimit));
+    assert_eq!(drive(|_| Err(Failure::ComputeFailure), &mut host, b""), Err(Failure::ComputeFailure));
+    if !performs() {
+        return;
+    }
+    assert_eq!(
+        drive(|_| Ok(vec![0, 0, 0, 2]), &mut host, b""),
+        Err(Failure::StepMalformed)
+    );
+    // An effect that only fills the request frame is not one the core may request.
+    for frame_only in (0..EFFECTS.len() as u32).filter(|tag| !CORE[*tag as usize]) {
+        assert_eq!(
+            drive(|_| Ok(perform(frame_only, &[])), &mut host, b""),
+            Err(Failure::EffectUndeclared)
+        );
+    }
+    let undeclared = EFFECTS.len() as u32;
+    assert_eq!(
+        drive(|_| Ok(perform(undeclared, &[])), &mut host, b""),
+        Err(Failure::EffectUndeclared)
+    );
+    assert_eq!(
+        drive(|_| Ok(perform(u32::MAX, &[])), &mut host, b""),
+        Err(Failure::EffectUndeclared)
+    );
+    let oversized = vec![0u8; REQUEST_MAXIMA[first() as usize] + 1];
+    assert_eq!(
+        drive(|_| Ok(perform(first(), &oversized)), &mut host, b""),
+        Err(Failure::EffectRequestLimit)
+    );
+    let recorded = first_step();
+    if recorded.request.len() < REQUEST_MAXIMA[first() as usize] {
+        let mut trailing = recorded.request.clone();
+        trailing.push(0);
+        assert_eq!(
+            drive(|_| Ok(perform(first(), &trailing)), &mut host, b""),
+            Err(Failure::EffectMalformed)
+        );
+    }
+}
+
+#[test]
+fn the_effect_budget_bounds_every_exchange() {
+    if !performs() {
+        assert_eq!(surface::EFFECT_BUDGET, 0);
+        return;
+    }
+    let recorded = first_step();
+    let mut host = ScriptedHost::new(vec![recorded.clone(); surface::EFFECT_BUDGET + 1]);
+    assert_eq!(
+        drive(|_| Ok(perform(first(), &recorded.request)), &mut host, b""),
+        Err(Failure::EffectBudget)
+    );
+    assert_eq!(host.remaining(), 1);
+}
+
+#[test]
+fn the_scripted_host_refuses_a_script_that_does_not_match() {
+    let Some(index) = (0..VECTORS.len()).find(|index| !steps(*index).is_empty()) else {
+        return;
+    };
+    let request = VECTORS[index].request;
+    let recorded = steps(index);
+    let last = recorded.len() - 1;
+    assert_eq!(
+        script::run(recorded[..last].to_vec(), request),
+        Err(Failure::ScriptExhausted)
+    );
+    let mut extra = recorded.clone();
+    extra.push(recorded[last].clone());
+    assert_eq!(script::run(extra, request), Err(Failure::ScriptUnused));
+    let mut changed = recorded.clone();
+    if let Some(byte) = changed[0].request.last_mut() {
+        *byte ^= 0xff;
+        assert_eq!(script::run(changed, request), Err(Failure::ScriptMismatch));
+    } else if EFFECTS.len() > 1 {
+        changed[0].tag = (changed[0].tag + 1) % EFFECTS.len() as u32;
+        assert_eq!(script::run(changed, request), Err(Failure::ScriptMismatch));
+    }
+    assert_eq!(script::replay(&[0, 0, 0], request), Err(Failure::ScriptMalformed));
+}
+
+#[test]
+fn a_turn_presents_the_request_then_the_completed_effects() {
+    assert_eq!(
+        turn(b"ab", &[(1, vec![9])]).unwrap(),
+        [0, 0, 0, 2, 97, 98, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 9]
+    );
+    assert_eq!(turn(b"", &[]).unwrap(), [0, 0, 0, 0, 0, 0, 0, 0]);
+}
+
+//@BINDING-BEGIN
+#[test]
+fn the_declared_binding_implements_the_host_trait() {
+    fn linked<H: protocol::Host + Default>() {}
+    linked::<@BINDING_HOST@>();
+}
+//@BINDING-END

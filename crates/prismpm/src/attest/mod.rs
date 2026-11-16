@@ -21,7 +21,7 @@
 //! attest`) until the Rust CLI gains an OIDC client.
 
 mod certificate;
-mod clock;
+pub(crate) mod clock;
 mod crypto;
 mod der;
 mod transparency;
@@ -745,8 +745,8 @@ fn check_subjects(attestation: &Attestation) -> Result<(), AttestationError> {
                 ErrorKind::SubjectMismatch,
                 "attestation.subject",
                 format!(
-                    "subject {} names blake3:{} but its digests are not the blob's",
-                    subject.name, subject.blake3
+                    "subject {} names sha256:{} but its digests are not the object's",
+                    subject.name, subject.sha256
                 ),
             ));
         }
@@ -862,7 +862,7 @@ pub struct AttestRequest {
     pub predicate_type: String,
     /// The predicate, as JSON text.
     pub predicate: Vec<u8>,
-    /// Subjects: a role (`guest`, `view`, `model`, `capabilities`), a `blake3:` label, or `name=<either>`. Empty means the guest.
+    /// Subjects: a role (`guest`, `view`, `model`, `capabilities`), a κ-label (`sha256:`), or `name=<either>`. Empty means the guest.
     pub subjects: Vec<String>,
     /// An unencrypted PKCS#8 or SEC1 PEM private key.
     pub key: String,
@@ -899,7 +899,6 @@ fn is_uri(text: &str) -> bool {
 
 struct ResolvedSubject {
     name: String,
-    label: String,
     sha256: String,
 }
 
@@ -914,7 +913,6 @@ fn resolve_subjects(
     } else {
         requests
     };
-    let directory: Value = serde_json::from_slice(&parsed.directory).unwrap_or(Value::Null);
     let mut subjects = Vec::new();
     for request in wanted {
         if request.is_empty() {
@@ -934,13 +932,10 @@ fn resolve_subjects(
                 "guest" => Some(identities.guest_content_kappa.clone()),
                 "view" => Some(identities.view_content_kappa.clone()),
                 "model" => Some(identities.model_content_kappa.clone()),
-                _ => directory
-                    .get("requires_kappa")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned),
+                _ => Some(parsed.capability_kappa.clone()),
             }
         } else if target.len() == 71
-            && target.starts_with("blake3:")
+            && target.starts_with("sha256:")
             && target[7..]
                 .bytes()
                 .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
@@ -950,7 +945,7 @@ fn resolve_subjects(
             return Err(signing(
                 "sign.subject",
                 format!(
-                    "subject {request:?} is neither a role ({}) nor a blake3 label",
+                    "subject {request:?} is neither a role ({}) nor a κ-label",
                     ROLES.join(", ")
                 ),
             ));
@@ -976,7 +971,6 @@ fn resolve_subjects(
                 }
             }),
             sha256: der::hex(&crypto::sha256(content)),
-            label,
         });
     }
     let names = subjects
@@ -1014,14 +1008,14 @@ pub fn attest(holo: &[u8], request: &AttestRequest) -> Result<Attested, PrismErr
     let parsed = parse_application(holo)?;
     let subjects = resolve_subjects(&parsed, &request.subjects)?;
     // The statement text in the member order the JavaScript signer writes, so both read alike.
+    // Each subject is named by its κ alone (ADR-017).
     let subject_text = subjects
         .iter()
         .map(|subject| {
             format!(
-                r#"{{"name":{},"digest":{{"sha256":"{}","blake3":"{}"}}}}"#,
+                r#"{{"name":{},"digest":{{"sha256":"{}"}}}}"#,
                 serde_json::to_string(&subject.name).expect("a string serializes"),
                 subject.sha256,
-                &subject.label[7..]
             )
         })
         .collect::<Vec<_>>()

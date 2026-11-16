@@ -35,7 +35,7 @@ function fixture() {
       source_path: 'src/' + name.replaceAll('.', '/') + '.lex.tex'})),
     inputs: [...sources].map(([name, value]) => row('source', 'src/' + name.replaceAll('.', '/') + '.lex.tex', value)),
     outputs: [...generated].map(([name, value]) => row('lean', 'modules/PrismPM/' + name.replaceAll('.', '/') + '.lean', value))};
-  const verified = {source_id, semantic_id, build_id, attestation_id: '', root: '/private/verified', modules};
+  const verified = {source_id, semantic_id, build_id, attestation_id: '', root: '/private/verified', modules, runtime: []};
   const attestation = {spec: 'lexlean/attestation/2', status: 'verified', source_id, semantic_id, build_id};
   const input = {verified, sources, generated, manifestBytes: null, attestationBytes: null};
   function bind() {

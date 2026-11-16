@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { checkProofStatement, PROOF_CODES, TCB_COMPONENTS } from '../src/statements.mjs';
-import { here, reference, table, ADR_015 } from './helpers.mjs';
+import { here, reference, referenceV5, table, ADR_015 } from './helpers.mjs';
 
 const STATEMENT = JSON.parse(readFileSync(here('../../spec/test/fixtures/attestation/statement/calculator.json'), 'utf8'));
 const SIGNED = { verified: true };
@@ -22,7 +22,8 @@ function referenceProvenance() {
   throw new Error('the reference archive has no model provenance');
 }
 
-const HOLO = Object.freeze({ guest: ADR_015.guest, model: ADR_015.model, provenance: referenceProvenance() });
+// A holo v5 names each object by its κ alone (ADR-017).
+const HOLO = Object.freeze({ guest: { sha256: ADR_015.guest.sha256 }, model: { sha256: ADR_015.model.sha256 }, provenance: referenceProvenance() });
 const statement = (edit = () => {}) => {
   const copy = structuredClone(STATEMENT);
   edit(copy);
@@ -106,18 +107,18 @@ import { checkProvenanceStatement } from '../src/statements.mjs';
 const provenanceOf = (subject) => ({ _type: 'https://in-toto.io/Statement/v1', predicateType: 'https://slsa.dev/provenance/v1', subject: [{ name: 'guest', digest: subject }], predicate: {} });
 
 test('verify reaches P2 from a verified provenance statement and a verified proof statement, and no lower than they allow', async () => {
-  const provenance = provenanceOf(ADR_015.guest);
+  const provenance = provenanceOf({ sha256: ADR_015.guest.sha256 });
   const statements = (envelope, proof = STATEMENT) => ({ provenance: { statement: provenance, envelope }, proof: { statement: proof, envelope } });
-  const passed = await verify(reference(), { statements: statements(SIGNED) });
+  const passed = await verify(referenceV5(), { statements: statements(SIGNED) });
   assert.deepEqual([passed.level, passed.passed], ['P2', true]);
   assert.deepEqual(checks(passed.reasons), ['replay.statement']);
 
-  const unverified = await verify(reference(), { statements: statements({ verified: false }) });
+  const unverified = await verify(referenceV5(), { statements: statements({ verified: false }) });
   assert.equal(unverified.level, 'P0');
   assert.deepEqual(checks(unverified.reasons), ['provenance.envelope', 'proof.envelope', 'replay.statement', 'policy.level']);
 
-  const other = statement((s) => (s.subject[0].digest.blake3 = 'e'.repeat(64)));
-  const mismatch = await verify(reference(), { statements: statements(SIGNED, other) });
+  const other = statement((s) => (s.subject[0].digest.sha256 = 'e'.repeat(64)));
+  const mismatch = await verify(referenceV5(), { statements: statements(SIGNED, other) });
   assert.equal(mismatch.level, 'P1');
   assert.deepEqual(checks(mismatch.reasons), ['proof.subject', 'replay.statement', 'policy.level']);
   assert.equal(mismatch.reasons[0].code, 'PP5503');
@@ -126,9 +127,9 @@ test('verify reaches P2 from a verified provenance statement and a verified proo
 test('the policy input shows a statement as verified only when its envelope was', async () => {
   const { policyInput } = await import('../src/index.mjs');
   const proof = { statement: STATEMENT, envelope: SIGNED };
-  const input = await policyInput(reference(), { statements: { proof } });
+  const input = await policyInput(referenceV5(), { statements: { proof } });
   assert.deepEqual([input.predicates.proof.verified, input.predicates.provenance], [true, null]);
-  const unsigned = await policyInput(reference(), { statements: { proof: { ...proof, envelope: { verified: false } } } });
+  const unsigned = await policyInput(referenceV5(), { statements: { proof: { ...proof, envelope: { verified: false } } } });
   assert.equal(unsigned.predicates.proof.verified, false);
 });
 

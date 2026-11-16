@@ -7,6 +7,7 @@ import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {retireCompletedCompilerCaches} from './driver-cache.mjs';
+import {lexiconPaths} from './lexicon-inputs.mjs';
 import {requireCompilerOwner} from './compiler-owner.mjs';
 import {isCapturedCompilerDriver} from './compiler-artifact.mjs';
 export const draft=dirname(fileURLToPath(import.meta.url));
@@ -341,6 +342,7 @@ export function prepare(mutation=null,compilerOwner=null){
     const project=join(work,'project');
     for(const [name,bytes]of sources){const path=join(project,'src',...name.split('.'))+'.lex.tex';mkdirSync(dirname(path),{recursive:true});writeFileSync(path,bytes,{flag:'wx'});}
     for(const file of ['lexlean.toml','lakefile.toml','lean-toolchain'])copyFileSync(join(draft,file),join(project,file));
+    for(const path of lexiconPaths(repository)){const destination=join(project,path);mkdirSync(dirname(destination),{recursive:true});copyFileSync(join(repository,path),destination);}
     copyFileSync(join(repository,'rust-toolchain.toml'),join(work,'rust-toolchain.toml'));
     let invokeDriver;
     if(shared)invokeDriver=args=>shared.runDriver(args,repository);

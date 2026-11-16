@@ -8,8 +8,9 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import test from 'node:test';
-import {captureEvidence, packEvidence} from './sdk-release-evidence.mjs';
+import {assembleInstalled, captureEvidence, packEvidence} from './sdk-release-evidence.mjs';
 import {assetNames} from './release-phases.mjs';
+import {parts as vvParts} from './vv-assemble.mjs';
 import {bootstrapFixture} from './sdk-bootstrap-retention-fixture.mjs';
 const require = createRequire('/opt/prismpm/oracles/package.json');
 const {load} = require('js-yaml');
@@ -18,26 +19,26 @@ const canonical = value => JSON.stringify(value, (_, item) => item && typeof ite
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const context = {source_revision: 'a'.repeat(40), architecture: 'amd64',
   image_reference: 'ghcr.io/uor-foundation/prismpm-sdk@sha256:' + 'b'.repeat(64)};
+const partContext = {...context, part: 'source'}, baseContext = context;
 const temporary = t => {const root = mkdtempSync(join(tmpdir(), 'prismpm-evidence-test-')); t.after(() => rmSync(root, {recursive: true, force: true})); return root;};
 const put = (root, name, value) => writeFileSync(join(root, name), typeof value === 'string' ? value : canonical(value));
-function vv(root) {
+function vv(root, part = 'source') {
   const bootstrap = bootstrapFixture(context.source_revision);
-  for (const [name, bytes] of [...bootstrap.retained, ['bootstrap.json', bootstrap.manifest]]) writeFileSync(join(root, name), bytes);
+  if (part === 'source') for (const [name, bytes] of [...bootstrap.retained, ['bootstrap.json', bootstrap.manifest]]) writeFileSync(join(root, name), bytes);
   mkdirSync(join(root, 'docker'));
   put(join(root, 'docker'), 'config.json', 'private transport data that must never ship');
-  const raw = canonical({schema: 'prismpm/vv-evidence/1', commit: context.source_revision,
-    gates: Array.from({length: 15}, (_, index) => index + 1), status: 'passed'});
-  for (const run of [1, 2]) put(root, `run-${run}.json`, raw);
-  const execution = canonical({schema: 'prismpm/sdk-vv-execution/1', scope: 'two-full-vv-executions-only',
+  const raw = canonical({commit: context.source_revision, part, schema: 'prismpm/vv-part/1', status: 'passed'});
+  put(root, 'vv-part.json', raw);
+  const execution = canonical({schema: 'prismpm/sdk-vv-execution/2', scope: 'one-vv-part-execution-only', part,
     source_revision: context.source_revision, image_reference: context.image_reference, process_architecture: 'x64',
     inventory_sha256: 'c'.repeat(64), cli_sha256: 'd'.repeat(64), input_policy_sha256: 'e'.repeat(64),
     input_manifest_sha256: 'f'.repeat(64), advisory_revision: '1'.repeat(40),
-    runs: [1, 2].map(run => ({run, path: `run-${run}/vv-evidence.json`, byte_length: raw.length, sha256: sha(raw)})),
+    run: {part, path: 'part/vv-part.json', byte_length: raw.length, sha256: sha(raw)},
     unclaimed: ['native-host', 'network-isolation', 'oci-image-identity', 'sdk-release', 'product-readiness']});
   put(root, 'execution.json', execution);
-  put(root, 'acceptance.json', {schema: 'prismpm/sdk-installed-vv-check/1', status: 'passed', scope: 'isolated-installed-two-run-vv',
+  put(root, 'acceptance.json', {schema: 'prismpm/sdk-installed-vv-check/2', status: 'passed', scope: 'isolated-installed-vv-part', part,
     ...context, execution_sha256: sha(execution), phases: ['exact-native-images-acquired', 'external-network-disconnected',
-      'isolated-native-sdk-probed', 'both-full-vv-records-verified', 'owned-resources-removed'],
+      'isolated-native-sdk-probed', 'vv-part-record-verified', 'owned-resources-removed'],
     unclaimed: ['hardware-attestation', 'sdk-release', 'product-readiness']});
   for (const name of ['image-plan.json', 'loaded-identities.json']) put(root, name, {fixture: 'transport-only'});
   put(root, '0001.stdout', 'unit transcript\n'); put(root, '0001.stderr', '');
@@ -52,7 +53,9 @@ function product(root) {
   put(root, 'source.json', {revision: context.source_revision});
   for (const name of ['build.json', 'prismpm.lock']) put(root, name, {sdk_image: context.image_reference});
   put(root, 'image.json', [{Architecture: context.architecture, Os: 'linux', Config: {Labels: {'org.opencontainers.image.revision': context.source_revision}}}]);
-  const files = ['app.css', 'app.js', 'index.html', 'prism_calculator.js', 'prism_calculator_bg.wasm', 'provenance.json']
+  const files = ['Archivo-SemiBold.woff2', 'Geist-Medium.woff2', 'Geist-Regular.woff2', 'Geist-SemiBold.woff2',
+    'GeistMono-Regular.woff2', 'OFL-Archivo.txt', 'OFL-Geist.txt', 'app.css', 'app.js', 'icon-512.png', 'icon.svg',
+    'index.html', 'manifest.webmanifest', 'prism_calculator.js', 'prism_calculator_bg.wasm', 'provenance.json']
     .map(path => ({path, size: 1, digest: 'sha256:' + 'c'.repeat(64)}));
   put(root, 'result.json', {schema: 'prismpm/installed-product-cli-check/1', scope: 'installed-cli-product-build-and-source-free-integrity',
     status: 'passed', sdk_image: context.image_reference, releases: ['A', 'B'].map((release, index) => ({release,
@@ -75,21 +78,29 @@ function validateWorkflow(workflow) {
   const steps = workflow.jobs['oci-native'].steps;
   const pack = steps.find(step => step.run?.includes('scripts/sdk-release-evidence.mjs'));
   assert(pack && pack.if === undefined && pack['continue-on-error'] === undefined);
-  const download = (name, path) => {
+  // Build evidence comes from the run that established the build: this one,
+  // or the build receipt's (scripts/factory.mjs).
+  const fromBuild = {'run-id': '${{ needs.factory.outputs.build-run-id || github.run_id }}',
+    'github-token': "${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}"};
+  const download = (name, path, build = true) => {
     const matching = steps.filter(step => step.with?.name === name);
     assert.equal(matching.length, 1, 'missing or duplicate gate download ' + name);
     const step = matching[0];
     assert.equal(step.uses, 'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093');
-    assert.deepEqual(step.with, {name, path});
+    assert.deepEqual(step.with, build ? {name, path, ...fromBuild} : {name, path});
     assert.equal(step.if, undefined); assert.equal(step['continue-on-error'], undefined);
     assert(steps.indexOf(step) < steps.indexOf(pack), 'evidence must arrive before capture');
   };
+  // Installed V&V is retired (Factory.Release): no installed part evidence is
+  // downloaded or published, and the route record is.
+  assert(!steps.some(step => step.with?.pattern === 'full-sdk-vv-sdk-*' || step.with?.pattern === 'installed-vv-evidence-*'));
+  download('factory-route', 'release', false);
+  assert(assetNames().includes('factory-route.json'));
   for (const arch of ['amd64', 'arm64']) {
-    for (const [artifact, suffix] of [['full-sdk-vv', 'full-sdk-vv'], ['product-cli', 'product-cli']]) {
-      const name = `${artifact}-sdk-${arch}`;
-      download(name, `.sdk-gate-evidence/${name}`);
-      assert(assetNames().includes(`sdk-${arch}-${suffix}.tar`));
-    }
+    download(`product-cli-sdk-${arch}`, `.sdk-gate-evidence/product-cli-sdk-${arch}`);
+    assert(assetNames().includes(`sdk-${arch}-product-cli.tar`));
+    assert(!assetNames().includes(`sdk-${arch}-vv-evidence.json`));
+    for (const part of vvParts) assert(!assetNames().includes(`sdk-${arch}-full-sdk-vv-${part}.tar`));
     download(`browser-sdk-sdk-${arch}`, 'release');
     download(`library-sdk-sdk-${arch}`, `.sdk-gate-evidence/library-sdk-sdk-${arch}`);
     for (const kind of ['browser', 'library']) assert(assetNames().includes(`sdk-${arch}-${kind}-sdk.log`));
@@ -98,44 +109,71 @@ function validateWorkflow(workflow) {
   assert.equal(pack.shell, 'bash');
   assert.equal(pack.run, [
     'set -euo pipefail', 'image=$(cat release/sdk-image.txt)',
+    '# Native evidence binds the source closure of the revision that',
+    "# built it. A proved build verifies it against that revision's tree.",
+    'build_root=$PWD',
+    'if [ "$BUILD_REVISION" != "$GITHUB_SHA" ]; then',
+    '  build_root=$RUNNER_TEMP/build-source',
+    '  git fetch --no-tags --depth=1 origin "$BUILD_REVISION"',
+    '  git worktree add --detach "$build_root" "$BUILD_REVISION"',
+    'fi',
     'node scripts/library-sdk-metadata-evidence.mjs join \\',
     '  .sdk-gate-evidence/library-sdk-sdk-amd64/root-a/target/library-sdk-evidence/linux-amd64 \\',
     '  .sdk-gate-evidence/library-sdk-sdk-arm64/root-a/target/library-sdk-evidence/linux-arm64 \\',
-    '  . "$image" "$GITHUB_SHA" > release/sdk-metadata-native-join.json',
+    '  "$build_root" "$image" "$BUILD_REVISION" > release/sdk-metadata-native-join.json',
     'cp .sdk-gate-evidence/library-sdk-sdk-amd64/sdk-amd64-library-sdk.log release/',
     'cp .sdk-gate-evidence/library-sdk-sdk-arm64/sdk-arm64-library-sdk.log release/',
+    '# Source evidence is packed with the run that established it: this',
+    "# one, or the receipt's (release/factory-route.json says which).",
     'node scripts/sdk-release-evidence.mjs source-vv .sdk-gate-evidence/source-vv \\',
-    '  release/source-vv.tar - "$GITHUB_SHA" amd64 "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"',
+    '  release/source-vv.tar - "$SOURCE_REVISION" amd64 "$SOURCE_RUN_ID" "$SOURCE_RUN_ATTEMPT"',
     'for architecture in amd64 arm64; do',
     '  node scripts/library-sdk-metadata-evidence.mjs pack \\',
     '    ".sdk-gate-evidence/library-sdk-sdk-$architecture/root-a/target/library-sdk-evidence/linux-$architecture" \\',
-    '    "release/sdk-$architecture-native-metadata.tar" . "$image" "$GITHUB_SHA" "$architecture"',
-    '  for kind in full-sdk-vv product-cli; do',
-    '    node scripts/sdk-release-evidence.mjs "$kind" \\',
-    '      ".sdk-gate-evidence/$kind-sdk-$architecture" "release/sdk-$architecture-$kind.tar" \\',
-    '      "$image" "$GITHUB_SHA" "$architecture"', '  done',
+    '    "release/sdk-$architecture-native-metadata.tar" "$build_root" "$image" "$BUILD_REVISION" "$architecture"',
+    '  node scripts/sdk-release-evidence.mjs product-cli \\',
+    '    ".sdk-gate-evidence/product-cli-sdk-$architecture" "release/sdk-$architecture-product-cli.tar" \\',
+    '    "$image" "$BUILD_REVISION" "$architecture"',
     '  node scripts/sdk-release-evidence.mjs native-equivalence \\',
     '    ".sdk-gate-evidence/native-equivalence-sdk-$architecture" "release/sdk-$architecture-native-equivalence.tar" \\',
-    '    "$image" "$GITHUB_SHA" "$architecture" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"',
+    '    "$image" "$BUILD_REVISION" "$architecture" "$BUILD_RUN_ID" "$BUILD_RUN_ATTEMPT"',
     'done', '',
   ].join('\n'));
-  download('source-vv', '.sdk-gate-evidence/source-vv');
+  download('source-vv', '.sdk-gate-evidence/source-vv', false);
+  const build = (key, own) => `\${{ needs.factory.outputs.build-route == 'proved' && needs.factory.outputs.build-${key} || github.${own} }}`;
+  assert.deepEqual(pack.env, {SOURCE_REVISION: '${{ needs.gate.outputs.source-revision }}',
+    SOURCE_RUN_ID: '${{ needs.gate.outputs.source-run-id }}', SOURCE_RUN_ATTEMPT: '${{ needs.gate.outputs.source-run-attempt }}',
+    BUILD_REVISION: build('revision', 'sha'), BUILD_RUN_ID: build('run-id', 'run_id'), BUILD_RUN_ATTEMPT: build('run-attempt', 'run_attempt')});
   for (const arch of ['amd64', 'arm64']) download(`sdk-equivalence-${arch}`, `.sdk-gate-evidence/native-equivalence-sdk-${arch}`);
   assert(steps.indexOf(pack) < steps.findIndex(step => step.run?.includes('checksums=$(mktemp)')));
-  assert.deepEqual(workflow.jobs['oci-native'].needs, ['gate', 'images', 'native', 'reproducibility', 'installed-sdk']);
+  assert.deepEqual(workflow.jobs['oci-native'].needs, ['gate', 'factory', 'images', 'native', 'reproducibility', 'installed-sdk']);
   assert(workflow.jobs.release.needs.includes('crates'));
 }
+
+test('an architecture counts only with every validated part', t => {
+  const root = temporary(t), output = temporary(t);
+  for (const part of vvParts) {
+    const directory = join(root, `sdk-amd64-full-sdk-vv-${part}`); mkdirSync(directory); vv(directory, part);
+  }
+  assert.throws(() => assembleInstalled(root, join(output, 'wrong.json'), {...context, architecture: 'arm64'}));
+  assembleInstalled(root, join(output, 'good.json'), context);
+  assert.deepEqual(JSON.parse(readFileSync(join(output, 'good.json'))), {commit: context.source_revision,
+    gates: Array.from({length: 15}, (_, index) => index + 1), schema: 'prismpm/vv-evidence/1', status: 'passed'});
+  rmSync(join(root, 'sdk-amd64-full-sdk-vv-dk-2'), {recursive: true});
+  assert.throws(() => assembleInstalled(root, join(output, 'partial.json'), context));
+  assert.equal(readdirSync(output).length, 1);
+});
 
 test('OCI publication retains both native gate closures without granting SDK acceptance', () => {
   const workflow = load(readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8'));
   validateWorkflow(workflow);
   const steps = value => value.jobs['oci-native'].steps;
   const pack = value => steps(value).find(step => step.run?.includes('scripts/sdk-release-evidence.mjs'));
-  const gate = value => steps(value).find(step => step.with?.name === 'full-sdk-vv-sdk-arm64');
+  const gate = value => steps(value).find(step => step.with?.name === 'factory-route');
   for (const mutate of [
     value => steps(value).splice(steps(value).indexOf(gate(value)), 1),
     value => steps(value).push(structuredClone(gate(value))),
-    value => {gate(value).with.path = 'release';},
+    value => {gate(value).with.path = '.sdk-gate-evidence';},
     value => {gate(value).uses = 'actions/download-artifact@main';},
     value => {gate(value).if = 'always()';},
     value => {gate(value)['continue-on-error'] = true;},
@@ -149,7 +187,13 @@ test('OCI publication retains both native gate closures without granting SDK acc
     value => {value.jobs.reproducibility.steps.find(step => step.with?.name === 'library-sdk-${{ matrix.name }}').with.path = '${{ matrix.name }}-library-sdk.log';},
     value => {value.jobs.reproducibility.steps.find(step => step.with?.name === 'library-sdk-${{ matrix.name }}').with.path = 'root-a/target/library-sdk-evidence/';},
     value => {value.jobs.reproducibility.steps.find(step => step.with?.name === 'library-sdk-${{ matrix.name }}').with['if-no-files-found'] = 'ignore';},
-    value => {pack(value).run = pack(value).run.replace('"$GITHUB_SHA"', '"stale"');},
+    value => {pack(value).run = pack(value).run.replace('"$BUILD_REVISION"', '"stale"');},
+    value => {pack(value).run = pack(value).run.replace('"$BUILD_REVISION"', '"$GITHUB_SHA"');},
+    value => {pack(value).env.BUILD_RUN_ID = '${{ github.run_id }}';},
+    value => {delete steps(value).find(step => step.with?.name === 'product-cli-sdk-arm64').with['run-id'];},
+    value => {pack(value).run = pack(value).run.replace('"$SOURCE_REVISION"', '"$GITHUB_SHA"');},
+    value => {pack(value).env.SOURCE_RUN_ID = '${{ github.run_id }}';},
+    value => {steps(value).push({uses: 'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093', with: {pattern: 'full-sdk-vv-sdk-*', 'merge-multiple': true, path: '.sdk-gate-evidence/full-sdk-vv'}});},
     value => {pack(value).run = pack(value).run.replace('"$architecture"', '"$architecture" || true');},
     value => {const record = pack(value); steps(value).splice(steps(value).indexOf(record), 1); steps(value).push(record);},
     value => {value.jobs['oci-native'].needs.pop();},
@@ -160,7 +204,7 @@ test('OCI publication retains both native gate closures without granting SDK acc
 });
 
 test('real deterministic USTAR archives retain every original byte and explicitly exclude private transport configuration', t => {
-  for (const [kind, fixture] of [['full-sdk-vv', vv], ['product-cli', product]]) {
+  for (const [kind, fixture, context] of [['full-sdk-vv', vv, partContext], ['product-cli', product, baseContext]]) {
     const source = temporary(t), output = temporary(t); fixture(source);
     const captured = captureEvidence(source, kind, context);
     const first = join(output, 'one.tar'), second = join(output, 'two.tar');
@@ -187,32 +231,32 @@ test('the exact 9999-command file closure includes its excluded private director
     put(source, number + '.json', {arguments: ['info'], status: 0, signal: null,
       stdout_sha256: empty, stderr_sha256: empty});
   }
-  assert.equal(readdirSync(source).length, 30013);
-  const captured = captureEvidence(source, 'full-sdk-vv', context);
-  assert.equal(captured.files.size, 30012);
-  assert.equal(captured.manifest.files.length, 30012);
+  assert.equal(readdirSync(source).length, 30008);
+  const captured = captureEvidence(source, 'full-sdk-vv', partContext);
+  assert.equal(captured.files.size, 30007);
+  assert.equal(captured.manifest.files.length, 30007);
   assert.deepEqual(captured.manifest.excluded, ['docker/']);
   assert(!captured.files.has('docker'));
   assert.equal(readFileSync(join(source, 'docker', 'config.json'), 'utf8'), 'private transport data that must never ship');
   put(source, '10000.json', '{}');
-  assert.equal(readdirSync(source).length, 30014);
-  assert.throws(() => captureEvidence(source, 'full-sdk-vv', context), /evidence file-count limit/);
+  assert.equal(readdirSync(source).length, 30009);
+  assert.throws(() => captureEvidence(source, 'full-sdk-vv', partContext), /evidence file-count limit/);
 });
 
 test('missing, extra, stale and changed original evidence fails before archive creation', t => {
   for (const change of [
-    root => rmSync(join(root, 'run-2.json')),
-    root => rmSync(join(root, 'run-2-bootstrap-evidence.json')),
+    root => rmSync(join(root, 'vv-part.json')),
+    root => rmSync(join(root, 'run-1-bootstrap-evidence.json')),
     root => put(root, 'run-1-bootstrap-current-capture.json', '{}'),
     root => put(root, 'extra.json', {}),
     root => put(root, '0001.stdout', 'changed'),
-    root => put(root, 'run-1.json', {status: 'passed'}),
+    root => put(root, 'vv-part.json', {status: 'passed'}),
     root => {const value = JSON.parse(readFileSync(join(root, 'acceptance.json'))); value.source_revision = '2'.repeat(40); put(root, 'acceptance.json', value);},
     root => {const value = JSON.parse(readFileSync(join(root, 'acceptance.json'))); value.phases.pop(); put(root, 'acceptance.json', value);},
-    root => {const value = JSON.parse(readFileSync(join(root, 'execution.json'))); value.runs[1] = value.runs[0]; put(root, 'execution.json', value);},
+    root => {const value = JSON.parse(readFileSync(join(root, 'execution.json'))); value.part = 'dk-2'; put(root, 'execution.json', value);},
   ]) {
     const source = temporary(t), output = temporary(t); vv(source); change(source);
-    assert.throws(() => packEvidence(source, 'full-sdk-vv', join(output, 'bad.tar'), context));
+    assert.throws(() => packEvidence(source, 'full-sdk-vv', join(output, 'bad.tar'), partContext));
     assert.deepEqual(readdirSync(output), []);
   }
   const source = temporary(t); product(source);
@@ -229,9 +273,9 @@ test('aliases, nonregular files, private-directory aliases and oversized evidenc
     root => truncateSync(join(root, '0001.stdout'), 268435457),
     root => truncateSync(join(root, '0001.stderr'), 67108865),
     root => {rmSync(join(root, 'docker'), {recursive: true}); symlinkSync('.', join(root, 'docker'));},
-  ]) {const source = temporary(t); vv(source); change(source); assert.throws(() => captureEvidence(source, 'full-sdk-vv', context));}
+  ]) {const source = temporary(t); vv(source); change(source); assert.throws(() => captureEvidence(source, 'full-sdk-vv', partContext));}
   const source = temporary(t); vv(source); const parent = temporary(t), alias = join(parent, 'alias'); symlinkSync(source, alias);
-  assert.throws(() => captureEvidence(alias, 'full-sdk-vv', context));
+  assert.throws(() => captureEvidence(alias, 'full-sdk-vv', partContext));
 });
 
 test('actual maximum file archive and one-GiB captured closure retain exact bytes without clamping', {timeout: 120000}, t => {
@@ -241,7 +285,7 @@ test('actual maximum file archive and one-GiB captured closure retain exact byte
   truncateSync(join(source, '0001.stdout'), 0); truncateSync(join(source, '0001.stdout'), maximum);
   put(source, '0001.json', row(fullHash));
   const output = join(temporary(t), 'maximum.tar');
-  const manifest = packEvidence(source, 'full-sdk-vv', output, context);
+  const manifest = packEvidence(source, 'full-sdk-vv', output, partContext);
   assert.equal(manifest.files.find(file => file.path === '0001.stdout').size, maximum);
   const restored = execFileSync('tar', ['-xOf', output, '0001.stdout'], {maxBuffer: maximum + 1024, timeout: 30000});
   assert.equal(restored.length, maximum); assert.equal(sha(restored), fullHash);
@@ -261,23 +305,24 @@ test('actual maximum file archive and one-GiB captured closure retain exact byte
   truncateSync(join(aggregate, '0004.stdout'), lastSize);
   put(aggregate, '0004.json', row(sha(zero.subarray(0, lastSize))));
   assert.equal(size(), total);
-  const captured = captureEvidence(aggregate, 'full-sdk-vv', context);
+  const captured = captureEvidence(aggregate, 'full-sdk-vv', partContext);
   assert.equal(captured.manifest.files.reduce((sum, file) => sum + file.size, 0), total);
   captured.files.clear();
   truncateSync(join(aggregate, '0004.stdout'), lastSize + 1);
   assert.equal(size(), total + 1);
-  assert.throws(() => captureEvidence(aggregate, 'full-sdk-vv', context), /bounded unaliased evidence file/);
+  assert.throws(() => captureEvidence(aggregate, 'full-sdk-vv', partContext), /bounded unaliased evidence file/);
 });
 
 test('removing the real transcript digest guard is detected by the behavioral owning assertion', async t => {
   const source = temporary(t); vv(source); put(source, '0001.stdout', 'substituted bytes');
-  const check = capture => assert.throws(() => capture(source, 'full-sdk-vv', context));
+  const check = capture => assert.throws(() => capture(source, 'full-sdk-vv', partContext));
   check(captureEvidence);
   const original = readFileSync(new URL('./sdk-release-evidence.mjs', import.meta.url), 'utf8');
   const guard = "for (const stream of ['stdout', 'stderr']) assert.equal(hash(files.get(number + '.' + stream)), row[stream + '_sha256']);";
   assert.equal(original.split(guard).length, 2);
   const changed = original.replace(guard, '/* planted transcript check omission */')
     .replaceAll("from './sdk-vv-check.mjs'", `from '${new URL('./sdk-vv-check.mjs', import.meta.url)}'`)
+    .replaceAll("from './sdk-vv-run.mjs'", `from '${new URL('./sdk-vv-run.mjs', import.meta.url)}'`)
     .replaceAll("from './product-sdk-check.mjs'", `from '${new URL('./product-sdk-check.mjs', import.meta.url)}'`)
     .replaceAll("from './sdk-bootstrap-retention.mjs'", `from '${new URL('./sdk-bootstrap-retention.mjs', import.meta.url)}'`)
     .replaceAll("from './release-gate-evidence.mjs'", `from '${new URL('./release-gate-evidence.mjs', import.meta.url)}'`);

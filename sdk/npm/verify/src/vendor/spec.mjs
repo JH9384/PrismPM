@@ -100,6 +100,19 @@ export const CORE_WASM = freeze({
 });
 
 /**
+ * The Core-Wasm session contract (issue #629, docs/proposals/629-session-world.md).
+ * One instance is one session: the state stays inside the guest and each
+ * `holo_step` answers one request with zero or more responses.
+ */
+export const CORE_WASM_SESSION = freeze({
+  CONTRACT: 'hologram:guest/core-wasm@2',
+  EXPORTS: freeze(['holo_alloc', 'holo_step', 'memory']),
+  ALLOCATOR: 'holo_alloc',
+  ENTRY: 'holo_step',
+  WORLD: 'worlds/core-wasm-2.wit',
+});
+
+/**
  * The worlds a guest can target, by guest contract (issue #278,
  * docs/proposals/278-wit-world.md). A holo declares its world by naming its
  * contract; the world's hash is a function of that name through this table.
@@ -126,6 +139,22 @@ export const WORLDS = freeze({
     exports: freeze([
       freeze({ name: 'holo_alloc', kind: 'func', params: freeze(['i32']), results: freeze(['i32']) }),
       freeze({ name: 'holo_run', kind: 'func', params: freeze(['i32', 'i32']), results: freeze(['i64']) }),
+      freeze({ name: 'memory', kind: 'memory' }),
+    ]),
+  }),
+  [CORE_WASM_SESSION.CONTRACT]: freeze({
+    version: 1,
+    package: 'hologram:guest@2.0.0',
+    world: 'core-wasm',
+    file: CORE_WASM_SESSION.WORLD,
+    digest: freeze({
+      blake3: '2e286db1e21243c244f807d7bbf21f158bac0f5c413d4e46007de7dbe9204a4d',
+      sha256: 'e5ee38e4f472f7616a291c83c17f272078cdf114e0106e39d71590aa1ac960f4',
+    }),
+    imports: freeze([]),
+    exports: freeze([
+      freeze({ name: 'holo_alloc', kind: 'func', params: freeze(['i32']), results: freeze(['i32']) }),
+      freeze({ name: 'holo_step', kind: 'func', params: freeze(['i32', 'i32']), results: freeze(['i64']) }),
       freeze({ name: 'memory', kind: 'memory' }),
     ]),
   }),
@@ -224,6 +253,21 @@ export const FORMAT_REVISIONS = freeze({
   }),
 });
 /**
+ * Holo v5 (ADR-017): a raw self-contained UORC archive of ordered objects,
+ * sealed by UORC-SHA256-CHAIN-v1. Every identity is a κ-label, `sha256:` and
+ * the hex SHA-256 of the bytes it names; the κ of the file is its OCI digest.
+ */
+export const HOLO_V5 = freeze({
+  /** "UORC", format 2, profile 1, scope 0 (self-contained), representation 0 (raw). */
+  MAGIC_HEX: '554f52430201',
+  MANIFEST_SCHEMA: 'prism/holo/5',
+  PROVENANCE_SCHEMA: 'prismpm/model-provenance/2',
+  /** The objects in archive order; `attestations` follows only when the holo is signed. */
+  ROLES: freeze(['manifest', 'source-manifest', 'provenance', 'capabilities', 'guest', 'view', 'model']),
+  ROLE_ATTESTATIONS: 'attestations',
+  KAPPA_PREFIX: 'sha256:',
+});
+/**
  * Build provenance of a holo, issue #268 (docs/proposals/268-build-provenance.md). The predicate is SLSA
  * provenance v1; Prism adds the build type and the rules for each member. Schema: SCHEMA.
  */
@@ -291,6 +335,7 @@ export const SCHEMAS = freeze({
   "prismpm/model-document/5": "schemas/documents/model-document-v5.schema.json",
   "prismpm/model-document/6": "schemas/documents/model-document-v6.schema.json",
   "prismpm/model-provenance/1": "schemas/documents/model-provenance-v1.schema.json",
+  "prismpm/model-provenance/2": "schemas/documents/model-provenance-v2.schema.json",
 });
 
 /** The holo sections this reader checks. The spec's HOLO_SCHEMAS lists every section schema. */

@@ -28,8 +28,10 @@ import {
   blake3Hex,
 } from '../src/index.mjs';
 import { fromFile } from '../src/node.mjs';
+import { ALIASES, aliasWarning } from '../src/developer-view.mjs';
 import { policyInput } from '../src/vendor/verify.mjs';
 import { VERSION } from '../src/version.mjs';
+import { sha256Hex as sha256HexOf } from '../src/sha256.mjs';
 import { deriveChangedModel } from '../scripts/derive-changed-model.mjs';
 
 const here = (relative) => fileURLToPath(new URL(relative, import.meta.url));
@@ -58,7 +60,7 @@ async function blobsOf(bytes) {
   const { resolveArchive } = await import('../src/archive.mjs');
   const { sha256Hex } = await import('../src/sha256.mjs');
   const { guest, model } = resolveArchive(app.archive);
-  const digests = async (blob) => ({ blake3: blake3Hex(blob.content), sha256: await sha256Hex(blob.content) });
+  const digests = async (blob) => ({ sha256: await sha256Hex(blob.content) });
   return { guest: await digests(guest), model: await digests(model) };
 }
 
@@ -125,7 +127,7 @@ test('the digest covers canonical JSON, so reordered members and a CRLF file are
   const expected = await historyDigest(historyText);
   assert.deepEqual(await historyDigest(reordered), expected);
   assert.deepEqual(await historyDigest(JSON.stringify(value, null, 2).replaceAll('\n', '\r\n')), expected);
-  assert.equal(blake3Hex(historyBytes(reordered)), expected.blake3);
+  assert.equal(await sha256HexOf(historyBytes(reordered)), expected.sha256);
   assert.equal(Buffer.from(historyBytes(value)).toString(), historyText.trimEnd(), 'no trailing newline');
 });
 
@@ -389,9 +391,9 @@ test('a closure replays too, and has no statement because it has no guest blob t
 
 test('replay: exit 0 on the reference archive, and the statement file is the statement', async () => {
   const statement = out('statement.json');
-  const r = cli('replay', historyPath, '--holo', holoPath, '--statement', statement);
+  const r = cli('replay', historyPath, '--image', holoPath, '--statement', statement);
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /^Replaying 1 history against Calculator@blake3:2adca3e7ca42$/m);
+  assert.match(r.stdout, /^Replaying 1 history against Calculator@sha256:dcf53677c7c8$/m);
   assert.match(r.stdout, /Calculator\.history\.json {2}22 events, no divergence/);
   assert.match(r.stdout, /^Replay: PASS {2}no divergence$/m);
   const { statement: expected } = await (await load(original)).experimental_replay(historyText);
@@ -401,7 +403,7 @@ test('replay: exit 0 on the reference archive, and the statement file is the sta
 
 test('replay: exit 1 on the changed model, every divergence printed, and the failed statement still written', () => {
   const statement = out('statement.json');
-  const r = cli('replay', historyPath, '--holo', changedPath, '--statement', statement);
+  const r = cli('replay', historyPath, '--image', changedPath, '--statement', statement);
   assert.equal(r.status, 1, r.stderr);
   assert.match(r.stdout, /22 events, 7 divergences/);
   assert.match(r.stdout, /event 1: request "1\\tadd\\t20\\t22"\n\s+recorded "1\\tok\\t42"\n\s+replayed "1\\tOK\\t42"/);
@@ -411,7 +413,7 @@ test('replay: exit 1 on the changed model, every divergence printed, and the fai
 
 test('replay --json prints one canonical object, on a pass and on a failure', () => {
   for (const [holo, code, count] of [[holoPath, 0, 0], [changedPath, 1, 7]]) {
-    const r = cli('replay', historyPath, '--holo', holo, '--json');
+    const r = cli('replay', historyPath, '--image', holo, '--json');
     assert.equal(r.status, code, r.stderr);
     const value = JSON.parse(r.stdout);
     assert.equal(value.schema, 'prismpm/replay-result/1');
@@ -428,7 +430,7 @@ test('replay takes a directory of histories, sorted by name', () => {
   const second = { schema: HISTORY_SCHEMA, application: null, events: [{ request: Buffer.from('1\tadd\t1\t1').toString('hex'), response: Buffer.from('1\tok\t2').toString('hex') }] };
   writeFileSync(join(folder, 'a.json'), JSON.stringify(second));
   writeFileSync(join(folder, 'notes.txt'), 'not a history');
-  const r = cli('replay', folder, '--holo', holoPath);
+  const r = cli('replay', folder, '--image', holoPath);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /Replaying 2 histories/);
   assert.match(r.stdout, /a\.json {2}1 event, no divergence\n\s+b\.json {2}22 events/);
@@ -437,25 +439,42 @@ test('replay takes a directory of histories, sorted by name', () => {
 test('replay: exit 2 when it cannot be carried out, 64 on bad usage', () => {
   const bad = out('bad.json');
   writeFileSync(bad, '{"schema":"prism/history/1"}');
-  for (const args of [[bad, '--holo', holoPath], [out('absent.json'), '--holo', holoPath], [historyPath, '--holo', out('absent.holo')], [historyPath, '--holo', closurePath, '--statement', out('s.json')], [historyPath, '--holo', holoPath, '--statement', join(out('absent-dir'), 's.json')]]) {
+  for (const args of [[bad, '--image', holoPath], [out('absent.json'), '--image', holoPath], [historyPath, '--image', out('absent.holo')], [historyPath, '--image', closurePath, '--statement', out('s.json')], [historyPath, '--image', holoPath, '--statement', join(out('absent-dir'), 's.json')]]) {
     const r = cli('replay', ...args);
     assert.equal(r.status, 2, `${args.join(' ')}: ${r.stderr}`);
     assert.equal(r.stdout, '');
   }
-  assert.match(cli('replay', bad, '--holo', holoPath).stderr, /could not replay: replay\.history/);
+  assert.match(cli('replay', bad, '--image', holoPath).stderr, /could not replay: replay\.history/);
   assert.equal(cli('replay', historyPath).status, 64);
-  assert.equal(cli('replay', '--holo', holoPath).status, 64);
-  assert.equal(cli('replay', historyPath, '--holo', holoPath, '--colour', 'red').status, 64);
+  assert.equal(cli('replay', '--image', holoPath).status, 64);
+  assert.equal(cli('replay', historyPath, '--image', holoPath, '--colour', 'red').status, 64);
 });
 
-test('history: prints the acceptance vectors, or writes them with --output', () => {
-  const printed = cli('history', holoPath);
+test('record: prints the acceptance vectors, or writes them with --output', () => {
+  const printed = cli('record', holoPath);
   assert.equal(printed.status, 0, printed.stderr);
   assert.equal(printed.stdout, historyText);
   const file = out('history.json');
-  assert.equal(cli('history', holoPath, '--output', file).status, 0);
+  assert.equal(cli('record', holoPath, '--output', file).status, 0);
   assert.equal(readFileSync(file, 'utf8'), historyText);
-  assert.equal(cli('history').status, 64);
+  assert.equal(cli('record').status, 64);
+});
+
+test('the deprecated history and --holo still work, each printing one warning that names the new term (#347)', () => {
+  const [verb, flag] = ['history', 'holo'].map((name) => ALIASES.find((alias) => alias.name === name));
+  const renamed = cli('record', holoPath);
+  assert.equal(renamed.stderr, '');
+  const old = cli('history', holoPath);
+  assert.equal(old.status, 0, old.stderr);
+  assert.equal(old.stdout, renamed.stdout);
+  assert.equal(old.stderr, `${aliasWarning(verb)}\n`);
+  assert.match(old.stderr, /use record$/m);
+
+  assert.equal(cli('replay', historyPath, '--image', holoPath).stderr, '');
+  const replayed = cli('replay', historyPath, '--holo', holoPath, '--holo', holoPath);
+  assert.equal(replayed.status, 0, replayed.stderr);
+  assert.equal(replayed.stderr, `${aliasWarning(flag)}\n`);
+  assert.match(replayed.stderr, /use --image$/m);
 });
 
 test('run --record writes every dispatch to the file, and that file replays', async () => {
@@ -479,8 +498,8 @@ test('run --record writes every dispatch to the file, and that file replays', as
   }
   const history = parseHistory(readFileSync(record));
   assert.deepEqual(history.events, [{ request: Buffer.from('1\tadd\t20\t22').toString('hex'), response: Buffer.from('1\tok\t42').toString('hex') }]);
-  assert.equal(cli('replay', record, '--holo', holoPath).status, 0);
-  assert.equal(cli('replay', record, '--holo', changedPath).status, 1);
+  assert.equal(cli('replay', record, '--image', holoPath).status, 0);
+  assert.equal(cli('replay', record, '--image', changedPath).status, 1);
 });
 
 test('the version constant is the one package.json states, and acceptanceHistory matches app.history', async () => {

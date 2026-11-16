@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {closeSync,constants,fstatSync,fsyncSync,lstatSync,mkdirSync,openSync,opendirSync,readFileSync,realpathSync,rmSync,writeFileSync} from 'node:fs';
 import {dirname,join,resolve,sep} from 'node:path';
 import {renderAccountGenesisBinding,verifyAccountGenesisConstruction} from './account-genesis-artifact.mjs';
-import {createCompilerOwner} from '../tests/browser-view/compiler-owner.mjs';
+import {createCompilerOwner,createSdkAccountGenesisCompilerOwner} from '../tests/browser-view/compiler-owner.mjs';
 import {prepareAccountGenesis,describeAccountGenesisArtifact,repository,sha} from '../tests/browser-account-genesis/compile.mjs';
 import {requireGeneratedWasm} from '../tests/browser-view/generated-wasm.mjs';
 import {captureFile,capturedFile} from '../tests/browser-view/file-custody.mjs';
@@ -20,7 +20,7 @@ if(proposal) {
   assert(realpathSync(dirname(proposalPath))===dirname(proposalPath),'unaliased existing proposal parent');
   assert.throws(()=>lstatSync(proposalPath),{code:'ENOENT'},'proposal cannot overwrite existing evidence');
 }
-const compiler=createCompilerOwner('account-genesis');
+const compiler=mode==='install'?createSdkAccountGenesisCompilerOwner():createCompilerOwner('account-genesis');
 let build,retired=false,completed=false,failed=false;
 try {
 build=prepareAccountGenesis(compiler);

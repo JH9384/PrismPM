@@ -239,7 +239,7 @@ fn case(corpus: &Corpus, row: &Case, changed_pattern: bool) -> Result<(), PrismE
             )));
         }
         if mode == 0
-            && crate::holo::archive::content_kappa(&input) != format!("blake3:{}", &encoded[..64])
+            && crate::holo::archive::v4_label(&input) != format!("blake3:{}", &encoded[..64])
         {
             return Err(fail("archive content identity differs from upstream"));
         }

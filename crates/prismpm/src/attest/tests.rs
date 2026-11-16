@@ -5,8 +5,9 @@
 use super::*;
 use crate::holo::archive::{attach_attestations, strip_attestations};
 
-/// The reference archive, `calculator-example` `artifacts/Calculator.holo`, unsigned.
-const CALCULATOR: &[u8] = include_bytes!("../../../../sdk/npm/prism-code/fixtures/Calculator.holo");
+/// The reference archive as a holo v5 (ADR-017), unsigned: only a v5 holo is signed.
+const CALCULATOR: &[u8] =
+    include_bytes!("../../../../sdk/npm/prism-code/fixtures/Calculator.v5.holo");
 /// Test-only keys, generated once with OpenSSL and committed; they protect nothing.
 const P256_PRIVATE: &str = include_str!("../../tests/data/attest/p256.private.pem");
 const P256_PUBLIC: &str = include_str!("../../tests/data/attest/p256.public.pem");
@@ -122,7 +123,7 @@ fn guest() -> (String, Vec<u8>) {
     let parsed = parse_application(CALCULATOR).unwrap();
     let label = parsed.identities.guest_content_kappa.clone();
     let content = parsed.blobs[&label].clone();
-    assert!(label.starts_with("blake3:") && content.starts_with(b"\0asm"));
+    assert!(label.starts_with("sha256:") && content.starts_with(b"\0asm"));
     (label, content)
 }
 
@@ -502,10 +503,11 @@ fn ho_29_a_local_key_signs_a_statement_into_the_holo_that_verifies_offline() {
         assert_eq!(stored[0].line, out.bundle);
         assert_eq!(strip_attestations(&out.holo).unwrap(), CALCULATOR);
 
-        // The subject is the guest blob with both digests, recomputed from its bytes.
+        // The subject is the guest object by its κ, recomputed from its bytes (ADR-017).
+        assert_eq!(&label[7..], der::hex(&crypto::sha256(&content)));
         assert_eq!(
             out.statement["subject"],
-            json!([{"name": "guest", "digest": {"sha256": der::hex(&crypto::sha256(&content)), "blake3": &label[7..]}}])
+            json!([{"name": "guest", "digest": {"sha256": &label[7..]}}])
         );
         // The bundle has the shape the JavaScript signer writes.
         let bundle: Value = serde_json::from_slice(&out.bundle).unwrap();
@@ -592,8 +594,8 @@ fn ho_30_the_wrong_key_a_wrong_subject_and_a_missing_attestation_are_typed() {
     assert_eq!(error.code, "PP3102");
 
     // A statement that names the wrong digest is a subject mismatch, even with a valid signature.
-    let (label, content) = guest();
-    let statement = |sha256: String| json!({"_type": STATEMENT_TYPE, "subject": [{"name": "guest", "digest": {"sha256": sha256, "blake3": &label[7..]}}], "predicateType": PROOF, "predicate": {}});
+    let (_, content) = guest();
+    let statement = |sha256: String| json!({"_type": STATEMENT_TYPE, "subject": [{"name": "guest", "digest": {"sha256": sha256}}], "predicateType": PROOF, "predicate": {}});
     let sound = attach_attestations(
         CALCULATOR,
         &[sign_by_hand(

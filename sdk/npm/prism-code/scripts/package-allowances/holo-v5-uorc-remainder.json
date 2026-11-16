@@ -1,0 +1,4 @@
+{
+  "kib": 30,
+  "reason": "The rest of what holo v5 (#663, ADR-017) added: that change grew the package by about 43 KiB under an 8 KiB allowance (holo-v5-uorc.json), sized before prism/spec/2 (#665) used the slack, so main stood at 1,825,767 bytes against a cap of 1,795,072. This covers the 30,695 bytes it was over."
+}

@@ -1,0 +1,198 @@
+
+  oci-native:
+    name: publish source-addressed OCI/native verification assets
+    needs: [gate, factory, images, native, reproducibility, installed-sdk]
+    if: >-
+      ${{ !cancelled() && needs.gate.result == 'success' && needs.factory.result == 'success'
+      && ((needs.factory.outputs.build-route == 'establish' && needs.images.result == 'success'
+      && needs.native.result == 'success' && needs.reproducibility.result == 'success' && needs.installed-sdk.result == 'success')
+      || (needs.factory.outputs.build-route == 'proved' && needs.images.result == 'skipped'
+      && needs.native.result == 'skipped' && needs.reproducibility.result == 'skipped' && needs.installed-sdk.result == 'skipped')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: false
+          persist-credentials: false
+      - name: Require the source-bound publication policy
+        env:
+          DISPATCH_VERSION: ${{ inputs.version }}
+          PUBLISH_CRATES: ${{ toJSON(inputs.publish-crates) }}
+          REHEARSAL: ${{ toJSON(inputs.rehearsal) }}
+        run: node scripts/release-phases.mjs policy
+      - name: Require every original non-Cargo prerequisite
+        env:
+          RELEASE_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/release-phases.mjs prerequisites oci-native
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: native-*
+          path: release
+          merge-multiple: true
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: '*-image'
+          path: release
+          merge-multiple: true
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: '*-supply-chain'
+          path: release
+          merge-multiple: true
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: reproducibility-*
+          path: release
+          merge-multiple: true
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: factory-route
+          path: release
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: product-cli-sdk-amd64
+          path: .sdk-gate-evidence/product-cli-sdk-amd64
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: product-cli-sdk-arm64
+          path: .sdk-gate-evidence/product-cli-sdk-arm64
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: browser-sdk-sdk-amd64
+          path: release
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: browser-sdk-sdk-arm64
+          path: release
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: library-sdk-sdk-amd64
+          path: .sdk-gate-evidence/library-sdk-sdk-amd64
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: library-sdk-sdk-arm64
+          path: .sdk-gate-evidence/library-sdk-sdk-arm64
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: source-vv
+          path: .sdk-gate-evidence/source-vv
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sdk-equivalence-amd64
+          path: .sdk-gate-evidence/native-equivalence-sdk-amd64
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sdk-equivalence-arm64
+          path: .sdk-gate-evidence/native-equivalence-sdk-arm64
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - name: Preserve complete native SDK gate evidence without changing acceptance scope
+        shell: bash
+        env:
+          SOURCE_REVISION: ${{ needs.gate.outputs.source-revision }}
+          SOURCE_RUN_ID: ${{ needs.gate.outputs.source-run-id }}
+          SOURCE_RUN_ATTEMPT: ${{ needs.gate.outputs.source-run-attempt }}
+          # Build evidence is packed with the run that established it: this
+          # one, or the build receipt's (release/factory-route.json says which).
+          BUILD_REVISION: ${{ needs.factory.outputs.build-route == 'proved' && needs.factory.outputs.build-revision || github.sha }}
+          BUILD_RUN_ID: ${{ needs.factory.outputs.build-route == 'proved' && needs.factory.outputs.build-run-id || github.run_id }}
+          BUILD_RUN_ATTEMPT: ${{ needs.factory.outputs.build-route == 'proved' && needs.factory.outputs.build-run-attempt || github.run_attempt }}
+        run: |
+          set -euo pipefail
+          image=$(cat release/sdk-image.txt)
+          # Native evidence binds the source closure of the revision that
+          # built it. A proved build verifies it against that revision's tree.
+          build_root=$PWD
+          if [ "$BUILD_REVISION" != "$GITHUB_SHA" ]; then
+            build_root=$RUNNER_TEMP/build-source
+            git fetch --no-tags --depth=1 origin "$BUILD_REVISION"
+            git worktree add --detach "$build_root" "$BUILD_REVISION"
+          fi
+          node scripts/library-sdk-metadata-evidence.mjs join \
+            .sdk-gate-evidence/library-sdk-sdk-amd64/root-a/target/library-sdk-evidence/linux-amd64 \
+            .sdk-gate-evidence/library-sdk-sdk-arm64/root-a/target/library-sdk-evidence/linux-arm64 \
+            "$build_root" "$image" "$BUILD_REVISION" > release/sdk-metadata-native-join.json
+          cp .sdk-gate-evidence/library-sdk-sdk-amd64/sdk-amd64-library-sdk.log release/
+          cp .sdk-gate-evidence/library-sdk-sdk-arm64/sdk-arm64-library-sdk.log release/
+          # Source evidence is packed with the run that established it: this
+          # one, or the receipt's (release/factory-route.json says which).
+          node scripts/sdk-release-evidence.mjs source-vv .sdk-gate-evidence/source-vv \
+            release/source-vv.tar - "$SOURCE_REVISION" amd64 "$SOURCE_RUN_ID" "$SOURCE_RUN_ATTEMPT"
+          for architecture in amd64 arm64; do
+            node scripts/library-sdk-metadata-evidence.mjs pack \
+              ".sdk-gate-evidence/library-sdk-sdk-$architecture/root-a/target/library-sdk-evidence/linux-$architecture" \
+              "release/sdk-$architecture-native-metadata.tar" "$build_root" "$image" "$BUILD_REVISION" "$architecture"
+            node scripts/sdk-release-evidence.mjs product-cli \
+              ".sdk-gate-evidence/product-cli-sdk-$architecture" "release/sdk-$architecture-product-cli.tar" \
+              "$image" "$BUILD_REVISION" "$architecture"
+            node scripts/sdk-release-evidence.mjs native-equivalence \
+              ".sdk-gate-evidence/native-equivalence-sdk-$architecture" "release/sdk-$architecture-native-equivalence.tar" \
+              "$image" "$BUILD_REVISION" "$architecture" "$BUILD_RUN_ID" "$BUILD_RUN_ATTEMPT"
+          done
+      - shell: bash
+        run: |
+          set -euo pipefail
+          cd release
+          checksums=$(mktemp)
+          trap 'rm -f "$checksums"' EXIT
+          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$checksums"
+          mv "$checksums" SHA256SUMS
+      - uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661
+        if: ${{ needs.gate.outputs.rehearsal != 'true' }}
+        with:
+          subject-path: release/prismpm-*.tar.gz
+      - name: Publish only exact unaccepted verification assets; never overwrite
+        if: ${{ needs.gate.outputs.rehearsal != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NEEDS: ${{ toJSON(needs) }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+          PUBLISH_CRATES: ${{ toJSON(inputs.publish-crates) }}
+          REHEARSAL: ${{ toJSON(inputs.rehearsal) }}
+        run: node scripts/release-publication.mjs publish-oci release
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: oci-native-publication
+          path: release/*
+          if-no-files-found: error
+          retention-days: 30

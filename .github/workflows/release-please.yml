@@ -1,0 +1,167 @@
+name: release-please
+
+# Turns Conventional Commit subjects on main into release pull requests, and a
+# merged release pull request into a tag and a GitHub Release. Below 1.0 it bumps
+# the way STABILITY.md section 2 says: a breaking change is a minor bump, everything
+# else a patch bump (release-please-config.json). docs/proposals/303-release-automation.md
+# has the whole flow and which step is whose.
+#
+#   Run by hand, mode open-pr   opens or updates the release pull requests of every package
+#                               whose current version is tagged, and makes their changelog
+#                               entries pass `node sdk/docs/changelog.mjs` so nobody edits
+#                               a changelog.
+#   Run by hand, mode dry-run   prints each pull request, tag and release body it would
+#                               produce and writes nothing. It works in a fork.
+#   Push to main that changes   a release pull request merged, because only they change
+#   the manifest                the manifest: cut its tag and GitHub Release.
+#
+# Nothing here publishes to npm, crates.io or a registry. The tag job uses GITHUB_TOKEN
+# on purpose: a tag it creates starts no workflow, so `prism-code-v*` cannot fire the npm
+# publish in npm-prism-code.yml and a maintainer still decides when to publish. Do not
+# give that job a personal token.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: open-pr opens release pull requests; dry-run only prints what they would be
+        required: true
+        default: open-pr
+        type: choice
+        options:
+          - open-pr
+          - dry-run
+  push:
+    branches: [main]
+    paths:
+      - .release-please-manifest.json
+
+permissions: {}
+
+concurrency:
+  group: release-please-${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'tag' }}
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: tag a merged release pull request
+    if: github.event_name == 'push' && github.repository == 'UOR-Foundation/PrismPM'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
+        with:
+          token: ${{ github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          target-branch: main
+          skip-github-pull-request: true
+      - if: steps.release.outputs.releases_created == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      # release-please takes the body from the pull request, which still has its own
+      # BREAKING CHANGES heading. The changelog entry is the one record, so it becomes the body.
+      - name: Use the changelog entry as the release body
+        if: steps.release.outputs.releases_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTPUTS: ${{ toJSON(steps.release.outputs) }}
+        run: node scripts/release-please-notes.mjs
+
+  open-pr:
+    name: open release pull requests
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.mode == 'open-pr'
+      && github.ref == 'refs/heads/main' && github.repository == 'UOR-Foundation/PrismPM'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: Install release-please at the version the action bundles
+        working-directory: scripts/release-please-dry-run
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      # A package whose current version has no tag waits, alone: the root tag is the
+      # factory's cut and can lag, and prism-code versions on its own tags. The pinned
+      # action cannot leave one package out, so this runs its library with the config
+      # narrowed in memory. GITHUB_TOKEN can open these only with "Allow GitHub Actions
+      # to create and approve pull requests" on, and what it opens starts no CI.
+      # RELEASE_PLEASE_TOKEN, scoped to this repository with contents and pull requests
+      # write, needs neither workaround.
+      - id: release
+        name: Open release pull requests for every package whose version is tagged
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: node scripts/release-please-dry-run/open-pr.mjs --branch "$BRANCH"
+      - if: steps.release.outputs.prs_created == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+      # What release-please cannot write: the four changelog headers, the notes under
+      # Unreleased, and the package array of Cargo.lock that its toml updater cannot reach.
+      # release-please makes one commit on the branch, so its parent shows which changelog
+      # it just wrote.
+      - name: Finish each release pull request
+        if: steps.release.outputs.prs_created == 'true'
+        shell: bash
+        env:
+          PRS: ${{ steps.release.outputs.prs }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          node -e 'for (const pr of JSON.parse(process.env.PRS)) console.log(pr.headBranchName)' |
+          while read -r branch; do
+            git fetch --depth=2 --no-tags origin "+refs/heads/$branch:refs/remotes/origin/$branch"
+            git switch --force-create "$branch" "origin/$branch"
+            git diff --name-only HEAD~1 HEAD -- CHANGELOG.md 'sdk/npm/*/CHANGELOG.md' |
+              xargs --no-run-if-empty node sdk/docs/changelog.mjs --normalize
+            cargo update --workspace
+            node sdk/docs/changelog.mjs
+            if ! git diff --quiet; then
+              git commit --all --message 'chore(release): finish the changelog entry and Cargo.lock'
+              git push origin "$branch"
+            fi
+          done
+
+  dry-run:
+    name: print the next release
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: Install release-please at the version the action bundles
+        working-directory: scripts/release-please-dry-run
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Dry run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          node scripts/release-please-dry-run/dry-run.mjs --branch "$BRANCH" | tee -a "$GITHUB_STEP_SUMMARY"

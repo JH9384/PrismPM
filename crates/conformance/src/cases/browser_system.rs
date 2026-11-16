@@ -32,12 +32,14 @@ pub(super) fn verify(root: &Path) {
         })
         .collect::<BTreeSet<_>>();
     assert_eq!(actual, BTreeSet::from([
+        "controller::release_tests::browser_system_admits_one_command_line_component_of_a_text_command_line_application",
         "controller::release_tests::browser_system_contract_is_registered_and_closed",
         "controller::release_tests::browser_system_named_release_proves_artifacts_oracles_and_source_free_export",
+        "controller::release_tests::browser_system_refuses_a_command_line_component_without_a_modeled_command_line",
         "controller::release_tests::browser_system_source_selection_and_requirements_fail_closed",
     ]));
     assert!(
-        stdout.contains("test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured;"),
+        stdout.contains("test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured;"),
         "{stdout}"
     );
     assert_eq!(

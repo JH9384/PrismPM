@@ -1,0 +1,77 @@
+// The closed failure vocabulary of the generated host adapter and its program.
+// The constructors, their order and their classes are those of
+// Foundation.Server.V1.Model.ServerFailure and model/host-effects-diagnostics.toml.
+
+/// Every way an exchange, a replay or an invocation fails.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Failure {
+    UnknownFlag,
+    ExtraArgument,
+    MissingCommand,
+    UnknownCommand,
+    MissingOperand,
+    InputMissing,
+    InputOpen,
+    InputType,
+    InputRead,
+    OutputWrite,
+    InputLimit,
+    AdapterAllocation,
+    ComputeFailure,
+    ResponseLimit,
+    StepMalformed,
+    EffectUndeclared,
+    EffectMalformed,
+    EffectRequestLimit,
+    EffectResultLimit,
+    EffectBudget,
+    HostFault,
+    ScriptMalformed,
+    ScriptExhausted,
+    ScriptMismatch,
+    ScriptUnused,
+    ListenAddress,
+    ListenIo,
+}
+
+/// Selects the modeled exit status of a failure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FailureClass {
+    Usage,
+    Io,
+    Fault,
+}
+
+impl Failure {
+    pub fn class(self) -> FailureClass {
+        match self {
+            Failure::UnknownFlag
+            | Failure::ExtraArgument
+            | Failure::MissingCommand
+            | Failure::UnknownCommand
+            | Failure::MissingOperand => FailureClass::Usage,
+            Failure::InputMissing
+            | Failure::InputOpen
+            | Failure::InputType
+            | Failure::InputRead
+            | Failure::OutputWrite
+            | Failure::ListenIo => FailureClass::Io,
+            Failure::InputLimit
+            | Failure::AdapterAllocation
+            | Failure::ComputeFailure
+            | Failure::ResponseLimit
+            | Failure::StepMalformed
+            | Failure::EffectUndeclared
+            | Failure::EffectMalformed
+            | Failure::EffectRequestLimit
+            | Failure::EffectResultLimit
+            | Failure::EffectBudget
+            | Failure::HostFault
+            | Failure::ScriptMalformed
+            | Failure::ScriptExhausted
+            | Failure::ScriptMismatch
+            | Failure::ScriptUnused
+            | Failure::ListenAddress => FailureClass::Fault,
+        }
+    }
+}

@@ -7,17 +7,23 @@
  */
 import { fail } from './errors.mjs';
 import { NO_CAPABILITIES } from './capabilities.mjs';
+import { SESSION_CONTRACT, SESSION_EXPORTS } from './session.mjs';
 
 export const CORE_CONTRACT = 'hologram:guest/core-wasm@1';
-const REQUIRED_EXPORTS = ['memory', 'holo_alloc', 'holo_run'];
+/** The exports each guest contract requires, exactly (issues #278, #629). */
+const REQUIRED_EXPORTS = Object.freeze({
+  [CORE_CONTRACT]: ['memory', 'holo_alloc', 'holo_run'],
+  [SESSION_CONTRACT]: [...SESSION_EXPORTS],
+});
 
 /**
  * Compile the guest and link its imports against `grant` (issue #279). Deny
  * by default: with no grant, or a grant that does not link an import, the
  * first import fails with `CapabilityDeniedError` (`capabilities.import`)
- * before any instance exists.
+ * before any instance exists. `contract` names the exports the guest must
+ * have; a contract this runtime has no world for is held to `@1`'s.
  */
-export async function compileGuest(wasmBytes, grant = NO_CAPABILITIES) {
+export async function compileGuest(wasmBytes, grant = NO_CAPABILITIES, contract = CORE_CONTRACT) {
   let module;
   try {
     module = await WebAssembly.compile(wasmBytes);
@@ -26,7 +32,7 @@ export async function compileGuest(wasmBytes, grant = NO_CAPABILITIES) {
   }
   for (const entry of WebAssembly.Module.imports(module)) grant.linkImport(entry);
   const exportNames = WebAssembly.Module.exports(module).map((e) => e.name).sort();
-  const expected = [...REQUIRED_EXPORTS].sort();
+  const expected = [...(REQUIRED_EXPORTS[contract] ?? REQUIRED_EXPORTS[CORE_CONTRACT])].sort();
   if (exportNames.length !== expected.length || exportNames.some((n, i) => n !== expected[i])) {
     fail('core.exports', `guest exports ${JSON.stringify(exportNames)}, expected ${JSON.stringify(expected)}`);
   }

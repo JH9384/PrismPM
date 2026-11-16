@@ -10,16 +10,20 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | Schema | JSON Schema | Media type | Limits | Compatibility |
 | --- | --- | --- | --- | --- |
 | `prismpm/workbench-view-projection/1` | `schemas/workbench-view-projection.schema.json` | `application/vnd.prismpm.workbench-view-projection.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
+| `prismpm/model-document/8` | `schemas/model-document-v8.schema.json` | `application/vnd.prismpm.model-document.v8+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
+| `prismpm/model-document/7` | `schemas/model-document-v7.schema.json` | `application/vnd.prismpm.model-document.v7+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/model-document/6` | `schemas/model-document-v6.schema.json` | `application/vnd.prismpm.model-document.v6+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/model-document/5` | `schemas/model-document-v5.schema.json` | `application/vnd.prismpm.model-document.v5+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/model-document/4` | `schemas/model-document-v4.schema.json` | `application/vnd.prismpm.model-document.v4+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/browser-publication-integrity/1` | `schemas/browser-publication-integrity.schema.json` | `application/vnd.prismpm.browser-publication-integrity.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
+| `prismpm/browser-publication-integrity/2` | `schemas/browser-publication-integrity-v2.schema.json` | `application/vnd.prismpm.browser-publication-integrity.v2+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
 | `prismpm/library-build-binding/1` | `schemas/library-build-binding.schema.json` | `application/vnd.prismpm.library-build-binding.v1+json` | 4194304 bytes / 4096 items | `closed`; `exact-major` |
 | `prismpm/library-acceptance/1` | `schemas/library-acceptance.schema.json` | `application/vnd.prismpm.library-acceptance.v1+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/library-verification-manifest/1` | `schemas/library-verification-manifest.schema.json` | `application/vnd.prismpm.library-verification.v1+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/library-verification-manifest/2` | `schemas/library-verification-manifest-v2.schema.json` | `application/vnd.prismpm.library-verification.v2+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/model-document/3` | `schemas/model-document-v3.schema.json` | `application/vnd.prismpm.model-document.v3+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
 | `prismpm/browser-export/1` | `schemas/browser-export.schema.json` | `application/vnd.prismpm.browser-export.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
+| `prismpm/browser-export/2` | `schemas/browser-export-v2.schema.json` | `application/vnd.prismpm.browser-export.v2+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
 | `prismpm/workspace-view-labels/1` | `schemas/workspace-view-labels.schema.json` | `application/vnd.prismpm.workspace-view-labels.v1+json` | 8192 bytes / 78 items | `closed`; `exact-major` |
 | `prismpm/verification-closure/1` | `schemas/verification-closure.schema.json` | `application/vnd.prismpm.verification.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
 | `prismpm/release-validation/1` | `schemas/release-validation.schema.json` | `application/vnd.prismpm.validation.v1+json` | 16777216 bytes / 65536 items | `closed`; `exact-major` |
@@ -57,6 +61,7 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `prismpm/evidence-signature-result/1` | `schemas/evidence-signature-result.schema.json` | `application/vnd.prismpm.evidence-signature-result.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major-additive-minor` |
 | `prismpm/fetch-result/1` | `schemas/fetch-result.schema.json` | `application/vnd.prismpm.fetch-result.v1+json` | 16777216 bytes / 65536 items | `closed`; `exact-major-additive-minor` |
 | `prismpm/inspect-result/1` | `schemas/inspect-result.schema.json` | `application/vnd.prismpm.inspect-result.v1+json` | 16777216 bytes / 65536 items | `closed`; `exact-major-additive-minor` |
+| `prismpm/generate-result/1` | `schemas/generate-result.schema.json` | `application/vnd.prismpm.generate-result.v1+json` | 16777216 bytes / 65536 items | `closed`; `exact-major-additive-minor` |
 | `prismpm/replay-result/1` | `schemas/replay-result.schema.json` | `application/vnd.prismpm.replay-result.v1+json` | 16777216 bytes / 65536 items | `closed`; `exact-major-additive-minor` |
 | `prismpm/attest-result/1` | `schemas/attest-result.schema.json` | `application/vnd.prismpm.attest-result.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major-additive-minor` |
 | `prismpm/attestation-verification-result/1` | `schemas/attestation-verification-result.schema.json` | `application/vnd.prismpm.attestation-verification-result.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major-additive-minor` |
@@ -76,6 +81,7 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `prismpm/verify-result/1` | `schemas/verify-result.schema.json` | `application/vnd.prismpm.verify-result.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major-additive-minor` |
 | `uor/template-contract/1` | `schemas/template-contract.schema.json` | `application/vnd.uor.template.contract.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
 | `uor/template-lock/1` | `schemas/template-lock.schema.json` | `application/vnd.uor.template.lock.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
+| `prismpm/server-release-replay/1` | `schemas/server-release-replay.schema.json` | `application/vnd.prismpm.server-release-replay.v1+json` | 1048576 bytes / 4096 items | `closed`; `exact-major` |
 
 ## Command state and mutation boundaries
 
@@ -91,8 +97,9 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `conformance` | `local-evidence` | `true` | `prismpm/conformance-result/1` |
 | `deploy` | `authorized-target` | `true` | `prismpm/deployment-evidence/1` |
 | `destroy` | `authorized-target-destructive` | `true` | `prismpm/deployment-evidence/1` |
-| `export-browser` | `new-local-browser-directory` | `true` | `prismpm/browser-export/1` |
+| `export-browser` | `new-local-browser-directory` | `true` | `prismpm/browser-export/2` |
 | `fetch` | `immutable-cache` | `false` | `prismpm/fetch-result/1` |
+| `generate` | `generated-bindings-directory` | `false` | `prismpm/generate-result/1` |
 | `finalize-contract` | `authorized-target-data-contract` | `true` | `prismpm/deployment-evidence/1` |
 | `inspect` | `never` | `true` | `prismpm/inspect-result/1` |
 | `lock` | `explicit-update-only` | `false` | `prismpm/sdk-lock-change/1` |
@@ -105,6 +112,7 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `pull` | `immutable-cache` | `true` | `prismpm/pull-result/1` |
 | `push` | `registry-content` | `true` | `prismpm/push-result/1` |
 | `replay` | `local-evidence` | `false` | `prismpm/replay-result/1` |
+| `replay-acceptance` | `ephemeral-runtime` | `true` | `prismpm/server-release-replay/1` |
 | `rollback` | `authorized-target` | `true` | `prismpm/deployment-evidence/1` |
 | `restore` | `authorized-clean-target` | `true` | `prismpm/restore-result/1` |
 | `run` | `ephemeral-runtime` | `true` | `prismpm/run-result/1` |
@@ -115,6 +123,41 @@ All JSON content uses UTF-8, sorted object keys, shortest canonical integers, no
 | `update` | `explicit-update-only` | `false` | `prismpm/sdk-lock-change/1` |
 | `verify` | `local-evidence` | `false` | `prismpm/verify-result/1` |
 | `verify-attestation` | `never` | `false` | `prismpm/attestation-verification-result/1` |
-| `verify-browser-publication` | `never` | `true` | `prismpm/browser-publication-integrity/1` |
+| `verify-browser-publication` | `never` | `true` | `prismpm/browser-publication-integrity/2` |
 | `verify-release` | `never` | `true` | `prismpm/signature-closure-result/1` |
 | `verify-signature` | `verified-local-evidence` | `true` | `prismpm/signature-result/1` |
+
+## Command groups
+
+`prismpm <module> <verb>` runs the command beside it, with the same arguments, output and result schema (#441). The groups are named after the nine modules of `model/modules.toml`; the flat commands stay as aliases. A module that is also a command (`verify`) is a group only when the next word is one of its verbs.
+
+| Group verb | Command |
+| --- | --- |
+| `prismpm auth attest` | `prismpm attest` |
+| `prismpm auth sign` | `prismpm sign` |
+| `prismpm auth sign-evidence` | `prismpm sign-evidence` |
+| `prismpm client completion` | `prismpm completion` |
+| `prismpm client generate` | `prismpm generate` |
+| `prismpm client template` | `prismpm template` |
+| `prismpm containers run` | `prismpm run` |
+| `prismpm containers status` | `prismpm status` |
+| `prismpm images build` | `prismpm build` |
+| `prismpm images export-browser` | `prismpm export-browser` |
+| `prismpm images inspect` | `prismpm inspect` |
+| `prismpm images pull` | `prismpm pull` |
+| `prismpm images push` | `prismpm push` |
+| `prismpm images verify` | `prismpm check` |
+| `prismpm system authority` | `prismpm authority` |
+| `prismpm system clean` | `prismpm clean` |
+| `prismpm system fetch` | `prismpm fetch` |
+| `prismpm system lock` | `prismpm lock` |
+| `prismpm system update` | `prismpm update` |
+| `prismpm verify acceptance` | `prismpm replay-acceptance` |
+| `prismpm verify attestation` | `prismpm verify-attestation` |
+| `prismpm verify browser-publication` | `prismpm verify-browser-publication` |
+| `prismpm verify check` | `prismpm check` |
+| `prismpm verify conformance` | `prismpm conformance` |
+| `prismpm verify model` | `prismpm verify` |
+| `prismpm verify release` | `prismpm verify-release` |
+| `prismpm verify replay` | `prismpm replay` |
+| `prismpm verify signature` | `prismpm verify-signature` |

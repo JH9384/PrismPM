@@ -2,9 +2,11 @@
 
 use crate::config::ProjectConfig;
 use crate::error::PrismError;
-use crate::holo::canonical::{content_id, encode_canonical, encode_value};
+use crate::holo::canonical::{content_id, encode_value};
+use crate::holo::model_document::encode_canonical;
 use crate::holo::model_document::ModelDocument;
 use crate::holo::projector::project_snapshot;
+use crate::holo::provenance::{BuildProvenance, Stamp};
 use camino::Utf8PathBuf;
 use fs4::fs_std::FileExt;
 use lexlean::{
@@ -259,6 +261,9 @@ pub struct CleanResult {
 struct Prepared {
     config: ProjectConfig,
     engine: Engine,
+    /// The LexLean project directory and its configured build root.
+    lexlean_root: PathBuf,
+    lexlean_build_root: PathBuf,
     snapshot: lexlean::SemanticSnapshot,
     application_snapshot: Option<lexlean::SemanticSnapshot>,
     application_selection: Option<Selection>,
@@ -294,31 +299,74 @@ fn application_selection(
     snapshot: &lexlean::SemanticSnapshot,
 ) -> Result<Option<Selection>, PrismError> {
     let mut paths = BTreeSet::new();
+    let mut server = false;
     for module in snapshot.modules() {
-        if module.declarations().iter().any(|declaration| {
-            declaration.kind() == "definition"
-                && declaration
-                    .linked_ir()
-                    .pointer("/result/member/name")
-                    .and_then(serde_json::Value::as_str)
-                    .is_some_and(|name| name.ends_with("Application"))
-                && declaration
-                    .linked_ir()
-                    .pointer("/body/kind")
-                    .and_then(serde_json::Value::as_str)
-                    == Some("record")
-        }) {
+        let roots = module
+            .declarations()
+            .iter()
+            .filter(|declaration| {
+                declaration.kind() == "definition"
+                    && declaration
+                        .linked_ir()
+                        .pointer("/result/member/name")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|name| name.ends_with("Application"))
+                    && declaration
+                        .linked_ir()
+                        .pointer("/body/kind")
+                        .and_then(serde_json::Value::as_str)
+                        == Some("record")
+            })
+            .collect::<Vec<_>>();
+        if !roots.is_empty() {
+            server |= roots.iter().any(|declaration| {
+                declaration.linked_ir().pointer("/result/member/name")
+                    == Some(&serde_json::Value::from("ServerApplication"))
+            });
             paths.insert(Utf8PathBuf::from(module.source().path()));
         }
     }
-    match paths.len() {
-        0 => Ok(None),
-        1 => Ok(Some(Selection::Files(paths))),
-        _ => Err(PrismError::new(
+    if paths.len() > 1 {
+        return Err(PrismError::new(
             "PP2001",
             "a product source graph contains multiple application roots",
-        )),
+        ));
     }
+    if paths.is_empty() {
+        return Ok(None);
+    }
+    if server {
+        // A server application names its core root in a module it does not
+        // import. Select that module too, so the application is projected
+        // from the same sources a server project's own entrypoints give it.
+        paths.insert(server_core_module(snapshot)?);
+    }
+    Ok(Some(Selection::Files(paths)))
+}
+
+/// The source file that defines the core root of the snapshot's server application.
+fn server_core_module(snapshot: &lexlean::SemanticSnapshot) -> Result<Utf8PathBuf, PrismError> {
+    let application = crate::holo::application::project_application(snapshot)?
+        .and_then(|model| model.application);
+    let Some(crate::holo::model_document::Application::Server(application)) = application else {
+        return Err(PrismError::new(
+            "PP2001",
+            "server application root did not project as a server application",
+        ));
+    };
+    for module in snapshot.modules() {
+        for declaration in module.declarations() {
+            if format!("{}.{}", module.lean_module(), declaration.lean_name())
+                == application.core.root
+            {
+                return Ok(Utf8PathBuf::from(module.source().path()));
+            }
+        }
+    }
+    Err(PrismError::new(
+        "PP2001",
+        "server application core root is not defined",
+    ))
 }
 
 #[derive(Serialize)]
@@ -613,7 +661,9 @@ impl Controller {
             (None, None) => project_snapshot(model_snapshot)?,
         };
         let model_bytes = encode_canonical(&model)?;
-        let design_views = crate::design::render_snapshot(model_snapshot, &model)?;
+        let mut design_views = crate::design::render_snapshot(model_snapshot, &model)?;
+        // A threat model usually sits outside the application roots.
+        design_views.extend(crate::threat_model::render_snapshot(&snapshot, &model)?);
         if let Some(system) = &system {
             let expected = format!("sha256:{}", content_id(&model_bytes));
             if system.value()["application_profile"]["application_model_digest"] != expected {
@@ -628,6 +678,9 @@ impl Controller {
             if system.schema() == "prismpm/system-model/2" {
                 crate::system::browser::validate_application(system.value(), &model)?;
             }
+            if system.schema() == "prismpm/system-model/3" {
+                crate::system::host_effect::validate_application(system.value(), &model)?;
+            }
         }
         let entities = count_entities(&model)?;
         if entities > config.limits.max_entities {
@@ -637,6 +690,8 @@ impl Controller {
         Ok(Prepared {
             config,
             engine,
+            lexlean_root: plan.lexlean_root.clone().into_std_path_buf(),
+            lexlean_build_root: plan.lexlean_build_root.clone().into_std_path_buf(),
             snapshot,
             application_snapshot,
             application_selection,
@@ -772,14 +827,16 @@ impl Controller {
 
     /// Build one named system release after reconciling the committed input
     /// lock: a stale `prismpm/sdk-lock/3` is refused unless `update` is set,
-    /// in which case only its pinned `inputs` are rewritten.
+    /// in which case only its pinned `inputs` are rewritten. `provenance` says
+    /// what the built archive records about itself (#268).
     pub fn build_release_updating_lock(
         &self,
         request: BuildRequest,
         release: Option<&str>,
         update: bool,
+        provenance: &BuildProvenance,
     ) -> Result<BuildResult, PrismError> {
-        self.build_release_in(request, release, None, update)
+        self.build_release_in(request, release, None, update, provenance)
     }
 
     pub(crate) fn build_release_with_owner(
@@ -788,7 +845,13 @@ impl Controller {
         release: Option<&str>,
         exporter_owner: Option<&mut crate::exporter::VerifyExporterOwner>,
     ) -> Result<BuildResult, PrismError> {
-        self.build_release_in(request, release, exporter_owner, false)
+        self.build_release_in(
+            request,
+            release,
+            exporter_owner,
+            false,
+            &BuildProvenance::Omit,
+        )
     }
 
     fn build_release_in(
@@ -797,9 +860,10 @@ impl Controller {
         release: Option<&str>,
         exporter_owner: Option<&mut crate::exporter::VerifyExporterOwner>,
         update: bool,
+        provenance: &BuildProvenance,
     ) -> Result<BuildResult, PrismError> {
         self.with_prepared_release(request.config_path.as_deref(), release, |prepared| {
-            self.build_prepared(prepared, exporter_owner, update)
+            self.build_prepared(prepared, exporter_owner, update, provenance)
         })
     }
 
@@ -808,9 +872,28 @@ impl Controller {
         prepared: &Prepared,
         mut exporter_owner: Option<&mut crate::exporter::VerifyExporterOwner>,
         update_lock: bool,
+        provenance: &BuildProvenance,
     ) -> Result<BuildResult, PrismError> {
         // Before any compilation: a stale input lock fails fast and writes nothing.
         crate::input_lock::enforce(&self.root, update_lock, || self.pinned_inputs(prepared))?;
+        // Only an application build writes a holo to describe. A server build writes a
+        // certified core and its host adapter, and no holo, so it carries no statement.
+        let stamp = if prepared
+            .model
+            .application
+            .as_ref()
+            .is_some_and(|application| {
+                !matches!(
+                    application,
+                    crate::holo::model_document::Application::Server(_)
+                )
+            }) {
+            Stamp::begin(provenance, || {
+                Ok(crate::sdk::committed_lock(&self.root)?.map(|(_, bytes)| bytes))
+            })?
+        } else {
+            None
+        };
         if let Some(application) = &prepared.model.application {
             crate::holo::browser_application::require_runtime(application)?;
         }
@@ -832,7 +915,10 @@ impl Controller {
             .ok_or_else(|| PrismError::new("PP9001", "LexLean build omitted its identity"))?
             .to_string();
         let output_root = prepared.config.output_root(&self.root)?;
-        let lex_root = self.root.join(".lexlean/build").join(&lex_build_id);
+        let lex_root = prepared
+            .lexlean_build_root
+            .join("build")
+            .join(&lex_build_id);
         let lex_manifest_path = lex_root.join("manifest.json");
         let lex_manifest_bytes = std::fs::read(&lex_manifest_path).map_err(|error| {
             PrismError::new(
@@ -885,9 +971,16 @@ impl Controller {
             ));
         }
         if prepared.model.application.is_some() {
-            let application_build = prepared
-                .application_selection
-                .as_ref()
+            // The core of a server application is not imported by its declaration, so
+            // the files of the declaration are not its source graph: its model is
+            // projected from the whole of it, and so is its application build.
+            let selection = prepared.application_selection.as_ref().filter(|_| {
+                !matches!(
+                    prepared.model.application,
+                    Some(crate::holo::model_document::Application::Server(_))
+                )
+            });
+            let application_build = selection
                 .map(|selection| {
                     prepared
                         .engine
@@ -908,7 +1001,10 @@ impl Controller {
                 .as_ref()
                 .and_then(|result| result.build_id)
                 .map_or_else(|| lex_build_id.clone(), |id| id.to_string());
-            let application_lex_root = self.root.join(".lexlean/build").join(&application_build_id);
+            let application_lex_root = prepared
+                .lexlean_build_root
+                .join("build")
+                .join(&application_build_id);
             let application_lex_manifest =
                 std::fs::read(application_lex_root.join("manifest.json")).map_err(|error| {
                     PrismError::new("PP4002", format!("application LexLean manifest: {error}"))
@@ -958,8 +1054,29 @@ impl Controller {
                         .map_err(|error| PrismError::new("PP4002", error.to_string()))?,
                 ));
             }
-            let application_artifacts = match exporter_owner.as_deref_mut() {
-                Some(owner) => {
+            // A server application is built through the compiler's production API: the
+            // core is a certified package, the host adapter is generated around it.
+            let server_artifacts = match &prepared.model.application {
+                Some(crate::holo::model_document::Application::Server(server)) => {
+                    let mut artifacts =
+                        crate::server_build::artifacts(&crate::server_build::build(
+                            &prepared.engine,
+                            &prepared.snapshot,
+                            server,
+                            &prepared.lexlean_root,
+                            prepared.config.limits.max_diagnostics,
+                        )?);
+                    // The consumer's workspace is part of the build, so that the
+                    // release holds everything the program is built from.
+                    artifacts.extend(crate::server_build::consumer_artifacts(server, &self.root)?);
+                    Some(artifacts)
+                }
+                _ => None,
+            };
+            let mut application_artifacts = match (server_artifacts, exporter_owner.as_deref_mut())
+            {
+                (Some(artifacts), _) => artifacts,
+                (None, Some(owner)) => {
                     crate::application_build::generate_owned(
                         &self.root,
                         &prepared.model,
@@ -971,7 +1088,7 @@ impl Controller {
                     )?
                     .artifacts
                 }
-                None => crate::application_build::generate(
+                (None, None) => crate::application_build::generate(
                     &self.root,
                     &prepared.model,
                     &prepared.model_bytes,
@@ -979,6 +1096,10 @@ impl Controller {
                     &application_lex_manifest,
                 )?,
             };
+            // Before anything hashes the closure: the build identity binds the stamped bytes.
+            if let Some(stamp) = &stamp {
+                stamp.apply(&mut application_artifacts)?;
+            }
             for (path, bytes) in &application_artifacts {
                 if path.ends_with(".holo") {
                     prepared.config.limits.check_holo_length(bytes.len())?;

@@ -1,0 +1,4 @@
+{
+  "kib": 8,
+  "reason": "The CLI groups of the nine modules: src/cli/ with the dispatcher, the images and containers groups and their help lines (about 4.5 KiB), #441."
+}

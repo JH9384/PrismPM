@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {readSemantic} from '../../scripts/semantic-source.mjs';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import {verifyView,verifyModelMutation,refuseBypasses} from '../../tests/browser-view/checks.mjs';
@@ -8,7 +9,7 @@ import {prerequisite} from '../../tests/browser-view/prerequisites.mjs';
 test('DK-15 exact registered modeled interaction, presentation and rejections',()=>{
   refuseBypasses();
   const source=readFileSync(new URL('../../stdlib/src/Foundation/View/Workspace/V1/Interaction.lex.tex',import.meta.url),'utf8');
-  const ast=JSON.parse(/\\semanticdata\{(.*)\}/.exec(source)[1]);
+  const ast=readSemantic(source);
   for(const name of['workspaceInteractionBytes','workspacePresentationBytes']){
     const definitions=ast.declarations.filter(d=>d.name===name);assert.equal(definitions.length,1);assert.equal(definitions[0].kind,'definition');assert.ok(definitions[0].body);
   }

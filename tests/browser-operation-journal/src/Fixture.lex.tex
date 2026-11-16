@@ -1,9 +1,15 @@
 \begin{lexlean}{Fixture}
-\useglossary{lexlean.std.bool@1.1.0}
-\useglossary{lexlean.std.nat@1.1.0}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
 \importmodule{Foundation.Browser.Application.V1.OperationJournalWire}
 \title{Boolean}
 \begin{semanticmodule}
-\semanticdata{{"declarations":[{"axioms":[],"body":{"arguments":[{"hex":"7b","kind":"bytes"},{"kind":"var","name":"input"}],"kind":"primitive","operation":"append","result":{"kind":"bytes"}},"kind":"definition","name":"fixtureEchoBytes","parameters":[{"name":"input","type":{"kind":"bytes"}}],"result":{"kind":"bytes"}}],"spec":"lexlean/semantic-module/1"}}
+definition{
+  name: fixtureEchoBytes,
+  parameters: [input : Bytes],
+  result: Bytes,
+  body: (prim append 0x7b input : Bytes),
+  axioms: []
+}
 \end{semanticmodule}
 \end{lexlean}

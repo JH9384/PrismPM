@@ -1,0 +1,48 @@
+\begin{lexlean}{Foundation.Bindings.V1.Generate}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.bindings@1.0.0}
+\importmodule{Foundation.Bindings.V1.Model}
+\importmodule{Foundation.Bindings.V1.Source}
+\importmodule{Foundation.Bindings.V1.Js}
+\importmodule{Foundation.Bindings.V1.Python}
+\importmodule{Foundation.Bindings.V1.Rust}
+\title{Bindings generator}
+\begin{semanticmodule}
+definition{
+  name: generateJsBindings,
+  parameters: [source : Foundation.Bindings.V1.Source::BindingSource],
+  result: Foundation.Bindings.V1.Model::BindingOutput,
+  body: (match (Foundation.Bindings.V1.Source::bindingModel source)
+    | Foundation.Bindings.V1.Source::BindingSourceResult.Ready model => (Foundation.Bindings.V1.Js::writeJsBindings model)
+    | Foundation.Bindings.V1.Source::BindingSourceResult.Unbound code message => (ctor Foundation.Bindings.V1.Model::BindingOutput.Refused code message)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
+}
+
+definition{
+  name: generatePythonBindings,
+  parameters: [source : Foundation.Bindings.V1.Source::BindingSource],
+  result: Foundation.Bindings.V1.Model::BindingOutput,
+  body: (match (Foundation.Bindings.V1.Source::bindingModel source)
+    | Foundation.Bindings.V1.Source::BindingSourceResult.Ready model => (Foundation.Bindings.V1.Python::writePythonBindings model)
+    | Foundation.Bindings.V1.Source::BindingSourceResult.Unbound code message => (ctor Foundation.Bindings.V1.Model::BindingOutput.Refused code message)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
+}
+
+definition{
+  name: generateRustBindings,
+  parameters: [source : Foundation.Bindings.V1.Source::BindingSource],
+  result: Foundation.Bindings.V1.Model::BindingOutput,
+  body: (match (Foundation.Bindings.V1.Source::bindingModel source)
+    | Foundation.Bindings.V1.Source::BindingSourceResult.Ready model => (Foundation.Bindings.V1.Rust::writeRustBindings model)
+    | Foundation.Bindings.V1.Source::BindingSourceResult.Unbound code message => (ctor Foundation.Bindings.V1.Model::BindingOutput.Refused code message)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
+}
+\end{semanticmodule}
+\end{lexlean}

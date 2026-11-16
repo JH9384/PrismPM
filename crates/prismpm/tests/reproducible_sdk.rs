@@ -109,7 +109,7 @@ fn multi_platform_sdk_lock_schema_validation_and_falsification() {
     );
 
     // CanonicalDocument parsing must succeed
-    let parsed = CanonicalDocument::from_value("prismpm/sdk-lock/2", lock.clone())
+    let parsed = prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", lock.clone())
         .expect("canonical document from value");
     assert_eq!(parsed.schema(), "prismpm/sdk-lock/2");
 
@@ -117,7 +117,7 @@ fn multi_platform_sdk_lock_schema_validation_and_falsification() {
     let mut single_platform = lock.clone();
     single_platform["platforms"].as_array_mut().unwrap().pop();
     assert!(
-        CanonicalDocument::from_value("prismpm/sdk-lock/2", single_platform).is_err(),
+        prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", single_platform).is_err(),
         "single-platform lock must be rejected; both amd64 and arm64 are required"
     );
 
@@ -125,7 +125,7 @@ fn multi_platform_sdk_lock_schema_validation_and_falsification() {
     let mut swapped = lock.clone();
     swapped["platforms"][0]["manifest_digest"] = lock["platforms"][1]["manifest_digest"].clone();
     assert!(
-        CanonicalDocument::from_value("prismpm/sdk-lock/2", swapped).is_err(),
+        prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", swapped).is_err(),
         "swapped manifest digest must be rejected"
     );
 
@@ -133,7 +133,7 @@ fn multi_platform_sdk_lock_schema_validation_and_falsification() {
     let mut non_canonical_index = lock.clone();
     non_canonical_index["sdk_index"] = json!(format!("{} ", lock["sdk_index"].as_str().unwrap()));
     assert!(
-        CanonicalDocument::from_value("prismpm/sdk-lock/2", non_canonical_index).is_err(),
+        prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", non_canonical_index).is_err(),
         "non-canonical index formatting must be rejected"
     );
 }
@@ -141,7 +141,7 @@ fn multi_platform_sdk_lock_schema_validation_and_falsification() {
 #[test]
 fn sdk_running_inventory_verification_and_drift_rejection() {
     let (lock_val, inventories) = sample_sdk_lock_v2();
-    let lock = CanonicalDocument::from_value("prismpm/sdk-lock/2", lock_val).unwrap();
+    let lock = prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", lock_val).unwrap();
 
     // Matching platform inventory passes
     prismpm::sdk::validate_running_inventory(&lock, "linux/amd64", &inventories[0])
@@ -189,7 +189,7 @@ fn sdk_lock_update_proposal_workflow_and_review_gate_enforcement() {
         "generated_output_diff": "required",
         "security_review": "required"
     });
-    CanonicalDocument::from_value("prismpm/sdk-lock-update/2", valid_proposal.clone())
+    prismpm::sdk::contract_from_value("prismpm/sdk-lock-update/2", valid_proposal.clone())
         .expect("valid lock update proposal must be accepted");
 
     // Unilateral premature approval ("passed") before review must be rejected
@@ -201,7 +201,7 @@ fn sdk_lock_update_proposal_workflow_and_review_gate_enforcement() {
         let mut premature = valid_proposal.clone();
         premature[review_field] = json!("passed");
         assert!(
-            CanonicalDocument::from_value("prismpm/sdk-lock-update/2", premature).is_err(),
+            prismpm::sdk::contract_from_value("prismpm/sdk-lock-update/2", premature).is_err(),
             "premature '{review_field}: passed' without review execution must be rejected"
         );
     }
@@ -215,7 +215,7 @@ fn sdk_lock_update_proposal_workflow_and_review_gate_enforcement() {
         let mut missing = valid_proposal.clone();
         missing.as_object_mut().unwrap().remove(review_field);
         assert!(
-            CanonicalDocument::from_value("prismpm/sdk-lock-update/2", missing).is_err(),
+            prismpm::sdk::contract_from_value("prismpm/sdk-lock-update/2", missing).is_err(),
             "omitting '{review_field}' must be rejected by schema"
         );
     }

@@ -1,6 +1,5 @@
-//! Canonical JSON encode, strict decode, validation, and content identity.
+//! Canonical JSON value encode, strict decode, and content identity.
 
-use super::model_document::ModelDocument;
 use crate::error::PrismError;
 use serde::de::{Deserialize, Deserializer, Error, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Number, Value};
@@ -138,30 +137,6 @@ pub fn encode_value(value: &Value) -> Result<Vec<u8>, PrismError> {
     let mut out = Vec::new();
     write_value(value, &mut out)?;
     Ok(out)
-}
-
-/// Encode a validated model document with sorted ASCII object keys and no final LF.
-pub fn encode_canonical(doc: &ModelDocument) -> Result<Vec<u8>, PrismError> {
-    super::validate::validate(doc)?;
-    let value =
-        serde_json::to_value(doc).map_err(|error| PrismError::new("PP9001", error.to_string()))?;
-    encode_value(&value)
-}
-
-/// Strictly decode, validate, and require the input bytes to be canonical.
-pub fn decode_canonical(bytes: &[u8]) -> Result<ModelDocument, PrismError> {
-    let value = decode_value(bytes, "model-document")?;
-    let doc: ModelDocument = serde_json::from_value(value).map_err(|error| {
-        PrismError::new("PP4004", format!("invalid model-document shape: {error}"))
-    })?;
-    super::validate::validate(&doc)?;
-    if encode_canonical(&doc)? != bytes {
-        return Err(PrismError::new(
-            "PP4004",
-            "model-document fields do not have their canonical typed shape",
-        ));
-    }
-    Ok(doc)
 }
 
 /// Strictly decode one canonical JSON value, rejecting duplicates, floats,

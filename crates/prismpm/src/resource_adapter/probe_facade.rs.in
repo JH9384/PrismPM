@@ -1,0 +1,129 @@
+// Private component fixture glue. Every State transition and encoded value is
+// supplied by the actual source-generated core, never reconstructed here.
+use js_sys::{Object, Reflect, Uint8Array};
+use prism_resource_core as model;
+use wasm_bindgen::prelude::*;
+
+thread_local! { static LIVE_WRAPPERS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) }; }
+
+// Conformance-only ownership observations, not an allocator/heap sufficiency proof.
+#[wasm_bindgen]
+pub fn live_wrappers() -> u32 { LIVE_WRAPPERS.with(|live| live.get()) }
+
+#[wasm_bindgen]
+pub fn trap_for_probe() { core::arch::wasm32::unreachable(); }
+
+fn field(object: &Object, name: &str, value: &JsValue) {
+    Reflect::set(object, &JsValue::from_str(name), value).unwrap();
+}
+fn tag(kind: &str) -> Object {
+    let value = Object::new();
+    field(&value, "kind", &JsValue::from_str(kind));
+    value
+}
+fn encoded(kind: &str, name: &str, bytes: &[u8]) -> JsValue {
+    let value = tag(kind);
+    field(&value, name, &Uint8Array::from(bytes));
+    value.into()
+}
+fn failed(error: model::StreamError, disposition: model::PublicationDisposition) -> JsValue {
+    let value = tag("failed");
+    field(&value, "error", &Uint8Array::from(model::errorEncode(error).as_slice()));
+    field(&value, "disposition", &Uint8Array::from(model::dispositionEncode(disposition).as_slice()));
+    value.into()
+}
+fn computation(error: model::ComputeError) -> JsValue {
+    let value = tag("computeError");
+    let code = match error {
+        model::ComputeError::AddOverflow => "AddOverflow",
+        model::ComputeError::MulOverflow => "MulOverflow",
+        model::ComputeError::ShiftExponentTooLarge => "ShiftExponentTooLarge",
+        model::ComputeError::ShiftOverflow => "ShiftOverflow",
+        model::ComputeError::PowExponentTooLarge => "PowExponentTooLarge",
+        model::ComputeError::PowOverflow => "PowOverflow",
+        model::ComputeError::OutputTooSmall => "OutputTooSmall",
+    };
+    field(&value, "code", &JsValue::from_str(code));
+    value.into()
+}
+fn copied_input(input: &Uint8Array) -> Result<Vec<u8>, ()> {
+    let size = input.length() as usize;
+    let mut bytes = Vec::new();
+    bytes.try_reserve_exact(size).map_err(|_| ())?;
+    bytes.resize(size, 0);
+    input.copy_to(&mut bytes);
+    Ok(bytes)
+}
+
+#[wasm_bindgen]
+pub struct ProbeResource {
+    // The actual source-generated type stays in the module across calls.
+    state: Option<model::State>,
+}
+
+impl Drop for ProbeResource {
+    fn drop(&mut self) { LIVE_WRAPPERS.with(|live| live.set(live.get() - 1)); }
+}
+
+#[wasm_bindgen]
+pub fn begin(config: Uint8Array) -> JsValue {
+    let bytes = match copied_input(&config) {
+        Ok(bytes) => bytes,
+        Err(()) => return tag("resourceRefusal").into(),
+    };
+    let config = match model::configDecode(bytes) {
+        Ok(config) => config,
+        Err(error) => return failed(error, model::PublicationDisposition::NotPublished),
+    };
+    let state = match model::init(&config) {
+        Ok(state) => state,
+        Err(error) => return failed(error, model::PublicationDisposition::NotPublished),
+    };
+    let value = tag("ready");
+    LIVE_WRAPPERS.with(|live| live.set(live.get() + 1));
+    field(&value, "resource", &JsValue::from(ProbeResource { state: Some(state) }));
+    value.into()
+}
+
+#[wasm_bindgen]
+impl ProbeResource {
+    pub fn advance(&mut self, kind: &str, chunk: Uint8Array) -> JsValue {
+        let event = match kind {
+            "tick" => model::InputEvent::Tick,
+            "chunk" => match copied_input(&chunk) {
+                Ok(field_0) => model::InputEvent::Chunk { field_0 },
+                Err(()) => return tag("resourceRefusal").into(),
+            },
+            "endOfInput" => model::InputEvent::EndOfInput,
+            "cancel" => model::InputEvent::Cancel,
+            _ => panic!("private host passed an undeclared event"),
+        };
+        // Pinned codegen BORROWS State and InputEvent. Take owns a local guard;
+        // its Drop runs once after the call. Generated transitions may deeply
+        // clone fields. This is not zero-copy or a bounded-cost State claim.
+        let old = self.state.take().expect("private host reused a released resource");
+        let transition = match model::step(&old, &event) {
+            Ok(transition) => transition,
+            Err(error) => return computation(error),
+        };
+        match transition {
+            model::Transition::NeedInput { field_0 } => {
+                self.state = Some(field_0);
+                tag("needInput").into()
+            }
+            model::Transition::Advanced { field_0 } => {
+                self.state = Some(field_0);
+                tag("advanced").into()
+            }
+            model::Transition::Output { field_0, field_1 } => {
+                let result = encoded("output", "bytes", &field_0);
+                self.state = Some(field_1);
+                result
+            }
+            model::Transition::Complete { field_0 } => {
+                encoded("complete", "summary", model::summaryEncode(&field_0))
+            }
+            model::Transition::Failed { field_0, field_1 } => failed(field_0, field_1),
+        }
+    }
+}

@@ -8,10 +8,14 @@
  * runtime writes the same thing in its own language. It is not in the published
  * package.
  */
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
-import { experimental_verify, grantOf, inspect, load, parseCapabilities, PrismError } from '../src/index.mjs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { experimental_recorder, experimental_replay, experimental_verify, grantOf, inspect, load, parseCapabilities, PrismError } from '../src/index.mjs';
 import { FORMAT_REVISIONS } from '../src/inspect.mjs';
+// `prism.auth` has no package export until #441 connects the modules.
+import { createAuth } from '../src/auth.mjs';
 
 const CONTRACT = 'prism/conformance-shim/1';
 const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -43,6 +47,7 @@ function loadOptions(input) {
   const options = {};
   if (input.capabilities !== undefined) options.capabilities = input.capabilities;
   if (input.capabilitySet !== undefined) options.capabilitySet = input.capabilitySet;
+  if (input.allowUnverified !== undefined) options.allowUnverified = input.allowUnverified;
   return options;
 }
 
@@ -74,12 +79,43 @@ const OPERATIONS = {
     const { total, passed } = await (await load(bytes)).acceptance();
     return { total, passed };
   },
+  replay: async ({ bytes, input }) => {
+    const app = await load(bytes);
+    let history = input.history;
+    if (input.record !== undefined) {
+      const recorder = experimental_recorder(app);
+      for (const request of input.record) await recorder.dispatch(hexToBytes(request)).catch(() => {});
+      history = await recorder.history();
+    }
+    const { events, divergenceCount, histories, statement } = await experimental_replay(app, history);
+    return { events, divergenceCount, divergences: histories.flatMap((h) => h.divergences.map((d) => d.index)), statement, ...(input.record === undefined ? {} : { history }) };
+  },
   capabilities: async ({ input }) => {
     const file = input.capabilities === undefined ? null : parseCapabilities(input.capabilities);
     const grant = input.capabilitySet === undefined ? grantOf(file) : grantOf(file, input.capabilitySet);
     const answers = (input.queries ?? []).map(({ kind, resource }) => grant.allows(kind, resource));
     for (const { kind, resource } of input.asserts ?? []) grant.assert(kind, resource);
     return { set: grant.set, answers };
+  },
+  auth: async ({ input }) => {
+    const directory = await mkdtemp(join(tmpdir(), 'prism-shim-auth-'));
+    try {
+      const path = join(directory, 'config.json');
+      if (input.config !== undefined) await writeFile(path, typeof input.config === 'string' ? input.config : JSON.stringify(input.config));
+      const auth = createAuth({ env: { DOCKER_CONFIG: directory, PATH: '', ...input.env } });
+      const calls = {
+        login: () => auth.login(input.request),
+        logout: () => auth.logout(input.request),
+        inspect: () => auth.inspect(input.registry),
+        'stores.get': () => auth.stores.get(input.registry),
+        'identities.fromKey': () => auth.identities.fromKey(input.key),
+        'identities.keyless': () => auth.identities.keyless({ identityToken: input.identityToken }),
+      };
+      const value = await calls[input.call]();
+      return { value, config: JSON.parse(await readFile(path, 'utf8').catch(() => 'null')) };
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   },
 };
 

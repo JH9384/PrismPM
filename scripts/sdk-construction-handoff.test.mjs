@@ -4,12 +4,14 @@ import {createHash} from 'node:crypto';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
 import {validateConstructionAuthority,validateConstructionMetadata,composeConstructionIndex} from './sdk-construction-handoff.mjs';
+// The workspace version the image label carries (scripts/workspace-version.mjs).
+const workspaceVersion=()=>/^version = "([^"]+)"$/m.exec(readFileSync(new URL('../Cargo.toml',import.meta.url),'utf8').split('[workspace.package]')[1])[1];
 const sha=b=>'sha256:'+createHash('sha256').update(b).digest('hex');
 const bytes=v=>Buffer.from(JSON.stringify(v));
 const now=Date.parse('2026-10-08T00:00:00Z');
 function fixture(runId=123,attempt=1){
  const source='a'.repeat(40),expected={revision:source,run_id:runId,run_attempt:attempt,artifact_ids:{amd64:12,arm64:13}};
- const run={repository:{id:1,full_name:'UOR-Foundation/PrismPM'},head_repository:{id:1,full_name:'UOR-Foundation/PrismPM'},
+ const run={repository:{id:1,full_name:'UOR-Foundation/prismpm'},head_repository:{id:1,full_name:'UOR-Foundation/prismpm'},
   id:runId,run_attempt:attempt,head_sha:source,path:'.github/workflows/sdk-candidate.yml',event:'workflow_dispatch',status:'completed',conclusion:'success',
   created_at:'2026-10-07T00:58:00Z',run_started_at:'2026-10-07T00:59:00Z',updated_at:'2026-10-07T01:02:00Z'};
  // Original declared workflow steps followed by genuine runner post-action gaps.
@@ -38,7 +40,7 @@ function fixture(runId=123,attempt=1){
  const standards=bytes({schema:'prismpm/standards-lock/1',authorities:[],oracles:[]});
  function lane(arch){
   const config=bytes({os:'linux',architecture:arch,config:{Labels:{'org.opencontainers.image.revision':source,
-   'org.opencontainers.image.source':'https://github.com/UOR-Foundation/PrismPM','org.opencontainers.image.version':'0.4.0',
+   'org.opencontainers.image.source':'https://github.com/UOR-Foundation/prismpm','org.opencontainers.image.version':workspaceVersion(),
    'org.opencontainers.image.created':'1970-01-01T00:00:00Z'}}});
   const manifest=bytes({schemaVersion:2,mediaType:'application/vnd.oci.image.manifest.v1+json',
    config:{mediaType:'application/vnd.oci.image.config.v1+json',digest:sha(config),size:config.length},layers:[{
@@ -103,6 +105,15 @@ test('additive integrity owner must be skipped and cannot replace original nativ
  }
  const g=fixture();g.authority.jobs[5]={...g.authority.jobs[3],id:6,name:'construction-integrity'};assert.throws(()=>g.admit());
 });
+test('the previous nine-job workflow, without the disk step, is still admitted by its own profile',()=>{
+ const previous=readFileSync(new URL('../tests/sdk-construction/sdk-candidate-nine.yml',import.meta.url));
+ const current=readFileSync(new URL('../.github/workflows/sdk-candidate.yml',import.meta.url));
+ assert.notDeepEqual(previous,current,'the fixture is the workflow before the disk step');
+ assert(!previous.toString().includes('Free runner disk')&&current.toString().includes('Free runner disk'));
+ const f=fixture();f.workflow=previous;
+ for(const [i,name]of['construction-integrity','unpublished-prerequisites','unpublished-installed'].entries())f.authority.jobs.push({...f.authority.jobs[3],id:7+i,name});
+ assert.doesNotThrow(()=>f.admit());
+});
 test('the current nine-job workflow profile is exact and bounds or command mutations fail closed',()=>{
  const current=readFileSync(new URL('../.github/workflows/sdk-candidate.yml',import.meta.url));
  const skipped=f=>{for(const [i,name]of['construction-integrity','unpublished-prerequisites','unpublished-installed'].entries())f.authority.jobs.push({...f.authority.jobs[3],id:7+i,name});};
@@ -111,7 +122,8 @@ test('the current nine-job workflow profile is exact and bounds or command mutat
  for(const mutation of [
   ['timeout-minutes: 180','timeout-minutes: 179'],
   ['max-parallel: 2','max-parallel: 1'],
-  ['node scripts/sdk-construction-record.mjs','node scripts/sdk-construction-record.mjs --mutated']
+  ['node scripts/sdk-construction-record.mjs','node scripts/sdk-construction-record.mjs --mutated'],
+  ['sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc','sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home']
  ]){
   const altered=Buffer.from(current.toString().replace(mutation[0],mutation[1]));
   assert.notDeepEqual(altered,current,'the mutation must reach the actual workflow');
@@ -205,7 +217,7 @@ test('fully resealed source standards substitutions reach the independent exact-
 test('coherently resealed metadata still cannot substitute config manifest or release claims',()=>{
  for(const mutate of [(f,l)=>{const c=JSON.parse(l.files.get('evidence/candidate.json'));c.production_accepted=true;l.files.set('evidence/candidate.json',bytes(c));},
   (f,l)=>{const m=JSON.parse(l.files.get('evidence/manifest.json'));m.config.size++;l.files.set('evidence/manifest.json',bytes(m));},
-  (f,l)=>{const m=JSON.parse(l.files.get('evidence/manifest.json'));m.layers[0].urls=['https://github.com/UOR-Foundation/PrismPM'];l.files.set('evidence/manifest.json',bytes(m));},
+  (f,l)=>{const m=JSON.parse(l.files.get('evidence/manifest.json'));m.layers[0].urls=['https://github.com/UOR-Foundation/prismpm'];l.files.set('evidence/manifest.json',bytes(m));},
   (f,l)=>{const c=JSON.parse(l.files.get('evidence/config.json'));c.architecture='arm64';const cb=bytes(c);l.files.set('evidence/config.json',cb);
    const m=JSON.parse(l.files.get('evidence/manifest.json'));m.config.digest=sha(cb);m.config.size=cb.length;l.files.set('evidence/manifest.json',bytes(m));}]){
   const f=fixture(),authority=f.admit(),l=f.lanes.amd64;mutate(f,l);

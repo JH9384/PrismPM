@@ -1,7 +1,7 @@
 //! Closed text application projection, schema, and legacy compatibility witnesses.
 
 use lexlean::{CheckRequest, Engine, LockRequest, Selection};
-use prismpm::holo::canonical::{decode_canonical, encode_canonical};
+use prismpm::holo::model_document::{decode_canonical, encode_canonical};
 use prismpm::holo::model_document::{Application, ModelDocument};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};

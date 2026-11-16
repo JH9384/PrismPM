@@ -133,7 +133,7 @@ jobs:
         run: |
           set -euo pipefail
           printf '{"run":"%s","note":"push and pull round trip of #292"}\n' "$RUN_ID" > "$RUNNER_TEMP/predicate.json"
-          node bin/prism-code.mjs attest fixtures/Calculator.holo \
+          node bin/prism-code.mjs attest fixtures/Calculator.v5.holo \
             --predicate "$RUNNER_TEMP/predicate.json" --type "$TYPE" --output "$RUNNER_TEMP/attested.holo"
           node bin/prism-code.mjs push "$RUNNER_TEMP/attested.holo" "$REF" --keyless
       - name: cosign verify-attestation accepts the same reference
@@ -142,12 +142,12 @@ jobs:
           set -euo pipefail
           cosign verify-attestation "$REF" --type "$TYPE" \
             --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$ISSUER" > "$RUNNER_TEMP/cosign.jsonl"
-          # The statement cosign accepted carries both digests of the blob, beside the manifest's sha256.
+          # The statement cosign accepted names the blob by its κ alone (ADR-017), beside the manifest's sha256.
           node -e '
             const line = require("fs").readFileSync(process.argv[1], "utf8").trim().split("\n")[0];
             const statement = JSON.parse(Buffer.from(JSON.parse(line).payload, "base64"));
             if (statement.subject[0].name !== "oci-manifest") throw new Error("no manifest subject");
-            if (!statement.subject[1].digest.blake3 || !statement.subject[1].digest.sha256) throw new Error("no dual digest");
+            if (Object.keys(statement.subject[1].digest).join() !== "sha256") throw new Error("the blob is not named by its κ alone");
           ' "$RUNNER_TEMP/cosign.jsonl"
       - name: oras discover lists the referrers
         shell: bash

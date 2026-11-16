@@ -2,6 +2,9 @@
 resolver = "2"
 members = ["crates/*", "xtask"]
 exclude = [
+    "bindings/generated/prism_bindings_js",
+    "bindings/generated/prism_bindings_python",
+    "bindings/generated/prism_bindings_rust",
     "stdlib/generated/package",
     "vendor/lexlean",
     "vendor/lean4-prod/rust/prod-codegen",
@@ -9,7 +12,7 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 rust-version = "1.97"
 license = "MIT OR Apache-2.0"
@@ -18,9 +21,9 @@ keywords = ["prismpm", "lean", "latex", "architecture", "security"]
 categories = ["compilers", "development-tools"]
 
 [workspace.dependencies]
-repo-model = { version = "0.4.0", path = "crates/model" }
-repo-conformance = { version = "0.4.0", path = "crates/conformance" }
-prismpm = { version = "0.4.0", path = "crates/prismpm" }
+repo-model = { version = "0.5.0", path = "crates/model" }
+repo-conformance = { version = "0.5.0", path = "crates/conformance" }
+prismpm = { version = "0.5.0", path = "crates/prismpm" }
 lexlean = { version = "0.4.0", path = "vendor/lexlean" }
 prod-codegen = { version = "0.1.0", path = "vendor/lean4-prod/rust/prod-codegen" }
 prod-ir = { version = "0.1.0", path = "vendor/lean4-prod/rust/prod-ir" }
@@ -37,7 +40,7 @@ nom = { version = "7", default-features = false }
 proptest = "1.6"
 jsonschema = { version = "=0.50.1", default-features = false }
 same-file = "1.0"
-rustix = { version = "=1.1.4", features = ["fs", "process"] }
+rustix = { version = "=1.1.6", features = ["fs", "process"] }
 semver = "1.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

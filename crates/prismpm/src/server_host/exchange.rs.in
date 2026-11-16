@@ -1,0 +1,143 @@
+// Fixed exchange driver of the generated host adapter. It owns the replay loop
+// and nothing else: what an effect is, how it is encoded and which host method
+// runs it are rendered into the protocol module from the declaration.
+//
+// The core is a LexLean production package built through the `lexlean`
+// `production` API: its export is `run(Bytes) -> Result<List<u64>, Overflow>`.
+// Every element of the returned list is one octet of the step; `Overflow` is
+// the one way a certified core fails and maps to `ComputeFailure`.
+//
+// The core stays a pure function. A turn presents the request and the
+// effects completed so far; the root answers with a step that is either the
+// response or one more effect to perform.
+//
+//   turn = u32 request length, request, u32 completed count,
+//          then per completed effect: u32 tag, u32 outcome length, outcome
+//   step = u32 0, response                      (done)
+//        | u32 1, u32 tag, request payload      (perform)
+
+use crate::failure::Failure;
+use crate::perform::perform;
+use crate::protocol::{self, Host, Request};
+use crate::surface;
+use crate::wire::{put_chunk, put_u32, Reader, Refusal};
+
+/// What the root asked for after a turn.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Step<'a> {
+    Done(&'a [u8]),
+    Perform(u32, &'a [u8]),
+}
+
+/// Decode a step; anything but the two forms is `StepMalformed`.
+pub fn step(bytes: &[u8]) -> Result<Step<'_>, Failure> {
+    let mut reader = Reader::new(bytes);
+    match reader.u32().map_err(|_| Failure::StepMalformed)? {
+        0 => Ok(Step::Done(reader.rest())),
+        1 => {
+            let tag = reader.u32().map_err(|_| Failure::StepMalformed)?;
+            Ok(Step::Perform(tag, reader.rest()))
+        }
+        _ => Err(Failure::StepMalformed),
+    }
+}
+
+/// Encode the turn that presents `request` and the `completed` effects.
+pub fn turn(request: &[u8], completed: &[(u32, Vec<u8>)]) -> Result<Vec<u8>, Failure> {
+    let mut out = Vec::new();
+    put_chunk(&mut out, request).map_err(|_| Failure::InputLimit)?;
+    put_u32(&mut out, u32::try_from(completed.len()).map_err(|_| Failure::EffectBudget)?);
+    for (tag, outcome) in completed {
+        put_u32(&mut out, *tag);
+        put_chunk(&mut out, outcome).map_err(|_| Failure::EffectResultLimit)?;
+    }
+    Ok(out)
+}
+
+fn response(bytes: &[u8]) -> Result<Vec<u8>, Failure> {
+    if bytes.len() > surface::RESPONSE_MAXIMUM {
+        return Err(Failure::ResponseLimit);
+    }
+    Ok(bytes.to_vec())
+}
+
+/// Run one exchange: call `root` until it is done, performing each requested
+/// effect through `host`. The request, every effect payload and outcome, the
+/// number of effects and the response are all bounded by the declaration.
+pub fn drive<H, R>(mut root: R, host: &mut H, request: &[u8]) -> Result<Vec<u8>, Failure>
+where
+    H: Host,
+    R: FnMut(Vec<u8>) -> Result<Vec<u8>, Failure>,
+{
+    if request.len() > surface::REQUEST_MAXIMUM {
+        return Err(Failure::InputLimit);
+    }
+    // A core that may request no effect is the plain frame function.
+    if !protocol::CORE.contains(&true) {
+        return response(&root(request.to_vec())?);
+    }
+    let mut completed: Vec<(u32, Vec<u8>)> = Vec::new();
+    loop {
+        let output = root(turn(request, &completed)?)?;
+        match step(&output)? {
+            Step::Done(bytes) => return response(bytes),
+            Step::Perform(tag, payload) => {
+                if completed.len() >= surface::EFFECT_BUDGET {
+                    return Err(Failure::EffectBudget);
+                }
+                let index = usize::try_from(tag).map_err(|_| Failure::EffectUndeclared)?;
+                // An effect that only fills the request frame is not the core's to request.
+                if !protocol::CORE.get(index).copied().unwrap_or(false) {
+                    return Err(Failure::EffectUndeclared);
+                }
+                let maximum = *protocol::REQUEST_MAXIMA
+                    .get(index)
+                    .ok_or(Failure::EffectUndeclared)?;
+                if payload.len() > maximum {
+                    return Err(Failure::EffectRequestLimit);
+                }
+                let effect = Request::decode(tag, payload).map_err(|refusal| match refusal {
+                    Refusal::Undeclared => Failure::EffectUndeclared,
+                    _ => Failure::EffectMalformed,
+                })?;
+                let outcome = perform(host, effect)?;
+                if outcome.len() > protocol::RESULT_MAXIMA[index] {
+                    return Err(Failure::EffectResultLimit);
+                }
+                completed.push((tag, outcome));
+            }
+        }
+    }
+}
+
+/// Read the step a production core returned: `Overflow` is a compute failure,
+/// every element must be one octet, and the whole step stays within its bound.
+pub fn octets(
+    result: Result<@CORE@::List<u64>, @CORE@::Overflow>,
+) -> Result<Vec<u8>, Failure> {
+    let mut list = result.map_err(|_| Failure::ComputeFailure)?;
+    let mut out = Vec::new();
+    while let Some((head, tail)) = list.uncons() {
+        if out.len() >= surface::STEP_MAXIMUM {
+            return Err(Failure::StepMalformed);
+        }
+        out.push(u8::try_from(head).map_err(|_| Failure::StepMalformed)?);
+        list = tail;
+    }
+    Ok(out)
+}
+
+/// The production core as a plain function, which the listener hands to each
+/// connection thread: a frame in, a frame out.
+pub fn core(input: Vec<u8>) -> Result<Vec<u8>, Failure> {
+    octets(@CORE@::run(@CORE@::Bytes::lit(&input)))
+}
+
+/// Run one exchange against the production core.
+pub fn exchange<H: Host>(host: &mut H, request: &[u8]) -> Result<Vec<u8>, Failure> {
+    drive(
+        |input| octets(@CORE@::run(@CORE@::Bytes::lit(&input))),
+        host,
+        request,
+    )
+}

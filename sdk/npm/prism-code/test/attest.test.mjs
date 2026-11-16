@@ -7,6 +7,7 @@ import { createServer } from 'node:http';
 import { createHash, generateKeyPairSync, sign as cryptoSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { inspect } from 'node:util';
 import {
   PrismError,
   SigningError,
@@ -24,10 +25,11 @@ import {
   stripAttestations,
   blake3Hex,
 } from '../src/index.mjs';
-import { experimental_attest as attest, experimental_verifyAttestations as verifyAttestations, experimental_verifyBundle as verifyBundle, GITHUB_ACTIONS_ISSUER } from '../src/attest.mjs';
+import { experimental_verifyAttestations as verifyAttestations, experimental_verifyBundle as verifyBundle, GITHUB_ACTIONS_ISSUER } from '../src/attest.mjs';
+import { experimental_attest as attest, experimental_signStatements as signStatements } from '../src/attest-write.mjs';
 
 const here = (relative) => fileURLToPath(new URL(relative, import.meta.url));
-const holo = new Uint8Array(readFileSync(here('../fixtures/Calculator.holo')));
+const holo = new Uint8Array(readFileSync(here('../fixtures/Calculator.v5.holo')));
 const PROOF = 'https://uor.foundation/prism/proof/v1';
 const PROVENANCE = 'https://slsa.dev/provenance/v1';
 
@@ -95,8 +97,8 @@ for (const type of ['ec', 'ed25519']) {
     assert.deepEqual(stripAttestations(out.holo), holo);
 
     // The subject is the guest blob with both digests, recomputed from its bytes.
-    const guest = parseArchive(holo).blobs.find((b) => b.label === 'blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380');
-    assert.deepEqual(out.statement.subject, [{ name: 'guest', digest: { sha256: sha256(guest.content), blake3: blake3Hex(guest.content) } }]);
+    const guest = parseArchive(holo).blobs.find((b) => b.label === 'sha256:dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03');
+    assert.deepEqual(out.statement.subject, [{ name: 'guest', digest: { sha256: sha256(guest.content) } }]);
 
     const result = await verifyAttestations(out.holo, { key: publicKey, type: PROOF });
     assert.equal(result.passed, true);
@@ -162,14 +164,14 @@ test('a statement that names the wrong digest is a SubjectMismatchError, even wi
   const { privateKey, publicKey } = keys();
   const guest = parseArchive(holo).blobs[0];
   const subject = (digest) => ({ name: 'guest', digest });
-  const good = { sha256: sha256(guest.content), blake3: blake3Hex(guest.content) };
+  const good = { sha256: sha256(guest.content) };
   const statement = (digest) => ({ _type: 'https://in-toto.io/Statement/v1', subject: [subject(digest)], predicateType: PROOF, predicate: {} });
 
   const sound = appendAttestations(holo, [signByHand(statement(good), privateKey)]);
   assert.equal((await verifyAttestations(sound, { key: publicKey })).passed, true, 'the by-hand bundle is sound');
 
-  // Same blake3 label, a sha256 that is not the blob's: the two digests disagree about the same bytes.
-  const forged = appendAttestations(holo, [signByHand(statement({ ...good, sha256: '0'.repeat(64) }), privateKey)]);
+  // The guest role with a sha256 that is not the guest's: the subject names other bytes.
+  const forged = appendAttestations(holo, [signByHand(statement({ sha256: '0'.repeat(64) }), privateKey)]);
   const result = await verifyAttestations(forged, { key: publicKey });
   assert.equal(result.passed, false);
   assert.ok(result.error instanceof SubjectMismatchError);
@@ -210,6 +212,7 @@ test('attest refuses what it cannot sign, each with its check', async () => {
   await rejects(sign({ predicate: undefined }), SigningError, 'sign.predicate');
   await rejects(sign({ predicate: '{nope' }), SigningError, 'sign.predicate');
   await rejects(sign({ subjects: ['nonsense'] }), SigningError, 'sign.subject');
+  await rejects(sign({ subjects: ['sha256:' + '1'.repeat(64)] }), SigningError, 'sign.subject');
   await rejects(sign({ subjects: ['blake3:' + '1'.repeat(64)] }), SigningError, 'sign.subject');
   await rejects(sign({ subjects: ['guest', 'guest'] }), SigningError, 'sign.subject');
   await rejects(sign({ key: 'not a key' }), SigningError, 'sign.key');
@@ -249,6 +252,58 @@ const TOKEN = `x.${Buffer.from(JSON.stringify({ iss: 'https://oidc.test', sub: '
 
 test('keyless attest with a token that is not a JWT is a SigningError about the identity', async () => {
   await rejects(attest(holo, { type: PROOF, predicate: {}, signingConfig: FULCIO_ONLY, identityToken: 'not-a-jwt' }), SigningError, 'sign.identity');
+});
+
+/** Everything a caller could see of an error, however it prints it. */
+const seenIn = (error) => [error.message, error.stack, inspect(error, { depth: null, showHidden: true }), JSON.stringify(error)].join('\n');
+
+test('a token that is not a JWT stays out of the error, whichever source gave it', async () => {
+  const malformed = 'test-malformed-token-a4b7c2';
+  const given = await rejects(attest(holo, { type: PROOF, predicate: {}, signingConfig: FULCIO_ONLY, identityToken: malformed }), SigningError, 'sign.identity');
+  assert.match(given.message, /^the OIDC identity token cannot be used: invalid identity token: \[redacted\]$/);
+  assert.equal(given.cause, undefined);
+  assert.equal(seenIn(given).includes(malformed), false);
+
+  const saved = process.env.SIGSTORE_ID_TOKEN;
+  process.env.SIGSTORE_ID_TOKEN = malformed;
+  try {
+    const ambient = await rejects(attest(holo, { type: PROOF, predicate: {}, signingConfig: FULCIO_ONLY }), SigningError, 'sign.identity');
+    assert.equal(ambient.cause, undefined);
+    assert.equal(seenIn(ambient).includes(malformed), false);
+  } finally {
+    if (saved === undefined) delete process.env.SIGSTORE_ID_TOKEN;
+    else process.env.SIGSTORE_ID_TOKEN = saved;
+  }
+});
+
+test('a service that quotes the token back is reported by its status, with the token and its payload replaced', async () => {
+  const payload = TOKEN.split('.')[1];
+  const server = createServer((request, response) => {
+    request.resume();
+    response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ code: 400, message: `refused ${TOKEN} with payload ${payload}` }));
+  });
+  await new Promise((done) => server.listen(0, '127.0.0.1', done));
+  try {
+    const config = { ...FULCIO_ONLY, caUrls: [{ ...FULCIO_ONLY.caUrls[0], url: `http://127.0.0.1:${server.address().port}` }] };
+    const error = await rejects(attest(holo, { type: PROOF, predicate: {}, signingConfig: config, identityToken: TOKEN }), SigningError, 'sign.service');
+    assert.match(error.message, /400/);
+    assert.match(error.message, /refused \[redacted\] with payload \[redacted\]/);
+    assert.equal(error.cause, undefined);
+    assert.equal(seenIn(error).includes(payload), false);
+  } finally {
+    await new Promise((done) => server.close(done));
+  }
+});
+
+test('with no token read, a failure still carries its cause', async () => {
+  const saved = Object.fromEntries(['SIGSTORE_ID_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_URL', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN'].map((k) => [k, process.env[k]]));
+  for (const k of Object.keys(saved)) delete process.env[k];
+  try {
+    const error = await rejects(attest(holo, { type: PROOF, predicate: {}, signingConfig: FULCIO_ONLY }), SigningError, 'sign.identity');
+    assert.notEqual(error.cause, undefined);
+  } finally {
+    for (const [k, v] of Object.entries(saved)) if (v !== undefined) process.env[k] = v;
+  }
 });
 
 test('keyless attest reports an unusable signing configuration and a refusing service', async () => {
@@ -415,4 +470,40 @@ test('a keyed bundle can still be held to a log entry and a timestamp by a pinne
   const result = await verifyAttestations(signed, { key: publicKey, trustedRoot: conformance.trustedRoot, entries: 1 });
   assert.equal(result.passed, false, 'a bundle with no log entry cannot satisfy entries: 1');
   assert.ok(result.error instanceof TransparencyError);
+});
+
+// #582: a CI build signs what prismpm wrote, the holo's unsigned placeholder and the verified directory's proof statement.
+const proofStatement = JSON.parse(readFileSync(here('../../spec/test/fixtures/attestation/statement/calculator.json'), 'utf8'));
+const placeholderOf = (statement) => ({
+  dsseEnvelope: { payload: Buffer.from(JSON.stringify(statement)).toString('base64'), payloadType: 'application/vnd.in-toto+json', signatures: [{ sig: '' }] },
+  mediaType: 'application/vnd.dev.sigstore.bundle.v0.3+json',
+  verificationMaterial: { publicKey: {} },
+});
+
+test('signStatements signs the unsigned placeholder in its place and adds a whole statement', async () => {
+  const { privateKey, publicKey } = keys();
+  const guest = proofStatement.subject[0];
+  const provenance = { _type: 'https://in-toto.io/Statement/v1', subject: [guest], predicateType: PROVENANCE, predicate: { buildDefinition: { buildType: 'https://uor.foundation/prism/holo-build/v1' } } };
+  const unsigned = appendAttestations(holo, [placeholderOf(provenance)]);
+  const before = unsigned.slice();
+  const out = await signStatements(unsigned, { unsigned: true, statements: [JSON.stringify(proofStatement)], key: privateKey });
+  assert.deepEqual(unsigned, before, 'the input holo is not modified');
+  assert.equal(out.attestations, 2, 'the placeholder is replaced, not kept beside its signed copy');
+  assert.deepEqual(out.signed.map((s) => s.statement.predicateType), [PROVENANCE, PROOF]);
+  const [first, second] = readAttestations(out.holo);
+  assert.equal(first.signed && second.signed, true);
+  assert.equal(first.envelope.payload, readAttestations(unsigned)[0].envelope.payload, 'the placeholder payload is signed byte for byte');
+  assert.deepEqual(second.statement, proofStatement);
+  assert.deepEqual(stripAttestations(out.holo), holo);
+  for (const type of [PROVENANCE, PROOF]) assert.equal((await verifyAttestations(out.holo, { key: publicKey, type })).passed, true, type);
+});
+
+test('signStatements refuses a statement about another holo, and a call with nothing to sign', async () => {
+  const { privateKey } = keys();
+  const other = structuredClone(proofStatement);
+  other.subject[0].digest.sha256 = '0'.repeat(64);
+  await rejects(signStatements(holo, { statements: [other], key: privateKey }), SubjectMismatchError, 'sign.subject');
+  await rejects(signStatements(holo, { statements: ['{"_type":"x"}'], key: privateKey }), SigningError, 'sign.statement');
+  await rejects(signStatements(holo, { unsigned: true, key: privateKey }), SigningError, 'sign.statement');
+  await rejects(signStatements(holo, { key: privateKey }), SigningError, 'sign.statement');
 });

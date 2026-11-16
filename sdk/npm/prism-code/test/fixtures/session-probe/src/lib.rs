@@ -1,0 +1,244 @@
+#![no_std]
+#![allow(dead_code, non_snake_case, unused_parens, unused_variables)]
+extern crate alloc;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComputeError {
+    AddOverflow,
+    MulOverflow,
+    ShiftExponentTooLarge,
+    ShiftOverflow,
+    PowExponentTooLarge,
+    PowOverflow,
+    OutputTooSmall,
+}
+
+// The test entry of the session ABI probe (issue #629). It stands in for the
+// generated code of a model so the runtime can be tested against the real
+// generated shim; it is never packaged in a holo and is not an application.
+//
+// The turn is the state length, the state and the request. The state is a
+// big-endian u32 counter followed by an accumulated buffer. A request whose
+// first byte is below 0xf0 is appended to the buffer, the counter increments,
+// and the step answers [counter, buffer]. The empty request answers nothing
+// and keeps the state. Requests 0xf0 to 0xf4 answer what the shim must refuse.
+pub fn step(turn: alloc::vec::Vec<u8>) -> alloc::vec::Vec<u8> {
+    use alloc::vec::Vec;
+    let state_len = u32::from_be_bytes([turn[0], turn[1], turn[2], turn[3]]) as usize;
+    let state = &turn[4..4 + state_len];
+    let request = &turn[4 + state_len..];
+    let (counter, buffer) = if state.is_empty() {
+        (0u32, &[][..])
+    } else {
+        (u32::from_be_bytes([state[0], state[1], state[2], state[3]]), &state[4..])
+    };
+    let mut answer = Vec::new();
+    let push = |out: &mut Vec<u8>, bytes: &[u8]| {
+        out.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
+        out.extend_from_slice(bytes);
+    };
+    match request.first().copied() {
+        None => {
+            push(&mut answer, state);
+            answer.extend_from_slice(&0u32.to_be_bytes());
+        }
+        // A state longer than the declared maximum.
+        Some(0xf0) => {
+            push(&mut answer, &[0u8; 257]);
+            answer.extend_from_slice(&0u32.to_be_bytes());
+        }
+        // A byte after the last response.
+        Some(0xf1) => {
+            push(&mut answer, state);
+            answer.extend_from_slice(&0u32.to_be_bytes());
+            answer.push(0);
+        }
+        // More responses than declared.
+        Some(0xf2) => {
+            push(&mut answer, state);
+            answer.extend_from_slice(&5u32.to_be_bytes());
+            for _ in 0..5 { push(&mut answer, &[]); }
+        }
+        // A response longer than declared.
+        Some(0xf3) => {
+            push(&mut answer, state);
+            answer.extend_from_slice(&1u32.to_be_bytes());
+            push(&mut answer, &[0u8; 257]);
+        }
+        // A checked failure in the model, which traps.
+        Some(0xf4) => panic!(),
+        Some(_) => {
+            let counter = counter + 1;
+            let mut next = Vec::new();
+            next.extend_from_slice(&counter.to_be_bytes());
+            next.extend_from_slice(buffer);
+            next.extend_from_slice(request);
+            push(&mut answer, &next);
+            answer.extend_from_slice(&2u32.to_be_bytes());
+            push(&mut answer, &counter.to_be_bytes());
+            push(&mut answer, &next[4..]);
+        }
+    }
+    answer
+}
+
+
+mod __prism_session_runtime {
+//! The session shim of `hologram:guest/core-wasm@2` (issue #629). Generated
+//! from a fixed template and the declared bounds; the model's behavior is the
+//! entry alone. One instance is one session. The heap starts at `__heap_base`
+//! and holds, in order: the resident state, the last step's responses, the
+//! pending request and then the step's temporaries. After every step the
+//! state and the responses are moved to the start and everything else is
+//! released, so the memory a step uses is a function of its state and request.
+use core::alloc::{GlobalAlloc, Layout};
+use core::sync::atomic::{AtomicU32, Ordering};
+
+const REQUEST_MAXIMUM: u32 = 64;
+const STATE_MAXIMUM: u32 = 256;
+const RESPONSE_MAXIMUM: u32 = 256;
+const RESPONSE_COUNT_MAXIMUM: u32 = 4;
+const MAXIMUM_PAGES: u32 = 2;
+const NONE: u32 = u32::MAX;
+
+static NEXT: AtomicU32 = AtomicU32::new(0);
+static STATE_LENGTH: AtomicU32 = AtomicU32::new(0);
+static REQUEST_AT: AtomicU32 = AtomicU32::new(NONE);
+static REQUEST_CAPACITY: AtomicU32 = AtomicU32::new(0);
+
+struct ArenaAllocator;
+
+#[global_allocator]
+static GLOBAL_ALLOCATOR: ArenaAllocator = ArenaAllocator;
+
+extern "C" { static __heap_base: u8; }
+
+#[inline(always)]
+fn trap() -> ! { core::arch::wasm32::unreachable() }
+
+#[inline(always)]
+fn align_to(value: u32, alignment: u32) -> u32 {
+    if alignment < 8 || !alignment.is_power_of_two() { trap(); }
+    value.checked_add(alignment - 1)
+        .map(|aligned| aligned & !(alignment - 1))
+        .unwrap_or_else(|| trap())
+}
+
+#[inline(always)]
+fn heap_base() -> u32 {
+    align_to(core::ptr::addr_of!(__heap_base) as u32, 8)
+}
+
+#[inline(always)]
+fn ensure_memory(required: u32) {
+    let pages = core::arch::wasm32::memory_size::<0>() as u32;
+    if pages > MAXIMUM_PAGES { trap(); }
+    let current = pages.checked_mul(65_536).unwrap_or_else(|| trap());
+    if required <= current { return; }
+    let missing = required.checked_sub(current).unwrap_or_else(|| trap());
+    let grow = missing.checked_add(65_535).map(|value| value / 65_536).unwrap_or_else(|| trap());
+    let target = pages.checked_add(grow).unwrap_or_else(|| trap());
+    if target > MAXIMUM_PAGES { trap(); }
+    if core::arch::wasm32::memory_grow::<0>(grow as usize) == usize::MAX { trap(); }
+}
+
+fn allocate(size: u32, alignment: u32) -> u32 {
+    let prior = NEXT.load(Ordering::Relaxed);
+    let start = align_to(prior.max(heap_base()), alignment.max(8));
+    let end = start.checked_add(size).unwrap_or_else(|| trap());
+    let required = if size == 0 { start.checked_add(1).unwrap_or_else(|| trap()) } else { end };
+    ensure_memory(required);
+    NEXT.store(end, Ordering::Relaxed);
+    start
+}
+
+unsafe impl GlobalAlloc for ArenaAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let size = u32::try_from(layout.size()).unwrap_or_else(|_| trap());
+        let alignment = u32::try_from(layout.align()).unwrap_or_else(|_| trap());
+        allocate(size, alignment) as *mut u8
+    }
+
+    // Released all at once when the step ends; see `holo_step`.
+    unsafe fn dealloc(&self, _pointer: *mut u8, _layout: Layout) {}
+}
+
+#[inline(always)]
+fn read_u32(bytes: &[u8], at: usize) -> u32 {
+    let end = at.checked_add(4).unwrap_or_else(|| trap());
+    if end > bytes.len() { trap(); }
+    u32::from_be_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]])
+}
+
+/// Reserve `size` bytes for the next request. Discards the last step's responses.
+#[no_mangle]
+pub extern "C" fn holo_alloc(size: i32) -> i32 {
+    if size < 0 { trap(); }
+    let size = size as u32;
+    if size > REQUEST_MAXIMUM { trap(); }
+    let state_end = heap_base().checked_add(STATE_LENGTH.load(Ordering::Relaxed)).unwrap_or_else(|| trap());
+    NEXT.store(state_end, Ordering::Relaxed);
+    let start = allocate(size, 8);
+    REQUEST_AT.store(start, Ordering::Relaxed);
+    REQUEST_CAPACITY.store(size, Ordering::Relaxed);
+    i32::try_from(start).unwrap_or_else(|_| trap())
+}
+
+/// Take one step over the request `holo_alloc` reserved. Returns `offset << 32 | length` of the responses.
+#[no_mangle]
+pub extern "C" fn holo_step(request_ptr: i32, request_len: i32) -> i64 {
+    if request_ptr < 0 || request_len < 0 { trap(); }
+    let request_ptr = request_ptr as u32;
+    let request_len = request_len as u32;
+    if request_ptr != REQUEST_AT.load(Ordering::Relaxed) || request_len > REQUEST_CAPACITY.load(Ordering::Relaxed) { trap(); }
+    REQUEST_AT.store(NONE, Ordering::Relaxed);
+    let base = heap_base();
+    let state_len = STATE_LENGTH.load(Ordering::Relaxed);
+
+    let turn_len = 4u32.checked_add(state_len).and_then(|n| n.checked_add(request_len)).unwrap_or_else(|| trap());
+    let mut turn: alloc::vec::Vec<u8> = alloc::vec::Vec::with_capacity(turn_len as usize);
+    turn.extend_from_slice(&state_len.to_be_bytes());
+    unsafe {
+        turn.extend_from_slice(core::slice::from_raw_parts(base as *const u8, state_len as usize));
+        turn.extend_from_slice(core::slice::from_raw_parts(request_ptr as *const u8, request_len as usize));
+    }
+
+    let answer: alloc::vec::Vec<u8> = crate::step(turn);
+
+    // The answer: state length, state, response count, then each response as length and bytes, and nothing after.
+    let next_state_len = read_u32(&answer, 0);
+    if next_state_len > STATE_MAXIMUM { trap(); }
+    let count_at = 4usize.checked_add(next_state_len as usize).unwrap_or_else(|| trap());
+    let count = read_u32(&answer, count_at);
+    if count > RESPONSE_COUNT_MAXIMUM { trap(); }
+    let mut cursor = count_at + 4;
+    let mut index = 0u32;
+    while index < count {
+        let length = read_u32(&answer, cursor);
+        if length > RESPONSE_MAXIMUM { trap(); }
+        cursor = cursor.checked_add(4).and_then(|n| n.checked_add(length as usize)).unwrap_or_else(|| trap());
+        if cursor > answer.len() { trap(); }
+        index += 1;
+    }
+    if cursor != answer.len() { trap(); }
+
+    // Compact: the state, then the responses, at the start of the heap. Every
+    // source lies at or above its destination's start, and `copy` allows overlap.
+    let source = answer.as_ptr() as u32;
+    let responses_len = u32::try_from(answer.len() - count_at).unwrap_or_else(|_| trap());
+    core::mem::forget(answer);
+    let responses_at = base.checked_add(next_state_len).unwrap_or_else(|| trap());
+    let responses_end = responses_at.checked_add(responses_len).unwrap_or_else(|| trap());
+    ensure_memory(responses_end);
+    unsafe {
+        core::ptr::copy((source + 4) as *const u8, base as *mut u8, next_state_len as usize);
+        core::ptr::copy((source + 4 + next_state_len) as *const u8, responses_at as *mut u8, responses_len as usize);
+    }
+    STATE_LENGTH.store(next_state_len, Ordering::Relaxed);
+    NEXT.store(responses_end, Ordering::Relaxed);
+    ((u64::from(responses_at) << 32) | u64::from(responses_len)) as i64
+}
+
+#[panic_handler]
+fn panic(_: &core::panic::PanicInfo<'_>) -> ! { trap() }
+}

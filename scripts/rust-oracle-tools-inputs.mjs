@@ -7,9 +7,10 @@ import {resolve,join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 
 const recipes=['.devcontainer/Dockerfile','sdk/Dockerfile'];
-const harness=['.github/workflows/rust-oracle-tools.yml','scripts/sdk-image-inputs.test.mjs',
-  'scripts/sdk-image-inputs.mjs','scripts/sdk-vv-inputs.mjs','sdk/inventory-metadata.mjs',
-  '.github/workflows/release.yml','.github/workflows/sdk-candidate.yml','scripts/vv.sh',
+// Only the native construction owner and its change detector affect this
+// decision. Release/SDK callers and source validation still run through the
+// workflow's unconditional SDK-input tests; they do not build this target.
+const harness=['.github/workflows/rust-oracle-tools.yml',
   'scripts/rust-oracle-tools-inputs.mjs','scripts/rust-oracle-tools-inputs.test.mjs'];
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 const revision=value=>{assert.match(value,/^[0-9a-f]{40}$/u);return value;};
@@ -24,7 +25,7 @@ export function toolStage(recipe) {
   // Ambiguous logical lines/heredocs conservatively bind the whole recipe;
   // never mistake literal FROM text for the end of an effective tool stage.
   const prefix=lines.slice(0,next).join('\n');
-  if(recipe.includes('<<')||/^#\s*escape=/mu.test(prefix)||/[\\`]$/mu.test(prefix))return recipe;
+  if(prefix.includes('<<')||/^#\s*escape=/mu.test(prefix)||/[\\`]$/mu.test(prefix))return recipe;
   // Include every instruction and comment, not a selected list of commands.
   return prefix;
 }

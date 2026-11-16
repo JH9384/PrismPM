@@ -2,6 +2,7 @@
 // Shape, catalogue selection and enabled controls never authenticate authority.
 import {decodePresentationWireValue, encodeWire, validatePresentation, validateIntent,
   progressFits, PRESENTATION_MAXIMUM, PresentationError} from './presentation-wire.mjs';
+import {tokensContrastValid} from './design-contrast.mjs';
 
 const fail = code => { throw new PresentationError(code); };
 const need = (condition, code = 'shape') => { if (!condition) fail(code); };
@@ -98,20 +99,26 @@ function ownedArray(value, minimum, maximum) {
 }
 
 export function captureDesignCatalogue(value) {
-  return freeze(ownedArray(value, 1, 16).map(pair => ownedArray(pair, 2, 2).map(tokens => {
-    const result = ownedArray(tokens, 16, 16);
-    need(result.slice(0, 7).every(color => integer(color, 0, 16777215))
-      && integer(result[7], 0, 2)
-      && integer(result[8], 1000, 4000) && integer(result[9], 1000, 3000)
-      && integer(result[10], 0, 4000) && integer(result[11], 0, 4000)
-      && integer(result[12], 16, 120) && integer(result[13], 8, 40)
-      && integer(result[14], 20, 100) && integer(result[15], 24, 96), 'design');
-    return result;
-  })));
+  return freeze(ownedArray(value, 1, 16).map(pair => {
+    const themes = ownedArray(pair, 2, 2).map(tokens => {
+      const result = ownedArray(tokens, 25, 25);
+      need(result.slice(0, 7).every(color => integer(color, 0, 16777215))
+        && integer(result[7], 0, 3)
+        && integer(result[8], 1000, 4000) && integer(result[9], 1000, 3000)
+        && integer(result[10], 0, 4000) && integer(result[11], 0, 4000)
+        && integer(result[12], 16, 120) && integer(result[13], 8, 40)
+        && integer(result[14], 20, 100) && integer(result[15], 24, 96)
+        && result.slice(16).every(color => integer(color, 0, 16777215)), 'design');
+      return result;
+    });
+    // Admission also requires every text pair at 4.5:1 and focus at 3:1, as the source does.
+    need(themes.every(tokensContrastValid), 'design');
+    return themes;
+  }));
 }
 
 export function decodeDesignCatalogue(bytes) {
-  // 16 pairs * 2 themes * 16 uint32-compatible tokens + canonical array heads.
+  // 16 pairs * 2 themes * 25 uint32-compatible tokens + canonical array heads.
   // The largest admitted token needs five encoded bytes, but the conservative
   // bound remains independent of particular palette choices.
   return captureDesignCatalogue(decodePresentationWireValue(bytes, 4096));

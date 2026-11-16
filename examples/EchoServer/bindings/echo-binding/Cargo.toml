@@ -1,0 +1,7 @@
+[package]
+name = "echo-binding"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+echo-server-host-api = { path = "../../echo-server-host-api" }

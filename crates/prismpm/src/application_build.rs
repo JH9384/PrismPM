@@ -315,10 +315,17 @@ fn generate_browser_view_v1(
         files: adapter_files,
     };
 
-    let css = "*{box-sizing:border-box}body{font-family:system-ui,sans-serif;margin:0;color:#172033;background:#f6f7fb}main{width:min(70rem,calc(100% - 2rem));margin:2rem auto;padding:1.5rem;background:white}\n";
+    // The Text page uses the Hologram tokens and brand fonts carried by closure v2.
+    let css = format!(
+        "{}{}",
+        crate::brand::FONT_FACES,
+        ":root{color-scheme:light dark;--background:#f3f3ee;--foreground:#302b28;--card:#ffffff;--border:#deddd4}@media(prefers-color-scheme:dark){:root{--background:#151312;--foreground:#f6f5f4;--card:#1e1c1b;--border:#2d2b2a}}*{box-sizing:border-box}body{font-family:Geist,\"Geist Variable\",Inter,system-ui,sans-serif;margin:0;color:var(--foreground);background:var(--background);-webkit-font-smoothing:antialiased}main{width:min(70rem,calc(100% - 2rem));margin:2rem auto;padding:1.5rem;background:var(--card);border:1px solid var(--border);border-radius:.875rem}h1{font-family:Archivo,Geist,system-ui,sans-serif;font-weight:600;letter-spacing:-.03em}\n"
+    );
     let html = format!(
-        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{}</title>\n<link rel=\"stylesheet\" href=\"app.css\">\n</head>\n<body>\n<main>\n<h1>{}</h1>\n<div id=\"app\"></div>\n</main>\n<script type=\"module\" src=\"app.js\"></script>\n</body>\n</html>\n",
-        application.view.title, application.view.heading
+        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{}</title>\n<link rel=\"stylesheet\" href=\"app.css\">\n{}\n</head>\n<body>\n<main>\n<h1>{}</h1>\n<div id=\"app\"></div>\n</main>\n<script type=\"module\" src=\"app.js\"></script>\n</body>\n</html>\n",
+        application.view.title,
+        crate::brand::HEAD_LINKS,
+        application.view.heading
     );
     let browser_js = format!(
         "const loadBinding=()=>import('./{core_crate_snake}.js');\nexport async function mount(root){{\n  const {{invoke_bytes}}=await loadBinding();\n  root.innerHTML='<h1>{}</h1>';\n}}\n",
@@ -329,7 +336,7 @@ fn generate_browser_view_v1(
         application.view.heading
     );
 
-    let browser_assets = vec![
+    let mut browser_assets = vec![
         PackageFile {
             path: "app.css".into(),
             bytes: css.as_bytes().to_vec(),
@@ -343,7 +350,7 @@ fn generate_browser_view_v1(
             bytes: html.as_bytes().to_vec(),
         },
     ];
-    let hologram_assets = vec![
+    let mut hologram_assets = vec![
         PackageFile {
             path: "app.css".into(),
             bytes: css.as_bytes().to_vec(),
@@ -357,6 +364,11 @@ fn generate_browser_view_v1(
             bytes: html.into_bytes(),
         },
     ];
+    // Closure v2: brand fonts, icons and the web app manifest, flat and sorted.
+    for assets in [&mut browser_assets, &mut hologram_assets] {
+        assets.extend(crate::brand::assets(&application.view.title));
+        assets.sort_by(|left, right| left.path.cmp(&right.path));
+    }
 
     let hologram_bundle = generate_holoview_bundle(&hologram_assets)
         .map_err(|error| PrismError::new("PP5203", error.to_string()))?;
@@ -459,6 +471,12 @@ fn application_view(
                 );
                 return Ok((generated?, model_id, view_model_id));
             }
+            Application::Server(_) => {
+                return Err(PrismError::new(
+                    "PP9001",
+                    "server applications have no view",
+                ));
+            }
             Application::Legacy(application) => {
                 let evaluated = view_value(model, application, core_sha);
                 let generated = generate_view_v1(
@@ -472,7 +490,9 @@ fn application_view(
                         core_error_type: application.error_type.clone(),
                         core_function: application.function_name.clone(),
                     },
-                );
+                )
+                .map_err(|error| PrismError::new("PP5203", error.to_string()))
+                .and_then(|generated| with_brand_closure(generated, &evaluated.title));
                 (generated, evaluated.model_id, evaluated.view_model_id)
             }
             Application::Text(application) => {
@@ -511,15 +531,49 @@ fn application_view(
                         core_crate_version: application.cargo_version.clone(),
                         core_function: entry.to_owned(),
                     },
-                );
-                (generated, model_id, view_model_id)
+                )
+                .map_err(|error| PrismError::new("PP5203", error.to_string()))
+                .and_then(|generated| with_brand_closure(generated, &application.view.title));
+                return Ok((generated?, model_id, view_model_id));
             }
         };
-    Ok((
-        generated.map_err(|error| PrismError::new("PP5203", error.to_string()))?,
-        model_id,
-        view_model_id,
-    ))
+    Ok((generated?, model_id, view_model_id))
+}
+
+/// Closure v2 for the Application/1 and Text/1 pages (#612): the vendored
+/// view generators write the six-file closure v1, and `verify` expects closure v2 for every
+/// browser page. The brand files join the browser assets only, so the
+/// Hologram View attachment keeps its canonical three files, and the
+/// browser projection in the view manifest names the closure it ships.
+fn with_brand_closure(
+    mut generated: GeneratedViewV1,
+    title: &str,
+) -> Result<GeneratedViewV1, PrismError> {
+    generated.browser_assets.extend(crate::brand::assets(title));
+    generated
+        .browser_assets
+        .sort_by(|left, right| left.path.cmp(&right.path));
+    let mut manifest: serde_json::Value = serde_json::from_slice(&generated.view_manifest.bytes)
+        .map_err(|error| PrismError::new("PP5203", error.to_string()))?;
+    let projection = manifest["projections"]
+        .as_array_mut()
+        .and_then(|projections| {
+            projections
+                .iter_mut()
+                .find(|projection| projection["target"] == "browser-wasm-bindgen")
+        })
+        .ok_or_else(|| PrismError::new("PP5203", "view manifest has no browser projection"))?;
+    projection["files"] = serde_json::Value::Array(
+        generated
+            .browser_assets
+            .iter()
+            .map(|file| json!({"path": file.path, "sha256": sha256(&file.bytes)}))
+            .collect(),
+    );
+    let mut bytes = encode_value(&manifest)?;
+    bytes.push(b'\n');
+    generated.view_manifest.bytes = bytes;
+    Ok(generated)
 }
 
 fn source_manifest(
@@ -545,8 +599,8 @@ fn package_readme(
     module: &prod_ir::Module,
     application: &Application,
 ) -> Result<String, PrismError> {
-    let entry = application
-        .entry_root()
+    let entry_root = application.entry_root();
+    let entry = entry_root
         .rsplit('.')
         .next()
         .expect("validated application entry root");
@@ -733,6 +787,7 @@ pub(crate) fn application_export_arguments(
             // Cargo identity, preserving the legacy Calculator's exact output.
             Application::Text(application) => application.cargo_name.replace('-', "_"),
             Application::Browser(application) => application.cargo_name.replace('-', "_"),
+            Application::Server(application) => application.cargo_name.replace('-', "_"),
         },
         "--out".to_owned(),
         export.to_string_lossy().into_owned(),
@@ -821,6 +876,12 @@ fn generate_in(
     })?;
     if matches!(application, Application::Browser(_)) {
         crate::holo::browser_application::require_runtime(application)?;
+    }
+    if matches!(application, Application::Server(_)) {
+        return Err(PrismError::new(
+            "PP9001",
+            "a server application is built through the production API, not the application generator",
+        ));
     }
     let stdlib: StdlibRelease = serde_json::from_str(STDLIB_RELEASE_SOURCE)
         .map_err(|error| PrismError::new("PP4101", format!("stdlib release: {error}")))?;
@@ -1109,8 +1170,8 @@ fn generate_in(
         ),
     );
 
-    let entry = application
-        .entry_root()
+    let entry_root = application.entry_root();
+    let entry = entry_root
         .rsplit('.')
         .next()
         .ok_or_else(|| PrismError::new("PP2001", "application entry root is malformed"))?;
@@ -1229,13 +1290,24 @@ fn generate_in(
         .map_err(|error| PrismError::new("PP5203", format!("browser Wasm: {error}")))?;
     let browser_lock = std::fs::read(browser_root.join("Cargo.lock"))
         .map_err(|error| PrismError::new("PP5203", format!("browser lock: {error}")))?;
+    // Closure v2 provenance names the digest of every other closure file.
+    let browser_files = generated_view
+        .browser_assets
+        .iter()
+        .map(|file| (file.path.clone(), json!(sha256(&file.bytes))))
+        .chain([
+            (browser_js_name.clone(), json!(sha256(&browser_js))),
+            (browser_wasm_name.clone(), json!(sha256(&browser_wasm))),
+        ])
+        .collect::<serde_json::Map<_, _>>();
     let browser_provenance = encode_value(&json!({
         "adapter_lock_sha256": sha256(&browser_lock),
         "adapter_wasm_sha256": sha256(&browser_wasm),
         "binding_javascript_sha256": sha256(&browser_js),
         "generated_core_sha256": generated_core_sha,
         "model_id": view_document_id,
-        "schema": "prismpm/browser-provenance/1",
+        "files": browser_files,
+        "schema": "prismpm/browser-provenance/2",
         "view_manifest_sha256": sha256(&generated_view.view_manifest.bytes),
         "view_model_id": view_model_id
     }))?;
@@ -1285,6 +1357,7 @@ fn generate_in(
             view_model_id,
             browser_projection_sha256: browser_projection_sha,
         },
+        basis: sdk_basis(repository_root),
     })?;
 
     let mut artifacts = vec![
@@ -1303,14 +1376,13 @@ fn generate_in(
         ),
         (format!("{}.holo", application.name()), holo.bytes),
         (
-            "application/application-manifest.bin".to_owned(),
+            "application/holo-manifest.json".to_owned(),
             holo.application_manifest,
         ),
         (
             "application/capability-request.bin".to_owned(),
             holo.capability_request,
         ),
-        ("application/directory.json".to_owned(), holo.directory),
         (
             "application/holo-identities.json".to_owned(),
             encode_value(
@@ -1570,6 +1642,17 @@ mod tests {
 
 /// The model-owned target metadata, shared by generation and source-free
 /// verification. V1 retains its original closed target/1 representation.
+/// κ of the Prism SDK release the project pins: the digest `prismpm.lock`
+/// names its SDK image by, which is the SHA-256 of that image's index, so it is
+/// already a κ-label once spelled `sha256:<hex>` (ADR-017). A project without a
+/// lock names no basis.
+fn sdk_basis(repository_root: &Path) -> Option<String> {
+    let lock: Value =
+        serde_json::from_slice(&std::fs::read(repository_root.join("prismpm.lock")).ok()?).ok()?;
+    let digest = lock["sdk_image"].as_str()?.rsplit_once('@')?.1;
+    crate::holo::v5::is_kappa(digest).then(|| digest.to_owned())
+}
+
 pub(crate) fn application_target_profile(application: &Application) -> Value {
     let mut target = json!({
         "contract": application.core_contract(),

@@ -10,12 +10,12 @@
  * The rules and the blocks are in lib/skill.mjs.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readCli, readPages } from './lib/generate.mjs';
-import { SKILL_FILE, SKILL_PATH, TRY_IT, readSkill, renderSkill, skillProblems } from './lib/skill.mjs';
+import { PACKAGE_SKILL_FILE, PACKAGE_SKILL_PATH, SKILL_FILE, SKILL_PATH, TRY_IT, readSkill, renderSkill, skillProblems } from './lib/skill.mjs';
 
 /** Problems with the committed skill: broken rules, then stale blocks. */
 export function checkSkill() {
@@ -26,6 +26,13 @@ export function checkSkill() {
   if (problems.length === 0 && renderSkill({ cli, pages, text }) !== text) {
     problems.push(`a generated block is stale; run node sdk/docs/skill.mjs and commit ${SKILL_FILE}`);
   }
+  let shipped = null;
+  try {
+    shipped = readFileSync(PACKAGE_SKILL_PATH, 'utf8').replace(/\r\n/g, '\n');
+  } catch {
+    // Missing is reported below.
+  }
+  if (shipped !== text) problems.push(`${PACKAGE_SKILL_FILE}, the copy prism-code ships, differs; run node sdk/docs/skill.mjs and commit both`);
   return problems;
 }
 
@@ -68,7 +75,9 @@ async function main(argv) {
   const text = readSkill();
   const next = renderSkill({ cli: readCli(), pages: readPages(), text });
   if (next !== text) writeFileSync(SKILL_PATH, next);
-  console.log(`${next === text ? 'unchanged' : 'wrote'} ${SKILL_FILE}`);
+  mkdirSync(dirname(PACKAGE_SKILL_PATH), { recursive: true });
+  writeFileSync(PACKAGE_SKILL_PATH, next);
+  console.log(`${next === text ? 'unchanged' : 'wrote'} ${SKILL_FILE}, and its copy ${PACKAGE_SKILL_FILE}`);
   return 0;
 }
 

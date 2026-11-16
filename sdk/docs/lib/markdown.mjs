@@ -35,6 +35,13 @@ export function table(header, rows) {
   return `${[line(header), rule, ...rows.map(line)].join('\n')}\n`;
 }
 
+/** The same table without alignment padding, for text that ships in a package, such as the agent skill. */
+export function compactTable(header, rows) {
+  if (rows.length === 0) throw new Error('compactTable() needs at least one row');
+  const line = (cells) => `| ${cells.map((c) => cell(c)).join(' | ')} |`;
+  return `${[line(header), `| ${header.map(() => '---').join(' | ')} |`, ...rows.map(line)].join('\n')}\n`;
+}
+
 export function fence(language, body) {
   const text = String(body)
     .replace(/\r\n/g, '\n')

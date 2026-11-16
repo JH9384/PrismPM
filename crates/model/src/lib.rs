@@ -9,6 +9,7 @@ mod browser_view_diagnostics;
 pub mod codegen;
 pub mod registry;
 pub mod release;
+mod sdk_diagnostics;
 mod stdlib_exports;
 mod stdlib_package;
 
@@ -17,6 +18,7 @@ pub use browser_adapter_diagnostics::{
 };
 pub use browser_diagnostics::{BrowserDiagnostic, BrowserDiagnostics};
 pub use browser_view_diagnostics::BrowserViewDiagnostics;
+pub use sdk_diagnostics::{SdkDiagnostic, SdkDiagnostics};
 pub use stdlib_exports::{StdlibExport, StdlibExports};
 pub use stdlib_package::StdlibPackage;
 
@@ -62,6 +64,8 @@ pub struct Model {
     pub browser_adapter_diagnostics: BrowserAdapterDiagnostics,
     /// model/browser-view-diagnostics.toml
     pub browser_view_diagnostics: BrowserViewDiagnostics,
+    /// model/sdk-diagnostics.toml
+    pub sdk_diagnostics: SdkDiagnostics,
 }
 
 /// Model load/check failure.
@@ -106,6 +110,7 @@ impl Model {
             browser_diagnostics: read(dir, "browser-diagnostics.toml")?,
             browser_adapter_diagnostics: read(dir, "browser-adapter-diagnostics.toml")?,
             browser_view_diagnostics: read(dir, "browser-view-diagnostics.toml")?,
+            sdk_diagnostics: read(dir, "sdk-diagnostics.toml")?,
         })
     }
 
@@ -120,6 +125,8 @@ impl Model {
         self.browser_diagnostics.check()?;
         self.browser_adapter_diagnostics.check()?;
         self.browser_view_diagnostics.check()?;
+        self.sdk_diagnostics
+            .check(|id| self.ids.get(id).is_some())?;
         self.ledger.check()?;
         self.check_ids()?;
         self.check_authorities()?;
@@ -502,6 +509,26 @@ mod tests {
     use super::Model;
 
     #[test]
+    fn command_groups_run_registered_commands_in_order() {
+        let model = Model::load_from_repo_root().expect("load repository model");
+        model.commands.check().expect("the committed groups hold");
+        assert!(!model.commands.group.is_empty());
+        let planted = |edit: fn(&mut super::Commands)| {
+            let mut commands = model.commands.clone();
+            edit(&mut commands);
+            commands.check().is_err()
+        };
+        assert!(planted(|c| c.group[0].command = "nonexistent".into()));
+        assert!(planted(|c| c.group[0].verb = "Upper".into()));
+        assert!(planted(|c| c.group[0].module = "-x".into()));
+        assert!(planted(|c| c.group.swap(0, 1)));
+        assert!(planted(|c| {
+            let first = c.group[0].clone();
+            c.group.insert(0, first);
+        }));
+    }
+
+    #[test]
     fn control_coverage_counts_are_separate_and_fixed() {
         let model = Model::load_from_repo_root().expect("load repository model");
         model
@@ -566,8 +593,16 @@ mod tests {
             .contracts
             .check(&root)
             .expect("all public data contracts must be registered");
-        assert_eq!(model.contracts.contract.len(), 67);
+        assert_eq!(model.contracts.contract.len(), 73);
         for (schema, path) in [
+            (
+                "prismpm/model-document/8",
+                "schemas/model-document-v8.schema.json",
+            ),
+            (
+                "prismpm/model-document/7",
+                "schemas/model-document-v7.schema.json",
+            ),
             (
                 "prismpm/model-document/6",
                 "schemas/model-document-v6.schema.json",
@@ -595,6 +630,14 @@ mod tests {
             (
                 "prismpm/browser-publication-integrity/1",
                 "schemas/browser-publication-integrity.schema.json",
+            ),
+            (
+                "prismpm/browser-publication-integrity/2",
+                "schemas/browser-publication-integrity-v2.schema.json",
+            ),
+            (
+                "prismpm/browser-export/2",
+                "schemas/browser-export-v2.schema.json",
             ),
             (
                 "prismpm/model-document/3",

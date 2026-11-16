@@ -3,7 +3,10 @@
 The manually dispatched `sdk-candidate.yml` workflow publishes only from `main`
 through the main-only `sdk-candidate` environment. Native, unprivileged build jobs
 test each exact OCI image and record its raw inventory and successful locked
-standards resolution. The credentialed publisher never executes candidate code.
+standards resolution. Each build job first removes the hosted runner's .NET,
+Android, GHC and CodeQL toolchains, which no step uses, so that the image and the
+tar the SBOM scan saves of it fit on the amd64 runner's disk. The credentialed
+publisher never executes candidate code.
 Its ORAS 1.3.0 and Cosign 3.1.3 binaries are downloaded independently and checked
 against fixed upstream SHA-256 values.
 
@@ -24,7 +27,7 @@ artifact, not an inline SPDX attestation:
    counts. Missing signatures, documents or mismatched bindings fail publication.
 
 No fields, packages, files, relationships or license text are removed or split.
-The failed run [35059468070](https://github.com/UOR-Foundation/PrismPM/actions/runs/35059468070)
+The failed run [35059468070](https://github.com/UOR-Foundation/prismpm/actions/runs/35059468070)
 produced a 26,732,935-byte AMD64 SPDX document; compaction saved only one byte.
 GitHub's inline predicate transport has a 16 MiB limit. Signing the small OCI
 manifest preserves the complete document without submitting a large inline

@@ -1,0 +1,160 @@
+\begin{lexlean}{Factory.Catalog}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\title{Boolean}
+\begin{semanticmodule}
+inductive{
+  name: State,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: opened, fields: []},
+    {name: observed, fields: []},
+    {name: proved, fields: []},
+    {name: refuted, fields: []},
+    {name: retired, fields: []}
+  ]
+}
+
+inductive{
+  name: Role,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: authoritativeInput, fields: []},
+    {name: implementation, fields: []},
+    {name: projection, fields: []},
+    {name: externalDependency, fields: []},
+    {name: historical, fields: []}
+  ]
+}
+
+structure{
+  name: Projection,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: location, type: String}, {name: role, type: Role}]
+}
+
+structure{
+  name: Model,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: kappa, type: String},
+    {name: imports, type: (List String)},
+    {name: state, type: State},
+    {name: receipts, type: (List String)},
+    {name: projections, type: (List Projection)}
+  ]
+}
+
+definition{
+  name: isOpen,
+  parameters: [state : State],
+  result: Bool,
+  body: (match state
+    | State.opened => true
+    | State.observed => false
+    | State.proved => false
+    | State.refuted => false
+    | State.retired => false)
+}
+
+definition{
+  name: isAuthority,
+  parameters: [role : Role],
+  result: Bool,
+  body: (match role
+    | Role.authoritativeInput => true
+    | Role.implementation => false
+    | Role.projection => false
+    | Role.externalDependency => false
+    | Role.historical => false)
+}
+
+definition{
+  name: authorities,
+  parameters: [projections : (List Projection)],
+  result: Nat,
+  body: (match projections
+    | List.nil => 0
+    | List.cons head tail => (if (isAuthority (project head role)) then (1 + (authorities tail)) else (authorities tail))),
+  axioms: [],
+  recursive_argument: projections
+}
+
+definition{
+  name: openCount,
+  parameters: [models : (List Model)],
+  result: Nat,
+  body: (match models
+    | List.nil => 0
+    | List.cons head tail => (if (isOpen (project head state)) then (1 + (openCount tail)) else (openCount tail))),
+  axioms: [],
+  recursive_argument: models
+}
+
+definition{
+  name: atMostOneAuthority,
+  parameters: [models : (List Model)],
+  result: Bool,
+  body: (match models
+    | List.nil => true
+    | List.cons head tail => (if ((authorities (project head projections)) <=? 1) then (atMostOneAuthority tail) else false)),
+  axioms: [],
+  recursive_argument: models
+}
+
+definition{
+  name: exactlyOneAuthority,
+  parameters: [models : (List Model)],
+  result: Bool,
+  body: (match models
+    | List.nil => true
+    | List.cons head tail => (if ((authorities (project head projections)) =? 1) then (exactlyOneAuthority tail) else false)),
+  axioms: [],
+  recursive_argument: models
+}
+
+definition{
+  name: products,
+  parameters: [],
+  result: (List Model),
+  body: (cons (record Model {name := "PrismPM", kappa := "", imports := (cons "LexLean" (nil String)), state := (ctor State.opened), receipts := (nil String), projections := (cons (record Projection {location := "UOR-Foundation/PrismPM", role := (ctor Role.authoritativeInput)}) (cons (record Projection {location := "ghcr.io/uor-foundation/prismpm-sdk", role := (ctor Role.projection)}) (cons (record Projection {location := "prismpm native archives", role := (ctor Role.projection)}) (nil Projection))))}) (cons (record Model {name := "LexLean", kappa := "", imports := (nil String), state := (ctor State.observed), receipts := (nil String), projections := (cons (record Projection {location := "UOR-Foundation/LexLean", role := (ctor Role.authoritativeInput)}) (cons (record Projection {location := "UOR-Foundation/PrismPM/vendor/lexlean", role := (ctor Role.implementation)}) (nil Projection)))}) (nil Model)))
+}
+
+theorem{
+  name: everyProductHasExactlyOneAuthority,
+  parameters: [],
+  statement: ((exactlyOneAuthority (products)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: theFactoryIsPrismPMAndOnlyItIsOpen,
+  parameters: [],
+  statement: (((openCount (products)) =? 1) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: theCatalogHoldsOnlyFirstPartyProducts,
+  parameters: [],
+  statement: (((prim length (products) : Nat) =? 2) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: aProjectionIsNeverAnAuthority,
+  parameters: [location : String],
+  statement: ((isAuthority (project (record Projection {location := location, role := (ctor Role.projection)}) role)) = false),
+  proof: reflexivity{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

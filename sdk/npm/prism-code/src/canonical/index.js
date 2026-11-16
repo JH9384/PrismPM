@@ -4,9 +4,24 @@
  * only in line endings, BOM, trailing whitespace or trailing blank lines get
  * the same hash.
  */
-import { createHash } from 'node:crypto';
+import { fail } from '../errors.mjs';
+import { sha256HexSync } from '../sha256.mjs';
 
 const BOM = '﻿';
+const encoder = new TextEncoder();
+
+/**
+ * The digest as hex. `node:crypto` where the host has one, reached without an
+ * import so that this module and `prism-code` load in a browser. Elsewhere
+ * SHA-256 is computed here, because WebCrypto's digest is async and this API is
+ * not, and no other algorithm is available.
+ */
+function digestHex(algorithm, input) {
+  const crypto = globalThis.process?.getBuiltinModule?.('node:crypto');
+  if (crypto) return crypto.createHash(algorithm).update(input, 'utf8').digest('hex');
+  if (algorithm.toLowerCase() !== 'sha256') fail('canonical.algorithm', `${algorithm} needs node:crypto, which this host does not have; sha256 is available`);
+  return sha256HexSync(encoder.encode(input));
+}
 
 /**
  * Reduce source text to its canonical form.
@@ -37,7 +52,7 @@ export function canonicalize(source, options = {}) {
 export function codeHash(source, options = {}) {
   const { algorithm = 'sha256', canonical = true, prefix = true, ...canonicalizeOptions } = options;
   const input = canonical ? canonicalize(source, canonicalizeOptions) : source;
-  const hex = createHash(algorithm).update(input, 'utf8').digest('hex');
+  const hex = digestHex(algorithm, input);
   return prefix ? `${algorithm}:${hex}` : hex;
 }
 
@@ -56,7 +71,7 @@ export function describe(source, options = {}) {
   else if (crlf === 0 && cr === 0) eol = 'lf';
   else eol = 'mixed';
   return {
-    bytes: Buffer.byteLength(source, 'utf8'),
+    bytes: encoder.encode(source).length,
     lines: body === '' ? 0 : body.replace(/\n$/, '').split('\n').length,
     eol,
     hadBom,

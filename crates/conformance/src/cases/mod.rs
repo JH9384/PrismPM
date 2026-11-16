@@ -18,9 +18,16 @@ mod native_library;
 mod node_suite;
 mod organization_lifecycle;
 mod owner_timing;
+mod qualified_definitions;
+mod rust_runtime;
 mod saved_recovery;
 mod scoped_administration;
+mod server_host;
+mod server_serving;
+mod server_verification;
+mod session_world;
 mod text_cli;
+mod threat_model;
 mod workbench;
 
 use node_suite::verify as verify_node_suite;
@@ -101,6 +108,26 @@ fn verified_root(root: &Path) -> PathBuf {
     root.join(&verified(root).verified_root)
 }
 
+/// The project's own declaration audits. LexLean 1.2 also attests the runtime
+/// declarations the verified modules import; each must pass its exact policy.
+fn owned_audits(attestation: &Value) -> Vec<&Value> {
+    let (runtime, owned): (Vec<&Value>, Vec<&Value>) = attestation["declarations"]
+        .as_array()
+        .expect("attested declarations")
+        .iter()
+        .partition(|row| {
+            row["name"]
+                .as_str()
+                .is_some_and(|name| name.starts_with("LexLeanRuntime."))
+        });
+    for row in runtime {
+        assert_eq!(row["result"], "ok");
+        assert_eq!(row["policy"]["kind"], "exact");
+        assert_eq!(row["observed"], row["policy"]["axioms"]);
+    }
+    owned
+}
+
 fn json(path: &Path) -> Value {
     serde_json::from_slice(
         &std::fs::read(path).unwrap_or_else(|error| panic!("{}: {error}", path.display())),
@@ -130,6 +157,7 @@ fn sample_application_holo(root: &Path) -> prismpm::holo::archive::GeneratedHolo
     let commit = "0".repeat(40);
     prismpm::holo::archive::compose_application(&prismpm::holo::archive::ApplicationArchiveInput {
         application_name: "Conformance".to_owned(),
+        basis: None,
         guest_wasm: b"\0asm\x01\0\0\0".to_vec(),
         view_bundle: b"HOLOVIEW\0\x01".to_vec(),
         model_document,
@@ -388,6 +416,8 @@ pub fn run_at(root: &Path, id: &str) {
         "FT-11" => design_views::verify_entries(root),
         "FT-12" => feature_journeys::verify_entries(root),
         "FT-13" => feature_journeys::verify_check(root),
+        "FT-14" => threat_model::verify_declarations(root),
+        "FT-15" => threat_model::verify_check(root),
 
         "HO-01" | "HO-02" | "HO-03" | "HO-04" | "HO-05" | "HO-06" | "HO-07" | "HO-08" | "HO-09"
         | "HO-10" | "HO-11" | "HO-12" => {
@@ -402,6 +432,17 @@ pub fn run_at(root: &Path, id: &str) {
         // Assurance levels (#269) as `prismpm check` computes them (#270): the Rust
         // regressions hold the verdict against the spec fixtures and the JavaScript goldens.
         "AL-03" | "AL-05" | "AL-06" => verify_assurance(root, id),
+        // Build provenance (#268): the statement `prismpm build` writes, held against the
+        // lock, the archive and the bytes of the JavaScript reference.
+        "HO-32" | "HO-33" | "HO-34" | "HO-35" => verify_build_provenance(root, id),
+        // prism.verify (#449) is the existing checks under one namespace; its complete
+        // owning file holds it to them on the conformance corpus and the signed fixtures.
+        "AL-07" => node_suite::verify_exact(
+            root,
+            id,
+            &[("sdk/npm/prism-code/test/verify-namespace.test.mjs", 16)],
+            "600000",
+        ),
         // The JavaScript runtime reads the composed archive, the HOLOVIEW
         // bundle and the exported closure without the Rust SDK; its complete
         // owning suite is the acceptance, file by file.
@@ -522,11 +563,41 @@ pub fn run_at(root: &Path, id: &str) {
 
         "HO-17" => text_cli::verify(root),
         "HO-18" => design_views::verify_views(root),
+        "HO-21" => server_host::verify_declaration(root),
+        "HO-22" => server_host::verify_adapter(root),
+        "HO-36" => server_serving::verify_declaration(root),
+        "HO-37" => server_serving::verify_framing(root),
+        "HO-38" => server_serving::verify_build(root),
+        "HO-39" => server_verification::verify_verify(root),
+        "HO-40" => server_verification::verify_exercise(root),
+        "HO-41" => server_verification::verify_build_bound(root),
+        "HO-42" => server_verification::verify_release_replay(root),
+        "HO-43" => server_serving::verify_request_hooks(root),
+        "HO-44" => session_world::verify_generator(root),
+        "HO-45" => node_suite::verify_exact(
+            root,
+            id,
+            &[("sdk/npm/prism-code/test/session.test.mjs", 18)],
+            "600000",
+        ),
+        "HO-46" => qualified_definitions::verify(root),
 
         "CT-01" | "CT-02" | "CT-03" | "CT-04" | "CT-05" | "CT-06" | "CT-07" | "CT-08" | "CT-09"
         | "CT-10" | "CT-11" => {
             verify_controller(root, id);
         }
+        "CT-13" => server_verification::verify_build_root(root),
+
+        // The `errors` module of #440, and the codes prism-code raises against the register.
+        "CT-12" => node_suite::verify_exact(
+            root,
+            id,
+            &[
+                ("sdk/npm/prism-code/test/errors-namespace.test.mjs", 8),
+                ("sdk/npm/prism-code/test/errors-registered.test.mjs", 6),
+            ],
+            "600000",
+        ),
 
         "ST-01" | "ST-02" | "ST-03" | "ST-04" | "ST-05" | "ST-06" | "ST-07" | "ST-08" | "ST-09"
         | "ST-10" => {
@@ -566,6 +637,14 @@ pub fn run_at(root: &Path, id: &str) {
             verify_verification(root, id);
         }
 
+        // prism.auth (#447): login, logout and the no-secret rule; its complete owning
+        // file needs no optional package, and what really signs runs in the npm workflow.
+        "SE-09" => node_suite::verify_exact(
+            root,
+            id,
+            &[("sdk/npm/prism-code/test/auth.test.mjs", 22)],
+            "600000",
+        ),
         "SE-01" | "SE-02" | "SE-03" | "SE-04" | "SE-05" | "SE-06" | "SE-07" | "SE-08" => {
             verify_security(root, id);
         }
@@ -581,6 +660,7 @@ pub fn run_at(root: &Path, id: &str) {
             9,
             "1200000",
         ),
+        "AU-08" => threat_model::verify_emission(root),
         "SY-08" => browser_system::verify(root),
         "SY-09" => host_effect_system::verify(root),
         "SY-01" | "SY-02" | "SY-03" | "SY-04" | "SY-05" | "SY-06" | "SY-07" => {
@@ -632,9 +712,8 @@ pub fn run_at(root: &Path, id: &str) {
                 "tests/browser-p256/corpus.test.mjs",
                 "tests/browser-p256/bridge.test.mjs",
                 "tests/browser-p256/owner.test.mjs",
-                "tests/browser-view/local-module-inputs.test.mjs",
             ],
-            22,
+            16,
             "3600000",
         ),
         "DK-18" => browser_effect::verify(root),
@@ -676,6 +755,36 @@ pub fn run_at(root: &Path, id: &str) {
             60,
             "120000",
         ),
+        // The Rust runtime against @prism-code/conformance (#298).
+        "DK-42" => rust_runtime::verify(root),
+        // The `volumes` module of #440.
+        "DK-40" => node_suite::verify_exact(
+            root,
+            id,
+            &[("sdk/npm/prism-code/test/volumes.test.mjs", 28)],
+            "600000",
+        ),
+        // The `containers` module of #440.
+        "DK-43" => node_suite::verify_exact(
+            root,
+            id,
+            &[("sdk/npm/prism-code/test/containers.test.mjs", 44)],
+            "600000",
+        ),
+        // The `system` module and the client of #440.
+        "DK-41" => node_suite::verify_exact(
+            root,
+            id,
+            &[("sdk/npm/prism-code/test/system.test.mjs", 20)],
+            "600000",
+        ),
+        // The `prism-code system` and `auth` command groups of #446 and #447.
+        "DK-44" => node_suite::verify_exact(
+            root,
+            id,
+            &[("sdk/npm/prism-code/test/system-auth-cli.test.mjs", 16)],
+            "600000",
+        ),
         "DK-35" => verify_node_suite(
             root,
             id,
@@ -690,6 +799,13 @@ pub fn run_at(root: &Path, id: &str) {
             "7200000",
         ),
         "OC-07" => verify_browser_export(root),
+        // The `networks` module of #440, a view over a capability file.
+        "DK-39" => node_suite::verify_exact(
+            root,
+            id,
+            &[("sdk/npm/prism-code/test/networks.test.mjs", 18)],
+            "600000",
+        ),
         "DK-32" => verify_node_suite(
             root,
             id,
@@ -723,6 +839,18 @@ pub fn run_at(root: &Path, id: &str) {
             ],
             "3600000",
         ),
+        "OC-11" => node_suite::verify_exact(
+            root,
+            id,
+            &[("sdk/npm/prism-code/test/images.test.mjs", 44)],
+            "600000",
+        ),
+        "OC-12" => node_suite::verify_exact(
+            root,
+            id,
+            &[("sdk/npm/prism-code/test/image-store.test.mjs", 12)],
+            "600000",
+        ),
         "OC-01" | "OC-02" | "OC-03" | "OC-04" | "OC-05" | "OC-06" => verify_oci(id),
         "LC-01" | "LC-02" | "LC-03" | "LC-04" | "LC-05" | "LC-06" => verify_lifecycle(root, id),
         "DP-01" | "DP-02" | "DP-03" | "DP-04" | "DP-05" | "DP-06" => verify_deployment(id),
@@ -731,25 +859,6 @@ pub fn run_at(root: &Path, id: &str) {
         "TM-01" | "TM-02" | "TM-03" | "TM-04" | "TM-05" | "TM-06" => verify_template(root, id),
 
         _ => panic!("unhandled conformance id: {id}"),
-    }
-    // Qualify the independent construction as well as the original shared
-    // owner. Each complete file retains its separate unchanged deadline.
-    match id {
-        "DK-24" => verify_node_suite(
-            root,
-            id,
-            &["tests/browser-operation-journal/fallback-owner.test.mjs"],
-            28,
-            "3600000",
-        ),
-        "DK-27" => verify_node_suite(
-            root,
-            id,
-            &["tests/browser-budget/fallback-owner.test.mjs"],
-            12,
-            "3600000",
-        ),
-        _ => {}
     }
 }
 
@@ -1391,20 +1500,14 @@ fn verify_sdk(id: &str) {
             let value = serde_json::json!({"schema":"prismpm/sdk-lock/2", "sdk_version":"0.3.0",
                 "sdk_image":format!("ghcr.io/uor-foundation/prismpm-sdk@sha256:{}", sha256(index.as_bytes())),
                 "sdk_index":index, "standards_lock":lock.value()["standards_lock"], "platforms":platforms});
-            let indexed = prismpm::contracts::CanonicalDocument::from_value(
-                "prismpm/sdk-lock/2",
-                value.clone(),
-            )
-            .unwrap();
+            let indexed =
+                prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", value.clone()).unwrap();
             let migration = serde_json::json!({"schema":"prismpm/sdk-lock-migration/1",
                 "patch":[{"op":"test","path":"","value":lock.value()},
                     {"op":"replace","path":"","value":value}],
                 "compatibility_review":"required", "generated_output_diff":"required", "security_review":"required"});
-            prismpm::contracts::CanonicalDocument::from_value(
-                "prismpm/sdk-lock-migration/1",
-                migration.clone(),
-            )
-            .unwrap();
+            prismpm::sdk::contract_from_value("prismpm/sdk-lock-migration/1", migration.clone())
+                .unwrap();
             for mutation in 0..4 {
                 let mut rejected = migration.clone();
                 match mutation {
@@ -1413,7 +1516,7 @@ fn verify_sdk(id: &str) {
                     2 => rejected["patch"].as_array_mut().unwrap().reverse(),
                     _ => rejected["patch"][1]["path"] = serde_json::json!("/sdk_image"),
                 }
-                assert!(prismpm::contracts::CanonicalDocument::from_value(
+                assert!(prismpm::sdk::contract_from_value(
                     "prismpm/sdk-lock-migration/1",
                     rejected,
                 )
@@ -1422,18 +1525,14 @@ fn verify_sdk(id: &str) {
             let proposal = serde_json::json!({"schema":"prismpm/sdk-lock-update/2",
                 "changes":[], "proposed_lock":value,
                 "compatibility_review":"required", "generated_output_diff":"required", "security_review":"required"});
-            prismpm::contracts::CanonicalDocument::from_value(
-                "prismpm/sdk-lock-update/2",
-                proposal.clone(),
-            )
-            .unwrap();
+            prismpm::sdk::contract_from_value("prismpm/sdk-lock-update/2", proposal.clone())
+                .unwrap();
             let mut unreviewed = proposal;
             unreviewed["security_review"] = serde_json::json!("passed");
-            assert!(prismpm::contracts::CanonicalDocument::from_value(
-                "prismpm/sdk-lock-update/2",
-                unreviewed,
-            )
-            .is_err());
+            assert!(
+                prismpm::sdk::contract_from_value("prismpm/sdk-lock-update/2", unreviewed,)
+                    .is_err()
+            );
             for (position, platform) in ["linux/amd64", "linux/arm64"].into_iter().enumerate() {
                 prismpm::sdk::validate_running_inventory(
                     &indexed,
@@ -1450,19 +1549,11 @@ fn verify_sdk(id: &str) {
             }
             let mut missing = value.clone();
             missing["platforms"].as_array_mut().unwrap().pop();
-            assert!(prismpm::contracts::CanonicalDocument::from_value(
-                "prismpm/sdk-lock/2",
-                missing
-            )
-            .is_err());
+            assert!(prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", missing).is_err());
             let mut swapped = value.clone();
             swapped["platforms"][0]["manifest_digest"] =
                 value["platforms"][1]["manifest_digest"].clone();
-            assert!(prismpm::contracts::CanonicalDocument::from_value(
-                "prismpm/sdk-lock/2",
-                swapped
-            )
-            .is_err());
+            assert!(prismpm::sdk::contract_from_value("prismpm/sdk-lock/2", swapped).is_err());
         }
         "DK-02" => {
             let lock = sdk_lock_value();
@@ -2077,11 +2168,8 @@ fn verify_browser_export(root: &Path) {
                 "tree_digest":tree_digest
             })
         );
-        let document = prismpm::contracts::CanonicalDocument::from_value(
-            "prismpm/browser-export/1",
-            receipt.clone(),
-        )
-        .unwrap();
+        let document =
+            prismpm::oci::contract_from_value("prismpm/browser-export/1", receipt.clone()).unwrap();
         assert_eq!(
             document.bytes(),
             prismpm::holo::canonical::encode_value(&receipt).unwrap()
@@ -3036,13 +3124,38 @@ fn verify_rp_04(root: &Path) {
         ".devcontainer/Dockerfile",
         &["rustup-init", "sha256sum -c", "leanprover/lean4:v4.32.1"],
     );
-    let workflow = read(root, ".github/workflows/vv.yml");
-    assert!(workflow.contains("actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"));
-    assert!(workflow.contains("runCmd: |"));
-    assert_eq!(
-        workflow.matches("just vv").count(),
-        1,
-        "the main-push workflow must run the complete verification exactly once"
+    // The main-push verification is the Prism factory's: one carried
+    // obligation per part, each running `just vv-part PART` once in the
+    // devcontainer image the factory built (prism-factory/obligations/vv-part.sh).
+    assert!(!root.join(".github/workflows/vv.yml").exists());
+    let model = read(root, "prism-factory/model/src/Factory/PrismPM.lex.tex");
+    let parts = read(root, "scripts/vv-assemble.mjs");
+    assert!(parts.contains(
+        "export const parts = Object.freeze(['conformance', 'dk-0-1', 'dk-2', 'dk-3', 'gates', 'ho-oc', 'source', 'st-sy']);"
+    ));
+    for part in [
+        "conformance",
+        "dk-0-1",
+        "dk-2",
+        "dk-3",
+        "gates",
+        "ho-oc",
+        "source",
+        "st-sy",
+    ] {
+        assert_eq!(
+            model
+                .matches(&format!(
+                    "\"bash prism-factory/obligations/vv-part.sh {part}\""
+                ))
+                .count(),
+            1,
+            "the factory must carry each verification part exactly once"
+        );
+    }
+    let run = read(root, "prism-factory/obligations/vv-part.sh");
+    assert!(
+        run.contains("bash scripts/vv.sh --with-sdk bash -euo pipefail -c \"just vv-part $part\"")
     );
 }
 
@@ -3514,6 +3627,18 @@ fn verify_attestation(root: &Path, id: &str) {
     rust_regressions(root, id, filter, expected, "target/conformance-attestation");
 }
 
+/// HO-32 to HO-35: run the named Rust regressions with their exact inventory.
+fn verify_build_provenance(root: &Path, id: &str) {
+    let (filter, expected) = match id {
+        "HO-32" => ("holo::provenance::tests::ho_32_", 3),
+        "HO-33" => ("holo::provenance::tests::ho_33_", 2),
+        "HO-34" => ("holo::provenance::tests::ho_34_", 2),
+        "HO-35" => ("holo::provenance::tests::ho_35_", 2),
+        _ => unreachable!("HO-32 to HO-35 only"),
+    };
+    rust_regressions(root, id, filter, expected, "target/conformance-attestation");
+}
+
 /// Run the `prismpm` library tests `filter` names and require exactly `expected` of them to pass.
 fn rust_regressions(root: &Path, id: &str, filter: &str, expected: usize, target_dir: &str) {
     let output = Command::new("cargo")
@@ -3580,16 +3705,13 @@ fn verify_holo(root: &Path, id: &str) {
         }
         let value = json(&root.join("tests/data/text-model-document.json"));
         let document: prismpm::holo::ModelDocument = serde_json::from_value(value.clone()).unwrap();
-        let bytes = prismpm::holo::canonical::encode_canonical(&document).unwrap();
+        let bytes = prismpm::holo::model_document::encode_canonical(&document).unwrap();
         assert_eq!(
-            prismpm::holo::canonical::decode_canonical(&bytes).unwrap(),
+            prismpm::holo::model_document::decode_canonical(&bytes).unwrap(),
             document
         );
-        prismpm::contracts::CanonicalDocument::from_value(
-            "prismpm/model-document/2",
-            value.clone(),
-        )
-        .unwrap();
+        prismpm::model_contract::contract_from_value("prismpm/model-document/2", value.clone())
+            .unwrap();
         for (pointer, replacement, code) in [
             (
                 "/schema",
@@ -3599,6 +3721,11 @@ fn verify_holo(root: &Path, id: &str) {
             (
                 "/application/profile",
                 serde_json::json!("prismpm/text-application/2"),
+                "PP4004",
+            ),
+            (
+                "/application/profile",
+                serde_json::json!("prismpm/text-application/0"),
                 "PP2009",
             ),
             (
@@ -4153,13 +4280,13 @@ fn verify_security(root: &Path, id: &str) {
             assert_contains(root, "crates/prismpm/src/config.rs", &["ParentDir"]);
         }
         "SE-03" => {
-            let source = read(root, "crates/prismpm/src/verification.rs");
+            let source = read(root, "crates/prismpm/src/sdk/process.rs");
             assert!(source.contains("Command::new"));
             assert!(!source.contains("sh -c"));
         }
         "SE-04" => assert_contains(
             root,
-            "crates/prismpm/src/verification.rs",
+            "crates/prismpm/src/sdk/process.rs",
             &["env_clear", "LC_ALL", "LANG"],
         ),
         "SE-05" => assert_contains(

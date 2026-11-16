@@ -6,18 +6,20 @@
  * everything here works on either. `pull` holds everything in memory until every
  * check has passed, and only then writes.
  *
+ * This file fetches and writes; it decides nothing about trust (#449). Every
+ * check of what was fetched, and of what is about to leave, is `verify`'s, in
+ * `verify-closure.mjs`, and every signature is an `auth` identity's.
+ *
  * Experimental until the v0.6 freeze, hence the `experimental_` prefix.
  */
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { parseArchive, asBytes } from './archive.mjs';
+import { asBytes } from './archive.mjs';
 import { blake3Hex } from './blake3.mjs';
-import { readAttestations, stripAttestations, OCI_MANIFEST_SUBJECT, DSSE_PAYLOAD_TYPE, BUNDLE_MEDIA_TYPE } from './attestations.mjs';
-import { checkSubjects, experimental_verifyAttestations, experimental_verifyBundle, signStatement } from './attest.mjs';
-import { readPolicy } from './check.mjs';
-import { experimental_verify, MINIMUM_LEVEL_ENV } from './verify.mjs';
-import { errorFromVerdict, AttestationNotFoundError, DigestMismatchError, PrismCodeError, PrismError, PullVerificationError, ReferenceInvalidError, VerificationError } from './errors.mjs';
-import { ASSURANCE } from './vendor/verify.mjs';
+import { BUNDLE_MEDIA_TYPE } from './attestations.mjs';
+import { auth } from './auth.mjs';
+import { verifyHoloClaims, verifyOutgoing, verifyPullClosure } from './verify-closure.mjs';
+import { DigestMismatchError, PrismCodeError, PullVerificationError, ReferenceInvalidError } from './errors.mjs';
 import {
   ANNOTATION,
   EMPTY_BYTES,
@@ -112,128 +114,14 @@ async function fetchReferrers(endpoint, subject) {
   return out;
 }
 
-/** Steps 4 and 5 of the proposal: the archive verifies and every BLAKE3 claim equals what its bytes give. */
-function verifyHolo(closure, reference) {
-  let parsed;
-  try {
-    parsed = parseArchive(closure.holo);
-  } catch (cause) {
-    if (!(cause instanceof PrismCodeError)) throw cause;
-    throw new DigestMismatchError(`the pulled bytes are not a holo: ${cause.message}`, { check: 'pull.archive', cause });
-  }
-  if (!parsed.verification.footer) throw new DigestMismatchError(`the holo's footer ${parsed.footer} is not the BLAKE3 of its body, ${parsed.fingerprint}`, { check: 'pull.archive' });
-  if (!parsed.verification.labels) throw new DigestMismatchError(`a content blob of the holo does not match its label: ${parsed.verification.labelMismatches.map((m) => m.label).join(', ')}`, { check: 'pull.archive' });
-  const fingerprint = `blake3:${parsed.footer}`;
-  if (reference.fingerprint && reference.fingerprint !== fingerprint) {
-    throw new DigestMismatchError(`asked for the holo ${reference.fingerprint}, and the registry sent ${fingerprint}`, { check: 'digest.fingerprint' });
-  }
-  const claimed = closure.manifest.annotations?.[ANNOTATION.FINGERPRINT];
-  if (claimed !== undefined && claimed !== fingerprint) throw new DigestMismatchError(`the manifest says the holo is ${claimed}, its footer says ${fingerprint}`, { check: 'digest.annotation' });
-  const file = closure.layer.annotations?.[ANNOTATION.BLAKE3];
-  if (file !== undefined && file !== blake3Hex(closure.holo)) throw new DigestMismatchError(`the layer says its BLAKE3 is ${file}, its bytes say ${blake3Hex(closure.holo)}`, { check: 'digest.annotation' });
-  return { parsed, fingerprint };
-}
-
-/**
- * Step 6: the verdict. `experimental_verify` refuses an attestation section until
- * a format revision admits it, so it judges the unsigned archive, which #267
- * guarantees is byte for byte what was signed. The section is judged on its own.
- */
-async function judge(parsed, options) {
-  const env = options.env ?? process.env;
-  const policy = options.policy !== undefined ? (typeof options.policy === 'string' ? await readPolicy(options.policy) : options.policy) : { name: 'pull-default', minimum: env[MINIMUM_LEVEL_ENV] || 'P0' };
-  let verdict;
-  try {
-    verdict = await experimental_verify(stripAttestations(parsed), { ...policy, env });
-  } catch (cause) {
-    if (!(cause instanceof VerificationError)) throw cause;
-    if (cause.check === 'policy.invalid' || cause.check === 'policy.unreadable') throw cause;
-    throw new PullVerificationError(`the holo has no verdict: ${cause.message}`, { check: 'pull.verdict', cause });
-  }
-  if (!verdict.passed) {
-    const why = errorFromVerdict(verdict, ASSURANCE.RANK);
-    throw new PullVerificationError(`the holo failed policy ${verdict.policy.name}: level ${verdict.level}, requires ${verdict.policy.minimum}; ${why?.check ?? 'policy.level'}: ${why?.message ?? ''}`, { check: 'pull.verdict', verdict, reasons: verdict.reasons, cause: why ?? undefined });
-  }
-  return verdict;
-}
-
-/** Step 7: every line decodes, and every subject is a blob of this holo with both digests equal. */
-function checkAttestations(parsed) {
-  let attestations;
-  try {
-    attestations = readAttestations(parsed);
-    for (const attestation of attestations) checkSubjects(parsed, attestation);
-  } catch (cause) {
-    if (!(cause instanceof PrismError)) throw cause;
-    throw new PullVerificationError(`an attestation in the holo does not hold: ${cause.message}`, { check: 'pull.attestation', cause });
-  }
-  return attestations;
-}
-
-/** What a registry bundle says about itself, or null when it is not a DSSE statement. */
-function readStatement(line) {
-  try {
-    const bundle = JSON.parse(decoder.decode(line));
-    const envelope = bundle?.dsseEnvelope;
-    if (envelope?.payloadType !== DSSE_PAYLOAD_TYPE || typeof envelope.payload !== 'string') return null;
-    const statement = JSON.parse(decoder.decode(Uint8Array.from(atob(envelope.payload), (c) => c.charCodeAt(0))));
-    return Array.isArray(statement?.subject) ? { bundle, statement } : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * A referrer's statement must be about this holo: a subject's `sha256` is the
- * manifest digest, and any subject that claims `blake3` is a blob of this holo;
- * or every subject is a blob of this holo, which is an in-holo line pushed as is.
- */
-function aboutThisHolo(parsed, statement, manifestDigest) {
-  const hex = hexOf(manifestDigest);
-  const labels = new Set(parsed.blobs.map((blob) => blob.label));
-  const blobs = statement.subject.filter((subject) => typeof subject?.digest?.blake3 === 'string');
-  if (blobs.some((subject) => !labels.has(`blake3:${subject.digest.blake3}`))) return false;
-  try {
-    checkSubjects(parsed, { subjects: blobs.map((subject) => ({ name: subject.name, digest: subject.digest, blob: `blake3:${subject.digest.blake3}` })) });
-  } catch {
-    return false;
-  }
-  return statement.subject.some((subject) => subject?.digest?.sha256 === hex) || (blobs.length > 0 && blobs.length === statement.subject.length);
-}
-
-const SIGNER_OPTIONS = ['key', 'certificateIdentity', 'certificateIdentityRegexp', 'certificateOidcIssuer'];
-const signerOptions = (options) => Object.fromEntries(['type', ...SIGNER_OPTIONS, 'trustedRoot', 'entries', 'timestamps', 'tufMirrorUrl', 'tufRoot', 'tufCache'].filter((name) => options[name] !== undefined).map((name) => [name, options[name]]));
-
-/** Step 8: with a signer policy, at least one bundle of the holo or of the registry passes it. */
-async function checkSigner(parsed, closure, options) {
-  if (!SIGNER_OPTIONS.some((name) => options[name] !== undefined)) return null;
-  const policy = signerOptions(options);
-  const inHolo = await experimental_verifyAttestations(parsed.bytes, policy);
-  const passing = inHolo.results.filter((r) => r.passed).map((r) => ({ source: 'holo', predicateType: r.predicateType, signer: r.signer, time: r.time }));
-  // A failed signature explains more than a holo with no attestation, so it is what gets reported.
-  let first = inHolo.error instanceof AttestationNotFoundError ? null : inHolo.error;
-  const { type, ...rest } = policy;
-  const judged = new Set(readAttestations(parsed).map((a) => Buffer.from(a.bytes).toString('latin1')));
-  for (const referrer of closure.referrers) {
-    // A line of the holo pushed as is was judged above; it counts once.
-    if (judged.has(Buffer.from(referrer.line).toString('latin1'))) continue;
-    const read = readStatement(referrer.line);
-    if (!read || (type !== undefined && read.statement.predicateType !== type)) continue;
-    if (!aboutThisHolo(parsed, read.statement, closure.digest)) continue;
-    try {
-      const outcome = await experimental_verifyBundle(read.bundle, rest);
-      passing.push({ source: 'referrer', digest: referrer.digest, predicateType: read.statement.predicateType, signer: { identity: outcome.identity, issuer: outcome.issuer, keyId: outcome.keyId }, time: outcome.time });
-    } catch (cause) {
-      if (!(cause instanceof PrismError)) throw cause;
-      first ??= cause;
-    }
-  }
-  first ??= inHolo.error;
-  if (passing.length === 0) {
-    throw new PullVerificationError(`no attestation of this holo passes the signer policy${first ? `: ${first.code}: ${first.message}` : ''}`, { check: 'pull.signer', cause: first ?? undefined, details: { cause: first?.code ?? null } });
-  }
-  return passing;
-}
+/** What `verify` judges of a fetched closure: the bytes, and what the manifest and the caller claim about them. */
+const factsOf = (closure, reference) => ({
+  holo: closure.holo,
+  manifestDigest: closure.digest,
+  claims: { fingerprint: closure.manifest.annotations?.[ANNOTATION.FINGERPRINT], blake3: closure.layer.annotations?.[ANNOTATION.BLAKE3] },
+  asked: { fingerprint: reference.fingerprint },
+  referrers: closure.referrers.map(({ digest, line }) => ({ digest, line })),
+});
 
 /** Write a closure to an endpoint: blobs first, then referrers, then the tag, so a tag never names something half there. */
 async function writeClosure(endpoint, closure, tag) {
@@ -274,7 +162,8 @@ async function atomicWrite(target, bytes) {
  * is a policy file path or a policy object, as `check` takes; the default accepts
  * P0, unless `PRISM_MINIMUM_LEVEL` says otherwise. The signer options are those of
  * `experimental_verifyAttestations`: with any of them, at least one bundle in the
- * holo or in the registry must pass.
+ * holo or in the registry must pass, and the signed statements in the holo count
+ * toward the level as they do in `check`. Without a signer a signed holo is P0.
  *
  * @param {string | object} source the reference
  * @param {object} [options] `{ store, output, policy, key, certificateIdentity, certificateIdentityRegexp, certificateOidcIssuer, type, trustedRoot, entries, timestamps, plainHttp, credentials, fetch, env, maxHoloBytes, referrersFallback }`
@@ -284,10 +173,8 @@ export async function experimental_pull(source, options = {}) {
   const reference = referenceOf(source, options);
   const endpoint = openEndpoint(reference, options);
   const closure = await fetchClosure(endpoint, reference, options);
-  const { parsed, fingerprint } = verifyHolo(closure, reference);
-  const verdict = await judge(parsed, options);
-  const attestations = checkAttestations(parsed);
-  const signers = await checkSigner(parsed, closure, options);
+  // Steps 4 to 8 are verify's; nothing is written unless every one passed.
+  const { fingerprint, attestations, verdict, signers } = await verifyPullClosure(factsOf(closure, reference), options);
 
   let output = null;
   if (typeof options.output === 'string' && options.output.startsWith('dir://')) {
@@ -319,7 +206,7 @@ async function readSource(source, options) {
   if (typeof source === 'string' && source.startsWith('dir://')) {
     const reference = parseReference(source);
     const closure = await fetchClosure(openEndpoint(reference), reference, options);
-    verifyHolo(closure, reference);
+    verifyHoloClaims(factsOf(closure, reference));
     return { holo: closure.holo, carried: closure.referrers, carriedFor: closure.digest };
   }
   if (typeof source === 'string') {
@@ -350,13 +237,8 @@ export async function experimental_push(source, target, options = {}) {
   const { holo, carried, carriedFor } = await readSource(source, options);
   const progress = options.onProgress ?? (() => {});
 
-  // Step 1: nothing corrupt leaves this machine.
-  const parsed = parseArchive(holo);
-  if (!parsed.verification.footer || !parsed.verification.labels) {
-    throw new VerificationError('the holo does not verify: its footer or a content label differs from the bytes', { check: 'holo.integrity' });
-  }
-  const attestations = readAttestations(parsed);
-  for (const attestation of attestations) checkSubjects(parsed, attestation);
+  // Step 1: nothing corrupt leaves this machine, as verify judges it.
+  const { parsed, attestations } = verifyOutgoing(holo);
 
   const built = await holoManifest(parsed);
   const { digest, bytes: manifestBytes, descriptor, layer, fingerprint } = built;
@@ -381,8 +263,9 @@ export async function experimental_push(source, target, options = {}) {
       referrers.push({ digest: referrerDigest, predicateType: attestation.predicateType, source: 'holo', signed: attestation.signed });
     }
     if (options.key !== undefined || options.keyless) {
+      const signer = auth.identities.from({ key: options.key, identityToken: options.identityToken ?? (options.env?.SIGSTORE_ID_TOKEN || undefined), signingConfig: options.signingConfig, tufMirrorUrl: options.tufMirrorUrl, tufRoot: options.tufRoot, tufCache: options.tufCache });
       for (const statement of registryStatements(attestations, digest)) {
-        const signed = await signStatement(encoder.encode(JSON.stringify(statement)), { key: options.key, identityToken: options.identityToken ?? options.env?.SIGSTORE_ID_TOKEN, signingConfig: options.signingConfig, tufMirrorUrl: options.tufMirrorUrl, tufRoot: options.tufRoot, tufCache: options.tufCache });
+        const signed = await signer.sign(encoder.encode(JSON.stringify(statement)));
         const line = encoder.encode(JSON.stringify(signed));
         const { manifest, bytes, digest: referrerDigest, layer: bundleLayer, descriptor: bundleDescriptor } = await referrerManifest(line, descriptor, statement.predicateType);
         pending.push({ manifest, manifestBytes: bytes, digest: referrerDigest, layer: bundleLayer, line, descriptor: bundleDescriptor });
@@ -406,7 +289,8 @@ export async function experimental_push(source, target, options = {}) {
   // Step 5: the tags, last, so a tag never names a holo whose attestations are on the way.
   const tags = [];
   if (reference.tag && !reference.digest) tags.push(reference.tag);
-  if (reference.kind === 'registry') tags.push(fingerprintTag(fingerprint));
+  // A legacy v4 holo gets a tag for its BLAKE3 fingerprint; a holo v5 is already addressed by its κ, the layer digest.
+  if (reference.kind === 'registry' && fingerprint.startsWith('blake3:')) tags.push(fingerprintTag(fingerprint));
   for (const tag of tags) await endpoint.tagManifest(tag, manifestBytes);
 
   return {

@@ -69,6 +69,45 @@ test('compiler owner refuses forged handles and unregistered tool families', () 
     assert.throws(() => createCompilerOwner(name, {}), /registered compiler family/);
 });
 
+test('SDK genesis uses one fresh private path and refuses existing paths without changing them', t => {
+  const source=fs.readFileSync(new URL('./compiler-owner.mjs',import.meta.url),'utf8');
+  const begin=source.indexOf('export function createSdkAccountGenesisCompilerOwner()');
+  const end=source.indexOf('\nfunction constructCompilerOwner(',begin);
+  assert(begin>=0&&end>begin);
+  const factory=source.slice(begin,end).replace('export ','')+'\ncreateSdkAccountGenesisCompilerOwner();';
+  const scratch=fs.mkdtempSync(join(tmpdir(),'sdk-compiler-workspace-test-'));
+  t.after(()=>fs.rmSync(scratch,{recursive:true,force:true}));
+  for(const kind of ['absent','directory','file','symlink']) {
+    const path=join(scratch,kind), marker=join(scratch,kind+'-marker');
+    fs.writeFileSync(marker,'untouched');
+    if(kind==='directory'){fs.mkdirSync(path);fs.writeFileSync(join(path,'sentinel'),'untouched');}
+    if(kind==='file')fs.writeFileSync(path,'untouched');
+    if(kind==='symlink')fs.symlinkSync(marker,path);
+    const inputs={captured:true};
+    const context={assert,repository:'/opt/prismpm/source',
+      captureCompilerInputs(name){assert.equal(name,'account-genesis');return inputs;},
+      constructCompilerOwner(name,selected,makeWorkspace){assert.equal(name,'account-genesis');assert.equal(selected,inputs);return makeWorkspace();},
+      mkdirSync(actual,options){assert.equal(actual,'/tmp/prismpm-sdk-account-genesis-compiler');fs.mkdirSync(path,options);}};
+    assert.throws(()=>runInNewContext(factory,{...context,repository:'/another/source'}),/SDK construction source root/);
+    if(kind==='absent') {
+      assert.equal(runInNewContext(factory,context),'/tmp/prismpm-sdk-account-genesis-compiler');
+      assert.equal(fs.statSync(path).mode&0o777,0o700);
+    } else assert.throws(()=>runInNewContext(factory,context),{code:'EEXIST'});
+    assert.equal(fs.readFileSync(marker,'utf8'),'untouched');
+    if(kind==='directory')assert.equal(fs.readFileSync(join(path,'sentinel'),'utf8'),'untouched');
+    if(kind==='file')assert.equal(fs.readFileSync(path,'utf8'),'untouched');
+    if(kind==='symlink')assert.equal(fs.readlinkSync(path),marker);
+  }
+  const installer=fs.readFileSync(new URL('../../sdk/generate-account-genesis.mjs',import.meta.url),'utf8');
+  const selection=/^const compiler=.*;$/m.exec(installer)?.[0];assert(selection);
+  for(const mode of ['install','check','proposal']) {
+    const selected=runInNewContext(selection+'\ncompiler;',{mode,
+      createSdkAccountGenesisCompilerOwner(){return 'fresh-sdk';},
+      createCompilerOwner(name){assert.equal(name,'account-genesis');return 'random-private';}});
+    assert.equal(selected,mode==='install'?'fresh-sdk':'random-private');
+  }
+});
+
 test('all five existing adapters reject forged owners before any construction', () => {
   const adapters = {effects:effectsAdapter, presentation:presentationAdapter,
     'operation-journal':operationJournalAdapter, budget:budgetAdapter, publication:publicationAdapter};

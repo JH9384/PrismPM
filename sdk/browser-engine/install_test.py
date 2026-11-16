@@ -228,13 +228,17 @@ resource.setrlimit(resource.RLIMIT_FSIZE,(8,8))
 signal.signal(signal.SIGXFSZ,signal.SIG_IGN)
 module.install_archive(sys.argv[2],json.loads(sys.argv[3]),sys.argv[4])
 """
-        result = subprocess.run(["/usr/bin/python3", "-c", script, str(Path(INSTALL.__file__)),
+        module = self.work / "install.py"
+        shutil.copyfile(INSTALL.__file__, module)
+        result = subprocess.run(["/usr/bin/python3", "-I", "-B", "-c", script, str(module),
                                  str(self.archive), json.dumps(self.authority), str(self.destination)],
                                 capture_output=True, text=True, timeout=10)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("File too large", result.stderr)
         self.assertFalse(self.destination.exists())
         self.assertFalse(list(self.work.glob(".chromium-input-*")))
+        self.assertFalse(list(self.work.glob("__pycache__/*.pyc")),
+                         "the failure probe must not retain timestamped installer bytecode")
 
     def change_raw(self, raw):
         self.archive.write_bytes(raw)

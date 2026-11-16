@@ -65,7 +65,7 @@ fn test_hologram_oracle_pinned_source_identities() {
     );
     assert_eq!(
         sha256_file(&r.join("crates/prismpm/src/embedded/hologram-oracle.browser.mjs")),
-        "03e885c723e0365a87171caae58c221973e51cf840a7cb888e875887df962f46",
+        "35b282789fed82efcebf22479d4cfc63b0e282d55c1ff8c294dfae94381280e8",
         "hologram-oracle browser.mjs checksum changed"
     );
 
@@ -373,9 +373,9 @@ fn test_hologram_oracle_negative_probes_reject_wrong_subject_edition_and_mutatio
     let doc: ModelDocument = serde_json::from_value(doc_value).unwrap();
     let app = doc.application.as_ref().unwrap();
 
-    let app_kappa = format!("blake3:{}", "a".repeat(64));
+    let app_kappa = format!("sha256:{}", "a".repeat(64));
     let arch_fingerprint = "b".repeat(64);
-    let arch_kappa = format!("blake3:{}", "c".repeat(64));
+    let arch_kappa = format!("sha256:{}", "c".repeat(64));
 
     let identities = json!({
         "application_kappa": app_kappa,
@@ -449,7 +449,7 @@ fn test_hologram_oracle_negative_probes_reject_wrong_subject_edition_and_mutatio
         let wrong_val = if field == "archive_fingerprint" {
             "f".repeat(64)
         } else {
-            format!("blake3:{}", "f".repeat(64))
+            format!("sha256:{}", "f".repeat(64))
         };
         let mut bad_id = valid_report.clone();
         bad_id[field] = json!(wrong_val);

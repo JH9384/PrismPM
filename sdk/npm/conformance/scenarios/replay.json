@@ -5,27 +5,230 @@
     {
       "id": "replay.history.unchanged",
       "title": "Replaying a recorded history against the same holo finds no divergence.",
-      "placeholder": { "issue": 284, "reason": "Histories and replay are not on main yet; the scenario is written when #284 merges." }
+      "op": "replay",
+      "archive": "reference",
+      "input": {
+        "history": {
+          "schema": "prism/history/1",
+          "application": "Calculator",
+          "events": [
+            {
+              "request": {
+                "$utf8": "1\tadd\t20\t22"
+              },
+              "response": {
+                "$utf8": "1\tok\t42"
+              }
+            },
+            {
+              "request": {
+                "$utf8": "1\tdivide\t1\t0"
+              },
+              "response": {
+                "$utf8": "1\terror\tdivision-by-zero"
+              }
+            },
+            {
+              "request": {
+                "$utf8": "1\tsubtract\t-7\t5"
+              },
+              "response": {
+                "$utf8": "1\tok\t-12"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "events": 3,
+          "divergenceCount": 0,
+          "divergences": []
+        }
+      }
     },
     {
       "id": "replay.history.divergence",
       "title": "Replaying against a changed model is a determinism violation (determinism_violation).",
-      "placeholder": { "issue": 284, "reason": "Histories and replay are not on main yet; the scenario is written when #284 merges." }
+      "op": "replay",
+      "archive": "reference",
+      "input": {
+        "history": {
+          "schema": "prism/history/1",
+          "application": "Calculator",
+          "events": [
+            {
+              "request": {
+                "$utf8": "1\tadd\t20\t22"
+              },
+              "response": {
+                "$utf8": "1\tok\t42"
+              }
+            },
+            {
+              "request": {
+                "$utf8": "1\tdivide\t1\t0"
+              },
+              "response": {
+                "$utf8": "1\tok\t0"
+              }
+            },
+            {
+              "request": {
+                "$utf8": "1\tsubtract\t-7\t5"
+              },
+              "response": {
+                "$utf8": "1\tok\t-12"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "determinism_violation",
+          "check": "replay.divergence",
+          "details": {
+            "events": 3,
+            "divergenceCount": 1
+          }
+        }
+      }
     },
     {
       "id": "replay.history.malformed",
       "title": "A history that does not read is a replay error (replay_failed), not a divergence.",
-      "placeholder": { "issue": 284, "reason": "Histories and replay are not on main yet; the scenario is written when #284 merges." }
+      "op": "replay",
+      "archive": "reference",
+      "input": {
+        "history": "this is not a history"
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "replay_failed"
+        }
+      }
     },
     {
       "id": "replay.recorder.round-trip",
       "title": "Dispatches recorded into prism/history/1 replay unchanged, refusals included.",
-      "placeholder": { "issue": 284, "reason": "Histories and replay are not on main yet; the scenario is written when #284 merges." }
+      "op": "replay",
+      "archive": "reference",
+      "input": {
+        "record": [
+          {
+            "$utf8": "1\tadd\t20\t22"
+          },
+          {
+            "$zeros": 65537
+          },
+          {
+            "$utf8": "1\tdivide\t1\t0"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "events": 3,
+          "divergenceCount": 0,
+          "history": {
+            "schema": "prism/history/1",
+            "application": "Calculator",
+            "events": [
+              {
+                "request": {
+                  "$utf8": "1\tadd\t20\t22"
+                },
+                "response": {
+                  "$utf8": "1\tok\t42"
+                }
+              },
+              {
+                "error": "core.allocation"
+              },
+              {
+                "request": {
+                  "$utf8": "1\tdivide\t1\t0"
+                },
+                "response": {
+                  "$utf8": "1\terror\tdivision-by-zero"
+                }
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "id": "replay.statement.written",
-      "title": "A replay writes a prism/replay/v1 statement that names the guest and every history by dual digest.",
-      "placeholder": { "issue": 284, "reason": "Histories and replay are not on main yet; the scenario is written when #284 merges." }
+      "title": "A replay writes a prism/replay/v1 statement that names the guest and every history by its κ, sha256 alone (ADR-017).",
+      "op": "replay",
+      "archive": "reference",
+      "input": {
+        "history": {
+          "schema": "prism/history/1",
+          "application": "Calculator",
+          "events": [
+            {
+              "request": {
+                "$utf8": "1\tadd\t20\t22"
+              },
+              "response": {
+                "$utf8": "1\tok\t42"
+              }
+            },
+            {
+              "request": {
+                "$utf8": "1\tdivide\t1\t0"
+              },
+              "response": {
+                "$utf8": "1\terror\tdivision-by-zero"
+              }
+            },
+            {
+              "request": {
+                "$utf8": "1\tsubtract\t-7\t5"
+              },
+              "response": {
+                "$utf8": "1\tok\t-12"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "statement": {
+            "_type": "https://in-toto.io/Statement/v1",
+            "subject": [
+              {
+                "name": "guest",
+                "digest": {
+                  "sha256": "dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03"
+                }
+              }
+            ],
+            "predicateType": "https://uor.foundation/prism/replay/v1",
+            "predicate": {
+              "histories": [
+                {
+                  "digest": {
+                    "sha256": "12932cd1ab84ad9996e037cdbe25e277f1cec0d58b316e823fbe1d8d9199455d"
+                  },
+                  "events": 3,
+                  "divergences": 0
+                }
+              ],
+              "divergenceCount": 0
+            }
+          }
+        }
+      }
     }
   ]
 }

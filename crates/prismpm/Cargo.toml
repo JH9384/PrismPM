@@ -27,6 +27,7 @@ include = [
     "sdk/oracles/asyncapi-parser.mjs",
     "sdk/oracles/kubernetes-validator.mjs",
     "sdk/oracles/go/intoto-statement-validator/main.go",
+    "sdk/oracles/oscal/src/main.rs",
     "sdk/stdlib-sources.tar",
     "sdk/platform-lock.mjs",
     "sdk/sdk-index-extensions.json",
@@ -81,6 +82,7 @@ include = [
     "tests/workspace_functional_core.rs",
     "tests/data/holo-codec-v1.json",
     "vendor/hologram-live.tar",
+    "vendor/hologram-brand/**",
     "vendor/lean4-prod/lean.tar",
     "vendor/registry.tar",
 ]

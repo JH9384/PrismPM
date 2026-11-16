@@ -1,0 +1,110 @@
+name: rule app model
+
+# The rule app's rules are stated in LexLean (sdk/npm/prism-code/model/rule-app)
+# and prism-code's JavaScript follows them (test/rule-app-model.test.mjs holds
+# the two together). This workflow is where Lean proves the model: every
+# theorem, in the SDK image the model's verification record names, and then a
+# planted defect, which Lean must reject, so a pass is known to mean something.
+#
+# It pulls a multi-gigabyte image, so it runs only when the model changes.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - sdk/npm/prism-code/model/rule-app/**
+      - .github/workflows/rule-app-model.yml
+  push:
+    branches: [main]
+    paths:
+      - sdk/npm/prism-code/model/rule-app/**
+      - .github/workflows/rule-app-model.yml
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: rule-app-model-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: sdk/npm/prism-code/model/rule-app
+
+jobs:
+  verify:
+    name: Lean proves the rule app model
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Read the image the verification record names
+        shell: bash
+        run: |
+          set -euo pipefail
+          image=$(python3 -c 'import json; print(json.load(open("verification.json"))["image"])')
+          [[ "$image" =~ ^ghcr\.io/uor-foundation/[a-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]]
+          echo "SDK_IMAGE=$image" >> "$GITHUB_ENV"
+      - name: Log in to GHCR (read only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - name: Make room for the image
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - name: Pull the SDK image
+        run: docker pull "$SDK_IMAGE"
+      - name: The lock is current and Lean proves every theorem
+        shell: bash
+        run: |
+          set -euo pipefail
+          run() {
+            docker run --rm --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,exec,nosuid,size=4g --volume "$PWD:$PWD" --workdir "$PWD" \
+              --env HOME=/tmp/prismpm-home --env PRISMPM_EPHEMERAL_HOME=1 "$SDK_IMAGE" sh -c "$1"
+          }
+          run 'lexlean lock && lexlean fmt --all && lexlean lock && lexlean verify --all' | tee verify.log
+          grep -q '^verified 2 modules' verify.log
+          rm verify.log
+          # Locking and formatting changed nothing: the committed files are the ones Lean verified.
+          git diff --exit-code -- .
+      - name: The record names these files and every theorem
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, re
+          record = json.load(open('verification.json'))
+          for name, want in record['sources'].items():
+              got = 'sha256:' + hashlib.sha256(open(name, 'rb').read()).hexdigest()
+              assert got == want, f'{name}: {got} is not the recorded {want}'
+          proofs = open('src/RuleAppProofs.lex.tex', encoding='utf8').read()
+          named = re.findall(r'theorem\{\s*name: (\w+),', proofs)
+          assert named == [t['name'] for t in record['theorems']], named
+          assert len(named) == 12
+          PY
+      - name: "Planted defect: admission that does not compare the holo is rejected by Lean"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          path = 'src/RuleApp.lex.tex'
+          text = open(path, encoding='utf8').read()
+          sound = '(((project r schema) =? (schemaOne)) && (holoAdmitted r))'
+          assert text.count(sound) == 1, 'the definition the defect replaces is not there'
+          open(path, 'w', encoding='utf8', newline='\n').write(text.replace(sound, '(((project r schema) =? (schemaOne)) && ((project r holoVerified) =? 1))'))
+          PY
+          ! git diff --quiet -- src/RuleApp.lex.tex
+          set +e
+          docker run --rm --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,exec,nosuid,size=4g --volume "$PWD:$PWD" --workdir "$PWD" \
+            --env HOME=/tmp/prismpm-home --env PRISMPM_EPHEMERAL_HOME=1 "$SDK_IMAGE" sh -c 'lexlean lock && lexlean verify --all' > defect.log 2>&1
+          code=$?
+          set -e
+          cat defect.log
+          [ "$code" -ne 0 ]
+          grep -q 'error\[LLV7002\]: Lean rejected `PrismRuleApp.RuleAppProofs`' defect.log
+          ! grep -q '^verified' defect.log
+          rm defect.log
+          git checkout -- .

@@ -1,9 +1,9 @@
 ---
 title: Quickstart
-description: Scaffold, build, check, run and deploy your first holo in five minutes.
+description: Write one JSON spec, then build, check, run and deploy your first holo.
 available_in: "1.0-beta"
 ---
-In five minutes you create a calculator from one example and two sentences, build it into a holo, check its proof, run it, and publish it to GitHub Pages. Every command below is one you will use every day.
+In five minutes you create a payment check from one JSON file, build it into a holo, check its proof, run it, and publish it to GitHub Pages. Every command below is one you will use every day.
 
 The `prism` CLI ships with 1.0-beta.1. To try a holo with what is on npm today, start with [Call a holo](/docs/examples/call-a-holo).
 
@@ -22,26 +22,38 @@ npm create prism-code calculator
 ```text
 Creating calculator
   prism.toml         application calculator 0.1.0
-  examples/add.json  one example
-  intent.md          two sentences
+  prism/spec.json    the spec, as JSON
   prismpm.lock       SDK image sha256:91ab…
 Done. Next: cd calculator && prism build
 ```
 
-The project holds three files you edit. Open them and make them read as follows.
-
-`examples/add.json` is one input and its expected output:
+`prism/spec.json` is the whole input. You edit this file, or have an agent write it; everything else is generated from it. It says what one request holds, what the app may answer, the rules in order, and what must never or always happen:
 
 ```json
-{"input": {"op": "add", "a": 2, "b": 3}, "output": 5}
+{
+  "purpose": "Decide whether a payment request is approved.",
+  "fields": [
+    {"name": "role", "kind": "choice", "values": ["clerk", "manager"]},
+    {"name": "amount", "kind": "number", "min": 1, "max": 1000000},
+    {"name": "limit", "kind": "number", "max": 1000000}
+  ],
+  "outcomes": ["approved", "refused"],
+  "rules": [
+    {"when": [{"field": "role", "op": "is", "value": "manager"}], "then": "approved"},
+    {"when": [{"field": "amount", "op": "<=", "value": {"field": "limit"}}], "then": "approved"}
+  ],
+  "otherwise": "refused",
+  "properties": [
+    {"kind": "never",
+     "when": [{"field": "role", "op": "is", "value": "clerk"},
+              {"field": "amount", "op": ">", "value": {"field": "limit"}}],
+     "then": "approved"}
+  ],
+  "examples": [{"request": "clerk 250 1000", "response": "approved"}]
+}
 ```
 
-`intent.md` is one sentence per line. Each sentence becomes a theorem:
-
-```md
-add is commutative.
-The result never exceeds 32 bits.
-```
+Each entry in `properties` becomes a theorem Lean proves for every request. Each entry in `examples` becomes an acceptance vector the built application replays.
 
 `prism.toml` names the application:
 
@@ -49,14 +61,14 @@ The result never exceeds 32 bits.
 [application]
 name = "calculator"
 version = "0.1.0"
-description = "Adds two numbers."
+description = "Decides whether a payment is approved."
 ```
 
 There is no `[capabilities]` table, and without one the holo is granted nothing.
 
 ## Build the holo
 
-Build compiles the model into a holo inside the pinned SDK image. It writes the model from your examples and intent, proves each sentence, replays the example, and records provenance:
+Build renders the LexLean model from `prism/spec.json` alone, proves every property inside the pinned SDK image, replays the examples and sentence, replays the example, and records provenance:
 
 ```bash
 cd calculator
@@ -65,19 +77,18 @@ prism build
 
 ```text
 Pulling SDK image sha256:91ab… (cached)
-Generating model from examples/ and intent.md
+Rendering model from prism/spec.json  sha256:2414…
   model/  2 files written, digest sha256:7d2e…
 Compiling model
 Proving
-  add is commutative.                 checked
-  The result never exceeds 32 bits.   checked
+  INV-001 never approved when role is clerk and amount is above limit   checked
 Replaying examples
-  add.json  ok
+  clerk 250 1000  ok
 Built calculator@sha256:3f9c… (holo, 24.8 KB)
 Provenance: recorded   Proof: 2 theorems checked   Level: P2
 ```
 
-The holo is `calculator@sha256:3f9c…`. The digest covers everything inside it, including the proof. Commit `model/` with the rest of the project. The lockfile pins its digest.
+The holo is `calculator@sha256:3f9c…`. The digest covers everything inside it, including the proof. Commit `prism/spec.json` with the rest of the project; `model/` is generated from it, and the same JSON always gives the same model. A model that is not what `prism/spec.json` renders to is refused at build.
 
 ## Check it
 
@@ -105,13 +116,13 @@ Exit code 0 means pass, 1 means fail, 2 means the check could not be completed. 
 Run calls `check` first and refuses to start unless it passes. Then it instantiates the holo with exactly the capability set from `prism.toml` and dispatches one input:
 
 ```bash
-prism run calculator --input '{"op": "add", "a": 2, "b": 3}'
+prism run calculator --input 'clerk 250 1000'
 ```
 
 ```text
 Check: PASS  Level: P3
 Instance calculator@sha256:3f9c…  capabilities: none
-5
+approved
 History: 1 call recorded
 ```
 
@@ -137,10 +148,10 @@ Anyone with the link gets the same bytes and the same proof. They can check it o
 
 ## What you did
 
-You wrote one example and two sentences. Prism wrote the model, proved both sentences for every input, and sealed the proof into a holo with a digest. `check` confirmed the proof before `run` started anything. `deploy` published holo and proof together. Every later build, pull and run starts from the same check.
+You wrote one JSON file. Prism rendered the model from it, proved every property for every request, and sealed the proof into a holo with a digest. `check` confirmed the proof before `run` started anything. `deploy` published holo and proof together. Every later build, pull and run starts from the same check.
 
 ## Next steps
 
 - [Core concepts](/docs/get-started/core-concepts)
-- [Write from examples](/docs/guides/write-from-examples)
+- [Write the spec](/docs/guides/write-from-examples)
 - [Ship a holo](/docs/guides/ship)

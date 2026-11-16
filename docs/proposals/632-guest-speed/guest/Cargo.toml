@@ -1,0 +1,27 @@
+[package]
+name = "guest"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[features]
+v_checked = []
+v_wrap = []
+v_iter = []
+v_chunk = []
+v_simd = []
+v_host = []
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false
+strip = false
+
+[profile.dev]
+panic = "abort"

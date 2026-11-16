@@ -1,0 +1,107 @@
+
+  release:
+    if: >-
+      ${{ !cancelled() && needs.oci-native.result == 'success' && needs.crates.result == 'success'
+      && needs.gate.outputs.rehearsal != 'true' }}
+    needs: [gate, factory, images, native, reproducibility, installed-sdk, oci-native, crates]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      attestations: write
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: false
+      - name: Require the source-bound publication policy before versioned aliases
+        env:
+          DISPATCH_VERSION: ${{ inputs.version }}
+          PUBLISH_CRATES: ${{ toJSON(inputs.publish-crates) }}
+          REHEARSAL: ${{ toJSON(inputs.rehearsal) }}
+        run: node scripts/release-phases.mjs policy
+      - name: Require the complete Cargo-dependent publication prerequisites
+        env:
+          RELEASE_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/release-phases.mjs prerequisites release
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: native-*
+          path: release
+          merge-multiple: true
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: '*-image'
+          path: release
+          merge-multiple: true
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: '*-supply-chain'
+          path: release
+          merge-multiple: true
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Publish accepted OCI discovery tags
+        shell: bash
+        env:
+          VERSION: ${{ needs.gate.outputs.version }}
+        run: |
+          set -euo pipefail
+          for identity_file in release/*-image.txt; do
+            identity=$(cat "$identity_file")
+            case "$identity" in
+              ghcr.io/uor-foundation/*@sha256:????????????????????????????????????????????????????????????????) ;;
+              *) printf 'invalid release image identity: %s\n' "$identity" >&2; exit 64 ;;
+            esac
+            repository=${identity%@*}
+            expected=${identity##*@}
+            docker buildx imagetools create --tag "$repository:$VERSION" "$identity"
+            # The digest of the raw bytes the tag serves. Buildx v0.28.0
+            # prints its default text for --format '{{.Manifest.Digest}}'.
+            observed=sha256:$(docker buildx imagetools inspect --raw "$repository:$VERSION" \
+              | sha256sum | cut -d' ' -f1)
+            test "$observed" = "$expected"
+          done
+      - shell: bash
+        run: |
+          set -euo pipefail
+          find release -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > release/SHA256SUMS
+      - uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661
+        with:
+          subject-path: release/prismpm-*.tar.gz
+      - name: Write the verification notes for this version
+        env:
+          VERSION: ${{ needs.gate.outputs.version }}
+        run: |
+          set -euo pipefail
+          sed -e "s/@VERSION@/$VERSION/g" -e "s/@VERSION_PATTERN@/${VERSION//./\\\\.}/g" RELEASE_NOTES.md > "$RUNNER_TEMP/release-notes.md"
+          ! grep -n '@VERSION' "$RUNNER_TEMP/release-notes.md"
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        with:
+          tag_name: v${{ needs.gate.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          fail_on_unmatched_files: true
+          generate_release_notes: false
+          # The cut created this release with the version's changelog entry.
+          append_body: true
+          body_path: ${{ runner.temp }}/release-notes.md
+          files: |
+            release/*

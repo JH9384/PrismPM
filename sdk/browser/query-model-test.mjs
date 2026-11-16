@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
+import {readSemantic} from '../../scripts/semantic-source.mjs';
 import {readFileSync,writeFileSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {test} from 'node:test';
 import {prepare,run,draft,repository,sha} from '../../tests/browser-query/compile.mjs';
 export function corpus(){
  const source=readFileSync(join(repository,'stdlib/src/Foundation/Browser/V1/WorkspaceQueryCorpus.lex.tex'),'utf8');
- const data=JSON.parse(source.split('\n').find(x=>x.startsWith('\\semanticdata{')).slice(14,-1));assert.equal(data.spec,'lexlean/semantic-module/1');
+ const data=readSemantic(source);assert.equal(data.spec,'lexlean/semantic-module/2');
  const defs=new Map(data.declarations.map(d=>[d.name,d]));assert.equal(defs.size,data.declarations.length);
  const cache=new Map(),used=new Set();
  function expand(name,active=new Set()){

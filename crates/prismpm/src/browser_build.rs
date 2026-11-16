@@ -7,7 +7,8 @@ mod toolchain;
 
 use crate::error::PrismError;
 use crate::holo::application::project_application;
-use crate::holo::canonical::{encode_canonical, encode_value};
+use crate::holo::canonical::encode_value;
+use crate::holo::model_document::encode_canonical;
 use crate::holo::model_document::Application;
 use crate::library_build::{regular_bytes, sha256, validate_export_identity, write};
 use crate::verification::{executable, run_process, ProcessRecord};

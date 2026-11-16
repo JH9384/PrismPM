@@ -1,7 +1,7 @@
 # ADR-015: Dual Digests, BLAKE3 Native Plus sha256
 
 ## Status
-Accepted, 2026-10-23. Tested for issue #274.
+Accepted, 2026-10-23. Tested for issue #274. Superseded by [ADR-017](017-holo-v5-uorc-archive.md) (2026-11-13): a holo v5 names every object by κ, sha256 alone; this ADR governs only legacy v4 holos.
 
 ## Context
 - A `.holo` names its parts with BLAKE3.

@@ -1,0 +1,4 @@
+{
+  "kib": 2,
+  "reason": "Reading the comparison word of a draft (#666): `=`, `==` and `!=` on a choice as `is` and `is not`, and `is` and `is not` on a number as `=` and `!=`, each named in notes (journey/complete.mjs, about 1.3 KiB), and the two strict refusals that now say which part is wrong (journey/spec.mjs, about 0.3 KiB)."
+}

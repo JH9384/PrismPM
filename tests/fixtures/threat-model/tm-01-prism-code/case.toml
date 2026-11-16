@@ -1,0 +1,11 @@
+# The language-1.2 model of UOR-Foundation/prism-code as CT-02 holds it, with
+# its threat model (browser-only, no storage, no network) stated in the
+# Production.ThreatModel rows of src/Security.lex.tex, the first user of those
+# stdlib types.
+spec = "prismpm/test-case/1"
+command = "oscal"
+expected_exit = 0
+normalization = "none"
+capabilities = ["AU-08", "FT-14", "FT-15"]
+expected_artifacts = ["rendered/oscal/component-definition.json"]
+expected_diagnostics = []

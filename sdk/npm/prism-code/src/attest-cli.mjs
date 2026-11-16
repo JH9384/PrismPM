@@ -8,7 +8,8 @@ import { readFile, writeFile, rename, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { PrismCodeError, VerificationError } from './errors.mjs';
 import { canonicalJson } from './archive.mjs';
-import { experimental_attest, experimental_verifyAttestations } from './attest.mjs';
+import { experimental_verifyAttestations } from './attest.mjs';
+import { experimental_attest, experimental_signStatements } from './attest-write.mjs';
 
 const present = (options, name) => typeof options[name] === 'string' && options[name] !== '';
 const path = (options, name) => (present(options, name) ? resolve(options[name]) : undefined);
@@ -23,10 +24,48 @@ async function readOperand(file, what, encoding) {
 
 const tuf = (options) => ({ tufMirrorUrl: options['tuf-mirror-url'], tufRoot: path(options, 'tuf-root'), tufCache: path(options, 'tuf-cache') });
 
-/** `attest <holo> --predicate <file> --type <uri> [--key <private.pem>]`. Returns the exit code. */
+/** Write beside the target and rename, so an interrupted run never leaves half a holo. */
+async function replace(target, holo) {
+  const scratch = `${target}.attest-${process.pid}.tmp`;
+  try {
+    await writeFile(scratch, holo);
+    await rename(scratch, target);
+  } finally {
+    await rm(scratch, { force: true });
+  }
+}
+
+/**
+ * `attest <holo> [--unsigned] [--statement <file>]`: sign what is already
+ * written, the holo's unsigned placeholders and a whole statement (#582).
+ */
+async function runSignStatements(positional, options, usage) {
+  if (present(options, 'predicate') || present(options, 'type') || options.subject !== undefined) {
+    return usage('attest signs either a new predicate (--predicate and --type) or written statements (--unsigned, --statement), not both');
+  }
+  if (options.unsigned !== undefined && options.unsigned !== true) return usage('--unsigned takes no value');
+  const statements = present(options, 'statement') ? [await readOperand(options.statement, 'the statement', null)] : [];
+  const key = present(options, 'key') ? await readOperand(options.key, 'the key', 'utf8') : undefined;
+  const { holo, signed, attestations } = await experimental_signStatements(resolve(positional[0]), {
+    unsigned: options.unsigned === true,
+    statements,
+    key,
+    signingConfig: path(options, 'signing-config'),
+    ...tuf(options),
+  });
+  const target = resolve(options.output ?? positional[0]);
+  await replace(target, holo);
+  const how = key === undefined ? 'keyless' : `key ${signed[0].bundle.verificationMaterial.publicKey?.hint}`;
+  for (const { statement } of signed) process.stdout.write(`${target}: signed ${statement.predicateType} (${statement.subject.map((s) => s.name).join(', ')}), ${how}\n`);
+  process.stdout.write(`${target}: ${attestations} attestation${attestations === 1 ? '' : 's'}\n`);
+  return 0;
+}
+
+/** `attest <holo> --predicate <file> --type <uri> [--key <private.pem>]`, or the written statements. Returns the exit code. */
 export async function runAttest(positional, options, usage) {
   if (positional.length !== 1) return usage('attest takes one holo');
-  if (!present(options, 'predicate') || !present(options, 'type')) return usage('attest needs --predicate <file> and --type <uri>');
+  if (options.unsigned !== undefined || present(options, 'statement')) return runSignStatements(positional, options, usage);
+  if (!present(options, 'predicate') || !present(options, 'type')) return usage('attest needs --predicate <file> and --type <uri>, or --unsigned or --statement <file>');
   const predicate = await readOperand(options.predicate, 'the predicate', null);
   const key = present(options, 'key') ? await readOperand(options.key, 'the key', 'utf8') : undefined;
   const { holo, bundle, statement, attestations } = await experimental_attest(resolve(positional[0]), {
@@ -37,15 +76,8 @@ export async function runAttest(positional, options, usage) {
     signingConfig: path(options, 'signing-config'),
     ...tuf(options),
   });
-  // Write beside the target and rename, so an interrupted run never leaves half a holo.
   const target = resolve(options.output ?? positional[0]);
-  const scratch = `${target}.attest-${process.pid}.tmp`;
-  try {
-    await writeFile(scratch, holo);
-    await rename(scratch, target);
-  } finally {
-    await rm(scratch, { force: true });
-  }
+  await replace(target, holo);
   const how = key === undefined ? 'keyless' : `key ${bundle.verificationMaterial.publicKey?.hint}`;
   process.stdout.write(`${target}: attested ${statement.predicateType} (${statement.subject.map((s) => s.name).join(', ')}), ${how}; ${attestations} attestation${attestations === 1 ? '' : 's'}\n`);
   return 0;

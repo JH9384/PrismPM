@@ -7,8 +7,8 @@
     },
     "rust": {
       "title": "Rust",
-      "command": null,
-      "declaration": null
+      "command": ["target/debug/prism-conformance-shim"],
+      "declaration": "crates/conformance/runtime/declaration.json"
     },
     "python": {
       "title": "Python",

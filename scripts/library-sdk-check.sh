@@ -4,11 +4,24 @@ set -euo pipefail
 test "$#" -eq 2 -o "$#" -eq 3 || { echo 'usage: library-sdk-check.sh IMAGE@sha256:DIGEST SOURCE_COMMIT [EXPLICIT_REGISTRY_CA]' >&2; exit 64; }
 image=$1
 revision=$2
-root=$(cd "$(dirname "$0")/.." && pwd -P)
-helper="$root/scripts/library-sdk-check.mjs"
+harness=$(cd "$(dirname "$0")/.." && pwd -P)
+root=$harness
+helper="$harness/scripts/library-sdk-check.mjs"
+# Candidate qualification (release-qualify.yml): this checkout's check scripts
+# and SDK check modules run against an already built candidate image. The
+# revision and every source binding then name the candidate's own checkout,
+# and this checkout's scripts/ and sdk/ are mounted over the image's copies in
+# the phases that execute them. Without it, harness and source are one root.
+harness_mount=()
+if test -n "${PRISMPM_QUALIFY_SOURCE:-}"; then
+  root=$(cd "$PRISMPM_QUALIFY_SOURCE" && pwd -P)
+  test "$root" != "$harness"
+  harness_mount=(--mount "type=bind,source=$harness/scripts,target=/opt/prismpm/share/conformance-root/scripts,readonly"
+    --mount "type=bind,source=$harness/sdk,target=/opt/prismpm/share/conformance-root/sdk,readonly")
+fi
 qualification_trust=()
 if test "$#" -eq 3; then
-  node "$root/scripts/sdk-qualification-trust.mjs" "$3"
+  node "$harness/scripts/sdk-qualification-trust.mjs" "$3"
   export NODE_EXTRA_CA_CERTS=$3
   qualification_trust=(--mount "type=bind,source=$3,target=/run/prismpm-qualification-ca.crt,readonly" --env NODE_EXTRA_CA_CERTS=/run/prismpm-qualification-ca.crt)
 fi
@@ -36,7 +49,10 @@ container=$(docker container create --network none --read-only --entrypoint /usr
 mkdir "$sdk_work/source"
 while IFS= read -r path; do
   mkdir -p "$sdk_work/source/$(dirname "$path")"
-  docker container cp "$container:/opt/prismpm/share/conformance-root/$path" "$sdk_work/source/$path"
+  # Stream the root as a tar so tracked relative symlinks such as
+  # crates/prismpm/model -> ../../model stay symlinks; docker cp refuses to
+  # extract a link that points outside its destination. verify checks every alias.
+  docker container cp "$container:/opt/prismpm/share/conformance-root/$path" - | tar -x -C "$sdk_work/source/$(dirname "$path")"
 done < <(node "$helper" roots)
 node "$helper" verify "$sdk_work/source" "$sdk_work/source.json"
 docker container cp "$container:/usr/local/bin/prismpm-devcontainer-init" "$sdk_work/entrypoint.sh"
@@ -59,7 +75,7 @@ if test -d "$registry_directory"; then
 fi
 container=$(docker container create --entrypoint node --user "$(id -u):$(id -g)" --read-only --network bridge --cap-drop ALL \
   --security-opt no-new-privileges --memory 512m --pids-limit 128 --tmpfs /tmp:rw,nosuid,nodev,size=64m \
-  "${credential_mount[@]}" "${qualification_trust[@]}" --env DOCKER_CONFIG=/run/prismpm-registry-auth \
+  "${credential_mount[@]}" "${qualification_trust[@]}" --env DOCKER_CONFIG=/run/prismpm-registry-auth "${harness_mount[@]}" \
   --workdir /opt/prismpm/share/conformance-root "$image" \
   scripts/library-sdk-check.mjs acquire-lock "$image")
 [[ $container =~ ^[0-9a-f]{64}$ ]] || exit 1
@@ -74,19 +90,19 @@ node "$helper" binding "$sdk_work/lock.json" "$image" "$architecture" "$root/sta
 # outputs. Reuse its first fresh seed for relocation; do not build a third.
 container=$(docker container create --interactive --entrypoint node --user 1000:1000 --read-only --network none --cap-drop ALL \
   --security-opt no-new-privileges --memory 8g --pids-limit 256 \
-  --tmpfs /tmp:rw,exec,nosuid,nodev,size=768m --tmpfs /work:rw,exec,nosuid,nodev,size=2g,mode=1777 \
+  --tmpfs /tmp:rw,exec,nosuid,nodev,size=768m --tmpfs /work:rw,exec,nosuid,nodev,size=2g,mode=1777 "${harness_mount[@]}" \
   --workdir /opt/prismpm/share/conformance-root "$image" sdk/exporter-qualification.mjs run "$image")
 [[ $container =~ ^[0-9a-f]{64}$ ]] || exit 1
 docker container start --attach --interactive "$container" < "$sdk_work/lock.json" > "$sdk_work/compiler.json"
 test "$(docker container inspect --format '{{.State.ExitCode}}' "$container")" = 0
-node "$root/sdk/exporter-qualification.mjs" result "$sdk_work/compiler.json" "$sdk_work/lock.json" "$image" "$root" "$sdk_work/inventory.json"
+node "$harness/sdk/exporter-qualification.mjs" result "$sdk_work/compiler.json" "$sdk_work/lock.json" "$image" "$root" "$sdk_work/inventory.json"
 cat "$sdk_work/compiler.json"
 docker container rm "$container" >/dev/null
 container=''
 # Root is confined to disposable custody fixtures, never consumer execution.
 container=$(docker container create --entrypoint node --user 0:0 --read-only --network none --cap-drop ALL \
   --security-opt no-new-privileges --memory 256m --pids-limit 64 \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m --tmpfs /opt/prismpm-custody:rw,noexec,nosuid,nodev,size=16m,mode=0700 \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m --tmpfs /opt/prismpm-custody:rw,noexec,nosuid,nodev,size=16m,mode=0700 "${harness_mount[@]}" \
   --workdir /opt/prismpm/share/conformance-root "$image" sdk/exporter-seed-custody.integration.mjs)
 [[ $container =~ ^[0-9a-f]{64}$ ]] || exit 1
 docker container start --attach "$container" > "$sdk_work/custody.json"
@@ -97,9 +113,12 @@ docker container rm "$container" >/dev/null
 container=''
 # Execution has no network, credentials, host implementation, or writable mount.
 # The independently captured lock is the only explicit stdin data.
+# The installed source tree is read-only, so the semantic-source tool that
+# run builds with cargo writes its target below the bounded /tmp instead.
 container=$(docker container create --interactive --user 1000:1000 --read-only --network none --cap-drop ALL \
   --security-opt no-new-privileges --tmpfs /tmp:rw,exec,nosuid,nodev,size=8g \
   --env PRISMPM_EPHEMERAL_HOME=1 --env CARGO_NET_OFFLINE=true \
+  --env CARGO_TARGET_DIR=/tmp/prismpm-library-target "${harness_mount[@]}" \
   --workdir /opt/prismpm/share/conformance-root "$image" \
   node scripts/library-sdk-check.mjs run "$image")
 [[ $container =~ ^[0-9a-f]{64}$ ]] || exit 1

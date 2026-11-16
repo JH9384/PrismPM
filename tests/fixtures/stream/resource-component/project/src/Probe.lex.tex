@@ -1,0 +1,72 @@
+\begin{lexlean}{Probe}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\importmodule{Foundation.Library.V1.Model}
+\importmodule{Foundation.Stream.V1.Model}
+\title{Natural number}
+\begin{semanticmodule}
+structure{name: Config, type_parameters: [], parameters: [], fields: [{name: marker, type: Bytes}]}
+structure{name: State, type_parameters: [], parameters: [], fields: [{name: marker, type: Bytes}, {name: last, type: Bytes}, {name: ended, type: Bool}]}
+structure{name: Summary, type_parameters: [], parameters: [], fields: [{name: value, type: Bytes}]}
+inductive{
+  name: StreamError, type_parameters: [], parameters: [],
+  constructors: [{name: InvalidConfig, fields: []}, {name: Rejected, fields: []}, {name: Cancelled, fields: []}]
+}
+inductive{
+  name: Transition, type_parameters: [], parameters: [],
+  constructors: [
+    {name: NeedInput, fields: [State]},
+    {name: Advanced, fields: [State]},
+    {name: Output, fields: [Bytes, State]},
+    {name: Complete, fields: [Summary]},
+    {name: Failed, fields: [StreamError, Foundation.Stream.V1.Model::PublicationDisposition]}
+  ]
+}
+definition{
+  name: configDecode, parameters: [bytes : Bytes], result: (Result Config StreamError),
+  body: (if (prim equal bytes 0xfe : Bool) then (ctor Result.error [Config, StreamError] (ctor StreamError.InvalidConfig)) else (ctor Result.ok [Config, StreamError] (record Config {marker := bytes})))
+}
+definition{
+  name: init, parameters: [config : Config], result: (Result State StreamError),
+  body: (ctor Result.ok [State, StreamError] (record State {marker := (project config marker), last := 0x, ended := false}))
+}
+definition{
+  name: step, parameters: [state : State, event : Foundation.Stream.V1.Model::InputEvent], result: Transition,
+  body: (match event
+    | Foundation.Stream.V1.Model::InputEvent.Tick => (if (project state ended) then (ctor Transition.Complete (record Summary {value := (prim append (project state marker) (project state last) : Bytes)})) else (ctor Transition.NeedInput state))
+    | Foundation.Stream.V1.Model::InputEvent.Chunk bytes => (if (prim equal bytes 0xfd : Bool) then (if (prim equal ((prim length bytes : Nat) + 18446744073709551615) 0 : Bool) then (ctor Transition.Advanced state) else (ctor Transition.Failed (ctor StreamError.Rejected) (ctor Foundation.Stream.V1.Model::PublicationDisposition.NotPublished))) else (if (prim equal bytes 0xff : Bool) then (ctor Transition.Failed (ctor StreamError.Rejected) (ctor Foundation.Stream.V1.Model::PublicationDisposition.NotPublished)) else (ctor Transition.Output bytes (record State {marker := (project state marker), last := bytes, ended := false}))))
+    | Foundation.Stream.V1.Model::InputEvent.EndOfInput => (ctor Transition.Advanced (record State {marker := (project state marker), last := (project state last), ended := true}))
+    | Foundation.Stream.V1.Model::InputEvent.Cancel => (ctor Transition.Failed (ctor StreamError.Cancelled) (ctor Foundation.Stream.V1.Model::PublicationDisposition.NotPublished)))
+}
+definition{
+  name: errorEncode, parameters: [error : StreamError], result: Bytes,
+  body: (match error | StreamError.InvalidConfig => 0x01 | StreamError.Rejected => 0x02 | StreamError.Cancelled => 0x03)
+}
+definition{name: summaryEncode, parameters: [summary : Summary], result: Bytes, body: (project summary value)}
+definition{
+  name: dispositionEncode, parameters: [disposition : Foundation.Stream.V1.Model::PublicationDisposition], result: Bytes,
+  body: (match disposition | Foundation.Stream.V1.Model::PublicationDisposition.NotPublished => 0x00 | Foundation.Stream.V1.Model::PublicationDisposition.Unknown => 0x01)
+}
+definition{
+  name: acceptance, parameters: [], result: Bool,
+  body: (match (configDecode 0x00ff)
+    | Result.error error => false
+    | Result.ok config => (match (init config)
+      | Result.error error => false
+      | Result.ok state => (match (step state (ctor Foundation.Stream.V1.Model::InputEvent.Chunk 0x0102))
+        | Transition.Output bytes next => (prim equal bytes 0x0102 : Bool)
+        | Transition.NeedInput next => false
+        | Transition.Advanced next => false
+        | Transition.Complete summary => false
+        | Transition.Failed error disposition => false)))
+}
+definition{
+  name: probeLibrary, parameters: [], result: Foundation.Library.V1.Model::NativeLibrary,
+  body: (record Foundation.Library.V1.Model::NativeLibrary {profile := "prismpm/native-library/1", name := "Typed resource component probe", cargoName := "prism-resource-component-probe", cargoVersion := "0.1.0", cargoDescription := "Private source-owned typed resource component fixture", cargoRepository := "https://github.com/UOR-Foundation/PrismPM", cargoHomepage := "https://github.com/UOR-Foundation/PrismPM", exportRoots := (cons "LibraryProbe.Probe.acceptance" (cons "LibraryProbe.Probe.configDecode" (cons "LibraryProbe.Probe.dispositionEncode" (cons "LibraryProbe.Probe.errorEncode" (cons "LibraryProbe.Probe.init" (cons "LibraryProbe.Probe.step" (cons "LibraryProbe.Probe.summaryEncode" (nil String)))))))), acceptanceRoots := (cons "LibraryProbe.Probe.acceptance" (nil String))})
+}
+definition{
+  name: resourceAdapter, parameters: [], result: Foundation.Stream.V1.Model::ResourceAdapter,
+  body: (record Foundation.Stream.V1.Model::ResourceAdapter {profile := "prismpm/private-resource-component/1", configDecodeRoot := "LibraryProbe.Probe.configDecode", initRoot := "LibraryProbe.Probe.init", stepRoot := "LibraryProbe.Probe.step", errorEncodeRoot := "LibraryProbe.Probe.errorEncode", dispositionEncodeRoot := "LibraryProbe.Probe.dispositionEncode", summaryEncodeRoot := "LibraryProbe.Probe.summaryEncode"})
+}
+\end{semanticmodule}
+\end{lexlean}

@@ -1,0 +1,15 @@
+\begin{lexlean}{Kernel.Range}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Foundation.Bytes}
+\title{Text application model}
+\begin{semanticmodule}
+definition{
+  name: answer,
+  parameters: [value : Bytes],
+  result: Bytes,
+  body: (Foundation.Bytes::appendBytes 0x2072616e67653a value)
+}
+\end{semanticmodule}
+\end{lexlean}

@@ -1,0 +1,48 @@
+{
+  "schema": "prism/spec/2",
+  "name": "dinner-seats",
+  "title": "Dinner seats",
+  "purpose": "Books seats at a dinner for twelve until the host closes the list.",
+  "state": [
+    { "name": "booked", "kind": "number", "max": 12, "means": "seats booked so far" },
+    { "name": "list", "kind": "choice", "values": ["open", "closed"] }
+  ],
+  "outcomes": ["booked", "full", "closed", "cancelled", "nothing"],
+  "meanings": { "full": "not enough seats are left", "nothing": "there was nothing to cancel" },
+  "actions": [
+    {
+      "name": "book",
+      "means": "books seats for one party",
+      "inputs": [{ "name": "seats", "kind": "number", "min": 1, "max": 6 }],
+      "rules": [
+        { "when": [{ "field": "list", "op": "is", "value": "closed" }], "then": "closed", "why": "a closed list takes no bookings" },
+        { "then": "booked", "change": [{ "field": "booked", "op": "add", "value": { "field": "seats" } }] }
+      ],
+      "otherwise": "full",
+      "otherwiseWhy": "the party does not fit"
+    },
+    {
+      "name": "cancel",
+      "inputs": [{ "name": "seats", "kind": "number", "min": 1, "max": 6 }],
+      "rules": [
+        { "then": "cancelled", "change": [{ "field": "booked", "op": "subtract", "value": { "field": "seats" } }] }
+      ],
+      "otherwise": "nothing"
+    },
+    {
+      "name": "close",
+      "rules": [
+        { "then": "closed", "change": [{ "field": "list", "op": "set", "value": "closed" }] }
+      ],
+      "otherwise": "closed"
+    }
+  ],
+  "properties": [
+    { "kind": "always", "when": [{ "field": "booked", "op": "<=", "value": 12 }], "why": "the room has twelve seats" },
+    { "kind": "never", "action": "book", "when": [{ "field": "list", "op": "is", "value": "closed" }], "then": "booked", "why": "the host's word is final" },
+    { "kind": "never", "action": "book", "when": [{ "field": "booked", "op": ">", "value": 10 }, { "field": "seats", "op": ">=", "value": 3 }], "then": "booked" }
+  ],
+  "examples": [
+    { "steps": ["book 4", "book 6", "book 3", "cancel 2", "book 3", "close", "book 1"], "answers": ["booked", "booked", "full", "cancelled", "booked", "closed", "closed"] }
+  ]
+}

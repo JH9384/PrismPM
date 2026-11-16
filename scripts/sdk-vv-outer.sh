@@ -1,32 +1,36 @@
 #!/usr/bin/env bash
 # Basic host Docker infrastructure only; SDK commands execute in pinned tools.
 set -euo pipefail
-test "$#" -eq 4 -o "$#" -eq 5 || { echo 'usage: sdk-vv-outer.sh IMAGE@sha256:DIGEST SOURCE_COMMIT ARCH FRESH_OUTPUT [EXPLICIT_REGISTRY_CA]' >&2; exit 64; }
-sdk_image=$1 revision=$2 architecture=$3 destination=$4
+test "$#" -eq 5 -o "$#" -eq 6 || { echo 'usage: sdk-vv-outer.sh IMAGE@sha256:DIGEST SOURCE_COMMIT ARCH PART FRESH_OUTPUT [EXPLICIT_REGISTRY_CA]' >&2; exit 64; }
+sdk_image=$1 revision=$2 architecture=$3 part=$4 destination=$5
 [[ $sdk_image =~ ^[a-z0-9][a-z0-9./:_-]*@sha256:[0-9a-f]{64}$ ]] || exit 64
 [[ $revision =~ ^[0-9a-f]{40}$ ]] || exit 64
 case "$(uname -m):$architecture" in x86_64:amd64|aarch64:arm64) ;; *) exit 64 ;; esac
 root=$(cd "$(dirname "$0")/.." && pwd -P)
+# The closed part list is scripts/vv-assemble.mjs `parts`; it is not repeated here.
+part_pattern=$(node "$root/scripts/vv-assemble.mjs" --list | paste -sd'|' -)
+[[ $part_pattern =~ ^[a-z0-9|-]+$ ]] || exit 64
+[[ $part =~ ^($part_pattern)$ ]] || exit 64
 qualification_trust=()
-qualification_ca=${5:-}
-if test "$#" -eq 5; then test -n "$qualification_ca"; fi
+qualification_ca=${6:-}
+if test "$#" -eq 6; then test -n "$qualification_ca"; fi
 qualification_command=(
-  'node root-a/scripts/sdk-vv-check.mjs tests; node root-a/scripts/sdk-vv-check.mjs run "$1" "$2" "$3" "$4"'
+  'node root-a/scripts/sdk-vv-check.mjs tests; node root-a/scripts/sdk-vv-check.mjs run "$1" "$2" "$3" "$4" "$5"'
 )
-qualification_arguments=("$sdk_image" "$revision" "$architecture" "$destination")
+qualification_arguments=("$sdk_image" "$revision" "$architecture" "$part" "$destination")
 if test -n "$qualification_ca"; then
   node "$root/scripts/sdk-qualification-trust.mjs" "$qualification_ca"
   qualification_trust=(--mount "type=bind,source=$qualification_ca,target=/run/prismpm-qualification-ca.crt,readonly")
   qualification_ca=/run/prismpm-qualification-ca.crt
-  qualification_command=('node root-a/scripts/sdk-vv-check.mjs tests; node root-a/scripts/sdk-vv-check.mjs run-owned-registry "$1" "$2" "$3" "$4" "$5"')
+  qualification_command=('node root-a/scripts/sdk-vv-check.mjs tests; node root-a/scripts/sdk-vv-check.mjs run-owned-registry "$1" "$2" "$3" "$4" "$5" "$6"')
   qualification_arguments+=("$qualification_ca")
 fi
 workspace=$(pwd -P)
 test "$(git -C "$root" rev-parse HEAD)" = "$revision"
 test -z "$(git -C "$root" status --porcelain)"
 test "$root" = "$workspace/root-a"
-[[ $destination =~ ^sdk-(amd64|arm64)-full-sdk-vv$ ]] || exit 64
-test "$destination" = "sdk-$architecture-full-sdk-vv"
+[[ $destination =~ ^sdk-(amd64|arm64)-full-sdk-vv-($part_pattern)$ ]] || exit 64
+test "$destination" = "sdk-$architecture-full-sdk-vv-$part"
 test ! -e "$workspace/$destination"
 evidence="$workspace/$destination-outer-owner"
 mkdir -m 0700 "$evidence"
@@ -140,7 +144,7 @@ created=$(controlled create 30 container create --init --name "$owner" --cidfile
 [[ $created =~ ^[a-f0-9]{64}$ ]] || exit 1
 container_id=$created
 test "$(cat "$evidence/container.id")" = "$container_id"
-# The original360-minute job and inner two-run4-hour deadline remain unchanged.
+# The original360-minute job holds one part under its inner5-hour deadline.
 if docker container start --attach "$container_id" >"$evidence/actor.stdout" 2>"$evidence/actor.stderr"; then attached=0; else attached=$?; fi
 printf '%s\n' "$attached" >"$evidence/actor.status"
 controlled terminal 10 container inspect "$container_id" >/dev/null

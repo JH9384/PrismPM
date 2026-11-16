@@ -26,7 +26,7 @@ import {
 import { blake3Hex } from './blake3.mjs';
 import { sha256Hex } from './sha256.mjs';
 import { fail } from './errors.mjs';
-import { worldOf } from './vendor/verify.mjs';
+import { inspect as inspectWithVerify, worldOf } from './vendor/verify.mjs';
 
 export const INSPECTION_SCHEMA = 'prismpm/holo-inspection/1';
 
@@ -178,6 +178,8 @@ export async function inspect(source) {
   if (typeof Blob !== 'undefined' && source instanceof Blob) source = new Uint8Array(await source.arrayBuffer());
   const bytes = asBytes(source);
   const parsed = parseArchive(bytes);
+  // A holo v5 (ADR-017) has one inspection, @prism-code/verify's, so the two packages cannot describe it differently.
+  if (parsed.format === 5) return inspectWithVerify(bytes);
   const resolved = resolveArchive(parsed);
   const { modelDocument, provenance, directory } = resolved;
   const application = modelDocument.application ?? {};

@@ -31,7 +31,8 @@ test('actual publisher recipe copies exact bounded files with a terminal closed 
   for (const [name,bytes] of Object.entries(files)) assert.deepEqual(readFileSync(join(output,'opt/prismpm/share',name)),bytes);
   const terminal = dockerfile.split('\nFROM runtime_base AS runtime\n')[1].split('\n# Redistributable')[0].trim();
   assert.equal(terminal,'COPY --link --from=metadata_files /sdk-metadata/ /\nLABEL ' + label + '="' + profile + '"');
-  for (const stage of dockerfile.split('\nFROM runtime AS ').slice(1))
+  // Each package stage ends at the next FROM; later stages build other images.
+  for (const stage of dockerfile.split('\nFROM runtime AS ').slice(1).map(stage => stage.split('\nFROM ')[0]))
     assert(!/^(?:RUN|COPY|ADD|VOLUME|ONBUILD)\s/m.test(stage),'downstream package must retain terminal metadata');
   for (const [name,limit] of [['inventory.json',8388608],['standards.lock',16777216]]) {
     const path = join(source,name); writeFileSync(path,Buffer.alloc(limit + 1)); assert.notEqual(run().status,0);

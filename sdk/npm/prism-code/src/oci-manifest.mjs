@@ -9,7 +9,7 @@
  * Referrers copy cosign's own layout, so `cosign verify-attestation` and `oras
  * discover` read them (ADR-015, #267).
  */
-import { canonicalJson, parseArchive, resolveArchive, asBytes } from './archive.mjs';
+import { canonicalJson, holoDigest, parseArchive, resolveArchive, asBytes } from './archive.mjs';
 import { blake3Hex } from './blake3.mjs';
 import { sha256Hex } from './sha256.mjs';
 import { BUNDLE_MEDIA_TYPE, OCI_MANIFEST_SUBJECT, STATEMENT_TYPE } from './attestations.mjs';
@@ -75,13 +75,11 @@ function identityOf(parsed) {
 export async function holoManifest(source) {
   const parsed = source && typeof source === 'object' && Array.isArray(source.sections) ? source : parseArchive(asBytes(source));
   const { name, applicationKappa } = identityOf(parsed);
-  const fingerprint = `blake3:${parsed.footer}`;
-  const layer = {
-    mediaType: HOLO_MEDIA_TYPE,
-    digest: await digestOf(parsed.bytes),
-    size: parsed.bytes.length,
-    annotations: { [ANNOTATION.TITLE]: `${name}.holo`, [ANNOTATION.BLAKE3]: blake3Hex(parsed.bytes) },
-  };
+  const fingerprint = holoDigest(parsed);
+  // A holo v5 is named by its κ, which is the layer digest itself; only a legacy v4 holo carries a BLAKE3 beside it.
+  const layerAnnotations = { [ANNOTATION.TITLE]: `${name}.holo` };
+  if (parsed.format !== 5) layerAnnotations[ANNOTATION.BLAKE3] = blake3Hex(parsed.bytes);
+  const layer = { mediaType: HOLO_MEDIA_TYPE, digest: await digestOf(parsed.bytes), size: parsed.bytes.length, annotations: layerAnnotations };
   const annotations = { [ANNOTATION.CREATED]: CREATED, [ANNOTATION.TITLE]: name, [ANNOTATION.FINGERPRINT]: fingerprint };
   if (typeof applicationKappa === 'string') annotations[ANNOTATION.APPLICATION] = applicationKappa;
   const manifest = { schemaVersion: 2, mediaType: MANIFEST_MEDIA_TYPE, artifactType: HOLO_MEDIA_TYPE, config: EMPTY_DESCRIPTOR, layers: [layer], annotations };

@@ -20,7 +20,6 @@
 import { fail } from './errors.mjs';
 import { asBytes, parseArchive, resolveArchive, canonicalJson } from './archive.mjs';
 import { appendAttestations, readAttestations, BUNDLE_MEDIA_TYPE, STATEMENT_TYPE, DSSE_PAYLOAD_TYPE } from './attestations.mjs';
-import { blake3Hex } from './blake3.mjs';
 import { sha256Hex } from './sha256.mjs';
 
 export const PROVENANCE_PREDICATE_TYPE = 'https://slsa.dev/provenance/v1';
@@ -57,8 +56,9 @@ function base64(bytes) {
   return btoa(binary);
 }
 
-async function dualDigest(bytes) {
-  return { blake3: blake3Hex(bytes), sha256: await sha256Hex(bytes) };
+/** A subject or material digest: sha256 alone, the κ of the bytes (ADR-017). */
+async function kappaDigest(bytes) {
+  return { sha256: await sha256Hex(bytes) };
 }
 
 /** `sha256:<hex>` to hex, or a typed failure naming the lock member. */
@@ -103,7 +103,7 @@ export async function resolvedDependencies(lock) {
     {
       name: 'sdk-lock',
       uri: LOCK_URI,
-      digest: await dualDigest(bytes),
+      digest: await kappaDigest(bytes),
       mediaType: LOCK_MEDIA_TYPES[document.schema],
     },
     { name: 'standards-lock', uri: STANDARDS_LOCK_URI, digest: { sha256: sha256Of(document.standards_lock, 'standards_lock') } },
@@ -118,7 +118,7 @@ export async function resolvedDependencies(lock) {
       rows.push({
         name: 'world',
         uri: inputs.world.contract,
-        digest: { blake3: hexOf(inputs.world.blake3, 'inputs.world.blake3'), sha256: hexOf(inputs.world.sha256, 'inputs.world.sha256') },
+        digest: { sha256: hexOf(inputs.world.sha256, 'inputs.world.sha256') },
       });
     }
     for (const [tool, version] of Object.entries(isObject(inputs.toolchain) ? inputs.toolchain : {})) {
@@ -191,7 +191,7 @@ export async function provenanceStatement(source, options = {}) {
   const subject = [];
   for (const [role, blob] of blobs) {
     if (typeof names[role] !== 'string' || names[role].length === 0) fail('provenance.input', `subjectNames.${role} is not a path`);
-    subject.push({ name: names[role], digest: await dualDigest(blob.content) });
+    subject.push({ name: names[role], digest: await kappaDigest(blob.content) });
   }
   if (new Set(subject.map((s) => s.name)).size !== subject.length) fail('provenance.input', 'two subjects share a name');
 
@@ -201,7 +201,7 @@ export async function provenanceStatement(source, options = {}) {
   let version;
   if (lock.document.schema === 'prismpm/sdk-lock/3') {
     const locked = lock.document.inputs?.model;
-    if (!isObject(locked) || locked.blake3 !== model.blake3 || locked.sha256 !== model.sha256) {
+    if (!isObject(locked) || locked.sha256 !== model.sha256) {
       fail('provenance.lock', "the lock's inputs.model is not the model document of this archive; the lock does not describe this build");
     }
     externalParameters.spec = lock.document.inputs.spec;

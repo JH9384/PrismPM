@@ -1,0 +1,4 @@
+{
+  "kib": 44,
+  "reason": "prism/spec/2, the JSON spec of an app that keeps state (#664): journey/stateful.mjs (strict reading, refusals, evaluator, reachable-state search) and journey/render-stateful.mjs (state machine model, induction proofs, session vectors, SPEC.md), with the prism_spec input schema and the skill text that describe it (about 40 KiB)."
+}

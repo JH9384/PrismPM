@@ -1,0 +1,337 @@
+\begin{lexlean}{Foundation.Views.V1.Developer}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.bindings@1.0.0}
+\importmodule{Foundation.Bindings.V1.Source}
+\importmodule{Foundation.Bindings.V1.Text}
+\title{Developer view glossary}
+\begin{semanticmodule}
+structure{
+  name: DeveloperTerm,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: view, type: String},
+    {name: kind, type: String},
+    {name: canonical, type: String},
+    {name: since, type: String}
+  ]
+}
+
+structure{
+  name: DeveloperAlias,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: kind, type: String},
+    {name: name, type: String},
+    {name: target, type: String},
+    {name: removal, type: String}
+  ]
+}
+
+structure{
+  name: DeveloperName,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: kind, type: String}, {name: place, type: String}, {name: name, type: String}]
+}
+
+structure{
+  name: DeveloperSurface,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: names, type: (List DeveloperName)}, {name: aliases, type: (List DeveloperAlias)}]
+}
+
+structure{
+  name: DeveloperViewReport,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: refusals, type: (List String)}, {name: glossary, type: String}]
+}
+
+definition{
+  name: term,
+  parameters: [view : String, kind : String, canonical : String, since : String],
+  result: DeveloperTerm,
+  body: (record DeveloperTerm {view := view, kind := kind, canonical := canonical, since := since}),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: alias,
+  parameters: [kind : String, name : String, target : String, removal : String],
+  result: DeveloperAlias,
+  body: (record DeveloperAlias {kind := kind, name := name, target := target, removal := removal}),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: developerTerms,
+  parameters: [],
+  result: (List DeveloperTerm),
+  body: (cons (term "image" "noun" "holo" "now") (cons (term "digest" "noun" "archive fingerprint" "now") (cons (term "layer digest" "noun" "section fingerprint" "now") (cons (term "config" "noun" "model document" "now") (cons (term "manifest" "noun" "product release" "now") (cons (term "builder image" "noun" "SDK image" "now") (cons (term "container" "noun" "instance" "now") (cons (term "recording" "noun" "history" "now") (cons (term "network" "noun" "outbound capability grant" "now") (cons (term "volume" "noun" "store capability grant" "now") (cons (term "run" "verb" "instantiate and dispatch, one shot" "now") (cons (term "rm" "verb" "remove an exited instance" "now") (cons (term "record" "verb" "write the acceptance vectors as a history" "now") (cons (term "ps" "verb" "list running instances" "now") (cons (term "stop" "verb" "stop a running instance" "#350") (cons (term "logs" "verb" "read an instance's output" "now") (cons (term "ls" "verb" "list the store capability grants" "now") (cons (term "images" "verb" "list the local store" "now") (cons (term "tag" "verb" "name a local store entry" "now") (cons (term "rmi" "verb" "remove a local store entry" "now") (nil DeveloperTerm))))))))))))))))))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: developerAliases,
+  parameters: [],
+  result: (List DeveloperAlias),
+  body: (cons (alias "verb" "history" "record" "0.9.0") (cons (alias "flag" "holo" "image" "0.9.0") (nil DeveloperAlias))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: canonicalWords,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("holo", "image") (cons ("history", "recording") (cons ("instance", "container") (cons ("fingerprint", "digest") (nil (String * String)))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: developerWords,
+  parameters: [],
+  result: (List String),
+  body: (cons "attest" (cons "auth" (cons "axioms" (cons "build" (cons "check" (cons "conformance" (cons "connect" (cons "containers" (cons "create" (cons "dev" (cons "df" (cons "disconnect" (cons "dispatch" (cons "errors" (cons "events" (cons "export" (cons "export-browser" (cons "fromKey" (cons "generate" (cons "get" (cons "identities" (cons "images" (cons "info" (cons "init" (cons "inspect" (cons "keyless" (cons "list" (cons "lock" (cons "login" (cons "logout" (cons "manifest" (cons "mcp" (cons "networks" (cons "open" (cons "providers" (cons "prune" (cons "pull" (cons "push" (cons "remove" (cons "replay" (cons "setup" (cons "start" (cons "stores" (cons "system" (cons "template" (cons "usage" (cons "vectors" (cons "verify" (cons "verify-attestation" (cons "version" (cons "volumes" (nil String)))))))))))))))))))))))))))))))))))))))))))))))))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: same,
+  parameters: [left : String, right : String],
+  result: Bool,
+  body: (prim equal left right : Bool),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: termOf,
+  parameters: [name : String, kind : String, terms : (List DeveloperTerm)],
+  result: (Option DeveloperTerm),
+  body: (match terms
+    | List.nil => (ctor Option.none [DeveloperTerm])
+    | List.cons head rest => (if ((same (project head view) name) && (same (project head kind) kind)) then (ctor Option.some [DeveloperTerm] head) else (termOf name kind rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: terms
+}
+
+definition{
+  name: textsOf,
+  parameters: [parts : (List Bytes)],
+  result: (List String),
+  body: (match parts
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (Foundation.Bindings.V1.Text::textOf head "") (textsOf rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: parts
+}
+
+definition{
+  name: segments,
+  parameters: [name : String],
+  result: (List String),
+  body: (textsOf (Foundation.Bindings.V1.Source::split (prim utf8_encode name : Bytes) 0x2d)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: canonicalIn,
+  parameters: [parts : (List String)],
+  result: (Option (String * String)),
+  body: (match parts
+    | List.nil => (ctor Option.none [(String * String)])
+    | List.cons head rest => (match (Foundation.Bindings.V1.Text::lookupText head (canonicalWords))
+      | Option.some word => (ctor Option.some [(String * String)] (head, word))
+      | Option.none => (canonicalIn rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: parts
+}
+
+definition{
+  name: one,
+  parameters: [message : String],
+  result: (List String),
+  body: (cons message (nil String)),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: wordRefusal,
+  parameters: [entry : DeveloperName],
+  result: (List String),
+  body: (if (same (project entry kind) "flag") then (nil String) else (match (termOf (project entry name) (if (same (project entry kind) "namespace") then "noun" else "verb") (developerTerms))
+    | Option.some found => (if (same (project found since) "now") then (nil String) else (one (Foundation.Bindings.V1.Text::concat (cons (project entry place) (cons " takes a Docker word before Prism has its behaviour, which " (cons (project found since) (cons " builds" (nil String))))))))
+    | Option.none => (if (Foundation.Bindings.V1.Text::memberText (project entry name) (developerWords)) then (nil String) else (one (Foundation.Bindings.V1.Text::concat (cons (project entry place) (cons " is not a word of the developer view; declare it in the glossary or rename it" (nil String)))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: canonicalRefusal,
+  parameters: [entry : DeveloperName],
+  result: (List String),
+  body: (match (canonicalIn (segments (project entry name)))
+    | Option.none => (nil String)
+    | Option.some found => (one (Foundation.Bindings.V1.Text::concat (cons (project entry place) (cons " uses the canonical term " (cons (first found) (cons ", which the developer view calls " (cons (second found) (nil String))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: nameRefusals,
+  parameters: [names : (List DeveloperName)],
+  result: (List String),
+  body: (match names
+    | List.nil => (nil String)
+    | List.cons head rest => (prim append (prim append (wordRefusal head) (canonicalRefusal head) : (List String)) (nameRefusals rest) : (List String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: names
+}
+
+definition{
+  name: sameAlias,
+  parameters: [left : DeveloperAlias, right : DeveloperAlias],
+  result: Bool,
+  body: ((same (project left kind) (project right kind)) && ((same (project left name) (project right name)) && ((same (project left target) (project right target)) && (same (project left removal) (project right removal))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: hasAlias,
+  parameters: [entry : DeveloperAlias, aliases : (List DeveloperAlias)],
+  result: Bool,
+  body: (match aliases
+    | List.nil => false
+    | List.cons head rest => ((sameAlias entry head) || (hasAlias entry rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: aliases
+}
+
+definition{
+  name: hasName,
+  parameters: [kind : String, name : String, names : (List DeveloperName)],
+  result: Bool,
+  body: (match names
+    | List.nil => false
+    | List.cons head rest => (((same (project head kind) kind) && (same (project head name) name)) || (hasName kind name rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: names
+}
+
+definition{
+  name: aliasText,
+  parameters: [entry : DeveloperAlias],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::concat (cons "the " (cons (project entry kind) (cons " alias " (cons (project entry name) (cons " for " (cons (project entry target) (cons " (removed in " (cons (project entry removal) (cons ")" (nil String))))))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: undeclaredAliases,
+  parameters: [aliases : (List DeveloperAlias), names : (List DeveloperName)],
+  result: (List String),
+  body: (match aliases
+    | List.nil => (nil String)
+    | List.cons head rest => (prim append (if (hasAlias head (developerAliases)) then (if (hasName (project head kind) (project head target) names) then (nil String) else (one (Foundation.Bindings.V1.Text::concat (cons (aliasText head) (cons " names a " (cons (project head kind) (cons " the surface does not have" (nil String)))))))) else (one (Foundation.Bindings.V1.Text::concat (cons (aliasText head) (cons " is not declared in the developer view" (nil String)))))) (undeclaredAliases rest names) : (List String))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: aliases
+}
+
+definition{
+  name: missingAliases,
+  parameters: [declared : (List DeveloperAlias), aliases : (List DeveloperAlias)],
+  result: (List String),
+  body: (match declared
+    | List.nil => (nil String)
+    | List.cons head rest => (prim append (if (hasAlias head aliases) then (nil String) else (one (Foundation.Bindings.V1.Text::concat (cons (aliasText head) (cons " is declared, and the surface does not keep it" (nil String)))))) (missingAliases rest aliases) : (List String))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: declared
+}
+
+definition{
+  name: cell,
+  parameters: [value : String],
+  result: String,
+  body: (if (same value "now") then "Now" else (Foundation.Bindings.V1.Text::concat (cons "After " (cons value (nil String))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: termRows,
+  parameters: [terms : (List DeveloperTerm)],
+  result: (List String),
+  body: (match terms
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (Foundation.Bindings.V1.Text::concat (cons "| `" (cons (project head view) (cons "` | " (cons (project head kind) (cons " | " (cons (project head canonical) (cons " | " (cons (cell (project head since)) (cons " |" (nil String))))))))))) (termRows rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: terms
+}
+
+definition{
+  name: aliasRows,
+  parameters: [aliases : (List DeveloperAlias)],
+  result: (List String),
+  body: (match aliases
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (Foundation.Bindings.V1.Text::concat (cons "| " (cons (project head kind) (cons " | `" (cons (project head name) (cons "` | `" (cons (project head target) (cons "` | " (cons (project head removal) (cons " |" (nil String))))))))))) (aliasRows rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: aliases
+}
+
+definition{
+  name: wordList,
+  parameters: [words : (List String)],
+  result: (List String),
+  body: (match words
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (Foundation.Bindings.V1.Text::concat (cons "`" (cons head (cons "`" (nil String))))) (wordList rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: words
+}
+
+definition{
+  name: glossary,
+  parameters: [],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::block (prim append (cons "# Developer view glossary" (cons "" (cons "The developer view of #346: the words of the `prism-code` CLI, its SDK namespaces and their developer docs, each mapped onto the canonical term of the model, which does not change." (cons "Generated from `bindings/src/Foundation/Views/V1/Developer.lex.tex` by `cargo xtask check-developer-view --write`; edit the model, not this file." (cons "" (cons "A Docker word is used only for its Docker meaning. Where Docker has a behaviour Prism lacks, the word waits for the issue that builds it." (cons "" (cons "| Developer view | Kind | Canonical term | Available |" (cons "|---|---|---|---|" (nil String)))))))))) (prim append (termRows (developerTerms)) (prim append (cons "" (cons "## Other words of the surface" (cons "" (cons "Docker's own verbs and the terms that are new with Prism (verify, proof, replay, world) keep their names." (nil String))))) (prim append (cons "" (cons (prim join (wordList (developerWords)) ", " : String) (nil String))) (prim append (cons "" (cons "## Deprecated aliases" (cons "" (cons "Each alias prints one warning that names the new term, and is removed in the release shown." (cons "" (cons "| Kind | Old | New | Removed in |" (cons "|---|---|---|---|" (nil String)))))))) (aliasRows (developerAliases)) : (List String)) : (List String)) : (List String)) : (List String)) : (List String))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: checkDeveloperView,
+  parameters: [surface : DeveloperSurface],
+  result: DeveloperViewReport,
+  body: (record DeveloperViewReport {refusals := (prim append (nameRefusals (project surface names)) (prim append (undeclaredAliases (project surface aliases) (project surface names)) (missingAliases (developerAliases) (project surface aliases)) : (List String)) : (List String)), glossary := (glossary)}),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
+}
+\end{semanticmodule}
+\end{lexlean}

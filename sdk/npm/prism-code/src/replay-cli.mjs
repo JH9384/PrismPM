@@ -67,7 +67,7 @@ const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 /** A replay as text for a person. */
 export function formatReplay({ result, files }) {
-  const target = result.statement ? `${result.application ?? 'unnamed'}@blake3:${result.statement.subject[0].digest.blake3.slice(0, 12)}` : (result.application ?? 'unnamed');
+  const target = result.statement ? `${result.application ?? 'unnamed'}@sha256:${result.statement.subject[0].digest.sha256.slice(0, 12)}` : (result.application ?? 'unnamed');
   const lines = [`Replaying ${plural(files.length, 'history').replace('historys', 'histories')} against ${target}`];
   result.histories.forEach((history, i) => {
     const count = history.divergences.length;

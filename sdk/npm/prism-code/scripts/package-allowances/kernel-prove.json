@@ -1,0 +1,4 @@
+{
+  "kib": 22,
+  "reason": "The kernel prove route (#692): the prover that writes the proof terms, the store that fetches the Lean kernel by address, and the manifest and notice of the files it fetches (about 21 KiB). The kernel itself is not in the package."
+}

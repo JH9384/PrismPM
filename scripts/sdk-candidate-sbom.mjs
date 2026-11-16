@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const repository = 'ghcr.io/uor-foundation/prismpm-sdk-candidate';
-export const source = 'https://github.com/UOR-Foundation/PrismPM';
+export const source = 'https://github.com/UOR-Foundation/prismpm';
 export const workflow = `${source}/.github/workflows/sdk-candidate.yml@refs/heads/main`;
 export const issuer = 'https://token.actions.githubusercontent.com';
 export const manifestType = 'application/vnd.oci.image.manifest.v1+json';
@@ -24,18 +24,26 @@ const run = (tool, args) => execFileSync(tool, args, {stdio: ['ignore', 'pipe', 
 function transportPolicy(options) {
   if (options === undefined) return {repository, workflow, ref: 'refs/heads/main',
     event: 'workflow_dispatch', name: 'PrismPM development SDK candidate', candidate: true};
-  assert.deepEqual(Object.keys(options).sort(), ['kind', 'ref', 'repository']);
+  assert.deepEqual(Object.keys(options).sort(), ['event', 'kind', 'ref', 'repository']);
   assert.equal(options.kind, 'release');
-  assert.ok(['sdk', 'runtime', 'adapter-compose', 'adapter-kubernetes', 'adapter-github-pages', 'oracles']
+  assert.ok(['sdk', 'runtime', 'adapter-compose', 'adapter-kubernetes', 'adapter-github-pages', 'oracles', 'sdk-build']
     .some(name => options.repository === `ghcr.io/uor-foundation/prismpm-${name}`));
-  assert.ok(['refs/heads/main', 'refs/tags/v0.4.0'].includes(options.ref));
+  // The release line (scripts/release-phases.mjs releaseRefKind): rehearsals on
+  // main (dispatch only) or a release branch, publication at a version tag by a
+  // push of the tag or by the factory's cut dispatching the run at the tag.
+  const n = '(0|[1-9][0-9]*)';
+  const branch = options.ref === 'refs/heads/main' || new RegExp(`^refs/heads/release/v${n}\\.${n}$`).test(options.ref);
+  const tag = new RegExp(`^refs/tags/v${n}\\.${n}\\.${n}$`).test(options.ref);
+  assert.ok(branch || tag, 'release ref required');
+  assert.ok(options.ref === 'refs/heads/main' ? options.event === 'workflow_dispatch'
+    : ['push', 'workflow_dispatch'].includes(options.event), 'exact release ref/event pair required');
   return {repository: options.repository, workflow: `${source}/.github/workflows/release.yml@${options.ref}`,
-    ref: options.ref, event: options.ref === 'refs/heads/main' ? 'workflow_dispatch' : 'push',
+    ref: options.ref, event: options.event,
     name: 'PrismPM OCI/native and Cargo publication', candidate: false};
 }
 
-export function releaseTransportPolicy(repository, ref) {
-  const options = {kind: 'release', repository, ref};
+export function releaseTransportPolicy(repository, ref, event = ref.startsWith('refs/tags/') ? 'push' : 'workflow_dispatch') {
+  const options = {kind: 'release', repository, ref, event};
   transportPolicy(options);
   return options;
 }
@@ -123,7 +131,7 @@ export function verificationArguments(record, artifactDigest, trustedRoot, optio
   assert.match(artifactDigest, /^sha256:[0-9a-f]{64}$/);
   return ['verify', '--trusted-root', trustedRoot,
     '--certificate-identity', policy.workflow, '--certificate-oidc-issuer', issuer,
-    '--certificate-github-workflow-repository', 'UOR-Foundation/PrismPM',
+    '--certificate-github-workflow-repository', 'UOR-Foundation/prismpm',
     '--certificate-github-workflow-ref', policy.ref,
     '--certificate-github-workflow-sha', record.source_revision,
     '--certificate-github-workflow-trigger', policy.event,
@@ -165,7 +173,7 @@ export function transportSbom(command, directory, record, trustedRoot, options) 
   const artifactDigest = digest(manifestBytes);
   const reference = `${policy.repository}@${artifactDigest}`;
   if (command === 'sbom-publish') {
-    assert.equal(process.env.GITHUB_REPOSITORY, 'UOR-Foundation/PrismPM');
+    assert.equal(process.env.GITHUB_REPOSITORY, 'UOR-Foundation/prismpm');
     assert.equal(process.env.GITHUB_REF, policy.ref);
     assert.equal(process.env.GITHUB_SHA, record.source_revision);
     assert.equal(process.env.GITHUB_EVENT_NAME, policy.event);

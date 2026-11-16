@@ -1,0 +1,4 @@
+{
+  "kib": 24,
+  "reason": "The hosted tiers: hosted.mjs, the routing of build --check and verify --lean, and their docs (about 24.6 KiB)."
+}

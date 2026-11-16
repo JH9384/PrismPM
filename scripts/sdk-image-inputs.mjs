@@ -137,7 +137,7 @@ export function stageImageInputs(closure, policyRoot, revision, destination) {
   return manifest;
 }
 
-const TARGETS = ['runtime', 'adapter-compose', 'adapter-kubernetes', 'adapter-github-pages', 'oracles', 'cli-archive'];
+const TARGETS = ['runtime', 'adapter-compose', 'adapter-kubernetes', 'adapter-github-pages', 'oracles', 'sdk-build', 'cli-archive'];
 export function dockerArguments(source, revision, target, closure, args) {
   oid(revision); assert(TARGETS.includes(target), 'closed SDK build target');
   assert(Array.isArray(args));

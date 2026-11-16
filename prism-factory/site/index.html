@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prism Factory</title>
+<style>
+:root { --bg: #fbfbfa; --fg: #1d1d1b; --muted: #6b6b66; --line: #e2e1dc; --proved: #1f7a4d; --observe: #9a6700; --refuted: #b42318; --blocked: #6b6b66; }
+@media (prefers-color-scheme: dark) { :root { --bg: #151514; --fg: #ecebe6; --muted: #a3a29b; --line: #34332f; --proved: #4cc38a; --observe: #e0b341; --refuted: #f97066; --blocked: #a3a29b; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+p.lede { color: var(--muted); margin: 0 0 20px; }
+form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-bottom: 16px; }
+label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); }
+input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); min-width: 0; }
+button { font: inherit; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--fg); background: var(--fg); color: var(--bg); cursor: pointer; }
+#status { color: var(--muted); margin: 8px 0 16px; min-height: 1.5em; }
+.summary { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
+.summary div { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.summary b { display: block; font-size: 20px; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; }
+code { font: 12px ui-monospace, monospace; }
+.proved { color: var(--proved); } .observe { color: var(--observe); } .refuted { color: var(--refuted); } .blocked { color: var(--blocked); }
+details { margin-top: 24px; } pre { overflow-x: auto; font-size: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Prism Factory</h1>
+<p class="lede">The certified factory core, compiled to WebAssembly. It reads a repository tree and its receipts and decides, for every obligation, whether it is proved, must run, is refuted, or is blocked. Nothing here is decided by JavaScript.</p>
+<form id="form">
+  <label>Repository <input id="repo" value="UOR-Foundation/PrismPM" size="28"></label>
+  <label>Revision <input id="ref" value="main" size="16"></label>
+  <label>Receipts branch <input id="store" value="factory-receipts" size="16"></label>
+  <button type="submit">Plan</button>
+  <label>or a request file <input id="file" type="file"></label>
+</form>
+<div id="status"></div>
+<div class="summary" id="summary"></div>
+<div class="scroll"><table id="table"></table></div>
+<details><summary>Workflow projection</summary><pre id="workflow"></pre></details>
+</main>
+<script>
+const status = text => { document.getElementById('status').textContent = text; };
+let core;
+async function load() {
+  const { instance } = await WebAssembly.instantiateStreaming(fetch('factory.wasm'));
+  core = instance.exports;
+  document.getElementById('workflow').textContent = new TextDecoder().decode(take(core.factory_workflow()));
+}
+function take(packed) {
+  if (packed === 0n) throw new Error('the certified root stopped with an overflow');
+  const pointer = Number(packed >> 32n), length = Number(packed & 0xffffffffn);
+  const out = new Uint8Array(core.memory.buffer, pointer, length).slice();
+  core.factory_free(pointer, length);
+  return out;
+}
+function plan(request) {
+  const bytes = new TextEncoder().encode(request);
+  const pointer = core.factory_alloc(bytes.length);
+  new Uint8Array(core.memory.buffer, pointer, bytes.length).set(bytes);
+  const out = take(core.factory_plan(pointer, bytes.length));
+  core.factory_free(pointer, bytes.length);
+  return new TextDecoder().decode(out);
+}
+async function requestFor(repo, ref, store) {
+  status('Reading the tree of ' + repo + '@' + ref + ' …');
+  const response = await fetch('https://api.github.com/repos/' + repo + '/git/trees/' + encodeURIComponent(ref) + '?recursive=1');
+  if (!response.ok) throw new Error('GitHub returned ' + response.status + ' for the tree');
+  const tree = await response.json();
+  if (tree.truncated) throw new Error('GitHub truncated the tree; use a request file from `prism-factory request`');
+  let request = tree.tree.filter(row => row.type !== 'tree').map(row => 'tree ' + row.mode + ':' + row.sha + ' ' + row.path).join('\n') + '\n';
+  const receipts = await fetch('https://raw.githubusercontent.com/' + repo + '/' + store + '/index');
+  if (receipts.ok) request += await receipts.text();
+  return request;
+}
+function show(text) {
+  const rows = new Map(); let releasable = 'no'; const schedule = [];
+  for (const line of text.split('\n')) {
+    const [tag, owner, ...rest] = line.split(' ');
+    if (tag === 'obligation') rows.set(owner, { route: rest[0], kappa: rest[1] });
+    if (tag === 'environment' && rows.has(owner)) rows.get(owner).environment = rest.join(' ');
+    if (tag === 'run' && rows.has(owner)) rows.get(owner).run = rest.join(' ');
+    if (tag === 'schedule') schedule.push(owner);
+    if (tag === 'releasable') releasable = owner;
+  }
+  const counts = {};
+  for (const row of rows.values()) counts[row.route] = (counts[row.route] || 0) + 1;
+  const summary = document.getElementById('summary');
+  summary.replaceChildren(...[['releasable', releasable], ...['proved', 'observe', 'refuted', 'blocked'].map(key => [key, counts[key] || 0])].map(([key, value]) => {
+    const box = document.createElement('div'); const strong = document.createElement('b');
+    strong.textContent = value; strong.className = key; box.append(strong, key); return box;
+  }));
+  const table = document.getElementById('table');
+  const head = document.createElement('tr');
+  for (const title of ['Obligation', 'Route', 'Order', 'Environment', 'Run', 'Identity']) { const th = document.createElement('th'); th.textContent = title; head.append(th); }
+  const body = [...rows].map(([name, row]) => {
+    const tr = document.createElement('tr');
+    const order = schedule.indexOf(name);
+    for (const [value, cls, mono] of [[name], [row.route, row.route], [order < 0 ? '' : String(order + 1)], [row.environment || ''], [row.run || '', '', true], [(row.kappa || '').slice(0, 12), '', true]]) {
+      const td = document.createElement('td');
+      if (mono) { const c = document.createElement('code'); c.textContent = value; td.append(c); } else td.textContent = value;
+      if (cls) td.className = cls; tr.append(td);
+    }
+    return tr;
+  });
+  table.replaceChildren(head, ...body);
+}
+async function go(request) {
+  status('Planning in the certified core …');
+  const started = performance.now();
+  const text = plan(request);
+  show(text);
+  status('Planned in ' + Math.round(performance.now() - started) + ' ms.');
+}
+document.getElementById('form').addEventListener('submit', async event => {
+  event.preventDefault();
+  try { await go(await requestFor(document.getElementById('repo').value.trim(), document.getElementById('ref').value.trim(), document.getElementById('store').value.trim())); }
+  catch (error) { status(String(error.message || error)); }
+});
+document.getElementById('file').addEventListener('change', async event => {
+  const file = event.target.files[0]; if (!file) return;
+  try { await go(await file.text()); } catch (error) { status(String(error.message || error)); }
+});
+load().catch(error => status('Could not load the factory core: ' + error));
+</script>
+</body>
+</html>

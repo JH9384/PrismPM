@@ -1,0 +1,114 @@
+{
+  "schema": "prism/model-verification/1",
+  "project": "prism-rule-app",
+  "command": "lexlean lock && lexlean verify --all",
+  "image": "ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:cd3b47d7a370c4a26b8285f5e9c3bb15e639973c55505c3809ddbe55352fea58",
+  "lean": "4.32.1",
+  "result": "verified 2 modules",
+  "attestation": "f7127605827e863b4548f9aef848a0e6934473134395a80f81b1639b2ac89daf",
+  "sources": {
+    "lexlean.toml": "sha256:78e8f1774aad8325c668f0ebfee8e41021aab74cfb41028f48ef607691153f87",
+    "lexlean.lock": "sha256:a03672a7f077c0aa9c5fdf99caa7137cdc22b36ea76bfe5e03ca398373dc23cf",
+    "src/RuleApp.lex.tex": "sha256:42c6a74263b86285168345647121302fa0e73bd61f0cd0f2c7559b95b2d58f80",
+    "src/RuleAppProofs.lex.tex": "sha256:896c418909dcdc852fdabb1e2d22ccc14f35f24f9f09084426de9a51f483e3f7"
+  },
+  "theorems": [
+    {
+      "name": "noAdmissionUnderAnotherHolo",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "noAdmissionOfAnUnverifiedOrFailingHolo",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "noAdmissionWithAProofOfAnotherStatement",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "kernelCheckedNeedsItsOwnProofAndThePinnedHolo",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "noAdmissionWhenTheNumbersAndTheFieldsDisagree",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "noAdmissionOfAnotherSchema",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "everyBoundLiesBeforeTheRules",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "noTwoFieldsShareABound",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "anOutcomeNeedsAWellFormedRequestInBoundsAndTheJudge",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "aJudgeThatDoesNotAnswerIsAFaultNeverInvalid",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "reuseOnlyUnderTheSameKeyKernelLibraryAndBytes",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "nothingStoredIsNeverReused",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    }
+  ],
+  "plantedDefect": {
+    "defect": "In RuleApp.admits, `(holoAdmitted r)` replaced by `((project r holoVerified) =? 1)`: admission no longer compares the holo named with the holo pinned, nor counts its failing vectors.",
+    "command": "lexlean lock && lexlean verify --all",
+    "diagnostic": "error[LLV7002]: Lean rejected `PrismRuleApp.RuleAppProofs` (error): omega could not prove the goal",
+    "rejected": [
+      "noAdmissionUnderAnotherHolo",
+      "noAdmissionOfAnUnverifiedOrFailingHolo",
+      "kernelCheckedNeedsItsOwnProofAndThePinnedHolo"
+    ],
+    "restored": "verified 2 modules"
+  }
+}

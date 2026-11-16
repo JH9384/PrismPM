@@ -3,23 +3,112 @@
 //! Validator probe intervals are allocation-free; separately registered public
 //! package APIs may allocate their owned outputs and have consumer API checks.
 
+mod proof;
+pub mod server;
+
 use crate::config::ProjectConfig;
 use crate::controller::{BuildRequest, BuildResult, Controller, VerifyRequest, VerifyResult};
 use crate::error::PrismError;
-use crate::holo::canonical::{content_id, decode_canonical, encode_value};
+use crate::holo::canonical::{content_id, encode_value};
+use crate::holo::model_document::decode_canonical;
 use fs4::fs_std::FileExt;
 use lexlean::{Engine, Selection, VerifyRequest as LexVerifyRequest};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 
-const CHILD_OUTPUT_LIMIT: usize = 16_777_216;
-const CHILD_TIMEOUT_SECONDS: &str = "300";
+pub(crate) use crate::sdk::process::{executable, executables, progress, CHILD_OUTPUT_LIMIT};
+#[cfg(test)]
+use crate::sdk::process::{failure_excerpt, stable_success_output, CHILD_TIMEOUT_SECONDS};
+#[cfg(test)]
+use std::process::Command;
+
+/// A process record of the export chain, which may carry the exporter's
+/// custody record.
+pub(crate) type ProcessRecord =
+    crate::sdk::process::ProcessRecord<crate::exporter::ExporterExecution>;
+
+/// Run one bounded child process for the export chain.
+pub(crate) fn run_process(
+    tool: &str,
+    program: &Path,
+    args: &[String],
+    cwd: &Path,
+    extra_env: &BTreeMap<String, String>,
+    replacements: &[(&Path, &str)],
+    failure_code: &'static str,
+) -> Result<ProcessRecord, PrismError> {
+    crate::sdk::process::run_process(
+        tool,
+        program,
+        args,
+        cwd,
+        extra_env,
+        replacements,
+        failure_code,
+    )
+}
+
+/// Run one bounded child process for the export chain with its own deadline
+/// and output limit.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_process_limited(
+    tool: &str,
+    program: &Path,
+    args: &[String],
+    cwd: &Path,
+    extra_env: &BTreeMap<String, String>,
+    replacements: &[(&Path, &str)],
+    failure_code: &'static str,
+    timeout_seconds: &str,
+    output_limit: usize,
+) -> Result<ProcessRecord, PrismError> {
+    crate::sdk::process::run_process_limited(
+        tool,
+        program,
+        args,
+        cwd,
+        extra_env,
+        replacements,
+        failure_code,
+        timeout_seconds,
+        output_limit,
+    )
+}
+
+/// Run one bounded child process for the export chain that may exit with one
+/// of `allowed_exit_codes`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_process_limited_allowed(
+    tool: &str,
+    program: &Path,
+    args: &[String],
+    cwd: &Path,
+    extra_env: &BTreeMap<String, String>,
+    replacements: &[(&Path, &str)],
+    failure_code: &'static str,
+    timeout_seconds: &str,
+    output_limit: usize,
+    allowed_exit_codes: &[i32],
+) -> Result<ProcessRecord, PrismError> {
+    crate::sdk::process::run_process_limited_allowed(
+        tool,
+        program,
+        args,
+        cwd,
+        extra_env,
+        replacements,
+        failure_code,
+        timeout_seconds,
+        output_limit,
+        allowed_exit_codes,
+    )
+}
+
 const GENERATED_NATIVE_BUILD_TIMEOUT_SECONDS: &str = "600";
 const ROOTS_SOURCE: &str = include_str!("../model/runtime-roots.toml");
 const STDLIB_EXPORTS_SOURCE: &str = include_str!("../model/stdlib-exports.toml");
@@ -32,12 +121,6 @@ const HOLOGRAM_ORACLE_CARGO: &[u8] = include_bytes!("embedded/hologram-oracle.Ca
 const HOLOGRAM_ORACLE_LOCK: &[u8] = include_bytes!("embedded/hologram-oracle.Cargo.lock");
 const HOLOGRAM_ORACLE_MAIN: &[u8] = include_bytes!("embedded/hologram-oracle.main.rs");
 const HOLOGRAM_ORACLE_BROWSER: &[u8] = include_bytes!("embedded/hologram-oracle.browser.mjs");
-const ELAN_PROXY_SHA256: &str = "840179e70803ef373c2ec53342d6a45ea7d022533e4145489fc1278b4f716385";
-const RUSTUP_PROXY_SHA256: &str =
-    "20a06e644b0d9bd2fbdbfd52d42540bdde820ea7df86e92e533c073da0cdd43c";
-const TIMEOUT_SHA256: &str = "5ef0eaaaa4220593add7716aad74da927ca3bb10605e964330de64fecc3ef15e";
-// Node 22.23.2 x64 binary from the Dockerfile's checksum-verified tarball.
-const NODE_SHA256: &str = "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -86,7 +169,7 @@ fn package_export_roots(source: &str, runtime: &RuntimeRoots) -> Result<Vec<Stri
         || register.spec != "prismpm/stdlib-exports/1"
         || register.lean_module != runtime.lean_module
         || register.ir_module != runtime.ir_module
-        || names.len() != 69
+        || names.len() != 77
         || names.windows(2).any(|pair| pair[0] >= pair[1])
         || symbols.len() != names.len()
         || [
@@ -272,93 +355,6 @@ fn execution_corpus(roots: &RuntimeRoots) -> Result<(ExecutionCorpus, String), P
     Ok((corpus, corpus_sha256))
 }
 
-#[derive(Debug, Serialize)]
-pub(crate) struct ProcessRecord {
-    pub(crate) tool: String,
-    pub(crate) argv: Vec<String>,
-    pub(crate) executable_sha256: String,
-    pub(crate) exit_code: i32,
-    pub(crate) stdout: String,
-    pub(crate) stderr: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) exporter: Option<crate::exporter::ExporterExecution>,
-}
-
-pub(crate) fn executable(name: &str) -> Result<PathBuf, PrismError> {
-    // A released SDK has a generated, signed inventory of the exact final
-    // runtime filesystem for its architecture.  It is the authority for
-    // executables in that environment; the constants below remain the
-    // independent pins for the source-bootstrap devcontainer and native CLI.
-    if crate::sdk::inventory_path().is_some() {
-        return crate::sdk::executable(name);
-    }
-    let path =
-        std::env::var_os("PATH").ok_or_else(|| PrismError::new("PP5008", "PATH is unavailable"))?;
-    for directory in std::env::split_paths(&path) {
-        let candidate = directory.join(name);
-        if candidate.is_file() {
-            let resolved = candidate.canonicalize().map_err(|error| {
-                PrismError::new("PP5008", format!("{}: {error}", candidate.display()))
-            })?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let mode = std::fs::metadata(&resolved)
-                    .map_err(|error| {
-                        PrismError::new("PP5008", format!("{}: {error}", resolved.display()))
-                    })?
-                    .permissions()
-                    .mode();
-                if mode & 0o111 == 0 {
-                    return Err(PrismError::new(
-                        "PP5008",
-                        format!("required executable {name} is not executable"),
-                    ));
-                }
-            }
-            let expected = match name {
-                "lake" | "lean" => Some(ELAN_PROXY_SHA256),
-                "rustc" | "rustfmt" => Some(RUSTUP_PROXY_SHA256),
-                "timeout" => Some(TIMEOUT_SHA256),
-                "node" => Some(NODE_SHA256),
-                _ => None,
-            };
-            if let Some(expected) = expected {
-                let observed = format!(
-                    "{:x}",
-                    Sha256::digest(std::fs::read(&resolved).map_err(|error| {
-                        PrismError::new("PP5008", format!("{}: {error}", resolved.display()))
-                    })?)
-                );
-                if observed != expected {
-                    return Err(PrismError::new(
-                        "PP5008",
-                        format!("required executable {name} has an unpinned digest"),
-                    ));
-                }
-            }
-            return Ok(candidate);
-        }
-    }
-    Err(PrismError::new(
-        "PP5008",
-        format!("required executable {name} is unavailable"),
-    ))
-}
-
-// Coalesce only adjacent pre-child selections. Bootstrap keeps every original
-// pinned launcher check; SDK commands retain fresh selected-executable hashes.
-pub(crate) fn executables<const N: usize>(names: [&str; N]) -> Result<[PathBuf; N], PrismError> {
-    if crate::sdk::inventory_path().is_some() {
-        return crate::sdk::executables(names);
-    }
-    let mut paths = std::array::from_fn(|_| PathBuf::new());
-    for (name, path) in names.into_iter().zip(&mut paths) {
-        *path = executable(name)?;
-    }
-    Ok(paths)
-}
-
 pub(crate) struct Toolchain {
     lake: PathBuf,
     rustfmt: PathBuf,
@@ -474,85 +470,6 @@ pub(crate) fn preflight_toolchain(
         rustc,
         records,
     })
-}
-
-fn normalized(value: &str, replacements: &[(&Path, &str)]) -> String {
-    let mut out = value.to_owned();
-    for (path, token) in replacements {
-        out = out.replace(&path.to_string_lossy().replace('\\', "/"), token);
-        out = out.replace(path.to_string_lossy().as_ref(), token);
-    }
-    out
-}
-
-fn stable_success_output(tool: &str, value: String) -> String {
-    let had_final_newline = value.ends_with('\n');
-    let mut value = value
-        .lines()
-        .map(|line| {
-            if let Some((prefix, duration)) = line.rsplit_once(" in ") {
-                if duration
-                    .strip_suffix('s')
-                    .is_some_and(|seconds| seconds.parse::<f64>().is_ok())
-                {
-                    return format!("{prefix} in <DURATION>");
-                }
-            }
-            line.to_owned()
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    if had_final_newline {
-        value.push('\n');
-    }
-    if tool == "hologram-oracle-build" {
-        return String::new();
-    }
-    if tool == "hologram-oracle" {
-        return value
-            .lines()
-            .find(|line| line.starts_with('{'))
-            .map_or_else(String::new, |line| format!("{line}\n"));
-    }
-    if !matches!(
-        tool,
-        "lake-build-generated"
-            | "lean4-prod-build"
-            | "prod-export"
-            | "application-lean"
-            | "application-exporter"
-            | "application-export"
-    ) {
-        return value;
-    }
-    let mut lines = value
-        .lines()
-        .map(|line| {
-            let mut line = line.to_owned();
-            for prefix in ["✔ [", "⚠ ["] {
-                if line.starts_with(prefix) {
-                    if let Some((_, message)) = line.split_once("] ") {
-                        line = format!("{} {message}", &prefix[..prefix.len() - 2]);
-                    }
-                    break;
-                }
-            }
-            if line.contains("Built ") {
-                if let Some((prefix, suffix)) = line.rsplit_once(" (") {
-                    if suffix.ends_with(')') {
-                        return format!("{prefix} (<DURATION>)");
-                    }
-                }
-            }
-            line
-        })
-        .collect::<Vec<_>>();
-    lines.sort();
-    if lines.is_empty() {
-        String::new()
-    } else {
-        format!("{}\n", lines.join("\n"))
-    }
 }
 
 fn hologram_oracle_environment(root: &Path) -> BTreeMap<String, String> {
@@ -754,8 +671,8 @@ pub(crate) fn validate_hologram_oracle_report(
         return Err(invalid());
     }
     for (field, prefix) in [
-        ("application_kappa", "blake3:"),
-        ("archive_kappa", "blake3:"),
+        ("application_kappa", "sha256:"),
+        ("archive_kappa", "sha256:"),
         ("archive_fingerprint", ""),
     ] {
         if report[field] != identities[field] {
@@ -807,6 +724,12 @@ pub(crate) fn validate_hologram_oracle_report(
                     .ui
                     .contains(&index)
             }
+            Application::Server(_) => {
+                return Err(PrismError::new(
+                    "PP9001",
+                    "a server application has no Hologram oracle",
+                ));
+            }
             Application::Text(value) => vector.request.len() <= value.request_maximum as usize,
             Application::Legacy(value) => {
                 let fields = request.split('\t').collect::<Vec<_>>();
@@ -845,6 +768,12 @@ pub(crate) fn validate_hologram_oracle_report(
     let profile = match application {
         Application::Browser(_) => {
             return crate::holo::browser_application::require_runtime(application);
+        }
+        Application::Server(_) => {
+            return Err(PrismError::new(
+                "PP9001",
+                "a server application has no Hologram oracle",
+            ));
         }
         Application::Text(_) => {
             names.extend(["text-response-bounds", "text-safe-rendering"]);
@@ -1061,45 +990,6 @@ mod portable_oracle_tests {
     }
 }
 
-fn pipe<R: Read>(mut reader: R, limit: usize) -> std::io::Result<Vec<u8>> {
-    let mut saved = Vec::new();
-    let mut buffer = [0_u8; 8192];
-    loop {
-        let count = reader.read(&mut buffer)?;
-        if count == 0 {
-            break;
-        }
-        if saved.len() <= limit {
-            let remaining = limit.saturating_add(1).saturating_sub(saved.len());
-            saved.extend_from_slice(&buffer[..count.min(remaining)]);
-        }
-    }
-    Ok(saved)
-}
-
-// Keep both ends of a failed child's progress without enlarging the process
-// output allowance, retaining decoded source graphs, or changing its deadline.
-fn failure_excerpt(output: &str) -> String {
-    const END_BYTES: usize = 2048;
-    if output.len() <= 2 * END_BYTES {
-        return output.to_owned();
-    }
-    let mut prefix = END_BYTES;
-    while !output.is_char_boundary(prefix) {
-        prefix -= 1;
-    }
-    let mut suffix = output.len() - END_BYTES;
-    while !output.is_char_boundary(suffix) {
-        suffix += 1;
-    }
-    format!(
-        "{}\n[{} bytes omitted]\n{}",
-        &output[..prefix],
-        suffix - prefix,
-        &output[suffix..]
-    )
-}
-
 #[derive(Clone, Copy)]
 pub(crate) enum NativeCompilation {
     Library,
@@ -1129,198 +1019,6 @@ pub(crate) fn run_native_compilation(
         GENERATED_NATIVE_BUILD_TIMEOUT_SECONDS,
         CHILD_OUTPUT_LIMIT,
     )
-}
-
-pub(crate) fn run_process(
-    tool: &str,
-    program: &Path,
-    args: &[String],
-    cwd: &Path,
-    extra_env: &BTreeMap<String, String>,
-    replacements: &[(&Path, &str)],
-    failure_code: &'static str,
-) -> Result<ProcessRecord, PrismError> {
-    run_process_limited(
-        tool,
-        program,
-        args,
-        cwd,
-        extra_env,
-        replacements,
-        failure_code,
-        CHILD_TIMEOUT_SECONDS,
-        CHILD_OUTPUT_LIMIT,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn run_process_limited(
-    tool: &str,
-    program: &Path,
-    args: &[String],
-    cwd: &Path,
-    extra_env: &BTreeMap<String, String>,
-    replacements: &[(&Path, &str)],
-    failure_code: &'static str,
-    timeout_seconds: &str,
-    output_limit: usize,
-) -> Result<ProcessRecord, PrismError> {
-    run_process_limited_allowed(
-        tool,
-        program,
-        args,
-        cwd,
-        extra_env,
-        replacements,
-        failure_code,
-        timeout_seconds,
-        output_limit,
-        &[0],
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn run_process_limited_allowed(
-    tool: &str,
-    program: &Path,
-    args: &[String],
-    cwd: &Path,
-    extra_env: &BTreeMap<String, String>,
-    replacements: &[(&Path, &str)],
-    failure_code: &'static str,
-    timeout_seconds: &str,
-    output_limit: usize,
-    allowed_exit_codes: &[i32],
-) -> Result<ProcessRecord, PrismError> {
-    if allowed_exit_codes.is_empty()
-        || allowed_exit_codes
-            .iter()
-            .any(|code| !(0..=125).contains(code))
-    {
-        return Err(PrismError::new(
-            "PP9001",
-            "allowed process exit-code set is empty or malformed",
-        ));
-    }
-    let timeout = executable("timeout")?;
-    let program_bytes =
-        std::fs::read(program).or_else(|_| program.canonicalize().and_then(std::fs::read));
-    let executable_sha256 = format!(
-        "{:x}",
-        Sha256::digest(program_bytes.map_err(|error| {
-            PrismError::new("PP5008", format!("{}: {error}", program.display()))
-        })?)
-    );
-    let mut command = Command::new(timeout);
-    command
-        .arg("--signal=TERM")
-        .arg("--kill-after=5")
-        .arg(timeout_seconds)
-        .arg(program)
-        .args(args)
-        .current_dir(cwd)
-        .env_clear()
-        .env("LC_ALL", "C")
-        .env("LANG", "C")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    for key in [
-        "PATH",
-        "ELAN_HOME",
-        "ELAN_TOOLCHAIN",
-        "RUSTUP_HOME",
-        "RUSTUP_TOOLCHAIN",
-        "CARGO_HOME",
-        "HOME",
-        "XDG_CACHE_HOME",
-    ] {
-        if let Some(value) = std::env::var_os(key) {
-            command.env(key, value);
-        }
-    }
-    for (key, value) in extra_env {
-        command.env(key, value);
-    }
-    // This bounds Lake's runtime pool, not Lean CLI children: those require
-    // the traced -j2 argument in lean_project's generated configuration.
-    // No build, export, kernel check or deadline is removed or extended.
-    command.env("LEAN_NUM_THREADS", "2");
-    let mut child = command
-        .spawn()
-        .map_err(|error| PrismError::new("PP5008", format!("start {tool}: {error}")))?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| PrismError::new("PP9001", "child stdout pipe is missing"))?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| PrismError::new("PP9001", "child stderr pipe is missing"))?;
-    let stdout_thread = std::thread::spawn(move || pipe(stdout, output_limit));
-    let stderr_thread = std::thread::spawn(move || pipe(stderr, output_limit));
-    let status = child
-        .wait()
-        .map_err(|error| PrismError::new(failure_code, format!("wait for {tool}: {error}")))?;
-    let stdout = stdout_thread
-        .join()
-        .map_err(|_| PrismError::new("PP9001", "stdout reader terminated"))?
-        .map_err(|error| PrismError::new(failure_code, format!("read stdout: {error}")))?;
-    let stderr = stderr_thread
-        .join()
-        .map_err(|_| PrismError::new("PP9001", "stderr reader terminated"))?
-        .map_err(|error| PrismError::new(failure_code, format!("read stderr: {error}")))?;
-    if stdout.len() > output_limit || stderr.len() > output_limit {
-        return Err(PrismError::new(
-            "PP5007",
-            format!("{tool} output limit exceeded"),
-        ));
-    }
-    let exit_code = status.code().unwrap_or(128);
-    let stdout = normalized(&String::from_utf8_lossy(&stdout), replacements);
-    let stderr = normalized(&String::from_utf8_lossy(&stderr), replacements);
-    if matches!(exit_code, 124 | 137) {
-        let mut error = PrismError::new("PP5007", format!("{tool} timed out"));
-        // The observed wrapper exit is evidence, not a claim that exit 137
-        // identifies a timeout rather than an external resource kill.
-        for message in [
-            format!("observed process exit code: {exit_code}"),
-            format!("stdout: {}", failure_excerpt(&stdout)),
-            format!("stderr: {}", failure_excerpt(&stderr)),
-            format!(
-                "normalized child streams: stdout_bytes={}, stdout_sha256={:x}; stderr_bytes={}, stderr_sha256={:x}",
-                stdout.len(),
-                Sha256::digest(stdout.as_bytes()),
-                stderr.len(),
-                Sha256::digest(stderr.as_bytes())
-            ),
-        ] {
-            error.notes.push(crate::error::PrismNote {
-                message,
-                span: None,
-            });
-        }
-        return Err(error);
-    }
-    if !allowed_exit_codes.contains(&exit_code) {
-        return Err(PrismError::new(
-            failure_code,
-            format!("{tool} exited {exit_code}: stdout={stdout:?}; stderr={stderr:?}"),
-        ));
-    }
-    let stdout = stable_success_output(tool, stdout);
-    let stderr = stable_success_output(tool, stderr);
-    Ok(ProcessRecord {
-        tool: tool.to_owned(),
-        argv: args
-            .iter()
-            .map(|arg| normalized(arg, replacements))
-            .collect(),
-        executable_sha256,
-        exit_code,
-        stdout,
-        stderr,
-        exporter: None,
-    })
 }
 
 fn write(path: &Path, bytes: &[u8]) -> Result<(), PrismError> {
@@ -2157,6 +1855,16 @@ fn comparable_acceptance(bytes: &[u8]) -> Option<Vec<u8>> {
     encode_value(&value).ok()
 }
 
+/// A proof statement as a re-verification compares it: without the time it
+/// was made, which is the only member that differs between two runs.
+fn comparable_proof(bytes: &[u8]) -> Option<Vec<u8>> {
+    let mut value: Value = serde_json::from_slice(bytes).ok()?;
+    if let Some(predicate) = value.get_mut("predicate").and_then(Value::as_object_mut) {
+        predicate.remove("timeVerified");
+    }
+    encode_value(&value).ok()
+}
+
 pub(crate) fn publish(
     output_root: &Path,
     attestation_id: &str,
@@ -2254,6 +1962,8 @@ pub(crate) fn publish(
                 .map_err(|_| PrismError::new("PP4002", "verified artifact is missing"))?;
             let identical = if relative == "application-acceptance.json" {
                 comparable_acceptance(&observed) == comparable_acceptance(expected)
+            } else if relative == proof::FILE {
+                comparable_proof(&observed) == comparable_proof(expected)
             } else {
                 &observed == expected
             };
@@ -2445,8 +2155,8 @@ fn application_harness(
     module: &prod_ir::Module,
 ) -> Result<String, PrismError> {
     let crate_name = application.cargo_name().replace('-', "_");
-    let entry = application
-        .entry_root()
+    let entry_root = application.entry_root();
+    let entry = entry_root
         .rsplit('.')
         .next()
         .ok_or_else(|| PrismError::new("PP2001", "application entry root is malformed"))?;
@@ -2499,6 +2209,7 @@ fn run_application(
             .map_err(|error| PrismError::new("PP5004", format!("application kernel: {error}")))?;
         application_harness(application, &parse_kernel(&kernel)?)?
     };
+    progress("holo");
     let holo_path = build_root.join(format!("{}.holo", application.name()));
     let holo = std::fs::read(&holo_path)
         .map_err(|error| PrismError::new("PP4002", format!("{}: {error}", holo_path.display())))?;
@@ -2676,14 +2387,8 @@ fn run_application(
     };
 
     let browser = build_root.join("view/browser");
-    let expected_browser = [
-        "app.css",
-        "app.js",
-        "index.html",
-        &format!("{}.js", application.cargo_name().replace('-', "_")),
-        &format!("{}_bg.wasm", application.cargo_name().replace('-', "_")),
-        "provenance.json",
-    ];
+    // This compiler writes closure v2: the six-file page plus the brand files.
+    let expected_browser = crate::brand::closure_v2(&application.cargo_name().replace('-', "_"));
     let observed_browser = std::fs::read_dir(&browser)
         .map_err(|error| PrismError::new("PP5203", format!("browser output: {error}")))?
         .map(|entry| {
@@ -2705,7 +2410,7 @@ fn run_application(
                 })
         })
         .collect::<Result<BTreeSet<_>, _>>()?;
-    if observed_browser != expected_browser.into_iter().map(str::to_owned).collect() {
+    if observed_browser != expected_browser.into_iter().collect() {
         return Err(PrismError::new(
             "PP5203",
             "browser production file closure is not exact",
@@ -2737,8 +2442,13 @@ fn run_application(
         .collect::<BTreeSet<_>>();
     // Retain only separately attested inputs, not any generated product files.
     // Recompute containing-system projections just as the original build did.
+    // Design views and the OSCAL rendering of a threat model are projections of
+    // the checked snapshot, which `check` and this verify's own build rendered;
+    // the application regeneration does not produce them (#612).
     for path in &expected_artifacts {
         if path.starts_with("lexlean/")
+            || path.starts_with("design/")
+            || path.starts_with("oscal/")
             || path.starts_with("application/lexlean-build/")
             || matches!(
                 path.as_str(),
@@ -2825,11 +2535,48 @@ fn run_application(
     });
     let manifest_bytes = encode_value(&manifest)?;
     let attestation_id = content_id(&manifest_bytes);
-    let files = vec![
+    // The proof statement (#266) is written beside the evidence it names. It
+    // is unsigned; a signer adds it to the holo (#582). Its `timeVerified`
+    // varies per run, so it is not part of the attestation identity.
+    let lock = match std::fs::read(controller.root.join("prismpm.lock")) {
+        Ok(bytes) => Some(bytes),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(PrismError::new("PP4002", format!("prismpm.lock: {error}"))),
+    };
+    let snapshot: Value = serde_json::from_slice(
+        &std::fs::read(build_root.join("lexlean/snapshot.json"))
+            .map_err(|error| PrismError::new("PP4002", format!("LexLean snapshot: {error}")))?,
+    )
+    .map_err(|error| PrismError::new("PP4004", format!("LexLean snapshot: {error}")))?;
+    let lex_value: Value = serde_json::from_slice(&lex_attestation)
+        .map_err(|error| PrismError::new("PP4004", format!("LexLean attestation: {error}")))?;
+    let guest = format!(
+        "core-wasm/{}_core_wasm.wasm",
+        application.cargo_name().replace('-', "_")
+    );
+    let proof = proof::write(&proof::Evidence {
+        holo: &holo,
+        guest: &guest,
+        lock: lock.as_deref(),
+        snapshot: &snapshot,
+        attestation: &lex_value,
+        attestation_bytes: &lex_attestation,
+        build_manifest: &build_manifest,
+        verification_manifest: &manifest_bytes,
+        processes: &processes,
+        time: crate::holo::provenance::now_utc(),
+    })?;
+    let mut files = vec![
         ("application-acceptance.json".to_owned(), acceptance_bytes),
         ("lexlean-attestation.json".to_owned(), lex_attestation),
         ("manifest.json".to_owned(), manifest_bytes),
     ];
+    match proof {
+        proof::Outcome::Statement(statement) => files.push((proof::FILE.to_owned(), statement)),
+        proof::Outcome::Refused(code, message) => {
+            eprintln!("prismpm: no proof statement ({code}): {message}");
+        }
+    }
     let output_root = config.output_root(&controller.root)?;
     publish(&output_root, &attestation_id, &files)?;
     Ok(VerifyResult {
@@ -2874,6 +2621,7 @@ pub(crate) fn run(
         )
     })?;
     controller.check_model_configuration(request.config_path.as_deref())?;
+    progress("lean-proof");
     let lex_verified = lex_engine.verify(LexVerifyRequest {
         selection: Selection::Entrypoints,
     });
@@ -3053,6 +2801,25 @@ pub(crate) fn run(
                 exporter_owner,
             },
         );
+    }
+    if matches!(
+        model.application,
+        Some(crate::holo::model_document::Application::Server(_))
+    ) {
+        // A server application has no View, guest or archive: what is verified is the
+        // acceptance of the program that its published build produces.
+        return crate::verification::server::run(crate::verification::server::ServerVerification {
+            project_root: &controller.root,
+            config: &config,
+            build,
+            model,
+            model_bytes,
+            build_manifest,
+            build_root: &build_root,
+            lex_attestation,
+            lex_attestation_id,
+            processes: toolchain.records,
+        });
     }
     if model.application.is_some() {
         return run_application(
@@ -3652,7 +3419,7 @@ mod tests {
     fn package_exports_are_closed_and_do_not_change_runtime_accounting() {
         let (runtime, corpus, _) = corpus();
         let package = package_export_roots(STDLIB_EXPORTS_SOURCE, &runtime).unwrap();
-        assert_eq!(package.len(), 69);
+        assert_eq!(package.len(), 77);
         let union = runtime
             .roots
             .iter()

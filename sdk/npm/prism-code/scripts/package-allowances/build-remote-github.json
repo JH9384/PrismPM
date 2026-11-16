@@ -1,0 +1,4 @@
+{
+  "kib": 40,
+  "reason": "Build --remote github: the GitHub client, the artifact reader and the checks of what comes back, with its docs and skill section (about 37.8 KiB)."
+}

@@ -19,7 +19,7 @@ import { attestationSection, ATTESTATION_EXTENSION } from './attestations.mjs';
 /** The environment variable that sets the client's minimum assurance level, P0 to P3. */
 export const MINIMUM_LEVEL_ENV = 'PRISM_MINIMUM_LEVEL';
 
-const OPTION_KEYS = ['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects', 'replay', 'statements', 'throw', 'env'];
+const OPTION_KEYS = ['name', 'rego', 'minimum', 'digests', 'world', 'capabilities', 'effects', 'replay', 'throw', 'env'];
 
 function defined(options) {
   if (options === undefined || options === null) return {};
@@ -98,11 +98,26 @@ async function bytesOf(source) {
  * @param {Uint8Array | ArrayBuffer | Blob | object} source the holo as bytes, a Blob, or a holo opened with `load`
  * @param {{ name?: string, rego?: string, minimum?: string, digests?: object, world?: object | null, throw?: boolean, env?: object }} [options] `rego` is the source of a Rego policy (#285), which decides alone
  */
-export async function experimental_verify(source, options = undefined, clientOptions = undefined) {
+export function experimental_verify(source, options = undefined, clientOptions = undefined) {
+  return judged(source, options, clientOptions);
+}
+
+/**
+ * A verdict that counts `statements`, whose signatures the caller has already
+ * checked: `{ provenance, proof }`, each `{ statement, envelope: { verified } }`.
+ * `envelope.verified` is taken as given, so this is `check`'s alone and is not
+ * exported from the package. An option can never carry evidence: a caller could
+ * write its own envelope and raise the level with no signature anywhere.
+ */
+export function verifyWithStatements(source, options, statements) {
+  return judged(source, options, undefined, statements);
+}
+
+async function judged(source, options, clientOptions, statements = undefined) {
   const { policy, throwOnFail } = resolveOptions(clientOptions, options);
   let verdict;
   try {
-    verdict = await verifyBytes(await bytesOf(source), policy);
+    verdict = await verifyBytes(await bytesOf(source), statements === undefined ? policy : { ...policy, statements });
   } catch (error) {
     if (error instanceof VerifyError) throw new (classForCheck(error.code))(error.message, { check: error.code, cause: error });
     throw error;

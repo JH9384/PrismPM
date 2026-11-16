@@ -115,6 +115,13 @@ pub(crate) fn generate(
             )
         })
         .collect::<String>();
+    let index = index.replace(
+        "<link rel=\"stylesheet\" href=\"app.css\">",
+        &format!(
+            "<link rel=\"stylesheet\" href=\"app.css\">{}",
+            crate::brand::HEAD_LINKS
+        ),
+    );
     let index=index.replace("<meta name=\"viewport\"",&format!("<meta name=\"description\" content=\"{}\"><link rel=\"canonical\" href=\"{}\"><meta name=\"viewport\"",html(&app.view.purpose),html(&app.cargo_homepage)))
         .replace("<p id=\"status\"",&format!("<p>{}</p><p>{}</p><ol class=\"guidance\">{}</ol><noscript><p>{}</p></noscript><p id=\"status\"",html(&app.view.purpose),html(&app.view.audience),guidance,html(&app.view.statuses.script_required)))
         .replace("</main>",&format!("<section id=\"guide\"><h2>{}</h2>{}</section><footer id=\"links\"><h2>{}</h2>{}</footer></main>",html(&app.view.labels.guide),documentation,html(&app.view.labels.links),links));
@@ -131,10 +138,14 @@ pub(crate) fn generate(
             .replace("__TRANSPORT__", &format!("{transport:?}"))
             // Source strings are substituted last and never scanned as template syntax.
             .replace("__VIEW__", &view);
-        vec![
+        let mut files = vec![
             PackageFile {
                 path: "app.css".into(),
-                bytes: include_bytes!("workbench/style.css").to_vec(),
+                bytes: [
+                    crate::brand::FONT_FACES.as_bytes(),
+                    include_bytes!("workbench/style.css"),
+                ]
+                .concat(),
             },
             PackageFile {
                 path: "app.js".into(),
@@ -144,7 +155,11 @@ pub(crate) fn generate(
                 path: "index.html".into(),
                 bytes: index.as_bytes().to_vec(),
             },
-        ]
+        ];
+        // Closure v2: brand fonts, icons and the web app manifest, flat and sorted.
+        files.extend(crate::brand::assets(&app.view.title));
+        files.sort_by(|left, right| left.path.cmp(&right.path));
+        files
     };
     generated.browser_assets = assets("browser");
     generated.hologram_assets = assets("hologram");
@@ -198,19 +213,38 @@ mod tests {
                 .iter()
                 .map(|file| file.path.as_str())
                 .collect::<Vec<_>>(),
-            ["app.css", "app.js", "index.html"]
+            crate::brand::closure_v2("stem")
+                .into_iter()
+                .filter(
+                    |name| !["stem.js", "stem_bg.wasm", "provenance.json"].contains(&name.as_str())
+                )
+                .collect::<Vec<_>>()
         );
-        assert_eq!(generated.hologram_assets.len(), 3);
-        let source = String::from_utf8(generated.browser_assets[1].bytes.clone()).unwrap();
+        assert_eq!(generated.hologram_assets.len(), 13);
+        let asset = |files: &[PackageFile], path: &str| {
+            files
+                .iter()
+                .find(|file| file.path == path)
+                .unwrap()
+                .bytes
+                .clone()
+        };
+        let source = String::from_utf8(asset(&generated.browser_assets, "app.js")).unwrap();
         assert!(source.contains("new Worker(new URL(import.meta.url),{type:'module'})"));
         assert!(!source.contains("blob:"));
         assert!(source.contains(&app.view.operations[0].label));
         assert!(
-            String::from_utf8(generated.hologram_assets[1].bytes.clone())
+            String::from_utf8(asset(&generated.hologram_assets, "app.js"))
                 .unwrap()
                 .contains("const TRANSPORT = \"hologram\"")
         );
-        let html = String::from_utf8(generated.browser_assets[2].bytes.clone()).unwrap();
+        let html = String::from_utf8(asset(&generated.browser_assets, "index.html")).unwrap();
+        assert!(html.contains("<link rel=\"manifest\" href=\"manifest.webmanifest\">"));
+        assert!(
+            String::from_utf8(asset(&generated.browser_assets, "app.css"))
+                .unwrap()
+                .starts_with("@font-face{font-family:Geist;")
+        );
         for text in [
             &app.view.purpose,
             &app.view.statuses.script_required,
@@ -248,7 +282,8 @@ mod tests {
         )
         .unwrap();
         for assets in [generated.browser_assets, generated.hologram_assets] {
-            let source = std::str::from_utf8(&assets[1].bytes).unwrap();
+            let script = assets.iter().find(|file| file.path == "app.js").unwrap();
+            let source = std::str::from_utf8(&script.bytes).unwrap();
             let embedded = source
                 .split_once("const VIEW = ")
                 .unwrap()

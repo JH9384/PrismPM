@@ -609,7 +609,10 @@ export function buildSeed(source, destination) {
     sourceCustody.set('',heldPackage.before);
     const packageRoot = heldPackage.path;
     const held={directory:heldPackage,temporary:heldStage};
-    const extraction = runConstruction('/usr/bin/tar', ['--extract', '--file', archive, '--directory', '/proc/self/fd/3'], source, childEnvironment,held);
+    // Keep the archive's modes for every builder: GNU tar preserves them only for
+    // root by default, so a non-root rebuild under umask 0022 recorded different
+    // modes from the root-built installed seed (rehearsal 42219829101).
+    const extraction = runConstruction('/usr/bin/tar', ['--extract', '--file', archive, '--directory', '/proc/self/fd/3', '--same-permissions'], source, childEnvironment,held);
     assert.deepEqual(snapshotFile(archive, 16 * 1024 * 1024), archiveRow);
     assert.equal(lstatSync(join(packageRoot, '.lake'), {throwIfNoEntry: false}), undefined);
     const sources = snapshotTree(packageRoot, {bounds: sourceLimit, custody: sourceCustody});

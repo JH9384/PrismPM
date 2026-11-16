@@ -11,7 +11,8 @@ inductive{
   constructors: [
     {name: System, fields: []},
     {name: Serif, fields: []},
-    {name: Monospace, fields: []}
+    {name: Monospace, fields: []},
+    {name: Hologram, fields: []}
   ]
 }
 
@@ -35,15 +36,83 @@ structure{
     {name: contentWidthRem, type: Nat},
     {name: sidebarWidthRem, type: Nat},
     {name: collapseWidthRem, type: Nat},
-    {name: targetPixels, type: Nat}
+    {name: targetPixels, type: Nat},
+    {name: card, type: Nat},
+    {name: muted, type: Nat},
+    {name: mutedText, type: Nat},
+    {name: hover, type: Nat},
+    {name: input, type: Nat},
+    {name: brand, type: Nat},
+    {name: brandText, type: Nat},
+    {name: success, type: Nat},
+    {name: warning, type: Nat}
   ]
+}
+
+definition{
+  name: designLinearRow,
+  parameters: [row : Nat],
+  result: (List Nat),
+  body: (if (row =? 0) then (cons 0 (cons 3035 (cons 6071 (cons 9106 (cons 12141 (cons 15176 (cons 18212 (cons 21247 (cons 24282 (cons 27317 (cons 30353 (cons 33465 (cons 36765 (cons 40247 (cons 43914 (cons 47770 (nil Nat))))))))))))))))) else (if (row =? 1) then (cons 51815 (cons 56054 (cons 60488 (cons 65121 (cons 69954 (cons 74990 (cons 80232 (cons 85681 (cons 91341 (cons 97212 (cons 103298 (cons 109601 (cons 116122 (cons 122865 (cons 129830 (cons 137021 (nil Nat))))))))))))))))) else (if (row =? 2) then (cons 144438 (cons 152085 (cons 159963 (cons 168074 (cons 176420 (cons 185002 (cons 193824 (cons 202886 (cons 212190 (cons 221739 (cons 231534 (cons 241576 (cons 251869 (cons 262412 (cons 273209 (cons 284260 (nil Nat))))))))))))))))) else (if (row =? 3) then (cons 295568 (cons 307134 (cons 318960 (cons 331048 (cons 343398 (cons 356013 (cons 368895 (cons 382044 (cons 395462 (cons 409152 (cons 423114 (cons 437350 (cons 451862 (cons 466651 (cons 481718 (cons 497066 (nil Nat))))))))))))))))) else (if (row =? 4) then (cons 512695 (cons 528606 (cons 544803 (cons 561285 (cons 578054 (cons 595112 (cons 612461 (cons 630100 (cons 648033 (cons 666259 (cons 684782 (cons 703601 (cons 722719 (cons 742136 (cons 761854 (cons 781874 (nil Nat))))))))))))))))) else (if (row =? 5) then (cons 802198 (cons 822827 (cons 843762 (cons 865005 (cons 886556 (cons 908417 (cons 930590 (cons 953075 (cons 975873 (cons 998987 (cons 1022417 (cons 1046165 (cons 1070231 (cons 1094617 (cons 1119324 (cons 1144354 (nil Nat))))))))))))))))) else (if (row =? 6) then (cons 1169707 (cons 1195384 (cons 1221388 (cons 1247718 (cons 1274377 (cons 1301365 (cons 1328683 (cons 1356333 (cons 1384316 (cons 1412633 (cons 1441285 (cons 1470273 (cons 1499598 (cons 1529262 (cons 1559265 (cons 1589608 (nil Nat))))))))))))))))) else (if (row =? 7) then (cons 1620294 (cons 1651322 (cons 1682694 (cons 1714411 (cons 1746474 (cons 1778884 (cons 1811642 (cons 1844750 (cons 1878208 (cons 1912017 (cons 1946178 (cons 1980693 (cons 2015563 (cons 2050787 (cons 2086369 (cons 2122308 (nil Nat))))))))))))))))) else (if (row =? 8) then (cons 2158605 (cons 2195262 (cons 2232280 (cons 2269659 (cons 2307400 (cons 2345506 (cons 2383976 (cons 2422811 (cons 2462013 (cons 2501583 (cons 2541521 (cons 2581829 (cons 2622507 (cons 2663556 (cons 2704978 (cons 2746773 (nil Nat))))))))))))))))) else (if (row =? 9) then (cons 2788943 (cons 2831487 (cons 2874408 (cons 2917706 (cons 2961383 (cons 3005438 (cons 3049873 (cons 3094689 (cons 3139887 (cons 3185468 (cons 3231432 (cons 3277781 (cons 3324515 (cons 3371636 (cons 3419144 (cons 3467041 (nil Nat))))))))))))))))) else (if (row =? 10) then (cons 3515326 (cons 3564001 (cons 3613068 (cons 3662526 (cons 3712377 (cons 3762621 (cons 3813260 (cons 3864294 (cons 3915725 (cons 3967552 (cons 4019778 (cons 4072402 (cons 4125426 (cons 4178851 (cons 4232677 (cons 4286905 (nil Nat))))))))))))))))) else (if (row =? 11) then (cons 4341536 (cons 4396572 (cons 4452012 (cons 4507858 (cons 4564110 (cons 4620770 (cons 4677838 (cons 4735315 (cons 4793202 (cons 4851499 (cons 4910208 (cons 4969330 (cons 5028865 (cons 5088813 (cons 5149177 (cons 5209956 (nil Nat))))))))))))))))) else (if (row =? 12) then (cons 5271151 (cons 5332764 (cons 5394795 (cons 5457245 (cons 5520114 (cons 5583404 (cons 5647115 (cons 5711248 (cons 5775804 (cons 5840784 (cons 5906188 (cons 5972018 (cons 6038273 (cons 6104956 (cons 6172066 (cons 6239604 (nil Nat))))))))))))))))) else (if (row =? 13) then (cons 6307571 (cons 6375969 (cons 6444797 (cons 6514056 (cons 6583748 (cons 6653873 (cons 6724432 (cons 6795425 (cons 6866853 (cons 6938718 (cons 7011019 (cons 7083758 (cons 7156935 (cons 7230551 (cons 7304607 (cons 7379104 (nil Nat))))))))))))))))) else (if (row =? 14) then (cons 7454042 (cons 7529422 (cons 7605245 (cons 7681511 (cons 7758222 (cons 7835378 (cons 7912979 (cons 7991027 (cons 8069523 (cons 8148466 (cons 8227858 (cons 8307699 (cons 8387990 (cons 8468732 (cons 8549926 (cons 8631572 (nil Nat))))))))))))))))) else (cons 8713671 (cons 8796224 (cons 8879231 (cons 8962694 (cons 9046612 (cons 9130987 (cons 9215819 (cons 9301109 (cons 9386857 (cons 9473065 (cons 9559734 (cons 9646862 (cons 9734453 (cons 9822506 (cons 9911021 (cons 10000000 (nil Nat)))))))))))))))))))))))))))))))),
+  axioms: []
+}
+
+definition{
+  name: designNatAt,
+  parameters: [values : (List Nat), index : Nat],
+  result: Nat,
+  body: (match values
+    | List.nil => 0
+    | List.cons head tail => (if (index =? 0) then head else (designNatAt tail (prim subtract index 1 : Nat)))),
+  axioms: [],
+  recursive_argument: values
+}
+
+definition{
+  name: designLinear,
+  parameters: [channel : Nat],
+  result: Nat,
+  body: (designNatAt (designLinearRow (prim quotient channel 16 0 : Nat)) (prim remainder channel 16 0 : Nat)),
+  axioms: []
+}
+
+definition{
+  name: designLuminance,
+  parameters: [color : Nat],
+  result: Nat,
+  body: (((prim multiply 2126 (designLinear (prim quotient color 65536 0 : Nat)) : Nat) + (prim multiply 7152 (designLinear (prim remainder (prim quotient color 256 0 : Nat) 256 0 : Nat)) : Nat)) + (prim multiply 722 (designLinear (prim remainder color 256 0 : Nat)) : Nat)),
+  axioms: []
+}
+
+definition{
+  name: designContrastOrdered,
+  parameters: [high : Nat, low : Nat, numerator : Nat, denominator : Nat],
+  result: Bool,
+  body: ((prim multiply numerator ((low + 5000000000) + 5000) : Nat) <=? (prim multiply denominator (prim subtract (high + 5000000000) 5000 : Nat) : Nat)),
+  axioms: []
+}
+
+definition{
+  name: designContrastAtLeast,
+  parameters: [foreground : Nat, background : Nat, numerator : Nat, denominator : Nat],
+  result: Bool,
+  body: (if ((designLuminance background) <=? (designLuminance foreground)) then (designContrastOrdered (designLuminance foreground) (designLuminance background) numerator denominator) else (designContrastOrdered (designLuminance background) (designLuminance foreground) numerator denominator)),
+  axioms: []
+}
+
+definition{
+  name: designTokensContrastValid,
+  parameters: [value : DesignTokens],
+  result: Bool,
+  body: ((designContrastAtLeast (project value text) (project value surface) 9 2) && ((designContrastAtLeast (project value text) (project value card) 9 2) && ((designContrastAtLeast (project value text) (project value muted) 9 2) && ((designContrastAtLeast (project value mutedText) (project value surface) 9 2) && ((designContrastAtLeast (project value mutedText) (project value card) 9 2) && ((designContrastAtLeast (project value mutedText) (project value muted) 9 2) && ((designContrastAtLeast (project value accentText) (project value accent) 9 2) && ((designContrastAtLeast (project value danger) (project value surface) 9 2) && ((designContrastAtLeast (project value danger) (project value card) 9 2) && ((designContrastAtLeast (project value brandText) (project value surface) 9 2) && ((designContrastAtLeast (project value brandText) (project value card) 9 2) && ((designContrastAtLeast (project value success) (project value card) 9 2) && ((designContrastAtLeast (project value warning) (project value card) 9 2) && ((designContrastAtLeast (project value focus) (project value surface) 3 1) && ((designContrastAtLeast (project value focus) (project value card) 3 1) && true))))))))))))))),
+  axioms: []
 }
 
 definition{
   name: designTokensValid,
   parameters: [value : DesignTokens],
   result: Bool,
-  body: ((0 <=? (project value surface)) && (((project value surface) <=? 16777215) && (true && ((0 <=? (project value text)) && (((project value text) <=? 16777215) && (true && ((0 <=? (project value border)) && (((project value border) <=? 16777215) && (true && ((0 <=? (project value accent)) && (((project value accent) <=? 16777215) && (true && ((0 <=? (project value accentText)) && (((project value accentText) <=? 16777215) && (true && ((0 <=? (project value danger)) && (((project value danger) <=? 16777215) && (true && ((0 <=? (project value focus)) && (((project value focus) <=? 16777215) && (true && ((1000 <=? (project value textPermille)) && (((project value textPermille) <=? 4000) && (true && ((1000 <=? (project value lineHeightPermille)) && (((project value lineHeightPermille) <=? 3000) && (true && ((0 <=? (project value spacePermille)) && (((project value spacePermille) <=? 4000) && (true && ((0 <=? (project value radiusPermille)) && (((project value radiusPermille) <=? 4000) && (true && ((16 <=? (project value contentWidthRem)) && (((project value contentWidthRem) <=? 120) && (true && ((8 <=? (project value sidebarWidthRem)) && (((project value sidebarWidthRem) <=? 40) && (true && ((20 <=? (project value collapseWidthRem)) && (((project value collapseWidthRem) <=? 100) && (true && ((24 <=? (project value targetPixels)) && (((project value targetPixels) <=? 96) && (true && true))))))))))))))))))))))))))))))))))))))))))))),
+  body: (((project value surface) <=? 16777215) && (((project value text) <=? 16777215) && (((project value border) <=? 16777215) && (((project value accent) <=? 16777215) && (((project value accentText) <=? 16777215) && (((project value danger) <=? 16777215) && (((project value focus) <=? 16777215) && (((project value card) <=? 16777215) && (((project value muted) <=? 16777215) && (((project value mutedText) <=? 16777215) && (((project value hover) <=? 16777215) && (((project value input) <=? 16777215) && (((project value brand) <=? 16777215) && (((project value brandText) <=? 16777215) && (((project value success) <=? 16777215) && (((project value warning) <=? 16777215) && (((1000 <=? (project value textPermille)) && ((project value textPermille) <=? 4000)) && (((1000 <=? (project value lineHeightPermille)) && ((project value lineHeightPermille) <=? 3000)) && (((0 <=? (project value spacePermille)) && ((project value spacePermille) <=? 4000)) && (((0 <=? (project value radiusPermille)) && ((project value radiusPermille) <=? 4000)) && (((16 <=? (project value contentWidthRem)) && ((project value contentWidthRem) <=? 120)) && (((8 <=? (project value sidebarWidthRem)) && ((project value sidebarWidthRem) <=? 40)) && (((20 <=? (project value collapseWidthRem)) && ((project value collapseWidthRem) <=? 100)) && (((24 <=? (project value targetPixels)) && ((project value targetPixels) <=? 96)) && true)))))))))))))))))))))))),
   axioms: []
 }
 
@@ -77,7 +146,7 @@ definition{
   name: fontFamilyCode,
   parameters: [value : FontFamily],
   result: Nat,
-  body: (match value | FontFamily.System => 0 | FontFamily.Serif => 1 | FontFamily.Monospace => 2),
+  body: (match value | FontFamily.System => 0 | FontFamily.Serif => 1 | FontFamily.Monospace => 2 | FontFamily.Hologram => 3),
   axioms: []
 }
 
@@ -88,6 +157,33 @@ definition{
   body: (match values
     | List.nil => false
     | List.cons head tail => (designCatalogueItemsValid values 16)),
+  axioms: []
+}
+
+definition{
+  name: designPairContrastValid,
+  parameters: [value : DesignPair],
+  result: Bool,
+  body: ((designTokensContrastValid (project value light)) && ((designTokensContrastValid (project value dark)) && true)),
+  axioms: []
+}
+
+definition{
+  name: designCatalogueContrastValid,
+  parameters: [values : (List DesignPair)],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons head tail => ((designPairContrastValid head) && (designCatalogueContrastValid tail))),
+  axioms: [],
+  recursive_argument: values
+}
+
+definition{
+  name: designCatalogueAdmitted,
+  parameters: [values : (List DesignPair)],
+  result: Bool,
+  body: ((designCatalogueValid values) && (designCatalogueContrastValid values)),
   axioms: []
 }
 \end{semanticmodule}

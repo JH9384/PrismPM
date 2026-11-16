@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import * as archive from '../../prism-code/src/archive.mjs';
-import { PROVENANCE_SCHEMA } from '../../prism-code/src/closure.mjs';
+import { PROVENANCE_SCHEMA, PROVENANCE_SCHEMA_V2 } from '../../prism-code/src/closure.mjs';
 import { CORE_CONTRACT } from '../../prism-code/src/core.mjs';
 import { spec } from './spec.mjs';
 import { here, loadReference, schema, wasmExports } from './reference.mjs';
@@ -27,6 +27,8 @@ test('prism-code constants equal this package', () => {
   assert.equal(CORE_CONTRACT, spec.CORE_WASM.CONTRACT);
   assert.equal(PROVENANCE_SCHEMA, 'prismpm/browser-provenance/1');
   assert.ok(PROVENANCE_SCHEMA in spec.SCHEMAS);
+  assert.equal(PROVENANCE_SCHEMA_V2, 'prismpm/browser-provenance/2');
+  assert.ok(PROVENANCE_SCHEMA_V2 in spec.SCHEMAS);
 });
 
 test('the schema constants equal the package constants', () => {

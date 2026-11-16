@@ -163,7 +163,7 @@ test('reconciliation workflow pins selected source and has no repository writer'
  const workflow=readFileSync(join(repository,'.github/workflows/m0-lexlean-reconcile.yml'),'utf8');
  const selected='e0b74b81e6f49c83596a957d232c8383a5db1a25';
  assert.match(workflow,/workflow_dispatch:/);
- assert.match(workflow,/branches: \[work\/compression-m0-reconcile\]/);
+ assert.doesNotMatch(workflow,/^  push:/m);
  assert.doesNotMatch(workflow,/pull_request_target:/);
  assert.equal((workflow.match(new RegExp(selected,'g'))??[]).length,3);
  assert.match(workflow,/permissions:\n  contents: read/);

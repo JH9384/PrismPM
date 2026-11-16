@@ -1,0 +1,75 @@
+// Test-only wasm-bindgen transport. The source owns event decoding, State,
+// observations and the current release decision; no semantic byte parser here.
+mod ownership;
+use js_sys::{Object, Reflect, Uint8Array};
+use ownership::{Outcome, Owner};
+use prism_resource_core as model;
+use wasm_bindgen::prelude::*;
+
+fn field(object: &Object, name: &str, value: &JsValue) {
+    Reflect::set(object, &JsValue::from_str(name), value).unwrap();
+}
+fn tag(kind: &str) -> Object {
+    let value = Object::new(); field(&value, "kind", &JsValue::from_str(kind)); value
+}
+fn observation(kind: &str, bytes: &[u8]) -> JsValue {
+    let value = tag(kind); field(&value, "observation", &Uint8Array::from(bytes)); value.into()
+}
+fn computation(error: model::ComputeError) -> JsValue {
+    let value = tag("computeError");
+    let code = match error {
+        model::ComputeError::AddOverflow => "AddOverflow",
+        model::ComputeError::MulOverflow => "MulOverflow",
+        model::ComputeError::ShiftExponentTooLarge => "ShiftExponentTooLarge",
+        model::ComputeError::ShiftOverflow => "ShiftOverflow",
+        model::ComputeError::PowExponentTooLarge => "PowExponentTooLarge",
+        model::ComputeError::PowOverflow => "PowOverflow",
+        model::ComputeError::OutputTooSmall => "OutputTooSmall",
+    };
+    field(&value, "code", &JsValue::from_str(code)); value.into()
+}
+fn encoded(outcome: Outcome) -> JsValue {
+    match outcome {
+        Outcome::Retained(bytes) => observation("retained", &bytes),
+        Outcome::ReleaseAuthorized(bytes) => observation("releaseAuthorized", &bytes),
+        Outcome::ComputeError(error) => computation(error),
+        // The registered host boundary refuses this before calling the guest.
+        // Raw calls after a barrier/grant are outside that boundary.
+        Outcome::Held => panic!("private raw resource called after ownership barrier"),
+    }
+}
+fn copied(input: &Uint8Array) -> Result<Vec<u8>, ()> {
+    let mut bytes = Vec::new(); bytes.try_reserve_exact(input.length() as usize).map_err(|_| ())?;
+    bytes.resize(input.length() as usize, 0); input.copy_to(&mut bytes); Ok(bytes)
+}
+
+#[wasm_bindgen]
+pub struct RetainedProbeResource { owner: Owner }
+
+#[wasm_bindgen]
+pub fn begin(config: Uint8Array) -> JsValue {
+    let bytes = match copied(&config) { Ok(bytes) => bytes, Err(()) => return tag("resourceRefusal").into() };
+    let (owner, bytes) = Owner::begin(bytes).expect("raw init after whole-instance checked failure");
+    let value = tag("ready");
+    field(&value, "resource", &JsValue::from(RetainedProbeResource { owner }));
+    field(&value, "observation", &Uint8Array::from(bytes.as_slice())); value.into()
+}
+
+#[wasm_bindgen]
+impl RetainedProbeResource {
+    pub fn advance(&mut self, event: Uint8Array) -> JsValue {
+        let bytes = match copied(&event) { Ok(bytes) => bytes, Err(()) => return tag("resourceRefusal").into() };
+        encoded(self.owner.advance(bytes))
+    }
+    pub fn request_release(&mut self) -> JsValue { encoded(self.owner.request_release()) }
+}
+
+// Conformance observations are not allocator-recovery or physical heap bounds.
+#[wasm_bindgen]
+pub fn live_wrappers() -> u32 { ownership::live_owners() }
+#[wasm_bindgen]
+pub fn granted_drops() -> u32 { ownership::granted_drops() }
+#[wasm_bindgen]
+pub fn quarantined_owners() -> usize { ownership::quarantined_owners() }
+#[wasm_bindgen]
+pub fn trap_for_probe() { core::arch::wasm32::unreachable(); }

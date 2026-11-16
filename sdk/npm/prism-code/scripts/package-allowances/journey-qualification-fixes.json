@@ -1,0 +1,4 @@
+{
+  "kib": 10,
+  "reason": "What the qualification run of 2026-11-16 found (docs/proposals/666-journey-qualification.md), about 9 KiB: a GitHub build writes its test where the template's example was, keeps the template's frame in the register and the conformance page, publishes app/spec.json, says when the page is live though the gate failed, and asks where to build before proving (journey/engine.mjs, journey/template.mjs, journey/mcp.mjs, about 5 KiB); the local route builds with the release image the template pins (journey/sdk.mjs, journey/github.mjs); a module named like a Lean namespace gets App after it (journey/render.mjs, about 1.5 KiB); a guarantee no request breaks that Lean does not prove is said to be the prover's limit (journey/engine.mjs, journey/spec.mjs, about 1.5 KiB); and the instructions and schemas say an answer is the outcome word."
+}

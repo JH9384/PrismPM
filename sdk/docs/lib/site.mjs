@@ -38,7 +38,15 @@ export function readReleases(dir = SITE_DIR) {
   for (const feature of data.features ?? []) {
     if (!ids.has(feature.available_in)) throw new Error(`${where}: feature "${feature.feature}" names unknown release ${feature.available_in}`);
   }
-  return { releases: data.releases, distribution: data.distribution ?? [], features: data.features ?? [], ids, text: readFileSync(file, 'utf8').replace(/\r\n/g, '\n') };
+  // A row with `version_from` takes its value from that package.json, so the page cannot name a release npm has moved past (website#13).
+  const distribution = (data.distribution ?? []).map((row) => {
+    if (row.version_from === undefined) return row;
+    const manifest = join(ROOT, row.version_from);
+    const { version } = JSON.parse(readFileSync(manifest, 'utf8'));
+    if (typeof version !== 'string' || version === '') throw new Error(`${where}: ${row.version_from} has no version`);
+    return { ...row, value: version };
+  });
+  return { releases: data.releases, distribution, features: data.features ?? [], ids, text: readFileSync(file, 'utf8').replace(/\r\n/g, '\n') };
 }
 
 /** Parse `---` frontmatter of `key: value` lines; quoted values are unquoted. */

@@ -14,7 +14,7 @@
 use crate::error::PrismError;
 use crate::holo::archive::parse_application;
 use crate::holo::canonical::encode_value;
-use crate::verification::{executable, run_process_limited};
+use crate::sdk::process::{executable, run_process_limited, NoExtension};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -52,11 +52,9 @@ fn invalid(message: impl std::fmt::Display) -> PrismError {
     refused(format!("the history is not {HISTORY_SCHEMA}: {message}"))
 }
 
+/// The digest set of `bytes`: its sha256, the κ (ADR-017).
 fn digests(bytes: &[u8]) -> Value {
-    json!({
-        "blake3": blake3::hash(bytes).to_hex().to_string(),
-        "sha256": format!("{:x}", Sha256::digest(bytes)),
-    })
+    json!({ "sha256": format!("{:x}", Sha256::digest(bytes)) })
 }
 
 fn is_hex(text: &str) -> bool {
@@ -104,9 +102,11 @@ fn digest_set(value: &Value, place: &str) -> Result<(), PrismError> {
     let object = value
         .as_object()
         .ok_or_else(|| invalid(format!("{place} is not a digest set")))?;
+    // `blake3` is read only in histories recorded before holo v5 (ADR-017).
     only_members(object, &["blake3", "sha256"], place)?;
     for key in ["blake3", "sha256"] {
-        if !object.get(key).is_some_and(is_digest) {
+        if (key == "sha256" || object.contains_key(key)) && !object.get(key).is_some_and(is_digest)
+        {
             return Err(invalid(format!(
                 "{place}.{key} is not 64 lowercase hex characters"
             )));
@@ -254,7 +254,7 @@ fn run_guest(guest: &[u8], allocation: u64, requests: &[String]) -> Result<Vec<V
         std::fs::write(path, bytes)
             .map_err(|error| refused(format!("{}: {error}", path.display())))?;
     }
-    run_process_limited(
+    run_process_limited::<NoExtension>(
         "replay",
         &node,
         &[&runner, &wasm, &plan, &outcomes].map(|path| path.to_string_lossy().into_owned()),
@@ -351,7 +351,7 @@ pub fn replay_bytes(holo: &[u8], histories: &[Vec<u8>]) -> Result<ReplayOutcome,
         .collect::<Result<Vec<_>, _>>()?;
     let distinct: BTreeSet<&str> = history_digests
         .iter()
-        .filter_map(|digest| digest["blake3"].as_str())
+        .filter_map(|digest| digest["sha256"].as_str())
         .collect();
     if distinct.len() != parsed.len() {
         return Err(refused(

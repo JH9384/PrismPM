@@ -38,7 +38,7 @@ impl StdlibExports {
         if self.spec != "prismpm/stdlib-exports/1"
             || self.lean_module != "PrismPM.Runtime"
             || self.ir_module != "PrismPM"
-            || self.export.len() != 69
+            || self.export.len() != 77
             || self
                 .export
                 .windows(2)
@@ -149,6 +149,11 @@ impl StdlibExports {
                 "validAppManifest" => ("Holo.V1.Wire", "fn(&[u8]) -> bool"),
                 "validArchiveBody" => ("Holo.V1.Wire", "fn(&[u8]) -> Result<bool, ComputeError>"),
                 "validArchiveFrame" => ("Holo.V1.Wire", "fn(&[u8]) -> Result<bool, ComputeError>"),
+                "canonicalArchiveBody" => ("Holo.V1.Wire", "fn(&[CanonicalSection]) -> Result<Option<Vec<u8>>, ComputeError>"),
+                "canonicalArchiveBodyBytes" | "canonicalArchiveFooter" => ("Holo.V1.Wire", "fn(Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"),
+                "canonicalArchiveSection" | "canonicalArchiveSectionKind" => ("Holo.V1.Wire", "fn(Vec<u8>, u64) -> Result<Option<Vec<u8>>, ComputeError>"),
+                "canonicalFrameArchive" => ("Holo.V1.Wire", "fn(Vec<u8>, Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"),
+                "validCanonicalArchiveBody" | "validCanonicalArchiveFrame" => ("Holo.V1.Wire", "fn(&[u8]) -> Result<bool, ComputeError>"),
                 "checkedAddInt64"
                 | "checkedDivideInt64"
                 | "checkedMultiplyInt64"
@@ -229,7 +234,7 @@ mod tests {
         let exports: StdlibExports = toml::from_str(SOURCE).unwrap();
         let runtime = vec!["PrismPM.Foundation.Holo.validateComponentIndexes".to_owned()];
         let union = exports.union_with_runtime(&runtime).unwrap();
-        assert_eq!(union.len(), 67);
+        assert_eq!(union.len(), 78);
         assert_eq!(runtime.len(), 1);
         assert!(union.contains(&runtime[0]));
         let mut document: toml::Value = toml::from_str(SOURCE).unwrap();

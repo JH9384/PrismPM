@@ -22,19 +22,32 @@ import {
 
 // curl exit statuses that indicate a transient network condition: resolve (6),
 // connect (7), partial transfer (18), timeout (28), TLS connect (35), empty
-// reply (52), send (55), receive (56). Anything else, including HTTP errors
-// and every integrity failure, is final on the first attempt.
+// reply (52), send (55), receive (56). HTTP failures require a separately
+// captured transient response code; integrity failures are never retried.
 export const TRANSIENT_CURL_STATUS = new Set([6, 7, 18, 28, 35, 52, 55, 56]);
+const TRANSIENT_HTTP_STATUS = new Set(['408', '429', '500', '502', '503', '504']);
+
+function transientDownload(error) {
+  return TRANSIENT_CURL_STATUS.has(error?.status) ||
+    (error?.status === 22 && TRANSIENT_HTTP_STATUS.has(error.stdout?.toString()));
+}
+
+// snapshot.debian.org answers bursts of parallel CI builds with 503 for longer
+// than a few seconds (rehearsals 41872713783 and 42070834717). Six attempts
+// with a 10 s doubling backoff wait at most 10+20+40+80+160 s = 310 s in total;
+// every attempt keeps its own time, size and digest limits.
+export const DOWNLOAD_ATTEMPTS = 6;
+export const DOWNLOAD_DELAY_MS = 10000;
 
 const pause = (milliseconds) =>
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 
 // Run one download at most `attempts` times with doubling backoff, retrying
-// only transient transport failures. Retrying never relaxes verification: the
+// only transient transport or HTTP failures. Retrying never relaxes verification: the
 // caller checks the digest of whatever the successful attempt produced.
 export function withTransientRetry(
   download,
-  { attempts = 4, delay = 2000, sleep = pause } = {},
+  { attempts = DOWNLOAD_ATTEMPTS, delay = DOWNLOAD_DELAY_MS, sleep = pause } = {},
 ) {
   assert(
     Number.isInteger(attempts) && attempts >= 1,
@@ -44,10 +57,12 @@ export function withTransientRetry(
     try {
       return download();
     } catch (error) {
-      if (attempt >= attempts || !TRANSIENT_CURL_STATUS.has(error?.status))
+      if (attempt >= attempts || !transientDownload(error))
         throw error;
       process.stderr.write(
-        `download failed with curl status ${error.status}; retry ${attempt}/${attempts - 1}\n`,
+        `download failed with curl status ${error.status}` +
+          (error.status === 22 ? ` (HTTP ${error.stdout})` : '') +
+          `; retry ${attempt}/${attempts - 1}\n`,
       );
       sleep(delay * 2 ** (attempt - 1));
     }
@@ -61,17 +76,25 @@ export function publishRuntime(stage, destination) {
     !lstatSync(destination, { throwIfNoEntry: false }),
     'bootstrap runtime destination already exists',
   );
-  // GNU coreutils is pinned by the image. Unlike renameSync, -n -T never
-  // replaces an existing destination, including a late-created empty directory.
-  execFileSync(
-    '/usr/bin/mv',
-    ['--no-clobber', '--no-target-directory', '--', stage, destination],
-    { timeout: 10000, stdio: 'inherit' },
-  );
+  // Unlike renameSync, GNU mv -n -T never replaces an existing destination,
+  // including a late-created empty directory. Coreutils before 9.2 exits 0
+  // when it declines; 9.2 and later exit 1. Both leave the stage in place, so
+  // the stage's presence, not the exit status, decides a refusal.
+  let declined = null;
+  try {
+    execFileSync(
+      '/usr/bin/mv',
+      ['--no-clobber', '--no-target-directory', '--', stage, destination],
+      { timeout: 10000, stdio: 'inherit' },
+    );
+  } catch (error) {
+    declined = error;
+  }
   assert(
     !lstatSync(stage, { throwIfNoEntry: false }),
     'bootstrap runtime destination already exists; publication refused',
   );
+  if (declined) throw declined;
   const published = lstatSync(destination, { bigint: true });
   assert(
     published.isDirectory() &&
@@ -117,6 +140,8 @@ export function installRuntime(destination = RUNTIME, cache = null) {
               '--location',
               '--silent',
               '--show-error',
+              '--write-out',
+              '%{http_code}',
               '--max-time',
               '300',
               '--max-filesize',
@@ -125,7 +150,7 @@ export function installRuntime(destination = RUNTIME, cache = null) {
               '--output',
               archive,
             ],
-            { timeout: 310000, stdio: 'inherit' },
+            { timeout: 310000, stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 1024 },
           ),
         );
       checkedFile(archive, authority.sha256);

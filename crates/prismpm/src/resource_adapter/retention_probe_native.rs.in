@@ -1,0 +1,97 @@
+mod ownership;
+use ownership::{Outcome, Owner};
+use prism_resource_core as model;
+
+fn require(condition: bool, marker: &str) {
+    if !condition { eprintln!("{marker}"); std::process::exit(42); }
+}
+fn retained(outcome: Outcome, expected: &[u8]) -> Vec<u8> {
+    let Outcome::Retained(bytes) = outcome else { panic!("expected source-retained owner") };
+    assert_eq!(&bytes[..7], expected, "source-owned ledger observation"); bytes
+}
+fn advance(owner: &mut Owner, code: u8, expected: &[u8]) -> Vec<u8> {
+    retained(owner.advance(vec![code]), expected)
+}
+fn refused(owner: &mut Owner) {
+    require(matches!(owner.request_release(), Outcome::Retained(_)), "source refused early release");
+}
+fn granted(owner: &mut Owner) {
+    let Outcome::ReleaseAuthorized(bytes) = owner.request_release() else { panic!("expected actual source release grant") };
+    assert_eq!(bytes[0], 10); assert_eq!(bytes[2], 0); assert_eq!(bytes[3], 0);
+    assert_eq!(bytes[4], bytes[5]); assert_eq!(bytes[6], 0);
+}
+
+fn main() {
+    let all: Vec<u8> = (0..=255).collect();
+    let (ordinary, _) = Owner::begin(all.clone()).unwrap();
+    let calls = ownership::source_calls();
+    drop(ordinary);
+    assert_eq!(ownership::source_calls(), calls, "ordinary Drop never calls a source cleanup root");
+    require(ownership::quarantined_owners() == 1, "ungranted wrapper Drop must quarantine actual State");
+    assert_eq!(ownership::quarantined_payloads(), vec![all.clone()], "actual retained payload survives wrapper destruction");
+    assert_eq!(ownership::granted_drops(), 0);
+
+    let (mut owner, ready) = Owner::begin(all.clone()).unwrap();
+    assert_eq!(ready, [0,0,0,0,0,0,0]); refused(&mut owner);
+    retained(owner.advance(vec![]), &[7,0,0,0,0,0,0]);
+    advance(&mut owner, 1, &[1,0,1,1,0,0,0]);
+    advance(&mut owner, 12, &[7,0,1,1,0,0,0]); // wrong ticket
+    advance(&mut owner, 15, &[7,0,1,1,0,0,0]); // excess prefix
+    advance(&mut owner, 2, &[3,0,1,1,1,0,0]);
+    advance(&mut owner, 14, &[7,0,1,1,1,0,0]); // regressive receipt
+    let complete = advance(&mut owner, 9, &[4,1,1,1,1,0,0]);
+    assert_eq!(&complete[7..], all.as_slice());
+    assert_eq!(owner.known_prefix_for_probe(), Some((1,0,256)), "semantic completion retains actual typed owner");
+    refused(&mut owner);
+    advance(&mut owner, 10, &[5,2,1,1,1,0,0]); refused(&mut owner);
+    advance(&mut owner, 4, &[8,2,1,1,1,0,1]); refused(&mut owner);
+    advance(&mut owner, 3, &[7,2,1,1,1,0,1]); // ordinary ack cannot erase unknown
+    advance(&mut owner, 11, &[3,2,0,0,1,0,0]); refused(&mut owner);
+    advance(&mut owner, 5, &[2,2,2,2,1,0,0]); refused(&mut owner);
+    advance(&mut owner, 6, &[3,2,0,0,1,1,0]);
+    granted(&mut owner); drop(owner);
+    assert_eq!(ownership::granted_drops(), 1);
+    assert_eq!(ownership::quarantined_owners(), 1);
+
+    let (mut failed, _) = Owner::begin(vec![42]).unwrap();
+    advance(&mut failed, 1, &[1,0,1,1,0,0,0]);
+    advance(&mut failed, 2, &[3,0,1,1,1,0,0]);
+    advance(&mut failed, 18, &[6,3,1,1,1,0,0]); refused(&mut failed);
+    advance(&mut failed, 3, &[3,3,0,0,2,0,0]);
+    advance(&mut failed, 5, &[2,3,2,2,2,0,0]);
+    advance(&mut failed, 6, &[3,3,2,2,2,1,0]); refused(&mut failed);
+    advance(&mut failed, 13, &[7,3,2,2,2,1,0]);
+    advance(&mut failed, 8, &[8,3,2,2,2,1,1]); refused(&mut failed);
+    advance(&mut failed, 17, &[3,3,0,0,2,2,0]);
+    granted(&mut failed); drop(failed);
+    assert_eq!(ownership::granted_drops(), 2);
+
+    // A closed gate must also reject an inconsistent outstanding ticket even
+    // if another field says Idle. This is an actual generated-root control,
+    // not an alternate decoder or a fabricated accepted execution trace.
+    let orphan = model::State { payload: vec![], phase: model::Phase::Completed,
+        pending: model::Pending::Idle, ticket: 1, written: 0, deleted: 0, unknown: false };
+    assert!(!matches!(model::requestRelease(&orphan).observation.status, model::Status::ReleaseAuthorized));
+
+    let (mut granted_before_fault, _) = Owner::begin(vec![99]).unwrap();
+    advance(&mut granted_before_fault, 9, &[4,1,0,0,0,0,0]);
+    granted(&mut granted_before_fault);
+    let (mut faulted, _) = Owner::begin(vec![7]).unwrap();
+    let (mut other, _) = Owner::begin(vec![8]).unwrap();
+    advance(&mut faulted, 1, &[1,0,1,1,0,0,0]);
+    advance(&mut faulted, 2, &[3,0,1,1,1,0,0]);
+    assert!(matches!(faulted.advance(vec![253]), Outcome::ComputeError(model::ComputeError::AddOverflow)));
+    require(faulted.known_prefix_for_probe() == Some((1,0,1)), "known pre-call owner must survive checked error");
+    let calls = ownership::source_calls();
+    assert!(matches!(faulted.advance(vec![10]), Outcome::Held));
+    assert!(matches!(faulted.request_release(), Outcome::Held));
+    assert!(matches!(other.advance(vec![9]), Outcome::Held));
+    assert!(matches!(other.request_release(), Outcome::Held));
+    assert!(Owner::begin(vec![9]).is_none());
+    assert_eq!(ownership::source_calls(), calls, "whole-instance checked failure forbids all later source calls");
+    drop(faulted); drop(other); drop(granted_before_fault);
+    assert_eq!(ownership::live_owners(), 0);
+    require(ownership::granted_drops() == 2, "checked failure must invalidate prior release grant");
+    assert_eq!(ownership::quarantined_owners(), 4);
+    println!("private generated retained-state native component passed: source-grants=2, quarantine=4, checked-error-recovery=blocked, physical-reclamation=unclaimed");
+}

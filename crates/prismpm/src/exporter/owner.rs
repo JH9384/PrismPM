@@ -538,7 +538,24 @@ impl VerifyExporterOwner {
         if library_required {
             package.snapshot = Some(last_snapshot);
         }
-        let product = result?;
+        let product = match result {
+            Ok(product) => product,
+            Err(error) => {
+                // A stage that fails after the witnessed exporter build leaves
+                // that build's outputs in the package. While the package still
+                // equals the witness they are proved-owned nodes, the ones a
+                // successful phase binds below, so retirement may remove them
+                // and the stage's own diagnostic is reported. Without a witness,
+                // or once the package differs from it, the original inventory
+                // stays bound and retirement refuses as before.
+                if let Some(witness) = &built {
+                    if custody::capture(&package.path).is_ok_and(|current| &current == witness) {
+                        let _ = package.directory.bind_package(&package.path, witness);
+                    }
+                }
+                return Err(error);
+            }
+        };
         if library_required
             && (product.role() != "library"
                 || commands != 4
@@ -1237,6 +1254,87 @@ mod tests {
                 .generate(project.path(), phase, b"model", b"manifest", unused)
                 .is_err());
         }
+    }
+
+    // A stage after the exporter build, such as `application-cargo-check`,
+    // fails with the build's outputs in the package (#643).
+    #[test]
+    fn stage_failure_after_the_witnessed_build_retires_and_keeps_its_diagnostic() {
+        let project = tempfile::tempdir().unwrap();
+        for phase in [Phase::ControllerBuild, Phase::Replay] {
+            let mut owner = if phase == Phase::Replay {
+                first(project.path())
+            } else {
+                VerifyExporterOwner::default()
+            };
+            let mut path = PathBuf::new();
+            let error = owner
+                .generate::<Unaccepted>(
+                    project.path(),
+                    phase,
+                    b"model",
+                    b"manifest",
+                    |package, context| {
+                        path = package.parent().unwrap().to_owned();
+                        if phase == Phase::ControllerBuild {
+                            provisional(package, context)?;
+                        } else {
+                            context.after_build(package)?;
+                        }
+                        Err(PrismError::new(
+                            "PP4102",
+                            "application-cargo-check exited 101",
+                        ))
+                    },
+                )
+                .err()
+                .unwrap();
+            assert_eq!(error.code, "PP4102", "{error:?}");
+            assert_eq!(error.message, "application-cargo-check exited 101");
+            assert!(!path.exists());
+            assert!(owner.package.is_none());
+            assert!(owner
+                .generate(project.path(), phase, b"model", b"manifest", unused)
+                .is_err());
+        }
+    }
+
+    #[test]
+    fn stage_failure_in_a_package_that_left_its_witness_is_refused_retirement() {
+        let project = tempfile::tempdir().unwrap();
+        let mut owner = VerifyExporterOwner::default();
+        let mut root = PathBuf::new();
+        let error = owner
+            .generate::<Unaccepted>(
+                project.path(),
+                Phase::ControllerBuild,
+                b"model",
+                b"manifest",
+                |package, context| {
+                    root = package.parent().unwrap().to_owned();
+                    provisional(package, context)?;
+                    std::fs::write(package.join(".lake/foreign-marker"), b"must survive").unwrap();
+                    Err(PrismError::new(
+                        "PP4102",
+                        "application-cargo-check exited 101",
+                    ))
+                },
+            )
+            .err()
+            .unwrap();
+        let preserved = std::fs::read(root.join("lean4-prod/.lake/foreign-marker")).ok();
+        // Only this test's own package and marker are under the root.
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(error.code, "PP5008", "{error:?}");
+        assert!(
+            error
+                .message
+                .ends_with("; original failure: application-cargo-check exited 101"),
+            "{error:?}"
+        );
+        assert_eq!(preserved.as_deref(), Some(b"must survive".as_slice()));
+        assert!(owner.package.is_none());
+        assert!(owner.finish().is_err());
     }
 
     #[test]

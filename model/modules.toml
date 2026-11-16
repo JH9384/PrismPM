@@ -1,0 +1,674 @@
+# The nine modules, the owner of every scanned file, and the migration baseline.
+# `cargo xtask check-modules` reads this file. docs/proposals/440-nine-modules.md
+# specifies it. Owner rows stay sorted by path, so that adding one merges cleanly.
+
+spec = "prismpm/modules/1"
+
+[[module]]
+name = "errors"
+may_depend_on = []
+
+[[module]]
+name = "auth"
+may_depend_on = ["errors"]
+
+[[module]]
+name = "verify"
+may_depend_on = ["errors"]
+
+[[module]]
+name = "networks"
+may_depend_on = ["errors", "verify"]
+
+[[module]]
+name = "volumes"
+may_depend_on = ["errors", "verify"]
+
+[[module]]
+name = "images"
+may_depend_on = ["errors", "auth", "verify"]
+
+[[module]]
+name = "containers"
+may_depend_on = ["errors", "verify", "images", "networks", "volumes"]
+
+[[module]]
+name = "system"
+may_depend_on = ["errors", "verify", "images", "containers", "networks", "volumes"]
+
+[[module]]
+name = "client"
+may_depend_on = ["errors", "auth", "verify", "networks", "volumes", "images", "containers", "system"]
+
+[[owner]]
+path = "crates/prismpm/src/acceptance.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/application_build.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/brand.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/attest/"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/authority.rs"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/binary_cli.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/browser_build.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/browser_build/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/browser_oracle.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/cli.rs"
+module = "client"
+
+[[owner]]
+path = "crates/prismpm/src/config.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/contract_owners.rs"
+module = "client"
+
+[[owner]]
+path = "crates/prismpm/src/contracts.rs"
+module = "errors"
+
+[[owner]]
+path = "crates/prismpm/src/controller/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/deployment.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/design.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/design/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/diagnostics.rs"
+module = "client"
+
+[[owner]]
+path = "crates/prismpm/src/diagnostics/"
+module = "client"
+
+[[owner]]
+path = "crates/prismpm/src/error.rs"
+module = "errors"
+
+[[owner]]
+path = "crates/prismpm/src/exporter.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/exporter/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/features.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/generate/"
+module = "client"
+
+[[owner]]
+path = "crates/prismpm/src/holo/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/holo/archive.rs"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/holo/attestation.rs"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/holo/v5.rs"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/holo/canonical.rs"
+module = "errors"
+
+[[owner]]
+path = "crates/prismpm/src/input_lock.rs"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/inspect/"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/lean_project.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/lib.rs"
+module = "client"
+
+[[owner]]
+path = "crates/prismpm/src/library_build.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/library_verification.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/lifecycle.rs"
+module = "containers"
+
+[[owner]]
+path = "crates/prismpm/src/lock_command.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/main.rs"
+module = "client"
+
+[[owner]]
+path = "crates/prismpm/src/model_contract.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/oci.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/oci/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/operations.rs"
+module = "containers"
+
+[[owner]]
+path = "crates/prismpm/src/process_resources.rs"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/reference.rs"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/release_verification.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/release_verification/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/replay/"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/resource_adapter/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/sdk.rs"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/sdk/"
+module = "verify"
+
+[[owner]]
+path = "crates/prismpm/src/server_build.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/server_host.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/server_host/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/server_release.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/session_guest.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/session_guest/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/supply_chain.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/system.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/system/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/template.rs"
+module = "client"
+
+[[owner]]
+path = "crates/prismpm/src/text_cli.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/text_cli/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/threat_model.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/threat_model/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/upstream_conformance.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/upstream_conformance/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/verification.rs"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/verification/"
+module = "images"
+
+[[owner]]
+path = "crates/prismpm/src/workbench.rs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/conformance/"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/create-prism-code/"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/bin/prism-code.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/bin/prism-doctor.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/bin/prism-provider-kv.mjs"
+module = "volumes"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/agents.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/archive.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/attest-cli.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/attest-write.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/attest.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/attestations.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/uorc.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/auth.mjs"
+module = "auth"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/axioms.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/blake3.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/browser.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/canonical/"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/capabilities.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/check.mjs"
+module = "verify"
+
+# The `prism-code <module> <verb>` groups: the CLI composes the modules, as the client does.
+[[owner]]
+path = "sdk/npm/prism-code/src/cli/"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/closure.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/containers.mjs"
+module = "containers"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/core.mjs"
+module = "containers"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/dev-cli.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/dev-replay.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/dev-server.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/dev.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/developer-view.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/docker.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/errors-namespace.mjs"
+module = "errors"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/errors.mjs"
+module = "errors"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/export.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/gaps.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/generate/"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/handler.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/host.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/github.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/hosted.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/image-store.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/images-namespace.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/index.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/init-cli.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/init.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/inspect.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/journey/"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/manifest.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/middleware.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/networks.mjs"
+module = "networks"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/node.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/oci-auth.mjs"
+module = "auth"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/oci-manifest.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/oci-reference.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/oci-registry.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/oci-store.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/open.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/plugins.mjs"
+module = "system"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/provenance.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/remote-github.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/providers.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/push-pull-cli.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/push-pull.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/replay-cli.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/replay.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/session.mjs"
+module = "containers"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/setup-cli.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/setup-machine.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/setup.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/sha256.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/signing.mjs"
+module = "auth"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/studio/"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/system.mjs"
+module = "system"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/tiers.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/toml.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/tracing.mjs"
+module = "client"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/vendor/spec/"
+module = "errors"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/vendor/verify.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/verify-closure.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/verify.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/verify-namespace.mjs"
+module = "verify"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/version.mjs"
+module = "errors"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/view.mjs"
+module = "images"
+
+[[owner]]
+path = "sdk/npm/prism-code/src/volumes.mjs"
+module = "volumes"
+
+[[owner]]
+path = "sdk/npm/spec/"
+module = "errors"
+
+[[owner]]
+path = "sdk/npm/verify/"
+module = "verify"
+
+# One member per line, so that removing one merges cleanly.
+[legacy_cycle]
+members = [
+    "acceptance",
+    "application_build",
+    "controller",
+    "deployment",
+    "exporter",
+    "input_lock",
+    "library_build",
+    "library_verification",
+    "oci",
+    "release_verification",
+    "sdk",
+    "supply_chain",
+    "system",
+    "text_cli",
+    "verification",
+]

@@ -1,0 +1,16 @@
+name: Prepare hosted runner for the devcontainer
+description: Free unused host toolchains before importing the pinned development image.
+runs:
+  using: composite
+  steps:
+    - name: Free runner disk
+      shell: bash
+      run: |
+        set -euo pipefail
+        df -h /
+        # Validation tools are in the pinned container. Keep Docker, Node,
+        # the checkout and its caches; only remove unused hosted toolchains.
+        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup \
+          /usr/share/swift /usr/local/share/boost /usr/local/julia* /opt/az /opt/microsoft \
+          /usr/lib/jvm /usr/share/miniconda /usr/local/share/powershell
+        df -h /

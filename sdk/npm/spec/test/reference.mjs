@@ -24,6 +24,9 @@ export const REFERENCE_ARCHIVES = Object.freeze({
   Calculator: REFERENCE_ARCHIVE,
   PaymentApproval: '../../prism-code/fixtures/PaymentApproval.holo',
 });
+/** The same Calculator as a holo v5 (ADR-017), the archive every statement fixture is about. */
+export const REFERENCE_ARCHIVE_V5 = '../../prism-code/fixtures/Calculator.v5.holo';
+export const referenceV5 = () => new Uint8Array(readFileSync(here(REFERENCE_ARCHIVE_V5)));
 export const REFERENCE_SHA256 = '84371aaac82af6b2a81a25a81d43d4097892985f55ae4919cfdcfa8b6e3486e7';
 
 const hex = (bytes) => Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('hex');

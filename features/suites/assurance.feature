@@ -19,3 +19,10 @@ Feature: assurance
     Given the verdicts prism-code check --json prints for the reference archive, a P0 policy and a tampered guest
     When prismpm check judges the same bytes under the same policies
     Then every member of the verdict other than the messages is equal
+
+  @AL-07 @build
+  Scenario: The prism.verify namespace of prism-code gives the verdicts and refusals of experimental_verify, check and @prism-code/verify on every archive of the conformance corpus, leaves a signed holo at P0 with no signer or another signer, refuses outside Node instead of appearing to pass, and at load imports no Node module and only the modules the nine-module design gives verify or errors.
+    Given every archive of the conformance corpus and the signed reference fixtures
+    When prism.verify judges each of them
+    Then the outcome equals the one the code under it returns, and no signer or another signer leaves a signed holo at P0
+    And outside Node its Node-only members refuse, and its import graph holds no other module

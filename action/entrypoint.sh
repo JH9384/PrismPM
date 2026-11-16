@@ -53,6 +53,148 @@ case "$detach:$authorized" in
   *) printf '%s\n' 'detach and authorized must be true or false' >&2; exit 2 ;;
 esac
 
+# `factory`: establish one obligation of the Prism factory's delegation
+# (prism-factory/model/src/Factory/Delegation.lex.tex). `context` is the
+# closure `factory.sh forge-prepare` materialized; only it is mounted, at
+# /work. A sealed sandbox has no network; a pinned one fetches by digest only
+# (the obligation's own locks). The user, umask, HOME and scratch tmpfs come
+# from the obligation's sandbox record. The outcome is the result, so a
+# failure is a receipt, not a failed step.
+if test "$command" = factory; then
+  test -n "$target"
+  test -d "$project"
+  run_command=$(cat "$project.run")
+  access=$(cat "$project.access")
+  image=$(cat "$project.image")
+  # The sandbox image is the SDK image, or an image an upstream obligation
+  # built and named by digest in its counted receipt (the plan resolved it).
+  digest_form='^ghcr\.io/uor-foundation/[a-z0-9][a-z0-9._-]*@sha256:[0-9a-f]{64}$'
+  if test "$image" = @sdk; then
+    sandbox_image=$PRISMPM_ACTION_SDK_IMAGE
+    entrypoint_args=()
+    shell_args=(bash)
+  else
+    [[ "$image" =~ $digest_form ]] || { printf '%s\n' "factory: image $image is neither the SDK image nor a built image by digest" >&2; exit 2; }
+    sandbox_image=$image
+    # A built image's own entrypoint is for its interactive use, not for an
+    # obligation: the command runs in bash as the sandbox user.
+    entrypoint_args=(--entrypoint bash)
+    shell_args=()
+  fi
+  # What each need built, as NEED KEY VALUE: an image is pulled onto this
+  # runner's daemon by digest, and every value reaches the command as
+  # PRISM_UPSTREAM_<NEED>_<KEY>.
+  pulls=()
+  upstream_args=()
+  if test -f "$project.upstream"; then
+    while read -r need key value rest; do
+      [[ "$need" =~ ^[a-z][a-z0-9-]*$ && "$key" =~ ^[a-z][a-z0-9-]*$ && "$value" =~ ^[[:graph:]]+$ && -z "$rest" ]] \
+        || { printf '%s\n' "factory: malformed upstream line for $target" >&2; exit 2; }
+      variable=PRISM_UPSTREAM_$(printf '%s_%s' "$need" "$key" | tr 'a-z-' 'A-Z_')
+      upstream_args+=(--env "$variable=$value")
+      if test "$key" = image; then
+        [[ "$value" =~ $digest_form ]] || { printf '%s\n' "factory: $need names image $value, not one by digest" >&2; exit 2; }
+        pulls+=("$value")
+      fi
+    done < "$project.upstream"
+  fi
+  if test "$sandbox_image" != "$PRISMPM_ACTION_SDK_IMAGE"; then pulls+=("$sandbox_image"); fi
+  if test "${#pulls[@]}" -gt 0; then
+    pull_config=$RUNNER_TEMP/prism-pull-$target
+    rm -rf "$pull_config" && mkdir -p "$pull_config"
+    if test -n "${PRISMPM_ACTION_REGISTRY_TOKEN:-}"; then
+      for attempt in 1 2 3 4; do
+        printf '%s' "$PRISMPM_ACTION_REGISTRY_TOKEN" | DOCKER_CONFIG=$pull_config docker login ghcr.io -u "${GITHUB_ACTOR:?}" --password-stdin >/dev/null && break
+        test "$attempt" -lt 4 || { printf '%s\n' 'factory: the registry refused the login four times' >&2; exit 1; }
+        sleep $((attempt * 15))
+      done
+    fi
+    for pull in "${pulls[@]}"; do
+      for attempt in 1 2 3 4; do
+        DOCKER_CONFIG=$pull_config docker pull --quiet "$pull" >/dev/null && break
+        test "$attempt" -lt 4 || { printf '%s\n' "factory: could not pull $pull" >&2; exit 1; }
+        sleep $((attempt * 30))
+      done
+    done
+    rm -rf "$pull_config"
+  fi
+  # The sandbox record: prism/1 IMAGE USER UMASK HOME SCRATCH ACCESS, with HOME
+  # and SCRATCH named from the root. It is part of the obligation's identity,
+  # so the container is made from it and nothing else.
+  read -r sandbox_version _ sandbox_user sandbox_umask sandbox_home sandbox_scratch sandbox_access <"$project.sandbox"
+  test "$sandbox_version" = prism/1 || { printf '%s\n' "factory: unknown sandbox record $sandbox_version" >&2; exit 2; }
+  test "$sandbox_access" = "$access" || { printf '%s\n' "factory: the sandbox record says $sandbox_access" >&2; exit 2; }
+  case "$sandbox_user:$sandbox_umask:$sandbox_home:$sandbox_scratch" in
+    *[!0-9a-z/:._-]*|*..*) printf '%s\n' 'factory: the sandbox record is not confined' >&2; exit 2 ;;
+  esac
+  case "$sandbox_home" in "$sandbox_scratch"/*) ;; *) printf '%s\n' 'factory: HOME must be inside the scratch' >&2; exit 2 ;; esac
+  # Cargo's home starts from the image's locked offline cache when the image
+  # carries one (the SDK's prismpm-cargo-home), so a pinned fetch only adds
+  # what the closure's locks name beyond it.
+  seed_cargo='if test -x /usr/local/libexec/prismpm-cargo-home; then CARGO_HOME=$(PRISMPM_EPHEMERAL_HOME=1 TMPDIR=/'"$sandbox_scratch"' /usr/local/libexec/prismpm-cargo-home); export CARGO_HOME; fi;'
+  # The closure is a throwaway copy; the sandbox user must be able to write
+  # its build outputs there.
+  chmod -R a+rwX "$project"
+  # sealed: no network. pinned: fetches by the closure's own locks. daemon:
+  # pinned, plus the lent runner's own container daemon (it is ephemeral and
+  # holds nothing else), with scratch on the runner's disk, since the images
+  # such an obligation drives do not fit in memory.
+  scratch_args=(--tmpfs "/$sandbox_scratch:rw,exec,nosuid,size=8g")
+  case "$access" in
+    sealed) network_args=(--network none) ;;
+    pinned) network_args=() ;;
+    daemon|publish)
+      network_args=(--volume /var/run/docker.sock:/var/run/docker.sock --group-add "$(stat -c %g /var/run/docker.sock)")
+      # The hosted runner's unused toolchains leave too little disk for images.
+      sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup \
+        /usr/share/swift /usr/local/share/boost /usr/local/julia* /opt/az /opt/microsoft \
+        /usr/lib/jvm /usr/share/miniconda /usr/local/share/powershell
+      scratch=$RUNNER_TEMP/prism-scratch-$target
+      mkdir -p "$scratch" && chmod 1777 "$scratch"
+      scratch_args=(--volume "$scratch:/$sandbox_scratch")
+      df -h / >&2
+      # publish: daemon, plus a registry login that may push this
+      # repository's packages by digest, in a Docker config of its own.
+      if test "$access" = publish; then
+        test -n "${PRISMPM_ACTION_REGISTRY_TOKEN:-}" || { printf '%s\n' 'factory: publish access needs a registry token' >&2; exit 2; }
+        docker_config=$RUNNER_TEMP/prism-docker-$target
+        rm -rf "$docker_config" && mkdir -p "$docker_config"
+        # The registry refuses a login now and then; a refusal is retried
+        # before it is taken as the token's.
+        for attempt in 1 2 3 4; do
+          printf '%s' "$PRISMPM_ACTION_REGISTRY_TOKEN" | DOCKER_CONFIG=$docker_config docker login ghcr.io -u "${GITHUB_ACTOR:?}" --password-stdin >/dev/null && break
+          test "$attempt" -lt 4 || { printf '%s\n' 'factory: the registry refused the login four times' >&2; exit 1; }
+          sleep $((attempt * 15))
+        done
+        chmod -R a+rwX "$docker_config"
+        network_args+=(--volume "$docker_config:/prism-docker" --env DOCKER_CONFIG=/prism-docker)
+      fi
+      ;;
+    *) printf '%s\n' "factory: access $access is not sealed, pinned, daemon or publish" >&2; exit 2 ;;
+  esac
+  status=0
+  docker run --rm \
+    --user "$sandbox_user" \
+    --env HOME="/$sandbox_home" \
+    --env CARGO_HOME="/$sandbox_home/cargo" \
+    --env FACTORY_OBLIGATION="$target" \
+    --env PRISM_OUTPUTS=/work/.prism-outputs \
+    --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/work \
+    "${scratch_args[@]}" \
+    --cap-drop ALL \
+    --security-opt no-new-privileges \
+    "${network_args[@]}" \
+    "${upstream_args[@]}" \
+    --volume "$project:/work" \
+    --workdir /work \
+    "${entrypoint_args[@]}" \
+    "$sandbox_image" \
+    "${shell_args[@]}" -euo pipefail -c "umask $sandbox_umask; $seed_cargo $run_command" || status=$?
+  if test "$status" = 0; then passed=true; else passed=false; fi
+  printf 'result={"obligation":"%s","passed":%s,"status":%s}\n' "$target" "$passed" "$status" >>"$GITHUB_OUTPUT"
+  exit 0
+fi
+
 case "$command" in
   check|verify)
     args=(--project "$project" "${args[@]}")

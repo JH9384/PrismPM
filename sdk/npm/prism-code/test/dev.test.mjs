@@ -611,7 +611,7 @@ test('dev rebuilds and re-checks on a model edit, and the studio shows each new 
   const policy = (minimum) => JSON.stringify({ name: 'local', minimum, digests: { archive: { sha256: pinned } } });
   const root = project({ 'prismpm.toml': 'spec = "prismpm/project/1"\nproject = "App"\nbuild_root = ".prism"\n', 'src/App.lex.tex': 'model one\n', 'build.mjs': BUILD, 'policy.json': policy('P0') });
   copyFileSync(fixture, join(root, 'base.bin'));
-  const dev = startDev([root, '--build', 'node build.mjs base.bin', '--holo', 'App.holo', '--policy', join(root, 'policy.json')]);
+  const dev = startDev([root, '--build', 'node build.mjs base.bin', '--image', 'App.holo', '--policy', join(root, 'policy.json')]);
   t.after(async () => {
     dev.child.kill();
     await dev.exited;
@@ -693,7 +693,7 @@ test('a bad manifest is refused at the start, and dev is a built-in verb no plug
 
 test('Ctrl-C stops dev with exit 0 and frees the port', { skip: process.platform === 'win32' ? 'Windows has no signal to catch' : false, timeout: 30000 }, async () => {
   const root = project({ 'prismpm.toml': 'project = "App"\n', 'src/App.lex.tex': 'model\n', 'build.mjs': `import { copyFileSync } from 'node:fs';copyFileSync(process.argv[2], 'App.holo');` });
-  const dev = startDev([root, '--build', `node build.mjs ${JSON.stringify(fixture)}`, '--holo', 'App.holo']);
+  const dev = startDev([root, '--build', `node build.mjs ${JSON.stringify(fixture)}`, '--image', 'App.holo']);
   const url = await until(() => /Studio at (http:\/\/localhost:\d+)/.exec(dev.output.out)?.[1], 'the studio address');
   const local = url.replace('localhost', '127.0.0.1');
   await until(async () => (await stateOf(local)).result?.outcome === 'verdict', 'the first verdict');
@@ -707,7 +707,7 @@ test('Ctrl-C stops dev with exit 0 and frees the port', { skip: process.platform
 test('the default build updates the lock, because a plain build refuses every edit to the model', async () => {
   const image = `ghcr.io/uor-foundation/prismpm-sdk@sha256:${'a'.repeat(64)}`;
   const root = project({ 'prismpm.lock': JSON.stringify({ sdk_image: image }) });
-  const built = await runBuild({ directory: root, command: null, env: { ...process.env, PRISM_CODE_DRY_RUN: '1' } });
+  const built = await runBuild({ directory: root, command: null, env: { ...process.env, PRISM_CODE_DRY_RUN: '1', PRISM_HOME: mkdtempSync(join(tmpdir(), 'prism-home-')) } });
   assert.equal(built.code, 0, built.log);
   assert.match(built.log, new RegExp(`${image} prismpm build --update --json`));
 });
@@ -725,7 +725,7 @@ test('the page verifier takes each policy check takes, and reaches the same verd
 
 test('dev judges by a shipped policy name, which is no file to resolve or watch', { timeout: 30000 }, async (t) => {
   const root = project({ 'prismpm.toml': 'project = "App"\n', 'src/App.lex.tex': 'model\n', 'build.mjs': `import { copyFileSync } from 'node:fs';copyFileSync(process.argv[2], 'App.holo');` });
-  const dev = startDev([root, '--build', `node build.mjs ${JSON.stringify(fixture)}`, '--holo', 'App.holo', '--policy', 'pure-only']);
+  const dev = startDev([root, '--build', `node build.mjs ${JSON.stringify(fixture)}`, '--image', 'App.holo', '--policy', 'pure-only']);
   t.after(async () => {
     dev.child.kill();
     await dev.exited;

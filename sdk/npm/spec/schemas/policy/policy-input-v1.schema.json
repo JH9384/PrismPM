@@ -16,7 +16,7 @@
         "fingerprint": {
           "description": "The archive fingerprint, the same value as the holo member of a verdict.",
           "type": "string",
-          "pattern": "^blake3:[0-9a-f]{64}$"
+          "pattern": "^(sha256|blake3):[0-9a-f]{64}$"
         },
         "revision": {
           "description": "The format revision the archive matches, or null when it matches none.",
@@ -79,7 +79,7 @@
     "digests": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sha256", "blake3"],
+      "required": ["sha256"],
       "properties": {
         "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "blake3": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
@@ -144,7 +144,7 @@
               "additionalProperties": false,
               "required": ["label", "empty"],
               "properties": {
-                "label": { "type": "string", "pattern": "^blake3:[0-9a-f]{64}$" },
+                "label": { "type": "string", "pattern": "^(sha256|blake3):[0-9a-f]{64}$" },
                 "empty": { "type": "boolean" }
               }
             }

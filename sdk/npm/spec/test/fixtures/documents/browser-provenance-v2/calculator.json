@@ -1,0 +1,27 @@
+{
+  "adapter_lock_sha256": "2538a2dfb132b4a19d86a73963b60b6c7a91c34cdab3587906432a1617214b2d",
+  "adapter_wasm_sha256": "e4793bb974efe8f768ad91e9c0708d1ab1fee2869b0b873ff17bf4a3319a3f3f",
+  "binding_javascript_sha256": "874b3b40b1349e313da939fccbf9bc1ddbad4095b0e2fcc4fb17a3480849c9e7",
+  "files": {
+    "Archivo-SemiBold.woff2": "021b3341637957cc8f657e9d1c47b375172a345c7235b21a35fb0f6a5014fc29",
+    "Geist-Medium.woff2": "a66bf1606414698322ef853b6e0aee35987e99f46199ee03fe421c4ae5aaab90",
+    "Geist-Regular.woff2": "100d9057c8c2f3443e7084e6c7b892545273b8605aa91093d5f724ec094a155c",
+    "Geist-SemiBold.woff2": "aa08afb65d5b165d70a89806c9b056c5916a9f84977f57eb76a27cd43e772400",
+    "GeistMono-Regular.woff2": "25585ec49a12c6623902d9418450eb8598d1933373e4404a4136e8c15cec4672",
+    "OFL-Archivo.txt": "ab87279fb9cfd1b35b27f80b3b611c98a3f7e44305aa6142d307cdc5d0be5138",
+    "OFL-Geist.txt": "0954ed2969e4d6c959b409223628229646d314267a63dc12fceb2b8543797ab1",
+    "app.css": "c0c028ec97931501e2e8390298443838e8ea98cd804341302f2625ddc36a93fb",
+    "app.js": "527bb49bf2e199a048add7076f9a459797695dcb11af5578cdc90c90f7c924ee",
+    "icon-512.png": "94e2910cfd2f9bb8f6657c69b2d67b57cf70c05aafc8670f1db91ef73543b5da",
+    "icon.svg": "7de85a5697c5e4f508a99a973003d91bcb6fe5634616bf138d9fc7a3f7cf4bf1",
+    "index.html": "0cbb2ae31ca453c44ac646a10ed15bbb78175f18ac2f73ab4dd71a93b564fc6a",
+    "manifest.webmanifest": "a5b361ca6e0902b4cc53024149d4172ae57fda65a97eee6a16eeaab769236866",
+    "prism_calculator.js": "874b3b40b1349e313da939fccbf9bc1ddbad4095b0e2fcc4fb17a3480849c9e7",
+    "prism_calculator_bg.wasm": "e4793bb974efe8f768ad91e9c0708d1ab1fee2869b0b873ff17bf4a3319a3f3f"
+  },
+  "generated_core_sha256": "ae6c37001a43698ab8b56ec4685d66a783b78e83395b93404681f8ba157420b5",
+  "model_id": "074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6",
+  "schema": "prismpm/browser-provenance/2",
+  "view_manifest_sha256": "7ea6c4395d994ce80cd7a292f6a4c53dc0b05cd1fd94effc632b1f742c8f6293",
+  "view_model_id": "706ed92a8dbf79bd1eafe6a6cf8b980e99f089b69af373a90de1955f78d7bd1b"
+}

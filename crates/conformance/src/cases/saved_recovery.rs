@@ -191,10 +191,10 @@ fn acceptance(project: &Path, verified: &prismpm::controller::VerifyResult) {
     );
     let attestation = super::json(&output.join("lexlean-attestation.json"));
     assert_eq!(attestation["status"], "verified");
-    let audits = attestation["declarations"].as_array().unwrap();
+    let audits = super::owned_audits(&attestation);
     assert_eq!(audits.len(), expected.len());
     let mut audited = BTreeSet::new();
-    for audit in audits {
+    for audit in &audits {
         let name = audit["name"].as_str().unwrap();
         assert!(audited.insert(name));
         let declaration = expected

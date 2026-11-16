@@ -11,7 +11,7 @@ import {sourceRoots} from '../../scripts/browser-api-sdk-check.mjs';
 import {PresentationError, encodeWire} from '../../sdk/browser/presentation-wire.mjs';
 import {captureDesignCatalogue, decodeSemanticPresentation, encodeSemanticPresentation,
   semanticCatalogueFits, semanticMainNode, semanticProgressFits} from '../../sdk/browser/semantic-presentation-wire.mjs';
-import {corpus, fixture, designs, light} from './corpus.mjs';
+import {corpus, fixture, designs, light, dark} from './corpus.mjs';
 import {semanticStyle} from '../../sdk/browser/semantic-presentation-style.mjs';
 import {assertBrowserJourneyInventory, assertPaletteInventory, captureBrowserEvidence, completeEvidence, replayBrowser, verifyNativeInventory} from './checks.mjs';
 import {journeyCallInventory, journeyNames} from './browser.mjs';
@@ -211,8 +211,9 @@ test('immutable design capture rejects malformed and out-of-range tokens', () =>
   original[0][0][0] = 0;
   assert.equal(captured[0][0][0], 0xffffff); assert.ok(Object.isFrozen(captured[0][0]));
   const bounds = [[0, 16777215], [0, 16777215], [0, 16777215], [0, 16777215],
-    [0, 16777215], [0, 16777215], [0, 16777215], [0, 2], [1000, 4000],
-    [1000, 3000], [0, 4000], [0, 4000], [16, 120], [8, 40], [20, 100], [24, 96]];
+    [0, 16777215], [0, 16777215], [0, 16777215], [0, 3], [1000, 4000],
+    [1000, 3000], [0, 4000], [0, 4000], [16, 120], [8, 40], [20, 100], [24, 96],
+    ...Array(9).fill([0, 16777215])];
   for (let index = 0; index < bounds.length; index++) for (const value of [bounds[index][0] - 1, bounds[index][1] + 1, 0.5, NaN, '0']) {
     const invalid = structuredClone(designs); invalid[0][0][index] = value;
     assert.throws(() => captureDesignCatalogue(invalid), PresentationError, `token ${index}`);
@@ -223,6 +224,12 @@ test('immutable design capture rejects malformed and out-of-range tokens', () =>
   let calls = 0; const tokens = [...light];
   Object.defineProperty(tokens, '0', {get() { calls++; return 0; }});
   assert.throws(() => captureDesignCatalogue([[tokens, light]]), PresentationError); assert.equal(calls, 0);
+  // A well-shaped palette is still refused when a text pair falls below 4.5:1 or focus below 3:1.
+  for (const [index, value] of [[1, 0xffffff], [18, 0xf2f2f2], [6, 0xfefefe]]) {
+    const failing = [...light]; failing[index] = value;
+    assert.throws(() => captureDesignCatalogue([[failing, dark]]), PresentationError, 'contrast ' + index);
+  }
+  const hologram = [...light]; hologram[7] = 3; assert.equal(captureDesignCatalogue([[hologram, dark]])[0][0][7], 3);
   const hole = [...light]; delete hole[3];
   assert.throws(() => captureDesignCatalogue([[hole, light]]), PresentationError);
   const injected = [...light]; injected.css = 'url(https://untrusted.invalid)';

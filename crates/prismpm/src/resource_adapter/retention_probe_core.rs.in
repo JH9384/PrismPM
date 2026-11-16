@@ -1,0 +1,114 @@
+// Private test fixture ownership glue over the actual generated source types.
+// Application transitions, observations and release policy live in the source.
+use prism_resource_core as model;
+use std::cell::{Cell, RefCell};
+use std::mem::ManuallyDrop;
+use std::marker::PhantomData;
+use std::rc::Rc;
+
+thread_local! {
+    static CHECKED_FAILURE: Cell<bool> = const { Cell::new(false) };
+    static LIVE: Cell<u32> = const { Cell::new(0) };
+    static GRANTED_DROPS: Cell<u32> = const { Cell::new(0) };
+    static SOURCE_CALLS: Cell<u32> = const { Cell::new(0) };
+    // No destructor for a quarantined State is run by ordinary wrapper Drop.
+    // This can retain memory indefinitely; process/realm exit is external.
+    static QUARANTINE: RefCell<Vec<ManuallyDrop<model::State>>> = const { RefCell::new(Vec::new()) };
+}
+
+pub fn live_owners() -> u32 { LIVE.with(Cell::get) }
+pub fn granted_drops() -> u32 { GRANTED_DROPS.with(Cell::get) }
+pub fn source_calls() -> u32 { SOURCE_CALLS.with(Cell::get) }
+pub fn quarantined_owners() -> usize { QUARANTINE.with(|held| held.borrow().len()) }
+pub fn quarantined_payloads() -> Vec<Vec<u8>> {
+    QUARANTINE.with(|held| held.borrow().iter().map(|state| state.payload.clone()).collect())
+}
+fn source_call() { SOURCE_CALLS.with(|calls| calls.set(calls.get() + 1)); }
+fn blocked() -> bool { CHECKED_FAILURE.with(Cell::get) }
+
+pub enum Outcome {
+    Retained(Vec<u8>),
+    ReleaseAuthorized(Vec<u8>),
+    ComputeError(model::ComputeError),
+    Held,
+}
+
+pub struct Owner {
+    state: Option<model::State>,
+    release_authorized: bool,
+    _thread_affine: PhantomData<Rc<()>>,
+}
+
+impl Drop for Owner {
+    fn drop(&mut self) {
+        LIVE.with(|live| live.set(live.get() - 1));
+        if let Some(state) = self.state.take() {
+            if self.release_authorized && !blocked() && !std::thread::panicking() {
+                drop(state);
+                GRANTED_DROPS.with(|drops| drops.set(drops.get() + 1));
+            } else {
+                QUARANTINE.with(|held| held.borrow_mut().push(ManuallyDrop::new(state)));
+            }
+        }
+    }
+}
+
+impl Owner {
+    pub fn begin(bytes: Vec<u8>) -> Option<(Self, Vec<u8>)> {
+        if blocked() { return None; }
+        source_call();
+        let config = model::configDecode(bytes);
+        source_call();
+        let model::Transition { owner, observation } = model::init(&config);
+        LIVE.with(|live| live.set(live.get() + 1));
+        // Install the known initial owner before encoding its observation.
+        let resource = Self { state: Some(owner), release_authorized: false, _thread_affine: PhantomData };
+        source_call();
+        let encoded = model::observationEncode(&observation);
+        Some((resource, encoded))
+    }
+
+    pub fn advance(&mut self, bytes: Vec<u8>) -> Outcome {
+        if blocked() || self.release_authorized { return Outcome::Held; }
+        source_call();
+        let event = model::eventDecode(bytes);
+        let old = self.state.as_ref().expect("owned source State");
+        source_call();
+        let transition = match model::advance(old, event) {
+            Ok(value) => value,
+            Err(error) => {
+                // A checked error preserves ONLY the known pre-call owner.
+                // It proves neither rollback nor hidden-prefix recovery.
+                CHECKED_FAILURE.with(|held| held.set(true));
+                return Outcome::ComputeError(error);
+            }
+        };
+        let model::Transition { owner, observation } = transition;
+        // Adopt the source successor even for completion, failure or unknown.
+        self.state = Some(owner);
+        source_call();
+        Outcome::Retained(model::observationEncode(&observation))
+    }
+
+    pub fn request_release(&mut self) -> Outcome {
+        if blocked() || self.release_authorized { return Outcome::Held; }
+        let old = self.state.as_ref().expect("owned source State");
+        source_call();
+        let model::Transition { owner, observation } = model::requestRelease(old);
+        self.state = Some(owner);
+        // Match the actual source constructor under this exclusive owner.
+        // No encoded byte, host ledger or cached caller Bool grants release.
+        let authorized = matches!(observation.status, model::Status::ReleaseAuthorized);
+        source_call();
+        let encoded = model::observationEncode(&observation);
+        self.release_authorized = authorized;
+        if self.release_authorized { Outcome::ReleaseAuthorized(encoded) }
+        else { Outcome::Retained(encoded) }
+    }
+
+    // Conformance-only inspection of host-owned typed fields, not a source call
+    // or a runtime State serialization API. Never exposed by the Wasm facade.
+    pub fn known_prefix_for_probe(&self) -> Option<(u64, u64, usize)> {
+        self.state.as_ref().map(|state| (state.written, state.deleted, state.payload.len()))
+    }
+}

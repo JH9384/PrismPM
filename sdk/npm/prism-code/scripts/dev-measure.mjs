@@ -200,7 +200,7 @@ async function main() {
   const source = standIn ? join(directory, 'src/App.lex.tex') : fileHolding(directory, from);
 
   const args = [BIN, 'dev', directory, '--no-open', '--port', options.port ?? '0'];
-  if (standIn) args.push('--build', 'node build.mjs', '--holo', 'App.holo');
+  if (standIn) args.push('--build', 'node build.mjs', '--image', 'App.holo');
   if (options.policy) args.push('--policy', resolve(options.policy));
   const dev = spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '';

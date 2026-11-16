@@ -1,0 +1,331 @@
+\begin{lexlean}{Probe}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\importmodule{Foundation.Library.V1.Model}
+\importmodule{Foundation.Stream.V2.Model}
+\title{Natural number}
+\begin{semanticmodule}
+structure{name: Config, type_parameters: [], parameters: [], fields: [{name: payload, type: Bytes}]}
+
+inductive{
+  name: Phase,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Running, fields: []},
+    {name: Completed, fields: []},
+    {name: Cancelled, fields: []},
+    {name: Failed, fields: []}
+  ]
+}
+
+inductive{
+  name: Pending,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Idle, fields: []}, {name: Write, fields: []}, {name: Delete, fields: []}]
+}
+
+inductive{
+  name: Status,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Ready, fields: []},
+    {name: WritePending, fields: []},
+    {name: DeletePending, fields: []},
+    {name: Progress, fields: []},
+    {name: Completed, fields: []},
+    {name: Cancelled, fields: []},
+    {name: ModeledFailure, fields: []},
+    {name: Rejected, fields: []},
+    {name: Unknown, fields: []},
+    {name: ReleaseRefused, fields: []},
+    {name: ReleaseAuthorized, fields: []}
+  ]
+}
+
+structure{
+  name: State,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: payload, type: Bytes},
+    {name: phase, type: Phase},
+    {name: pending, type: Pending},
+    {name: ticket, type: Nat},
+    {name: written, type: Nat},
+    {name: deleted, type: Nat},
+    {name: unknown, type: Bool}
+  ]
+}
+
+structure{
+  name: Observation,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: status, type: Status},
+    {name: phase, type: Phase},
+    {name: pending, type: Pending},
+    {name: ticket, type: Nat},
+    {name: written, type: Nat},
+    {name: deleted, type: Nat},
+    {name: unknown, type: Bool},
+    {name: summary, type: Bytes}
+  ]
+}
+
+structure{
+  name: Transition,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: owner, type: State}, {name: observation, type: Observation}]
+}
+
+inductive{
+  name: Event,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: BeginWrite, fields: []},
+    {name: WriteAck, fields: [Nat, Nat]},
+    {name: WriteUnknown, fields: [Nat]},
+    {name: ReconcileWrite, fields: [Nat, Nat]},
+    {name: Cleanup, fields: []},
+    {name: DeleteAck, fields: [Nat, Nat]},
+    {name: DeleteUnknown, fields: [Nat]},
+    {name: ReconcileDelete, fields: [Nat, Nat]},
+    {name: Complete, fields: []},
+    {name: Cancel, fields: []},
+    {name: Fail, fields: []},
+    {name: CheckedFault, fields: []},
+    {name: InvalidEvent, fields: []}
+  ]
+}
+
+definition{
+  name: isPending,
+  parameters: [left : Pending, right : Pending],
+  result: Bool,
+  body: (match left
+    | Pending.Idle => (match right
+      | Pending.Idle => true
+      | Pending.Write => false
+      | Pending.Delete => false)
+    | Pending.Write => (match right
+      | Pending.Idle => false
+      | Pending.Write => true
+      | Pending.Delete => false)
+    | Pending.Delete => (match right
+      | Pending.Idle => false
+      | Pending.Write => false
+      | Pending.Delete => true))
+}
+
+definition{
+  name: terminal,
+  parameters: [phase : Phase],
+  result: Bool,
+  body: (match phase
+    | Phase.Running => false
+    | Phase.Completed => true
+    | Phase.Cancelled => true
+    | Phase.Failed => true)
+}
+
+definition{
+  name: stateWith,
+  parameters: [
+    state : State,
+    phase : Phase,
+    pending : Pending,
+    ticket : Nat,
+    written : Nat,
+    deleted : Nat,
+    unknown : Bool
+  ],
+  result: State,
+  body: (record State {payload := (project state payload), phase := phase, pending := pending, ticket := ticket, written := written, deleted := deleted, unknown := unknown})
+}
+
+definition{
+  name: observe,
+  parameters: [state : State, status : Status],
+  result: Observation,
+  body: (record Observation {status := status, phase := (project state phase), pending := (project state pending), ticket := (project state ticket), written := (project state written), deleted := (project state deleted), unknown := (project state unknown), summary := (match status
+    | Status.Ready => 0x
+    | Status.WritePending => 0x
+    | Status.DeletePending => 0x
+    | Status.Progress => 0x
+    | Status.Completed => (project state payload)
+    | Status.Cancelled => 0x
+    | Status.ModeledFailure => 0x
+    | Status.Rejected => 0x
+    | Status.Unknown => 0x
+    | Status.ReleaseRefused => 0x
+    | Status.ReleaseAuthorized => 0x)})
+}
+
+definition{
+  name: transition,
+  parameters: [state : State, status : Status],
+  result: Transition,
+  body: (record Transition {owner := state, observation := (observe state status)})
+}
+
+definition{
+  name: configDecode,
+  parameters: [bytes : Bytes],
+  result: Config,
+  body: (record Config {payload := bytes})
+}
+
+definition{
+  name: init,
+  parameters: [config : Config],
+  result: Transition,
+  body: (transition (record State {payload := (project config payload), phase := (ctor Phase.Running), pending := (ctor Pending.Idle), ticket := 0, written := 0, deleted := 0, unknown := false}) (ctor Status.Ready))
+}
+
+definition{
+  name: eventDecode,
+  parameters: [bytes : Bytes],
+  result: Event,
+  body: (if (prim equal bytes 0x01 : Bool) then (ctor Event.BeginWrite) else (if (prim equal bytes 0x02 : Bool) then (ctor Event.WriteAck 1 1) else (if (prim equal bytes 0x03 : Bool) then (ctor Event.WriteAck 1 2) else (if (prim equal bytes 0x04 : Bool) then (ctor Event.WriteUnknown 1) else (if (prim equal bytes 0x05 : Bool) then (ctor Event.Cleanup) else (if (prim equal bytes 0x06 : Bool) then (ctor Event.DeleteAck 2 1) else (if (prim equal bytes 0x07 : Bool) then (ctor Event.DeleteAck 2 2) else (if (prim equal bytes 0x08 : Bool) then (ctor Event.DeleteUnknown 2) else (if (prim equal bytes 0x09 : Bool) then (ctor Event.Complete) else (if (prim equal bytes 0x0a : Bool) then (ctor Event.Cancel) else (if (prim equal bytes 0x0b : Bool) then (ctor Event.ReconcileWrite 1 1) else (if (prim equal bytes 0x0c : Bool) then (ctor Event.WriteAck 99 2) else (if (prim equal bytes 0x0d : Bool) then (ctor Event.DeleteAck 2 0) else (if (prim equal bytes 0x0e : Bool) then (ctor Event.WriteAck 1 0) else (if (prim equal bytes 0x0f : Bool) then (ctor Event.WriteAck 1 3) else (if (prim equal bytes 0x10 : Bool) then (ctor Event.ReconcileWrite 1 2) else (if (prim equal bytes 0x11 : Bool) then (ctor Event.ReconcileDelete 2 2) else (if (prim equal bytes 0x12 : Bool) then (ctor Event.Fail) else (if (prim equal bytes 0xfd : Bool) then (ctor Event.CheckedFault) else (ctor Event.InvalidEvent))))))))))))))))))))
+}
+
+definition{
+  name: validPrefix,
+  parameters: [previous : Nat, incoming : Nat],
+  result: Bool,
+  body: (if (prim equal incoming 0 : Bool) then (prim equal previous 0 : Bool) else (if (prim equal incoming 1 : Bool) then (if (prim equal previous 2 : Bool) then false else true) else (prim equal incoming 2 : Bool)))
+}
+
+definition{
+  name: writeAck,
+  parameters: [state : State, ticket : Nat, prefix : Nat, reconcile : Bool],
+  result: Transition,
+  body: (if (if (isPending (project state pending) (ctor Pending.Write)) then (if (prim equal ticket (project state ticket) : Bool) then (if (validPrefix (project state written) prefix) then (if (if reconcile then (project state unknown) else (if (project state unknown) then false else true)) then true else false) else false) else false) else false) then (transition (stateWith state (project state phase) (if (if reconcile then true else (prim equal prefix 2 : Bool)) then (ctor Pending.Idle) else (ctor Pending.Write)) (if (if reconcile then true else (prim equal prefix 2 : Bool)) then 0 else (project state ticket)) prefix (project state deleted) false) (ctor Status.Progress)) else (transition state (ctor Status.Rejected)))
+}
+
+definition{
+  name: deleteAck,
+  parameters: [state : State, ticket : Nat, prefix : Nat, reconcile : Bool],
+  result: Transition,
+  body: (if (if (isPending (project state pending) (ctor Pending.Delete)) then (if (prim equal ticket (project state ticket) : Bool) then (if (validPrefix (project state deleted) prefix) then (if (if (prim equal prefix 2 : Bool) then (prim equal (project state written) 2 : Bool) else (if (prim equal prefix 1 : Bool) then (if (prim equal (project state written) 0 : Bool) then false else true) else true)) then (if (if reconcile then (project state unknown) else (if (project state unknown) then false else true)) then true else false) else false) else false) else false) else false) then (transition (stateWith state (project state phase) (if (prim equal prefix (project state written) : Bool) then (ctor Pending.Idle) else (ctor Pending.Delete)) (if (prim equal prefix (project state written) : Bool) then 0 else (project state ticket)) (project state written) prefix false) (ctor Status.Progress)) else (transition state (ctor Status.Rejected)))
+}
+
+definition{
+  name: uncertain,
+  parameters: [state : State, pending : Pending, ticket : Nat],
+  result: Transition,
+  body: (if (if (isPending (project state pending) pending) then (if (prim equal ticket (project state ticket) : Bool) then true else false) else false) then (transition (stateWith state (project state phase) (project state pending) (project state ticket) (project state written) (project state deleted) true) (ctor Status.Unknown)) else (transition state (ctor Status.Rejected)))
+}
+
+definition{
+  name: advance,
+  parameters: [state : State, event : Event],
+  result: Transition,
+  body: (match event
+    | Event.BeginWrite => (if (if (if (terminal (project state phase)) then false else true) then (if (isPending (project state pending) (ctor Pending.Idle)) then (if (prim equal (project state written) 0 : Bool) then (if (prim equal (project state deleted) 0 : Bool) then (if (if (project state unknown) then false else true) then true else false) else false) else false) else false) else false) then (transition (stateWith state (project state phase) (ctor Pending.Write) 1 (project state written) (project state deleted) (project state unknown)) (ctor Status.WritePending)) else (transition state (ctor Status.Rejected)))
+    | Event.WriteAck ticket prefix => (writeAck state ticket prefix false)
+    | Event.WriteUnknown ticket => (uncertain state (ctor Pending.Write) ticket)
+    | Event.ReconcileWrite ticket prefix => (writeAck state ticket prefix true)
+    | Event.Cleanup => (if (if (terminal (project state phase)) then (if (isPending (project state pending) (ctor Pending.Idle)) then (if (if (project state unknown) then false else true) then (if (if (prim equal (project state written) (project state deleted) : Bool) then false else true) then true else false) else false) else false) else false) then (transition (stateWith state (project state phase) (ctor Pending.Delete) 2 (project state written) (project state deleted) (project state unknown)) (ctor Status.DeletePending)) else (transition state (ctor Status.Rejected)))
+    | Event.DeleteAck ticket prefix => (deleteAck state ticket prefix false)
+    | Event.DeleteUnknown ticket => (uncertain state (ctor Pending.Delete) ticket)
+    | Event.ReconcileDelete ticket prefix => (deleteAck state ticket prefix true)
+    | Event.Complete => (if (if (terminal (project state phase)) then false else true) then (transition (stateWith state (ctor Phase.Completed) (project state pending) (project state ticket) (project state written) (project state deleted) (project state unknown)) (ctor Status.Completed)) else (transition state (ctor Status.Rejected)))
+    | Event.Cancel => (transition (stateWith state (ctor Phase.Cancelled) (project state pending) (project state ticket) (project state written) (project state deleted) (project state unknown)) (ctor Status.Cancelled))
+    | Event.Fail => (transition (stateWith state (ctor Phase.Failed) (project state pending) (project state ticket) (project state written) (project state deleted) (project state unknown)) (ctor Status.ModeledFailure))
+    | Event.CheckedFault => (if (prim equal ((prim length (project state payload) : Nat) + 18446744073709551615) 0 : Bool) then (transition state (ctor Status.Progress)) else (transition state (ctor Status.Rejected)))
+    | Event.InvalidEvent => (transition state (ctor Status.Rejected)))
+}
+
+definition{
+  name: releaseSafe,
+  parameters: [state : State],
+  result: Bool,
+  body: (if (terminal (project state phase)) then (if (isPending (project state pending) (ctor Pending.Idle)) then (if (prim equal (project state ticket) 0 : Bool) then (if (prim equal (project state written) (project state deleted) : Bool) then (if (if (project state unknown) then false else true) then true else false) else false) else false) else false) else false)
+}
+
+definition{
+  name: requestRelease,
+  parameters: [state : State],
+  result: Transition,
+  body: (if (releaseSafe state) then (transition state (ctor Status.ReleaseAuthorized)) else (transition state (ctor Status.ReleaseRefused)))
+}
+
+definition{
+  name: statusEncode,
+  parameters: [value : Status],
+  result: Bytes,
+  body: (match value
+    | Status.Ready => 0x00
+    | Status.WritePending => 0x01
+    | Status.DeletePending => 0x02
+    | Status.Progress => 0x03
+    | Status.Completed => 0x04
+    | Status.Cancelled => 0x05
+    | Status.ModeledFailure => 0x06
+    | Status.Rejected => 0x07
+    | Status.Unknown => 0x08
+    | Status.ReleaseRefused => 0x09
+    | Status.ReleaseAuthorized => 0x0a)
+}
+
+definition{
+  name: phaseEncode,
+  parameters: [value : Phase],
+  result: Bytes,
+  body: (match value
+    | Phase.Running => 0x00
+    | Phase.Completed => 0x01
+    | Phase.Cancelled => 0x02
+    | Phase.Failed => 0x03)
+}
+
+definition{
+  name: pendingEncode,
+  parameters: [value : Pending],
+  result: Bytes,
+  body: (match value | Pending.Idle => 0x00 | Pending.Write => 0x01 | Pending.Delete => 0x02)
+}
+
+definition{
+  name: smallNatEncode,
+  parameters: [value : Nat],
+  result: Bytes,
+  body: (if (prim equal value 0 : Bool) then 0x00 else (if (prim equal value 1 : Bool) then 0x01 else (if (prim equal value 2 : Bool) then 0x02 else 0xff)))
+}
+
+definition{
+  name: observationEncode,
+  parameters: [observation : Observation],
+  result: Bytes,
+  body: (prim append (statusEncode (project observation status)) (prim append (phaseEncode (project observation phase)) (prim append (pendingEncode (project observation pending)) (prim append (smallNatEncode (project observation ticket)) (prim append (smallNatEncode (project observation written)) (prim append (smallNatEncode (project observation deleted)) (prim append (if (project observation unknown) then 0x01 else 0x00) (project observation summary) : Bytes) : Bytes) : Bytes) : Bytes) : Bytes) : Bytes) : Bytes)
+}
+
+definition{
+  name: acceptance,
+  parameters: [],
+  result: Bool,
+  body: (if (releaseSafe (project (init (configDecode 0x010203)) owner)) then false else (if (releaseSafe (project (advance (project (advance (project (init (configDecode 0x010203)) owner) (ctor Event.BeginWrite)) owner) (ctor Event.Complete)) owner)) then false else true))
+}
+
+definition{
+  name: probeLibrary,
+  parameters: [],
+  result: Foundation.Library.V1.Model::NativeLibrary,
+  body: (record Foundation.Library.V1.Model::NativeLibrary {profile := "prismpm/native-library/1", name := "Retained resource v2 component probe", cargoName := "prism-retained-resource-v2-probe", cargoVersion := "0.1.0", cargoDescription := "Private source-owned cleanup and release boundary fixture", cargoRepository := "https://github.com/UOR-Foundation/PrismPM", cargoHomepage := "https://github.com/UOR-Foundation/PrismPM", exportRoots := (cons "LibraryProbe.Probe.acceptance" (cons "LibraryProbe.Probe.advance" (cons "LibraryProbe.Probe.configDecode" (cons "LibraryProbe.Probe.eventDecode" (cons "LibraryProbe.Probe.init" (cons "LibraryProbe.Probe.observationEncode" (cons "LibraryProbe.Probe.requestRelease" (nil String)))))))), acceptanceRoots := (cons "LibraryProbe.Probe.acceptance" (nil String))})
+}
+
+definition{
+  name: resourceAdapter,
+  parameters: [],
+  result: Foundation.Stream.V2.Model::ResourceAdapter,
+  body: (record Foundation.Stream.V2.Model::ResourceAdapter {profile := "prismpm/private-resource-component/2", configDecodeRoot := "LibraryProbe.Probe.configDecode", eventDecodeRoot := "LibraryProbe.Probe.eventDecode", initRoot := "LibraryProbe.Probe.init", advanceRoot := "LibraryProbe.Probe.advance", requestReleaseRoot := "LibraryProbe.Probe.requestRelease", observationEncodeRoot := "LibraryProbe.Probe.observationEncode"})
+}
+\end{semanticmodule}
+\end{lexlean}

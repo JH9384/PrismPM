@@ -1,0 +1,35 @@
+{
+  "schema": "prism/history/2",
+  "application": null,
+  "sessions": [
+    {
+      "steps": [
+        {
+          "request": "",
+          "responses": []
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "request": "01",
+          "responses": [
+            "02"
+          ]
+        }
+      ],
+      "failure": {
+        "request": "ff",
+        "error": "core.trap"
+      }
+    },
+    {
+      "steps": [],
+      "failure": {
+        "request": "00",
+        "error": "core.allocation"
+      }
+    }
+  ]
+}

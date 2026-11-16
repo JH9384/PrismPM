@@ -1,0 +1,55 @@
+{
+  "name": "@prism-code/testing",
+  "version": "0.1.0",
+  "description": "Test a Prism application without a network or a clock: a deterministic mock host with time-skipping, scripted dispatch that throws on an unexpected call, and history fixtures in the prism/history/1 format.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./src/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./index.d.ts",
+  "files": [
+    "src",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "peerDependencies": {
+    "prism-code": ">=0.3.0 <1"
+  },
+  "devDependencies": {
+    "prism-code": "file:../prism-code"
+  },
+  "keywords": [
+    "prism",
+    "prismpm",
+    "holo",
+    "testing",
+    "mock",
+    "fake-timers",
+    "replay",
+    "uor"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UOR-Foundation/PrismPM",
+    "directory": "sdk/npm/testing"
+  },
+  "homepage": "https://github.com/UOR-Foundation/PrismPM/tree/main/sdk/npm/testing",
+  "bugs": "https://github.com/UOR-Foundation/PrismPM/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

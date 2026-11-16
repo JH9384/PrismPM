@@ -1,0 +1,26 @@
+// The Core-Wasm guest contract `hologram:guest/core-wasm@1`, format revision 2026-10-23.
+//
+// The guest is an import-free wasm32 core module, not a component. It exports
+// exactly three items: `memory`, `holo_alloc` and `holo_run`. WIT cannot name
+// an exported memory, so `memory` is stated here and not declared below.
+//
+// WIT names are kebab-case. `holo-alloc` names the core export `holo_alloc`
+// and `holo-run` names `holo_run`. In the canonical ABI, u32 lowers to i32 and
+// u64 lowers to i64, so the core signatures are exactly:
+//
+//   holo_alloc: (i32) -> i32
+//   holo_run:   (i32, i32) -> i64
+//
+// A host writes the request into guest memory at the offset `holo-alloc`
+// returns, then calls `holo-run`. The result packs the response location as
+// `offset << 32 | length`. The allocator never frees, so a host runs each
+// request on a fresh instance.
+package hologram:guest@1.0.0;
+
+world core-wasm {
+  /// Reserve `length` bytes of guest memory for a request and return their offset.
+  export holo-alloc: func(length: u32) -> u32;
+
+  /// Run the request at `offset` with `length` bytes. Returns `offset << 32 | length` of the response.
+  export holo-run: func(offset: u32, length: u32) -> u64;
+}

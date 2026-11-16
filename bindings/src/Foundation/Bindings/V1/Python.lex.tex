@@ -1,0 +1,417 @@
+\begin{lexlean}{Foundation.Bindings.V1.Python}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.bindings@1.0.0}
+\importmodule{Foundation.Bindings.V1.Model}
+\importmodule{Foundation.Bindings.V1.Text}
+\title{Python bindings writer}
+\begin{semanticmodule}
+definition{
+  name: keywords,
+  parameters: [],
+  result: (List String),
+  body: (cons "False" (cons "None" (cons "True" (cons "and" (cons "as" (cons "assert" (cons "async" (cons "await" (cons "break" (cons "class" (cons "continue" (cons "def" (cons "del" (cons "elif" (cons "else" (cons "except" (cons "finally" (cons "for" (cons "from" (cons "global" (cons "if" (cons "import" (cons "in" (cons "is" (cons "lambda" (cons "nonlocal" (cons "not" (cons "or" (cons "pass" (cons "raise" (cons "return" (cons "try" (cons "while" (cons "with" (cons "yield" (cons "match" (cons "case" (cons "type" (nil String))))))))))))))))))))))))))))))))))))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: ident,
+  parameters: [name : String],
+  result: String,
+  body: (if (Foundation.Bindings.V1.Text::memberText name (keywords)) then (Foundation.Bindings.V1.Text::concat (cons name (cons "_" (nil String)))) else name),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: snakeIdent,
+  parameters: [name : String],
+  result: String,
+  body: (ident (Foundation.Bindings.V1.Text::snake name)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: scalars,
+  parameters: [],
+  result: (List (String * String)),
+  body: (cons ("bool", "bool") (cons ("u8", "int") (cons ("u16", "int") (cons ("u32", "int") (cons ("u64", "int") (cons ("s8", "int") (cons ("s16", "int") (cons ("s32", "int") (cons ("s64", "int") (cons ("f32", "float") (cons ("f64", "float") (cons ("char", "int") (nil (String * String)))))))))))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: pythonType,
+  parameters: [scalar : String],
+  result: String,
+  body: (match (Foundation.Bindings.V1.Text::lookupText scalar (scalars))
+    | Option.none => scalar
+    | Option.some name => name),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: escapeDocFrom,
+  parameters: [source : Bytes, index : Nat, fuel : Nat],
+  result: Bytes,
+  body: (match fuel
+    | Nat.zero => 0x
+    | Nat.succ rest => (if ((prim length source : Nat) <=? index) then 0x else (if (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 3) 0x222222) then (prim append 0x5c225c225c22 (escapeDocFrom source (index + 3) rest) : Bytes) else (if (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 1) 0x5c) then (prim append 0x5c5c (escapeDocFrom source (index + 1) rest) : Bytes) else (prim append (Foundation.Bindings.V1.Text::piece source index 1) (escapeDocFrom source (index + 1) rest) : Bytes))))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: fuel
+}
+
+definition{
+  name: escapeDoc,
+  parameters: [text : String],
+  result: String,
+  body: (let encoded : Bytes := (prim utf8_encode text : Bytes); (Foundation.Bindings.V1.Text::textOf (escapeDocFrom encoded 0 (prim length encoded : Nat)) text)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: stripTripleFrom,
+  parameters: [source : Bytes, index : Nat, fuel : Nat],
+  result: Bytes,
+  body: (match fuel
+    | Nat.zero => 0x
+    | Nat.succ rest => (if ((prim length source : Nat) <=? index) then 0x else (if (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 3) 0x222222) then (stripTripleFrom source (index + 3) rest) else (prim append (Foundation.Bindings.V1.Text::piece source index 1) (stripTripleFrom source (index + 1) rest) : Bytes)))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: fuel
+}
+
+definition{
+  name: stripTriple,
+  parameters: [text : String],
+  result: String,
+  body: (let encoded : Bytes := (prim utf8_encode text : Bytes); (Foundation.Bindings.V1.Text::textOf (stripTripleFrom encoded 0 (prim length encoded : Nat)) text)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: docRest,
+  parameters: [indent : String, lines : (List String)],
+  result: (List String),
+  body: (match lines
+    | List.nil => (nil String)
+    | List.cons line rest => (cons (if (prim equal line "" : Bool) then "" else (Foundation.Bindings.V1.Text::concat (cons indent (cons (escapeDoc line) (nil String))))) (docRest indent rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: lines
+}
+
+definition{
+  name: docstring,
+  parameters: [indent : String, lines : (List String)],
+  result: (List String),
+  body: (match lines
+    | List.nil => (nil String)
+    | List.cons only rest => (match rest
+      | List.nil => (cons (Foundation.Bindings.V1.Text::concat (cons indent (cons "\"\"\"" (cons (escapeDoc only) (cons "\"\"\"" (nil String)))))) (nil String))
+      | List.cons next others => (cons (Foundation.Bindings.V1.Text::concat (cons indent (cons "\"\"\"" (cons (escapeDoc only) (nil String))))) (prim append (docRest indent rest) (cons (Foundation.Bindings.V1.Text::concat (cons indent (cons "\"\"\"" (nil String)))) (nil String)) : (List String))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: wrapped,
+  parameters: [head : String, items : (List String), open : String, close : String],
+  result: (List String),
+  body: (let line : String := (if (prim equal open "(" : Bool) then (Foundation.Bindings.V1.Text::concat (cons head (cons (prim join items ", " : String) (nil String)))) else (Foundation.Bindings.V1.Text::concat (cons head (cons open (cons (prim join items ", " : String) (cons close (nil String))))))); (if (Foundation.Bindings.V1.Text::fits line) then (cons line (nil String)) else (prim append (cons (Foundation.Bindings.V1.Text::concat (cons head (cons open (nil String)))) (Foundation.Bindings.V1.Text::indented "    " items ",")) (cons close (nil String)) : (List String)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: exportNames,
+  parameters: [functions : (List Foundation.Bindings.V1.Model::BindingFunction)],
+  result: (List String),
+  body: (match functions
+    | List.nil => (nil String)
+    | List.cons function rest => (cons (project function name) (exportNames rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: functions
+}
+
+definition{
+  name: typedParameters,
+  parameters: [parameters : (List Foundation.Bindings.V1.Model::BindingParameter)],
+  result: String,
+  body: (match parameters
+    | List.nil => ""
+    | List.cons parameter rest => (Foundation.Bindings.V1.Text::concat (cons ", " (cons (snakeIdent (project parameter name)) (cons ": " (cons (pythonType (project parameter scalar)) (cons (typedParameters rest) (nil String)))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: parameters
+}
+
+definition{
+  name: guestMethods,
+  parameters: [functions : (List Foundation.Bindings.V1.Model::BindingFunction)],
+  result: (List String),
+  body: (match functions
+    | List.nil => (nil String)
+    | List.cons function rest => (prim append (cons "" (cons (Foundation.Bindings.V1.Text::concat (cons "    def " (cons (ident (project function name)) (cons "(self" (cons (typedParameters (project function parameters)) (cons ") -> " (cons (match (project function result)
+      | Option.none => "None"
+      | Option.some scalar => (pythonType scalar)) (cons ":" (nil String))))))))) (nil String))) (prim append (docstring "        " (match (project function docs)
+      | List.nil => (cons (Foundation.Bindings.V1.Text::concat (cons "The export " (cons (project function name) (cons "." (nil String))))) (nil String))
+      | List.cons line more => (project function docs))) (cons "        ..." (guestMethods rest)) : (List String)) : (List String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: functions
+}
+
+definition{
+  name: coreWasmDispatch,
+  parameters: [],
+  result: String,
+  body: "class DispatchError(Exception):\n    \"\"\"A request did not come back from the guest.\"\"\"\n\n\ndef dispatch(guest: Guest, request: bytes) -> bytes:\n    \"\"\"Send one request to a fresh instance of the guest and return a copy of its response.\n\n    The guest allocator never frees, so give every request its own instance.\n    \"\"\"\n    if len(request) > 0xFFFF_FFFF:\n        raise DispatchError(f\"a request of {len(request)} bytes is too long\")\n    offset = guest.holo_alloc(len(request))\n    guest.write_memory(offset, bytes(request))\n    packed = guest.holo_run(offset, len(request))\n    # The response location is packed as `offset << 32 | length`.\n    return bytes(guest.read_memory(packed >> 32, packed & 0xFFFF_FFFF))",
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: worldFile,
+  parameters: [generator : String, world : Foundation.Bindings.V1.Model::BindingWorld],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::block (prim append (cons (Foundation.Bindings.V1.Text::header "#" generator (Foundation.Bindings.V1.Text::worldSource world)) (cons (Foundation.Bindings.V1.Text::concat (cons "\"\"\"The world " (cons (project world contract) (cons ": its identity, its exports, and how a host sends it a request.\"\"\"" (nil String))))) (cons "\nfrom typing import Protocol\n\nfrom .identity import Identity\n\nWORLD = Identity(" (cons (Foundation.Bindings.V1.Text::concat (cons "    name=" (cons (Foundation.Bindings.V1.Text::doubleQuoted (project world contract)) (cons "," (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "    blake3=" (cons (Foundation.Bindings.V1.Text::doubleQuoted (project world blake3)) (cons "," (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "    sha256=" (cons (Foundation.Bindings.V1.Text::doubleQuoted (project world sha256)) (cons "," (nil String))))) (cons ")\n\"\"\"The world these bindings were generated from. It equals `inputs.world` in prismpm.lock.\"\"\"\n" (cons (Foundation.Bindings.V1.Text::concat (cons "EXPORTS = (" (cons (prim join (Foundation.Bindings.V1.Text::quotedAll (Foundation.Bindings.V1.Text::sortTexts (cons (project world memory) (exportNames (project world exports))))) ", " : String) (cons ")" (nil String))))) (cons "\"\"\"Every export the world requires, sorted. A guest that offers any other is not of this world.\"\"\"\n\n\nclass Guest(Protocol):" (cons (Foundation.Bindings.V1.Text::concat (cons "    \"\"\"A guest of " (cons (project world contract) (cons ", instantiated by the host's WebAssembly engine." (nil String))))) (cons "" (cons (Foundation.Bindings.V1.Text::concat (cons "    The guest imports nothing. Implement this over the engine's instance: each export, and `" (cons (project world memory) (cons "` as a read and a write." (nil String))))) (cons "    A failed call into the guest, such as a trap, raises the engine's own exception.\n    \"\"\"" (nil String)))))))))))))) (prim append (guestMethods (project world exports)) (cons "\n    def write_memory(self, offset: int, data: bytes) -> None:" (cons (Foundation.Bindings.V1.Text::concat (cons "        \"\"\"Copy `data` into the guest's `" (cons (project world memory) (cons "` at `offset`.\"\"\"" (nil String))))) (cons "        ...\n\n    def read_memory(self, offset: int, length: int) -> bytes:" (cons (Foundation.Bindings.V1.Text::concat (cons "        \"\"\"Copy `length` bytes out of the guest's `" (cons (project world memory) (cons "` at `offset`. Raises when they are outside it.\"\"\"" (nil String))))) (cons "        ...\n\n" (cons (coreWasmDispatch) (nil String))))))) : (List String)) : (List String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: memberLines,
+  parameters: [operations : (List Foundation.Bindings.V1.Model::BindingOperation)],
+  result: (List String),
+  body: (match operations
+    | List.nil => (nil String)
+    | List.cons operation rest => (cons (Foundation.Bindings.V1.Text::concat (cons "    " (cons (Foundation.Bindings.V1.Text::constant (project operation name)) (cons " = " (cons (Foundation.Bindings.V1.Text::doubleQuoted (project operation name)) (cons "\n    \"\"\"" (cons (project operation label) (cons ".\"\"\"" (nil String))))))))) (memberLines rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: operations
+}
+
+definition{
+  name: codeLines,
+  parameters: [
+    application : Foundation.Bindings.V1.Model::BindingApplication,
+    version : String,
+    cases : (List Foundation.Bindings.V1.Model::BindingErrorCase)
+  ],
+  result: (List String),
+  body: (match cases
+    | List.nil => (nil String)
+    | List.cons case rest => (cons (Foundation.Bindings.V1.Text::concat (cons "    " (cons (Foundation.Bindings.V1.Text::constant (project case code)) (cons " = " (cons (Foundation.Bindings.V1.Text::doubleQuoted (project case code)) (cons "\n    \"\"\"" (cons (stripTriple (Foundation.Bindings.V1.Text::errorText application version case)) (cons "\"\"\"" (nil String))))))))) (codeLines application version rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: cases
+}
+
+definition{
+  name: messageLines,
+  parameters: [
+    application : Foundation.Bindings.V1.Model::BindingApplication,
+    version : String,
+    codeType : String,
+    cases : (List Foundation.Bindings.V1.Model::BindingErrorCase)
+  ],
+  result: (List String),
+  body: (match cases
+    | List.nil => (nil String)
+    | List.cons case rest => (cons (Foundation.Bindings.V1.Text::concat (cons "    " (cons codeType (cons "." (cons (Foundation.Bindings.V1.Text::constant (project case code)) (cons ": " (cons (Foundation.Bindings.V1.Text::doubleQuoted (Foundation.Bindings.V1.Text::errorText application version case)) (cons "," (nil String))))))))) (messageLines application version codeType rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: cases
+}
+
+definition{
+  name: operationMethods,
+  parameters: [
+    method : String,
+    operationType : String,
+    operations : (List Foundation.Bindings.V1.Model::BindingOperation)
+  ],
+  result: (List String),
+  body: (match operations
+    | List.nil => (nil String)
+    | List.cons operation rest => (let member : String := (Foundation.Bindings.V1.Text::constant (project operation name)); (cons (Foundation.Bindings.V1.Text::concat (cons "\n    def " (cons (snakeIdent (project operation name)) (cons "(self, left: int, right: int) -> int:\n        \"\"\"" (cons (project operation label) (cons ": `" (cons method (cons "(" (cons operationType (cons "." (cons member (cons ", left, right)`.\"\"\"\n        return self." (cons method (cons "(" (cons operationType (cons "." (cons member (cons ", left, right)" (nil String))))))))))))))))))) (operationMethods method operationType rest)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: operations
+}
+
+definition{
+  name: operationsFile,
+  parameters: [
+    generator : String,
+    application : Foundation.Bindings.V1.Model::BindingApplication,
+    api : Foundation.Bindings.V1.Model::BindingOperations
+  ],
+  result: String,
+  body: (let name : String := (project application name); (let version : String := (project api version); (let errorType : String := (project api errorType); (let codeType : String := (Foundation.Bindings.V1.Text::concat (cons errorType (cons "Code" (nil String)))); (let operationType : String := (project api operationType); (let method : String := (snakeIdent (project api method)); (Foundation.Bindings.V1.Text::block (prim append (cons (Foundation.Bindings.V1.Text::header "#" generator (Foundation.Bindings.V1.Text::modelSource application)) (cons (Foundation.Bindings.V1.Text::concat (cons "\"\"\"The client of " (cons name (cons ": one method per operation, over any dispatch function.\"\"\"" (nil String))))) (cons "\nfrom enum import Enum\nfrom typing import Callable, Optional\n\nfrom .identity import Identity\n\nMODEL = Identity(" (cons (Foundation.Bindings.V1.Text::concat (cons "    name=" (cons (Foundation.Bindings.V1.Text::doubleQuoted (project application name)) (cons "," (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "    blake3=" (cons (Foundation.Bindings.V1.Text::doubleQuoted (project application blake3)) (cons "," (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "    sha256=" (cons (Foundation.Bindings.V1.Text::doubleQuoted (project application sha256)) (cons "," (nil String))))) (cons ")\n\"\"\"The model this client was generated from. It equals `inputs.model` in prismpm.lock.\"\"\"\n" (cons (Foundation.Bindings.V1.Text::concat (cons "APPLICATION = " (cons (Foundation.Bindings.V1.Text::doubleQuoted name) (nil String)))) (cons (Foundation.Bindings.V1.Text::concat (cons "VERSION = " (cons (Foundation.Bindings.V1.Text::doubleQuoted version) (nil String)))) (cons "MINIMUM = -(2**63)\nMAXIMUM = 2**63 - 1\n\n" (cons (Foundation.Bindings.V1.Text::concat (cons "class " (cons operationType (cons "(str, Enum):" (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "    \"\"\"An operation " (cons name (cons " accepts; its value is the name the guest reads in a request.\"\"\"" (nil String))))) (cons "" (nil String)))))))))))))) (prim append (memberLines (project api operations)) (prim append (cons "\n" (cons (Foundation.Bindings.V1.Text::concat (cons "class " (cons codeType (cons "(str, Enum):" (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "    \"\"\"An answer with which " (cons name (cons " refuses a request; its value is the code as the guest wrote it.\"\"\"" (nil String))))) (cons "" (nil String))))) (prim append (codeLines application version (project api errors)) (prim append (cons "\n    @property\n    def message(self) -> str:\n        \"\"\"What the model says this answer means, for a person.\"\"\"\n        return _MESSAGES[self]\n\n\n_MESSAGES = {" (nil String)) (prim append (messageLines application version codeType (project api errors)) (prim append (cons "}\n\n" (cons (Foundation.Bindings.V1.Text::concat (cons "class " (cons errorType (cons "(Exception):" (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "    \"\"\"" (cons name (cons " refused a request, for example on overflow.\"\"\"" (nil String))))) (cons "" (cons (Foundation.Bindings.V1.Text::concat (cons "    def __init__(self, code: str, known: Optional[" (cons codeType (cons "]) -> None:" (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "        message = known.message if known is not None else " (cons (Foundation.Bindings.V1.Text::doubleQuoted (Foundation.Bindings.V1.Text::concat (cons name (cons " refused the request." (nil String))))) (nil String)))) (cons "        super().__init__(f\"{message} ({code})\")\n        self.code = code\n        \"\"\"The code as the guest wrote it.\"\"\"\n        self.known = known\n        \"\"\"The code, when this client was generated with it; otherwise None.\"\"\"\n        self.message = message\n        \"\"\"What the model says the code means, for a person.\"\"\"\n\n\nclass ResponseError(Exception):" (cons (Foundation.Bindings.V1.Text::concat (cons "    \"\"\"" (cons name (cons " sent an answer this client cannot read.\"\"\"" (nil String))))) (cons "\n" (cons (Foundation.Bindings.V1.Text::concat (cons "class " (cons (project application typeName) (cons ":" (nil String))))) (nil String))))))))))) (prim append (docstring "    " (prim append (Foundation.Bindings.V1.Text::described application (Foundation.Bindings.V1.Text::concat (cons "A client for " (cons name (cons "." (nil String)))))) (cons "" (cons "`dispatch` sends request bytes to the guest and returns its response bytes, for" (cons "example `lambda request: world.dispatch(fresh_instance(), request)`." (nil String)))) : (List String))) (prim append (cons "\n    def __init__(self, dispatch: Callable[[bytes], bytes]) -> None:\n        \"\"\"A client over this dispatch function.\"\"\"\n        self._dispatch = dispatch" (nil String)) (prim append (operationMethods method operationType (project api operations)) (cons "" (cons (Foundation.Bindings.V1.Text::concat (cons "    def " (cons method (cons "(self, operation: " (cons operationType (cons ", left: int, right: int) -> int:" (nil String))))))) (cons "        \"\"\"Apply `operation` to two signed 64-bit integers.\n" (cons (Foundation.Bindings.V1.Text::concat (cons "        A refusal by " (cons name (cons " raises `" (cons errorType (cons "`; an operand outside" (nil String))))))) (cons "        the signed 64-bit range raises ValueError before anything is sent.\n        \"\"\"" (cons (Foundation.Bindings.V1.Text::concat (cons "        operation = " (cons operationType (cons "(operation)" (nil String))))) (cons "        for operand in (left, right):\n            if isinstance(operand, bool) or not isinstance(operand, int):\n                raise TypeError(f\"{operand!r} is not an int\")\n            if not MINIMUM <= operand <= MAXIMUM:\n                raise ValueError(f\"{operand} is outside the signed 64-bit range\")\n        request = f\"{VERSION}\\t{operation.value}\\t{left}\\t{right}\"\n        return _read(bytes(self._dispatch(request.encode(\"utf-8\"))))\n\n\ndef _read(response: bytes) -> int:\n    \"\"\"Read a response: the request version, then `ok` and a value or `error` and a code.\"\"\"\n    try:\n        text = response.decode(\"utf-8\")\n    except UnicodeDecodeError:\n        raise ResponseError(\"it is not UTF-8\") from None\n    fields = text.split(\"\\t\")\n    if len(fields) > 3:\n        raise ResponseError(f\"{text!r} has more than three fields\")\n    if fields[0] != VERSION:" (cons (Foundation.Bindings.V1.Text::concat (cons "        refused = " (cons codeType (cons ".UNSUPPORTED_VERSION" (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "        raise " (cons errorType (cons "(refused.value, refused)" (nil String))))) (cons "    if len(fields) == 3 and fields[1] == \"ok\":\n        value = fields[2]\n        if not value.lstrip(\"-\").isdigit() or not MINIMUM <= int(value) <= MAXIMUM:\n            raise ResponseError(f\"{value!r} is not a signed 64-bit integer\")\n        return int(value)\n    if len(fields) == 3 and fields[1] == \"error\":" (cons (Foundation.Bindings.V1.Text::concat (cons "        known = next((code for code in " (cons codeType (cons " if code.value == fields[2]), None)" (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "        raise " (cons errorType (cons "(fields[2], known)" (nil String))))) (cons "    raise ResponseError(f\"{text!r} is neither ok nor error\")" (nil String)))))))))))))) : (List String)) : (List String)) : (List String)) : (List String)) : (List String)) : (List String)) : (List String)) : (List String)) : (List String)) : (List String))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: bytesFile,
+  parameters: [generator : String, application : Foundation.Bindings.V1.Model::BindingApplication],
+  result: String,
+  body: (let name : String := (project application name); (Foundation.Bindings.V1.Text::block (prim append (cons (Foundation.Bindings.V1.Text::header "#" generator (Foundation.Bindings.V1.Text::modelSource application)) (cons (Foundation.Bindings.V1.Text::concat (cons "\"\"\"The client of " (cons name (cons ", over request and response bytes.\"\"\"" (nil String))))) (cons "\nfrom typing import Callable\n\nfrom .identity import Identity\n\nMODEL = Identity(" (cons (Foundation.Bindings.V1.Text::concat (cons "    name=" (cons (Foundation.Bindings.V1.Text::doubleQuoted (project application name)) (cons "," (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "    blake3=" (cons (Foundation.Bindings.V1.Text::doubleQuoted (project application blake3)) (cons "," (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "    sha256=" (cons (Foundation.Bindings.V1.Text::doubleQuoted (project application sha256)) (cons "," (nil String))))) (cons ")\n\"\"\"The model this client was generated from. It equals `inputs.model` in prismpm.lock.\"\"\"\n\n" (cons (Foundation.Bindings.V1.Text::concat (cons "class " (cons (project application typeName) (cons ":" (nil String))))) (nil String))))))))) (prim append (docstring "    " (prim append (Foundation.Bindings.V1.Text::described application (Foundation.Bindings.V1.Text::concat (cons "A client for " (cons name (cons ", over request and response bytes." (nil String)))))) (cons "" (cons (Foundation.Bindings.V1.Text::concat (cons name (cons "'s model describes no typed operations, so the client sends bytes." (nil String)))) (nil String))) : (List String))) (cons "\n    def __init__(self, dispatch: Callable[[bytes], bytes]) -> None:\n        \"\"\"A client over this dispatch function.\"\"\"\n        self._dispatch = dispatch\n\n    def invoke(self, request: bytes) -> bytes:\n        \"\"\"Send one request and return the response bytes.\"\"\"\n        return bytes(self._dispatch(bytes(request)))" (nil String)) : (List String)) : (List String)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: identityFile,
+  parameters: [
+    generator : String,
+    world : Foundation.Bindings.V1.Model::BindingWorld,
+    application : Foundation.Bindings.V1.Model::BindingApplication
+  ],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::block (cons (Foundation.Bindings.V1.Text::header "#" generator (Foundation.Bindings.V1.Text::concat (cons (project application name) (cons "'s model and the WIT world " (cons (project world contract) (nil String)))))) (cons "\"\"\"What a set of bindings was generated from.\"\"\"\n\nfrom typing import NamedTuple\n\n\nclass Identity(NamedTuple):\n    \"\"\"A name and both digests, as prismpm.lock records them.\"\"\"\n\n    name: str\n    \"\"\"The world's contract, or the application's name.\"\"\"\n    blake3: str\n    \"\"\"The BLAKE3 digest, lowercase hex.\"\"\"\n    sha256: str\n    \"\"\"The SHA-256 digest, lowercase hex.\"\"\"" (nil String)))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: isConstantFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => true
+    | Nat.succ rest => (((Foundation.Bindings.V1.Text::among (Foundation.Bindings.V1.Text::piece source index 1) (Foundation.Bindings.V1.Text::upperLetters) 26) || ((Foundation.Bindings.V1.Text::among (Foundation.Bindings.V1.Text::piece source index 1) (Foundation.Bindings.V1.Text::digits) 10) || (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 1) 0x5f))) && (isConstantFrom source (index + 1) rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: isConstant,
+  parameters: [name : String],
+  result: Bool,
+  body: (let encoded : Bytes := (prim utf8_encode name : Bytes); ((not ((prim length encoded : Nat) =? 0)) && (isConstantFrom encoded 0 (prim length encoded : Nat)))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: selectNames,
+  parameters: [wanted : Bool, names : (List String)],
+  result: (List String),
+  body: (match names
+    | List.nil => (nil String)
+    | List.cons head rest => (if (prim equal (isConstant head) wanted : Bool) then (cons head (selectNames wanted rest)) else (selectNames wanted rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: names
+}
+
+definition{
+  name: isortNames,
+  parameters: [names : (List String)],
+  result: (List String),
+  body: (prim append (Foundation.Bindings.V1.Text::sortTexts (selectNames true names)) (Foundation.Bindings.V1.Text::sortTexts (selectNames false names)) : (List String)),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: exportedNames,
+  parameters: [application : Foundation.Bindings.V1.Model::BindingApplication],
+  result: (List String),
+  body: (match (project application interface)
+    | Foundation.Bindings.V1.Model::BindingInterface.RequestBytes => (cons (project application typeName) (cons "MODEL" (nil String)))
+    | Foundation.Bindings.V1.Model::BindingInterface.Operations api => (cons (project application typeName) (cons (project api operationType) (cons (Foundation.Bindings.V1.Text::concat (cons (project api errorType) (cons "Code" (nil String)))) (cons (project api errorType) (cons "ResponseError" (cons "MODEL" (nil String)))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: initFile,
+  parameters: [
+    generator : String,
+    world : Foundation.Bindings.V1.Model::BindingWorld,
+    application : Foundation.Bindings.V1.Model::BindingApplication,
+    module : String
+  ],
+  result: String,
+  body: (let sorted : (List String) := (isortNames (exportedNames application)); (let moduleImport : (List String) := (wrapped (Foundation.Bindings.V1.Text::concat (cons "from ." (cons module (cons " import " (nil String))))) sorted "(" ")"); (let identityImport : (List String) := (cons "from .identity import Identity" (nil String)); (Foundation.Bindings.V1.Text::block (prim append (cons (Foundation.Bindings.V1.Text::header "#" generator (Foundation.Bindings.V1.Text::concat (cons (project application name) (cons "'s model and the WIT world " (cons (project world contract) (nil String)))))) (cons (Foundation.Bindings.V1.Text::concat (cons "\"\"\"A client for " (cons (project application name) (cons ", generated by " (cons generator (cons "." (nil String))))))) (nil String))) (prim append (match (project application description)
+    | Option.none => (nil String)
+    | Option.some text => (cons "" (cons text (nil String)))) (prim append (cons "" (cons (Foundation.Bindings.V1.Text::concat (cons "`world` is the world " (cons (project world contract) (cons ": implement `world.Guest` over your WebAssembly engine," (nil String))))) (cons (Foundation.Bindings.V1.Text::concat (cons "and `world.dispatch` sends it a request. `" (cons module (cons "` is the client of " (cons (project application name) (cons "." (nil String))))))) (cons "\"\"\"\n" (cons (Foundation.Bindings.V1.Text::concat (cons "from . import " (cons (prim join (Foundation.Bindings.V1.Text::sortTexts (cons module (cons "world" (nil String)))) ", " : String) (nil String)))) (nil String)))))) (prim append (if (Foundation.Bindings.V1.Text::textBefore (Foundation.Bindings.V1.Text::concat (cons "." (cons module (nil String)))) ".identity") then (prim append moduleImport identityImport : (List String)) else (prim append identityImport moduleImport : (List String))) (prim append (cons "" (nil String)) (wrapped "__all__ = " (Foundation.Bindings.V1.Text::quotedAll (Foundation.Bindings.V1.Text::sortTexts (prim append sorted (cons "Identity" (cons module (cons "world" (nil String)))) : (List String)))) "[" "]") : (List String)) : (List String)) : (List String)) : (List String)) : (List String)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: file,
+  parameters: [path : String, text : String],
+  result: Foundation.Bindings.V1.Model::BindingFile,
+  body: (record Foundation.Bindings.V1.Model::BindingFile {path := path, text := text}),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: files,
+  parameters: [model : Foundation.Bindings.V1.Model::BindingModel],
+  result: (List Foundation.Bindings.V1.Model::BindingFile),
+  body: (let generator : String := (project model generator); (let world : Foundation.Bindings.V1.Model::BindingWorld := (project model world); (let application : Foundation.Bindings.V1.Model::BindingApplication := (project model application); (let module : String := (snakeIdent (project application file)); (cons (file "__init__.py" (initFile generator world application module)) (cons (file "identity.py" (identityFile generator world application)) (cons (file "world.py" (worldFile generator world)) (cons (file (Foundation.Bindings.V1.Text::concat (cons module (cons ".py" (nil String)))) (match (project application interface)
+    | Foundation.Bindings.V1.Model::BindingInterface.RequestBytes => (bytesFile generator application)
+    | Foundation.Bindings.V1.Model::BindingInterface.Operations api => (operationsFile generator application api))) (nil Foundation.Bindings.V1.Model::BindingFile))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: collisions,
+  parameters: [method : String, operations : (List Foundation.Bindings.V1.Model::BindingOperation)],
+  result: (Option (String * String)),
+  body: (match operations
+    | List.nil => (ctor Option.none [(String * String)])
+    | List.cons operation rest => (let function : String := (snakeIdent (project operation name)); (if ((Foundation.Bindings.V1.Text::memberText function (cons method (cons "dispatch" (nil String)))) || (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece (prim utf8_encode function : Bytes) 0 1) 0x5f)) then (Foundation.Bindings.V1.Text::collision (project operation name) function) else (collisions method rest)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: operations
+}
+
+definition{
+  name: clientRefusal,
+  parameters: [application : Foundation.Bindings.V1.Model::BindingApplication],
+  result: (Option (String * String)),
+  body: (match (project application interface)
+    | Foundation.Bindings.V1.Model::BindingInterface.RequestBytes => (ctor Option.none [(String * String)])
+    | Foundation.Bindings.V1.Model::BindingInterface.Operations api => (Foundation.Bindings.V1.Text::either (Foundation.Bindings.V1.Text::operationRefusal "python" (project api operations)) (Foundation.Bindings.V1.Text::either (Foundation.Bindings.V1.Text::nameRefusal "python" (Foundation.Bindings.V1.Text::snake (project api method))) (Foundation.Bindings.V1.Text::either (collisions (snakeIdent (project api method)) (project api operations)) (Foundation.Bindings.V1.Text::versionRefusal application api))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: refusal,
+  parameters: [model : Foundation.Bindings.V1.Model::BindingModel],
+  result: (Option (String * String)),
+  body: (let application : Foundation.Bindings.V1.Model::BindingApplication := (project model application); (let module : String := (snakeIdent (project application file)); (Foundation.Bindings.V1.Text::either (Foundation.Bindings.V1.Text::nameRefusal "python" (Foundation.Bindings.V1.Text::snake (project application file))) (Foundation.Bindings.V1.Text::either (if (Foundation.Bindings.V1.Text::memberText module (cons "world" (cons "identity" (nil String)))) then (ctor Option.some [(String * String)] ("generate.model", (Foundation.Bindings.V1.Text::concat (cons "an application named " (cons module (cons " collides with the " (cons module (cons " module" (nil String))))))))) else (ctor Option.none [(String * String)])) (Foundation.Bindings.V1.Text::either (clientRefusal application) (Foundation.Bindings.V1.Text::either (Foundation.Bindings.V1.Text::worldRefusal "python" (project model world)) (Foundation.Bindings.V1.Text::exportRefusal "python" true (scalars) (project (project model world) exports)))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: writePythonBindings,
+  parameters: [model : Foundation.Bindings.V1.Model::BindingModel],
+  result: Foundation.Bindings.V1.Model::BindingOutput,
+  body: (Foundation.Bindings.V1.Text::generated (refusal model) (files model)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
+}
+\end{semanticmodule}
+\end{lexlean}

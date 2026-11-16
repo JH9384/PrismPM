@@ -1,0 +1,69 @@
+Name:      Calculator
+Revision:  2026-10-23
+Format:    HOLO physical version 5, flags 0
+Size:      23885 B
+Digest:    sha256:579982050f4ae916d5d97f6d87d22f6a6228dd92ed1535529ad7b84416ba7581
+           blake3:undefined
+Footer:    4e06fe6eb1449244d1c3228cdb45ce1a3c0c03b650c3a0f539abf7d6bee0448e (BLAKE3 of the body)
+
+Sections:
+  INDEX  KIND  ROLE             OFFSET  LENGTH  SHA256                                                            BLAKE3
+  0      null  manifest         25      1030    572c6d8fd5331becd30f5c865b3cea56c88907ecd0521f30178bb702956435dd  undefined
+  1      null  source-manifest  1055    610     c0eef33218ad4ea17f44578ef23df78f2fb9bf822fb5a67dc77cdacc18c73354  undefined
+  2      null  provenance       1665    2143    f3686e8567387037849e082d9f4ed68d5fd835a86cf912abf8e52710c5a53b32  undefined
+  3      null  capabilities     3808    104     888ef9fab26cf92f0a20a1d0fdf7e5dd494f7eb7ec23dfb26a039a7233cb4a02  undefined
+  4      null  guest            3912    10498   dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03  undefined
+  5      null  view             14410   3570    c232ee20ca0115cd9c53b17687dde96292028700e6b626319960331ec6591906  undefined
+  6      null  model            17980   5873    074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6  undefined
+
+Content:
+  INDEX  ROLE  LENGTH  SHA256  LABEL
+
+Manifest:
+  URI:             prism/holo/5
+  Capability set:  sha256:888ef9fab26cf92f0a20a1d0fdf7e5dd494f7eb7ec23dfb26a039a7233cb4a02
+  Guest:           sha256:dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03
+  View:            sha256:c232ee20ca0115cd9c53b17687dde96292028700e6b626319960331ec6591906
+  Entry:           holo_run
+  Contract:        hologram:guest/core-wasm@1
+  View entry:      index.html
+  Surface:         portable
+
+Model:
+  Schema:       prismpm/model-document/1
+  Name:         Calculator
+  Crate:        prism-calculator 0.1.0
+  Description:  A Lean-verified, Prism-generated checked i64 calculator.
+  Profile:      none
+  Function:     calculate
+  Vectors:      22
+  Limits:       request 52 B, response 27 B, guest allocation 65536 B
+  Digest:       sha256:074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6
+                blake3:undefined
+
+Provenance:
+  Schema:       prismpm/model-provenance/2
+  Application:  sha256:572c6d8fd5331becd30f5c865b3cea56c88907ecd0521f30178bb702956435dd
+  Model ID:     074921890f5c372c89f4ed794d26dd550231d5e9bf99bf9474cc1a78923292c6
+  Compiler:     49561889f77c9c3571da51e8e53233da9df5ab8f46d16165159425ba2e82dc44
+  Stdlib:       35a9c91b1b50f2b61d4e1b4a4abddc833b2185837d6d1511dfff246574692234
+  LexLean:      0b53334e5846a1f5e5d9bb3bf6959c085daa4d08
+
+World:
+  Contract:        hologram:guest/core-wasm@1
+  WIT:             hologram:guest@1.0.0 world core-wasm, worlds/core-wasm.wit
+  WIT digest:      sha256:a566c87a359cadf98f652747f1b3574aa307ff5f652a190c6d99c350db9cf369
+                   blake3:0774a8ecbfa945a427712ee7d7ad406195b2d07492ceae15cca0067276c9ced8
+  Imports:         none
+  Exports:         holo_alloc, holo_run, memory
+  Guest:           conforms to the world
+  Purity:          pure: no clock, random, socket or filesystem import
+  Capability set:  sha256:888ef9fab26cf92f0a20a1d0fdf7e5dd494f7eb7ec23dfb26a039a7233cb4a02 (requests nothing)
+
+Attestations:
+  none
+
+Verification:
+  Footer:            ok
+  Labels:            ok
+  Cross-references:  ok

@@ -61,11 +61,11 @@ export function qualificationFixture(binding,authority=sourceAuthorityFixture) {
  const base='/work/prismpm-exporter-qualification-fixture';
  const process=(argv,temporary)=>({argv,environment:{...manifest.configuration.environment,TMPDIR:temporary},executable_sha256:argv[0]===lake?manifest.toolchain_files[1].sha256:hash(binding.platform.split('/')[1]+'tar'),exit_code:0,stdout:'synthetic boundary fixture',stderr:''});
  const construction={scope:'exporter-construction-only',manifest_sha256:hash(bytes),files:manifest.files.length,
-  raw_construction:['a','b'].map(name=>({extraction:process(['/usr/bin/tar','--extract','--file',base+'/source-'+name+'/vendor/lean4-prod/lean.tar','--directory','/proc/self/fd/3'],'/proc/self/fd/4'),build:process([lake,'build','prod-export'],'/proc/self/fd/4')}))};
+  raw_construction:['a','b'].map(name=>({extraction:process(['/usr/bin/tar','--extract','--file',base+'/source-'+name+'/vendor/lean4-prod/lean.tar','--directory','/proc/self/fd/3','--same-permissions'],'/proc/self/fd/4'),build:process([lake,'build','prod-export'],'/proc/self/fd/4')}))};
  const observations=Array.from({length:4},(_,index)=>{
   const acquisition=index%2?'relocated':'cold',root=base+'/exporter-relocation-check-fixture/'+(index<2?'first-root/':'independent-second-root/')+acquisition,temporary='/tmp/exporter-relocation-fixture';
   return {root,acquisition,invocation_milliseconds:1,changed_build_files:[],
-   extraction:process(['/usr/bin/tar','--extract','--file',base+'/source-a/vendor/lean4-prod/lean.tar','--directory',root],temporary),
+   extraction:process(['/usr/bin/tar','--extract','--file',base+'/source-a/vendor/lean4-prod/lean.tar','--directory',root,'--same-permissions'],temporary),
    build:process([lake,'build','prod-export'],temporary),module:process([lake,'build','Conformance.LexLean11'],temporary),kernel:process([lake,'env','leanchecker','Conformance.LexLean11'],temporary),
    exports:['a','b'].map(replay=>({process:process([lake,'exe','prod-export','--module','Conformance.LexLean11','--root','SemanticFixture.Main.allConsecutive','--ir-module','exporter_relocation','--out',root+'/export-'+replay],temporary),artifacts:{'kernel.ir':'synthetic IR','roots.json':'synthetic roots','coverage.json':'synthetic coverage'}}))};
  });

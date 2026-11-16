@@ -1,0 +1,4 @@
+{
+  "kib": 32,
+  "reason": "The local image store (#349): src/image-store.mjs, its decision table src/image-store-rules.json, the list/get/tag/remove/prune verbs of prism.images, the images ls/tag/rm/prune CLI verbs and the image rows of system df/info/prune (about 28 KiB)."
+}

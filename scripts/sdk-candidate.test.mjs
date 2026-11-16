@@ -6,8 +6,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { validateConfig, validateEnvironment, validateEvidence } from './sdk-candidate.mjs';
-import { compilerRevision, encodeInventory, validateAuthorityMetadata } from '../sdk/inventory-metadata.mjs';
+import { BUILD_VARIANT_OMITTED, compilerRevision, encodeInventory, omitBuildVariantArtifacts, validateAuthorityMetadata } from '../sdk/inventory-metadata.mjs';
 import './sdk-candidate-sbom.test.mjs';
+import { workspaceVersion } from './workspace-version.mjs';
 
 const revision = 'a'.repeat(40);
 const digest = bytes => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
@@ -22,8 +23,8 @@ const standardsFixture = () => {
 };
 const config = () => ({architecture: 'amd64', os: 'linux', rootfs: {type: 'layers', diff_ids: []},
   config: {Labels: {'org.opencontainers.image.revision': revision,
-    'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/PrismPM',
-    'org.opencontainers.image.version': '0.4.0',
+    'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/prismpm',
+    'org.opencontainers.image.version': workspaceVersion(),
     'org.opencontainers.image.created': '1970-01-01T00:00:00Z'}}});
 
 test('final runtime inventory is canonical after appending measured browser artifacts', () => {
@@ -223,4 +224,37 @@ test('real ORAS inspection accepts exact OCI bytes and rejects blob tampering', 
     writeFileSync(join(layout, 'blobs', 'sha256', cfg.digest.slice(7)), '{}');
     pack(); assert.throws(() => inspect('amd64'));
   } finally { rmSync(directory, {recursive: true, force: true}); }
+});
+
+// Build-only SDK variant (`sdk-build` in sdk/Dockerfile): its inventory is the
+// measured runtime inventory minus exactly BUILD_VARIANT_OMITTED.
+const variantRow = id => ({id, kind: 'oracle', version: '1', digest: `sha256:${'0'.repeat(64)}`});
+const variantKept = ['conformance-corpus', 'lean', 'lean4-prod', 'lexlean', 'prismpm'].map(variantRow);
+const variantMeasured = [...variantKept, ...BUILD_VARIANT_OMITTED.map(variantRow)];
+
+test('build variant keeps every row except the omitted release-acceptance runners', () => {
+  const result = omitBuildVariantArtifacts(variantMeasured, new Set(['lean', 'lexlean', 'prismpm']));
+  assert.deepEqual(result.map(row => row.id), variantKept.map(row => row.id));
+});
+
+test('build variant refuses to omit a row that was never measured', () => {
+  const missing = variantMeasured.filter(row => row.id !== 'oci-runtime-validate');
+  assert.throws(() => omitBuildVariantArtifacts(missing, new Set()), /unmeasured artifact: oci-runtime-validate/);
+});
+
+test('build variant refuses a duplicated measured row', () => {
+  assert.throws(() => omitBuildVariantArtifacts([...variantMeasured, variantRow('openid-conformance')], new Set()),
+    /unmeasured artifact: openid-conformance/);
+});
+
+test('build variant refuses when an omitted runner is still on PATH', () => {
+  assert.throws(() => omitBuildVariantArtifacts(variantMeasured, new Set(['prismpm', 'prismpm-conformance'])),
+    /omitted command on PATH: prismpm-conformance/);
+});
+
+test('build variant never omits what application builds need', () => {
+  for (const id of ['lean', 'lean4-prod', 'lean4-prod-exporter', 'lean4-prod-exporter-seed', 'lexlean', 'prismpm',
+    'conformance-corpus', 'playwright-headless-shell', 'spdx-validator']) {
+    assert(!BUILD_VARIANT_OMITTED.includes(id), id);
+  }
 });

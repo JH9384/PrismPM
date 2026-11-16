@@ -11,6 +11,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { runExample } from './examples.mjs';
 import { bullets, footer, frontmatter, heading, page as assemble } from './markdown.mjs';
 import * as api from './pages/api.mjs';
@@ -34,7 +35,7 @@ import {
   sitePath,
 } from './site.mjs';
 import { lintText } from '../lint.mjs';
-import { DOCS_DIR, loadSpec } from './spec.mjs';
+import { DOCS_DIR, ROOT, loadSpec } from './spec.mjs';
 
 const GENERATORS = {
   'holo-format': reference.holoFormat,
@@ -57,7 +58,7 @@ const GENERATORS = {
   'testing-package': api.missingPackage,
 };
 
-export const EXAMPLES = ['load', 'dispatch', 'acceptance', 'replay', 'three-calls', 'spec-constants', 'verify', 'inspect-sections', 'command-line', 'containers', 'middleware', 'check-in-ci'];
+export const EXAMPLES = ['load', 'dispatch', 'acceptance', 'replay', 'three-calls', 'spec-constants', 'verify', 'inspect-sections', 'command-line', 'containers', 'middleware', 'check-in-ci', 'testing-host', 'testing-script', 'testing-history'];
 
 export function readPages() {
   return JSON.parse(readFileSync(join(DOCS_DIR, 'pages.json'), 'utf8'));
@@ -97,6 +98,18 @@ export class PageProblem {
 
 class ExampleFailure extends Error {}
 
+/** The bare specifiers an example imports, mapped to the checkouts in this repository. */
+export function moduleMap(runtime, spec) {
+  return {
+    'prism-code': runtime.url,
+    '@prism-code/spec': spec.url,
+    // @prism-code/testing imports these two from prism-code, and resolves the fixtures beside its package.json.
+    'prism-code/node': new URL('./node.mjs', runtime.url).href,
+    'prism-code/package.json': new URL('../package.json', runtime.url).href,
+    '@prism-code/testing': pathToFileURL(join(ROOT, 'sdk', 'npm', 'testing', 'src', 'index.mjs')).href,
+  };
+}
+
 /**
  * Run the examples, then render every page, collecting each failure under the
  * page it breaks instead of stopping at the first. An example that fails to run
@@ -108,7 +121,7 @@ export async function renderSite({ spec, runtime, pages = readPages(), cli = rea
   spec ??= await loadSpec();
   runtime ??= prismCode();
   const releases = readReleases(site);
-  const map = { 'prism-code': runtime.url, '@prism-code/spec': spec.url };
+  const map = moduleMap(runtime, spec);
   const examples = {};
   for (const name of EXAMPLES) {
     try {

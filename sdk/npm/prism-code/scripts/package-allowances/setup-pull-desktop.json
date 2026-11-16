@@ -1,0 +1,4 @@
+{
+  "kib": 2,
+  "reason": "setup pulls outside a project and leaves a running Claude Desktop alone: claudeDesktopRunning in setup.mjs, planDesktop in journey/register.mjs, the default image in setup-machine.mjs (about 1.6 KiB)."
+}

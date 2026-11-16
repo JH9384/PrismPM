@@ -1,0 +1,220 @@
+
+  reproducibility:
+    needs: [policy, factory, images]
+    if: ${{ needs.factory.outputs.build-route == 'establish' }}
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux/amd64
+            dockerfile: sdk/Dockerfile
+            target: runtime
+            name: sdk-amd64
+            image: sdk
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: sdk/Dockerfile
+            target: runtime
+            name: sdk-arm64
+            image: sdk
+          - os: ubuntu-24.04
+            platform: linux/amd64
+            dockerfile: sdk/runtime/Dockerfile
+            target: ""
+            name: runtime-amd64
+            image: runtime
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: sdk/runtime/Dockerfile
+            target: ""
+            name: runtime-arm64
+            image: runtime
+          - os: ubuntu-24.04
+            platform: linux/amd64
+            dockerfile: sdk/Dockerfile
+            target: adapter-compose
+            name: adapter-compose-amd64
+            image: adapter-compose
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: sdk/Dockerfile
+            target: adapter-compose
+            name: adapter-compose-arm64
+            image: adapter-compose
+          - os: ubuntu-24.04
+            platform: linux/amd64
+            dockerfile: sdk/Dockerfile
+            target: adapter-kubernetes
+            name: adapter-kubernetes-amd64
+            image: adapter-kubernetes
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: sdk/Dockerfile
+            target: adapter-kubernetes
+            name: adapter-kubernetes-arm64
+            image: adapter-kubernetes
+          - os: ubuntu-24.04
+            platform: linux/amd64
+            dockerfile: sdk/Dockerfile
+            target: adapter-github-pages
+            name: adapter-github-pages-amd64
+            image: adapter-github-pages
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: sdk/Dockerfile
+            target: adapter-github-pages
+            name: adapter-github-pages-arm64
+            image: adapter-github-pages
+          - os: ubuntu-24.04
+            platform: linux/amd64
+            dockerfile: sdk/Dockerfile
+            target: oracles
+            name: oracles-amd64
+            image: oracles
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: sdk/Dockerfile
+            target: oracles
+            name: oracles-arm64
+            image: oracles
+          - os: ubuntu-24.04
+            platform: linux/amd64
+            dockerfile: sdk/Dockerfile
+            target: sdk-build
+            name: sdk-build-amd64
+            image: sdk-build
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: sdk/Dockerfile
+            target: sdk-build
+            name: sdk-build-arm64
+            image: sdk-build
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      # Two OCI exports (one on a failed comparison) must fit alongside the BuildKit cache.
+      - name: Free runner disk
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup \
+            /usr/share/swift /usr/local/share/boost /usr/local/julia* /opt/az /opt/microsoft \
+            /usr/lib/jvm /usr/share/miniconda /usr/local/share/powershell
+          df -h /
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: root-a
+          submodules: false
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: root-b
+          submodules: false
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ matrix.image }}-image
+          path: .shipped-image
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - shell: bash
+        env:
+          DOCKERFILE: ${{ matrix.dockerfile }}
+          PLATFORM: ${{ matrix.platform }}
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ needs.policy.outputs.version }}
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          identity_file=".shipped-image/$IMAGE-image.txt"
+          identity=$(cat "$identity_file")
+          docker buildx imagetools inspect --raw "$identity" > shipped-index.json
+          # The shipped build is one root; one independent no-cache rebuild in a
+          # second root on another runner establishes reproducibility. A third
+          # build would establish it again (Factory.Release, eachOnce).
+          bash root-a/scripts/release-rebuild.sh root-b
+          node root-a/scripts/release-phases.mjs reproducibility \
+            "$identity_file" shipped-index.json "${PLATFORM#linux/}" "$GITHUB_SHA" \
+            root-b.oci > "${{ matrix.name }}-reproducibility.txt"
+      # A failed comparison is diagnosed against the shipped bytes themselves:
+      # the shipped platform manifest is copied by digest (no further build)
+      # and compared layer by layer with the rebuild. It never changes acceptance.
+      - name: Diagnose differing OCI layers without changing acceptance
+        if: failure()
+        timeout-minutes: 60
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          test -f root-b.oci/index.json
+          tools="$RUNNER_TEMP/release-tools"
+          bash root-a/scripts/sdk-candidate.sh install-oras "$tools"
+          identity=$(cat ".shipped-image/$IMAGE-image.txt")
+          platform=$(jq -er --arg arch "${PLATFORM#linux/}" \
+            '[.manifests[] | select(.platform.os == "linux" and .platform.architecture == $arch)] | if length == 1 then .[0].digest else error("one shipped platform manifest") end' \
+            shipped-index.json)
+          "$tools/oras" copy --to-oci-layout "${identity%@*}@$platform" shipped.oci:shipped
+          python3 -I -B root-a/scripts/oci-repro-diagnostics.py shipped.oci root-b.oci > reproducibility-diagnostics.json 2> reproducibility-diagnostics.log
+      - name: Retain bounded reproducibility diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: reproducibility-diagnostics-${{ matrix.name }}
+          path: reproducibility-diagnostics.*
+          if-no-files-found: warn
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: reproducibility-${{ matrix.name }}
+          path: ${{ matrix.name }}-reproducibility.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Verify exact current SDK browser closure offline and read-only
+        if: matrix.image == 'sdk'
+        shell: bash
+        env:
+          RESULT_NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          bash root-a/scripts/browser-api-sdk-check.sh "$(cat .shipped-image/sdk-image.txt)" "$GITHUB_SHA" > "$RESULT_NAME-browser-sdk.log" 2>&1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && matrix.image == 'sdk'
+        with:
+          name: browser-sdk-${{ matrix.name }}
+          path: ${{ matrix.name }}-browser-sdk.log
+          if-no-files-found: error
+          retention-days: 30
+      - name: Verify exact current SDK native-library closure offline and read-only
+        if: matrix.image == 'sdk'
+        shell: bash
+        env:
+          RESULT_NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          bash root-a/scripts/library-sdk-check.sh "$(cat .shipped-image/sdk-image.txt)" "$GITHUB_SHA" > "$RESULT_NAME-library-sdk.log" 2>&1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && matrix.image == 'sdk'
+        with:
+          name: library-sdk-${{ matrix.name }}
+          path: |
+            ${{ matrix.name }}-library-sdk.log
+            root-a/target/library-sdk-evidence/
+          if-no-files-found: error
+          retention-days: 30

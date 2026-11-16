@@ -1,0 +1,179 @@
+
+  # Packaging, identity and dry-run always run here; the upload runs only with a
+  # credential. A `CARGO_REGISTRY_TOKEN` secret in the crates.io environment is
+  # the credential for the owner's first uploads (a crate must exist before
+  # trusted publishing can be configured for it, #19). The repository variable
+  # CRATES_IO_TRUSTED_PUBLISHING=true selects trusted publishing once the owner
+  # has configured it. With neither, every crate is packaged, compared with the
+  # reviewed archive, checked for crates.io metadata and dry-run, and nothing is
+  # uploaded. docs/release/crates-io-publication.md states the order and the
+  # pre-release version scheme (#214).
+  crates:
+    if: >-
+      ${{ !cancelled() && needs.oci-native.result == 'success'
+      && needs.gate.outputs.publish-crates == 'true' && needs.gate.outputs.rehearsal != 'true' }}
+    needs: [gate, factory, images, native, reproducibility, installed-sdk, oci-native]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    environment: crates.io
+    env:
+      HAS_CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }}
+      TRUSTED_PUBLISHING: ${{ vars.CRATES_IO_TRUSTED_PUBLISHING == 'true' }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: false
+      - name: Require the source-bound publication policy before Cargo credentials
+        env:
+          DISPATCH_VERSION: ${{ inputs.version }}
+          PUBLISH_CRATES: ${{ toJSON(inputs.publish-crates) }}
+          REHEARSAL: ${{ toJSON(inputs.rehearsal) }}
+        run: node scripts/release-phases.mjs policy
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sdk-image
+          path: .release-sdk
+          # A token selects the build receipt's run; without one, this run.
+          run-id: ${{ needs.factory.outputs.build-run-id || github.run_id }}
+          github-token: ${{ needs.factory.outputs.build-route == 'proved' && github.token || '' }}
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - if: ${{ env.HAS_CARGO_REGISTRY_TOKEN != 'true' && env.TRUSTED_PUBLISHING == 'true' }}
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18
+        id: auth
+      - shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN || steps.auth.outputs.token }}
+          UPLOAD: ${{ env.HAS_CARGO_REGISTRY_TOKEN == 'true' || env.TRUSTED_PUBLISHING == 'true' }}
+          VERSION: ${{ needs.gate.outputs.version }}
+        run: |
+          set -euo pipefail
+          sdk_image=$(cat .release-sdk/sdk-image.txt)
+          case "$sdk_image" in
+            ghcr.io/uor-foundation/prismpm-sdk@sha256:????????????????????????????????????????????????????????????????) ;;
+            *) printf 'invalid SDK release identity: %s\n' "$sdk_image" >&2; exit 64 ;;
+          esac
+          docker run --rm \
+            --user 1000:1000 \
+            --env CARGO_REGISTRY_TOKEN \
+            --env UPLOAD \
+            --env VERSION \
+            --mount "type=bind,source=$PWD,target=/workspace" \
+            --workdir /workspace \
+            --entrypoint /bin/bash \
+            "$sdk_image" \
+            -euo pipefail -c '
+              wait_for_crate() {
+                package=$1 version=$2
+                for attempt in $(seq 1 90); do
+                  code=$(curl --user-agent prismpm-release/0.3 \
+                    --silent --output /dev/null --write-out "%{http_code}" \
+                    "https://crates.io/api/v1/crates/$package/$version")
+                  if [ "$code" = 200 ]; then return 0; fi
+                  sleep 10
+                done
+                printf "crates.io did not expose %s %s after publication\n" "$package" "$version" >&2
+                return 1
+              }
+              public_checksum() {
+                package=$1 version=$2
+                response=$(mktemp)
+                code=$(curl --user-agent prismpm-release/0.3 --silent --show-error \
+                  --output "$response" --write-out "%{http_code}" \
+                  "https://crates.io/api/v1/crates/$package/$version")
+                if [ "$code" = 404 ]; then
+                  rm -f "$response"
+                  return 1
+                fi
+                test "$code" = 200
+                node -e "const fs=require(\"node:fs\"); const checksum=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")).version?.checksum; if (!/^[0-9a-f]{64}$/.test(checksum ?? \"\")) process.exit(2); process.stdout.write(checksum + \"\\n\");" "$response"
+                rm -f "$response"
+              }
+              # Without an upload credential no crate is on the registry yet, so
+              # a crate that depends on others resolves them from the reviewed
+              # copies through command-line patches (a patch in a manifest is
+              # not read when cargo prepares a package): prod-codegen needs
+              # prod-ir, owned by the same stage, and prismpm needs four,
+              # named as the patch of the root manifest names them. A crate
+              # that depends on none takes no patch, because one it does not
+              # use changes its lock file. With a credential the dependencies
+              # are published first, in order, and resolve from crates.io.
+              release_cargo() {
+                name=$1
+                shift
+                if [ "$UPLOAD" = true ]; then
+                  cargo "$@"
+                elif [ "$name" = prod-codegen ]; then
+                  cargo "$@" \
+                    --config "patch.crates-io.prod-ir.path=\"$release_sources/lean4-prod/prod-ir\""
+                elif [ "$name" = prismpm ]; then
+                  cargo "$@" \
+                    --config "patch.crates-io.lexlean.path=\"$PWD/vendor/lexlean\"" \
+                    --config "patch.crates-io.prod-ir.path=\"$PWD/vendor/lean4-prod/rust/prod-ir\"" \
+                    --config "patch.crates-io.prod-codegen.path=\"$PWD/vendor/lean4-prod/rust/prod-codegen\"" \
+                    --config "patch.crates-io.prism-stdlib.path=\"$PWD/stdlib/generated/package\""
+                else
+                  cargo "$@"
+                fi
+              }
+              publish_exact() {
+                package=$1 version=$2 manifest=$3 archive=$4 expected=$5
+                package_target=${archive%/package/*}
+                test "$archive" = "$package_target/package/$package-$version.crate"
+                release_cargo "$package" package --locked --manifest-path "$manifest" --target-dir "$package_target"
+                test -f "$archive"
+                if [ "$expected" != - ]; then
+                  cmp "$archive" "$expected"
+                fi
+                local_checksum=$(sha256sum "$archive" | cut -d" " -f1)
+                release_cargo "$package" publish --dry-run --locked --manifest-path "$manifest" --target-dir "$package_target"
+                test "$(sha256sum "$archive" | cut -d" " -f1)" = "$local_checksum"
+                ./scripts/crate-metadata-check.sh "$archive"
+                printf "%s %s sha256 %s\n" "$package" "$version" "$local_checksum"
+                if observed=$(public_checksum "$package" "$version"); then
+                  test "$observed" = "$local_checksum"
+                  return 0
+                fi
+                if [ "$UPLOAD" != true ]; then
+                  printf "no upload credential: %s %s was packaged and dry-run, not uploaded\n" "$package" "$version"
+                  return 0
+                fi
+                cargo publish --locked --manifest-path "$manifest" --target-dir "$package_target"
+                wait_for_crate "$package" "$version"
+                observed=$(public_checksum "$package" "$version")
+                test "$observed" = "$local_checksum"
+              }
+              # Independently released inputs must be public before a fresh
+              # crates.io consumer can resolve the packaged PrismPM manifest.
+              if [ "$UPLOAD" = true ]; then
+                wait_for_crate lexlean 0.4.0
+              fi
+              release_parent=$(mktemp -d)
+              release_sources="$release_parent/release-crates"
+              ./scripts/package-release-crates.sh --prepare "$release_sources"
+              publish_exact prod-ir 0.1.0 \
+                "$release_sources/lean4-prod/prod-ir/Cargo.toml" \
+                "$release_sources/lean4-prod/target/package/prod-ir-0.1.0.crate" \
+                "$PWD/vendor/lean4-prod/crates/prod-ir-0.1.0.crate"
+              publish_exact prod-codegen 0.1.0 \
+                "$release_sources/lean4-prod/prod-codegen/Cargo.toml" \
+                "$release_sources/lean4-prod/target/package/prod-codegen-0.1.0.crate" \
+                "$PWD/vendor/lean4-prod/crates/prod-codegen-0.1.0.crate"
+              publish_exact prism-stdlib 0.2.0 \
+                "$release_sources/stdlib/Cargo.toml" \
+                "$release_sources/stdlib/target/package/prism-stdlib-0.2.0.crate" \
+                "$PWD/stdlib/generated/prism-stdlib-0.2.0.crate"
+              # The checkout belongs to the runner user, not to uid 1000:
+              # PrismPM packages into a stage-owned target as the others do.
+              publish_exact prismpm "$VERSION" crates/prismpm/Cargo.toml \
+                "$release_parent/prismpm/target/package/prismpm-$VERSION.crate" -
+              rm -rf "$release_parent"
+            '

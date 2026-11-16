@@ -1,0 +1,208 @@
+name: LexLean sync
+
+# One dispatch moves PrismPM to a LexLean revision and leaves a draft pull
+# request with every generated input imported, so nobody edits pins, downloads
+# artifacts or applies patches by hand:
+#
+#   pin                    rewrites every pin site (scripts/lexlean-pin.mjs),
+#                          pushes lexlean/<rev12> and dispatches the
+#                          reconciliation workflow on it.
+#   import-reconciliation  when that run has uploaded its proposal, verifies and
+#                          commits the patch, opens the pull request and
+#                          dispatches the native record producer.
+#   import-native          when both architectures' records exist, verifies and
+#                          commits them, then dispatches the Prism delegation.
+#
+# Review of the pull request stays the acceptance. Nothing here merges, tags or
+# publishes. Pushes use GITHUB_TOKEN, which starts no workflow by itself, so
+# every follow-up run is an explicit dispatch.
+#
+#   gh workflow run lexlean-sync.yml -f revision=v0.5.0
+#
+# LexLean's release workflow can send repository_dispatch `lexlean-release`
+# with client_payload {revision, base}.
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: LexLean tag or full commit
+        required: true
+      base:
+        description: Branch the pull request targets
+        required: true
+        default: main
+  repository_dispatch:
+    types: [lexlean-release]
+  workflow_run:
+    workflows:
+      - Prepare M0 LexLean reconciliation patch
+      - Review native golden source records
+    types: [completed]
+    branches: ['lexlean/**']
+
+permissions: {}
+
+concurrency:
+  group: lexlean-sync-${{ github.event.workflow_run.head_branch || inputs.revision || github.event.client_payload.revision }}
+  cancel-in-progress: false
+
+env:
+  GIT_AUTHOR_NAME: github-actions[bot]
+  GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+  GIT_COMMITTER_NAME: github-actions[bot]
+  GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+
+jobs:
+  pin:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    env:
+      REQUESTED: ${{ inputs.revision || github.event.client_payload.revision }}
+      BASE: ${{ inputs.base || github.event.client_payload.base || 'main' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Refuse a malformed request
+        run: |
+          [[ "$REQUESTED" =~ ^[A-Za-z0-9._/-]{1,128}$ ]] || { echo "::error::bad revision"; exit 1; }
+          [[ "$BASE" =~ ^(main|release/v[0-9]+\.[0-9]+)$ ]] || { echo "::error::bad base"; exit 1; }
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ env.BASE }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - name: Every pin site is declared
+        run: node --test scripts/lexlean-pin.test.mjs
+      - name: Resolve the LexLean commit and package version
+        id: lexlean
+        run: |
+          src="$RUNNER_TEMP/lexlean"
+          git init -q "$src"
+          git -C "$src" fetch -q --depth 1 https://github.com/UOR-Foundation/LexLean "$REQUESTED"
+          revision=$(git -C "$src" rev-parse FETCH_HEAD^{commit})
+          version=$(git -C "$src" show FETCH_HEAD:Cargo.toml \
+            | sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\([0-9.]*\)"$/\1/p' | head -1)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::no exact LexLean version"; exit 1; }
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "branch=lexlean/${revision:0:12}" >> "$GITHUB_OUTPUT"
+      - name: Rewrite the pins, push the branch and start reconciliation
+        env:
+          REVISION: ${{ steps.lexlean.outputs.revision }}
+          VERSION: ${{ steps.lexlean.outputs.version }}
+          BRANCH: ${{ steps.lexlean.outputs.branch }}
+        run: |
+          if git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null; then
+            echo "::error::$BRANCH exists; delete it to start over"; exit 1
+          fi
+          node scripts/lexlean-pin.mjs "$REVISION" "$VERSION"
+          git switch -c "$BRANCH"
+          git commit -qam "build(deps): pin LexLean ${REVISION:0:12} ($VERSION)" \
+            -m "LexLean-Revision: $REVISION" -m "LexLean-Sync-Base: $BASE"
+          git push -q origin "HEAD:refs/heads/$BRANCH"
+          gh workflow run m0-lexlean-reconcile.yml --ref "$BRANCH"
+          echo "Pinned LexLean \`$REVISION\` ($VERSION) on \`$BRANCH\`; reconciliation dispatched." >> "$GITHUB_STEP_SUMMARY"
+
+  import-reconciliation:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.name == 'Prepare M0 LexLean reconciliation patch' &&
+      github.event.workflow_run.conclusion != 'cancelled' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: write
+      pull-requests: write
+    env:
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 2
+      - name: Stop if the branch moved past the reconciled commit
+        id: head
+        run: |
+          if [ "$(git rev-parse HEAD)" != "$HEAD_SHA" ]; then
+            echo "::notice::$BRANCH moved past $HEAD_SHA; nothing to import"; echo "stale=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify and commit the proposal patch
+        if: steps.head.outputs.stale != 'true'
+        run: |
+          proposal="$RUNNER_TEMP/proposal"
+          gh run download "$RUN_ID" -n m0-lexlean-reconciliation-proposal -D "$proposal" || {
+            echo "::error::$RUN_URL uploaded no proposal; its generation step failed"; exit 1; }
+          (cd "$proposal" && sha256sum -c SHA256SUMS)
+          test "$(cat "$proposal/prismpm-source.txt")" = "$HEAD_SHA"
+          if [ -s "$proposal/reconciliation.patch" ]; then
+            git apply --index --binary "$proposal/reconciliation.patch"
+            git commit -qm "build(deps): reconcile generated evidence for LexLean ${BRANCH#lexlean/}" -m "From $RUN_URL"
+            git push -q origin "HEAD:refs/heads/$BRANCH"
+          fi
+      - name: Open the draft pull request and start the native record producer
+        if: steps.head.outputs.stale != 'true'
+        run: |
+          # The pin commit is HEAD, or HEAD^ when a patch was committed above.
+          base=$(git log -2 --format=%B | sed -n 's/^LexLean-Sync-Base: //p' | head -1)
+          revision=$(git log -2 --format=%B | sed -n 's/^LexLean-Revision: //p' | head -1)
+          if [ -z "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
+            gh pr create --draft --base "${base:-main}" --head "$BRANCH" \
+              --title "build(deps): move LexLean to ${BRANCH#lexlean/}" \
+              --body "Moves the LexLean pin to UOR-Foundation/LexLean@$revision. Opened by \`lexlean-sync.yml\`: pins rewritten by \`scripts/lexlean-pin.mjs\`, generated evidence from $RUN_URL. Native records and the Prism delegation follow automatically. Prose that names the old release (SPEC.md, AGENTS.md) needs a reviewer pass." \
+              || echo "::warning::could not open the pull request with GITHUB_TOKEN; open $BRANCH by hand"
+          fi
+          gh workflow run native-golden.yml --ref "$BRANCH"
+
+  import-native:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.name == 'Review native golden source records' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: write
+    env:
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ env.BRANCH }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - name: Verify, import and commit both architectures' records
+        id: records
+        run: |
+          if [ "$(git rev-parse HEAD)" != "$HEAD_SHA" ]; then
+            echo "::notice::$BRANCH moved past $HEAD_SHA; nothing to import"; exit 0
+          fi
+          for arch in amd64 arm64; do
+            gh run download "$RUN_ID" -n "native-golden-review-$arch-$HEAD_SHA" -D "$RUNNER_TEMP/native/$arch"
+          done
+          node scripts/lexlean-sync-native.mjs "$HEAD_SHA" "$RUNNER_TEMP/native"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A tests/golden/native
+            git commit -qm "test(golden): import native records for ${HEAD_SHA:0:12}" -m "From $RUN_URL"
+            git push -q origin "HEAD:refs/heads/$BRANCH"
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Start the Prism delegation on the complete branch
+        if: steps.records.outputs.ready == 'true'
+        run: gh workflow run prism-delegation.yml --ref "$BRANCH"

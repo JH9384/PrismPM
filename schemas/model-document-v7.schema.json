@@ -1,0 +1,1242 @@
+{
+  "$id": "prismpm/model-document/7",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BoundedServerHostEffectModelDocument",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "application": {
+      "$ref": "#/$defs/application"
+    },
+    "architecture": {
+      "$ref": "#/$defs/architecture"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "quality": {
+      "$ref": "#/$defs/quality"
+    },
+    "schema": {
+      "const": "prismpm/model-document/7"
+    },
+    "security": {
+      "$ref": "#/$defs/security"
+    },
+    "standards_profile": {
+      "oneOf": [
+        {
+          "const": []
+        },
+        {
+          "const": [
+            "ISO-25010-2023",
+            "ISO-27005-2022",
+            "ISO-27034-1-2011",
+            "ISO-27034-5-2017",
+            "ISO-42010-2022"
+          ]
+        }
+      ]
+    }
+  },
+  "required": [
+    "application",
+    "architecture",
+    "provenance",
+    "quality",
+    "schema",
+    "security",
+    "standards_profile"
+  ],
+  "$defs": {
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "profile": {
+          "const": "prismpm/server-application/1"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9_. -]*[A-Za-z0-9_-])?$"
+        },
+        "cargo_name": {
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        },
+        "cargo_version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        },
+        "cargo_description": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "cargo_repository": {
+          "format": "uri",
+          "pattern": "^https://",
+          "type": "string"
+        },
+        "cargo_homepage": {
+          "format": "uri",
+          "pattern": "^https://",
+          "type": "string"
+        },
+        "core": {
+          "$ref": "#/$defs/server_core"
+        },
+        "acceptance_vectors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/application_acceptance_vector"
+          }
+        },
+        "request_maximum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        },
+        "response_maximum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        },
+        "bindings": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/server_binding"
+          }
+        },
+        "serving": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/server_serving"
+          }
+        },
+        "verify_build_timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7200
+        },
+        "host": {
+          "$ref": "#/$defs/host_protocol"
+        }
+      },
+      "required": [
+        "acceptance_vectors",
+        "bindings",
+        "cargo_description",
+        "cargo_homepage",
+        "cargo_name",
+        "cargo_repository",
+        "cargo_version",
+        "core",
+        "host",
+        "name",
+        "profile",
+        "request_maximum",
+        "response_maximum",
+        "serving",
+        "verify_build_timeout_seconds"
+      ]
+    },
+    "server_core": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "root": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+        },
+        "package": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        }
+      },
+      "required": [
+        "package",
+        "root",
+        "version"
+      ]
+    },
+    "server_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*){0,7}$"
+        },
+        "crate_name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+        },
+        "host": {
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)+$"
+        }
+      },
+      "required": [
+        "crate_name",
+        "host",
+        "path"
+      ]
+    },
+    "server_serving": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "const": "127.0.0.1"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "connection_maximum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        },
+        "read_timeout_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600000
+        },
+        "root_stack_bytes": {
+          "type": "integer",
+          "minimum": 65536,
+          "maximum": 1073741824
+        },
+        "request_line_maximum": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 1048576
+        },
+        "header_count_maximum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        },
+        "header_bytes_maximum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "body_maximum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        },
+        "origins": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/serving_origin"
+          }
+        },
+        "accept": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 127,
+            "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+/[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+          }
+        },
+        "content_types": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 127,
+            "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+/[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+          }
+        },
+        "enforced_methods": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 16,
+            "pattern": "^[A-Z]+$"
+          }
+        },
+        "counted_field": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "counted_value": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "frame": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/frame_section"
+          }
+        },
+        "vectors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/served_vector"
+          }
+        }
+      },
+      "required": [
+        "accept",
+        "address",
+        "body_maximum",
+        "connection_maximum",
+        "content_types",
+        "counted_field",
+        "counted_value",
+        "enforced_methods",
+        "frame",
+        "header_bytes_maximum",
+        "header_count_maximum",
+        "origins",
+        "port",
+        "read_timeout_millis",
+        "request_line_maximum",
+        "root_stack_bytes",
+        "vectors"
+      ]
+    },
+    "serving_origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scheme": {
+          "enum": [
+            "http",
+            "https"
+          ]
+        },
+        "host": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "host",
+        "port",
+        "scheme"
+      ]
+    },
+    "frame_section": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 32,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "kind": {
+          "enum": [
+            "u32",
+            "u64",
+            "bytes",
+            "text",
+            "text-list"
+          ]
+        },
+        "effect": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "field": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "values": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 4096
+          }
+        }
+      },
+      "required": [
+        "effect",
+        "field",
+        "kind",
+        "name",
+        "values"
+      ]
+    },
+    "served_vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vector": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "request": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        },
+        "response": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        }
+      },
+      "required": [
+        "request",
+        "response",
+        "vector"
+      ]
+    },
+    "application_acceptance_vector": {
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "items": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "response": {
+          "items": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "request",
+        "response"
+      ],
+      "type": "object"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "compiler_semantics_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "emitter_semantics_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "facet_packages": {
+          "items": {
+            "$ref": "#/$defs/facet"
+          },
+          "maxItems": 3,
+          "type": "array"
+        },
+        "semantic_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_id": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "required": [
+        "compiler_semantics_id",
+        "emitter_semantics_id",
+        "facet_packages",
+        "semantic_id",
+        "snapshot_id",
+        "source_id"
+      ],
+      "type": "object"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "host_protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "protocol": {
+          "const": "prismpm/host-effects/1"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]+$"
+        },
+        "usage_code": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 125
+        },
+        "io_code": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 125
+        },
+        "fault_code": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 125
+        },
+        "effect_budget": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "effects": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/host_effect"
+          }
+        },
+        "transcripts": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/host_transcript"
+          }
+        }
+      },
+      "required": [
+        "description",
+        "effect_budget",
+        "effects",
+        "fault_code",
+        "io_code",
+        "protocol",
+        "transcripts",
+        "usage_code"
+      ]
+    },
+    "host_effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9]*)*$"
+        },
+        "request": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/host_field"
+          }
+        },
+        "result": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/host_field"
+          }
+        },
+        "failures": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 32,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z][a-z0-9]*)*$"
+          }
+        },
+        "request_maximum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "result_maximum": {
+          "type": "integer",
+          "minimum": 4,
+          "maximum": 16777216
+        }
+      },
+      "required": [
+        "failures",
+        "name",
+        "request",
+        "request_maximum",
+        "result",
+        "result_maximum"
+      ]
+    },
+    "host_field": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 32,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "kind": {
+          "enum": [
+            "u32",
+            "u64",
+            "flag",
+            "bytes",
+            "text"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ]
+    },
+    "host_transcript": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vector": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/host_step"
+          }
+        }
+      },
+      "required": [
+        "steps",
+        "vector"
+      ]
+    },
+    "host_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9]*)*$"
+        },
+        "request": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        },
+        "outcome": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        }
+      },
+      "required": [
+        "effect",
+        "outcome",
+        "request"
+      ]
+    },
+    "activity": {
+      "additionalProperties": false,
+      "properties": {
+        "control_index": {
+          "$ref": "#/$defs/index"
+        },
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "control_index",
+        "id",
+        "index"
+      ],
+      "type": "object"
+    },
+    "architecture": {
+      "additionalProperties": false,
+      "properties": {
+        "component_kinds": {
+          "items": {
+            "$ref": "#/$defs/catalog"
+          },
+          "type": "array"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/component"
+          },
+          "type": "array"
+        },
+        "concerns": {
+          "items": {
+            "$ref": "#/$defs/described"
+          },
+          "type": "array"
+        },
+        "edge_kinds": {
+          "items": {
+            "$ref": "#/$defs/catalog"
+          },
+          "type": "array"
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/edge"
+          },
+          "type": "array"
+        },
+        "model_kinds": {
+          "items": {
+            "$ref": "#/$defs/catalog"
+          },
+          "type": "array"
+        },
+        "stakeholders": {
+          "items": {
+            "$ref": "#/$defs/described"
+          },
+          "type": "array"
+        },
+        "viewpoints": {
+          "items": {
+            "$ref": "#/$defs/viewpoint"
+          },
+          "type": "array"
+        },
+        "views": {
+          "items": {
+            "$ref": "#/$defs/view"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "component_kinds",
+        "components",
+        "concerns",
+        "edge_kinds",
+        "edges",
+        "model_kinds",
+        "stakeholders",
+        "viewpoints",
+        "views"
+      ],
+      "type": "object"
+    },
+    "asset": {
+      "additionalProperties": false,
+      "properties": {
+        "component_index": {
+          "$ref": "#/$defs/index"
+        },
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "component_index",
+        "id",
+        "index"
+      ],
+      "type": "object"
+    },
+    "catalog": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/qualified_catalog"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "id",
+        "index"
+      ],
+      "type": "object"
+    },
+    "component": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "kind_id": {
+          "$ref": "#/$defs/qualified_catalog"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]*$"
+        }
+      },
+      "required": [
+        "id",
+        "index",
+        "kind_id"
+      ],
+      "type": "object"
+    },
+    "control": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "risk_index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "id",
+        "index",
+        "risk_index"
+      ],
+      "type": "object"
+    },
+    "described": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]*$"
+        }
+      },
+      "required": [
+        "id",
+        "index"
+      ]
+    },
+    "edge": {
+      "additionalProperties": false,
+      "properties": {
+        "from_index": {
+          "$ref": "#/$defs/index"
+        },
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "kind_id": {
+          "$ref": "#/$defs/qualified_catalog"
+        },
+        "to_index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "from_index",
+        "id",
+        "index",
+        "kind_id",
+        "to_index"
+      ],
+      "type": "object"
+    },
+    "facet": {
+      "additionalProperties": false,
+      "properties": {
+        "content_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "package": {
+          "enum": [
+            "prism.arch",
+            "prism.qual",
+            "prism.sec"
+          ]
+        },
+        "version": {
+          "const": "1.0.0"
+        }
+      },
+      "required": [
+        "content_id",
+        "package",
+        "version"
+      ],
+      "type": "object"
+    },
+    "index": {
+      "maximum": 18446744073709551615,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "indexed": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "id",
+        "index"
+      ],
+      "type": "object"
+    },
+    "measure": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "requirement_index": {
+          "$ref": "#/$defs/index"
+        },
+        "threshold": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "id",
+        "index",
+        "requirement_index",
+        "threshold"
+      ],
+      "type": "object"
+    },
+    "measurement": {
+      "additionalProperties": false,
+      "properties": {
+        "control_index": {
+          "$ref": "#/$defs/index"
+        },
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "passed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "control_index",
+        "id",
+        "index",
+        "passed"
+      ],
+      "type": "object"
+    },
+    "qualified_catalog": {
+      "pattern": "^prism\\.(arch|qual|sec)@1\\.0\\.0::[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z][A-Za-z0-9_]*$",
+      "type": "string"
+    },
+    "qualified_entity": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_.]*::[A-Za-z][A-Za-z0-9_]*$",
+      "type": "string"
+    },
+    "quality": {
+      "additionalProperties": false,
+      "properties": {
+        "characteristics": {
+          "items": {
+            "$ref": "#/$defs/indexed"
+          },
+          "type": "array"
+        },
+        "measures": {
+          "items": {
+            "$ref": "#/$defs/measure"
+          },
+          "type": "array"
+        },
+        "requirements": {
+          "items": {
+            "$ref": "#/$defs/requirement"
+          },
+          "type": "array"
+        },
+        "subcharacteristics": {
+          "items": {
+            "$ref": "#/$defs/subcharacteristic"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "characteristics",
+        "measures",
+        "requirements",
+        "subcharacteristics"
+      ],
+      "type": "object"
+    },
+    "requirement": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "subcharacteristic_index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "id",
+        "index",
+        "subcharacteristic_index"
+      ],
+      "type": "object"
+    },
+    "risk": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_index": {
+          "$ref": "#/$defs/index"
+        },
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "impact_id": {
+          "$ref": "#/$defs/qualified_catalog"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "likelihood_id": {
+          "$ref": "#/$defs/qualified_catalog"
+        },
+        "threat_index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "asset_index",
+        "id",
+        "impact_id",
+        "index",
+        "likelihood_id",
+        "threat_index"
+      ],
+      "type": "object"
+    },
+    "security": {
+      "additionalProperties": false,
+      "properties": {
+        "activities": {
+          "items": {
+            "$ref": "#/$defs/activity"
+          },
+          "type": "array"
+        },
+        "assets": {
+          "items": {
+            "$ref": "#/$defs/asset"
+          },
+          "type": "array"
+        },
+        "controls": {
+          "items": {
+            "$ref": "#/$defs/control"
+          },
+          "type": "array"
+        },
+        "impacts": {
+          "items": {
+            "$ref": "#/$defs/catalog"
+          },
+          "type": "array"
+        },
+        "likelihoods": {
+          "items": {
+            "$ref": "#/$defs/catalog"
+          },
+          "type": "array"
+        },
+        "measurements": {
+          "items": {
+            "$ref": "#/$defs/measurement"
+          },
+          "type": "array"
+        },
+        "risks": {
+          "items": {
+            "$ref": "#/$defs/risk"
+          },
+          "type": "array"
+        },
+        "threats": {
+          "items": {
+            "$ref": "#/$defs/indexed"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "activities",
+        "assets",
+        "controls",
+        "impacts",
+        "likelihoods",
+        "measurements",
+        "risks",
+        "threats"
+      ],
+      "type": "object"
+    },
+    "subcharacteristic": {
+      "additionalProperties": false,
+      "properties": {
+        "characteristic_index": {
+          "$ref": "#/$defs/index"
+        },
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "characteristic_index",
+        "id",
+        "index"
+      ],
+      "type": "object"
+    },
+    "view": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "model_kind_index": {
+          "$ref": "#/$defs/index"
+        },
+        "viewpoint_index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "id",
+        "index",
+        "model_kind_index",
+        "viewpoint_index"
+      ],
+      "type": "object"
+    },
+    "viewpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "concern_index": {
+          "$ref": "#/$defs/index"
+        },
+        "id": {
+          "$ref": "#/$defs/qualified_entity"
+        },
+        "index": {
+          "$ref": "#/$defs/index"
+        },
+        "model_kind_index": {
+          "$ref": "#/$defs/index"
+        },
+        "stakeholder_index": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "concern_index",
+        "id",
+        "index",
+        "model_kind_index",
+        "stakeholder_index"
+      ],
+      "type": "object"
+    }
+  }
+}

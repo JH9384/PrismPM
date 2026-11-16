@@ -1,6 +1,7 @@
 name: Bootstrap honesty gate
 
-# The pinned `just vv` run for every main push is vv.yml. This template-facing
+# The eight `just vv-part` parts run for every main push in the Prism factory
+# (prism-factory/obligations/vv-part.sh, in prism-delegation.yml). This template-facing
 # workflow executes the same command, so it runs only on request instead of
 # repeating that verification for every push.
 on:

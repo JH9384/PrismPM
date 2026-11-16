@@ -5,7 +5,7 @@ inputs:
     description: Registry-qualified PrismPM SDK manifest-list digest
     required: true
   command:
-    description: PrismPM command, or publish-pages (build once, export-browser the built release and check its closure against the system manifest for GitHub Pages)
+    description: PrismPM command, factory (establish one Prism factory obligation from the closure in context), or publish-pages (build once, export-browser the built release and check its closure against the system manifest for GitHub Pages)
     required: true
   context:
     description: Repository-relative project context

@@ -1,0 +1,671 @@
+\begin{lexlean}{Factory.Registry}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\title{Boolean}
+\begin{semanticmodule}
+structure{
+  name: Version,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: major, type: Nat}, {name: minor, type: Nat}, {name: patch, type: Nat}]
+}
+
+structure{
+  name: Feature,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: kappa, type: Nat},
+    {name: key, type: Nat},
+    {name: interface, type: Nat},
+    {name: executable, type: Bool}
+  ]
+}
+
+structure{
+  name: Release,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: version, type: Version},
+    {name: labels, type: (List String)},
+    {name: base, type: Nat},
+    {name: features, type: (List Feature)}
+  ]
+}
+
+structure{
+  name: Component,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: index, type: Nat},
+    {name: name, type: String},
+    {name: owner, type: String},
+    {name: holds, type: (List Nat)},
+    {name: releases, type: (List Release)}
+  ]
+}
+
+structure{
+  name: Pin,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: component, type: Nat},
+    {name: label, type: String},
+    {name: version, type: Version}
+  ]
+}
+
+inductive{
+  name: Outcome,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: resolved, fields: []},
+    {name: contained, fields: []},
+    {name: merged, fields: []}
+  ]
+}
+
+structure{
+  name: Placement,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: contributor, type: String},
+    {name: unit, type: String},
+    {name: component, type: Nat},
+    {name: outcome, type: Outcome},
+    {name: version, type: Version},
+    {name: features, type: (List Nat)}
+  ]
+}
+
+structure{
+  name: Project,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: owns, type: (List Nat)},
+    {name: pins, type: (List Pin)}
+  ]
+}
+
+definition{
+  name: sameVersion,
+  parameters: [left : Version, right : Version],
+  result: Bool,
+  body: (((project left major) =? (project right major)) && (((project left minor) =? (project right minor)) && ((project left patch) =? (project right patch))))
+}
+
+definition{
+  name: next,
+  parameters: [version : Version, level : Nat],
+  result: Version,
+  body: (record Version {major := (if (level =? 3) then ((project version major) + 1) else (project version major)), minor := (if (level =? 3) then 0 else (if (level =? 2) then ((project version minor) + 1) else (project version minor))), patch := (if (level =? 3) then 0 else (if (level =? 2) then 0 else (if (level =? 1) then ((project version patch) + 1) else (project version patch))))})
+}
+
+definition{
+  name: later,
+  parameters: [left : Version, right : Version],
+  result: Bool,
+  body: (if ((project left major) =? (project right major)) then (if ((project left minor) =? (project right minor)) then ((project right patch) <? (project left patch)) else ((project right minor) <? (project left minor))) else ((project right major) <? (project left major)))
+}
+
+definition{
+  name: firstVersion,
+  parameters: [],
+  result: Version,
+  body: (record Version {major := 1, minor := 0, patch := 0})
+}
+
+definition{
+  name: noVersion,
+  parameters: [],
+  result: Version,
+  body: (record Version {major := 0, minor := 0, patch := 0})
+}
+
+definition{
+  name: memberString,
+  parameters: [value : String, values : (List String)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head tail => (if (prim equal value head : Bool) then true else (memberString value tail))),
+  axioms: [],
+  recursive_argument: values
+}
+
+definition{
+  name: unreceipted,
+  parameters: [obligations : (List String), receipts : (List String)],
+  result: (List String),
+  body: (match obligations
+    | List.nil => (nil String)
+    | List.cons head tail => (if (memberString head receipts) then (unreceipted tail receipts) else (cons head (unreceipted tail receipts)))),
+  axioms: [],
+  recursive_argument: obligations
+}
+
+definition{
+  name: resolves,
+  parameters: [imports : (List String), accepted : (List String)],
+  result: Bool,
+  body: (match imports
+    | List.nil => true
+    | List.cons head tail => (if (memberString head accepted) then (resolves tail accepted) else false)),
+  axioms: [],
+  recursive_argument: imports
+}
+
+definition{
+  name: route,
+  parameters: [
+    imports : (List String),
+    accepted : (List String),
+    obligations : (List String),
+    receipts : (List String)
+  ],
+  result: String,
+  body: (if (resolves imports accepted) then (match (unreceipted obligations receipts)
+    | List.nil => "proved"
+    | List.cons head tail => "observed") else "refuted")
+}
+
+definition{
+  name: increasing,
+  parameters: [bound : Nat, values : (List Nat)],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons head tail => (if (bound <? head) then (increasing head tail) else false)),
+  axioms: [],
+  recursive_argument: values
+}
+
+definition{
+  name: mergeSorted,
+  parameters: [fuel : Nat, left : (List Nat), right : (List Nat)],
+  result: (List Nat),
+  body: (match fuel
+    | Nat.zero => (prim append left right : (List Nat))
+    | Nat.succ smaller => (match left
+      | List.nil => right
+      | List.cons l ls => (match right
+        | List.nil => left
+        | List.cons r rs => (if (l <? r) then (cons l (mergeSorted smaller ls right)) else (cons r (mergeSorted smaller left rs)))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: mergeAll,
+  parameters: [left : (List Nat), right : (List Nat)],
+  result: (List Nat),
+  body: (mergeSorted ((prim length left : Nat) + (prim length right : Nat)) left right)
+}
+
+definition{
+  name: dedupe,
+  parameters: [last : Nat, values : (List Nat)],
+  result: (List Nat),
+  body: (match values
+    | List.nil => (nil Nat)
+    | List.cons head tail => (if (head =? last) then (dedupe last tail) else (cons head (dedupe head tail)))),
+  axioms: [],
+  recursive_argument: values
+}
+
+definition{
+  name: sameNats,
+  parameters: [left : (List Nat), right : (List Nat)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right | List.nil => true | List.cons r rs => false)
+    | List.cons l ls => (match right
+      | List.nil => false
+      | List.cons r rs => (if (l =? r) then (sameNats ls rs) else false))),
+  axioms: [],
+  recursive_argument: left
+}
+
+definition{
+  name: within,
+  parameters: [fuel : Nat, small : (List Nat), big : (List Nat)],
+  result: Bool,
+  body: (match fuel
+    | Nat.zero => false
+    | Nat.succ smaller => (match small
+      | List.nil => true
+      | List.cons s ss => (match big
+        | List.nil => false
+        | List.cons b bs => (if (s =? b) then (within smaller ss bs) else (if (b <? s) then (within smaller small bs) else false))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: kappas,
+  parameters: [items : (List Feature)],
+  result: (List Nat),
+  body: (match items
+    | List.nil => (nil Nat)
+    | List.cons head tail => (cons (project head kappa) (kappas tail))),
+  axioms: [],
+  recursive_argument: items
+}
+
+definition{
+  name: missing,
+  parameters: [fuel : Nat, left : (List Feature), right : (List Feature)],
+  result: (List Feature),
+  body: (match fuel
+    | Nat.zero => left
+    | Nat.succ smaller => (match left
+      | List.nil => (nil Feature)
+      | List.cons l ls => (match right
+        | List.nil => left
+        | List.cons r rs => (if ((project l kappa) =? (project r kappa)) then (missing smaller ls rs) else (if ((project l kappa) <? (project r kappa)) then (cons l (missing smaller ls right)) else (missing smaller left rs)))))),
+  axioms: [],
+  recursive_argument: fuel
+}
+
+definition{
+  name: largest,
+  parameters: [left : Nat, right : Nat],
+  result: Nat,
+  body: (if (left <? right) then right else left)
+}
+
+definition{
+  name: addedLevel,
+  parameters: [item : Feature, dropped : (List Feature)],
+  result: Nat,
+  body: (match dropped
+    | List.nil => 2
+    | List.cons head tail => (if ((project head key) =? (project item key)) then (if (not ((project head interface) =? (project item interface))) then 3 else (if ((project head executable) && (not (project item executable))) then 3 else (if ((project item executable) && (not (project head executable))) then 2 else 1))) else (addedLevel item tail))),
+  axioms: [],
+  recursive_argument: dropped
+}
+
+definition{
+  name: additionsLevel,
+  parameters: [added : (List Feature), dropped : (List Feature)],
+  result: Nat,
+  body: (match added
+    | List.nil => 0
+    | List.cons head tail => (largest (addedLevel head dropped) (additionsLevel tail dropped))),
+  axioms: [],
+  recursive_argument: added
+}
+
+definition{
+  name: keyHeld,
+  parameters: [wanted : Nat, items : (List Feature)],
+  result: Bool,
+  body: (match items
+    | List.nil => false
+    | List.cons head tail => (if ((project head key) =? wanted) then true else (keyHeld wanted tail))),
+  axioms: [],
+  recursive_argument: items
+}
+
+definition{
+  name: anyRemoved,
+  parameters: [dropped : (List Feature), added : (List Feature)],
+  result: Bool,
+  body: (match dropped
+    | List.nil => false
+    | List.cons head tail => (if (keyHeld (project head key) added) then (anyRemoved tail added) else true)),
+  axioms: [],
+  recursive_argument: dropped
+}
+
+definition{
+  name: levelOf,
+  parameters: [added : (List Feature), dropped : (List Feature)],
+  result: Nat,
+  body: (if (anyRemoved dropped added) then 3 else (additionsLevel added dropped))
+}
+
+definition{
+  name: changeLevel,
+  parameters: [before : (List Feature), after : (List Feature)],
+  result: Nat,
+  body: (levelOf (missing ((prim length before : Nat) + (prim length after : Nat)) after before) (missing ((prim length before : Nat) + (prim length after : Nat)) before after))
+}
+
+definition{
+  name: noRelease,
+  parameters: [],
+  result: Release,
+  body: (record Release {version := (noVersion), labels := (nil String), base := 0, features := (nil Feature)})
+}
+
+definition{
+  name: releaseAt,
+  parameters: [position : Nat, history : (List Release)],
+  result: Release,
+  body: (match history
+    | List.nil => (noRelease)
+    | List.cons head tail => (if (position =? 0) then head else (releaseAt (prim subtract position 1 : Nat) tail))),
+  axioms: [],
+  recursive_argument: history
+}
+
+definition{
+  name: highest,
+  parameters: [history : (List Release), best : Version],
+  result: Version,
+  body: (match history
+    | List.nil => best
+    | List.cons head tail => (if (later (project head version) best) then (highest tail (project head version)) else (highest tail best))),
+  axioms: [],
+  recursive_argument: history
+}
+
+definition{
+  name: follows,
+  parameters: [current : Release, earlier : (List Release)],
+  result: Bool,
+  body: match{
+    branches: [
+      {
+        body: (sameVersion (project current version) (firstVersion)),
+        binders: [],
+        constructor: List.nil
+      },
+      {
+        body: (((project current base) <? (prim length earlier : Nat)) && ((0 <? (changeLevel (project (releaseAt (project current base) earlier) features) (project current features))) && (sameVersion (project current version) (next (highest earlier (noVersion)) (changeLevel (project (releaseAt (project current base) earlier) features) (project current features)))))),
+        binders: [first, others],
+        constructor: List.cons
+      }
+    ],
+    scrutinee: earlier
+  }
+}
+
+definition{
+  name: followsFrom,
+  parameters: [earlier : (List Release), rest : (List Release)],
+  result: Bool,
+  body: (match rest
+    | List.nil => true
+    | List.cons head tail => ((follows head earlier) && (followsFrom (prim append earlier (cons head (nil Release)) : (List Release)) tail))),
+  axioms: [],
+  recursive_argument: rest
+}
+
+definition{
+  name: versionsComputed,
+  parameters: [item : Component],
+  result: Bool,
+  body: (followsFrom (nil Release) (project item releases))
+}
+
+definition{
+  name: allVersionsComputed,
+  parameters: [items : (List Component)],
+  result: Bool,
+  body: (match items
+    | List.nil => true
+    | List.cons head tail => ((versionsComputed head) && (allVersionsComputed tail))),
+  axioms: [],
+  recursive_argument: items
+}
+
+definition{
+  name: labelled,
+  parameters: [wanted : String, history : (List Release)],
+  result: Version,
+  body: (match history
+    | List.nil => (noVersion)
+    | List.cons head tail => (if (memberString wanted (project head labels)) then (project head version) else (labelled wanted tail))),
+  axioms: [],
+  recursive_argument: history
+}
+
+definition{
+  name: releaseOf,
+  parameters: [wanted : Version, history : (List Release)],
+  result: Release,
+  body: (match history
+    | List.nil => (noRelease)
+    | List.cons head tail => (if (sameVersion wanted (project head version)) then head else (releaseOf wanted tail))),
+  axioms: [],
+  recursive_argument: history
+}
+
+definition{
+  name: noComponent,
+  parameters: [],
+  result: Component,
+  body: (record Component {index := 0, name := "", owner := "", holds := (nil Nat), releases := (nil Release)})
+}
+
+definition{
+  name: componentAt,
+  parameters: [wanted : Nat, items : (List Component)],
+  result: Component,
+  body: (match items
+    | List.nil => (noComponent)
+    | List.cons head tail => (if ((project head index) =? wanted) then head else (componentAt wanted tail))),
+  axioms: [],
+  recursive_argument: items
+}
+
+definition{
+  name: pinResolves,
+  parameters: [wanted : Pin, items : (List Component)],
+  result: Bool,
+  body: (((project (componentAt (project wanted component) items) index) =? (project wanted component)) && (sameVersion (labelled (project wanted label) (project (componentAt (project wanted component) items) releases)) (project wanted version)))
+}
+
+definition{
+  name: pinsResolve,
+  parameters: [wanted : (List Pin), items : (List Component)],
+  result: Bool,
+  body: (match wanted
+    | List.nil => true
+    | List.cons head tail => ((pinResolves head items) && (pinsResolve tail items))),
+  axioms: [],
+  recursive_argument: wanted
+}
+
+definition{
+  name: projectsResolve,
+  parameters: [managed : (List Project), items : (List Component)],
+  result: Bool,
+  body: (match managed
+    | List.nil => true
+    | List.cons head tail => ((pinsResolve (project head pins) items) && (projectsResolve tail items))),
+  axioms: [],
+  recursive_argument: managed
+}
+
+definition{
+  name: placementHolds,
+  parameters: [placed : Placement, items : (List Component)],
+  result: Bool,
+  body: (match (project placed outcome)
+    | Outcome.resolved => (sameNats (kappas (project (releaseOf (project placed version) (project (componentAt (project placed component) items) releases)) features)) (project placed features))
+    | Outcome.contained => (within ((prim length (project placed features) : Nat) + (prim length (project (releaseOf (project placed version) (project (componentAt (project placed component) items) releases)) features) : Nat)) (project placed features) (kappas (project (releaseOf (project placed version) (project (componentAt (project placed component) items) releases)) features)))
+    | Outcome.merged => (sameNats (kappas (project (releaseOf (project placed version) (project (componentAt (project placed component) items) releases)) features)) (dedupe 0 (mergeAll (kappas (project (releaseAt (project (releaseOf (project placed version) (project (componentAt (project placed component) items) releases)) base) (project (componentAt (project placed component) items) releases)) features)) (project placed features)))))
+}
+
+definition{
+  name: placementsHold,
+  parameters: [placed : (List Placement), items : (List Component)],
+  result: Bool,
+  body: (match placed
+    | List.nil => true
+    | List.cons head tail => ((placementHolds head items) && (placementsHold tail items))),
+  axioms: [],
+  recursive_argument: placed
+}
+
+definition{
+  name: outcomeIndex,
+  parameters: [result : Outcome],
+  result: Nat,
+  body: (match result | Outcome.resolved => 0 | Outcome.contained => 1 | Outcome.merged => 2)
+}
+
+definition{
+  name: outcomeCount,
+  parameters: [wanted : Outcome, placed : (List Placement)],
+  result: Nat,
+  body: (match placed
+    | List.nil => 0
+    | List.cons head tail => (if ((outcomeIndex (project head outcome)) =? (outcomeIndex wanted)) then ((outcomeCount wanted tail) + 1) else (outcomeCount wanted tail))),
+  axioms: [],
+  recursive_argument: placed
+}
+
+definition{
+  name: ownersKnown,
+  parameters: [items : (List Component), managed : (List String)],
+  result: Bool,
+  body: (match items
+    | List.nil => true
+    | List.cons head tail => ((memberString (project head owner) managed) && (ownersKnown tail managed))),
+  axioms: [],
+  recursive_argument: items
+}
+
+definition{
+  name: projectNames,
+  parameters: [managed : (List Project)],
+  result: (List String),
+  body: (match managed
+    | List.nil => (nil String)
+    | List.cons head tail => (cons (project head name) (projectNames tail))),
+  axioms: [],
+  recursive_argument: managed
+}
+
+definition{
+  name: ownedCount,
+  parameters: [managed : (List Project)],
+  result: Nat,
+  body: (match managed
+    | List.nil => 0
+    | List.cons head tail => ((prim length (project head owns) : Nat) + (ownedCount tail))),
+  axioms: [],
+  recursive_argument: managed
+}
+
+definition{
+  name: releaseKappas,
+  parameters: [history : (List Release)],
+  result: (List Nat),
+  body: (match history
+    | List.nil => (nil Nat)
+    | List.cons head tail => (mergeAll (kappas (project head features)) (releaseKappas tail))),
+  axioms: [],
+  recursive_argument: history
+}
+
+definition{
+  name: noPlacement,
+  parameters: [],
+  result: Placement,
+  body: (record Placement {contributor := "", unit := "", component := 0, outcome := (ctor Outcome.resolved), version := (noVersion), features := (nil Nat)})
+}
+
+definition{
+  name: placementAt,
+  parameters: [position : Nat, placed : (List Placement)],
+  result: Placement,
+  body: (match placed
+    | List.nil => (noPlacement)
+    | List.cons head tail => (if (position =? 0) then head else (placementAt (prim subtract position 1 : Nat) tail))),
+  axioms: [],
+  recursive_argument: placed
+}
+
+theorem{
+  name: noChangeKeepsTheVersion,
+  parameters: [version : Version],
+  statement: ((sameVersion (next version 0) version) = true),
+  proof: linear_arithmetic{definitions: [next, sameVersion]},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: aPatchRaisesThePatch,
+  parameters: [version : Version],
+  statement: ((project (next version 1) patch) = ((project version patch) + 1)),
+  proof: linear_arithmetic{definitions: [next]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aPatchKeepsTheMajor,
+  parameters: [version : Version],
+  statement: ((project (next version 1) major) = (project version major)),
+  proof: linear_arithmetic{definitions: [next]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aPatchKeepsTheMinor,
+  parameters: [version : Version],
+  statement: ((project (next version 1) minor) = (project version minor)),
+  proof: linear_arithmetic{definitions: [next]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aMinorRaisesTheMinor,
+  parameters: [version : Version],
+  statement: ((project (next version 2) minor) = ((project version minor) + 1)),
+  proof: linear_arithmetic{definitions: [next]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aMinorKeepsTheMajor,
+  parameters: [version : Version],
+  statement: ((project (next version 2) major) = (project version major)),
+  proof: linear_arithmetic{definitions: [next]},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: aMajorRaisesTheMajor,
+  parameters: [version : Version],
+  statement: ((project (next version 3) major) = ((project version major) + 1)),
+  proof: linear_arithmetic{definitions: [next]},
+  axioms: [propext]
+}
+
+theorem{
+  name: everyReceiptMeansProved,
+  parameters: [],
+  statement: ((prim equal (route (cons "a" (nil String)) (cons "a" (nil String)) (cons "x" (cons "y" (nil String))) (cons "y" (cons "x" (nil String)))) "proved" : Bool) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: missingReceiptMeansObserved,
+  parameters: [],
+  statement: ((prim equal (route (cons "a" (nil String)) (cons "a" (nil String)) (cons "x" (cons "y" (nil String))) (cons "x" (nil String))) "observed" : Bool) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: unresolvedImportMeansRefuted,
+  parameters: [],
+  statement: ((prim equal (route (cons "b" (nil String)) (cons "a" (nil String)) (nil String) (nil String)) "refuted" : Bool) = true),
+  proof: decide{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

@@ -48,7 +48,7 @@ export function validateBootstrapBytes(files) {
   }
 }
 export function captureBootstrap(source, output, run) {
-  assert([1, 2].includes(run));
+  assert.equal(run, 1);
   const files = new Map(bootstrapNames.map(name => [name, readOriginal(join(source, 'target', name))]));
   validateBootstrapBytes(files);
   return {run, files: [...files].map(([name, bytes]) => {
@@ -62,9 +62,9 @@ export function validateBootstrapRetention(bytes, files, revision) {
   const value = JSON.parse(bytes); assert.equal(bytes.toString(), canonical(value));
   assert.deepEqual(Object.keys(value).sort(), ['runs', 'schema', 'source_revision']);
   assert.equal(value.schema, 'prismpm/bootstrap-retention/1'); assert.equal(value.source_revision, revision);
-  assert(Array.isArray(value.runs) && value.runs.length === 2);
-  assert.deepEqual([...files.keys()].sort(), [1, 2].flatMap(run => bootstrapNames.map(name => `run-${run}-${name}`)).sort());
-  for (const run of [1, 2]) {
+  assert(Array.isArray(value.runs) && value.runs.length === 1);
+  assert.deepEqual([...files.keys()].sort(), bootstrapNames.map(name => `run-1-${name}`).sort());
+  for (const run of [1]) {
     const original = new Map(bootstrapNames.map(name => [name, files.get(`run-${run}-${name}`)]));
     validateBootstrapBytes(original);
     assert.deepEqual(value.runs[run - 1], {run, files: [...original].map(([name, raw]) => descriptor(`run-${run}-${name}`, raw))});

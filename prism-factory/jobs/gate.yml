@@ -1,0 +1,97 @@
+
+  # The gate accepts source V&V either established by source-vv on this commit
+  # or proved by the factory receipt, and records which in factory-route.json.
+  gate:
+    needs: [policy, factory, devcontainer-image, source-vv]
+    if: >-
+      ${{ !cancelled() && needs.policy.result == 'success' && needs.factory.result == 'success'
+      && needs.devcontainer-image.result == 'success'
+      && ((needs.factory.outputs.route == 'establish' && needs.source-vv.result == 'success')
+      || (needs.factory.outputs.route == 'proved' && needs.source-vv.result == 'skipped')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ needs.policy.outputs.version }}
+      publish-crates: ${{ needs.policy.outputs.publish-crates }}
+      rehearsal: ${{ needs.policy.outputs.rehearsal }}
+      source-revision: ${{ steps.source.outputs.revision }}
+      source-run-id: ${{ steps.source.outputs.run-id }}
+      source-run-attempt: ${{ steps.source.outputs.run-attempt }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          submodules: false
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: ${{ needs.factory.outputs.route == 'establish' }}
+        with:
+          pattern: source-vv-part-*
+          merge-multiple: true
+          path: target/source-vv-evidence
+      - name: Require every source part on this commit
+        if: ${{ needs.factory.outputs.route == 'establish' }}
+        run: |
+          node scripts/release-gate-evidence.mjs source-assemble . target/source-vv-evidence "$GITHUB_SHA" amd64 - "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" -
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: ${{ needs.factory.outputs.route == 'proved' }}
+        with:
+          name: source-vv
+          path: target/source-vv-evidence
+          run-id: ${{ needs.factory.outputs.run-id }}
+          github-token: ${{ github.token }}
+      - name: Require the receipt's every source part on its own commit and run
+        if: ${{ needs.factory.outputs.route == 'proved' }}
+        env:
+          SOURCE_REVISION: ${{ needs.factory.outputs.source-revision }}
+          SOURCE_RUN_ID: ${{ needs.factory.outputs.run-id }}
+          SOURCE_RUN_ATTEMPT: ${{ needs.factory.outputs.run-attempt }}
+        run: |
+          node scripts/release-gate-evidence.mjs source-receipt . target/source-vv-evidence "$SOURCE_REVISION" amd64 - "$SOURCE_RUN_ID" "$SOURCE_RUN_ATTEMPT" -
+      - id: source
+        env:
+          ROUTE: ${{ needs.factory.outputs.route }}
+          SOURCE_REVISION: ${{ needs.factory.outputs.source-revision }}
+          SOURCE_RUN_ID: ${{ needs.factory.outputs.run-id }}
+          SOURCE_RUN_ATTEMPT: ${{ needs.factory.outputs.run-attempt }}
+          BUILD_ROUTE: ${{ needs.factory.outputs.build-route }}
+          BUILD_REVISION: ${{ needs.factory.outputs.build-revision }}
+          BUILD_RUN_ID: ${{ needs.factory.outputs.build-run-id }}
+          BUILD_RUN_ATTEMPT: ${{ needs.factory.outputs.build-run-attempt }}
+        run: |
+          set -euo pipefail
+          if [ "$BUILD_ROUTE" = establish ]; then
+            build="established $GITHUB_SHA $GITHUB_RUN_ID $GITHUB_RUN_ATTEMPT"
+          else
+            test "$BUILD_ROUTE" = proved
+            build="proved $BUILD_REVISION $BUILD_RUN_ID $BUILD_RUN_ATTEMPT"
+          fi
+          if [ "$ROUTE" = establish ]; then
+            route=established revision=$GITHUB_SHA run_id=$GITHUB_RUN_ID run_attempt=$GITHUB_RUN_ATTEMPT
+          else
+            test "$ROUTE" = proved
+            route=proved revision=$SOURCE_REVISION run_id=$SOURCE_RUN_ID run_attempt=$SOURCE_RUN_ATTEMPT
+          fi
+          mkdir factory-route
+          # shellcheck disable=SC2086 # $build is four words, each validated by the factory.
+          bash prism-factory/factory.sh route-record factory-route/factory-route.json "$GITHUB_SHA" "$route" "$revision" "$run_id" "$run_attempt" $build
+          printf 'revision=%s\nrun-id=%s\nrun-attempt=%s\n' "$revision" "$run_id" "$run_attempt" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: source-vv
+          path: target/source-vv-evidence/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: factory-route
+          path: factory-route/factory-route.json
+          if-no-files-found: error
+          retention-days: 30

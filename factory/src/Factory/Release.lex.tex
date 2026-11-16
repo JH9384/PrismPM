@@ -1,0 +1,275 @@
+\begin{lexlean}{Factory.Release}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\importmodule{Factory.Registry}
+\title{Boolean}
+\begin{semanticmodule}
+inductive{
+  name: Stage,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: sourceVv, fields: []},
+    {name: images, fields: []},
+    {name: reproducibility, fields: []},
+    {name: native, fields: []},
+    {name: installedSdk, fields: []},
+    {name: installedVv, fields: []},
+    {name: publication, fields: []}
+  ]
+}
+
+definition{
+  name: stageIndex,
+  parameters: [stage : Stage],
+  result: Nat,
+  body: (match stage
+    | Stage.sourceVv => 0
+    | Stage.images => 1
+    | Stage.reproducibility => 2
+    | Stage.native => 3
+    | Stage.installedSdk => 4
+    | Stage.installedVv => 5
+    | Stage.publication => 6)
+}
+
+definition{
+  name: obligations,
+  parameters: [],
+  result: (List String),
+  body: (cons "source-verified" (cons "images-signed" (cons "image-reproduced" (cons "browser-closure" (cons "library-closure" (cons "native-equivalent" (cons "product-built" (cons "published" (nil String)))))))))
+}
+
+definition{
+  name: establishes,
+  parameters: [stage : Stage],
+  result: (List String),
+  body: (match stage
+    | Stage.sourceVv => (cons "source-verified" (nil String))
+    | Stage.images => (cons "images-signed" (nil String))
+    | Stage.reproducibility => (cons "image-reproduced" (cons "browser-closure" (cons "library-closure" (nil String))))
+    | Stage.native => (cons "native-equivalent" (nil String))
+    | Stage.installedSdk => (cons "product-built" (nil String))
+    | Stage.installedVv => (cons "source-verified" (nil String))
+    | Stage.publication => (cons "published" (nil String)))
+}
+
+definition{
+  name: onProjection,
+  parameters: [stage : Stage],
+  result: Bool,
+  body: (match stage
+    | Stage.sourceVv => false
+    | Stage.images => true
+    | Stage.reproducibility => true
+    | Stage.native => true
+    | Stage.installedSdk => true
+    | Stage.installedVv => true
+    | Stage.publication => false)
+}
+
+definition{
+  name: waitsForTheSource,
+  parameters: [stage : Stage],
+  result: Bool,
+  body: (match stage
+    | Stage.sourceVv => false
+    | Stage.images => false
+    | Stage.reproducibility => false
+    | Stage.native => false
+    | Stage.installedSdk => false
+    | Stage.installedVv => true
+    | Stage.publication => true)
+}
+
+definition{
+  name: occurrences,
+  parameters: [obligation : String, stages : (List Stage)],
+  result: Nat,
+  body: (match stages
+    | List.nil => 0
+    | List.cons head tail => (if (Factory.Registry::memberString obligation (establishes head)) then (1 + (occurrences obligation tail)) else (occurrences obligation tail))),
+  axioms: [],
+  recursive_argument: stages
+}
+
+definition{
+  name: eachOnce,
+  parameters: [wanted : (List String), stages : (List Stage)],
+  result: Bool,
+  body: (match wanted
+    | List.nil => true
+    | List.cons head tail => (((occurrences head stages) =? 1) && (eachOnce tail stages))),
+  axioms: [],
+  recursive_argument: wanted
+}
+
+definition{
+  name: projectionsReestablishTheSource,
+  parameters: [stages : (List Stage)],
+  result: Nat,
+  body: (match stages
+    | List.nil => 0
+    | List.cons head tail => (if ((onProjection head) && (Factory.Registry::memberString "source-verified" (establishes head))) then (1 + (projectionsReestablishTheSource tail)) else (projectionsReestablishTheSource tail))),
+  axioms: [],
+  recursive_argument: stages
+}
+
+definition{
+  name: waiting,
+  parameters: [stages : (List Stage)],
+  result: Nat,
+  body: (match stages
+    | List.nil => 0
+    | List.cons head tail => (if (waitsForTheSource head) then (1 + (waiting tail)) else (waiting tail))),
+  axioms: [],
+  recursive_argument: stages
+}
+
+definition{
+  name: imageBuilds,
+  parameters: [stage : Stage],
+  result: Nat,
+  body: (match stage
+    | Stage.sourceVv => 0
+    | Stage.images => 1
+    | Stage.reproducibility => 1
+    | Stage.native => 0
+    | Stage.installedSdk => 0
+    | Stage.installedVv => 0
+    | Stage.publication => 0)
+}
+
+definition{
+  name: builds,
+  parameters: [stages : (List Stage)],
+  result: Nat,
+  body: (match stages
+    | List.nil => 0
+    | List.cons head tail => ((imageBuilds head) + (builds tail))),
+  axioms: [],
+  recursive_argument: stages
+}
+
+definition{
+  name: route,
+  parameters: [],
+  result: (List Stage),
+  body: (cons (ctor Stage.sourceVv) (cons (ctor Stage.images) (cons (ctor Stage.reproducibility) (cons (ctor Stage.native) (cons (ctor Stage.installedSdk) (cons (ctor Stage.publication) (nil Stage)))))))
+}
+
+definition{
+  name: priorRoute,
+  parameters: [],
+  result: (List Stage),
+  body: (cons (ctor Stage.installedVv) (route))
+}
+
+definition{
+  name: sourceRoute,
+  parameters: [kappa : String, receipts : (List String)],
+  result: String,
+  body: (if (Factory.Registry::memberString kappa receipts) then "proved" else "establish")
+}
+
+definition{
+  name: buildRoute,
+  parameters: [identity : String, receipts : (List String)],
+  result: String,
+  body: (if (Factory.Registry::memberString identity receipts) then "proved" else "establish")
+}
+
+definition{
+  name: routedBuilds,
+  parameters: [buildRouted : String],
+  result: Nat,
+  body: (if (prim equal buildRouted "proved" : Bool) then 0 else (builds (route)))
+}
+
+definition{
+  name: plumbing,
+  parameters: [],
+  result: (List String),
+  body: (cons ".github/workflows/release-cut.yml" (cons ".github/workflows/release-qualify.yml" (cons ".github/workflows/release.yml" (cons "factory/" (cons "prism-factory/" (cons "scripts/browser-api-sdk-check.test.mjs" (cons "scripts/ci-capacity.test.mjs" (cons "scripts/factory.mjs" (cons "scripts/factory.test.mjs" (cons "scripts/lexlean-pin.test.mjs" (cons "scripts/library-sdk-check.test.mjs" (cons "scripts/product-sdk-check.test.mjs" (cons "scripts/release-gate-evidence.mjs" (cons "scripts/release-gate-evidence.test.mjs" (cons "scripts/release-native-contract.test.mjs" (cons "scripts/release-phases.md" (cons "scripts/release-phases.mjs" (cons "scripts/release-phases.test.mjs" (cons "scripts/release-publication.mjs" (cons "scripts/release-publication.test.mjs" (cons "scripts/release-rebuild.sh" (cons "scripts/rust-oracle-tools-inputs.test.mjs" (cons "scripts/sdk-candidate-sbom.test.mjs" (cons "scripts/sdk-construction-handoff.test.mjs" (cons "scripts/sdk-image-inputs.test.mjs" (cons "scripts/sdk-release-evidence.mjs" (cons "scripts/sdk-release-evidence.test.mjs" (cons "scripts/sdk-vv-check.test.mjs" (cons "scripts/unpublished-sdk-qualification.test.mjs" (nil String))))))))))))))))))))))))))))))
+}
+
+theorem{
+  name: theRouteEstablishesEveryObligationOnce,
+  parameters: [],
+  statement: ((eachOnce (obligations) (route)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: thePriorRouteVerifiedTheSourceTwice,
+  parameters: [],
+  statement: (((occurrences "source-verified" (priorRoute)) =? 2) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: eachImageIsBuiltOnceAndRebuiltOnce,
+  parameters: [],
+  statement: (((builds (route)) =? 2) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: noProjectionReestablishesTheSource,
+  parameters: [],
+  statement: (((projectionsReestablishTheSource (route)) =? 0) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: onlyPublicationWaitsForTheSource,
+  parameters: [],
+  statement: ((((waiting (route)) =? 1) && (waitsForTheSource (ctor Stage.publication))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: aReceiptForTheSameKappaProves,
+  parameters: [],
+  statement: ((prim equal (sourceRoute "k1" (cons "k0" (cons "k1" (nil String)))) "proved" : Bool) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: aNewKappaMustBeEstablished,
+  parameters: [],
+  statement: ((prim equal (sourceRoute "k2" (cons "k0" (cons "k1" (nil String)))) "establish" : Bool) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: aChangedObligationIsRoutedLikeAnyOther,
+  parameters: [],
+  statement: ((prim equal (Factory.Registry::route (cons "k1" (nil String)) (cons "k1" (nil String)) (obligations) (obligations)) "proved" : Bool) = true),
+  proof: decide{},
+  axioms: []
+}
+theorem{
+  name: aBuildReceiptRebuildsNoImage,
+  parameters: [],
+  statement: (((routedBuilds (buildRoute "b1" (cons "b0" (cons "b1" (nil String))))) =? 0) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: aNewBuildIdentityBuildsAndRebuildsEachImageOnce,
+  parameters: [],
+  statement: (((routedBuilds (buildRoute "b2" (cons "b0" (cons "b1" (nil String))))) =? 2) = true),
+  proof: decide{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

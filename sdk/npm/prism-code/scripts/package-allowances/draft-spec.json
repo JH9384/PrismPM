@@ -1,0 +1,4 @@
+{
+  "kib": 30,
+  "reason": "The draft form of prism/spec/1 (#666): journey/complete.mjs (the completion step, the one-call checker and the repair message, about 17 KiB), journey/spec-schema.mjs (the draft and whole-spec JSON schemas, about 3.5 KiB), and the prism_spec input descriptions, MCP instructions, skill and README text that tell a model to write only what the user said (about 9 KiB)."
+}

@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-python-bindings-writer"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Bindings.V1.Python"
+component = "writePythonBindings"
+
+[[form]]
+id = "prism-python-bindings-writer"
+channel = "text"
+surface = "Python bindings writer"
+canonical_source = true
+features = ["sentence-case", "singular"]

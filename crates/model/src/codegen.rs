@@ -227,6 +227,21 @@ pub fn render_errors(model: &Model) -> String {
     for row in &view.rejection {
         let _ = writeln!(w, "| {} | `{}` |", row.byte, row.name);
     }
+    let _ = writeln!(w, "\n## Prism SDK module diagnostics\n");
+    let _ = writeln!(w, "Registered in model/sdk-diagnostics.toml. These are the codes the Prism SDK modules raise, in a namespace separate from the CLI PP codes: the `code` of a `PrismCodeError`, `<module>.<name>`, and the snake_case code of each error class, named beside it. Every code prism-code raises is a row here.\n");
+    let _ = writeln!(w, "| Code | Class | Owner | Meaning |\n|---|---|---|---|");
+    for row in &model.sdk_diagnostics.error {
+        let class = row
+            .class
+            .as_deref()
+            .map(|class| format!("`{class}`"))
+            .unwrap_or_default();
+        let _ = writeln!(
+            w,
+            "| `{}` | {} | `{}` | {} |",
+            row.code, class, row.capability, row.statement
+        );
+    }
     out
 }
 
@@ -291,6 +306,20 @@ pub fn render_contracts(model: &Model) -> String {
                 schemas.join("`, `")
             );
         }
+    }
+    let _ = writeln!(w);
+    let _ = writeln!(w, "## Command groups");
+    let _ = writeln!(w);
+    let _ = writeln!(w, "`prismpm <module> <verb>` runs the command beside it, with the same arguments, output and result schema (#441). The groups are named after the nine modules of `model/modules.toml`; the flat commands stay as aliases. A module that is also a command (`verify`) is a group only when the next word is one of its verbs.");
+    let _ = writeln!(w);
+    let _ = writeln!(w, "| Group verb | Command |");
+    let _ = writeln!(w, "| --- | --- |");
+    for row in &model.commands.group {
+        let _ = writeln!(
+            w,
+            "| `prismpm {} {}` | `prismpm {}` |",
+            row.module, row.verb, row.command
+        );
     }
     out
 }

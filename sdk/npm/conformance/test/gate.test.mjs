@@ -215,7 +215,11 @@ test('the shipped rules point at files that exist and scenarios that exist, and 
     assert.ok(guarded(path), `${path} is not guarded`);
   }
   assert.ok(!guarded('README.md'));
-  assert.deepEqual(config.exemptions, [], 'the first version ships with nothing exempt');
+  // An exemption stays in the file as the record, so each one has to say what it covers and why.
+  for (const entry of config.exemptions) {
+    assert.ok(entry.files.length > 0, 'an exemption names its files');
+    assert.ok(entry.reason.trim().length > 0, 'an exemption gives a reason');
+  }
   assert.deepEqual(readFileSync(new URL('../format-gate.json', import.meta.url), 'utf8').includes('\r'), false);
 });
 

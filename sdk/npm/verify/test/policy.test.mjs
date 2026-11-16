@@ -132,7 +132,7 @@ deny contains {"rule": "policy.pin.guest", "message": "the guest is not the one 
   assert.equal((await verify(reference(), { rego: pin('0'.repeat(64)) })).passed, false);
 });
 
-test('a tampered archive still reaches a verdict: pure-only rests on holo.integrity, and adds no reason of its own', async () => {
+test('a tampered archive still reaches a verdict: pure-only rests on holo.integrity, and integrity fails it', async () => {
   const bytes = reference();
   bytes[bytes.length - 200] ^= 0xff;
   const verdict = await verify(bytes, { name: 'pure-only', rego: POLICIES['pure-only'] });
@@ -140,7 +140,20 @@ test('a tampered archive still reaches a verdict: pure-only rests on holo.integr
   assert.equal(verdict.level, 'P0');
   const reported = verdict.reasons.map((r) => r.check);
   assert.ok(reported.includes('holo.integrity'));
-  assert.deepEqual(reported.filter((check) => check.startsWith('policy.')), []);
+  assert.deepEqual(reported.filter((check) => check.startsWith('policy.')), ['policy.integrity']);
+});
+
+// Planted defect G7: a tampered holo under a P0 minimum. Before integrity failed every policy, this passed.
+test('a tampered archive fails a policy whose minimum is P0', async () => {
+  for (const offset of [200, 1000]) {
+    const bytes = reference();
+    bytes[bytes.length - offset] ^= 0xff;
+    const verdict = await verify(bytes, { minimum: 'P0' });
+    assert.equal(verdict.level, 'P0');
+    assert.equal(verdict.passed, false);
+    assert.ok(verdict.reasons.some((r) => r.check === 'policy.integrity' && r.withholds === null));
+  }
+  assert.equal((await verify(reference(), { minimum: 'P0' })).passed, true);
 });
 
 test('a policy that does not parse is policy.parse, before the holo is looked at', async () => {

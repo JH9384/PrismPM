@@ -1,12 +1,16 @@
 # Browser-system source fixture
 
-`Release.lex.tex` models A/B releases for the Calculator selected through this
-fixture's LexLean configuration. Both models and manifests bind
-`sha256:de510ca735a4394615c29194f3d7b3bcafe3b7b46da6e1b126423df4ce619e4b`.
+`Release.lex.tex` models A/B releases for the language-1.2 `Calculator.lex.tex`
+beside it, selected through this fixture's LexLean configuration (which also
+declares the `prism.arch` lexicon the stdlib modules title themselves from).
+Both models and manifests bind
+`sha256:d8f3554cb0d5704362b3be3d398d4aceba85b77940bd51649e8f676509f10a03`.
 
-The original source-selection owner reported this digest in a genuine PP2101
-refusal (pr184-c07-browser-selected-source-diagnostic-v1-20261014). The four bindings were explicitly
-updated; verification never repairs stale source or removes negative controls.
+The installed SDK reported this digest in a genuine PP2101 refusal when the
+installed product check first assembled this fixture with its own Calculator
+(the earlier binding named the language-1.1 example's model). The four bindings
+were explicitly updated; verification never repairs stale source or removes
+negative controls.
 
 Run in a Docker-enabled devcontainer with the immutable imported-oracle image
 available to its daemon (no image pull is performed by the oracle runner):

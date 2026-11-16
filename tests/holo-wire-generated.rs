@@ -1,5 +1,6 @@
 // Executes the finite modeled corpus against generated code, not a host codec.
-// The only formal claims in WireCorpus are its three named length theorems.
+// The corpus makes no formal claims; the section-kind and layer-kind code
+// tables are closed by theorems in Format and Manifest.
 use prism_stdlib as wire;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -62,6 +63,23 @@ const PROBES: &[&str] = &[
     "probeShortContentBlob",
     "probeInvalidBlobLabel",
     "probeEmptyBlobContentRepresentable",
+    "probeCanonicalProfileConforms",
+    "probeCanonicalEncoderReproducesProfile",
+    "probeCanonicalEncoderGolden",
+    "probeCanonicalTwoRunDeterminism",
+    "probeCanonicalOutOfOrderSectionsRejected",
+    "probeCanonicalEmptySectionRejected",
+    "probeCanonicalDuplicateExtensionKeysRejected",
+    "probeCanonicalUnsortedExtensionKeysRejected",
+    "probeCanonicalUnsortedBlobsRejected",
+    "probeCanonicalRepeatedSingletonRejected",
+    "probeCanonicalUnknownKindRejected",
+    "probeCanonicalHeaderRejected",
+    "probeCanonicalLayoutRejected",
+    "probeCanonicalExtensionFramingRejected",
+    "probeCanonicalBlobLabelRejected",
+    "probeCanonicalAccessors",
+    "probeProfileEmptyMetadataRejected",
     "probeAttestationAttachExact",
     "probeSignedFrameValid",
     "probeSignedSection8",
@@ -84,6 +102,8 @@ const PROBES: &[&str] = &[
     "probeSignedOffsetRejected",
     "probeSignedBlankLineRejected",
     "probeSignedNoLineFeedRejected",
+    "probeSignedFrameNotCanonical",
+    "probeSignedEmptyMetadataRejected",
 ];
 
 #[derive(Clone, Debug, PartialEq)]
@@ -92,6 +112,9 @@ enum TestValue {
     Nat(u64),
     Bool(bool),
     Optional(Option<Vec<u8>>),
+    Kind(wire::SectionKind),
+    Section(wire::CanonicalSection),
+    Sections(Vec<wire::CanonicalSection>),
 }
 impl TestValue {
     fn bytes(&self) -> Vec<u8> {
@@ -104,6 +127,12 @@ impl TestValue {
         match self {
             Self::Nat(value) => *value,
             _ => panic!("expected fixture Nat: {self:?}"),
+        }
+    }
+    fn sections(&self) -> Vec<wire::CanonicalSection> {
+        match self {
+            Self::Sections(value) => value.clone(),
+            _ => panic!("expected fixture section list: {self:?}"),
         }
     }
     fn boolean(&self) -> bool {
@@ -238,8 +267,71 @@ impl Corpus {
                 assert_eq!(function["module"], "Foundation.Holo.V1.Wire");
                 generated_call(name, &arguments)
             }
+            "constructor" => {
+                let constructor = &expression["constructor"];
+                let arguments: Vec<_> = expression["arguments"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|argument| self.evaluate(argument, environment))
+                    .collect();
+                match constructor["name"].as_str().unwrap() {
+                    "List.nil" => {
+                        assert!(arguments.is_empty());
+                        TestValue::Sections(Vec::new())
+                    }
+                    "List.cons" => {
+                        let [TestValue::Section(head), tail] = &arguments[..] else {
+                            panic!("only fixture section lists are constructed")
+                        };
+                        let mut list = vec![head.clone()];
+                        list.extend(tail.sections());
+                        TestValue::Sections(list)
+                    }
+                    name => {
+                        assert_eq!(constructor["module"], "Foundation.Holo.V1.Format");
+                        assert!(arguments.is_empty());
+                        TestValue::Kind(section_kind(name))
+                    }
+                }
+            }
+            "record" => {
+                assert_eq!(expression["type"]["name"], "CanonicalSection");
+                let fields: BTreeMap<_, _> = expression["fields"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|field| {
+                        (
+                            field["field"].as_str().unwrap(),
+                            self.evaluate(&field["value"], environment),
+                        )
+                    })
+                    .collect();
+                assert_eq!(fields.len(), 2);
+                let TestValue::Kind(kind) = fields["kind"].clone() else {
+                    panic!("fixture section kind")
+                };
+                TestValue::Section(wire::CanonicalSection {
+                    kind,
+                    payload: fields["payload"].bytes(),
+                })
+            }
             kind => panic!("unsupported fixture expression {kind}"),
         }
+    }
+}
+// Fixture names to generated constructors; the wire codes live only in Format.
+fn section_kind(name: &str) -> wire::SectionKind {
+    use wire::SectionKind as K;
+    match name {
+        "SectionKind.KernelCalls" => K::KernelCalls,
+        "SectionKind.Weights" => K::Weights,
+        "SectionKind.Metadata" => K::Metadata,
+        "SectionKind.Extension" => K::Extension,
+        "SectionKind.AppManifest" => K::AppManifest,
+        "SectionKind.ContentBlob" => K::ContentBlob,
+        name => panic!("unmapped fixture section kind {name}"),
     }
 }
 // Every codec operation below calls generated production code. This dispatcher
@@ -273,6 +365,36 @@ fn generated_call(name: &str, arguments: &[TestValue]) -> TestValue {
         "contentBlob" => TestValue::Optional(wire::contentBlob(b(0), b(1))),
         "contentBlobLabel" => TestValue::Optional(wire::contentBlobLabel(b(0))),
         "contentBlobBytes" => TestValue::Optional(wire::contentBlobBytes(b(0))),
+        "validCanonicalArchiveBody" => {
+            TestValue::Bool(wire::validCanonicalArchiveBody(&b(0)).unwrap())
+        }
+        "validCanonicalArchiveFrame" => {
+            TestValue::Bool(wire::validCanonicalArchiveFrame(&b(0)).unwrap())
+        }
+        "canonicalArchiveBody" => {
+            TestValue::Optional(wire::canonicalArchiveBody(&arguments[0].sections()).unwrap())
+        }
+        "canonicalFrameArchive" => {
+            TestValue::Optional(wire::canonicalFrameArchive(b(0), b(1)).unwrap())
+        }
+        "canonicalArchiveBodyBytes" => {
+            TestValue::Optional(wire::canonicalArchiveBodyBytes(b(0)).unwrap())
+        }
+        "canonicalArchiveFooter" => {
+            TestValue::Optional(wire::canonicalArchiveFooter(b(0)).unwrap())
+        }
+        "canonicalArchiveSectionKind" => {
+            TestValue::Optional(wire::canonicalArchiveSectionKind(b(0), n(1)).unwrap())
+        }
+        "canonicalArchiveSection" => {
+            TestValue::Optional(wire::canonicalArchiveSection(b(0), n(1)).unwrap())
+        }
+        "wireRowsValid" => TestValue::Bool(wire::wireRowsValid(&b(0), n(1), n(2), n(3)).unwrap()),
+        "wireBodyPayloadsValid" => TestValue::Bool(wire::wireBodyPayloadsValid(&b(0)).unwrap()),
+        "wireAttestationRowValid" => TestValue::Bool(wire::wireAttestationRowValid(&b(0)).unwrap()),
+        "wireSectionBytesUnchecked" => {
+            TestValue::Bytes(wire::wireSectionBytesUnchecked(b(0), n(1)).unwrap())
+        }
         "wireBytesEqual" => TestValue::Bool(wire::wireBytesEqual(&b(0), &b(1))),
         "wireEncodeLe64" => TestValue::Bytes(wire::wireEncodeLe64(n(0))),
         "wireDecodeLe64" => TestValue::Nat(wire::wireDecodeLe64(b(0)).unwrap()),
@@ -280,7 +402,7 @@ fn generated_call(name: &str, arguments: &[TestValue]) -> TestValue {
     }
 }
 #[test]
-fn all_79_modeled_wire_cases_execute_generated_code() {
+fn all_98_modeled_wire_cases_execute_generated_code() {
     let corpus = Corpus::load();
     let expected: BTreeSet<_> = PROBES.iter().copied().collect();
     let actual: BTreeSet<_> = corpus
@@ -289,7 +411,7 @@ fn all_79_modeled_wire_cases_execute_generated_code() {
         .filter(|name| name.starts_with("probe"))
         .map(String::as_str)
         .collect();
-    assert_eq!(PROBES.len(), 79);
+    assert_eq!(PROBES.len(), 98);
     assert_eq!(expected.len(), PROBES.len(), "duplicate execution mapping");
     assert_eq!(actual, expected, "complete corpus-to-execution bijection");
     for name in PROBES {

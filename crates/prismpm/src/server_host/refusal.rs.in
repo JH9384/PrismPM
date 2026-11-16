@@ -1,0 +1,85 @@
+// The closed vocabulary of refusals the serving adapter makes itself. The
+// constructors, their order and their statuses are those of
+// Foundation.Server.V1.Model.ServingRefusal and model/serving-diagnostics.toml.
+
+/// Every way the adapter answers without the core's answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ServingRefusal {
+    RequestLineMalformed,
+    RequestLineTooLong,
+    VersionUnsupported,
+    FieldMalformed,
+    HostInvalid,
+    HeaderCountExceeded,
+    HeaderBytesExceeded,
+    LengthInvalid,
+    FramingAmbiguous,
+    TransferCodingUnsupported,
+    ExpectationUnsupported,
+    BodyTooLarge,
+    ChunkMalformed,
+    OriginForbidden,
+    AcceptRefused,
+    ContentTypeRefused,
+    ReadTimeout,
+    FrameUnavailable,
+    CoreFailed,
+    ResponseMalformed,
+    Busy,
+}
+
+impl ServingRefusal {
+    /// The HTTP status of the refusal.
+    pub fn status(self) -> u16 {
+        match self {
+            ServingRefusal::RequestLineMalformed => 400,
+            ServingRefusal::RequestLineTooLong => 414,
+            ServingRefusal::VersionUnsupported => 505,
+            ServingRefusal::FieldMalformed => 400,
+            ServingRefusal::HostInvalid => 400,
+            ServingRefusal::HeaderCountExceeded => 431,
+            ServingRefusal::HeaderBytesExceeded => 431,
+            ServingRefusal::LengthInvalid => 400,
+            ServingRefusal::FramingAmbiguous => 400,
+            ServingRefusal::TransferCodingUnsupported => 501,
+            ServingRefusal::ExpectationUnsupported => 417,
+            ServingRefusal::BodyTooLarge => 413,
+            ServingRefusal::ChunkMalformed => 400,
+            ServingRefusal::OriginForbidden => 403,
+            ServingRefusal::AcceptRefused => 406,
+            ServingRefusal::ContentTypeRefused => 415,
+            ServingRefusal::ReadTimeout => 408,
+            ServingRefusal::FrameUnavailable => 503,
+            ServingRefusal::CoreFailed => 500,
+            ServingRefusal::ResponseMalformed => 500,
+            ServingRefusal::Busy => 503,
+        }
+    }
+
+    /// The registered code, which is also the body of the refusal response.
+    pub fn code(self) -> &'static str {
+        match self {
+            ServingRefusal::RequestLineMalformed => "RequestLineMalformed",
+            ServingRefusal::RequestLineTooLong => "RequestLineTooLong",
+            ServingRefusal::VersionUnsupported => "VersionUnsupported",
+            ServingRefusal::FieldMalformed => "FieldMalformed",
+            ServingRefusal::HostInvalid => "HostInvalid",
+            ServingRefusal::HeaderCountExceeded => "HeaderCountExceeded",
+            ServingRefusal::HeaderBytesExceeded => "HeaderBytesExceeded",
+            ServingRefusal::LengthInvalid => "LengthInvalid",
+            ServingRefusal::FramingAmbiguous => "FramingAmbiguous",
+            ServingRefusal::TransferCodingUnsupported => "TransferCodingUnsupported",
+            ServingRefusal::ExpectationUnsupported => "ExpectationUnsupported",
+            ServingRefusal::BodyTooLarge => "BodyTooLarge",
+            ServingRefusal::ChunkMalformed => "ChunkMalformed",
+            ServingRefusal::OriginForbidden => "OriginForbidden",
+            ServingRefusal::AcceptRefused => "AcceptRefused",
+            ServingRefusal::ContentTypeRefused => "ContentTypeRefused",
+            ServingRefusal::ReadTimeout => "ReadTimeout",
+            ServingRefusal::FrameUnavailable => "FrameUnavailable",
+            ServingRefusal::CoreFailed => "CoreFailed",
+            ServingRefusal::ResponseMalformed => "ResponseMalformed",
+            ServingRefusal::Busy => "Busy",
+        }
+    }
+}

@@ -34,3 +34,37 @@ export interface HistoryV1 {
   /** At least one, in the order they ran. */
   events: [HistoryEvent, ...HistoryEvent[]];
 }
+
+/**
+ * A history of sessions, `prism/history/2` (issue #629), for the session world
+ * `hologram:guest/core-wasm@2`. Design: docs/proposals/629-session-world.md.
+ * Schema: `schemas/history/history-v2.schema.json`.
+ */
+
+/** A step that returned, with its responses in order. A step may return none. */
+export interface HistorySessionStep {
+  request: string;
+  responses: string[];
+}
+
+/** The step that ended its session in a refusal or a trap. No step follows it. */
+export interface HistorySessionFailure {
+  request: string;
+  error: string;
+}
+
+/** One session, on a fresh instance with an empty state. At least one step or a failure. */
+export interface HistorySession {
+  steps: HistorySessionStep[];
+  failure?: HistorySessionFailure;
+}
+
+export interface HistoryV2 {
+  schema: 'prism/history/2';
+  /** The name of the application when it was recorded, or null. Replay never compares it. */
+  application: string | null;
+  /** The build the history was recorded from. Replay never compares it. */
+  recordedFrom?: { guest: PrismDigestSet; model: PrismDigestSet };
+  /** At least one, in the order they were recorded. */
+  sessions: [HistorySession, ...HistorySession[]];
+}

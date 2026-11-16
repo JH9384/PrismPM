@@ -1,0 +1,4 @@
+{
+  "kib": 56,
+  "reason": "The nine modules on one client: prism.images (#442, about 26 KiB), prism.system with its event bus (#446, about 12 KiB), and the client of #441 with containers.list and prune (about 12 KiB)."
+}

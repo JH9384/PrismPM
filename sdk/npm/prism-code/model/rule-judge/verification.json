@@ -1,0 +1,85 @@
+{
+  "schema": "prism/model-verification/1",
+  "project": "prism-rule-judge",
+  "command": "lexlean lock && lexlean verify --all",
+  "image": "ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:cd3b47d7a370c4a26b8285f5e9c3bb15e639973c55505c3809ddbe55352fea58",
+  "lean": "4.32.1",
+  "result": "verified 2 modules",
+  "attestation": "8b491d556e8a45e6294838c141a5ffb26c959d9b2d63ed8e142542bac3670b2e",
+  "sources": {
+    "lexlean.toml": "sha256:dd1e1da85323560764da0c6a0c62d9cd9a42533f1f076847c0cc80fa8fabd998",
+    "lexlean.lock": "sha256:0fd677731209a00ff8bcdc8d4d116c82ae426737fc0682fccb8856c569c42ebe",
+    "src/Kernel.lex.tex": "sha256:0ba31cbeac34c34ae378e54c97b61e434cb6e82d702a225bbfb6be7a9bd68566",
+    "src/Regions.lex.tex": "sha256:71ced37d2fffe12bc7b69cd2cf600b68e5233d62bccfc8f138a751c0a0ef19f8"
+  },
+  "declarations": 298,
+  "roots": [
+    {
+      "name": "PrismLive.Kernel.Cond",
+      "axioms": []
+    },
+    {
+      "name": "PrismLive.Kernel.Cond.mk",
+      "axioms": []
+    },
+    {
+      "name": "PrismLive.Kernel.Property",
+      "axioms": []
+    },
+    {
+      "name": "PrismLive.Kernel.Property.mk",
+      "axioms": []
+    },
+    {
+      "name": "PrismLive.Kernel.wordsCheck",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "name": "PrismLive.Kernel.ruleJudge_sound",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "PrismLive.Tables.refused",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "name": "PrismLive.Tables.left",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "name": "PrismLive.Tables.right",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "name": "PrismLive.Tables.outside",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "PrismLive.Tables.full",
+      "axioms": [
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    {
+      "name": "PrismLive.Tables.stale",
+      "axioms": [
+        "propext"
+      ]
+    }
+  ]
+}

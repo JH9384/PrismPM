@@ -55,11 +55,11 @@ Publishing calculator@sha256:3f9c… to github.com/you/calculator
 Done.
 ```
 
-The page serves the holo, the six-file browser export, and the attestation bundle. Nothing on the page is built by the page. It is the same holo you checked.
+The page serves the holo, the browser export, and the attestation bundle. Nothing on the page is built by the page. It is the same holo you checked.
 
 ## Export for the browser
 
-`export` writes the six-file browser export, or a tarball of the same files. Use it when you host the files yourself:
+`export` writes the browser export, or a tarball of the same files. Use it when you host the files yourself. The export is closure v2: the six-file page plus the brand fonts (Geist, Geist Mono and Archivo), their licences, the app icons and a web app manifest, so the page renders in the brand fonts and installs on a phone with no remote request:
 
 ```bash
 prism export --out dist
@@ -68,7 +68,9 @@ prism export --out dist
 ```text
 Exporting calculator@sha256:3f9c… to dist/
   index.html  app.js  app.css  calculator.js  calculator_bg.wasm  provenance.json
-Exported 6 files
+  manifest.webmanifest  icon.svg  icon-512.png  OFL-Geist.txt  OFL-Archivo.txt
+  Geist-Regular.woff2  Geist-Medium.woff2  Geist-SemiBold.woff2  GeistMono-Regular.woff2  Archivo-SemiBold.woff2
+Exported 16 files
 ```
 
 `provenance.json` names the digest of every other file, so a browser can confirm each one before it runs. Serve `dist/` from any static host. A cache cannot serve a stale file as a fresh one without the digest check failing.

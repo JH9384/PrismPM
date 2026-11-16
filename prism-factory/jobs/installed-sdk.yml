@@ -1,0 +1,55 @@
+
+  # Installed V&V re-ran the eight source parts inside the shipped image: the
+  # source obligation a second time, on a projection (Factory.Release,
+  # thePriorRouteVerifiedTheSourceTwice). The image is bound to the source by
+  # reproducibility, native equivalence and the installed product build below.
+  installed-sdk:
+    needs: [policy, factory, images]
+    if: ${{ needs.factory.outputs.build-route == 'establish' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: root-a
+          submodules: false
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sdk-image
+          path: .shipped-image
+      - name: Verify genuine installed product CLI and source-free browser release
+        shell: bash
+        env:
+          RESULT_NAME: sdk-${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          bash root-a/scripts/product-sdk-check.sh "$(cat .shipped-image/sdk-image.txt)" \
+            "$GITHUB_SHA" "$RESULT_NAME-product-cli"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: product-cli-sdk-${{ matrix.arch }}
+          path: sdk-${{ matrix.arch }}-product-cli/
+          if-no-files-found: error
+          retention-days: 30

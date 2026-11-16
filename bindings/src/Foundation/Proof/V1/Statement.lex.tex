@@ -1,0 +1,496 @@
+\begin{lexlean}{Foundation.Proof.V1.Statement}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.bindings@1.0.0}
+\importmodule{Foundation.Bindings.V1.Text}
+\title{Proof statement writer}
+\begin{semanticmodule}
+structure{
+  name: ProofModule,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: path, type: String}, {name: sha256, type: String}]
+}
+
+structure{
+  name: ProofTheorem,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: module, type: String},
+    {name: result, type: String},
+    {name: policyKind, type: String},
+    {name: policyAxioms, type: (List String)},
+    {name: observed, type: (List String)}
+  ]
+}
+
+structure{
+  name: ProofInput,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: subjectName, type: String},
+    {name: subjectSha256, type: String},
+    {name: leanVersion, type: String},
+    {name: leanCommit, type: String},
+    {name: lexleanVersion, type: String},
+    {name: lexleanCommit, type: String},
+    {name: lexleanCrateSha256, type: String},
+    {name: lean4ProdCommit, type: String},
+    {name: rustcVersion, type: String},
+    {name: wasmBindgenVersion, type: String},
+    {name: prismpmVersion, type: String},
+    {name: sdkImage, type: String},
+    {name: sdkVersion, type: String},
+    {name: snapshotId, type: String},
+    {name: modelSha256, type: String},
+    {name: sourceId, type: String},
+    {name: semanticId, type: String},
+    {name: compilerSemanticsId, type: String},
+    {name: leanManifestSha256, type: String},
+    {name: modules, type: (List ProofModule)},
+    {name: theorems, type: (List ProofTheorem)},
+    {name: replayExits, type: (List Nat)},
+    {name: attestationSha256, type: String},
+    {name: manifestSha256, type: String},
+    {name: timeVerified, type: String}
+  ]
+}
+
+inductive{
+  name: ProofOutput,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Statement, fields: [String]}, {name: Refused, fields: [String, String]}]
+}
+
+definition{
+  name: hexDigits,
+  parameters: [],
+  result: Bytes,
+  body: 0x30313233343536373839616263646566,
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: hexFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => true
+    | Nat.succ rest => (if (Foundation.Bindings.V1.Text::among (Foundation.Bindings.V1.Text::piece source index 1) (hexDigits) 16) then (hexFrom source (index + 1) rest) else false)),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: isHexOf,
+  parameters: [value : String, size : Nat],
+  result: Bool,
+  body: (if ((prim length (prim utf8_encode value : Bytes) : Nat) =? size) then (hexFrom (prim utf8_encode value : Bytes) 0 size) else false),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: digestRefusal,
+  parameters: [field : String, value : String, size : Nat],
+  result: (Option (String * String)),
+  body: (if (isHexOf value size) then (ctor Option.none [(String * String)]) else (ctor Option.some [(String * String)] ("proof.input", (Foundation.Bindings.V1.Text::concat (cons field (cons " is not " (cons (Foundation.Bindings.V1.Text::decimal size) (cons " lowercase hex characters" (nil String))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: octetBelow,
+  parameters: [octet : Bytes, bound : Bytes],
+  result: Bool,
+  body: (prim equal (prim compare_bytes octet bound : Ordering) (prim compare_bytes 0x00 0x01 : Ordering) : Bool),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: plainFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => true
+    | Nat.succ rest => (if (octetBelow (Foundation.Bindings.V1.Text::piece source index 1) 0x20) then false else (plainFrom source (index + 1) rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: isPlain,
+  parameters: [value : String],
+  result: Bool,
+  body: (if ((prim length (prim utf8_encode value : Bytes) : Nat) =? 0) then false else (plainFrom (prim utf8_encode value : Bytes) 0 (prim length (prim utf8_encode value : Bytes) : Nat))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: plainRefusal,
+  parameters: [values : (List String)],
+  result: (Option (String * String)),
+  body: (match values
+    | List.nil => (ctor Option.none [(String * String)])
+    | List.cons head rest => (if (isPlain head) then (plainRefusal rest) else (ctor Option.some [(String * String)] ("proof.input", (Foundation.Bindings.V1.Text::concat (cons "the text " (cons (Foundation.Bindings.V1.Text::doubleQuoted head) (cons " is empty or holds a control character" (nil String))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: values
+}
+
+definition{
+  name: theoremTexts,
+  parameters: [theorems : (List ProofTheorem)],
+  result: (List String),
+  body: (match theorems
+    | List.nil => (nil String)
+    | List.cons theorem rest => (cons (project theorem name) (cons (project theorem module) (cons (project theorem result) (cons (project theorem policyKind) (prim append (project theorem policyAxioms) (prim append (project theorem observed) (theoremTexts rest) : (List String)) : (List String))))))),
+  axioms: [],
+  executable: true,
+  recursive_argument: theorems
+}
+
+definition{
+  name: modulePaths,
+  parameters: [modules : (List ProofModule)],
+  result: (List String),
+  body: (match modules
+    | List.nil => (nil String)
+    | List.cons module rest => (cons (project module path) (modulePaths rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: modules
+}
+
+definition{
+  name: moduleFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: (Option Bytes),
+  body: (match remaining
+    | Nat.zero => (ctor Option.none [Bytes])
+    | Nat.succ rest => (if ((Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 5) 0x2e6c65616e) && (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source (index + 5) 1) 0x)) then (ctor Option.some [Bytes] 0x) else (if (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 1) 0x) then (ctor Option.none [Bytes]) else (match (moduleFrom source (index + 1) rest)
+      | Option.none => (ctor Option.none [Bytes])
+      | Option.some tail => (ctor Option.some [Bytes] (prim append (if (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 1) 0x2f) then 0x2e else (Foundation.Bindings.V1.Text::piece source index 1)) tail : Bytes)))))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: modulePrefix,
+  parameters: [],
+  result: Bytes,
+  body: 0x6c65786c65616e2f6275696c642f6d6f64756c65732f,
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: moduleName,
+  parameters: [path : String],
+  result: (Option String),
+  body: (let source : Bytes := (prim utf8_encode path : Bytes); (if (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source 0 22) (modulePrefix)) then (match (moduleFrom source 22 (prim length source : Nat))
+    | Option.none => (ctor Option.none [String])
+    | Option.some name => (if ((prim length name : Nat) =? 0) then (ctor Option.none [String]) else (prim utf8_decode name : (Option String)))) else (ctor Option.none [String]))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: moduleRefusal,
+  parameters: [modules : (List ProofModule)],
+  result: (Option (String * String)),
+  body: (match modules
+    | List.nil => (ctor Option.none [(String * String)])
+    | List.cons module rest => (match (moduleName (project module path))
+      | Option.none => (ctor Option.some [(String * String)] ("proof.input", (Foundation.Bindings.V1.Text::concat (cons (Foundation.Bindings.V1.Text::doubleQuoted (project module path)) (cons " is not a generated Lean module path, lexlean/build/modules/<module>.lean" (nil String))))))
+      | Option.some name => (Foundation.Bindings.V1.Text::either (digestRefusal (Foundation.Bindings.V1.Text::concat (cons "the SHA-256 of " (cons name (nil String)))) (project module sha256) 64) (moduleRefusal rest)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: modules
+}
+
+definition{
+  name: sdkDigestFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: (Option String),
+  body: (match remaining
+    | Nat.zero => (ctor Option.none [String])
+    | Nat.succ rest => (if ((Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 8) 0x407368613235363a) && ((Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source (index + 72) 1) 0x) && (hexFrom (Foundation.Bindings.V1.Text::piece source (index + 8) 64) 0 64))) then (prim utf8_decode (Foundation.Bindings.V1.Text::piece source (index + 8) 64) : (Option String)) else (sdkDigestFrom source (index + 1) rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: sdkDigest,
+  parameters: [image : String],
+  result: (Option String),
+  body: (if ((prim length (prim utf8_encode image : Bytes) : Nat) <? 73) then (ctor Option.none [String]) else (sdkDigestFrom (prim utf8_encode image : Bytes) 1 (prim length (prim utf8_encode image : Bytes) : Nat))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: sdkRefusal,
+  parameters: [image : String],
+  result: (Option (String * String)),
+  body: (match (sdkDigest image)
+    | Option.none => (ctor Option.some [(String * String)] ("proof.input", (Foundation.Bindings.V1.Text::concat (cons "the SDK image " (cons (Foundation.Bindings.V1.Text::doubleQuoted image) (cons " is not pinned as <repository>@sha256:<64 hex>" (nil String)))))))
+    | Option.some digest => (ctor Option.none [(String * String)])),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: theoremRefusal,
+  parameters: [theorems : (List ProofTheorem)],
+  result: (Option (String * String)),
+  body: (match theorems
+    | List.nil => (ctor Option.some [(String * String)] ("proof.theorems", "the model declares no theorem, and a proof statement that lists none claims nothing"))
+    | List.cons theorem rest => (ctor Option.none [(String * String)])),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: emptyModules,
+  parameters: [modules : (List ProofModule)],
+  result: (Option (String * String)),
+  body: (match modules
+    | List.nil => (ctor Option.some [(String * String)] ("proof.input", "the build lists no generated Lean module"))
+    | List.cons module rest => (ctor Option.none [(String * String)])),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: refusal,
+  parameters: [input : ProofInput],
+  result: (Option (String * String)),
+  body: (Foundation.Bindings.V1.Text::either (theoremRefusal (project input theorems)) (Foundation.Bindings.V1.Text::either (emptyModules (project input modules)) (Foundation.Bindings.V1.Text::either (plainRefusal (cons (project input subjectName) (cons (project input leanVersion) (cons (project input lexleanVersion) (cons (project input rustcVersion) (cons (project input wasmBindgenVersion) (cons (project input prismpmVersion) (cons (project input sdkImage) (cons (project input sdkVersion) (cons (project input timeVerified) (prim append (modulePaths (project input modules)) (theoremTexts (project input theorems)) : (List String)))))))))))) (Foundation.Bindings.V1.Text::either (sdkRefusal (project input sdkImage)) (Foundation.Bindings.V1.Text::either (moduleRefusal (project input modules)) (Foundation.Bindings.V1.Text::either (digestRefusal "subject.sha256" (project input subjectSha256) 64) (Foundation.Bindings.V1.Text::either (digestRefusal "verifier.lean.commit" (project input leanCommit) 40) (Foundation.Bindings.V1.Text::either (digestRefusal "verifier.lexlean.commit" (project input lexleanCommit) 40) (Foundation.Bindings.V1.Text::either (digestRefusal "verifier.lexlean.crateSha256" (project input lexleanCrateSha256) 64) (Foundation.Bindings.V1.Text::either (digestRefusal "the lean4-prod commit" (project input lean4ProdCommit) 40) (Foundation.Bindings.V1.Text::either (digestRefusal "model.snapshotId" (project input snapshotId) 64) (Foundation.Bindings.V1.Text::either (digestRefusal "model.document.sha256" (project input modelSha256) 64) (Foundation.Bindings.V1.Text::either (digestRefusal "model.sourceId" (project input sourceId) 64) (Foundation.Bindings.V1.Text::either (digestRefusal "model.semanticId" (project input semanticId) 64) (Foundation.Bindings.V1.Text::either (digestRefusal "model.compilerSemanticsId" (project input compilerSemanticsId) 64) (Foundation.Bindings.V1.Text::either (digestRefusal "model.leanManifestSha256" (project input leanManifestSha256) 64) (Foundation.Bindings.V1.Text::either (digestRefusal "evidence.lexleanAttestation.sha256" (project input attestationSha256) 64) (digestRefusal "evidence.verificationManifest.sha256" (project input manifestSha256) 64)))))))))))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: text,
+  parameters: [value : String],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::doubleQuoted value),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: member,
+  parameters: [key : String, value : String],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::concat (cons (text key) (cons ":" (cons value (nil String))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: object,
+  parameters: [members : (List String)],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::concat (cons "{" (cons (prim join members "," : String) (cons "}" (nil String))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: array,
+  parameters: [items : (List String)],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::concat (cons "[" (cons (prim join items "," : String) (cons "]" (nil String))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: texts,
+  parameters: [values : (List String)],
+  result: String,
+  body: (array (Foundation.Bindings.V1.Text::quotedAll values)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: sha256Of,
+  parameters: [digest : String],
+  result: String,
+  body: (object (cons (member "sha256" (text digest)) (nil String))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: allIn,
+  parameters: [values : (List String), allowed : (List String)],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons head rest => (if (Foundation.Bindings.V1.Text::memberText head allowed) then (allIn rest allowed) else false)),
+  axioms: [],
+  executable: true,
+  recursive_argument: values
+}
+
+definition{
+  name: isEmpty,
+  parameters: [values : (List String)],
+  result: Bool,
+  body: (match values | List.nil => true | List.cons head rest => false),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: withinPolicy,
+  parameters: [kind : String, allowed : (List String), observed : (List String)],
+  result: Bool,
+  body: (if (prim equal kind "none" : Bool) then (isEmpty observed) else (if (prim equal kind "allow" : Bool) then (allIn observed allowed) else (if (prim equal kind "exact" : Bool) then ((allIn observed allowed) && (allIn allowed observed)) else false))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: passed,
+  parameters: [theorem : ProofTheorem],
+  result: Bool,
+  body: ((prim equal (project theorem result) "ok" : Bool) && (withinPolicy (project theorem policyKind) (project theorem policyAxioms) (project theorem observed))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: verdict,
+  parameters: [ok : Bool],
+  result: String,
+  body: (if ok then "PASSED" else "FAILED"),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: allPassed,
+  parameters: [theorems : (List ProofTheorem)],
+  result: Bool,
+  body: (match theorems
+    | List.nil => true
+    | List.cons theorem rest => (if (passed theorem) then (allPassed rest) else false)),
+  axioms: [],
+  executable: true,
+  recursive_argument: theorems
+}
+
+definition{
+  name: replaysClean,
+  parameters: [exits : (List Nat)],
+  result: Bool,
+  body: (match exits
+    | List.nil => true
+    | List.cons code rest => (if (code =? 0) then (replaysClean rest) else false)),
+  axioms: [],
+  executable: true,
+  recursive_argument: exits
+}
+
+definition{
+  name: theoremJson,
+  parameters: [theorem : ProofTheorem],
+  result: String,
+  body: (object (cons (member "axioms" (object (cons (member "observed" (texts (project theorem observed))) (cons (member "policy" (object (cons (member "axioms" (texts (project theorem policyAxioms))) (cons (member "kind" (text (project theorem policyKind))) (nil String))))) (nil String))))) (cons (member "module" (text (project theorem module))) (cons (member "name" (text (project theorem name))) (cons (member "verdict" (text (verdict (passed theorem)))) (nil String)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: theoremsJson,
+  parameters: [theorems : (List ProofTheorem)],
+  result: (List String),
+  body: (match theorems
+    | List.nil => (nil String)
+    | List.cons theorem rest => (cons (theoremJson theorem) (theoremsJson rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: theorems
+}
+
+definition{
+  name: modulesJson,
+  parameters: [modules : (List ProofModule)],
+  result: (List String),
+  body: (match modules
+    | List.nil => (nil String)
+    | List.cons module rest => (cons (object (cons (member "leanSha256" (text (project module sha256))) (cons (member "name" (text (match (moduleName (project module path))
+      | Option.none => (project module path)
+      | Option.some name => name))) (nil String)))) (modulesJson rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: modules
+}
+
+definition{
+  name: tcbEntry,
+  parameters: [component : String, digest : (Option String), role : String, version : String],
+  result: String,
+  body: (object (cons (member "component" (text component)) (prim append (match digest
+    | Option.none => (nil String)
+    | Option.some value => (cons (member "digest" (text value)) (nil String))) (cons (member "role" (text role)) (cons (member "trust" (text "trusted")) (cons (member "version" (text version)) (nil String)))) : (List String)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: tcb,
+  parameters: [input : ProofInput],
+  result: String,
+  body: (let lean : String := (Foundation.Bindings.V1.Text::concat (cons "leanprover/lean4:v" (cons (project input leanVersion) (nil String)))); (array (cons (tcbEntry "lean4-kernel" (ctor Option.some [String] (project input leanCommit)) "type-checks every listed theorem; the verdict is its acceptance" lean) (cons (tcbEntry "leanchecker" (ctor Option.none [String]) "replays each module environment through the same kernel; not independent of it" lean) (cons (tcbEntry "lexlean" (ctor Option.some [String] (project input lexleanCrateSha256)) "translates .lex.tex into the Lean that was checked" (project input lexleanVersion)) (cons (tcbEntry "lean4-prod" (ctor Option.none [String]) "exports LCNF from the checked Lean and renders the Rust core" (project input lean4ProdCommit)) (cons (tcbEntry "rustc" (ctor Option.none [String]) "compiles the Rust core to the Core-Wasm guest, the subject" (project input rustcVersion)) (cons (tcbEntry "wasm-bindgen-cli" (ctor Option.none [String]) "generates the browser adapter around the guest; outside the subject" (project input wasmBindgenVersion)) (cons (tcbEntry "sdk-image" (sdkDigest (project input sdkImage)) "hosts every step above; pinned in prismpm.lock" (project input sdkVersion)) (nil String)))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: predicate,
+  parameters: [input : ProofInput],
+  result: String,
+  body: (object (cons (member "evidence" (object (cons (member "lexleanAttestation" (sha256Of (project input attestationSha256))) (cons (member "verificationManifest" (sha256Of (project input manifestSha256))) (nil String))))) (cons (member "model" (object (cons (member "compilerSemanticsId" (text (project input compilerSemanticsId))) (cons (member "document" (sha256Of (project input modelSha256))) (cons (member "leanManifestSha256" (text (project input leanManifestSha256))) (cons (member "modules" (array (modulesJson (project input modules)))) (cons (member "semanticId" (text (project input semanticId))) (cons (member "snapshotId" (text (project input snapshotId))) (cons (member "sourceId" (text (project input sourceId))) (nil String)))))))))) (cons (member "policy" (object (cons (member "digest" (sha256Of (project input snapshotId))) (cons (member "uri" (text "https://uor.foundation/prism/proof/v1/policy/axiom-audit")) (nil String))))) (cons (member "tcb" (tcb input)) (cons (member "theorems" (array (theoremsJson (project input theorems)))) (cons (member "timeVerified" (text (project input timeVerified))) (cons (member "verificationResult" (text (verdict ((allPassed (project input theorems)) && (replaysClean (project input replayExits)))))) (cons (member "verifiedLevels" (texts (cons "P2" (nil String)))) (cons (member "verifier" (object (cons (member "id" (text "https://uor.foundation/prism/verifier/lean4")) (cons (member "lean" (object (cons (member "commit" (text (project input leanCommit))) (cons (member "version" (text (Foundation.Bindings.V1.Text::concat (cons "v" (cons (project input leanVersion) (nil String)))))) (nil String))))) (cons (member "lexlean" (object (cons (member "commit" (text (project input lexleanCommit))) (cons (member "crateSha256" (text (project input lexleanCrateSha256))) (cons (member "version" (text (project input lexleanVersion))) (nil String)))))) (cons (member "prismpm" (object (cons (member "version" (text (project input prismpmVersion))) (nil String)))) (cons (member "sdkImage" (text (project input sdkImage))) (nil String)))))))) (nil String))))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: statement,
+  parameters: [input : ProofInput],
+  result: String,
+  body: (object (cons (member "_type" (text "https://in-toto.io/Statement/v1")) (cons (member "predicate" (predicate input)) (cons (member "predicateType" (text "https://uor.foundation/prism/proof/v1")) (cons (member "subject" (array (cons (object (cons (member "digest" (sha256Of (project input subjectSha256))) (cons (member "name" (text (project input subjectName))) (nil String)))) (nil String)))) (nil String)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: writeProofStatement,
+  parameters: [input : ProofInput],
+  result: ProofOutput,
+  body: (match (refusal input)
+    | Option.none => (ctor ProofOutput.Statement (statement input))
+    | Option.some reason => (ctor ProofOutput.Refused (first reason) (second reason))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  production: {effects: [allocation, overflow, recursion], targets: [rust-std]}
+}
+\end{semanticmodule}
+\end{lexlean}

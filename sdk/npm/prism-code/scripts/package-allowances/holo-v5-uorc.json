@@ -1,0 +1,4 @@
+{
+  "kib": 8,
+  "reason": "Reading holo v5, a UORC archive named by κ (ADR-017): src/uorc.mjs (about 6 KiB) and the vendored verifier's v5 reader."
+}

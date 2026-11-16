@@ -45,7 +45,7 @@ test('a flipped byte in the guest blob is reported as holo.integrity, twice: foo
   assert.equal(verdict.level, 'P0');
   assert.equal(verdict.passed, false);
   assert.notEqual(verdict.holo, `blake3:${ADR_015.footer}`);
-  assert.deepEqual(checks(verdict), ['holo.integrity', 'holo.integrity', ...STATEMENTS, 'policy.level']);
+  assert.deepEqual(checks(verdict), ['holo.integrity', 'holo.integrity', ...STATEMENTS, 'policy.integrity', 'policy.level']);
   assert.match(verdict.reasons[0].message, /^The footer 8408e089\w+ does not equal the BLAKE3 of the body, \w+: the archive was altered\.$/);
   assert.match(verdict.reasons[1].message, /^Section 4 is labelled blake3:2adca3e7\w+ but its content hashes to blake3:\w+\.$/);
   assert.equal(verdict.reasons[0].withholds, 'P1');
@@ -67,7 +67,7 @@ test('a resealed footer does not hide a changed blob: the label still fails', as
   reseal(bytes);
   const verdict = await verify(bytes);
   assertVerdict(verdict);
-  assert.deepEqual(checks(verdict), ['holo.integrity', ...STATEMENTS, 'policy.level']);
+  assert.deepEqual(checks(verdict), ['holo.integrity', ...STATEMENTS, 'policy.integrity', 'policy.level']);
   assert.match(verdict.reasons[0].message, /^Section 4 is labelled/);
 });
 
@@ -75,7 +75,7 @@ test('an intact archive with an inconsistent document reports the disagreement',
   const bytes = editExtension(reference(), MODEL_EXTENSION, (text) => text.replace(ADR_015.model.sha256, '0'.repeat(64)));
   const verdict = await verify(bytes);
   assertVerdict(verdict);
-  assert.deepEqual(checks(verdict), ['holo.integrity', ...STATEMENTS, 'policy.level']);
+  assert.deepEqual(checks(verdict), ['holo.integrity', ...STATEMENTS, 'policy.integrity', 'policy.level']);
   assert.match(verdict.reasons[0].message, /^The provenance model_id 0{64} differs from the model document's sha256 074921890f5c/);
 });
 
@@ -104,14 +104,15 @@ test('a wrong magic gives no verdict: VerifyError archive.magic', async () => {
   await assert.rejects(verify(version), (e) => e.code === 'archive.version');
 });
 
-test('an intact holo of an unknown format revision gives no verdict', async () => {
+test('an intact holo whose extension the Wire codec does not name gives no verdict', async () => {
   // Rename the model extension, keeping its length, and reseal: a newer writer.
+  // The codec admits only the names it models, so the table is unreadable.
   const bytes = reference();
   const row = table(bytes)[3];
   const name = new TextEncoder().encode(MODEL_EXTENSION.replace('/v1', '/v9'));
   bytes.set(name, row.offset + 2);
   reseal(bytes);
-  await assert.rejects(verify(bytes), (e) => e instanceof VerifyError && e.code === 'format.revision' && /matches no format revision/.test(e.message));
+  await assert.rejects(verify(bytes), (e) => e instanceof VerifyError && e.code === 'archive.table' && /prismpm-model\/v1 extension/.test(e.message));
 });
 
 test('pinned digests in both algorithms pass, and one wrong digest fails the policy, not the level', async () => {

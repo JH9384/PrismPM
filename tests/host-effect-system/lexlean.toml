@@ -1,13 +1,18 @@
 spec = "lexlean/project/1"
-name = "prism-calculator"
+name = "echo-server"
 language = "1.2"
-module_prefix = "PrismCalculator"
+module_prefix = "EchoServer"
 source_roots = ["src"]
-entrypoints = ["src/Release.lex.tex"]
+entrypoints = ["src/Core.lex.tex", "src/Release.lex.tex"]
 build_root = ".lexlean"
 lockfile = "lexlean.lock"
 lean_workspace = "."
 lean_toolchain = "leanprover/lean4:v4.32.1"
+
+[[lexicon_source]]
+package = "echo.server"
+kind = "path"
+path = "language/echo.server"
 
 [[lexicon_source]]
 package = "lexlean.std.bool"

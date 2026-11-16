@@ -57,15 +57,23 @@ test('the sample SDK fields are internally consistent', () => {
   }
 });
 
-test('the /3 schema is the /2 schema plus `inputs`', () => {
+test('the /3 schema is the /2 schema plus `inputs` and an optional `authoring`', () => {
   const v2 = schema(V2);
   const v3 = schema(V3);
-  assert.deepEqual(Object.keys(v3.properties).sort(), [...Object.keys(v2.properties), 'inputs'].sort());
+  assert.deepEqual(Object.keys(v3.properties).sort(), [...Object.keys(v2.properties), 'authoring', 'inputs'].sort());
   for (const [name, property] of Object.entries(v2.properties)) {
     if (name !== 'schema') assert.deepEqual(v3.properties[name], property, name);
   }
   assert.deepEqual(v3.required, [...v2.required, 'inputs'].sort());
   assert.equal(v3.additionalProperties, false);
+});
+
+test('the authoring record (#325) is closed, optional and absent from the /2 projection', () => {
+  const authoring = { agent: { adapter: 'anthropic', model: 'claude-opus-5-5' }, model_tree: { blake3: 'a'.repeat(64) }, spec: { blake3: 'b'.repeat(64) } };
+  assert.deepEqual(validate(schema(V3), { ...lock, authoring }), []);
+  assert.notDeepEqual(validate(schema(V3), { ...lock, authoring: { ...authoring, extra: 1 } }), []);
+  assert.notDeepEqual(validate(schema(V3), { ...lock, authoring: { ...authoring, spec: { blake3: 'short' } } }), []);
+  assert.notDeepEqual(validate(schema(V2), { ...projection(lock), authoring }), [], 'the /2 lock has no such member');
 });
 
 test('an existing /2 lock stays a valid /2 lock and is not a /3 lock', () => {

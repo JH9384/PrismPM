@@ -276,7 +276,10 @@ assert.equal(browser.version(), '157.0.8099.0');
 const context = await browser.newContext();
 const page = await context.newPage();
 const unexpected = [];
-const allowed = new Set(['/', '/index.html', '/app.css', '/app.js', '/favicon.ico', '/_hologram/intent']);
+// Closure v2 pages also fetch their brand fonts, icons and web app manifest.
+const allowed = new Set(['/', '/index.html', '/app.css', '/app.js', '/favicon.ico', '/_hologram/intent',
+  '/Archivo-SemiBold.woff2', '/Geist-Medium.woff2', '/Geist-Regular.woff2', '/Geist-SemiBold.woff2',
+  '/GeistMono-Regular.woff2', '/icon-512.png', '/icon.svg', '/manifest.webmanifest']);
 context.on('request', request => {
   const target = new URL(request.url());
   if (target.origin !== origin || !allowed.has(target.pathname) || target.search) unexpected.push(request.url());

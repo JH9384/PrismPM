@@ -64,7 +64,7 @@ function fileRow(row, path, captured, label) {
   assert.equal(row.sha256, sha(captured), label + ' byte digest');
 }
 function inspect(modules, {verified, sources, manifestBytes, attestationBytes, generated}) {
-  closed(verified, ['attestation_id', 'build_id', 'semantic_id', 'source_id', 'root', 'modules'], 'closed actual driver record');
+  closed(verified, ['attestation_id', 'build_id', 'semantic_id', 'source_id', 'root', 'modules', 'runtime'], 'closed actual driver record');
   assert.deepEqual(verified.modules, modules, 'driver exact module inventory');
   assert.ok(typeof verified.root === 'string' && verified.root.startsWith('/'), 'actual verified root');
   const source = capturedMap(sources, 'source', modules), lean = capturedMap(generated, 'generated Lean', modules);

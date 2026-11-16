@@ -212,7 +212,7 @@ fn acceptance_manifest(library: &ModelLibrary, enabled_std: bool) -> String {
     )
 }
 
-fn registry_cargo_home(
+pub(crate) fn registry_cargo_home(
     workspace: &Path,
     library: &ModelLibrary,
     archive: &[u8],
@@ -378,7 +378,7 @@ pub(crate) fn run(mut context: LibraryVerification<'_>) -> Result<VerifyResult, 
             })
         })
         .collect::<Vec<_>>();
-    let acceptance = crate::contracts::CanonicalDocument::from_value(
+    let acceptance = contract_from_value(
         "prismpm/library-acceptance/1",
         json!({
             "build_id":context.build.build_id,
@@ -396,56 +396,53 @@ pub(crate) fn run(mut context: LibraryVerification<'_>) -> Result<VerifyResult, 
     )?
     .bytes()
     .to_vec();
-    let manifest = crate::contracts::CanonicalDocument::from_value(
-        "prismpm/library-verification-manifest/2",
-        {
-            let owner = context.exporter_owner.finish()?;
-            let lex: Value = serde_json::from_slice(&lex_manifest)
-                .map_err(|error| PrismError::new("PP4004", error.to_string()))?;
-            let modules = lex["outputs"]
-                .as_array()
-                .expect("generated manifest outputs")
-                .iter()
-                .filter(|row| row["kind"] == "lean")
-                .map(|row| {
-                    row["path"]
-                        .as_str()
-                        .expect("generated Lean path")
-                        .strip_prefix("modules/")
-                        .expect("generated modules root")
-                        .strip_suffix(".lean")
-                        .expect("generated Lean extension")
-                        .replace('/', ".")
-                })
-                .collect::<BTreeSet<_>>();
-            let processes = serde_json::to_value(&context.processes)
-                .map_err(|error| PrismError::new("PP4004", error.to_string()))?;
-            crate::exporter::validate_owner_binding(
-                &owner,
-                &sha256(&context.model_bytes),
-                "library",
-                &lex_manifest,
-                &json!(bindings),
-                processes.as_array().expect("serialized process array"),
-                &crate::library_build::export_arguments(
-                    &modules,
-                    library,
-                    Path::new("$LIBRARY_WORK/export"),
-                ),
-            )?;
-            json!({
-                "acceptance_sha256":sha256(&acceptance),
-                "artifacts":bindings,
-                "build_id":context.build.build_id,
-                "exporter_owner":owner,
-                "lexlean_attestation_sha256":sha256(&context.lex_attestation),
-                "model_sha256":sha256(&context.model_bytes),
-                "processes":context.processes,
-                "schema":"prismpm/library-verification-manifest/2",
-                "scope":"native-library-only"
+    let manifest = contract_from_value("prismpm/library-verification-manifest/2", {
+        let owner = context.exporter_owner.finish()?;
+        let lex: Value = serde_json::from_slice(&lex_manifest)
+            .map_err(|error| PrismError::new("PP4004", error.to_string()))?;
+        let modules = lex["outputs"]
+            .as_array()
+            .expect("generated manifest outputs")
+            .iter()
+            .filter(|row| row["kind"] == "lean")
+            .map(|row| {
+                row["path"]
+                    .as_str()
+                    .expect("generated Lean path")
+                    .strip_prefix("modules/")
+                    .expect("generated modules root")
+                    .strip_suffix(".lean")
+                    .expect("generated Lean extension")
+                    .replace('/', ".")
             })
-        },
-    )?
+            .collect::<BTreeSet<_>>();
+        let processes = serde_json::to_value(&context.processes)
+            .map_err(|error| PrismError::new("PP4004", error.to_string()))?;
+        crate::exporter::validate_owner_binding(
+            &owner,
+            &sha256(&context.model_bytes),
+            "library",
+            &lex_manifest,
+            &json!(bindings),
+            processes.as_array().expect("serialized process array"),
+            &crate::library_build::export_arguments(
+                &modules,
+                library,
+                Path::new("$LIBRARY_WORK/export"),
+            ),
+        )?;
+        json!({
+            "acceptance_sha256":sha256(&acceptance),
+            "artifacts":bindings,
+            "build_id":context.build.build_id,
+            "exporter_owner":owner,
+            "lexlean_attestation_sha256":sha256(&context.lex_attestation),
+            "model_sha256":sha256(&context.model_bytes),
+            "processes":context.processes,
+            "schema":"prismpm/library-verification-manifest/2",
+            "scope":"native-library-only"
+        })
+    })?
     .bytes()
     .to_vec();
     let attestation_id = content_id(&manifest);
@@ -468,6 +465,85 @@ pub(crate) fn run(mut context: LibraryVerification<'_>) -> Result<VerifyResult, 
         build_id: context.build.build_id,
         verified_root: format!("{}/verified/{attestation_id}", context.config.build_root),
     })
+}
+
+/// The semantic checks of the native-library acceptance record and the
+/// verification manifest's exporter owner, which this module owns.
+const CONTRACT_CHECK: crate::contracts::OwnerCheck = crate::contracts::OwnerCheck {
+    owner: "library_verification",
+    check: check_contract,
+};
+
+fn check_contract(id: &str, value: &Value) -> Result<(), PrismError> {
+    match id {
+        "prismpm/library-acceptance/1" => crate::library_build::check_evidence_roots(id, value),
+        "prismpm/library-verification-manifest/2" => check_manifest_owner(value),
+        _ => Err(PrismError::new(
+            "PP9001",
+            format!("library_verification owns no semantic check for {id}"),
+        )),
+    }
+}
+
+fn check_manifest_owner(value: &Value) -> Result<(), PrismError> {
+    crate::exporter::validate_owner_record(
+        &value["exporter_owner"],
+        value["model_sha256"]
+            .as_str()
+            .expect("schema-validated model hash"),
+        "library",
+    )
+    .map_err(|error| PrismError::new("PP4004", error.message))?;
+    if value["exporter_owner"]["phases"][1]["artifacts"] != value["artifacts"] {
+        return Err(PrismError::new(
+            "PP4004",
+            "library owner products differ from the complete artifact bindings",
+        ));
+    }
+    let processes = crate::release_verification::process_records(&value["processes"], false)
+        .map_err(|error| PrismError::new("PP4004", error.message))?;
+    let replay = value["exporter_owner"]["phases"][1]["processes"]
+        .as_array()
+        .expect("validated owner replay");
+    if processes
+        .windows(replay.len())
+        .filter(|rows| *rows == replay.as_slice())
+        .count()
+        != 1
+        || processes
+            .get(1)
+            .is_none_or(|row| row["tool"] != "lake-version")
+        || value["exporter_owner"]["phases"]
+            .as_array()
+            .expect("validated phases")
+            .iter()
+            .any(|phase| {
+                phase["processes"][0]["executable_sha256"] != processes[1]["executable_sha256"]
+            })
+    {
+        return Err(PrismError::new(
+            "PP4004",
+            "library owner differs from original replay or native preflight",
+        ));
+    }
+    Ok(())
+}
+
+/// Validate a native-library acceptance record or verification manifest,
+/// including the rules this module owns.
+pub fn contract_from_value(
+    id: &'static str,
+    value: Value,
+) -> Result<crate::contracts::CanonicalDocument, PrismError> {
+    crate::contracts::CanonicalDocument::from_value_owned(id, value, CONTRACT_CHECK)
+}
+
+/// Validate exact canonical contract bytes, including the rules this module owns.
+pub fn parse_contract(
+    id: &'static str,
+    bytes: &[u8],
+) -> Result<crate::contracts::CanonicalDocument, PrismError> {
+    crate::contracts::CanonicalDocument::parse_owned(id, bytes, CONTRACT_CHECK)
 }
 
 #[cfg(test)]

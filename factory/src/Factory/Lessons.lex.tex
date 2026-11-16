@@ -1,0 +1,88 @@
+\begin{lexlean}{Factory.Lessons}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\importmodule{Factory.Registry}
+\title{Boolean}
+\begin{semanticmodule}
+definition{
+  name: featureA,
+  parameters: [],
+  result: Factory.Registry::Feature,
+  body: (record Factory.Registry::Feature {kappa := 10, key := 1, interface := 1, executable := true})
+}
+
+definition{
+  name: featureB,
+  parameters: [],
+  result: Factory.Registry::Feature,
+  body: (record Factory.Registry::Feature {kappa := 20, key := 2, interface := 2, executable := true})
+}
+
+definition{
+  name: editioned,
+  parameters: [],
+  result: Factory.Registry::Component,
+  body: (record Factory.Registry::Component {index := 1, name := "editioned library", owner := "upstream", holds := (cons 10 (nil Nat)), releases := (cons (record Factory.Registry::Release {version := (Factory.Registry::firstVersion), labels := (cons "1.0.0" (cons "1.1.0" (cons "1.2.0" (nil String)))), base := 0, features := (cons (featureA) (nil Factory.Registry::Feature))}) (nil Factory.Registry::Release))})
+}
+
+definition{
+  name: lineage,
+  parameters: [],
+  result: Factory.Registry::Component,
+  body: (record Factory.Registry::Component {index := 2, name := "forked library", owner := "upstream", holds := (cons 10 (cons 20 (nil Nat))), releases := (cons (record Factory.Registry::Release {version := (Factory.Registry::firstVersion), labels := (cons "1.0.0" (nil String)), base := 0, features := (cons (featureA) (nil Factory.Registry::Feature))}) (cons (record Factory.Registry::Release {version := (record Factory.Registry::Version {major := 1, minor := 1, patch := 0}), labels := (cons "1.1.0" (nil String)), base := 0, features := (cons (featureA) (cons (featureB) (nil Factory.Registry::Feature)))}) (nil Factory.Registry::Release)))})
+}
+
+definition{
+  name: components,
+  parameters: [],
+  result: (List Factory.Registry::Component),
+  body: (cons (editioned) (cons (lineage) (nil Factory.Registry::Component)))
+}
+
+definition{
+  name: vendoredCopy,
+  parameters: [],
+  result: Factory.Registry::Placement,
+  body: (record Factory.Registry::Placement {contributor := "downstream", unit := "vendored copy", component := 1, outcome := (ctor Factory.Registry::Outcome.contained), version := (Factory.Registry::firstVersion), features := (cons 10 (nil Nat))})
+}
+
+definition{
+  name: forkMerge,
+  parameters: [],
+  result: Factory.Registry::Placement,
+  body: (record Factory.Registry::Placement {contributor := "downstream", unit := "fork", component := 2, outcome := (ctor Factory.Registry::Outcome.merged), version := (record Factory.Registry::Version {major := 1, minor := 1, patch := 0}), features := (cons 20 (nil Nat))})
+}
+
+theorem{
+  name: anEditionIsALabelNotARelease,
+  parameters: [],
+  statement: (((((prim length (project (editioned) releases) : Nat) =? 1) && (Factory.Registry::sameVersion (Factory.Registry::labelled "1.1.0" (project (editioned) releases)) (Factory.Registry::labelled "1.2.0" (project (editioned) releases)))) && (Factory.Registry::sameVersion (Factory.Registry::labelled "1.0.0" (project (editioned) releases)) (Factory.Registry::firstVersion))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: aVendoredCopyIsAnUpstreamRelease,
+  parameters: [],
+  statement: ((Factory.Registry::placementHolds (vendoredCopy) (components)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: aForkMergesIntoItsLineage,
+  parameters: [],
+  statement: ((Factory.Registry::placementHolds (forkMerge) (components)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: anAddedFeatureIsAMinorRelease,
+  parameters: [],
+  statement: ((Factory.Registry::allVersionsComputed (components)) = true),
+  proof: decide{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

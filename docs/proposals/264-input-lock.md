@@ -117,7 +117,7 @@ Making that row dual belongs to #268, which owns the provenance format.
 The spec digest fingerprints what a human authored, as opposed to the model document, which is what the compiler produced.
 It is computed over a file set chosen by one rule.
 
-When `prism.toml` exists at the project root, `basis` is `prism-toml` and the set is `prism.toml` plus every regular file under `examples/`, `intent/` and `types/`, where those directories exist.
+When `prism.toml` exists at the project root, `basis` is `prism-toml` and the set is `prism.toml`, `intent.md`, and every regular file under `examples/` and `types/`, where those exist. #325 settled this set, replacing the `intent/` directory reserved here.
 Otherwise `basis` is `model-sources` and the set is the model's own sources: `prismpm.toml`, the LexLean project file it names, the LexLean lock that file names, and every `*.lex.tex` file under each LexLean source root that does not start with `.`.
 Source roots under `.prism/` hold SDK-installed standard library inputs; the SDK lock already binds those.
 
@@ -232,5 +232,5 @@ It was rejected because a lock that changes silently cannot serve as an attestat
 2. `prismpm build` is modeled as mutating `local-content-store`. With `--update` it also writes a project file. Does `model/commands.toml` need a separate mutation class for that?
 3. Should `prismpm lock update` gain an `sdk-lock-update/3` proposal that carries `inputs` forward, instead of proposing against the `/2` projection?
 4. The provenance row for the lock is sha256 only. #268 should decide whether rows become DigestSets, which needs every PrismPM verifier to accept two digests per row.
-5. The file set under `prism.toml` (`examples/`, `intent/`, `types/`) is reserved here before those formats exist. The intent-first authoring work should confirm or amend it.
+5. Settled by #325: the file set under `prism.toml` is `intent.md`, `examples/` and `types/` (`docs/proposals/325-authoring-front-door.md`).
 6. Should `prismpm check` also report a stale input lock? Today it stays read-only and silent on inputs.

@@ -8,7 +8,10 @@ name: npm conformance
 #
 # A runtime joins by adding its shim to sdk/npm/conformance/runtimes.json and a
 # step to the suite job that writes results/<name>.json; `matrix --check` refuses
-# a registered runtime with no results.
+# a registered runtime with no results. The Rust column (the DK-42 shim) is a
+# receipt keyed by the content identity of its inputs: the suite job builds the
+# shim only when no main push has measured those inputs. The unit tests that need
+# every registered runtime run there; the OS matrix skips those three.
 
 on:
   pull_request:
@@ -22,6 +25,12 @@ on:
       - sdk/npm/spec/schemas/verdict/**
       - sdk/npm/spec/test/json-schema.mjs
       - docs/adr/015-dual-digests.md
+      # The Rust runtime's shim and what it calls.
+      - crates/conformance/runtime/**
+      - crates/conformance/src/bin/prism-conformance-shim.rs
+      - crates/prismpm/src/inspect/**
+      - Cargo.lock
+      - rust-toolchain.toml
       - COMPLIANCE.md
       - .github/workflows/npm-conformance.yml
   push:
@@ -35,6 +44,12 @@ on:
       - sdk/npm/spec/schemas/verdict/**
       - sdk/npm/spec/test/json-schema.mjs
       - docs/adr/015-dual-digests.md
+      # The Rust runtime's shim and what it calls.
+      - crates/conformance/runtime/**
+      - crates/conformance/src/bin/prism-conformance-shim.rs
+      - crates/prismpm/src/inspect/**
+      - Cargo.lock
+      - rust-toolchain.toml
       - COMPLIANCE.md
       - .github/workflows/npm-conformance.yml
 
@@ -93,9 +108,13 @@ jobs:
           rm pack.json
 
   suite:
-    name: prism-code passes, and COMPLIANCE.md is current
+    name: prism-code and the Rust shim pass, and COMPLIANCE.md is current
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # To find and download the Rust receipt of an earlier main push.
+      actions: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -103,11 +122,60 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
+      # The Rust column is a Factory receipt: results/rust.json keyed by the content identity of everything that
+      # decides it (the git blob ids of the Rust sources, vendored crates, lockfile, toolchain pin, the suite and this
+      # workflow). A main push that measured the same identity left it as an artifact, so an unchanged Rust input
+      # set is never rebuilt. Only receipts from this repository's main pushes are trusted.
+      - name: Identify the Rust runtime's inputs
+        id: rust
+        shell: bash
+        run: |
+          set -euo pipefail
+          kappa=$(git ls-files -s -- crates vendor Cargo.toml Cargo.lock rust-toolchain.toml .cargo sdk/npm/conformance \
+            .github/workflows/npm-conformance.yml | sha256sum | cut -c1-64)
+          echo "receipt=conformance-rust-$kappa" >> "$GITHUB_OUTPUT"
+      - name: Reuse the receipt for those inputs
+        id: receipt
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ steps.rust.outputs.receipt }}
+        run: |
+          set -euo pipefail
+          mkdir -p target/conformance/results
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$NAME&per_page=20" --jq '[.artifacts[]
+            | select(.expired == false and .workflow_run.head_branch == "main"
+                and .workflow_run.head_repository_id == .workflow_run.repository_id)][0].workflow_run.id // empty')
+          if [ -n "$run" ] && gh run download "$run" -n "$NAME" -D target/conformance/results; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+            echo "Rust results reused from run $run ($NAME)"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+      # rust-toolchain.toml pins the toolchain; rustup installs it on first use.
+      - name: Build the Rust runtime's shim and run the suite against it
+        if: steps.receipt.outputs.hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --locked -p repo-conformance --bin prism-conformance-shim
+          node sdk/npm/conformance/bin/prism-conformance.mjs run --runtime rust \
+            --out target/conformance/results/rust.json | tee target/conformance/rust.txt
+      - name: Keep the Rust results as the receipt for those inputs
+        if: steps.receipt.outputs.hit != 'true' && github.event_name == 'push'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.rust.outputs.receipt }}
+          path: target/conformance/results/rust.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Unit tests that need every registered runtime
+        working-directory: sdk/npm/conformance
+        run: node --test test/matrix.test.mjs
       - name: Run the suite against the JavaScript runtime
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p target/conformance/results
           node sdk/npm/conformance/bin/prism-conformance.mjs run --runtime js \
             --out target/conformance/results/js.json | tee target/conformance/js.txt
       - name: Regenerate the matrix from those results
@@ -127,8 +195,10 @@ jobs:
           if [ -f target/conformance/COMPLIANCE.md ]; then
             sed -n '/^## Features/,/^## Checks/p' target/conformance/COMPLIANCE.md | sed '$d' >> "$GITHUB_STEP_SUMMARY"
           fi
-          if [ -f target/conformance/js.txt ]; then
-            tail -n 2 target/conformance/js.txt >> "$GITHUB_STEP_SUMMARY"
-          fi
+          for runtime in js rust; do
+            if [ -f "target/conformance/$runtime.txt" ]; then
+              tail -n 2 "target/conformance/$runtime.txt" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
       - name: The committed COMPLIANCE.md is the one the suite just generated
         run: node sdk/npm/conformance/bin/prism-conformance.mjs matrix --results target/conformance/results --check

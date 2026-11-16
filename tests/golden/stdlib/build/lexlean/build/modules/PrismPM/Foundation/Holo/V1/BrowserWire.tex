@@ -47,13 +47,13 @@
 \noindent Kind: \texttt{definition}.\par
 \noindent Parameters: \texttt{(body : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
-\noindent Definition: \texttt{(if ((Nat.ble (202) ((LexLeanRuntime.length (body) : Nat))) \&\& (PrismPM.Foundation.Holo.V1.Wire.wireWindowEquals (body) (0) (10) (ByteArray.mk \#[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]) \&\& true)) then (if PrismPM.Foundation.Holo.V1.Wire.wireRowsValid (body) (0) (202) (8) then browserWireBodyPayloadsValid (body) else false) else false)}.\par
+\noindent Definition: \texttt{(if PrismPM.Foundation.Holo.V1.Wire.validCanonicalArchiveBody (body) then (if ((Nat.ble (202) ((LexLeanRuntime.length (body) : Nat))) \&\& (PrismPM.Foundation.Holo.V1.Wire.wireWindowEquals (body) (0) (10) (ByteArray.mk \#[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]) \&\& true)) then (if PrismPM.Foundation.Holo.V1.Wire.wireRowsValid (body) (0) (202) (8) then browserWireBodyPayloadsValid (body) else false) else false) else false)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{browserArchiveBody}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Parameters: \texttt{(manifest : ByteArray) (metadata : ByteArray) (directory : ByteArray) (provenance : ByteArray) (blob0 : ByteArray) (blob1 : ByteArray) (blob2 : ByteArray) (blob3 : ByteArray)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
-\noindent Definition: \texttt{(if browserWirePayloadsValid (manifest) (blob0) (blob1) (blob2) (blob3) then Option.some (PrismPM.Foundation.Holo.V1.Wire.wireComposeBodyUnchecked (manifest) (metadata) ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (PrismPM.Foundation.Holo.V1.Wire.wireDirectoryPrefix) : ByteArray)) (directory) : ByteArray)) ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (browserWireProvenancePrefix) : ByteArray)) (provenance) : ByteArray)) (blob0) (blob1) (blob2) (blob3)) else Option.none)}.\par
+\noindent Definition: \texttt{(if browserWirePayloadsValid (manifest) (blob0) (blob1) (blob2) (blob3) then PrismPM.Foundation.Holo.V1.Wire.wireCheckedCanonicalBody (PrismPM.Foundation.Holo.V1.Wire.wireComposeBodyUnchecked (manifest) (metadata) ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (PrismPM.Foundation.Holo.V1.Wire.wireDirectoryPrefix) : ByteArray)) (directory) : ByteArray)) ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (browserWireProvenancePrefix) : ByteArray)) (provenance) : ByteArray)) (blob0) (blob1) (blob2) (blob3)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{browserFrameArchive}}
 \noindent Kind: \texttt{definition}.\par

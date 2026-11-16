@@ -1091,7 +1091,7 @@ test('diagnostics retain exact independently measured subjects and drivers incre
  assert.throws(()=>bundle.bytes('late',Buffer.alloc(0)));
  const matrixSource=read('scripts/portable-oracle-matrix.mjs');assert(matrixSource.includes("'scripts/portable-oracle-diagnostics.mjs'"));
  assert(matrixSource.indexOf('original_receipt_sha256')<matrixSource.indexOf('assert.ifError(result.error)'));
- for(const path of ['.github/workflows/vv.yml','.github/workflows/bootstrap.yml'])assert(read(path).includes('target/ci-diagnostics/'));
+ for(const path of ['.github/workflows/bootstrap.yml'])assert(read(path).includes('target/ci-diagnostics/'));
 });
 test('diagnostic custody rejects aliases, hard links, substituted hashes and unowned destinations without acceptance',t=>{
  const root=diagnosticRoot(t),source=join(root,'source');writeFileSync(source,'source');const bundle=new PortableDiagnosticBundle(root);

@@ -14,15 +14,17 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { parseArchive, resolveArchive } from '../../src/index.mjs';
-import { experimental_attest, signStatement } from '../../src/attest.mjs';
+import { experimental_attest } from '../../src/attest-write.mjs';
+import { signStatement } from '../../src/signing.mjs';
 import { appendAttestations } from '../../src/index.mjs';
 
 const here = (relative) => fileURLToPath(new URL(relative, import.meta.url));
 const out = here('../fixtures/signed');
 const bin = here('../../bin/prism-code.mjs');
 const read = (path) => new Uint8Array(readFileSync(path));
-const calculator = read(here('../../fixtures/Calculator.holo'));
-const paymentApproval = read(here('../../fixtures/PaymentApproval.holo'));
+// Holo v5 (ADR-017): only a v5 holo can be signed.
+const calculator = read(here('../../fixtures/Calculator.v5.holo'));
+const paymentApproval = read(here('../../fixtures/PaymentApproval.v5.holo'));
 const sample = JSON.parse(readFileSync(here('../../../spec/test/fixtures/attestation/statement/calculator.json'), 'utf8'));
 
 const pair = () => generateKeyPairSync('ec', { namedCurve: 'P-256' });
@@ -34,7 +36,7 @@ function proofPredicateFor(bytes) {
   const resolved = resolveArchive(parseArchive(bytes));
   const { provenance } = resolved;
   const predicate = structuredClone(sample.predicate);
-  predicate.model.document = { sha256: provenance.model_id, blake3: resolved.identities.modelKappa.slice('blake3:'.length) };
+  predicate.model.document = { sha256: provenance.model_id };
   Object.assign(predicate.model, { sourceId: provenance.source_id, semanticId: provenance.semantic_id, snapshotId: provenance.snapshot_id, compilerSemanticsId: provenance.compiler_semantics_id, leanManifestSha256: provenance.lean_manifest_sha256 });
   return predicate;
 }
@@ -57,7 +59,7 @@ write('PaymentApproval.mismatch.holo', appendAttestations(await signed(paymentAp
 
 // The signed Calculator with one byte of the guest changed, 100 bytes after its label, as the tests tamper it. Not kept.
 const damaged = read(join(out, 'Calculator.signed.holo'));
-const guest = parseArchive(damaged).blobs.find((b) => b.label === 'blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380');
+const guest = parseArchive(damaged).blobs.find((b) => b.label === 'sha256:dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03');
 damaged[guest.content.byteOffset + 100] ^= 0xff;
 write('tampered.tmp.holo', damaged);
 

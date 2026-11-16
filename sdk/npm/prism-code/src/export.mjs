@@ -1,5 +1,5 @@
 /**
- * `prism-code export` (issue #290): write the six-file browser export of a
+ * `prism-code export` (issue #290): write the browser export (closure v1 or v2) of a
  * locally verified release, or one tarball of it, with the holo's attestation
  * bundles beside it, the way buildx's `local` and `tar` exporters write
  * attestation files beside their output.
@@ -25,12 +25,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { closeSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, rmdirSync, writeSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { ExportMismatchError, PrismCodeError } from './errors.mjs';
-import { FIXED_FILES } from './closure.mjs';
+import { ExportMismatchError, fail } from './errors.mjs';
+import { closureProfiles } from './closure.mjs';
 import { canonicalJson } from './archive.mjs';
 import { attestationSection, readAttestations } from './attestations.mjs';
 
-export const EXPORT_SCHEMA = 'prismpm/browser-export/1';
+export const EXPORT_SCHEMA = 'prismpm/browser-export/2';
 export const BUILD_MANIFEST_SCHEMA = 'prismpm/build-manifest/1';
 export const RELEASE_ARTIFACT_TYPE = 'application/vnd.prismpm.product.release.v1+json';
 export const BROWSER_PREFIX = 'view/browser/';
@@ -48,8 +48,7 @@ const FILE_LIMIT = 64 * 1024 * 1024;
 const HOLO_LIMIT = 256 * 1024 * 1024;
 const BLOCK = 512;
 
-/** Refusals that are about evidence or paths, not bytes: `export.reference`, `export.release`, `export.directory`, `export.exists`, `export.unsafe`. */
-const refuse = (check, message, details) => new PrismCodeError(`export.${check}`, message, details);
+/** Refusals about evidence or paths, not bytes, are `fail('export.<check>')`: `reference`, `release`, `directory`, `exists`, `unsafe`. Byte differences are `ExportMismatchError`. */
 const mismatch = (check, message, details) => new ExportMismatchError(message, { check: `export.${check}`, details });
 
 export const digestOf = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
@@ -65,24 +64,24 @@ function regularFile(path, what) {
   try {
     stat = lstatSync(path);
   } catch (error) {
-    if (error.code === 'ENOENT') throw refuse('release', `${what} is absent`);
-    throw refuse('release', `${what}: ${error.code}`);
+    if (error.code === 'ENOENT') fail('export.release', `${what} is absent`);
+    fail('export.release', `${what}: ${error.code}`);
   }
-  if (stat.isSymbolicLink()) throw refuse('unsafe', `${what} is a link`);
-  if (!stat.isFile()) throw refuse('unsafe', `${what} is not a regular file`);
+  if (stat.isSymbolicLink()) fail('export.unsafe', `${what} is a link`);
+  if (!stat.isFile()) fail('export.unsafe', `${what} is not a regular file`);
   return stat;
 }
 
 function readBlob(store, digest, what, limit, size) {
-  if (!DIGEST.test(digest)) throw refuse('release', `${what} digest is not an immutable sha256 digest`);
+  if (!DIGEST.test(digest)) fail('export.release', `${what} digest is not an immutable sha256 digest`);
   const path = join(store, 'blobs/sha256', digest.slice('sha256:'.length));
   const stat = regularFile(path, `release blob ${what}`);
   if (stat.size > limit || (size !== undefined && stat.size !== size)) {
-    throw refuse('release', `release blob ${what} has an unexpected size`);
+    fail('export.release', `release blob ${what} has an unexpected size`);
   }
   const bytes = readFileSync(path);
   if (digestOf(bytes) !== digest || (size !== undefined && bytes.length !== size)) {
-    throw refuse('release', `release blob ${what} does not match its digest`);
+    fail('export.release', `release blob ${what} does not match its digest`);
   }
   return bytes;
 }
@@ -92,9 +91,9 @@ export function parseDocument(bytes, what) {
   try {
     value = JSON.parse(bytes.toString('utf8'));
   } catch {
-    throw refuse('release', `${what} is not JSON`);
+    fail('export.release', `${what} is not JSON`);
   }
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw refuse('release', `${what} is not an object`);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('export.release', `${what} is not an object`);
   return value;
 }
 
@@ -103,7 +102,7 @@ export function rowsByPath(rows, what) {
   const map = new Map();
   for (const row of rows) {
     if (!row || typeof row.path !== 'string' || map.has(row.path)) {
-      throw refuse('release', `${what} has an unnamed or duplicated file row`);
+      fail('export.release', `${what} has an unnamed or duplicated file row`);
     }
     map.set(row.path, row);
   }
@@ -118,19 +117,19 @@ export function rowsByPath(rows, what) {
  */
 export function openRelease(project, releaseDigest) {
   if (typeof releaseDigest !== 'string' || !DIGEST.test(releaseDigest)) {
-    throw refuse('release', 'release digest is not an immutable sha256 digest');
+    fail('export.release', 'release digest is not an immutable sha256 digest');
   }
   const store = join(project, '.prism/oci');
   regularFile(join(store, 'verified', `${releaseDigest.slice('sha256:'.length)}.json`), 'verified release state');
   const manifest = parseDocument(readBlob(store, releaseDigest, 'release manifest', RELEASE_LIMIT), 'release manifest');
   if (manifest.artifactType !== RELEASE_ARTIFACT_TYPE || !Array.isArray(manifest.layers)) {
-    throw refuse('release', 'release manifest is not a PrismPM product release');
+    fail('export.release', 'release manifest is not a PrismPM product release');
   }
   const layers = new Map();
   for (const layer of manifest.layers) {
     const title = layer?.annotations?.['org.opencontainers.image.title'];
     if (typeof title !== 'string' || layers.has(title) || !DIGEST.test(layer.digest) || !Number.isInteger(layer.size)) {
-      throw refuse('release', 'release manifest layer is untitled, duplicated or unbound');
+      fail('export.release', 'release manifest layer is untitled, duplicated or unbound');
     }
     layers.set(title, layer);
   }
@@ -158,17 +157,17 @@ function rowChecked(release, rows, title, limit = FILE_LIMIT) {
 }
 
 /**
- * The browser closure of an opened release: the six `view/browser/` files of
+ * The browser closure of an opened release: the exact closure v1 or v2 `view/browser/` files of
  * its build manifest, each read from its layer and checked against its row.
  * Returns the build manifest (bytes, document, rows) and the files sorted by
  * name, each `{ path, title, bytes, digest, size }`.
  */
 export function browserClosure(release) {
   const manifestBytes = release.layerBytes('manifest.json', DOCUMENT_LIMIT);
-  if (!manifestBytes) throw refuse('release', 'build manifest is absent');
+  if (!manifestBytes) fail('export.release', 'build manifest is absent');
   const manifest = parseDocument(manifestBytes, 'build manifest');
   if (manifest.schema !== BUILD_MANIFEST_SCHEMA || !Array.isArray(manifest.files)) {
-    throw refuse('release', 'build manifest is not a PrismPM build manifest');
+    fail('export.release', 'build manifest is not a PrismPM build manifest');
   }
   const rows = rowsByPath(manifest.files, 'build manifest');
   const names = [...rows.keys()]
@@ -177,12 +176,13 @@ export function browserClosure(release) {
     .sort();
   const wasm = names.filter((name) => name.endsWith('_bg.wasm'));
   const stem = wasm.length === 1 ? wasm[0].slice(0, -'_bg.wasm'.length) : null;
-  const profile = stem === null ? [] : [...FIXED_FILES, `${stem}.js`, `${stem}_bg.wasm`].sort();
-  if (stem === null || canonicalJson(names) !== canonicalJson(profile)) {
-    throw refuse('release', `build manifest browser rows are not the exact six-file profile: ${names.join(', ') || 'none'}`);
+  const profiles = stem === null ? {} : closureProfiles(stem);
+  const version = Object.keys(profiles).find((key) => canonicalJson(names) === canonicalJson(profiles[key]));
+  if (stem === null || version === undefined) {
+    fail('export.release', `build manifest browser rows are neither the six-file nor the closure v2 profile: ${names.join(', ') || 'none'}`);
   }
   const files = names.map((name) => {
-    if (!FILE_NAME.test(name)) throw refuse('unsafe', `browser file name ${name} is not portable`);
+    if (!FILE_NAME.test(name)) fail('export.unsafe', `browser file name ${name} is not portable`);
     const title = `${BROWSER_PREFIX}${name}`;
     return { path: name, title, ...rowChecked(release, rows, title) };
   });
@@ -194,20 +194,20 @@ function lstatOrNull(path) {
     return lstatSync(path);
   } catch (error) {
     if (error.code === 'ENOENT') return null;
-    throw refuse('directory', `${path}: ${error.code}`);
+    fail('export.directory', `${path}: ${error.code}`);
   }
 }
 
 /**
- * Check an exported directory against a browser closure: exactly the six
+ * Check an exported directory against a browser closure: exactly its closure v1 or v2
  * names, each a regular file whose bytes are the closure's. Returns the
  * `[{digest, path, size}]` rows of the directory.
  */
 export function checkDirectory(directory, closure) {
   const stat = lstatOrNull(directory);
-  if (!stat) throw refuse('directory', 'export directory is absent');
-  if (stat.isSymbolicLink()) throw refuse('unsafe', 'export directory is a link');
-  if (!stat.isDirectory()) throw refuse('unsafe', 'export directory is not a directory');
+  if (!stat) fail('export.directory', 'export directory is absent');
+  if (stat.isSymbolicLink()) fail('export.unsafe', 'export directory is a link');
+  if (!stat.isDirectory()) fail('export.unsafe', 'export directory is not a directory');
   const expected = closure.files.map((f) => f.path);
   const entries = readdirSync(directory).sort();
   if (canonicalJson(entries) !== canonicalJson(expected)) {
@@ -217,10 +217,10 @@ export function checkDirectory(directory, closure) {
     });
   }
   return closure.files.map((file) => {
-    if (!FILE_NAME.test(file.path)) throw refuse('unsafe', `exported file name ${file.path} is not portable`);
+    if (!FILE_NAME.test(file.path)) fail('export.unsafe', `exported file name ${file.path} is not portable`);
     const path = join(directory, file.path);
     const info = regularFile(path, `exported file ${file.path}`);
-    if (info.size > FILE_LIMIT) throw refuse('release', `exported file ${file.path} exceeds the browser file bound`);
+    if (info.size > FILE_LIMIT) fail('export.release', `exported file ${file.path} exceeds the browser file bound`);
     return written(file, readFileSync(path));
   });
 }
@@ -239,7 +239,7 @@ function written(file, bytes) {
 
 // ustar, deterministic: one regular file per entry in name order, mode 0644,
 // owner 0:0 with no names, mtime 0, then two zero blocks. No directory entry,
-// so the archive unpacks to the six files at its root, as a Pages artifact.
+// so the archive unpacks to the closure files at its root, as a Pages artifact.
 function octal(value, width) {
   return `${value.toString(8).padStart(width - 1, '0')}\0`;
 }
@@ -269,7 +269,7 @@ function tarHeader(name, size) {
 export function encodeTar(files) {
   const parts = [];
   for (const file of files) {
-    if (!FILE_NAME.test(file.path) || file.path.length > 100) throw refuse('unsafe', `tar entry ${file.path} is not portable`);
+    if (!FILE_NAME.test(file.path) || file.path.length > 100) fail('export.unsafe', `tar entry ${file.path} is not portable`);
     parts.push(tarHeader(file.path, file.bytes.length), Buffer.from(file.bytes));
     const pad = (BLOCK - (file.bytes.length % BLOCK)) % BLOCK;
     if (pad) parts.push(Buffer.alloc(pad));
@@ -284,27 +284,27 @@ export function decodeTar(bytes) {
   let at = 0;
   const field = (header, start, length) => header.subarray(start, start + length).toString('ascii').replace(/\0.*$/s, '');
   while (true) {
-    if (at + BLOCK > bytes.length) throw refuse('directory', 'tarball ends without its two zero blocks');
+    if (at + BLOCK > bytes.length) fail('export.directory', 'tarball ends without its two zero blocks');
     const header = bytes.subarray(at, at + BLOCK);
     if (header.every((b) => b === 0)) {
       if (at + 2 * BLOCK > bytes.length || !bytes.subarray(at + BLOCK, at + 2 * BLOCK).every((b) => b === 0)) {
-        throw refuse('directory', 'tarball ends without its two zero blocks');
+        fail('export.directory', 'tarball ends without its two zero blocks');
       }
-      if (bytes.subarray(at + 2 * BLOCK).some((b) => b !== 0)) throw refuse('directory', 'tarball has bytes after its end blocks');
+      if (bytes.subarray(at + 2 * BLOCK).some((b) => b !== 0)) fail('export.directory', 'tarball has bytes after its end blocks');
       return entries;
     }
     let sum = 0;
     for (let i = 0; i < BLOCK; i++) sum += i >= 148 && i < 156 ? 32 : header[i];
-    if (Number.parseInt(field(header, 148, 8).trim(), 8) !== sum) throw refuse('directory', `tar header at ${at} has a bad checksum`);
-    if (field(header, 257, 6) !== 'ustar') throw refuse('directory', `tar header at ${at} is not ustar`);
+    if (Number.parseInt(field(header, 148, 8).trim(), 8) !== sum) fail('export.directory', `tar header at ${at} has a bad checksum`);
+    if (field(header, 257, 6) !== 'ustar') fail('export.directory', `tar header at ${at} is not ustar`);
     const name = field(header, 0, 100);
     const type = field(header, 156, 1);
-    if ((type !== '0' && type !== '') || field(header, 345, 155) !== '') throw refuse('unsafe', `tar entry ${name} is not a plain regular file`);
-    if (!FILE_NAME.test(name)) throw refuse('unsafe', `tar entry ${name} is not a portable top-level name`);
+    if ((type !== '0' && type !== '') || field(header, 345, 155) !== '') fail('export.unsafe', `tar entry ${name} is not a plain regular file`);
+    if (!FILE_NAME.test(name)) fail('export.unsafe', `tar entry ${name} is not a portable top-level name`);
     const size = Number.parseInt(field(header, 124, 12).trim(), 8);
-    if (!Number.isSafeInteger(size) || size > FILE_LIMIT) throw refuse('directory', `tar entry ${name} has an unusable size`);
+    if (!Number.isSafeInteger(size) || size > FILE_LIMIT) fail('export.directory', `tar entry ${name} has an unusable size`);
     const start = at + BLOCK;
-    if (start + size > bytes.length) throw refuse('directory', `tar entry ${name} overruns the tarball`);
+    if (start + size > bytes.length) fail('export.directory', `tar entry ${name} overruns the tarball`);
     entries.push({ path: name, bytes: bytes.subarray(start, start + size) });
     at = start + Math.ceil(size / BLOCK) * BLOCK;
   }
@@ -328,7 +328,7 @@ export function checkTar(path, closure) {
 /** The one `.holo` of a release, checked against its build manifest row, or null. */
 function releaseHolo(release, rows) {
   const titles = [...rows.keys()].filter((path) => !path.includes('/') && path.endsWith('.holo'));
-  if (titles.length > 1) throw refuse('release', `build manifest names ${titles.length} holos: ${titles.join(', ')}`);
+  if (titles.length > 1) fail('export.release', `build manifest names ${titles.length} holos: ${titles.join(', ')}`);
   return titles.length === 0 ? null : { title: titles[0], ...rowChecked(release, rows, titles[0], HOLO_LIMIT) };
 }
 
@@ -345,7 +345,7 @@ function writeNew(path, bytes) {
 
 function absent(path, what) {
   const stat = lstatOrNull(path);
-  if (stat) throw refuse('exists', `${what} ${path} already exists; export never replaces a file or directory`);
+  if (stat) fail('export.exists', `${what} ${path} already exists; export never replaces a file or directory`);
 }
 
 /**
@@ -362,18 +362,18 @@ function absent(path, what) {
  */
 export function exportBrowser({ project = '.', reference, out, tar } = {}) {
   if (typeof reference !== 'string' || reference.length > 512 || !REFERENCE.test(reference)) {
-    throw refuse('reference', 'reference must be a registry-qualified immutable reference, NAME@sha256:DIGEST');
+    fail('export.reference', 'reference must be a registry-qualified immutable reference, NAME@sha256:DIGEST');
   }
-  if ((out === undefined) === (tar === undefined)) throw refuse('unsafe', 'give exactly one of out (a directory name) and tar (a <name>.tar file name)');
+  if ((out === undefined) === (tar === undefined)) fail('export.unsafe', 'give exactly one of out (a directory name) and tar (a <name>.tar file name)');
   const name = out ?? (typeof tar === 'string' && tar.endsWith('.tar') ? tar.slice(0, -'.tar'.length) : '');
   if (typeof name !== 'string' || !OUTPUT_NAME.test(name)) {
-    throw refuse('unsafe', out !== undefined
+    fail('export.unsafe', out !== undefined
       ? 'export output must be one new portable directory name in the project'
       : 'export tarball must be one new portable <name>.tar in the project');
   }
   const root = resolve(project);
   const rootStat = lstatOrNull(root);
-  if (!rootStat || rootStat.isSymbolicLink() || !rootStat.isDirectory()) throw refuse('unsafe', `project ${root} is not a directory`);
+  if (!rootStat || rootStat.isSymbolicLink() || !rootStat.isDirectory()) fail('export.unsafe', `project ${root} is not a directory`);
   const target = join(root, out ?? tar);
   const sidecar = join(root, `${name}${ATTESTATIONS_SUFFIX}`);
   absent(target, out !== undefined ? 'export directory' : 'export tarball');
@@ -382,7 +382,7 @@ export function exportBrowser({ project = '.', reference, out, tar } = {}) {
   const releaseDigest = reference.slice(reference.lastIndexOf('@') + 1);
   const release = openRelease(root, releaseDigest);
   const closure = browserClosure(release);
-  if (!closure.rows.has('model.prism.json')) throw refuse('release', 'build manifest names no model.prism.json');
+  if (!closure.rows.has('model.prism.json')) fail('export.release', 'build manifest names no model.prism.json');
   const model = rowChecked(release, closure.rows, 'model.prism.json', DOCUMENT_LIMIT);
   const holo = releaseHolo(release, closure.rows);
   const section = holo ? attestationSection(holo.bytes) : null;

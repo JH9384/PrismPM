@@ -6,7 +6,7 @@
 //! text, consult the environment or spawn processes. `crate::text_cli` composes
 //! it with the modeled grammar; the including program owns the failure type.
 
-/// Source of `reserve_input`, `bounded_read`, `open_failure` and `input`.
+/// Source of `reserve_input`, `bounded_read`, `open_failure`, `input` and `input_to`.
 pub(crate) const INPUT_ADAPTER: &str = include_str!("binary_cli/input.rs.in");
 
 #[cfg(test)]

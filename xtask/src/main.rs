@@ -10,11 +10,15 @@ use std::process::{Command, ExitCode, Output};
 use std::sync::OnceLock;
 
 mod audit;
+mod bindings;
 mod codegen;
+mod developer_view;
 mod formatting;
 mod gate_driver;
 mod gate_root;
 mod golden_preflight;
+mod image_store_rules;
+mod modules;
 mod source_copy;
 mod spec_links;
 mod stdlib;
@@ -140,11 +144,15 @@ fn main() -> ExitCode {
         "validate-model" => codegen::check_model(&root, write),
         "validate-spec-links" => spec_links::validate(&root),
         "validate-contract" => validate_contract(),
+        "check-modules" => modules::validate(&root),
+        "check-image-store-rules" => image_store_rules::check(&root, write),
+        "check-developer-view" => developer_view::validate(&root, write),
         "verify-examples" => verify_examples(&root, write),
         "check-golden" => check_golden(&root, write),
         "check-reproducibility" => check_reproducibility(&root),
         "check-fixtures" => check_fixtures(&root, write),
         "package-api" => package_api_check(&root),
+        "bindings-package" => bindings::run(&root, &std::env::args().skip(2).collect::<Vec<_>>()),
         "stdlib-package" => stdlib::run(&root, &std::env::args().skip(2).collect::<Vec<_>>()),
         "release-artifacts" => release_artifacts(&root),
         "release-check" => release_check(&root),
@@ -152,6 +160,7 @@ fn main() -> ExitCode {
         "conformance" => run_conformance(&root, &std::env::args().skip(2).collect::<Vec<_>>()),
         "unit-tests" => run_unit_tests(&root),
         "vv" => run_vv(&root),
+        "vv-part" => run_vv_part(&root, &std::env::args().skip(2).collect::<Vec<_>>()),
         _ => {
             eprintln!("Usage: cargo xtask <task>");
             return ExitCode::from(2);
@@ -283,6 +292,9 @@ fn run_unit_tests(root: &Path) -> Result<(), Fail> {
 fn validate_all(root: &Path, write: bool) -> Result<(), Fail> {
     codegen::check_model(root, write)?;
     spec_links::validate(root)?;
+    modules::validate(root)?;
+    image_store_rules::check(root, write)?;
+    developer_view::validate(root, write)?;
     audit_all(root)
 }
 
@@ -385,9 +397,12 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "scripts/refresh-osv.test.mjs",
             "scripts/qualify-osv.test.mjs",
             "scripts/ci-observe.test.mjs",
+            "scripts/ci-disk-components.test.mjs",
+            "scripts/vv-assemble.test.mjs",
             "scripts/ci-capacity.test.mjs",
             "scripts/vv-sdk-session.test.mjs",
             "scripts/reconcile-lexlean.test.mjs",
+            "scripts/hologram-design.test.mjs",
             "sdk/bootstrap/runner.test.mjs",
         ],
     )?;
@@ -706,6 +721,182 @@ fn run_vv(root: &Path) -> Result<(), Fail> {
     require_clean_worktree(root)?;
     let driver = gate_driver::GateDriver::capture(root)?;
 
+    run_vv_gates_1_to_5(root, &driver)?;
+
+    println!("VV gate 6/15: workspace unit and property tests");
+    driver.run_cargo(
+        root,
+        &[
+            "test",
+            "--workspace",
+            "--all-features",
+            "--locked",
+            "--offline",
+        ],
+    )?;
+
+    run_vv_gates_7_to_15(root)?;
+
+    require_clean_worktree(root)?;
+
+    let commit = vv_commit(root)?;
+    let evidence = serde_json::json!({
+        "commit": commit,
+        "gates": (1_u8..=15).collect::<Vec<_>>(),
+        "schema": "prismpm/vv-evidence/1",
+        "status": "passed"
+    });
+    std::fs::create_dir_all(root.join("target"))?;
+    std::fs::write(
+        root.join("target/vv-evidence.json"),
+        prismpm::holo::canonical::encode_value(&evidence)?,
+    )?;
+    println!("All 15 VV gates PASSED for commit {commit}.");
+    Ok(())
+}
+
+/// The separately run parts of `cargo xtask vv`. A complete pass outgrows both
+/// the 6 hour limit and the disk of one hosted CI job, so CI runs these on the
+/// same commit and `scripts/vv-assemble.mjs` requires all of them.
+///
+/// - `source`: gates 1 to 5, gate 6 without `repo-conformance`.
+/// - `gates`: gates 7 to 15.
+/// - The rest split gate 6 for `repo-conformance`, which keeps its owners' work
+///   on disk, by test name.
+const VV_CONFORMANCE_PARTS: [(&str, &[&str]); 5] = [
+    ("ho-oc", &["conformance_ho_", "conformance_oc_"]),
+    ("st-sy", &["conformance_st_", "conformance_sy_"]),
+    ("dk-0-1", &["conformance_dk_0", "conformance_dk_1"]),
+    ("dk-2", &["conformance_dk_2"]),
+    ("dk-3", &["conformance_dk_3", "conformance_dk_4"]),
+];
+
+/// Every registered conformance test must belong to exactly one named part, and
+/// every named part must select a test, or a rename could pass with no tests
+/// run. Tests matching none run in the `conformance` part, except DK owners.
+fn verify_vv_conformance_partition(source: &str) -> Result<(), Fail> {
+    let names: Vec<&str> = source
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("test_case!("))
+        .filter_map(|rest| rest.split(',').next())
+        .filter(|name| name.starts_with("conformance_"))
+        .collect();
+    if names.is_empty() {
+        return Err("no registered conformance tests found".into());
+    }
+    for name in &names {
+        let owners = VV_CONFORMANCE_PARTS
+            .iter()
+            .filter(|(_, filters)| filters.iter().any(|filter| name.starts_with(filter)))
+            .count();
+        if owners > 1 || (owners == 0 && name.starts_with("conformance_dk_")) {
+            return Err(format!("{name} is in {owners} V&V parts").into());
+        }
+    }
+    for (part, filters) in VV_CONFORMANCE_PARTS {
+        if !names
+            .iter()
+            .any(|name| filters.iter().any(|filter| name.starts_with(filter)))
+        {
+            return Err(format!("V&V part {part} selects no tests").into());
+        }
+    }
+    Ok(())
+}
+
+fn run_vv_part(root: &Path, arguments: &[String]) -> Result<(), Fail> {
+    let [part] = arguments else {
+        return Err("usage: cargo xtask vv-part <part>".into());
+    };
+    let named = VV_CONFORMANCE_PARTS
+        .iter()
+        .find(|(name, _)| name == part)
+        .map(|(_, filters)| *filters);
+    if named.is_none() && !["source", "gates", "conformance"].contains(&part.as_str()) {
+        return Err(format!("unknown V&V part: {part}").into());
+    }
+    verify_vv_conformance_partition(&std::fs::read_to_string(
+        root.join("crates/conformance/tests/conformance.rs"),
+    )?)?;
+    let evidence_path = root.join(format!("target/vv-part-{part}.json"));
+    match std::fs::remove_file(&evidence_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(format!("cannot invalidate prior part evidence: {error}").into()),
+    }
+    require_clean_worktree(root)?;
+    let driver = gate_driver::GateDriver::capture(root)?;
+    match part.as_str() {
+        "source" => {
+            run_vv_gates_1_to_5(root, &driver)?;
+            println!("VV gate 6/15: workspace unit and property tests without repo-conformance");
+            driver.run_cargo(
+                root,
+                &[
+                    "test",
+                    "--workspace",
+                    "--exclude",
+                    "repo-conformance",
+                    "--all-features",
+                    "--locked",
+                    "--offline",
+                ],
+            )?;
+        }
+        "gates" => run_vv_gates_7_to_15(root)?,
+        _ => {
+            println!("VV gate 6/15: repo-conformance part {part}");
+            let mut arguments = vec![
+                "test",
+                "--package",
+                "repo-conformance",
+                "--all-features",
+                "--locked",
+                "--offline",
+                "--",
+            ];
+            match named {
+                Some(filters) => arguments.extend_from_slice(filters),
+                None => {
+                    for (_, filters) in VV_CONFORMANCE_PARTS {
+                        for filter in filters {
+                            arguments.extend_from_slice(&["--skip", filter]);
+                        }
+                    }
+                }
+            }
+            driver.run_cargo(root, &arguments)?;
+        }
+    }
+    require_clean_worktree(root)?;
+    let commit = vv_commit(root)?;
+    let evidence = serde_json::json!({
+        "commit": commit,
+        "part": part,
+        "schema": "prismpm/vv-part/1",
+        "status": "passed"
+    });
+    std::fs::create_dir_all(root.join("target"))?;
+    std::fs::write(
+        evidence_path,
+        prismpm::holo::canonical::encode_value(&evidence)?,
+    )?;
+    println!("VV part {part} PASSED for commit {commit}.");
+    Ok(())
+}
+
+fn vv_commit(root: &Path) -> Result<String, Fail> {
+    let commit = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(root)
+        .output()?;
+    if !commit.status.success() {
+        return Err("cannot identify vv source commit".into());
+    }
+    Ok(String::from_utf8(commit.stdout)?.trim().to_owned())
+}
+
+fn run_vv_gates_1_to_5(root: &Path, driver: &gate_driver::GateDriver) -> Result<(), Fail> {
     println!("VV gate 1/15: formatting");
     for invocation in formatting::commands(root)? {
         command(root, invocation.program, &invocation.arguments)?;
@@ -773,23 +964,10 @@ fn run_vv(root: &Path) -> Result<(), Fail> {
             "warnings",
         ],
     )?;
+    Ok(())
+}
 
-    println!("VV gate 6/15: workspace unit and property tests");
-    driver.run_cargo(
-        root,
-        &[
-            "test",
-            "--workspace",
-            "--all-features",
-            "--locked",
-            "--offline",
-        ],
-    )?;
-
-    // Separate original standalone pairs are not implied by registered DK
-    // execution or by including their source files in an SDK inventory.
-    verify_standalone_browser_owners(root)?;
-
+fn run_vv_gates_7_to_15(root: &Path) -> Result<(), Fail> {
     println!("VV gate 7/15: feature, conformance, and negative fixtures");
     check_fixtures(root, false)?;
     command(
@@ -867,29 +1045,6 @@ fn run_vv(root: &Path) -> Result<(), Fail> {
 
     println!("VV gate 15/15: verified stdlib package, crate archives, and downstream public API");
     package_api_check(root)?;
-
-    require_clean_worktree(root)?;
-
-    let commit = Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .current_dir(root)
-        .output()?;
-    if !commit.status.success() {
-        return Err("cannot identify vv source commit".into());
-    }
-    let commit = String::from_utf8(commit.stdout)?.trim().to_owned();
-    let evidence = serde_json::json!({
-        "commit": commit,
-        "gates": (1_u8..=15).collect::<Vec<_>>(),
-        "schema": "prismpm/vv-evidence/1",
-        "status": "passed"
-    });
-    std::fs::create_dir_all(root.join("target"))?;
-    std::fs::write(
-        root.join("target/vv-evidence.json"),
-        prismpm::holo::canonical::encode_value(&evidence)?,
-    )?;
-    println!("All 15 VV gates PASSED for commit {commit}.");
     Ok(())
 }
 
@@ -1006,6 +1161,10 @@ fn application_outputs(
     for field in PROVENANCE_ACCEPTANCE_FIELDS {
         fields.remove(field);
     }
+    // `browser_timing` (#392) is a per-run measurement, not provenance and not
+    // acceptance: two verifications of the same application never agree on
+    // it. Verification compares the same projection (`comparable_acceptance`).
+    fields.remove("browser_timing");
     outputs.insert(
         "application-acceptance.json".to_owned(),
         serde_json::to_vec(&masked)?,
@@ -1044,7 +1203,7 @@ const COMMAND_LINE_TARGETS: [&str; 2] = ["aarch64-unknown-linux-musl", "x86_64-u
 /// languages; the 1.2 copy is `lexlean migrate --to 1.2` of the 1.1 example.
 /// The prism-code model is the first downstream language-1.2 project (#203).
 /// Payment Approval is the second reference archive, a text/1 application (#278).
-const EXAMPLES: [Example; 6] = [
+const EXAMPLES: [Example; 7] = [
     Example {
         name: "Calculator",
         project: "examples/Calculator",
@@ -1066,6 +1225,12 @@ const EXAMPLES: [Example; 6] = [
     Example {
         name: "Text Request",
         project: "tests/fixtures/holo/ho-11-text-application/project",
+        command_line: None,
+        same_outputs_as: None,
+    },
+    Example {
+        name: "Qualified Definitions",
+        project: "tests/fixtures/holo/ho-46-qualified-definitions/project",
         command_line: None,
         same_outputs_as: None,
     },
@@ -1888,8 +2053,12 @@ fn assemble_release(root: &Path, destination: &Path) -> Result<(), Fail> {
     )?
     .trim()
     .to_owned();
+    let version =
+        repo_model::release::workspace_version(&std::fs::read_to_string(root.join("Cargo.toml"))?)
+            .ok_or("Cargo.toml has no [workspace.package] version")?;
+    let prefix = format!("--prefix=PrismPM-{version}/");
     let archive = Command::new("git")
-        .args(["archive", "--format=tar", "--prefix=PrismPM-0.4.0/", "HEAD"])
+        .args(["archive", "--format=tar", &prefix, "HEAD"])
         .current_dir(root)
         .output()?;
     if !archive.status.success() {
@@ -1899,7 +2068,7 @@ fn assemble_release(root: &Path, destination: &Path) -> Result<(), Fail> {
         )
         .into());
     }
-    let source_name = "PrismPM-0.4.0-source.tar";
+    let source_name = &format!("PrismPM-{version}-source.tar");
     std::fs::write(destination.join(source_name), archive.stdout)?;
 
     let metadata = Command::new("cargo")
@@ -1965,11 +2134,11 @@ fn assemble_release(root: &Path, destination: &Path) -> Result<(), Fail> {
         "components": components,
         "source_commit": head,
         "spec": "prismpm/sbom/1",
-        "version": "0.4.0"
+        "version": version
     });
     let mut sbom_bytes = prismpm::holo::canonical::encode_value(&sbom)?;
     sbom_bytes.push(b'\n');
-    let sbom_name = "PrismPM-0.4.0-sbom.json";
+    let sbom_name = &format!("PrismPM-{version}-sbom.json");
     std::fs::write(destination.join(sbom_name), &sbom_bytes)?;
 
     let artifact_rows = [
@@ -1989,7 +2158,7 @@ fn assemble_release(root: &Path, destination: &Path) -> Result<(), Fail> {
         "artifacts": artifact_rows.iter().map(|(path, sha256)| serde_json::json!({"path": path, "sha256": sha256})).collect::<Vec<_>>(),
         "commit": head,
         "schema": "prismpm/release-manifest/1",
-        "version": "0.4.0"
+        "version": version
     });
     let mut manifest_bytes = prismpm::holo::canonical::encode_value(&manifest)?;
     manifest_bytes.push(b'\n');
@@ -2335,6 +2504,49 @@ mod command_tests {
             &["--input-type=module", "-e", "import assert from 'node:assert/strict'; import {run} from '../tests/browser-view/compile.mjs'; assert.equal(process.env.LD_LIBRARY_PATH, undefined); assert.equal(process.env.CARGO_NET_OFFLINE, 'true'); process.env.RUSTFLAGS='-C opt-level=0'; assert.throws(()=>run('cargo',['--version'],process.cwd()),/inherited compiler override refused: RUSTFLAGS/);"],
         )
         .unwrap();
+    }
+}
+
+#[cfg(test)]
+mod vv_part_tests {
+    use super::verify_vv_conformance_partition;
+
+    fn registered(ids: &[&str]) -> String {
+        ids.iter()
+            .map(|id| format!("test_case!(conformance_{id}, x);\n"))
+            .collect()
+    }
+
+    const ALL: [&str; 10] = [
+        "ho_01", "oc_01", "st_01", "sy_01", "rp_01", "dk_07", "dk_10", "dk_20", "dk_30", "dk_44",
+    ];
+
+    #[test]
+    fn every_conformance_test_belongs_to_one_part() {
+        verify_vv_conformance_partition(&registered(&ALL)).unwrap();
+    }
+
+    #[test]
+    fn a_dk_owner_outside_every_part_is_refused() {
+        let mut ids = ALL.to_vec();
+        ids.push("dk_90");
+        assert!(verify_vv_conformance_partition(&registered(&ids)).is_err());
+    }
+
+    #[test]
+    fn the_registered_conformance_tests_are_partitioned() {
+        let registry = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../crates/conformance/tests/conformance.rs"
+        );
+        verify_vv_conformance_partition(&std::fs::read_to_string(registry).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn a_part_selecting_no_tests_is_refused() {
+        let ids: Vec<&str> = ALL.iter().copied().filter(|id| *id != "dk_20").collect();
+        assert!(verify_vv_conformance_partition(&registered(&ids)).is_err());
+        assert!(verify_vv_conformance_partition("").is_err());
     }
 }
 

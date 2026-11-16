@@ -1,0 +1,405 @@
+\begin{lexlean}{Core}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\title{Prism dataflow project}
+\begin{semanticmodule}
+inductive{
+  name: NodeKind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Input, fields: []},
+    {name: Operator, fields: []},
+    {name: Encrypt, fields: []},
+    {name: Output, fields: []}
+  ]
+}
+
+structure{
+  name: Node,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: name, type: String}, {name: kind, type: NodeKind}, {name: memory, type: UInt64}]
+}
+
+structure{
+  name: Edge,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: source, type: String}, {name: target, type: String}]
+}
+
+structure{
+  name: Policies,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: memoryLimit, type: (Option UInt64)}, {name: piiEncryption, type: Bool}]
+}
+
+structure{
+  name: Project,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: policies, type: Policies},
+    {name: nodes, type: (List Node)},
+    {name: edges, type: (List Edge)},
+    {name: pii, type: (List String)}
+  ]
+}
+
+structure{
+  name: NodeList,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: items, type: (List Node)}]
+}
+
+structure{
+  name: EdgeList,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: items, type: (List Edge)}]
+}
+
+structure{
+  name: NameList,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: items, type: (List String)}]
+}
+
+inductive{
+  name: Violation,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: DuplicateNode, fields: []},
+    {name: UnknownNode, fields: []},
+    {name: SelfEdge, fields: []},
+    {name: DuplicateEdge, fields: []},
+    {name: OutputSource, fields: []},
+    {name: InputTarget, fields: []},
+    {name: NotAnInput, fields: []},
+    {name: DuplicatePii, fields: []},
+    {name: DuplicatePolicy, fields: []}
+  ]
+}
+
+inductive{
+  name: Admission,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Admit, fields: []}, {name: Refuse, fields: [Violation]}]
+}
+
+definition{
+  name: admits,
+  parameters: [admission : Admission],
+  result: Bool,
+  body: (match admission | Admission.Admit => true | Admission.Refuse violation => false)
+}
+
+definition{
+  name: gate,
+  parameters: [admission : Admission, candidate : Project],
+  result: (Result Project Violation),
+  body: (match admission
+    | Admission.Admit => (ctor Result.ok [Project, Violation] candidate)
+    | Admission.Refuse violation => (ctor Result.error [Project, Violation] violation))
+}
+
+definition{
+  name: admitted,
+  parameters: [outcome : (Result Project Violation)],
+  result: Bool,
+  body: match{
+    branches: [
+      {body: false, binders: [violation], constructor: Result.error},
+      {body: true, binders: [project], constructor: Result.ok}
+    ],
+    scrutinee: outcome
+  }
+}
+
+theorem{
+  name: gateAdmitsExactly,
+  parameters: [admission : Admission, candidate : Project],
+  statement: ((admitted (gate admission candidate)) = (admits admission)),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [], constructor: Admit},
+      {proof: reflexivity{}, binders: [violation], constructor: Refuse}
+    ],
+    scrutinee: admission
+  }
+}
+
+definition{
+  name: emptyProject,
+  parameters: [],
+  result: Project,
+  body: (record Project {policies := (record Policies {memoryLimit := (ctor Option.none [UInt64]), piiEncryption := false}), nodes := (nil Node), edges := (nil Edge), pii := (nil String)})
+}
+
+definition{
+  name: kindName,
+  parameters: [kind : NodeKind],
+  result: String,
+  body: (match kind
+    | NodeKind.Input => "input"
+    | NodeKind.Operator => "operator"
+    | NodeKind.Encrypt => "encrypt"
+    | NodeKind.Output => "output")
+}
+
+definition{
+  name: parseKind,
+  parameters: [text : String],
+  result: (Option NodeKind),
+  body: (if (prim equal text "input" : Bool) then (ctor Option.some [NodeKind] (ctor NodeKind.Input)) else (if (prim equal text "operator" : Bool) then (ctor Option.some [NodeKind] (ctor NodeKind.Operator)) else (if (prim equal text "encrypt" : Bool) then (ctor Option.some [NodeKind] (ctor NodeKind.Encrypt)) else (if (prim equal text "output" : Bool) then (ctor Option.some [NodeKind] (ctor NodeKind.Output)) else (ctor Option.none [NodeKind])))))
+}
+
+definition{
+  name: isInput,
+  parameters: [kind : NodeKind],
+  result: Bool,
+  body: (match kind
+    | NodeKind.Input => true
+    | NodeKind.Operator => false
+    | NodeKind.Encrypt => false
+    | NodeKind.Output => false)
+}
+
+definition{
+  name: isOperator,
+  parameters: [kind : NodeKind],
+  result: Bool,
+  body: (match kind
+    | NodeKind.Input => false
+    | NodeKind.Operator => true
+    | NodeKind.Encrypt => false
+    | NodeKind.Output => false)
+}
+
+definition{
+  name: isEncrypt,
+  parameters: [kind : NodeKind],
+  result: Bool,
+  body: (match kind
+    | NodeKind.Input => false
+    | NodeKind.Operator => false
+    | NodeKind.Encrypt => true
+    | NodeKind.Output => false)
+}
+
+definition{
+  name: isOutput,
+  parameters: [kind : NodeKind],
+  result: Bool,
+  body: (match kind
+    | NodeKind.Input => false
+    | NodeKind.Operator => false
+    | NodeKind.Encrypt => false
+    | NodeKind.Output => true)
+}
+
+definition{
+  name: findNode,
+  parameters: [nodes : (List Node), name : String],
+  result: (Option Node),
+  body: (match nodes
+    | List.nil => (ctor Option.none [Node])
+    | List.cons head rest => (if (prim equal (project head name) name : Bool) then (ctor Option.some [Node] head) else (findNode rest name))),
+  recursive_argument: nodes
+}
+
+definition{
+  name: hasNode,
+  parameters: [project : Project, name : String],
+  result: Bool,
+  body: (match (findNode (project var{name: project} nodes) name)
+    | Option.none => false
+    | Option.some node => true)
+}
+
+definition{
+  name: listsName,
+  parameters: [names : (List String), name : String],
+  result: Bool,
+  body: (match names
+    | List.nil => false
+    | List.cons head rest => (if (prim equal head name : Bool) then true else (listsName rest name))),
+  recursive_argument: names
+}
+
+definition{
+  name: hasEdge,
+  parameters: [edges : (List Edge), source : String, target : String],
+  result: Bool,
+  body: (match edges
+    | List.nil => false
+    | List.cons head rest => (if ((prim equal (project head source) source : Bool) && (prim equal (project head target) target : Bool)) then true else (hasEdge rest source target))),
+  recursive_argument: edges
+}
+
+definition{
+  name: precedes,
+  parameters: [left : String, right : String],
+  result: Bool,
+  body: (prim equal (prim compare_bytes (prim utf8_encode left : Bytes) (prim utf8_encode right : Bytes) : Ordering) (prim compare_bytes 0x 0x00 : Ordering) : Bool),
+  axioms: [propext]
+}
+
+definition{
+  name: edgePrecedes,
+  parameters: [left : Edge, right : Edge],
+  result: Bool,
+  body: ((precedes (project left source) (project right source)) || ((prim equal (project left source) (project right source) : Bool) && (precedes (project left target) (project right target)))),
+  axioms: [propext]
+}
+
+definition{
+  name: insertNode,
+  parameters: [item : Node, sorted : (List Node)],
+  result: NodeList,
+  body: (match sorted
+    | List.nil => (record NodeList {items := (cons item (nil Node))})
+    | List.cons head rest => (if (precedes (project item name) (project head name)) then (record NodeList {items := (cons item (cons head rest))}) else (record NodeList {items := (cons head (project (insertNode item rest) items))}))),
+  axioms: [propext],
+  recursive_argument: sorted
+}
+
+definition{
+  name: sortNodes,
+  parameters: [items : (List Node)],
+  result: NodeList,
+  body: (match items
+    | List.nil => (record NodeList {items := (nil Node)})
+    | List.cons head rest => (insertNode head (project (sortNodes rest) items))),
+  axioms: [propext],
+  recursive_argument: items
+}
+
+definition{
+  name: insertEdge,
+  parameters: [item : Edge, sorted : (List Edge)],
+  result: EdgeList,
+  body: (match sorted
+    | List.nil => (record EdgeList {items := (cons item (nil Edge))})
+    | List.cons head rest => (if (edgePrecedes item head) then (record EdgeList {items := (cons item (cons head rest))}) else (record EdgeList {items := (cons head (project (insertEdge item rest) items))}))),
+  axioms: [propext],
+  recursive_argument: sorted
+}
+
+definition{
+  name: sortEdges,
+  parameters: [items : (List Edge)],
+  result: EdgeList,
+  body: (match items
+    | List.nil => (record EdgeList {items := (nil Edge)})
+    | List.cons head rest => (insertEdge head (project (sortEdges rest) items))),
+  axioms: [propext],
+  recursive_argument: items
+}
+
+definition{
+  name: insertName,
+  parameters: [item : String, sorted : (List String)],
+  result: NameList,
+  body: (match sorted
+    | List.nil => (record NameList {items := (cons item (nil String))})
+    | List.cons head rest => (if (precedes item head) then (record NameList {items := (cons item (cons head rest))}) else (record NameList {items := (cons head (project (insertName item rest) items))}))),
+  axioms: [propext],
+  recursive_argument: sorted
+}
+
+definition{
+  name: sortNames,
+  parameters: [items : (List String)],
+  result: NameList,
+  body: (match items
+    | List.nil => (record NameList {items := (nil String)})
+    | List.cons head rest => (insertName head (project (sortNames rest) items))),
+  axioms: [propext],
+  recursive_argument: items
+}
+
+definition{
+  name: nodeLine,
+  parameters: [node : Node],
+  result: String,
+  body: (prim join (cons "node" (cons (project node name) (cons (kindName (project node kind)) (cons (prim format_decimal (project node memory) : String) (nil String))))) " " : String),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: edgeLine,
+  parameters: [edge : Edge],
+  result: String,
+  body: (prim join (cons "edge" (cons (project edge source) (cons (project edge target) (nil String)))) " " : String),
+  axioms: [propext]
+}
+
+definition{
+  name: piiLine,
+  parameters: [name : String],
+  result: String,
+  body: (prim join (cons "pii" (cons name (nil String))) " " : String),
+  axioms: [propext]
+}
+
+definition{
+  name: nodesText,
+  parameters: [items : (List Node)],
+  result: String,
+  body: (match items
+    | List.nil => ""
+    | List.cons head rest => (prim join (cons "\n" (cons (nodeLine head) (cons (nodesText rest) (nil String)))) "" : String)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  recursive_argument: items
+}
+
+definition{
+  name: edgesText,
+  parameters: [items : (List Edge)],
+  result: String,
+  body: (match items
+    | List.nil => ""
+    | List.cons head rest => (prim join (cons "\n" (cons (edgeLine head) (cons (edgesText rest) (nil String)))) "" : String)),
+  axioms: [propext],
+  recursive_argument: items
+}
+
+definition{
+  name: namesText,
+  parameters: [items : (List String)],
+  result: String,
+  body: (match items
+    | List.nil => ""
+    | List.cons head rest => (prim join (cons "\n" (cons (piiLine head) (cons (namesText rest) (nil String)))) "" : String)),
+  axioms: [propext],
+  recursive_argument: items
+}
+
+definition{
+  name: policyText,
+  parameters: [policies : Policies],
+  result: String,
+  body: (prim join (cons (match (project policies memoryLimit)
+    | Option.none => ""
+    | Option.some limit => (prim join (cons "\n" (cons (prim join (cons "policy" (cons "memory" (cons (prim format_decimal limit : String) (nil String)))) " " : String) (nil String))) "" : String)) (cons (if (project policies piiEncryption) then "\npolicy encrypt-pii" else "") (nil String))) "" : String),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: canonicalText,
+  parameters: [project : Project],
+  result: String,
+  body: (prim join (cons "\ndataflow-policy/1" (cons (policyText (project var{name: project} policies)) (cons (nodesText (project (sortNodes (project var{name: project} nodes)) items)) (cons (namesText (project (sortNames (project var{name: project} pii)) items)) (cons (edgesText (project (sortEdges (project var{name: project} edges)) items)) (nil String)))))) "" : String),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+\end{semanticmodule}
+\end{lexlean}

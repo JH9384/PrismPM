@@ -155,6 +155,16 @@
       "archive": "reference",
       "input": { "policy": { "effects": ["teleport"] } },
       "expect": { "ok": false, "error": { "code": "verification_failed", "check": "policy.invalid" } }
+    },
+    {
+      "id": "world.session.loaded",
+      "title": "A guest of the session world hologram:guest/core-wasm@2 loads as that world: pure and within an empty grant, because it imports nothing (#629).",
+      "op": "load",
+      "archive": "session-world",
+      "expect": {
+        "ok": true,
+        "result": { "world": { "contract": "hologram:guest/core-wasm@2", "within": true, "pure": true, "effects": [] } }
+      }
     }
   ]
 }

@@ -324,8 +324,7 @@ pub(crate) fn validate_acquisition_authority(
             "exporter receipt differs from independent SDK authority",
         )
     };
-    let lock =
-        crate::contracts::CanonicalDocument::from_value("prismpm/sdk-lock/2", sdk_lock.clone())?;
+    let lock = crate::sdk::contract_from_value("prismpm/sdk-lock/2", sdk_lock.clone())?;
     let row = lock.value()["platforms"]
         .as_array()
         .and_then(|rows| rows.iter().find(|row| row["platform"] == value["platform"]))

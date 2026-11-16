@@ -1,0 +1,29 @@
+// The Core-Wasm session contract `hologram:guest/core-wasm@2` (issue #629).
+//
+// The guest is an import-free wasm32 core module, not a component. It exports
+// exactly three items: `memory`, `holo_alloc` and `holo_step`. WIT cannot name
+// an exported memory, so `memory` is stated here and not declared below.
+//
+// WIT names are kebab-case. `holo-alloc` names the core export `holo_alloc`
+// and `holo-step` names `holo_step`. In the canonical ABI, u32 lowers to i32
+// and u64 lowers to i64, so the core signatures are exactly:
+//
+//   holo_alloc: (i32) -> i32
+//   holo_step:  (i32, i32) -> i64
+//
+// One instance is one session. Its state starts empty, stays inside the
+// instance and is never read or written by the host. A host writes a request
+// at the offset `holo-alloc` returns, then calls `holo-step` with that offset.
+// The result packs the location of the step's responses as
+// `offset << 32 | length`; they are a big-endian u32 count followed by that
+// many big-endian u32 lengths, each followed by its bytes. `holo-alloc`
+// discards the previous step's responses. A trap ends the session.
+package hologram:guest@2.0.0;
+
+world core-wasm {
+  /// Reserve `length` bytes for the next request and return their offset. Discards the previous step's responses.
+  export holo-alloc: func(length: u32) -> u32;
+
+  /// Take one session step over the request at `offset` with `length` bytes. Returns `offset << 32 | length` of the responses.
+  export holo-step: func(offset: u32, length: u32) -> u64;
+}

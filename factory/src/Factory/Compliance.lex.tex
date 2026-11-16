@@ -1,0 +1,124 @@
+\begin{lexlean}{Factory.Compliance}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\importmodule{Factory.Registry}
+\title{Boolean}
+\begin{semanticmodule}
+definition{
+  name: baseStandards,
+  parameters: [],
+  result: (List String),
+  body: (cons "ISO-42010-2022" (cons "ISO-27034-1-2011" (cons "ISO-27034-5-2017" (cons "ISO-27005-2022" (cons "ISO-25010-2023" (cons "ISO-19450-2015" (cons "OMG-UML-2-5-1" (nil String))))))))
+}
+
+theorem{
+  name: theBaseSetIsPrismPMsSeven,
+  parameters: [],
+  statement: (((prim length (baseStandards) : Nat) =? 7) = true),
+  proof: decide{},
+  axioms: []
+}
+
+structure{
+  name: Framework,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: obligations, type: (List String)}]
+}
+
+structure{
+  name: Rule,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: characteristic, type: String}, {name: framework, type: String}]
+}
+
+structure{
+  name: Concept,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: characteristics, type: (List String)},
+    {name: receipts, type: (List String)},
+    {name: realizedBy, type: String}
+  ]
+}
+
+definition{
+  name: applicable,
+  parameters: [characteristics : (List String), rules : (List Rule)],
+  result: (List String),
+  body: (match rules
+    | List.nil => (nil String)
+    | List.cons head tail => (if (Factory.Registry::memberString (project head characteristic) characteristics) then (cons (project head framework) (applicable characteristics tail)) else (applicable characteristics tail))),
+  axioms: [],
+  recursive_argument: rules
+}
+
+definition{
+  name: obligationsOf,
+  parameters: [ids : (List String), frameworks : (List Framework)],
+  result: (List String),
+  body: (match frameworks
+    | List.nil => (nil String)
+    | List.cons head tail => (if (Factory.Registry::memberString (project head id) ids) then (prim append (project head obligations) (obligationsOf ids tail) : (List String)) else (obligationsOf ids tail))),
+  axioms: [],
+  recursive_argument: frameworks
+}
+
+definition{
+  name: compliant,
+  parameters: [concept : Concept, rules : (List Rule), frameworks : (List Framework)],
+  result: Bool,
+  body: (match (Factory.Registry::unreceipted (obligationsOf (applicable (project concept characteristics) rules) frameworks) (project concept receipts))
+    | List.nil => true
+    | List.cons head tail => false)
+}
+
+definition{
+  name: exampleRules,
+  parameters: [],
+  result: (List Rule),
+  body: (cons (record Rule {characteristic := "physical part", framework := "dimensional tolerance framework"}) (cons (record Rule {characteristic := "consumer product", framework := "material safety framework"}) (cons (record Rule {characteristic := "software", framework := "software verification framework"}) (nil Rule))))
+}
+
+definition{
+  name: exampleFrameworks,
+  parameters: [],
+  result: (List Framework),
+  body: (cons (record Framework {id := "dimensional tolerance framework", obligations := (cons "tolerance inspection" (nil String))}) (cons (record Framework {id := "material safety framework", obligations := (cons "material certificate" (cons "conformity declaration" (nil String)))}) (cons (record Framework {id := "software verification framework", obligations := (cons "kernel receipt" (nil String))}) (nil Framework))))
+}
+
+definition{
+  name: threeDimensionalObject,
+  parameters: [receipts : (List String)],
+  result: Concept,
+  body: (record Concept {name := "3-D object", characteristics := (cons "physical part" (cons "consumer product" (nil String))), receipts := receipts, realizedBy := "Blender"})
+}
+
+theorem{
+  name: aThreeDimensionalObjectImportsOnlyItsFrameworks,
+  parameters: [],
+  statement: (((prim length (applicable (project (threeDimensionalObject (nil String)) characteristics) (exampleRules)) : Nat) =? 2) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: everyAttachmentPresentMeansCompliant,
+  parameters: [],
+  statement: ((compliant (threeDimensionalObject (cons "conformity declaration" (cons "material certificate" (cons "tolerance inspection" (nil String))))) (exampleRules) (exampleFrameworks)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: aMissingAttachmentMeansNotCompliant,
+  parameters: [],
+  statement: ((compliant (threeDimensionalObject (cons "tolerance inspection" (nil String))) (exampleRules) (exampleFrameworks)) = false),
+  proof: decide{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

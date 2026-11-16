@@ -169,7 +169,7 @@ test('prism-doctor is a valid plugin and its hook explains a missing lockfile or
   const file = discover({ env }).get('doctor');
   const { metadata } = readMetadata(file, { env });
   assert.equal(metadata.vendor, 'UOR Foundation');
-  assert.deepEqual(metadata.errorHooks, ['check', 'build', 'verify', 'conformance', 'export-browser']);
+  assert.deepEqual(metadata.errorHooks, ['check', 'build', 'verify', 'axioms', 'conformance', 'export-browser']);
   const hook = (call) => JSON.parse(spawnSync(process.execPath, [doctor, 'prism-cli-plugin-hooks'], { input: JSON.stringify(call), encoding: 'utf8' }).stdout).messages;
   assert.equal(hook({ command: 'build', exitCode: 69 }).length, 1);
   assert.deepEqual(hook({ command: 'check', exitCode: 1 }), []);
@@ -184,4 +184,43 @@ test('prism-doctor is a valid plugin and its hook explains a missing lockfile or
   assert.match(report.out, /^ok {4}node \d+/m);
   assert.match(report.out, /^warn {2}no prismpm\.lock here/m);
   assert.equal(run(['doctor', 'extra'], env, { cwd: empty }).code, 64);
+});
+
+// A docker stand-in: answers `version` with a version, or exits 1 when told to.
+const FAKE_DOCKER = `
+if (process.argv.includes('version')) {
+  if (process.env.FAKE_DOCKER_DOWN) process.exit(1);
+  process.stdout.write('29.1.3');
+}
+`;
+
+/** Run prism-doctor alone in an empty directory, with this PRISM_HOME and no PRISM_DOCKER. */
+function doctorIn(home, extra = {}) {
+  const env = withPath([], { PRISM_HOME: home, ...extra });
+  delete env.PRISM_DOCKER;
+  delete env.PRISM_DOCKER_MOUNT;
+  const result = spawnSync(process.execPath, [doctor], { encoding: 'utf8', env, cwd: mkdtempSync(join(tmpdir(), 'prism-doctor-')) });
+  return { code: result.status, out: result.stdout };
+}
+
+test('prism-doctor finds Docker where setup recorded it, inside WSL included', () => {
+  const home = mkdtempSync(join(tmpdir(), 'prism-home-'));
+  const fake = join(home, 'fake-docker.cjs');
+  writeFileSync(fake, FAKE_DOCKER);
+  // What setup writes on Windows without Docker Desktop: the program, its arguments, the mount style.
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ docker: { command: process.execPath, args: [fake, '-d', 'Ubuntu', '--', 'docker'], mount: 'wsl' } }));
+  const found = doctorIn(home);
+  assert.match(found.out, /^ok {4}docker 29\.1\.3 inside WSL Ubuntu, host paths mounted under \/mnt, as setup recorded it$/m);
+  assert.doesNotMatch(found.out, /not on the PATH/);
+
+  // A record is not proof: a daemon that does not answer is a failure, and says what was asked.
+  const down = doctorIn(home, { FAKE_DOCKER_DOWN: '1' });
+  assert.equal(down.code, 1);
+  assert.match(down.out, /^fail {2}\S+ \S+fake-docker\.cjs -d Ubuntu -- docker did not answer docker version; start Docker$/m);
+});
+
+test('prism-doctor with no record and no Docker points at setup', () => {
+  const report = doctorIn(mkdtempSync(join(tmpdir(), 'prism-home-')));
+  assert.equal(report.code, 1);
+  assert.match(report.out, /^fail {2}docker is not on the PATH.*Run `npx prism-code@latest setup` to find and record it$/m);
 });

@@ -214,7 +214,8 @@ fn component_links(
         .as_object()
         .ok_or("input map absent")?
         .keys()
-        .filter(|path| path.ends_with(".lex.tex"))
+        // The captured compiler closure also holds LexLean's own vendored runtime sources.
+        .filter(|path| path.ends_with(".lex.tex") && !path.starts_with("vendor/"))
         .cloned()
         .collect::<std::collections::BTreeSet<_>>();
     profile_check(module_paths == captured_sources, "module input closure")?;

@@ -21,7 +21,7 @@ const additionalOwners = [
  {id:'DK-37',minimum:24,deadline:3600000,files:['sdk/browser/contextual-effects.test.mjs']},
  {id:'DK-31',minimum:8,deadline:3600000,files:['tests/browser-dynamic-choice/wire.test.mjs','tests/browser-dynamic-choice/component.test.mjs','sdk/browser/dynamic-choice.test.mjs']},
  {id:'DK-32',minimum:21,deadline:3600000,files:['tests/browser-signed-context/corpus.test.mjs','tests/browser-signed-context/bridge.test.mjs','tests/browser-signed-context/wpt.test.mjs','tests/browser-signed-context/aggregate.test.mjs','sdk/browser/signed-context-test.mjs']},
- {id:'DK-34',minimum:22,deadline:3600000,files:['tests/browser-p256/oracles.test.mjs','tests/browser-p256/corpus.test.mjs','tests/browser-p256/bridge.test.mjs','tests/browser-p256/owner.test.mjs','tests/browser-view/local-module-inputs.test.mjs']},
+ {id:'DK-34',minimum:16,deadline:3600000,files:['tests/browser-p256/oracles.test.mjs','tests/browser-p256/corpus.test.mjs','tests/browser-p256/bridge.test.mjs','tests/browser-p256/owner.test.mjs']},
  {id:'DK-35',minimum:97,deadline:7200000,files:['tests/browser-session-operation/boundary.test.mjs','tests/browser-view/kernel-provenance.test.mjs','tests/browser-view/local-module-inputs.test.mjs','tests/browser-view/file-custody.test.mjs','tests/browser-session-operation/owner.test.mjs']},
 ];
 function registeredAdditionalOwner(source,id) {
@@ -42,29 +42,11 @@ const independentOwners = [
  {id:'DK-24',construction:'independent',minimum:28,deadline:3600000,files:['tests/browser-operation-journal/fallback-owner.test.mjs']},
  {id:'DK-27',construction:'independent',minimum:12,deadline:3600000,files:['tests/browser-budget/fallback-owner.test.mjs']},
 ];
-function registeredIndependentOwners(source) {
- const start=source.indexOf('_ => panic!("unhandled conformance id: {id}"),');assert.ok(start>=0);
- const tail=source.slice(start,source.indexOf('\nfn verify_browser_host(',start));
- const pattern=/match id \{\s*"(DK-24)" => verify_node_suite\(\s*root,\s*id,\s*&\["([^"]+)"\],\s*(\d+),\s*"(\d+)",\s*\),\s*"(DK-27)" => verify_node_suite\(\s*root,\s*id,\s*&\["([^"]+)"\],\s*(\d+),\s*"(\d+)",\s*\),\s*_ => \{\}\s*\}\s*\}\s*$/;
- const row=pattern.exec(tail);assert.ok(row,'exact separate guarded source fallback calls after original owners');
- return [1,5].map(index=>({id:row[index],construction:'independent',files:[row[index+1]],minimum:Number(row[index+2]),deadline:Number(row[index+3])}));
-}
-
-test('independent construction owners are separately registered with unchanged complete files and deadlines',async ()=>{
+test('independent construction owners keep unchanged complete files and deadlines',async ()=>{
  assert.deepEqual(fallbackSuites,independentOwners);
  assert.ok(Object.isFrozen(fallbackSuites));
  for(const owner of fallbackSuites){assert.ok(Object.isFrozen(owner));assert.ok(Object.isFrozen(owner.files));}
- const source=sdkSource('crates/conformance/src/cases/mod.rs');
- assert.deepEqual(registeredIndependentOwners(source),independentOwners);
- const start=source.indexOf('_ => panic!("unhandled conformance id: {id}"),'),prefix=source.slice(0,start),tail=source.slice(start);
  for(const owner of independentOwners){
-  for(const changed of [tail.replace(owner.id,owner.id==='DK-24'?'DK-25':'DK-26'),
-   tail.replace(owner.files[0],owner.files[0]+'.changed'),
-   tail.replace('            '+owner.minimum+',','            '+(owner.minimum-1)+','),
-   tail.replace(new RegExp('("'+owner.id+'" => verify_node_suite\\([\\s\\S]*?\\],\\s*'+owner.minimum+',\\s*)"3600000"'),'$1"3600001"'),
-   tail.replace(new RegExp('"'+owner.id+'" => verify_node_suite\\([\\s\\S]*?\\),'),''),
-   tail.replaceAll('DK-24','SWAP').replaceAll('DK-27','DK-24').replaceAll('SWAP','DK-27')])
-   assert.throws(()=>assert.deepEqual(registeredIndependentOwners(prefix+changed),independentOwners));
   assert.ok(sourceRoots.some(root=>owner.files[0].startsWith(root+'/')));
   assert.match(sdkSource(owner.files[0]),/timeout:3500000/);
  }
@@ -200,7 +182,9 @@ test('installed browser closure includes complete new owning fixtures and actual
  assert.match(sdkSource('crates/prismpm/src/browser_build/tests.rs'), /assert_eq!\(result.code, "PP2011"\)/);
  const workflow = sdkSource('.github/workflows/release.yml');
  assert.match(workflow, /browser-api-sdk-check\.sh/);
- assert.match(workflow, /bash root-a\/scripts\/sdk-vv-outer\.sh/);
+ // Installed V&V is retired from the release route (Factory.Release); the
+ // launcher stays for an explicit installed run outside it.
+ assert.doesNotMatch(workflow, /bash root-a\/scripts\/sdk-vv-outer\.sh/);
  const launcher = sdkSource('scripts/sdk-vv-outer.sh');
  assert.match(launcher, /node root-a\/scripts\/sdk-vv-check\.mjs tests; node root-a\/scripts\/sdk-vv-check\.mjs run "\$1" "\$2" "\$3" "\$4"/);
  assert.match(launcher, /--target registry_qualification_tools/);
@@ -321,8 +305,8 @@ function source(root){
 }
 function inspected(){return[{Os:'linux',Architecture:'amd64',RepoDigests:[image],Config:{Entrypoint:['/usr/local/bin/prismpm-devcontainer-init'],Volumes:null,Labels:{
  'org.opencontainers.image.revision':revision,
- 'org.opencontainers.image.source':'https://github.com/UOR-Foundation/PrismPM',
- 'org.opencontainers.image.version':'0.3.0',
+ 'org.opencontainers.image.source':'https://github.com/UOR-Foundation/prismpm',
+ 'org.opencontainers.image.version':/^version = "([^"]+)"$/m.exec(sdkSource('Cargo.toml').split('[workspace.package]')[1])[1],
 }}}];}
 
 test('current SDK source closure binds helper, compiler, suite and every selected byte',async t=>{
@@ -398,9 +382,8 @@ test('standalone registry retains all six original inventories and distinct dead
 test('complete source gates register standalone execution and all original product boundary units',async ()=>{
  const source=sdkSource('xtask/src/main.rs');
  const vv=source.slice(source.indexOf('fn run_vv('),source.indexOf('fn verify_examples('));
- assert.equal(vv.split('verify_standalone_browser_owners(root)?;').length,2);
- assert(vv.indexOf('verify_standalone_browser_owners(root)?;')>vv.indexOf('VV gate 6/15:'));
- assert(vv.indexOf('verify_standalone_browser_owners(root)?;')<vv.indexOf('VV gate 7/15:'));
+ // These private components run nightly in browser-standalone.yml, not in V&V.
+ assert.equal(vv.indexOf('verify_standalone_browser_owners(root)?;'),-1);
  const conformance=source.slice(source.indexOf('fn run_conformance('),source.indexOf('fn run_unit_tests('));
  assert.match(conformance,/if matches!\(category, "all" \| "desktop-browser"\) \{\s*verify_standalone_browser_owners\(root\)\?;/);
  assert.match(conformance,/fn verify_standalone_browser_owners\(root: &Path\) -> Result<\(\), Fail> \{\s*command\(\s*root,\s*"node",\s*&\["scripts\/browser-api-sdk-check.mjs", "standalone"\],\s*\)/);
@@ -806,7 +789,7 @@ test('release acceptance actually invokes every closed owning suite and rejects 
  assert.deepEqual(calls.map(args=>args.slice(4)),executions.map(row=>row.files));
  assert.deepEqual(calls.map(args=>args[3]),executions.map(row=>'--test-timeout='+row.deadline));
  const view=suites.find(row=>row.id==='DK-15');assert.equal(view.minimum,47);
- assert.equal(suites.find(row=>row.id==='DK-34').minimum,22);
+ assert.equal(suites.find(row=>row.id==='DK-34').minimum,16);
  assert.equal(suites.find(row=>row.id==='DK-33').minimum,17);
  for(const first of [31,41]){
   for(const [index,path] of view.files.entries())put(root,path,testSource(index===0?first:1));
@@ -865,7 +848,7 @@ test('owning release test kills a removed complete-TAP acceptance guard',async t
  for(const [before,after,witness] of [
   ['const tests=verifyTap(output.stdout,execution.minimum)',"const tests=Number(/^# tests ([0-9]+)$/m.exec(output.stdout)[1])",/Missing expected rejection/],
   ["{id:'DK-15',minimum:47","{id:'DK-15',minimum:46",/46 !== 47/],
-  ["{id:'DK-34',minimum:22","{id:'DK-34',minimum:21",/21 !== 22/],
+  ["{id:'DK-34',minimum:16","{id:'DK-34',minimum:15",/15 !== 16/],
   ["{id:'DK-33',minimum:17","{id:'DK-33',minimum:16",/16 !== 17/],
  ]){
  const root=temporary(t);

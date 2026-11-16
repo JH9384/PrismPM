@@ -1,0 +1,214 @@
+// Generated only from the closed server application declaration. The strings,
+// bounds and exit codes live in the generated surface of the host library.
+#![forbid(unsafe_code)]
+use @HOST@::{script, surface, Failure as AdapterFailure, FailureClass};
+use std::ffi::{OsStr, OsString};
+use std::io::Write;
+//@BINDING-BEGIN
+use @HOST@::exchange as driver;
+//@BINDING-END
+
+@INPUT_ADAPTER@
+
+/// A typed failure plus the argument or path it concerns, when there is one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Reported { failure: AdapterFailure, detail: Option<OsString> }
+fn reported(failure: AdapterFailure) -> Reported { Reported { failure, detail: None } }
+fn concerning(failure: AdapterFailure, detail: &OsStr) -> Reported {
+    Reported { failure, detail: Some(detail.to_owned()) }
+}
+
+fn exit_code(failure: AdapterFailure) -> u8 {
+    match failure.class() {
+        FailureClass::Usage => surface::USAGE_CODE,
+        FailureClass::Io => surface::IO_CODE,
+        FailureClass::Fault => surface::FAULT_CODE,
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Invocation {
+    Help,
+    Version,
+    Exchange(OsString, Option<OsString>),
+//@BINDING-BEGIN
+    Run(Option<OsString>),
+//@BINDING-END
+//@SERVING-BEGIN
+    Serve,
+//@SERVING-END
+}
+
+fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Invocation, Reported> {
+    let mut positional: Vec<OsString> = Vec::new();
+    let mut literal = false;
+    for argument in arguments {
+        if literal || argument.as_encoded_bytes() == b"-" || !argument.as_encoded_bytes().starts_with(b"-") {
+            positional.push(argument);
+        } else if argument == "--help" {
+            return Ok(Invocation::Help);
+        } else if argument == "--version" {
+            return Ok(Invocation::Version);
+        } else if argument == "--" {
+            literal = true;
+        } else {
+            return Err(concerning(AdapterFailure::UnknownFlag, &argument));
+        }
+    }
+    let mut positional = positional.into_iter();
+    let command = positional.next().ok_or_else(|| reported(AdapterFailure::MissingCommand))?;
+//@BINDING-BEGIN
+    if command == "run" {
+        let request = positional.next();
+        if let Some(extra) = positional.next() { return Err(concerning(AdapterFailure::ExtraArgument, &extra)); }
+        return Ok(Invocation::Run(request));
+    }
+//@BINDING-END
+//@SERVING-BEGIN
+    if command == "serve" {
+        if let Some(extra) = positional.next() { return Err(concerning(AdapterFailure::ExtraArgument, &extra)); }
+        return Ok(Invocation::Serve);
+    }
+//@SERVING-END
+    if command != "exchange" { return Err(concerning(AdapterFailure::UnknownCommand, &command)); }
+    let script = positional.next().ok_or_else(|| reported(AdapterFailure::MissingOperand))?;
+    let request = positional.next();
+    if let Some(extra) = positional.next() { return Err(concerning(AdapterFailure::ExtraArgument, &extra)); }
+    Ok(Invocation::Exchange(script, request))
+}
+
+fn publish(bytes: &[u8]) -> Result<(), Reported> {
+    let mut output = std::io::stdout().lock();
+    output.write_all(bytes).and_then(|()| output.flush()).map_err(|_| reported(AdapterFailure::OutputWrite))
+}
+
+fn exchange(script_path: &OsStr, request_path: Option<&OsStr>) -> Result<(), Reported> {
+    // A script over its modeled bound is a malformed script, not an oversized request.
+    let steps = input_to(script_path, surface::SCRIPT_MAXIMUM)
+        .map_err(|failure| {
+            let failure = if failure == AdapterFailure::InputLimit { AdapterFailure::ScriptMalformed } else { failure };
+            if script_path == "-" { reported(failure) } else { concerning(failure, script_path) }
+        })?;
+    let path = request_path.unwrap_or_else(|| OsStr::new("-"));
+    let request = input(path).map_err(|failure| if path == "-" { reported(failure) } else { concerning(failure, path) })?;
+    // The scripted host performs no effect; panics and aborts stay unsuccessful processes.
+    let response = script::replay(&steps, &request).map_err(reported)?;
+    publish(&response)
+}
+
+//@BINDING-BEGIN
+// Perform each effect through the declared host binding instead of a script.
+fn run_binding(request_path: Option<&OsStr>) -> Result<(), Reported> {
+    let path = request_path.unwrap_or_else(|| OsStr::new("-"));
+    let request = input(path).map_err(|failure| if path == "-" { reported(failure) } else { concerning(failure, path) })?;
+    let mut host = <@BINDING_HOST@ as Default>::default();
+    let response = driver::exchange(&mut host, &request).map_err(reported)?;
+    publish(&response)
+}
+//@BINDING-END
+
+//@SERVING-BEGIN
+// Listen on the declared loopback address and serve until the process is stopped.
+// The first line on standard output says where, so a client can find a port the
+// system chose.
+fn serve() -> Result<(), Reported> {
+    let listener = @HOST@::serve::declared_listener().map_err(reported)?;
+    let address = listener.local_addr().map_err(|_| reported(AdapterFailure::ListenIo))?;
+    publish(format!("listening {address}\n").as_bytes())?;
+    @HOST@::serve::run(listener, @SERVE_HOST@, @HOST@::exchange::core, None).map_err(reported)
+}
+//@SERVING-END
+
+fn run() -> Result<(), Reported> {
+    match parse(std::env::args_os().skip(1))? {
+        Invocation::Help => publish(surface::HELP.as_bytes()),
+        Invocation::Version => publish(surface::VERSION.as_bytes()),
+        Invocation::Exchange(script, request) => exchange(&script, request.as_deref()),
+//@BINDING-BEGIN
+        Invocation::Run(request) => run_binding(request.as_deref()),
+//@BINDING-END
+//@SERVING-BEGIN
+        Invocation::Serve => serve(),
+//@SERVING-END
+    }
+}
+
+fn main() -> std::process::ExitCode {
+    match run() {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => {
+            let mut line = format!("{}: {:?}", surface::BINARY, error.failure);
+            if let Some(detail) = &error.detail { line.push_str(": "); line.push_str(&detail.to_string_lossy()); }
+            line.push('\n');
+            if error.failure.class() == FailureClass::Usage {
+                line.push_str(&format!("Try '{} --help'.\n", surface::BINARY));
+            }
+            // The diagnostic is best effort: the exit status already carries the failure class.
+            let _ = std::io::stderr().lock().write_all(line.as_bytes());
+            std::process::ExitCode::from(exit_code(error.failure))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn arguments(values: &[&str]) -> Vec<OsString> { values.iter().map(OsString::from).collect() }
+
+    #[test]
+    fn adapter_allocation_maps_real_capacity_overflow() {
+        assert_eq!(reserve_input(usize::MAX).unwrap_err(), AdapterFailure::AdapterAllocation);
+    }
+
+    #[test]
+    fn grammar_selects_exactly_the_exchange_command() {
+        assert_eq!(parse(arguments(&["--help"])), Ok(Invocation::Help));
+        assert_eq!(parse(arguments(&["--version"])), Ok(Invocation::Version));
+        assert_eq!(
+            parse(arguments(&["exchange", "script"])),
+            Ok(Invocation::Exchange("script".into(), None))
+        );
+        assert_eq!(
+            parse(arguments(&["exchange", "script", "-"])),
+            Ok(Invocation::Exchange("script".into(), Some("-".into())))
+        );
+        assert_eq!(
+            parse(arguments(&["exchange", "--", "-s", "-r"])),
+            Ok(Invocation::Exchange("-s".into(), Some("-r".into())))
+        );
+        assert_eq!(parse(arguments(&[])).unwrap_err().failure, AdapterFailure::MissingCommand);
+        assert_eq!(parse(arguments(&["--bogus"])).unwrap_err().failure, AdapterFailure::UnknownFlag);
+        assert_eq!(parse(arguments(&["bogus"])).unwrap_err().failure, AdapterFailure::UnknownCommand);
+        assert_eq!(parse(arguments(&["exchange"])).unwrap_err().failure, AdapterFailure::MissingOperand);
+        assert_eq!(parse(arguments(&["exchange", "a", "b", "c"])).unwrap_err().failure, AdapterFailure::ExtraArgument);
+    }
+
+//@SERVING-BEGIN
+    #[test]
+    fn grammar_selects_the_serve_command() {
+        assert_eq!(parse(arguments(&["serve"])), Ok(Invocation::Serve));
+        assert_eq!(parse(arguments(&["serve", "x"])).unwrap_err().failure, AdapterFailure::ExtraArgument);
+    }
+
+//@SERVING-END
+//@BINDING-BEGIN
+    #[test]
+    fn grammar_selects_the_binding_command() {
+        assert_eq!(parse(arguments(&["run"])), Ok(Invocation::Run(None)));
+        assert_eq!(parse(arguments(&["run", "-"])), Ok(Invocation::Run(Some("-".into()))));
+        assert_eq!(parse(arguments(&["run", "a", "b"])).unwrap_err().failure, AdapterFailure::ExtraArgument);
+    }
+
+//@BINDING-END
+    #[test]
+    fn every_failure_has_the_class_exit_code() {
+        for failure in [AdapterFailure::UnknownFlag, AdapterFailure::InputOpen, AdapterFailure::ScriptMismatch] {
+            let expected = match failure.class() {
+                FailureClass::Usage => surface::USAGE_CODE,
+                FailureClass::Io => surface::IO_CODE,
+                FailureClass::Fault => surface::FAULT_CODE,
+            };
+            assert_eq!(exit_code(failure), expected);
+        }
+    }
+}

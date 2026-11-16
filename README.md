@@ -93,8 +93,8 @@ assert_eq!(calculate(Operation::Add, 20, 22), Ok(42));
 The public reference application is
 [`UOR-Foundation/calculator-example`](https://github.com/UOR-Foundation/calculator-example).
 Its publication contract requires the exact content-addressed model, repeated
-PrismPM acceptance, the published registry crate and only the generated six-file
-browser closure. Registry publication remains deferred as recorded in release status.
+PrismPM acceptance, the published registry crate and only the generated browser
+closure (six files before closure v2, sixteen since; see SPEC §1.2.1). Registry publication remains deferred as recorded in release status.
 
 ## Verification scope
 
@@ -103,6 +103,14 @@ browser closure. Registry publication remains deferred as recorded in release st
 it is not a substitute for current complete SDK, downstream and live acceptance.
 The `Browser` application profile remains refused with `PP2011` until its generated runtime,
 authenticated effects, durable recovery and full owning verification are complete.
+The `Server` application profile declares and validates its host effects and generates a host adapter
+(an API package and a driver package that links a workspace binding) with a scripted-host acceptance suite;
+the core of a server application is built through `production` (`PP2025` refuses an export the host
+adapter cannot bound), a served application listens on the loopback interface only and answers RFC 9112
+requests through the generated adapter, and `prismpm verify` of a server application builds the consumer's locked workspace
+around the production core and accepts the program (every vector with its effect transcript, the binding
+and the served exchanges); a release of one holds the consumer's workspace, assembly and every replay check its acceptance against the model and the released files,
+and `prismpm replay-acceptance` rebuilds the released program and answers every vector without the source.
 
 ## Development and acceptance
 
@@ -154,3 +162,5 @@ integrity against the release's own evidence, not deployment acceptance.
 - [COMPLIANCE.md](COMPLIANCE.md) — Generated matrix of which runtime passes which part of the runtime contract
 - [ERRORS.md](ERRORS.md) — Error code registry
 - [STABILITY.md](STABILITY.md) — Stability tiers and pre-1.0 versioning policy
+- [RELEASES.md](RELEASES.md) — How releases are cut, what each may contain, and support windows
+- [SECURITY.md](SECURITY.md) — How to report a vulnerability, and how to verify a release

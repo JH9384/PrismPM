@@ -20,6 +20,7 @@ const WRAPPER_SOURCE: &[u8] = include_bytes!("authority.rs");
 const UPSTREAM_CONFORMANCE_SOURCE: &[u8] = include_bytes!("upstream_conformance.rs");
 const ASYNCAPI_WRAPPER_SOURCE: &[u8] = include_bytes!("../sdk/oracles/asyncapi-parser.mjs");
 const KUBERNETES_WRAPPER_SOURCE: &[u8] = include_bytes!("../sdk/oracles/kubernetes-validator.mjs");
+const OSCAL_WRAPPER_SOURCE: &[u8] = include_bytes!("../sdk/oracles/oscal/src/main.rs");
 const INTOTO_WRAPPER_SOURCE: &[u8] =
     include_bytes!("../sdk/oracles/go/intoto-statement-validator/main.go");
 const OPENAPI_SCHEMA: &[u8] =
@@ -335,6 +336,7 @@ fn wrapper_sha256(row: &OracleRow) -> Result<String, PrismError> {
         "crates/prismpm/src/upstream_conformance.rs" => UPSTREAM_CONFORMANCE_SOURCE,
         "sdk/oracles/asyncapi-parser.mjs" => ASYNCAPI_WRAPPER_SOURCE,
         "sdk/oracles/kubernetes-validator.mjs" => KUBERNETES_WRAPPER_SOURCE,
+        "sdk/oracles/oscal/src/main.rs" => OSCAL_WRAPPER_SOURCE,
         "sdk/oracles/go/intoto-statement-validator/main.go" => INTOTO_WRAPPER_SOURCE,
         _ => {
             return Err(PrismError::new(
@@ -1533,7 +1535,7 @@ fn locked_sdk_image(root: &Path) -> Result<String, PrismError> {
     let image = lock["sdk_image"]
         .as_str()
         .ok_or_else(|| PrismError::new("PP5403", "SDK lock omits sdk_image"))?;
-    crate::oci::validate_reference(image, true).map_err(|_| {
+    crate::reference::validate_reference(image, true).map_err(|_| {
         PrismError::new(
             "PP5403",
             "external oracle SDK image is not selected by immutable digest",
@@ -2227,6 +2229,7 @@ fn run_oracle_inner(
         "devcontainer" => "devcontainer-c95ffeed",
         "compose" => "compose-fee041b3",
         "kubernetes" => "kubernetes-1.36.4",
+        "oscal" => "oscal-1.1.0-structural",
         _ => {
             return Err(PrismError::new(
                 "PP5403",
@@ -3042,7 +3045,7 @@ mod tests {
     fn docker_sandbox_spdx_uses_locked_sdk_schema_for_project_validation() {
         let sdk_image = std::env::var("PRISMPM_TEST_SDK_IMAGE")
             .expect("PRISMPM_TEST_SDK_IMAGE must be an exact locally available image digest");
-        crate::oci::validate_reference(&sdk_image, true).unwrap();
+        crate::reference::validate_reference(&sdk_image, true).unwrap();
         let root = tempfile::tempdir().unwrap();
         let standards = resolved_lock().unwrap();
         std::fs::write(root.path().join("standards.lock"), standards.bytes()).unwrap();
@@ -3105,7 +3108,7 @@ mod tests {
     #[test]
     fn host_effect_system_compose_passes_the_locked_oracle() {
         let sdk_image = std::env::var("PRISMPM_TEST_SDK_IMAGE").unwrap();
-        crate::oci::validate_reference(&sdk_image, true).unwrap();
+        crate::reference::validate_reference(&sdk_image, true).unwrap();
         let root = tempfile::tempdir().unwrap();
         let standards = resolved_lock().unwrap();
         std::fs::write(root.path().join("standards.lock"), standards.bytes()).unwrap();
@@ -3129,11 +3132,8 @@ mod tests {
                 // The oracle checks Compose validity; the loopback audit of the
                 // emitted bytes is the check a wildcard binding cannot pass.
                 let compose: Value = serde_json::from_slice(&projection.bytes).unwrap();
-                crate::system::host_effect::audit_compose(&compose).unwrap();
-                assert_eq!(
-                    compose["services"]["gateway"]["ports"][0]["host_ip"],
-                    "127.0.0.1"
-                );
+                crate::system::host_effect::audit_compose(&compose, system.value()).unwrap();
+                assert_eq!(compose["services"]["gateway"]["network_mode"], "host");
                 let mut dangling = compose.clone();
                 dangling["services"]["gateway"]["depends_on"]["absent"] =
                     json!({"condition":"service_healthy","required":true});
@@ -3152,7 +3152,7 @@ mod tests {
     #[test]
     fn docker_sandbox_compose_checks_secret_references_without_credentials() {
         let sdk_image = std::env::var("PRISMPM_TEST_SDK_IMAGE").unwrap();
-        crate::oci::validate_reference(&sdk_image, true).unwrap();
+        crate::reference::validate_reference(&sdk_image, true).unwrap();
         let root = tempfile::tempdir().unwrap();
         let standards = resolved_lock().unwrap();
         std::fs::write(root.path().join("standards.lock"), standards.bytes()).unwrap();
@@ -3195,7 +3195,8 @@ mod tests {
     fn docker_sandbox_executes_all_locked_external_oracle_corpora() {
         let sdk_image = std::env::var("PRISMPM_TEST_SDK_IMAGE")
             .expect("PRISMPM_TEST_SDK_IMAGE must be an exact locally available image digest");
-        crate::oci::validate_reference(&sdk_image, true).expect("immutable SDK image reference");
+        crate::reference::validate_reference(&sdk_image, true)
+            .expect("immutable SDK image reference");
         let root = tempfile::tempdir().unwrap();
         let standards = resolved_lock().unwrap();
         std::fs::write(root.path().join("standards.lock"), standards.bytes()).unwrap();
@@ -3294,6 +3295,21 @@ mod tests {
         .unwrap();
         assert_eq!(
             run_oracle_in_project(root.path(), "devcontainer", &workspace)
+                .unwrap_err()
+                .code,
+            "PP5404"
+        );
+
+        let oscal = root.path().join("component-definition.json");
+        let component_definition: &[u8] =
+            include_bytes!("../../../tests/fixtures/threat-model/oscal-subjects/complete.json");
+        std::fs::write(&oscal, component_definition).unwrap();
+        run_oracle_in_project(root.path(), "oscal", &oscal).unwrap();
+        let mut planted: Value = serde_json::from_slice(component_definition).unwrap();
+        planted["component-definition"]["metadata"]["oscal-version"] = json!("1.1.1");
+        std::fs::write(&oscal, serde_json::to_vec(&planted).unwrap()).unwrap();
+        assert_eq!(
+            run_oracle_in_project(root.path(), "oscal", &oscal)
                 .unwrap_err()
                 .code,
             "PP5404"

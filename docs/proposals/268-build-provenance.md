@@ -9,7 +9,7 @@
 | Modes | `min` (default, always written), `max` (`--provenance=max`, opt-in), none (`--no-provenance`, unsafe) |
 | Depends on | #264 (input lock), #267 (attestation bundle), #274 (dual digests, ADR-015) |
 | Blocks | #269 (P1 needs a provenance statement), #270 (`prism check`), #272 (`prism attest` signs it) |
-| Reference implementation | JavaScript: `sdk/npm/prism-code/src/provenance.mjs` (this change). Rust: the second change, after the wire model change of #267 merges. |
+| Reference implementation | JavaScript: `sdk/npm/prism-code/src/provenance.mjs`. Rust: `crates/prismpm/src/holo/provenance.rs`, held to the same bytes. |
 
 ## Summary
 
@@ -185,14 +185,14 @@ In this change, run with `node --test`:
 - `sdk/npm/spec/test/provenance.test.mjs`: the constants equal every other table that names the predicate type; the schema fixes the build type; the min and max statements validate; min has none of the opt-in members and max adds exactly them; the subjects equal the calculator's blobs with both digests; every dependency row follows from a member of the `/3` lock fixture; the fixtures equal what prism-code generates; the bundle fixture equals what prism-code writes.
 - Fixtures for the predicate schema: valid `min` and `max`; invalid cases for a min with arguments, a max without metadata or platform, a wrong build type, a single-digest model, no dependencies, no builder id, an unknown member and a fractional timestamp.
 
-Conformance scenarios are registered with the Rust change, which is the first that can run them against `prismpm build`.
-Reserved: `HO-29` every built holo carries a provenance statement with no flag; `HO-30` the statement's subjects, build type and dependencies equal the lock and the archive; `HO-31` `--provenance=max` adds exactly the members of max mode and min adds none; `HO-32` `--no-provenance` writes no statement and warns.
-`HO-23` to `HO-28` are #267's.
+Conformance scenarios are registered with the Rust change.
+`HO-32` a stamped build carries one statement, keeps every other row and equals the JavaScript bytes; `HO-33` the statement's subjects, build type and dependencies equal the lock and the archive; `HO-34` `--provenance=max` adds exactly the members of max mode and min adds none; `HO-35` `--no-provenance` writes no statement and needs no lock, and a build with nothing to derive a statement from is refused before compiling.
+The ids reserved here earlier, `HO-29` to `HO-31`, went to #272 and #284.
 
 ### Graduation criteria
 
 - Experimental (M2). This proposal is merged, `@prism-code/spec` carries the schema, and `prism-code` generates and reads the statement with the tests above.
-- Frozen (M3). The Rust change is merged: every holo `prismpm build` writes carries the statement, the calculator reference archive is regenerated with it, and HO-29 to HO-32 pass. `prism attest` signs the placeholder in place.
+- Frozen (M3). The Rust change is merged: every holo a plain `prismpm build` writes carries the statement and HO-32 to HO-35 pass. Still to do: the calculator reference archive is regenerated with it, and `prism attest` signs the placeholder in place; today it appends a signed line beside the placeholder, and the verdict counts the first statement whose signature verifies.
 - Stable (1.0). The build type and the min and max member lists are final; a change becomes `holo-build/v2`.
 
 ## Precedent
@@ -220,8 +220,9 @@ Reserved: `HO-29` every built holo carries a provenance statement with no flag; 
 
 ## Unresolved questions
 
-1. A build without a committed lock, or with a `/1` lock, has nothing to derive `resolvedDependencies` from. #264 lets such a build proceed. Recommendation: once this ships, `prismpm build` requires a `/2` or `/3` lock to write provenance, and a build without one either binds the SDK first or passes `--no-provenance`; the JavaScript generator already refuses with `provenance.lock`. This changes #264's "builds, as today" row.
+1. Decided with the Rust change: a build without a committed lock, or with a `/1` lock, has nothing to derive `resolvedDependencies` from, so a plain `prismpm build` of an application refuses it with `PP3018` before compiling; it binds the SDK first or passes `--no-provenance`. The JavaScript generator refuses the same way with `provenance.lock`. This changes #264's "builds, as today" row.
 2. Is relaxing `sig` in the #267 schemas the right way to carry an unsigned statement, or should the placeholder be a distinct, non-Sigstore line? Recommendation: the relaxation, because it keeps one reader, one line format and one replace-in-place path for `prism attest`.
 3. Should `--provenance=max` redact absolute paths in `arguments`? Recommendation: no. Max is for people who accept the leak; redacting would make the record less true.
-4. Should the statement name the registry-facing OCI manifest too? No: #267 settles that the statement signed at push does, and the in-holo one never can.
-5. Which `invocationId` does max write when the build runs outside CI? Recommendation: a random UUID URN, since the field only has to distinguish runs.
+4. Should a product release (`-t`) and the archive `prismpm verify` builds carry the statement? Not yet: both stay unstamped because the pinned Hologram oracle's handling of a ninth row has not been shown, and verify compares its archive byte for byte with its replay. Deciding this is the last gap in "every holo".
+5. Should the statement name the registry-facing OCI manifest too? No: #267 settles that the statement signed at push does, and the in-holo one never can.
+6. Which `invocationId` does max write when the build runs outside CI? Decided: a random UUID URN, since the field only has to distinguish runs.

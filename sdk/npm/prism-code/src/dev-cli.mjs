@@ -2,7 +2,7 @@
  * The `dev` verb (issue #288): watch the project, rebuild and re-check on every
  * change, and serve the local studio.
  *
- *   dev [<dir>] [--port <n>] [--no-open] [--policy <file>] [--build <command>] [--holo <path>]
+ *   dev [<dir>] [--port <n>] [--no-open] [--policy <file>] [--build <command>] [--image <path>]
  *
  * Exit codes: 0 stopped with Ctrl-C, 2 refused (not a project, a bad manifest,
  * the port in use), 64 usage. A build or a check that fails while it runs is
@@ -17,7 +17,7 @@ import { STUDIO_PORT, serveStudio } from './dev-server.mjs';
 import { fail } from './errors.mjs';
 import { POLICIES } from './vendor/verify.mjs';
 
-export const DEV_USAGE = `Usage: dev [<dir>] [--port <n>] [--no-open] [--policy <file>] [--build <command>] [--holo <path>]
+export const DEV_USAGE = `Usage: dev [<dir>] [--port <n>] [--no-open] [--policy <file>] [--build <command>] [--image <path>]
 
   <dir>               the project directory; default the current directory
   --port <n>          the studio's port; default ${STUDIO_PORT}. A port in use is an error, not a move
@@ -25,10 +25,10 @@ export const DEV_USAGE = `Usage: dev [<dir>] [--port <n>] [--no-open] [--policy 
   --policy <file>     the policy the Check tab judges by, a file or a shipped name, as for check; an edit to a file re-checks
   --build <command>   the build to run, in a shell; default [model].build of prism.toml, then prism-code build --update,
                       which rewrites the model's pins in prismpm.lock
-  --holo <path>       the file the build writes; default the one the build reports
+  --image <path>      the file the build writes; default the one the build reports
 `;
 
-const VALUE_OPTIONS = ['port', 'policy', 'build', 'holo'];
+const VALUE_OPTIONS = ['port', 'policy', 'build', 'image'];
 
 function parse(argv) {
   const positional = [];
@@ -101,7 +101,7 @@ export async function runDev(argv) {
   const name = project.name ?? 'application';
   const port = Number(options.port ?? STUDIO_PORT);
   const command = buildCommand(options.build, project.manifest);
-  const holoPath = options.holo === undefined ? null : resolve(directory, options.holo);
+  const holoPath = options.image === undefined ? null : resolve(directory, options.image);
   const patterns = watchPatterns(project.manifest);
   // The policy reaches check as given, so the verdict names it as check does. A shipped policy's name is no file to watch.
   const policyKey = options.policy === undefined || Object.hasOwn(POLICIES, options.policy) ? null : watchedPath(directory, resolve(options.policy));

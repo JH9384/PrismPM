@@ -3,8 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { parseArchive, resolveArchive, KIND } from '../src/archive.mjs';
-import { blake3Hex } from '../src/blake3.mjs';
+import { parseArchive, resolveArchive, ROLES_V5, ROLE_ATTESTATIONS } from '../src/archive.mjs';
+import { chain, writeObjects } from '../src/uorc.mjs';
 import {
   ATTESTATION_EXTENSION,
   BUNDLE_MEDIA_TYPE,
@@ -12,11 +12,10 @@ import {
   readAttestations,
   appendAttestations,
   stripAttestations,
-  encodeArchive,
 } from '../src/attestations.mjs';
 import { load, PrismCodeError } from '../src/index.mjs';
 
-const original = new Uint8Array(readFileSync(new URL('../fixtures/Calculator.holo', import.meta.url)));
+const original = new Uint8Array(readFileSync(new URL('../fixtures/Calculator.v5.holo', import.meta.url)));
 const pristine = original.slice();
 const parsedOriginal = parseArchive(original);
 const resolvedOriginal = resolveArchive(parsedOriginal);
@@ -26,7 +25,7 @@ const b64 = (text) => Buffer.from(text).toString('base64');
 const GUEST_NAME = 'core-wasm/prism_calculator_core_wasm.wasm';
 const guestSubject = {
   name: GUEST_NAME,
-  digest: { blake3: blake3Hex(resolvedOriginal.guest.content), sha256: sha256(resolvedOriginal.guest.content) },
+  digest: { sha256: sha256(resolvedOriginal.guest.content) },
 };
 
 function statement(subject = [guestSubject], predicateType = 'https://uor.foundation/prism/proof/v1') {
@@ -62,38 +61,38 @@ test('an archive without the section loads unchanged and has no attestations', a
   assert.equal(result.failed.length, 0);
 });
 
-test('appending a bundle adds one last Extension row and keeps every original section byte-identical', () => {
+test('appending a bundle adds one last attestation object and keeps every original object byte-identical', () => {
   const signed = appendAttestations(original, [bundle()]);
   assert.ok(original.every((b, i) => b === pristine[i]), 'the input was modified');
   const parsed = parseArchive(signed);
-  assert.equal(parsed.sections.length, 9);
-  assert.equal(parsed.sections[8].kind, KIND.EXTENSION);
+  assert.equal(parsed.sections.length, ROLES_V5.length + 1);
+  assert.equal(parsed.sections.at(-1).kind, ROLE_ATTESTATIONS);
   assert.equal(parsed.extensions.at(-1).name, ATTESTATION_EXTENSION);
-  for (let i = 0; i < 8; i++) {
-    assert.equal(parsed.sections[i].kind, parsedOriginal.sections[i].kind, `row ${i} kind`);
-    assert.ok(Buffer.from(parsed.sections[i].body).equals(Buffer.from(parsedOriginal.sections[i].body)), `row ${i} body`);
-    assert.equal(parsed.sections[i].offset, parsedOriginal.sections[i].offset + 24, `row ${i} offset shifts by one table row`);
+  for (let i = 0; i < ROLES_V5.length; i++) {
+    assert.equal(parsed.sections[i].kind, parsedOriginal.sections[i].kind, `object ${i} role`);
+    assert.ok(Buffer.from(parsed.sections[i].body).equals(Buffer.from(parsedOriginal.sections[i].body)), `object ${i} body`);
   }
-  assert.equal(signed.length, original.length + 24 + parsed.sections[8].length);
 });
 
-test('the footer of the signed archive is BLAKE3 of its whole body, bundle included', () => {
+test('the seal of the signed archive is UORC-SHA256-CHAIN-v1 over it, bundle included', () => {
   const signed = appendAttestations(original, [bundle()]);
   const parsed = parseArchive(signed);
-  assert.equal(parsed.verification.footer, true);
+  assert.equal(parsed.verification.seal, true);
   assert.equal(parsed.verification.labels, true);
-  assert.equal(parsed.footer, blake3Hex(signed.subarray(0, signed.length - 32)));
+  assert.equal(parsed.footer, Buffer.from(chain(signed.subarray(0, signed.length - 32))).toString('hex'));
   assert.notEqual(parsed.footer, parsedOriginal.footer);
-  // Flipping one byte inside the bundle breaks the footer.
+  // Flipping one byte inside the bundle breaks the seal.
   const tampered = signed.slice();
-  tampered[parsed.sections[8].offset + parsed.sections[8].length - 3] ^= 1;
-  assert.equal(parseArchive(tampered).verification.footer, false);
+  const last = parsed.sections.at(-1);
+  tampered[last.offset + last.length - 3] ^= 1;
+  assert.equal(parseArchive(tampered).verification.seal, false);
 });
 
 test('the application identity does not move; only the archive fingerprint does', () => {
   const resolved = resolveArchive(parseArchive(appendAttestations(original, [bundle()])));
-  const { archiveFingerprint, footer, ...rest } = resolved.identities;
-  const { archiveFingerprint: was, footer: wasFooter, ...restOriginal } = resolvedOriginal.identities;
+  const { archiveFingerprint, footer, archiveKappa, ...rest } = resolved.identities;
+  const { archiveFingerprint: was, footer: wasFooter, archiveKappa: wasKappa, ...restOriginal } = resolvedOriginal.identities;
+  assert.notEqual(archiveKappa, wasKappa);
   assert.deepEqual(rest, restOriginal);
   assert.notEqual(archiveFingerprint, was);
   assert.equal(rest.verified, true);
@@ -111,7 +110,7 @@ test('the bundle reads back with its exact bytes, statement and resolved subject
   assert.deepEqual(attestation.statement, statement());
   assert.equal(attestation.resolved, true);
   assert.deepEqual(attestation.subjects, [{ ...guestSubject, blob: resolvedOriginal.guest.label }]);
-  assert.equal(`blake3:${attestation.subjects[0].digest.blake3}`, resolvedOriginal.identities.guestKappa);
+  assert.equal(`sha256:${attestation.subjects[0].digest.sha256}`, resolvedOriginal.identities.guestKappa);
 });
 
 test('stripping the section returns the original archive byte for byte', () => {
@@ -128,7 +127,7 @@ test('appending to a signed archive extends the same section in order', () => {
   const second = bundle(statement([guestSubject], 'https://slsa.dev/provenance/v1'));
   const signed = appendAttestations(appendAttestations(original, [first]), [second]);
   const parsed = parseArchive(signed);
-  assert.equal(parsed.sections.length, 9);
+  assert.equal(parsed.sections.length, ROLES_V5.length + 1);
   assert.equal(parsed.extensions.filter((e) => e.name === ATTESTATION_EXTENSION).length, 1);
   assert.deepEqual(
     readAttestations(signed).map((a) => a.predicateType),
@@ -149,7 +148,7 @@ test('the signed archive loads, dispatches and exposes app.attestations()', asyn
 });
 
 test('a subject that names no blob of the archive is reported, not resolved', () => {
-  const stranger = { name: 'other.wasm', digest: { blake3: '0'.repeat(64), sha256: '1'.repeat(64) } };
+  const stranger = { name: 'other.wasm', digest: { sha256: '1'.repeat(64) } };
   const [attestation] = readAttestations(appendAttestations(original, [bundle(statement([guestSubject, stranger]))]));
   assert.equal(attestation.resolved, false);
   assert.equal(attestation.subjects[1].blob, null);
@@ -164,7 +163,7 @@ test('negative controls: malformed bundles are refused before anything is writte
   rejects(() => appendAttestations(original, [bundle({ ...statement(), _type: 'https://in-toto.io/Statement/v0.1' })]), 'attestation.statement');
   rejects(() => appendAttestations(original, [bundle(statement([]))]), 'attestation.statement');
   rejects(
-    () => appendAttestations(original, [bundle(statement([{ name: GUEST_NAME, digest: { blake3: guestSubject.digest.blake3 } }]))]),
+    () => appendAttestations(original, [bundle(statement([{ name: GUEST_NAME, digest: { ...guestSubject.digest, blake3: '0'.repeat(64) } }]))]),
     'attestation.subject',
   );
   rejects(
@@ -175,32 +174,21 @@ test('negative controls: malformed bundles are refused before anything is writte
   rejects(() => appendAttestations(original, [bundle(), bundle()]), 'attestation.duplicate');
   rejects(() => appendAttestations(appendAttestations(original, [bundle()]), [bundle()]), 'attestation.duplicate');
   const corrupt = original.slice();
-  corrupt[300] ^= 1;
+  corrupt[parsedOriginal.sections[4].offset + 100] ^= 1;
   rejects(() => appendAttestations(corrupt, [bundle()]), 'attestation.footer');
 });
 
-function rows(extraRows, at = 8) {
-  const kept = parsedOriginal.sections.map(({ kind, body }) => ({ kind, body }));
-  kept.splice(at, 0, ...extraRows);
-  return encodeArchive(kept);
+function withAttestations(...payloads) {
+  return writeObjects([...parsedOriginal.sections.map((section) => section.body), ...payloads.map((text) => new Uint8Array(Buffer.from(text)))]);
 }
 
-function row(payloadText) {
-  const name = Buffer.from(ATTESTATION_EXTENSION);
-  const payload = Buffer.from(payloadText);
-  const body = Buffer.concat([Buffer.from([name.length & 0xff, name.length >> 8]), name, payload]);
-  return { kind: KIND.EXTENSION, body: new Uint8Array(body) };
-}
-
-test('negative controls: a misplaced, repeated, empty or blank-line section is refused on load', async () => {
+test('negative controls: a repeated, empty or blank-line section is refused on load', async () => {
   const line = `${JSON.stringify(bundle())}\n`;
-  assert.ok(Buffer.from(rows([])).equals(Buffer.from(original)), 'encodeArchive reproduces the original from its rows');
-  assert.equal(readAttestations(rows([row(line)])).length, 1);
-  rejects(() => readAttestations(rows([row(line)], 4)), 'attestation.position');
-  await assert.rejects(load(rows([row(line)], 4)), (error) => error.code === 'attestation.position');
-  rejects(() => readAttestations(rows([row(line), row(line)])), 'attestation.duplicate');
-  rejects(() => readAttestations(rows([row('')])), 'attestation.lines');
-  rejects(() => readAttestations(rows([row(line.trimEnd())])), 'attestation.lines');
-  rejects(() => readAttestations(rows([row(`${line}\n${line}`)])), 'attestation.lines');
-  rejects(() => readAttestations(rows([row('{"mediaType":1}\n')])), 'attestation.bundle');
+  assert.ok(Buffer.from(withAttestations()).equals(Buffer.from(original)), 'writeObjects reproduces the original from its objects');
+  assert.equal(readAttestations(withAttestations(line)).length, 1);
+  assert.throws(() => readAttestations(withAttestations(line, line)), (error) => error instanceof PrismCodeError);
+  rejects(() => readAttestations(withAttestations('')), 'attestation.lines');
+  rejects(() => readAttestations(withAttestations(line.trimEnd())), 'attestation.lines');
+  rejects(() => readAttestations(withAttestations(`${line}\n${line}`)), 'attestation.lines');
+  rejects(() => readAttestations(withAttestations('{"mediaType":1}\n')), 'attestation.bundle');
 });

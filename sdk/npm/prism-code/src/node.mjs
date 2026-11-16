@@ -9,8 +9,14 @@ import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 import { resolve, join, extname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
-import { loadArchive, loadClosure } from './index.mjs';
+import { createPrism, loadArchive, loadClosure } from './index.mjs';
+import { createAuth } from './auth.mjs';
+import { hostDockerArguments } from './host.mjs';
 import { fail } from './errors.mjs';
+import { fileImageStore, imagesDirectory } from './image-store.mjs';
+
+/** Whether anything is at this path; the client opens a stored image only when nothing is (#347). */
+export const pathExists = (path) => stat(path).then(() => true, () => false);
 import { parseManifest, manifestCapabilities, MANIFEST_FILE } from './manifest.mjs';
 import { parseCapabilities } from './capabilities.mjs';
 
@@ -55,7 +61,7 @@ export async function fromFile(source, options = {}) {
     const file = toPath(capabilities);
     capabilities = new Uint8Array(await readFile(file).catch(() => fail('capabilities.path', `${file} does not exist`)));
   }
-  const grant = { capabilities, capabilitySet: options.capabilitySet };
+  const grant = { capabilities, capabilitySet: options.capabilitySet, allowUnverified: options.allowUnverified === true };
   if (info.isDirectory()) {
     const files = await readClosureDirectory(path);
     let model = options.model ?? null;
@@ -105,6 +111,8 @@ export async function readManifest(directory = '.', options = {}) {
 export function containersDirectory(env = process.env) {
   return join(env.PRISM_HOME || join(homedir(), '.prism'), 'containers');
 }
+
+export { fileImageStore, imagesDirectory, memoryImageStore } from './image-store.mjs';
 
 /**
  * Records as one JSON file per container, readable only by this user. The
@@ -223,8 +231,42 @@ export async function serve(app, { port = 0, host = '127.0.0.1' } = {}) {
   };
 }
 
+/**
+ * `Prism.fromEnv()`, docker-py's `docker.from_env()` (issue #441): the client of
+ * `createPrism` with this machine's configuration and no daemon.
+ *
+ * - `containers` keep their records in `$PRISM_HOME/containers` (`fileContainerStore`).
+ * - `images` keeps built and pulled images in `$PRISM_IMAGES`, else `$PRISM_HOME/images` (`fileImageStore`).
+ * - `images.build` runs the builder image through the Docker that `prism-code setup`
+ *   recorded, or the one found on the PATH (`host.mjs`).
+ * - `system.info({ path })` and `system.version({ path })` read `<path>/prismpm.lock`.
+ * - `auth` logs in and out through Docker's credential stores and holds signing identities.
+ *
+ * `options.env` replaces `process.env`. Any other option is `createPrism`'s and wins
+ * over these defaults, so a test can pass its own `store` or `docker`.
+ */
+function fromEnv(options = {}) {
+  const { env = process.env, ...rest } = options;
+  return createPrism({
+    store: fileContainerStore(containersDirectory(env)),
+    imageStore: fileImageStore(imagesDirectory(env)),
+    docker: (request) => hostDockerArguments({ ...request, env }),
+    readLock: (directory) =>
+      readFile(join(toPath(directory), 'prismpm.lock'), 'utf8').catch((error) => {
+        if (error.code === 'ENOENT') return null;
+        return fail('system.lock', `cannot read ${join(toPath(directory), 'prismpm.lock')}: ${error.message}`);
+      }),
+    auth: createAuth({ env }),
+    ...rest,
+  });
+}
+
+/** The client entry point: `Prism.fromEnv()`. `Prism.create` is `createPrism`, for a client configured by hand. */
+export const Prism = Object.freeze({ fromEnv, create: createPrism });
+
 // Signing and checking attestations (#272). The sigstore packages they need are optional and load on first use.
-export { experimental_attest, experimental_verifyAttestations, experimental_verifyBundle, GITHUB_ACTIONS_ISSUER } from './attest.mjs';
+export { experimental_verifyAttestations, experimental_verifyBundle, GITHUB_ACTIONS_ISSUER } from './attest.mjs';
+export { experimental_attest, experimental_signStatements } from './attest-write.mjs';
 
 // Moving holos to and from a registry or a local store (#292).
 export { experimental_push, experimental_pull, openEndpoint, MAX_HOLO_BYTES, PUSH_SCHEMA, PULL_SCHEMA } from './push-pull.mjs';

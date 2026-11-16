@@ -1,0 +1,84 @@
+
+  source-vv:
+    needs: [policy, factory, devcontainer-image, vv-sdk]
+    if: >-
+      ${{ !cancelled() && needs.factory.outputs.route == 'establish' && needs.devcontainer-image.result == 'success'
+      && (needs.vv-sdk.result == 'success' || (needs.factory.outputs.vv-sdk == 'proved' && needs.vv-sdk.result == 'skipped')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - part: dk-3
+          - part: ho-oc
+          - part: dk-2
+          - part: gates
+          - part: st-sy
+          - part: dk-0-1
+          - part: conformance
+          - part: source
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          submodules: false
+      # The shared cleanup also removes unused host toolchains the shorter list
+      # kept; ho-oc's OC-10 capture needs its fixed 10 GiB volume headroom.
+      - uses: ./.github/actions/prepare-devcontainer-runner
+      # Reuse the construction layers devcontainer-image wrote for this ref.
+      # Each shard still executes its complete source verification on this commit.
+      - id: cache
+        uses: ./.github/actions/devcontainer-cache
+      # Every part runs its external oracles in the one SDK image vv-sdk built
+      # for this identity (this run's, or the receipt's run), instead of each
+      # part rebuilding it. vv.sh takes an exact, locally available digest.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: vv-sdk
+          path: ${{ runner.temp }}/vv-sdk
+          run-id: ${{ needs.factory.outputs.vv-sdk-run-id || github.run_id }}
+          github-token: ${{ github.token }}
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: sdk
+        run: |
+          set -euo pipefail
+          image=$(cat "$RUNNER_TEMP/vv-sdk/vv-sdk-image.txt")
+          case "$image" in
+            ghcr.io/uor-foundation/prismpm-sdk@sha256:????????????????????????????????????????????????????????????????) ;;
+            *) printf 'invalid V&V SDK image identity: %s\n' "$image" >&2; exit 64 ;;
+          esac
+          for attempt in 1 2 3 4; do
+            docker pull "$image" && break
+            test "$attempt" -lt 4
+            sleep $((attempt * 30))
+          done
+          printf 'image=%s\n' "$image" >> "$GITHUB_OUTPUT"
+      - uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca
+        with:
+          push: never
+          cacheFrom: ${{ steps.cache.outputs.cache-from }}
+          runCmd: |
+            set -euo pipefail
+            export PRISMPM_TEST_SDK_IMAGE='${{ steps.sdk.outputs.image }}'
+            bash scripts/vv.sh --with-sdk bash -euo pipefail -c "$(cat <<'PRISMPM_VV'
+            node scripts/release-gate-evidence.mjs source-run . target/source-vv-evidence '${{ github.sha }}' amd64 - '${{ github.run_id }}' '${{ github.run_attempt }}' '${{ matrix.part }}'
+            PRISMPM_VV
+            )"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: source-vv-part-${{ matrix.part }}
+          path: target/source-vv-evidence/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

@@ -16,7 +16,7 @@ const caps = (set) => ({ schema: 'prism/capabilities/1', sets: { default: set } 
 test('the reference archive loads with its world: within the grant, pure, no impure effect', async () => {
   for (const capabilities of [null, caps({}), caps({ 'allow-variables': ['*'] })]) {
     const app = await load(reference(), { capabilities });
-    assert.deepEqual({ ...app.world }, { contract: 'hologram:guest/core-wasm@1', within: true, pure: true, effects: [] });
+    assert.deepEqual({ ...app.world }, { contract: 'hologram:guest/core-wasm@1', within: true, pure: true, effects: [], session: false });
     assert.ok(Object.isFrozen(app.world));
   }
 });

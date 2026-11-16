@@ -16,6 +16,17 @@ import * as assurance from './vendor/assurance-levels.mjs';
 
 const { ASSURANCE } = assurance;
 
+/**
+ * Whether the digest set a statement gives names `actual`, the digests of an object of this holo: its sha256, the κ
+ * (ADR-017), is equal, and a blake3 beside it, which only statements about a v4 holo carry (ADR-015), is equal too.
+ */
+export const sameDigests = (digest, actual) =>
+  isObject(digest) &&
+  Boolean(actual) &&
+  Object.keys(digest).every((key) => key === 'sha256' || key === 'blake3') &&
+  digest.sha256 === actual.sha256 &&
+  (digest.blake3 === undefined || digest.blake3 === actual.blake3);
+
 export const STATEMENT_TYPE = 'https://in-toto.io/Statement/v1';
 export const PROOF_PREDICATE_TYPE = ASSURANCE.PREDICATES.proof;
 export const PROOF_SCHEMA = 'predicates/proof-v1.schema.json';
@@ -78,13 +89,13 @@ export function checkProofStatement(statement, holo, envelope) {
   const { subject, predicate } = statement;
 
   const digest = subject[0].digest;
-  if (!holo.guest || digest.blake3 !== holo.guest.blake3 || digest.sha256 !== holo.guest.sha256) {
-    reasons.push(reason('proof.subject', `The proof statement is about ${subject[0].name} with blake3 ${digest.blake3}, which is not this holo's guest${holo.guest ? ` (blake3 ${holo.guest.blake3})` : ''}.`));
+  if (!sameDigests(digest, holo.guest)) {
+    reasons.push(reason('proof.subject', `The proof statement is about ${subject[0].name} with sha256 ${digest.sha256}, which is not this holo's guest${holo.guest ? ` (sha256 ${holo.guest.sha256})` : ''}.`));
   }
 
   const model = [];
   const document = predicate.model.document;
-  if (!holo.model || document.sha256 !== holo.model.sha256 || document.blake3 !== holo.model.blake3) model.push('the model document digests are not those of the model blob');
+  if (!sameDigests(document, holo.model)) model.push('the model document digests are not those of the model blob');
   const provenance = holo.provenance ?? {};
   const pairs = [
     ['document.sha256', document.sha256, 'model_id'],
@@ -150,7 +161,7 @@ export function checkProvenanceStatement(statement, holo, envelope) {
   }
   const unmatched = subjects.filter((subject) => {
     const digest = subject?.digest;
-    return !isObject(digest) || !holo.blobs.some((blob) => blob.digests && blob.digests.sha256 === digest.sha256 && blob.digests.blake3 === digest.blake3);
+    return !holo.blobs.some((blob) => sameDigests(digest, blob.digests));
   });
   if (unmatched.length > 0) {
     reasons.push(withheld('provenance.subject', `The provenance statement names ${unmatched.map((s) => s?.name ?? '(unnamed)').join(', ')}, which this holo does not contain with those digests.`));
@@ -174,7 +185,6 @@ function replayReason(check, message) {
   return { check, code: REPLAY_CODES[check], withholds: 'P3', message };
 }
 
-const sameDigests = (a, b) => Boolean(a && b) && a.sha256 === b.sha256 && a.blake3 === b.blake3;
 
 /**
  * Check one replay statement against a build. Returns the reasons, in check
@@ -211,10 +221,10 @@ export function checkReplayStatement(statement, holo, envelope) {
   const { subject, predicate } = statement;
 
   if (!sameDigests(subject[0].digest, holo.guest)) {
-    reasons.push(replayReason('replay.subject', `The replay statement is about ${subject[0].name} with blake3 ${subject[0].digest.blake3}, which is not this holo's guest${holo.guest ? ` (blake3 ${holo.guest.blake3})` : ''}.`));
+    reasons.push(replayReason('replay.subject', `The replay statement is about ${subject[0].name} with sha256 ${subject[0].digest.sha256}, which is not this holo's guest${holo.guest ? ` (sha256 ${holo.guest.sha256})` : ''}.`));
   }
   if (!sameDigests(predicate.model, holo.model)) {
-    reasons.push(replayReason('replay.model', `The replay statement is about the model with blake3 ${predicate.model.blake3}, which is not this holo's model${holo.model ? ` (blake3 ${holo.model.blake3})` : ''}.`));
+    reasons.push(replayReason('replay.model', `The replay statement is about the model with sha256 ${predicate.model.sha256}, which is not this holo's model${holo.model ? ` (sha256 ${holo.model.sha256})` : ''}.`));
   }
   if (predicate.divergenceCount > 0) {
     reasons.push(replayReason('replay.divergence', `The replay recorded ${predicate.divergenceCount} divergences from its histories.`));

@@ -269,7 +269,6 @@ pub(super) struct Retained {
 /// This private value is not evidence of producer authentication or readiness.
 #[derive(Debug)]
 pub(super) struct Replayed {
-    #[cfg(test)]
     pub(super) runtime: BTreeMap<String, Vec<u8>>,
     #[cfg(test)]
     pub(super) oracles: BTreeMap<String, Vec<u8>>,
@@ -499,7 +498,6 @@ pub(super) fn validate(
         ));
     }
     Ok(Replayed {
-        #[cfg(test)]
         runtime: retained.runtime,
         #[cfg(test)]
         oracles: retained.oracles,

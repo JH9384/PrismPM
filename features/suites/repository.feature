@@ -20,7 +20,7 @@ Feature: repository
 
   @RP-04 @build
   Scenario: The devcontainer and CI enforce hermetic build and test environments.
-    Given .devcontainer/devcontainer.json and .github/workflows/vv.yml
+    Given .devcontainer/devcontainer.json and the Prism factory's verification parts
     When container definitions are verified
     Then toolchains and dependencies are hermetically provisioned
 

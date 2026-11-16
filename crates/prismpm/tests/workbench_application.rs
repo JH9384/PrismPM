@@ -49,12 +49,12 @@ fn workbench_closed_contract_roundtrip_preserves_explicit_resources() {
         doc.application.as_ref().unwrap().core_stack_bytes(),
         Some(131072)
     );
-    let canonical = prismpm::holo::canonical::encode_canonical(&doc).unwrap();
+    let canonical = prismpm::holo::model_document::encode_canonical(&doc).unwrap();
     assert_eq!(
-        prismpm::holo::canonical::decode_canonical(&canonical).unwrap(),
+        prismpm::holo::model_document::decode_canonical(&canonical).unwrap(),
         doc
     );
-    prismpm::contracts::CanonicalDocument::from_value("prismpm/model-document/6", value.clone())
+    prismpm::model_contract::contract_from_value("prismpm/model-document/6", value.clone())
         .unwrap();
     let schema: Value = serde_json::from_slice(include_bytes!(
         "../../../schemas/model-document-v6.schema.json"

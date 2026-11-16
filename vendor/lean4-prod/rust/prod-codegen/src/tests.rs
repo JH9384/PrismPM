@@ -750,6 +750,110 @@ fn test_intermediate_list_value_is_a_codegen_error() {
     );
 }
 
+/// UOR-Foundation/PrismPM#602: builder mode keeps a `let`-bound list only in
+/// its symbolic environment, so no Rust local exists for it. Any operand that
+/// reads such a binding in value position must be refused, never rendered as
+/// a reference to an undeclared local.
+const PROBE_602: &str = r#"
+(module Probe
+  (def build ((n Nat)) (List Nat)
+    (cases n
+      (alt "Nat.zero" () (ctor "List.nil"))
+      (alt "Nat.succ" (k) (ctor "List.cons" k (call build k)))))
+  (def appN ((xs (List Nat)) (ys (List Nat))) (List Nat)
+    (cases xs
+      (alt "List.nil" () ys)
+      (alt "List.cons" (h t) (ctor "List.cons" h (call appN t ys)))))
+  (def total ((xs (List Nat))) Nat
+    (cases xs
+      (alt "List.nil" () 0)
+      (alt "List.cons" (h t) h)))
+"#;
+
+fn probe_602(definitions: &str) -> String {
+    alloc::format!("{PROBE_602}{definitions})")
+}
+
+#[test]
+fn test_let_bound_list_passed_to_builder_call_is_refused() {
+    let ir = probe_602(
+        r#"(def twice ((n Nat)) (List Nat)
+             (let _x_1 (call build n) (let _x_2 (call appN _x_1 _x_1) _x_2)))"#,
+    );
+    assert_eq!(
+        generate_err(&ir),
+        Error::UnsupportedList(
+            "`twice` reads `_x_1`, the list returned by `build`, as an operand; \
+             a let-bound list has no storage outside the output buffer"
+                .to_string()
+        )
+    );
+}
+
+#[test]
+fn test_let_bound_list_scalar_consumer_is_still_refused() {
+    let ir = probe_602(
+        r#"(def sumBuild ((n Nat)) Nat
+             (let _x_1 (call build n) (call total _x_1)))"#,
+    );
+    assert_eq!(
+        generate_err(&ir),
+        Error::UnsupportedList(
+            "`build` returns a list; its result cannot be used as an intermediate value"
+                .to_string()
+        )
+    );
+}
+
+#[test]
+fn test_let_bound_list_in_every_builder_value_position_is_refused() {
+    for (position, body) in [
+        (
+            "condition",
+            r#"(if (eq (call total _x_1) 0) (ctor "List.nil") _x_1)"#,
+        ),
+        (
+            "cons head",
+            r#"(ctor "List.cons" (call total _x_1) (ctor "List.nil"))"#,
+        ),
+        (
+            "scalar let",
+            r#"(let s (call total _x_1) (ctor "List.cons" s (ctor "List.nil")))"#,
+        ),
+        (
+            "scrutinee",
+            r#"(cases _x_1 (alt "List.nil" () (ctor "List.nil")) (alt "List.cons" (h t) t))"#,
+        ),
+    ] {
+        let ir = probe_602(&alloc::format!(
+            r#"(def f ((n Nat)) (List Nat) (let _x_1 (call build n) {body}))"#
+        ));
+        assert_eq!(
+            generate_err(&ir),
+            Error::UnsupportedList(
+                "`f` reads `_x_1`, the list returned by `build`, as an operand; \
+                 a let-bound list has no storage outside the output buffer"
+                    .to_string()
+            ),
+            "{position}"
+        );
+    }
+}
+
+#[test]
+fn test_let_bound_list_in_builder_position_and_shadowed_names_still_render() {
+    let out = generate(&probe_602(
+        r#"(def direct ((n Nat)) (List Nat) (let _x_1 (call build n) _x_1))
+           (def shadowed ((n Nat)) (List Nat)
+             (let x (call build n) (let x 7 (ctor "List.cons" x (call build x)))))"#,
+    ));
+    // Normalization renames the shadowing scalar; the builder must still
+    // render it as a Rust local, not resolve it to the shadowed list.
+    assert!(out.contains("build(n, output)"), "{out}");
+    assert!(out.contains("{ let prod_local_0 = 7;"), "{out}");
+    assert!(out.contains("build(prod_local_0, __rest0)"), "{out}");
+}
+
 #[test]
 fn test_nested_list_type_is_an_explicit_owned_vec() {
     let ir = r#"

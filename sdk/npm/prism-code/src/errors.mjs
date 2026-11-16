@@ -288,6 +288,9 @@ export function errorForReason(reason, verdict = undefined) {
 export function errorFromVerdict(verdict, ranks) {
   if (verdict.passed) return null;
   const minimum = ranks[verdict.policy.minimum];
+  // Damage fails every policy (policy.integrity), and the damage itself is the reason to name.
+  const damaged = verdict.reasons.find((r) => r.check === 'holo.integrity');
+  if (damaged) return errorForReason(damaged, verdict);
   const pinned = verdict.reasons.find((r) => r.withholds === null && r.check !== 'policy.level');
   // The default policy requires the world within the grant at every level (#269, #283), so it is named before a level shortfall.
   const outside = verdict.reasons.find((r) => r.check === 'world.capabilities');

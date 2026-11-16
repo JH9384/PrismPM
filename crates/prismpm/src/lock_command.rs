@@ -361,7 +361,7 @@ mod tests {
     use crate::input_lock::{sample_inputs, sample_platform_lock, SDK_LOCK_V2};
 
     fn v2(salt: &str) -> CanonicalDocument {
-        CanonicalDocument::from_value(SDK_LOCK_V2, sample_platform_lock(salt)).unwrap()
+        crate::sdk::contract_from_value(SDK_LOCK_V2, sample_platform_lock(salt)).unwrap()
     }
 
     fn v3(salt: &str, inputs: Value) -> CanonicalDocument {

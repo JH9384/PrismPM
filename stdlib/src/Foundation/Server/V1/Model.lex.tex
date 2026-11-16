@@ -1,0 +1,329 @@
+\begin{lexlean}{Foundation.Server.V1.Model}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\title{Server application model}
+\begin{semanticmodule}
+inductive{
+  name: HostKind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: U32, fields: []},
+    {name: U64, fields: []},
+    {name: Flag, fields: []},
+    {name: Bytes, fields: []},
+    {name: Text, fields: []}
+  ]
+}
+
+structure{
+  name: HostField,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: name, type: String}, {name: kind, type: HostKind}]
+}
+
+structure{
+  name: HostEffect,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: request, type: (List HostField)},
+    {name: result, type: (List HostField)},
+    {name: failures, type: (List String)},
+    {name: requestMaximum, type: UInt32},
+    {name: resultMaximum, type: UInt32}
+  ]
+}
+
+structure{
+  name: HostStep,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: effect, type: String}, {name: request, type: Bytes}, {name: outcome, type: Bytes}]
+}
+
+structure{
+  name: HostTranscript,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: vector, type: UInt32}, {name: steps, type: (List HostStep)}]
+}
+
+structure{
+  name: AcceptanceVector,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: request, type: Bytes}, {name: response, type: Bytes}]
+}
+
+structure{
+  name: HostProtocol,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: protocol, type: String},
+    {name: description, type: String},
+    {name: usageCode, type: UInt8},
+    {name: ioCode, type: UInt8},
+    {name: faultCode, type: UInt8},
+    {name: effectBudget, type: UInt32},
+    {name: effects, type: (List HostEffect)},
+    {name: transcripts, type: (List HostTranscript)}
+  ]
+}
+
+inductive{
+  name: ServerFailure,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: UnknownFlag, fields: []},
+    {name: ExtraArgument, fields: []},
+    {name: MissingCommand, fields: []},
+    {name: UnknownCommand, fields: []},
+    {name: MissingOperand, fields: []},
+    {name: InputMissing, fields: []},
+    {name: InputOpen, fields: []},
+    {name: InputType, fields: []},
+    {name: InputRead, fields: []},
+    {name: OutputWrite, fields: []},
+    {name: InputLimit, fields: []},
+    {name: AdapterAllocation, fields: []},
+    {name: ComputeFailure, fields: []},
+    {name: ResponseLimit, fields: []},
+    {name: StepMalformed, fields: []},
+    {name: EffectUndeclared, fields: []},
+    {name: EffectMalformed, fields: []},
+    {name: EffectRequestLimit, fields: []},
+    {name: EffectResultLimit, fields: []},
+    {name: EffectBudget, fields: []},
+    {name: HostFault, fields: []},
+    {name: ScriptMalformed, fields: []},
+    {name: ScriptExhausted, fields: []},
+    {name: ScriptMismatch, fields: []},
+    {name: ScriptUnused, fields: []},
+    {name: ListenAddress, fields: []},
+    {name: ListenIo, fields: []}
+  ]
+}
+
+inductive{
+  name: ServerFailureClass,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: Usage, fields: []}, {name: Io, fields: []}, {name: Fault, fields: []}]
+}
+
+definition{
+  name: failureClass,
+  parameters: [failure : ServerFailure],
+  result: ServerFailureClass,
+  body: (match failure
+    | ServerFailure.UnknownFlag => (ctor ServerFailureClass.Usage)
+    | ServerFailure.ExtraArgument => (ctor ServerFailureClass.Usage)
+    | ServerFailure.MissingCommand => (ctor ServerFailureClass.Usage)
+    | ServerFailure.UnknownCommand => (ctor ServerFailureClass.Usage)
+    | ServerFailure.MissingOperand => (ctor ServerFailureClass.Usage)
+    | ServerFailure.InputMissing => (ctor ServerFailureClass.Io)
+    | ServerFailure.InputOpen => (ctor ServerFailureClass.Io)
+    | ServerFailure.InputType => (ctor ServerFailureClass.Io)
+    | ServerFailure.InputRead => (ctor ServerFailureClass.Io)
+    | ServerFailure.OutputWrite => (ctor ServerFailureClass.Io)
+    | ServerFailure.InputLimit => (ctor ServerFailureClass.Fault)
+    | ServerFailure.AdapterAllocation => (ctor ServerFailureClass.Fault)
+    | ServerFailure.ComputeFailure => (ctor ServerFailureClass.Fault)
+    | ServerFailure.ResponseLimit => (ctor ServerFailureClass.Fault)
+    | ServerFailure.StepMalformed => (ctor ServerFailureClass.Fault)
+    | ServerFailure.EffectUndeclared => (ctor ServerFailureClass.Fault)
+    | ServerFailure.EffectMalformed => (ctor ServerFailureClass.Fault)
+    | ServerFailure.EffectRequestLimit => (ctor ServerFailureClass.Fault)
+    | ServerFailure.EffectResultLimit => (ctor ServerFailureClass.Fault)
+    | ServerFailure.EffectBudget => (ctor ServerFailureClass.Fault)
+    | ServerFailure.HostFault => (ctor ServerFailureClass.Fault)
+    | ServerFailure.ScriptMalformed => (ctor ServerFailureClass.Fault)
+    | ServerFailure.ScriptExhausted => (ctor ServerFailureClass.Fault)
+    | ServerFailure.ScriptMismatch => (ctor ServerFailureClass.Fault)
+    | ServerFailure.ScriptUnused => (ctor ServerFailureClass.Fault)
+    | ServerFailure.ListenAddress => (ctor ServerFailureClass.Fault)
+    | ServerFailure.ListenIo => (ctor ServerFailureClass.Io)),
+  axioms: []
+}
+
+structure{
+  name: ServerCore,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: root, type: String}, {name: package, type: String}, {name: version, type: String}]
+}
+
+structure{
+  name: ServerBinding,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: path, type: String}, {name: crateName, type: String}, {name: host, type: String}]
+}
+
+inductive{
+  name: ServingRefusal,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: RequestLineMalformed, fields: []},
+    {name: RequestLineTooLong, fields: []},
+    {name: VersionUnsupported, fields: []},
+    {name: FieldMalformed, fields: []},
+    {name: HostInvalid, fields: []},
+    {name: HeaderCountExceeded, fields: []},
+    {name: HeaderBytesExceeded, fields: []},
+    {name: LengthInvalid, fields: []},
+    {name: FramingAmbiguous, fields: []},
+    {name: TransferCodingUnsupported, fields: []},
+    {name: ExpectationUnsupported, fields: []},
+    {name: BodyTooLarge, fields: []},
+    {name: ChunkMalformed, fields: []},
+    {name: OriginForbidden, fields: []},
+    {name: AcceptRefused, fields: []},
+    {name: ContentTypeRefused, fields: []},
+    {name: ReadTimeout, fields: []},
+    {name: FrameUnavailable, fields: []},
+    {name: CoreFailed, fields: []},
+    {name: ResponseMalformed, fields: []},
+    {name: Busy, fields: []}
+  ]
+}
+
+definition{
+  name: refusalStatus,
+  parameters: [refusal : ServingRefusal],
+  result: Nat,
+  body: (match refusal
+    | ServingRefusal.RequestLineMalformed => 400
+    | ServingRefusal.RequestLineTooLong => 414
+    | ServingRefusal.VersionUnsupported => 505
+    | ServingRefusal.FieldMalformed => 400
+    | ServingRefusal.HostInvalid => 400
+    | ServingRefusal.HeaderCountExceeded => 431
+    | ServingRefusal.HeaderBytesExceeded => 431
+    | ServingRefusal.LengthInvalid => 400
+    | ServingRefusal.FramingAmbiguous => 400
+    | ServingRefusal.TransferCodingUnsupported => 501
+    | ServingRefusal.ExpectationUnsupported => 417
+    | ServingRefusal.BodyTooLarge => 413
+    | ServingRefusal.ChunkMalformed => 400
+    | ServingRefusal.OriginForbidden => 403
+    | ServingRefusal.AcceptRefused => 406
+    | ServingRefusal.ContentTypeRefused => 415
+    | ServingRefusal.ReadTimeout => 408
+    | ServingRefusal.FrameUnavailable => 503
+    | ServingRefusal.CoreFailed => 500
+    | ServingRefusal.ResponseMalformed => 500
+    | ServingRefusal.Busy => 503),
+  axioms: []
+}
+
+inductive{
+  name: FrameKind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: U32, fields: []},
+    {name: U64, fields: []},
+    {name: Bytes, fields: []},
+    {name: Text, fields: []},
+    {name: TextList, fields: []}
+  ]
+}
+
+structure{
+  name: FrameSection,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: kind, type: FrameKind},
+    {name: effect, type: String},
+    {name: field, type: String},
+    {name: values, type: (List String)}
+  ]
+}
+
+structure{
+  name: ServingOrigin,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: scheme, type: String}, {name: host, type: String}, {name: port, type: UInt32}]
+}
+
+structure{
+  name: ServedVector,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: vector, type: UInt32}, {name: request, type: Bytes}, {name: response, type: Bytes}]
+}
+
+structure{
+  name: ServerServing,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: address, type: String},
+    {name: port, type: UInt32},
+    {name: connectionMaximum, type: UInt32},
+    {name: readTimeoutMillis, type: UInt32},
+    {name: rootStackBytes, type: UInt32},
+    {name: requestLineMaximum, type: UInt32},
+    {name: headerCountMaximum, type: UInt32},
+    {name: headerBytesMaximum, type: UInt32},
+    {name: bodyMaximum, type: UInt32},
+    {name: origins, type: (List ServingOrigin)},
+    {name: accept, type: (List String)},
+    {name: contentTypes, type: (List String)},
+    {name: enforcedMethods, type: (List String)},
+    {name: countedField, type: String},
+    {name: countedValue, type: String},
+    {name: frame, type: (List FrameSection)},
+    {name: vectors, type: (List ServedVector)}
+  ]
+}
+
+structure{
+  name: ServerApplication,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: profile, type: String},
+    {name: name, type: String},
+    {name: cargoName, type: String},
+    {name: cargoVersion, type: String},
+    {name: cargoDescription, type: String},
+    {name: cargoRepository, type: String},
+    {name: cargoHomepage, type: String},
+    {name: core, type: ServerCore},
+    {name: acceptanceVectors, type: (List AcceptanceVector)},
+    {name: requestMaximum, type: UInt32},
+    {name: responseMaximum, type: UInt32},
+    {name: bindings, type: (List ServerBinding)},
+    {name: serving, type: (List ServerServing)},
+    {name: verifyBuildTimeoutSeconds, type: UInt32},
+    {name: host, type: HostProtocol}
+  ]
+}
+
+definition{
+  name: serverApplicationProfile,
+  parameters: [],
+  result: String,
+  body: "prismpm/server-application/1"
+}
+
+definition{
+  name: hostEffectsProtocol,
+  parameters: [],
+  result: String,
+  body: "prismpm/host-effects/1"
+}
+\end{semanticmodule}
+\end{lexlean}

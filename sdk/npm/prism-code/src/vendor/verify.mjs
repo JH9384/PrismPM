@@ -163,6 +163,19 @@ const __vendor_spec = (() => {
   });
 
   /**
+   * The Core-Wasm session contract (issue #629, docs/proposals/629-session-world.md).
+   * One instance is one session: the state stays inside the guest and each
+   * `holo_step` answers one request with zero or more responses.
+   */
+  const CORE_WASM_SESSION = freeze({
+    CONTRACT: 'hologram:guest/core-wasm@2',
+    EXPORTS: freeze(['holo_alloc', 'holo_step', 'memory']),
+    ALLOCATOR: 'holo_alloc',
+    ENTRY: 'holo_step',
+    WORLD: 'worlds/core-wasm-2.wit',
+  });
+
+  /**
    * The worlds a guest can target, by guest contract (issue #278,
    * docs/proposals/278-wit-world.md). A holo declares its world by naming its
    * contract; the world's hash is a function of that name through this table.
@@ -189,6 +202,22 @@ const __vendor_spec = (() => {
       exports: freeze([
         freeze({ name: 'holo_alloc', kind: 'func', params: freeze(['i32']), results: freeze(['i32']) }),
         freeze({ name: 'holo_run', kind: 'func', params: freeze(['i32', 'i32']), results: freeze(['i64']) }),
+        freeze({ name: 'memory', kind: 'memory' }),
+      ]),
+    }),
+    [CORE_WASM_SESSION.CONTRACT]: freeze({
+      version: 1,
+      package: 'hologram:guest@2.0.0',
+      world: 'core-wasm',
+      file: CORE_WASM_SESSION.WORLD,
+      digest: freeze({
+        blake3: '2e286db1e21243c244f807d7bbf21f158bac0f5c413d4e46007de7dbe9204a4d',
+        sha256: 'e5ee38e4f472f7616a291c83c17f272078cdf114e0106e39d71590aa1ac960f4',
+      }),
+      imports: freeze([]),
+      exports: freeze([
+        freeze({ name: 'holo_alloc', kind: 'func', params: freeze(['i32']), results: freeze(['i32']) }),
+        freeze({ name: 'holo_step', kind: 'func', params: freeze(['i32', 'i32']), results: freeze(['i64']) }),
         freeze({ name: 'memory', kind: 'memory' }),
       ]),
     }),
@@ -287,6 +316,21 @@ const __vendor_spec = (() => {
     }),
   });
   /**
+   * Holo v5 (ADR-017): a raw self-contained UORC archive of ordered objects,
+   * sealed by UORC-SHA256-CHAIN-v1. Every identity is a κ-label, `sha256:` and
+   * the hex SHA-256 of the bytes it names; the κ of the file is its OCI digest.
+   */
+  const HOLO_V5 = freeze({
+    /** "UORC", format 2, profile 1, scope 0 (self-contained), representation 0 (raw). */
+    MAGIC_HEX: '554f52430201',
+    MANIFEST_SCHEMA: 'prism/holo/5',
+    PROVENANCE_SCHEMA: 'prismpm/model-provenance/2',
+    /** The objects in archive order; `attestations` follows only when the holo is signed. */
+    ROLES: freeze(['manifest', 'source-manifest', 'provenance', 'capabilities', 'guest', 'view', 'model']),
+    ROLE_ATTESTATIONS: 'attestations',
+    KAPPA_PREFIX: 'sha256:',
+  });
+  /**
    * Build provenance of a holo, issue #268 (docs/proposals/268-build-provenance.md). The predicate is SLSA
    * provenance v1; Prism adds the build type and the rules for each member. Schema: SCHEMA.
    */
@@ -354,6 +398,7 @@ const __vendor_spec = (() => {
     "prismpm/model-document/5": "schemas/documents/model-document-v5.schema.json",
     "prismpm/model-document/6": "schemas/documents/model-document-v6.schema.json",
     "prismpm/model-provenance/1": "schemas/documents/model-provenance-v1.schema.json",
+    "prismpm/model-provenance/2": "schemas/documents/model-provenance-v2.schema.json",
   });
 
   /** The holo sections this reader checks. The spec's HOLO_SCHEMAS lists every section schema. */
@@ -363,7 +408,7 @@ const __vendor_spec = (() => {
     "SOURCE_MANIFEST": "schemas/holo/source-manifest.schema.json",
     "APPLICATION_DIRECTORY": "schemas/holo/application-directory.schema.json",
   });
-  return Object.freeze({ FORMAT_REVISION, MAGIC, PHYSICAL_VERSION, FLAGS, HEADER_LENGTH, TABLE_ENTRY_LENGTH, SECTION_COUNT, BODY_OFFSET, FOOTER_LENGTH, SECTION_KIND, SECTION_ORDER, LABEL_PREFIX, LABEL_LENGTH, APP_MANIFEST, CAPABILITY_SET, EXTENSION, CORE_WASM, WORLDS, HOLOVIEW, ATTESTATION, ATTESTATION_BUNDLE, OCI, FORMAT_REVISIONS, PROVENANCE, POLICY, ASSURANCE, SCHEMAS, HOLO_SCHEMAS });
+  return Object.freeze({ FORMAT_REVISION, MAGIC, PHYSICAL_VERSION, FLAGS, HEADER_LENGTH, TABLE_ENTRY_LENGTH, SECTION_COUNT, BODY_OFFSET, FOOTER_LENGTH, SECTION_KIND, SECTION_ORDER, LABEL_PREFIX, LABEL_LENGTH, APP_MANIFEST, CAPABILITY_SET, EXTENSION, CORE_WASM, CORE_WASM_SESSION, WORLDS, HOLOVIEW, ATTESTATION, ATTESTATION_BUNDLE, OCI, FORMAT_REVISIONS, HOLO_V5, PROVENANCE, POLICY, ASSURANCE, SCHEMAS, HOLO_SCHEMAS });
 })();
 
 // src/vendor/blake3.mjs
@@ -787,6 +832,7 @@ const __vendor_schemas = (() => {
     "schemas/documents/model-document-v5.schema.json": {"$id":"prismpm/model-document/5","$schema":"https://json-schema.org/draft/2020-12/schema","title":"BoundedTextModelDocument","type":"object","additionalProperties":false,"properties":{"application":{"$ref":"#/$defs/application"},"architecture":{"$ref":"#/$defs/architecture"},"provenance":{"$ref":"#/$defs/provenance"},"quality":{"$ref":"#/$defs/quality"},"schema":{"const":"prismpm/model-document/5"},"security":{"$ref":"#/$defs/security"},"standards_profile":{"oneOf":[{"const":[]},{"const":["ISO-25010-2023","ISO-27005-2022","ISO-27034-1-2011","ISO-27034-5-2017","ISO-42010-2022"]}]}},"required":["application","architecture","provenance","quality","schema","security","standards_profile"],"$defs":{"application":{"type":"object","additionalProperties":false,"properties":{"profile":{"const":"prismpm/text-application/2"},"name":{"type":"string","minLength":1,"maxLength":128,"pattern":"^[A-Za-z0-9](?:[A-Za-z0-9_. -]*[A-Za-z0-9_-])?$"},"cargo_name":{"pattern":"^[a-z][a-z0-9_-]{0,63}$","type":"string"},"cargo_version":{"pattern":"^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$","type":"string"},"cargo_description":{"minLength":1,"type":"string"},"cargo_repository":{"format":"uri","pattern":"^https://","type":"string"},"cargo_homepage":{"format":"uri","pattern":"^https://","type":"string"},"library_roots":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","pattern":"^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"}},"acceptance_vectors":{"items":{"$ref":"#/$defs/application_acceptance_vector"},"minItems":1,"type":"array"},"entry_root":{"type":"string","pattern":"^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"},"core_contract":{"const":"hologram:guest/core-wasm@1"},"request_maximum":{"maximum":4294967295,"minimum":1,"type":"integer"},"response_maximum":{"maximum":4294967295,"minimum":1,"type":"integer"},"guest_allocation_maximum":{"maximum":4294967295,"minimum":1,"type":"integer"},"capabilities_empty":{"const":true},"fat_archive":{"const":true},"primary_layer":{"const":0},"view_layer":{"const":1},"view":{"$ref":"#/$defs/text_view"},"core_memory_pages":{"maximum":32767,"minimum":1,"type":"integer"},"core_stack_bytes":{"maximum":4294967295,"minimum":16,"multipleOf":16,"type":"integer"}},"required":["acceptance_vectors","capabilities_empty","cargo_description","cargo_homepage","cargo_name","cargo_repository","cargo_version","core_contract","core_memory_pages","core_stack_bytes","entry_root","fat_archive","guest_allocation_maximum","library_roots","name","primary_layer","profile","request_maximum","response_maximum","view","view_layer"]},"application_acceptance_vector":{"additionalProperties":false,"properties":{"request":{"items":{"maximum":255,"minimum":0,"type":"integer"},"type":"array"},"response":{"items":{"maximum":255,"minimum":0,"type":"integer"},"type":"array"}},"required":["request","response"],"type":"object"},"provenance":{"additionalProperties":false,"properties":{"compiler_semantics_id":{"$ref":"#/$defs/sha256"},"emitter_semantics_id":{"$ref":"#/$defs/sha256"},"facet_packages":{"items":{"$ref":"#/$defs/facet"},"maxItems":3,"type":"array"},"semantic_id":{"$ref":"#/$defs/sha256"},"snapshot_id":{"$ref":"#/$defs/sha256"},"source_id":{"$ref":"#/$defs/sha256"}},"required":["compiler_semantics_id","emitter_semantics_id","facet_packages","semantic_id","snapshot_id","source_id"],"type":"object"},"sha256":{"pattern":"^[0-9a-f]{64}$","type":"string"},"text_view":{"type":"object","additionalProperties":false,"properties":{"title":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"heading":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"input_label":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"submit_label":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"output_label":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"input_error":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"response_error":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"}},"required":["title","heading","input_label","submit_label","output_label","input_error","response_error"]},"activity":{"additionalProperties":false,"properties":{"control_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"}},"required":["control_index","id","index"],"type":"object"},"architecture":{"additionalProperties":false,"properties":{"component_kinds":{"items":{"$ref":"#/$defs/catalog"},"type":"array"},"components":{"items":{"$ref":"#/$defs/component"},"type":"array"},"concerns":{"items":{"$ref":"#/$defs/described"},"type":"array"},"edge_kinds":{"items":{"$ref":"#/$defs/catalog"},"type":"array"},"edges":{"items":{"$ref":"#/$defs/edge"},"type":"array"},"model_kinds":{"items":{"$ref":"#/$defs/catalog"},"type":"array"},"stakeholders":{"items":{"$ref":"#/$defs/described"},"type":"array"},"viewpoints":{"items":{"$ref":"#/$defs/viewpoint"},"type":"array"},"views":{"items":{"$ref":"#/$defs/view"},"type":"array"}},"required":["component_kinds","components","concerns","edge_kinds","edges","model_kinds","stakeholders","viewpoints","views"],"type":"object"},"asset":{"additionalProperties":false,"properties":{"component_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"}},"required":["component_index","id","index"],"type":"object"},"catalog":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_catalog"},"index":{"$ref":"#/$defs/index"}},"required":["id","index"],"type":"object"},"component":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"kind_id":{"$ref":"#/$defs/qualified_catalog"},"name":{"type":"string","maxLength":256,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]*$"},"text":{"type":"string","maxLength":4096,"pattern":"^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]*$"}},"required":["id","index","kind_id"],"type":"object"},"control":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"risk_index":{"$ref":"#/$defs/index"}},"required":["id","index","risk_index"],"type":"object"},"described":{"type":"object","additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"name":{"type":"string","maxLength":256,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]*$"},"text":{"type":"string","maxLength":4096,"pattern":"^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]*$"}},"required":["id","index"]},"edge":{"additionalProperties":false,"properties":{"from_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"kind_id":{"$ref":"#/$defs/qualified_catalog"},"to_index":{"$ref":"#/$defs/index"}},"required":["from_index","id","index","kind_id","to_index"],"type":"object"},"facet":{"additionalProperties":false,"properties":{"content_id":{"$ref":"#/$defs/sha256"},"package":{"enum":["prism.arch","prism.qual","prism.sec"]},"version":{"const":"1.0.0"}},"required":["content_id","package","version"],"type":"object"},"index":{"maximum":18446744073709552000,"minimum":0,"type":"integer"},"indexed":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"}},"required":["id","index"],"type":"object"},"measure":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"requirement_index":{"$ref":"#/$defs/index"},"threshold":{"$ref":"#/$defs/index"}},"required":["id","index","requirement_index","threshold"],"type":"object"},"measurement":{"additionalProperties":false,"properties":{"control_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"passed":{"type":"boolean"}},"required":["control_index","id","index","passed"],"type":"object"},"qualified_catalog":{"pattern":"^prism\\.(arch|qual|sec)@1\\.0\\.0::[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z][A-Za-z0-9_]*$","type":"string"},"qualified_entity":{"pattern":"^[A-Za-z][A-Za-z0-9_.]*::[A-Za-z][A-Za-z0-9_]*$","type":"string"},"quality":{"additionalProperties":false,"properties":{"characteristics":{"items":{"$ref":"#/$defs/indexed"},"type":"array"},"measures":{"items":{"$ref":"#/$defs/measure"},"type":"array"},"requirements":{"items":{"$ref":"#/$defs/requirement"},"type":"array"},"subcharacteristics":{"items":{"$ref":"#/$defs/subcharacteristic"},"type":"array"}},"required":["characteristics","measures","requirements","subcharacteristics"],"type":"object"},"requirement":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"subcharacteristic_index":{"$ref":"#/$defs/index"}},"required":["id","index","subcharacteristic_index"],"type":"object"},"risk":{"additionalProperties":false,"properties":{"asset_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"impact_id":{"$ref":"#/$defs/qualified_catalog"},"index":{"$ref":"#/$defs/index"},"likelihood_id":{"$ref":"#/$defs/qualified_catalog"},"threat_index":{"$ref":"#/$defs/index"}},"required":["asset_index","id","impact_id","index","likelihood_id","threat_index"],"type":"object"},"security":{"additionalProperties":false,"properties":{"activities":{"items":{"$ref":"#/$defs/activity"},"type":"array"},"assets":{"items":{"$ref":"#/$defs/asset"},"type":"array"},"controls":{"items":{"$ref":"#/$defs/control"},"type":"array"},"impacts":{"items":{"$ref":"#/$defs/catalog"},"type":"array"},"likelihoods":{"items":{"$ref":"#/$defs/catalog"},"type":"array"},"measurements":{"items":{"$ref":"#/$defs/measurement"},"type":"array"},"risks":{"items":{"$ref":"#/$defs/risk"},"type":"array"},"threats":{"items":{"$ref":"#/$defs/indexed"},"type":"array"}},"required":["activities","assets","controls","impacts","likelihoods","measurements","risks","threats"],"type":"object"},"subcharacteristic":{"additionalProperties":false,"properties":{"characteristic_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"}},"required":["characteristic_index","id","index"],"type":"object"},"view":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"model_kind_index":{"$ref":"#/$defs/index"},"viewpoint_index":{"$ref":"#/$defs/index"}},"required":["id","index","model_kind_index","viewpoint_index"],"type":"object"},"viewpoint":{"additionalProperties":false,"properties":{"concern_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"model_kind_index":{"$ref":"#/$defs/index"},"stakeholder_index":{"$ref":"#/$defs/index"}},"required":["concern_index","id","index","model_kind_index","stakeholder_index"],"type":"object"}}},
     "schemas/documents/model-document-v6.schema.json": {"$id":"prismpm/model-document/6","$schema":"https://json-schema.org/draft/2020-12/schema","title":"BoundedTextCommandModelDocument","type":"object","additionalProperties":false,"properties":{"application":{"$ref":"#/$defs/application"},"architecture":{"$ref":"#/$defs/architecture"},"provenance":{"$ref":"#/$defs/provenance"},"quality":{"$ref":"#/$defs/quality"},"schema":{"const":"prismpm/model-document/6"},"security":{"$ref":"#/$defs/security"},"standards_profile":{"oneOf":[{"const":[]},{"const":["ISO-25010-2023","ISO-27005-2022","ISO-27034-1-2011","ISO-27034-5-2017","ISO-42010-2022"]}]}},"required":["application","architecture","provenance","quality","schema","security","standards_profile"],"$defs":{"application":{"type":"object","additionalProperties":false,"properties":{"profile":{"const":"prismpm/text-application/3"},"name":{"type":"string","minLength":1,"maxLength":128,"pattern":"^[A-Za-z0-9](?:[A-Za-z0-9_. -]*[A-Za-z0-9_-])?$"},"cargo_name":{"pattern":"^[a-z][a-z0-9_-]{0,63}$","type":"string"},"cargo_version":{"pattern":"^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$","type":"string"},"cargo_description":{"minLength":1,"type":"string"},"cargo_repository":{"format":"uri","pattern":"^https://","type":"string"},"cargo_homepage":{"format":"uri","pattern":"^https://","type":"string"},"library_roots":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","pattern":"^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"}},"acceptance_vectors":{"items":{"$ref":"#/$defs/application_acceptance_vector"},"minItems":1,"type":"array"},"entry_root":{"type":"string","pattern":"^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"},"core_contract":{"const":"hologram:guest/core-wasm@1"},"request_maximum":{"maximum":4294967295,"minimum":1,"type":"integer"},"response_maximum":{"maximum":4294967295,"minimum":1,"type":"integer"},"guest_allocation_maximum":{"maximum":4294967295,"minimum":1,"type":"integer"},"capabilities_empty":{"const":true},"fat_archive":{"const":true},"primary_layer":{"const":0},"view_layer":{"const":1},"view":{"$ref":"#/$defs/text_view"},"core_memory_pages":{"maximum":32767,"minimum":1,"type":"integer","description":"Absent means the V1 implicit budget of 32 pages."},"core_stack_bytes":{"maximum":4294967295,"minimum":16,"multipleOf":16,"type":"integer","description":"Absent means the V1 implicit budget of 65536 bytes."},"cli":{"$ref":"#/$defs/text_cli"},"workbench":{"$ref":"#/$defs/WorkbenchView"}},"required":["acceptance_vectors","capabilities_empty","cargo_description","cargo_homepage","cargo_name","cargo_repository","cargo_version","cli","core_contract","entry_root","fat_archive","guest_allocation_maximum","library_roots","name","primary_layer","profile","request_maximum","response_maximum","view","view_layer"]},"application_acceptance_vector":{"additionalProperties":false,"properties":{"request":{"items":{"maximum":255,"minimum":0,"type":"integer"},"type":"array"},"response":{"items":{"maximum":255,"minimum":0,"type":"integer"},"type":"array"}},"required":["request","response"],"type":"object"},"provenance":{"additionalProperties":false,"properties":{"compiler_semantics_id":{"$ref":"#/$defs/sha256"},"emitter_semantics_id":{"$ref":"#/$defs/sha256"},"facet_packages":{"items":{"$ref":"#/$defs/facet"},"maxItems":3,"type":"array"},"semantic_id":{"$ref":"#/$defs/sha256"},"snapshot_id":{"$ref":"#/$defs/sha256"},"source_id":{"$ref":"#/$defs/sha256"}},"required":["compiler_semantics_id","emitter_semantics_id","facet_packages","semantic_id","snapshot_id","source_id"],"type":"object"},"sha256":{"pattern":"^[0-9a-f]{64}$","type":"string"},"text_view":{"type":"object","additionalProperties":false,"properties":{"title":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"heading":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"input_label":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"submit_label":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"output_label":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"input_error":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"response_error":{"type":"string","minLength":1,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"}},"required":["title","heading","input_label","submit_label","output_label","input_error","response_error"]},"text_cli":{"type":"object","additionalProperties":false,"properties":{"command":{"type":"string","pattern":"^[a-z](?:[a-z0-9-]{0,30}[a-z0-9])?$","not":{"const":"examples"}},"description":{"type":"string","minLength":1,"maxLength":16384,"pattern":"^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]+$"},"usage_code":{"type":"integer","minimum":0,"maximum":125},"io_code":{"type":"integer","minimum":0,"maximum":125},"limit_code":{"type":"integer","minimum":0,"maximum":125,"description":"Exit code of a request refused over the request maximum. Absent means the code of the error outcome."},"outcomes":{"type":"array","minItems":1,"maxItems":16,"items":{"$ref":"#/$defs/text_cli_outcome"}},"sections":{"type":"array","maxItems":32,"items":{"$ref":"#/$defs/text_cli_section"}},"examples":{"type":"array","maxItems":64,"items":{"$ref":"#/$defs/text_cli_example"}}},"required":["command","description","examples","io_code","outcomes","sections","usage_code"]},"text_cli_outcome":{"type":"object","additionalProperties":false,"properties":{"name":{"type":"string","pattern":"^[a-z](?:[a-z0-9-]{0,30}[a-z0-9])?$"},"prefix":{"type":"string","minLength":1,"maxLength":256,"pattern":"^[^\\u0000]+$"},"exit_code":{"type":"integer","minimum":0,"maximum":125}},"required":["exit_code","name","prefix"]},"text_cli_section":{"type":"object","additionalProperties":false,"properties":{"title":{"type":"string","minLength":1,"maxLength":16384,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},"body":{"type":"string","minLength":1,"maxLength":16384,"pattern":"^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]+$"}},"required":["body","title"]},"text_cli_example":{"type":"object","additionalProperties":false,"properties":{"name":{"type":"string","pattern":"^[a-z](?:[a-z0-9-]{0,30}[a-z0-9])?$"},"text":{"type":"string","minLength":1,"maxLength":16384,"pattern":"^[^\\u0000]+$"}},"required":["name","text"]},"activity":{"additionalProperties":false,"properties":{"control_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"}},"required":["control_index","id","index"],"type":"object"},"architecture":{"additionalProperties":false,"properties":{"component_kinds":{"items":{"$ref":"#/$defs/catalog"},"type":"array"},"components":{"items":{"$ref":"#/$defs/component"},"type":"array"},"concerns":{"items":{"$ref":"#/$defs/described"},"type":"array"},"edge_kinds":{"items":{"$ref":"#/$defs/catalog"},"type":"array"},"edges":{"items":{"$ref":"#/$defs/edge"},"type":"array"},"model_kinds":{"items":{"$ref":"#/$defs/catalog"},"type":"array"},"stakeholders":{"items":{"$ref":"#/$defs/described"},"type":"array"},"viewpoints":{"items":{"$ref":"#/$defs/viewpoint"},"type":"array"},"views":{"items":{"$ref":"#/$defs/view"},"type":"array"}},"required":["component_kinds","components","concerns","edge_kinds","edges","model_kinds","stakeholders","viewpoints","views"],"type":"object"},"asset":{"additionalProperties":false,"properties":{"component_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"}},"required":["component_index","id","index"],"type":"object"},"catalog":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_catalog"},"index":{"$ref":"#/$defs/index"}},"required":["id","index"],"type":"object"},"component":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"kind_id":{"$ref":"#/$defs/qualified_catalog"},"name":{"type":"string","maxLength":256,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]*$"},"text":{"type":"string","maxLength":4096,"pattern":"^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]*$"}},"required":["id","index","kind_id"],"type":"object"},"control":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"risk_index":{"$ref":"#/$defs/index"}},"required":["id","index","risk_index"],"type":"object"},"described":{"type":"object","additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"name":{"type":"string","maxLength":256,"pattern":"^[^\\u0000-\\u001f\\u007f-\\u009f]*$"},"text":{"type":"string","maxLength":4096,"pattern":"^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]*$"}},"required":["id","index"]},"edge":{"additionalProperties":false,"properties":{"from_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"kind_id":{"$ref":"#/$defs/qualified_catalog"},"to_index":{"$ref":"#/$defs/index"}},"required":["from_index","id","index","kind_id","to_index"],"type":"object"},"facet":{"additionalProperties":false,"properties":{"content_id":{"$ref":"#/$defs/sha256"},"package":{"enum":["prism.arch","prism.qual","prism.sec"]},"version":{"const":"1.0.0"}},"required":["content_id","package","version"],"type":"object"},"index":{"maximum":18446744073709552000,"minimum":0,"type":"integer"},"indexed":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"}},"required":["id","index"],"type":"object"},"measure":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"requirement_index":{"$ref":"#/$defs/index"},"threshold":{"$ref":"#/$defs/index"}},"required":["id","index","requirement_index","threshold"],"type":"object"},"measurement":{"additionalProperties":false,"properties":{"control_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"passed":{"type":"boolean"}},"required":["control_index","id","index","passed"],"type":"object"},"qualified_catalog":{"pattern":"^prism\\.(arch|qual|sec)@1\\.0\\.0::[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z][A-Za-z0-9_]*$","type":"string"},"qualified_entity":{"pattern":"^[A-Za-z][A-Za-z0-9_.]*::[A-Za-z][A-Za-z0-9_]*$","type":"string"},"quality":{"additionalProperties":false,"properties":{"characteristics":{"items":{"$ref":"#/$defs/indexed"},"type":"array"},"measures":{"items":{"$ref":"#/$defs/measure"},"type":"array"},"requirements":{"items":{"$ref":"#/$defs/requirement"},"type":"array"},"subcharacteristics":{"items":{"$ref":"#/$defs/subcharacteristic"},"type":"array"}},"required":["characteristics","measures","requirements","subcharacteristics"],"type":"object"},"requirement":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"subcharacteristic_index":{"$ref":"#/$defs/index"}},"required":["id","index","subcharacteristic_index"],"type":"object"},"risk":{"additionalProperties":false,"properties":{"asset_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"impact_id":{"$ref":"#/$defs/qualified_catalog"},"index":{"$ref":"#/$defs/index"},"likelihood_id":{"$ref":"#/$defs/qualified_catalog"},"threat_index":{"$ref":"#/$defs/index"}},"required":["asset_index","id","impact_id","index","likelihood_id","threat_index"],"type":"object"},"security":{"additionalProperties":false,"properties":{"activities":{"items":{"$ref":"#/$defs/activity"},"type":"array"},"assets":{"items":{"$ref":"#/$defs/asset"},"type":"array"},"controls":{"items":{"$ref":"#/$defs/control"},"type":"array"},"impacts":{"items":{"$ref":"#/$defs/catalog"},"type":"array"},"likelihoods":{"items":{"$ref":"#/$defs/catalog"},"type":"array"},"measurements":{"items":{"$ref":"#/$defs/measurement"},"type":"array"},"risks":{"items":{"$ref":"#/$defs/risk"},"type":"array"},"threats":{"items":{"$ref":"#/$defs/indexed"},"type":"array"}},"required":["activities","assets","controls","impacts","likelihoods","measurements","risks","threats"],"type":"object"},"subcharacteristic":{"additionalProperties":false,"properties":{"characteristic_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"}},"required":["characteristic_index","id","index"],"type":"object"},"view":{"additionalProperties":false,"properties":{"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"model_kind_index":{"$ref":"#/$defs/index"},"viewpoint_index":{"$ref":"#/$defs/index"}},"required":["id","index","model_kind_index","viewpoint_index"],"type":"object"},"viewpoint":{"additionalProperties":false,"properties":{"concern_index":{"$ref":"#/$defs/index"},"id":{"$ref":"#/$defs/qualified_entity"},"index":{"$ref":"#/$defs/index"},"model_kind_index":{"$ref":"#/$defs/index"},"stakeholder_index":{"$ref":"#/$defs/index"}},"required":["concern_index","id","index","model_kind_index","stakeholder_index"],"type":"object"},"Choice":{"type":"object","additionalProperties":false,"properties":{"value":{"type":"string","maxLength":1048576},"label":{"type":"string","maxLength":1048576}},"required":["value","label"]},"Field":{"type":"object","additionalProperties":false,"properties":{"id":{"type":"string","maxLength":1048576},"label":{"type":"string","maxLength":1048576},"kind":{"enum":["text","multiline","natural","choice"]},"help":{"type":"string","maxLength":1048576},"placeholder":{"type":"string","maxLength":1048576},"initial_value":{"type":"string","maxLength":1048576},"required":{"type":"boolean"},"choices":{"type":"array","maxItems":4096,"items":{"$ref":"#/$defs/Choice"}}},"required":["id","label","kind","help","placeholder","initial_value","required","choices"]},"Example":{"type":"object","additionalProperties":false,"properties":{"id":{"type":"string","maxLength":1048576},"label":{"type":"string","maxLength":1048576},"description":{"type":"string","maxLength":1048576},"values":{"type":"array","maxItems":4096,"items":{"type":"string","maxLength":1048576}},"expected_response":{"type":"string","maxLength":1048576},"explanation":{"type":"string","maxLength":1048576}},"required":["id","label","description","values","expected_response","explanation"]},"Operation":{"type":"object","additionalProperties":false,"properties":{"id":{"type":"string","maxLength":1048576},"label":{"type":"string","maxLength":1048576},"summary":{"type":"string","maxLength":1048576},"help":{"type":"string","maxLength":1048576},"request_prefix":{"type":"string","maxLength":1048576},"fields":{"type":"array","maxItems":4096,"items":{"$ref":"#/$defs/Field"}},"examples":{"type":"array","maxItems":4096,"items":{"$ref":"#/$defs/Example"}}},"required":["id","label","summary","help","request_prefix","fields","examples"]},"Section":{"type":"object","additionalProperties":false,"properties":{"id":{"type":"string","maxLength":1048576},"title":{"type":"string","maxLength":1048576},"paragraphs":{"type":"array","maxItems":4096,"items":{"type":"string","maxLength":1048576}}},"required":["id","title","paragraphs"]},"Link":{"type":"object","additionalProperties":false,"properties":{"label":{"type":"string","maxLength":1048576},"https_url":{"type":"string","maxLength":1048576}},"required":["label","https_url"]},"ErrorHint":{"type":"object","additionalProperties":false,"properties":{"code":{"type":"string","maxLength":1048576},"title":{"type":"string","maxLength":1048576},"explanation":{"type":"string","maxLength":1048576},"recovery":{"type":"string","maxLength":1048576},"fields":{"type":"array","maxItems":4096,"items":{"type":"string","maxLength":1048576}}},"required":["code","title","explanation","recovery","fields"]},"StatusCopy":{"type":"object","additionalProperties":false,"properties":{"initializing":{"type":"string","maxLength":1048576},"ready":{"type":"string","maxLength":1048576},"running":{"type":"string","maxLength":1048576},"cancelling":{"type":"string","maxLength":1048576},"cancelled":{"type":"string","maxLength":1048576},"timeout":{"type":"string","maxLength":1048576},"load_error":{"type":"string","maxLength":1048576},"compute_error":{"type":"string","maxLength":1048576},"input_error":{"type":"string","maxLength":1048576},"response_error":{"type":"string","maxLength":1048576},"script_required":{"type":"string","maxLength":16384}},"required":["initializing","ready","running","cancelling","cancelled","timeout","load_error","compute_error","input_error","response_error","script_required"]},"Design":{"type":"object","additionalProperties":false,"properties":{"palette":{"enum":["indigo","ocean"]},"density":{"enum":["comfortable","compact"]},"width":{"enum":["balanced","wide"]},"color_scheme":{"enum":["system","light","dark"]}},"required":["palette","density","width","color_scheme"]},"RawEditor":{"type":"object","additionalProperties":false,"properties":{"request_prefix":{"type":"string","maxLength":1048576},"label":{"type":"string","maxLength":1048576},"help":{"type":"string","maxLength":1048576},"placeholder":{"type":"string","maxLength":1048576},"initial_value":{"type":"string","maxLength":1048576},"submit_label":{"type":"string","maxLength":1048576},"response_label":{"type":"string","maxLength":1048576},"expanded":{"type":"boolean"}},"required":["request_prefix","label","help","placeholder","initial_value","submit_label","response_label","expanded"]},"DisplaySpec":{"type":"object","additionalProperties":false,"properties":{"title":{"type":"string","maxLength":1048576},"empty_text":{"type":"string","maxLength":1048576},"raw_label":{"type":"string","maxLength":1048576},"maximum_cells":{"type":"integer","minimum":0,"maximum":4294967295},"maximum_details":{"type":"integer","minimum":0,"maximum":4294967295}},"required":["title","empty_text","raw_label","maximum_cells","maximum_details"]},"Execution":{"type":"object","additionalProperties":false,"properties":{"timeout_milliseconds":{"type":"integer","minimum":0,"maximum":4294967295},"cancel_label":{"type":"string","maxLength":1048576},"retry_label":{"type":"string","maxLength":1048576},"wasm_cache_policy":{"type":"string","enum":["no-store"]}},"required":["timeout_milliseconds","cancel_label","retry_label","wasm_cache_policy"]},"WorkbenchView":{"type":"object","additionalProperties":false,"properties":{"title":{"type":"string","maxLength":1048576},"heading":{"type":"string","maxLength":1048576},"purpose":{"type":"string","maxLength":1048576},"audience":{"type":"string","maxLength":1048576},"guidance":{"type":"array","maxItems":4096,"items":{"type":"string","maxLength":1048576}},"initial_operation":{"type":"string","maxLength":1048576},"initial_example":{"type":"string","maxLength":1048576},"operations":{"type":"array","maxItems":4096,"items":{"$ref":"#/$defs/Operation"}},"sections":{"type":"array","maxItems":4096,"items":{"$ref":"#/$defs/Section"}},"links":{"type":"array","maxItems":4096,"items":{"$ref":"#/$defs/Link"}},"errors":{"type":"array","maxItems":4096,"items":{"$ref":"#/$defs/ErrorHint"}},"statuses":{"$ref":"#/$defs/StatusCopy"},"design":{"$ref":"#/$defs/Design"},"raw":{"$ref":"#/$defs/RawEditor"},"response":{"$ref":"#/$defs/DisplaySpec"},"execution":{"$ref":"#/$defs/Execution"},"labels":{"$ref":"#/$defs/WorkbenchLabels"}},"required":["title","heading","purpose","audience","guidance","initial_operation","initial_example","operations","sections","links","errors","statuses","design","raw","response","execution","labels"]},"WorkbenchLabels":{"type":"object","additionalProperties":false,"properties":{"navigation":{"type":"string","maxLength":1048576},"operation":{"type":"string","maxLength":1048576},"examples":{"type":"string","maxLength":1048576},"load_example":{"type":"string","maxLength":1048576},"compute":{"type":"string","maxLength":1048576},"guide":{"type":"string","maxLength":1048576},"links":{"type":"string","maxLength":1048576},"fields":{"type":"string","maxLength":1048576},"expected_response":{"type":"string","maxLength":1048576},"details":{"type":"string","maxLength":1048576},"result_table":{"type":"string","maxLength":1048576},"row":{"type":"string","maxLength":1048576},"column":{"type":"string","maxLength":1048576},"request":{"type":"string","maxLength":1048576},"reset":{"type":"string","maxLength":1048576},"skip_to_workbench":{"type":"string","maxLength":1048576}},"required":["navigation","operation","examples","load_example","compute","guide","links","fields","expected_response","details","result_table","row","column","request","reset","skip_to_workbench"]}}},
     "schemas/documents/model-provenance-v1.schema.json": {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://schemas.uor.foundation/prismpm/model-provenance/1","title":"ModelProvenance","description":"The payload of the https://uor.foundation/extension/prismpm-model/v1 extension, section row 3 (Foundation.Holo.V1.PrismExtension.ModelProvenance, ModelProvenanceV1 in crates/prismpm/src/holo/archive.rs).","type":"object","additionalProperties":false,"required":["application_kappa","cargo_crate_sha256","cargo_name","cargo_version","compiler_semantics_id","core_wasm_contract","generated_core_sha256","guest_content_kappa","hologram_live_commit","lcnf_manifest_sha256","lean4_prod_commit","lean_manifest_sha256","lexlean_commit","lexlean_package_sha256","model_content_kappa","model_id","prism_stdlib_crate_sha256","schema","semantic_id","snapshot_id","source_id","stdlib_semantics_id","target_profile_id","uor_hologram_commit","view_binding"],"properties":{"application_kappa":{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"cargo_crate_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"cargo_name":{"type":"string","pattern":"^[A-Za-z0-9_-]{1,64}$"},"cargo_version":{"type":"string","minLength":1,"maxLength":128},"compiler_semantics_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"core_wasm_contract":{"const":"hologram:guest/core-wasm@1"},"generated_core_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"guest_content_kappa":{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"hologram_live_commit":{"type":"string","pattern":"^[0-9a-f]{40}$"},"lcnf_manifest_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"lean4_prod_commit":{"type":"string","pattern":"^[0-9a-f]{40}$"},"lean_manifest_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"lexlean_commit":{"type":"string","pattern":"^[0-9a-f]{40}$"},"lexlean_package_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"model_content_kappa":{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"model_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"prism_stdlib_crate_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"schema":{"const":"prismpm/model-provenance/1"},"semantic_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"snapshot_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"source_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"stdlib_semantics_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"target_profile_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"uor_hologram_commit":{"type":"string","pattern":"^[0-9a-f]{40}$"},"view_binding":{"description":"PrismPM requires the present form, with a present browser projection, for a portable view application.","oneOf":[{"type":"object","additionalProperties":false,"required":["tag"],"properties":{"tag":{"const":"none"}}},{"type":"object","additionalProperties":false,"required":["tag","browser_projection","view_content_kappa","view_model_id"],"properties":{"tag":{"const":"present"},"browser_projection":{"oneOf":[{"type":"object","additionalProperties":false,"required":["tag"],"properties":{"tag":{"const":"none"}}},{"type":"object","additionalProperties":false,"required":["tag","sha256"],"properties":{"tag":{"const":"present"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}]},"view_content_kappa":{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"view_model_id":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}]}}},
+    "schemas/documents/model-provenance-v2.schema.json": {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://schemas.uor.foundation/prismpm/model-provenance/2","title":"ModelProvenance","description":"Object 2 of a holo v5 (ADR-017): the model provenance, ModelProvenanceV1 in crates/prismpm/src/holo/archive.rs with every kappa a κ-label, sha256: and the hex SHA-256 of the bytes it names.","type":"object","additionalProperties":false,"required":["application_kappa","cargo_crate_sha256","cargo_name","cargo_version","compiler_semantics_id","core_wasm_contract","generated_core_sha256","guest_content_kappa","hologram_live_commit","lcnf_manifest_sha256","lean4_prod_commit","lean_manifest_sha256","lexlean_commit","lexlean_package_sha256","model_content_kappa","model_id","prism_stdlib_crate_sha256","schema","semantic_id","snapshot_id","source_id","stdlib_semantics_id","target_profile_id","uor_hologram_commit","view_binding"],"properties":{"application_kappa":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"cargo_crate_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"cargo_name":{"type":"string","pattern":"^[A-Za-z0-9_-]{1,64}$"},"cargo_version":{"type":"string","minLength":1,"maxLength":128},"compiler_semantics_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"core_wasm_contract":{"const":"hologram:guest/core-wasm@1"},"generated_core_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"guest_content_kappa":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"hologram_live_commit":{"type":"string","pattern":"^[0-9a-f]{40}$"},"lcnf_manifest_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"lean4_prod_commit":{"type":"string","pattern":"^[0-9a-f]{40}$"},"lean_manifest_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"lexlean_commit":{"type":"string","pattern":"^[0-9a-f]{40}$"},"lexlean_package_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"model_content_kappa":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"model_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"prism_stdlib_crate_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"schema":{"const":"prismpm/model-provenance/2"},"semantic_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"snapshot_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"source_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"stdlib_semantics_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"target_profile_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},"uor_hologram_commit":{"type":"string","pattern":"^[0-9a-f]{40}$"},"view_binding":{"description":"PrismPM requires the present form, with a present browser projection, for a portable view application.","oneOf":[{"type":"object","additionalProperties":false,"required":["tag"],"properties":{"tag":{"const":"none"}}},{"type":"object","additionalProperties":false,"required":["tag","browser_projection","view_content_kappa","view_model_id"],"properties":{"tag":{"const":"present"},"browser_projection":{"oneOf":[{"type":"object","additionalProperties":false,"required":["tag"],"properties":{"tag":{"const":"none"}}},{"type":"object","additionalProperties":false,"required":["tag","sha256"],"properties":{"tag":{"const":"present"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}]},"view_content_kappa":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"view_model_id":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}]}}},
     "schemas/holo/app-manifest.schema.json": {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://schemas.uor.foundation/prism/holo/app-manifest/1","title":"HoloAppManifest","description":"The decoded 356-byte application manifest, section kind 15 (Foundation.Holo.V1.Wire.validAppManifest).","type":"object","additionalProperties":false,"required":["uri","labels","suffix"],"properties":{"uri":{"const":"https://hologram.foundation/realization/app-manifest"},"labels":{"description":"The capability set, the Core-Wasm guest and the HOLOVIEW bundle, in that order.","type":"array","minItems":3,"maxItems":3,"prefixItems":[{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"}],"items":false},"suffix":{"description":"The fixed 86-byte layer suffix as lowercase hex (wireManifestSuffix).","const":"5200000000000000020000000008000000686f6c6f5f72756e1a000000686f6c6f6772616d3a67756573742f636f72652d7761736d4031030a000000696e6465782e68746d6c08000000706f727461626c6500000000"}}},
     "schemas/holo/application-directory.schema.json": {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://schemas.uor.foundation/prism/holo/application-directory/1","title":"HoloApplicationDirectory","description":"The application-directory/v1 extension payload, section row 2, as PrismPM writes it (Directory in crates/prismpm/src/holo/archive.rs). Hologram owns the extension. Blobs are sorted by kappa.","type":"object","additionalProperties":false,"required":["schema_version","primary_layer","requires_kappa","layers","children","blobs"],"properties":{"schema_version":{"const":1},"primary_layer":{"const":0},"requires_kappa":{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"layers":{"type":"array","minItems":2,"maxItems":2,"prefixItems":[{"type":"object","additionalProperties":false,"required":["position","kind","content_kappa","entry","contract","architecture","surface","engine"],"properties":{"position":{"const":0},"kind":{"const":"wasm"},"content_kappa":{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"entry":{"const":"holo_run"},"contract":{"const":"hologram:guest/core-wasm@1"},"architecture":{"const":null},"surface":{"const":null},"engine":{"const":null}}},{"type":"object","additionalProperties":false,"required":["position","kind","content_kappa","entry","contract","architecture","surface","engine"],"properties":{"position":{"const":1},"kind":{"const":"view"},"content_kappa":{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"entry":{"const":"index.html"},"contract":{"const":null},"architecture":{"const":null},"surface":{"const":"portable"},"engine":{"const":null}}}],"items":false},"children":{"type":"array","maxItems":0},"blobs":{"type":"array","minItems":4,"maxItems":4,"uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["kappa","byte_length"],"properties":{"kappa":{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"byte_length":{"type":"integer","minimum":0,"maximum":9007199254740991}}}}}},
     "schemas/holo/archive.schema.json": {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://schemas.uor.foundation/prism/holo/archive/1","title":"HoloArchive","description":"The decoded header, section table and footer of a holo, format revision 2026-10-23 (Foundation.Holo.V1.Wire). Sections are contiguous from offset 202 and end 32 bytes before the end of the file; JSON Schema cannot state that, so readers check it.","type":"object","additionalProperties":false,"required":["magic","version","flags","sections","footer"],"properties":{"magic":{"const":"HOLO"},"version":{"const":4},"flags":{"const":0},"sections":{"type":"array","minItems":8,"maxItems":8,"prefixItems":[{"type":"object","additionalProperties":false,"required":["kind","offset","length"],"properties":{"kind":{"const":15},"offset":{"type":"integer","minimum":0,"maximum":9007199254740991,"const":202},"length":{"type":"integer","minimum":0,"maximum":9007199254740991,"const":356}}},{"type":"object","additionalProperties":false,"required":["kind","offset","length"],"properties":{"kind":{"const":8},"offset":{"type":"integer","minimum":0,"maximum":9007199254740991},"length":{"type":"integer","minimum":0,"maximum":9007199254740991}}},{"type":"object","additionalProperties":false,"required":["kind","offset","length"],"properties":{"kind":{"const":14},"offset":{"type":"integer","minimum":0,"maximum":9007199254740991},"length":{"type":"integer","minimum":0,"maximum":9007199254740991}}},{"type":"object","additionalProperties":false,"required":["kind","offset","length"],"properties":{"kind":{"const":14},"offset":{"type":"integer","minimum":0,"maximum":9007199254740991},"length":{"type":"integer","minimum":0,"maximum":9007199254740991}}},{"type":"object","additionalProperties":false,"required":["kind","offset","length"],"properties":{"kind":{"const":16},"offset":{"type":"integer","minimum":0,"maximum":9007199254740991},"length":{"type":"integer","minimum":71,"maximum":9007199254740991}}},{"type":"object","additionalProperties":false,"required":["kind","offset","length"],"properties":{"kind":{"const":16},"offset":{"type":"integer","minimum":0,"maximum":9007199254740991},"length":{"type":"integer","minimum":71,"maximum":9007199254740991}}},{"type":"object","additionalProperties":false,"required":["kind","offset","length"],"properties":{"kind":{"const":16},"offset":{"type":"integer","minimum":0,"maximum":9007199254740991},"length":{"type":"integer","minimum":71,"maximum":9007199254740991}}},{"type":"object","additionalProperties":false,"required":["kind","offset","length"],"properties":{"kind":{"const":16},"offset":{"type":"integer","minimum":0,"maximum":9007199254740991},"length":{"type":"integer","minimum":71,"maximum":9007199254740991}}}],"items":false},"footer":{"type":"string","pattern":"^[0-9a-f]{64}$","description":"The 32-byte BLAKE3 footer as lowercase hex: the archive fingerprint."}}},
@@ -882,7 +928,7 @@ const __sha256 = (() => {
 
 // src/reader.mjs
 const __reader = (() => {
-  const { MAGIC, PHYSICAL_VERSION, FLAGS, HEADER_LENGTH, TABLE_ENTRY_LENGTH, FOOTER_LENGTH } = __vendor_spec;
+  const { MAGIC, PHYSICAL_VERSION, FLAGS, HEADER_LENGTH, TABLE_ENTRY_LENGTH, FOOTER_LENGTH, SECTION_ORDER, SECTION_KIND, LABEL_PREFIX, LABEL_LENGTH, APP_MANIFEST, CAPABILITY_SET, EXTENSION, ATTESTATION_BUNDLE } = __vendor_spec;
   /**
    * The structural layer of a `.holo`: header, section table, footer position.
    * It never throws on bad bytes. Each step becomes a check, and the first
@@ -890,9 +936,14 @@ const __reader = (() => {
    *
    * Same layout as `parseArchive` in sdk/npm/prism-code/src/archive.mjs, written
    * against the @prism-code/spec constants; test/agreement.test.mjs compares the
-   * two on the reference archive. Unlike that reader, an unknown section kind is
-   * not an error here: the table still locates it, and the format check reports
-   * it.
+   * two on the reference archive.
+   *
+   * The table passes only when the archive is one the Wire codec admits
+   * (`Foundation.Holo.V1.Wire.validArchiveFrame`, SPEC section 3): the eight
+   * Holo/1 rows, or nine with the attestation row last, the manifest template,
+   * blobs in ascending label order, and every manifest reference present. The
+   * Rust verifier calls the generated codec itself; the conformance suite holds
+   * the two to the same refusals. Anything the codec refuses gets no verdict.
    */
 
   function u64(view, offset) {
@@ -950,11 +1001,403 @@ const __reader = (() => {
     if (cursor !== bodyEnd) {
       return fail('archive.table', `the sections end at ${cursor} but the footer starts at ${bodyEnd}: the archive is truncated or padded`);
     }
-    pass('archive.table', `${count} sections, contiguous, ending at the footer`);
+    const refused = wireProblem(bytes, result.sections);
+    if (refused) return fail('archive.table', `the section table is not one the Holo/1 wire model admits: ${refused}`);
+    pass('archive.table', `${count} sections, contiguous, ending at the footer, admitted by the Wire codec`);
     result.ok = true;
     return result;
   }
+
+  const ascii = (text) => Uint8Array.from(text, (c) => c.charCodeAt(0));
+  const fromHex = (hex) => Uint8Array.from(hex.match(/../g), (pair) => parseInt(pair, 16));
+  /** `wireDirectoryPrefix`, `wireProvenancePrefix`, `wireAttestationPrefix`: a u16 length and the extension name. */
+  const extensionPrefix = (name) => Uint8Array.from([name.length & 0xff, name.length >> 8, ...ascii(name)]);
+  const DIRECTORY_PREFIX = extensionPrefix(EXTENSION.APPLICATION_DIRECTORY);
+  const PROVENANCE_PREFIX = extensionPrefix(EXTENSION.PRISMPM_MODEL);
+  const ATTESTATION_PREFIX = extensionPrefix(ATTESTATION_BUNDLE.EXTENSION);
+  const MANIFEST_PREFIX = fromHex(APP_MANIFEST.PREFIX_HEX);
+  const MANIFEST_SUFFIX = fromHex(APP_MANIFEST.SUFFIX_HEX);
+  const EMPTY_CAPABILITIES = fromHex(CAPABILITY_SET.EMPTY_HEX);
+  const LF = ATTESTATION_BUNDLE.LINE_TERMINATOR;
+  const HEX_DIGIT = /^[0-9a-f]$/;
+
+  const startsWith = (value, prefix) => value.length >= prefix.length && prefix.every((byte, i) => value[i] === byte);
+  const equal = (a, b) => a.length === b.length && startsWith(a, b);
+  /** `wireBytesLess`: lexicographic, a proper prefix first. */
+  function less(a, b) {
+    for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i] < b[i];
+    return a.length < b.length;
+  }
+  /** `wireKappaLabelValid`: `blake3:` and 64 lowercase hex characters. */
+  const kappa = (value) =>
+    value.length === LABEL_LENGTH && startsWith(value, ascii(LABEL_PREFIX)) && [...value.subarray(LABEL_PREFIX.length)].every((b) => HEX_DIGIT.test(String.fromCharCode(b)));
+  const text = (value) => String.fromCharCode(...value);
+
+  /**
+   * Why `Foundation.Holo.V1.Wire.validArchiveFrame` refuses the archive whose
+   * rows are already contiguous and end at the footer, or null when it admits it.
+   */
+  function wireProblem(bytes, rows) {
+    const count = rows.length;
+    if (count !== SECTION_ORDER.length && count !== SECTION_ORDER.length + 1) {
+      return `it has ${count} rows; the wire model admits ${SECTION_ORDER.length}, or ${SECTION_ORDER.length + 1} with the attestation row last`;
+    }
+    // wireRowsValid: each row's kind is wireSectionKind of its index.
+    const kinds = count === SECTION_ORDER.length ? SECTION_ORDER : [...SECTION_ORDER, ATTESTATION_BUNDLE.SECTION_KIND];
+    for (const row of rows) {
+      if (row.kind !== kinds[row.index]) return `row ${row.index} is kind ${row.kind}, where the wire model puts kind ${kinds[row.index]}`;
+    }
+    const payload = (row) => bytes.subarray(row.offset, row.offset + row.length);
+    // validCanonicalArchiveBody (every row non-empty) and, with nine rows, its own metadata rule.
+    if (rows[1].length === 0) return 'the metadata row is empty';
+    // wireBodyPayloadsValid: the extension names, then wirePayloadsValid.
+    if (!startsWith(payload(rows[2]), DIRECTORY_PREFIX)) return `row 2 is not the ${EXTENSION.APPLICATION_DIRECTORY} extension`;
+    if (!startsWith(payload(rows[3]), PROVENANCE_PREFIX)) return `row 3 is not the ${EXTENSION.PRISMPM_MODEL} extension`;
+    // validAppManifest.
+    const manifest = payload(rows[0]);
+    if (manifest.length !== APP_MANIFEST.LENGTH) return `the application manifest is ${manifest.length} bytes, not ${APP_MANIFEST.LENGTH}`;
+    if (!startsWith(manifest, MANIFEST_PREFIX)) return 'the application manifest does not start with the Wire manifest prefix';
+    if (!equal(manifest.subarray(APP_MANIFEST.LENGTH - APP_MANIFEST.SUFFIX_LENGTH), MANIFEST_SUFFIX)) return 'the application manifest does not end with the Wire manifest suffix';
+    const references = APP_MANIFEST.LABELS.map((role, i) => {
+      const at = APP_MANIFEST.PREFIX_LENGTH + i * LABEL_LENGTH;
+      return { role, label: manifest.subarray(at, at + LABEL_LENGTH) };
+    });
+    const malformed = references.find((r) => !kappa(r.label));
+    if (malformed) return `the application manifest's ${malformed.role} reference is not a blake3 label`;
+    // wireBlobsValid: four blobs, each labelled, in strictly ascending label order.
+    const blobs = rows.filter((row) => row.kind === SECTION_KIND.CONTENT_BLOB).map(payload);
+    for (const [i, blob] of blobs.entries()) {
+      if (!kappa(blob.subarray(0, LABEL_LENGTH))) return `content blob ${i} does not start with a blake3 label`;
+      if (i > 0 && !less(blobs[i - 1].subarray(0, LABEL_LENGTH), blob.subarray(0, LABEL_LENGTH))) {
+        return `content blob ${i} (${text(blob.subarray(0, LABEL_LENGTH))}) is not after ${text(blobs[i - 1].subarray(0, LABEL_LENGTH))}: blobs are in ascending label order`;
+      }
+    }
+    // wireCapabilitiesPresent and wireReferencePresent.
+    for (const { role, label } of references) {
+      const blob = blobs.find((b) => equal(b.subarray(0, LABEL_LENGTH), label));
+      if (!blob) return `the application manifest's ${role} reference ${text(label)} names no content blob`;
+      if (role === APP_MANIFEST.LABELS[0] && !equal(blob.subarray(LABEL_LENGTH), EMPTY_CAPABILITIES)) {
+        return `the capability set blob ${text(label)} is not the empty capability set the wire model admits`;
+      }
+    }
+    // wireAttestationRowValid: the extension name, then JSON Lines that end with LF and hold no blank line.
+    if (count > SECTION_ORDER.length) {
+      const row = payload(rows[SECTION_ORDER.length]);
+      if (!startsWith(row, ATTESTATION_PREFIX)) return `row ${SECTION_ORDER.length} is not the ${ATTESTATION_BUNDLE.EXTENSION} extension`;
+      if (row.length < ATTESTATION_PREFIX.length + 2) return 'the attestation row holds no bundle line';
+      if (row[row.length - 1] !== LF) return 'the attestation row does not end with LF';
+      if (row[ATTESTATION_PREFIX.length] === LF) return 'the attestation row starts with a blank line';
+      for (let i = 0; i + 1 < row.length; i++) if (row[i] === LF && row[i + 1] === LF) return 'the attestation row holds a blank line';
+    }
+    return null;
+  }
   return Object.freeze({ readStructure });
+})();
+
+// src/holo5.mjs
+const __holo5 = (() => {
+  const { sha256Hex } = __sha256;
+  /**
+   * The checks of a holo v5 (ADR-017): a raw self-contained UORC archive
+   * (`"UORC" 02 01 00 00`, ULEB128 count and lengths, the objects, then the
+   * UORC-SHA256-CHAIN-v1 seal of every byte before it) whose ordered objects are
+   * the manifest, the source manifest, the provenance, the capability set, the
+   * guest, the view, the model and, when signed, the attestations.
+   *
+   * It records the checks of the v4 reader under the same ids, in the same
+   * shape, so a verdict on a v5 holo and on a v4 holo of the same application
+   * reach the same level for the same reasons. The Rust twin is
+   * crates/prismpm/src/inspect/verdict_v5.rs. Every identity is a κ-label,
+   * `sha256:` and the hex SHA-256 of the bytes it names.
+   */
+
+  const MANIFEST_SCHEMA = 'prism/holo/5';
+  const PROVENANCE_SCHEMA = 'prismpm/model-provenance/2';
+  const ROLES = Object.freeze(['manifest', 'source-manifest', 'provenance', 'capabilities', 'guest', 'view', 'model']);
+  const ROLE_ATTESTATIONS = 'attestations';
+  const CONTENT = Object.freeze({ capabilities: 3, guest: 4, view: 5, model: 6 });
+  const BUDGET = Object.freeze({ objects: 16, bytes: 2 ** 30 });
+  const SEAL_LENGTH = 32;
+  const KAPPA = /^sha256:[0-9a-f]{64}$/;
+  const TAG = Uint8Array.from('UORC-SHA256-CHAIN-v1\0', (c) => c.charCodeAt(0));
+  const utf8 = new TextDecoder('utf-8', { fatal: true });
+
+  /** Whether `bytes` start like a UORC archive. */
+  const isUorc = (bytes) => bytes.length >= 4 && bytes[0] === 0x55 && bytes[1] === 0x4f && bytes[2] === 0x52 && bytes[3] === 0x43;
+
+  const kappa = (bytes) => `sha256:${sha256Hex(bytes)}`;
+
+  const fromHex = (hex) => Uint8Array.from(hex.match(/../g), (pair) => parseInt(pair, 16));
+  function concat(parts) {
+    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let at = 0;
+    for (const part of parts) {
+      out.set(part, at);
+      at += part.length;
+    }
+    return out;
+  }
+  const sha = (parts) => fromHex(sha256Hex(concat(parts)));
+
+  /** UORC-SHA256-CHAIN-v1 of `preimage`, as hex. */
+  function chainHex(preimage) {
+    let c = sha([TAG, Uint8Array.of(0)]);
+    const whole = preimage.length - (preimage.length % 64);
+    for (let at = 0; at < whole; at += 64) c = sha([TAG, Uint8Array.of(1), c, preimage.subarray(at, at + 64)]);
+    const tail = preimage.subarray(whole);
+    return sha256Hex(concat([TAG, Uint8Array.of(2), c, Uint8Array.of(tail.length), tail]));
+  }
+
+  function readUleb(bytes, at) {
+    let value = 0;
+    let scale = 1;
+    for (const start = at; ; ) {
+      if (at >= bytes.length || at - start > 7) return null;
+      const byte = bytes[at++];
+      value += (byte & 0x7f) * scale;
+      scale *= 0x80;
+      if (byte < 0x80) return (byte === 0 && at - start > 1) || !Number.isSafeInteger(value) ? null : [value, at];
+    }
+  }
+
+  /**
+   * The framing of a raw self-contained UORC archive: `{ objects, seal, sealed }`
+   * with each object `{ index, offset, length, bytes }`, or `{ problem, check }`
+   * when its header cannot be read. The seal is reported, not enforced.
+   */
+  function readArchive(bytes) {
+    const refuse = (problem, check = 'archive.table') => ({ problem, check });
+    if (bytes.length < 6 || bytes[4] !== 2 || bytes[5] !== 1) return refuse('a holo v5 file is a UORC archive (format 2, profile 1)', 'archive.version');
+    if (bytes.length < 8 + SEAL_LENGTH) return refuse('the UORC archive is truncated');
+    const preimage = bytes.subarray(0, bytes.length - SEAL_LENGTH);
+    const seal = Array.from(bytes.subarray(bytes.length - SEAL_LENGTH), (b) => b.toString(16).padStart(2, '0')).join('');
+    if (preimage[6] !== 0 || preimage[7] !== 0) return refuse('a holo is a self-contained archive whose objects are stored raw', 'archive.flags');
+    let read = readUleb(preimage, 8);
+    if (!read) return refuse('the object count is not a ULEB128');
+    const [count] = read;
+    if (count === 0 || count > BUDGET.objects) return refuse(`the archive declares ${count} objects; a holo holds 1 to ${BUDGET.objects}`);
+    let at = read[1];
+    const lengths = [];
+    let total = 0;
+    for (let i = 0; i < count; i++) {
+      read = readUleb(preimage, at);
+      if (!read) return refuse('an object length is not a ULEB128');
+      total += read[0];
+      if (total > BUDGET.bytes) return refuse('the archive exceeds the decode budget');
+      lengths.push(read[0]);
+      at = read[1];
+    }
+    read = readUleb(preimage, at);
+    if (!read) return refuse('the body length is not a ULEB128');
+    if (read[0] !== total || preimage.length - read[1] !== total) return refuse('the body length disagrees with the objects, or the archive has trailing bytes');
+    let offset = read[1];
+    const objects = lengths.map((length, index) => {
+      const object = { index, offset, length, bytes: preimage.subarray(offset, offset + length) };
+      offset += length;
+      return object;
+    });
+    return { objects, seal, sealed: chainHex(preimage) === seal };
+  }
+
+  /** JSON as the canonical form of a holo document: keys sorted, no whitespace. */
+  function canonical(value) {
+    if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+    if (value && typeof value === 'object') {
+      return `{${Object.keys(value)
+        .sort()
+        .map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`)
+        .join(',')}}`;
+    }
+    return JSON.stringify(value);
+  }
+
+  function decode(bytes) {
+    try {
+      const value = JSON.parse(utf8.decode(bytes));
+      return value && typeof value === 'object' && !Array.isArray(value) ? { value } : { error: 'is not a JSON object' };
+    } catch (error) {
+      return { error: `is not JSON: ${error.message}` };
+    }
+  }
+
+  /**
+   * The checks and facts of a holo v5, in the shape `analyze` returns for v4.
+   *
+   * @param {Uint8Array} bytes
+   * @param {{ spec: object, schemaErrors: Function, checkWorld: Function, order: string[], structureIds: string[], documentIds: string[], archiveIds: string[] }} context
+   */
+  function analyzeV5(bytes, context) {
+    const { spec, schemaErrors, checkWorld } = context;
+    /** The two layers of a holo whose guest and view are named by these κ. */
+    const layersOf = (guest, view) => [
+      { contract: spec.CORE_WASM.CONTRACT, entry: spec.CORE_WASM.ENTRY, kappa: guest, kind: 'wasm' },
+      { entry: spec.HOLOVIEW.ENTRY, kappa: view, kind: 'view', surface: 'portable' },
+    ];
+    const checks = [{ id: 'archive.magic', level: 'archive', status: 'pass', detail: 'magic UORC' }];
+    const facts = { v5: true, structure: { ok: false }, sections: [], documents: {}, roles: {}, revision: null, layoutRevision: null, footer: null, fingerprint: null, newestDifferences: [] };
+    const add = (level, id, ok, detail) => checks.push({ id, level, status: ok ? 'pass' : 'fail', detail });
+    const skip = (level, id, detail) => checks.push({ id, level, status: 'skip', detail });
+
+    const archive = readArchive(bytes);
+    if (archive.problem) {
+      for (const id of context.structureIds.slice(1)) {
+        if (id === archive.check) add('archive', id, false, archive.problem);
+        else if (!checks.some((c) => c.id === archive.check)) add('archive', id, true, 'UORC format 2, profile 1');
+      }
+      for (const id of context.archiveIds) if (!checks.some((c) => c.id === id)) skip('archive', id, `not checked: ${archive.check} failed`);
+      for (const id of context.documentIds) skip('documents', id, `not checked: ${archive.check} failed`);
+      return { checks, facts };
+    }
+    add('archive', 'archive.version', true, 'UORC format 2, profile 1');
+    add('archive', 'archive.flags', true, 'a self-contained archive, objects stored raw');
+    add('archive', 'archive.table', true, `${archive.objects.length} objects, contiguous, ending at the seal`);
+    facts.structure.ok = true;
+    facts.footer = { stored: archive.seal, computed: archive.sealed ? archive.seal : null, matches: archive.sealed };
+    facts.fingerprint = kappa(bytes);
+    add(
+      'archive',
+      'archive.footer',
+      archive.sealed,
+      archive.sealed ? `the seal is the UORC-SHA256-CHAIN-v1 of the archive, ${archive.seal}` : `the seal ${archive.seal} is not the UORC-SHA256-CHAIN-v1 of the archive: the archive was altered`,
+    );
+
+    const known = archive.objects.length === ROLES.length || archive.objects.length === ROLES.length + 1;
+    const contentRoles = new Map(Object.entries(CONTENT).map(([role, index]) => [index, role]));
+    facts.sections = archive.objects.map((object) => {
+      const role = ROLES[object.index] ?? ROLE_ATTESTATIONS;
+      const section = { index: object.index, kind: null, kindName: role, role, offset: object.offset, length: object.length, payload: object.bytes };
+      if (contentRoles.has(object.index)) {
+        section.label = kappa(object.bytes);
+        section.content = object.bytes;
+        section.digests = { sha256: section.label.slice('sha256:'.length) };
+        section.labelMatches = true;
+      }
+      return section;
+    });
+    const at = (index) => (known ? facts.sections[index] : undefined);
+    const labelOf = (index) => at(index)?.label ?? (at(index) ? kappa(at(index).payload) : undefined);
+
+    // manifest.wire and blob.labels: the manifest names every object by its κ.
+    {
+      const problems = [];
+      const decoded = at(0) ? decode(at(0).payload) : { error: 'is missing: the archive does not hold the objects of a holo' };
+      const manifest = decoded.value;
+      if (decoded.error) problems.push(`the holo manifest ${decoded.error}`);
+      else {
+        if (manifest.schema !== MANIFEST_SCHEMA) problems.push(`the manifest names schema ${JSON.stringify(manifest.schema)}`);
+        if (typeof manifest.name !== 'string' || manifest.name.length === 0) problems.push('the manifest names no application');
+        if (manifest.basis !== undefined && !KAPPA.test(manifest.basis)) problems.push('the manifest basis is not a κ-label');
+        if (!KAPPA.test(manifest.requires)) problems.push('the manifest requires no κ-label');
+        // The shape of the layers here; whether their κ name the objects is blob.labels.
+        const named = (i) => (Array.isArray(manifest.layers) ? manifest.layers[i]?.kappa : undefined);
+        if (canonical(manifest.layers) !== canonical(layersOf(named(0), named(1))) || ![named(0), named(1)].every((k) => KAPPA.test(k))) problems.push('the manifest layers are not the wasm and view layers of a holo');
+        if (canonical(manifest) !== utf8.decode(at(0).payload)) problems.push('the manifest is not canonical JSON');
+      }
+      if (problems.length === 0) facts.documents.manifest = manifest;
+      add('documents', 'manifest.wire', problems.length === 0, problems.length === 0 ? `the holo manifest is canonical ${MANIFEST_SCHEMA}` : problems.join('; '));
+      if (manifest && problems.length === 0) {
+        // The provenance names the manifest, so the manifest lists every object but the provenance.
+        const expected = [1, 3, 4, 5, 6].map((i) => ({ kappa: labelOf(i), length: at(i).length, role: ROLES[i] }));
+        const ok = canonical(manifest.objects) === canonical(expected) && manifest.requires === labelOf(3) && canonical(manifest.layers) === canonical(layersOf(labelOf(4), labelOf(5)));
+        add('archive', 'blob.labels', ok, ok ? `all ${expected.length} objects match the κ the manifest gives them` : "the manifest's κ-labels and lengths are not those of the objects in their roles");
+      } else skip('archive', 'blob.labels', 'not checked: manifest.wire failed');
+    }
+
+    const documentCheck = (id, what, object, schemaPath, key, check) => {
+      if (!object) return add('documents', id, false, `${what} is missing`);
+      const decoded = decode(object.payload ?? object.content);
+      if (decoded.error) return add('documents', id, false, `${what} ${decoded.error}`);
+      const path = typeof schemaPath === 'function' ? schemaPath(decoded.value) : schemaPath;
+      if (!path) return add('documents', id, false, `${what} names schema ${JSON.stringify(decoded.value?.schema)}, which no known format revision packs into a holo`);
+      const errors = schemaErrors(path, decoded.value) || (check ? check(decoded.value) : '');
+      if (errors) return add('documents', id, false, `${what} does not match ${path}: ${errors}`);
+      facts.documents[key] = decoded.value;
+      return add('documents', id, true, `${what} matches ${path}`);
+    };
+    const revisions = Object.values(spec.FORMAT_REVISIONS);
+    const modelSchemas = new Set(revisions.flatMap((r) => r.modelDocumentSchemas));
+
+    documentCheck('metadata.schema', 'the source manifest', at(1), spec.HOLO_SCHEMAS.SOURCE_MANIFEST, 'sourceManifest');
+    skip('documents', 'directory.schema', 'not checked: a holo v5 names its layers in the manifest');
+    documentCheck(
+      'provenance.schema',
+      'the model provenance',
+      at(2),
+      (v) => (v?.schema === PROVENANCE_SCHEMA ? spec.SCHEMAS[PROVENANCE_SCHEMA] : null),
+      'provenance',
+      (v) => (canonical(v) === utf8.decode(at(2).payload) ? '' : 'it is not canonical JSON'),
+    );
+    const provenance = facts.documents.provenance;
+    const modelBlob = at(CONTENT.model);
+    if (!provenance) skip('documents', 'model.schema', 'not checked: provenance.schema failed');
+    else documentCheck('model.schema', 'the model document', modelBlob, (v) => (modelSchemas.has(v?.schema) ? spec.SCHEMAS[v.schema] : null), 'modelDocument');
+
+    if (known) for (const [role, index] of Object.entries(CONTENT)) facts.roles[role] = labelOf(index);
+
+    // references: the provenance names the objects in their roles.
+    if (!provenance || !known) skip('documents', 'references', 'not checked: the provenance did not decode');
+    else {
+      const problems = [];
+      for (const [role, recorded, actual] of [
+        ['guest', provenance.guest_content_kappa, labelOf(4)],
+        ['model', provenance.model_content_kappa, labelOf(6)],
+        ['application', provenance.application_kappa, labelOf(0)],
+      ]) {
+        if (recorded !== actual) problems.push(`the provenance ${role} ${recorded} is not the ${role} object ${actual}`);
+      }
+      const binding = provenance.view_binding;
+      if (binding?.tag === 'present' && binding.view_content_kappa !== labelOf(5)) problems.push(`the provenance view ${binding.view_content_kappa} is not the view object ${labelOf(5)}`);
+      add('documents', 'references', problems.length === 0, problems.length === 0 ? 'the manifest and the provenance name the same objects' : problems.join('; '));
+    }
+
+    // model.sha256: as in v4.
+    if (!provenance || !modelBlob) skip('documents', 'model.sha256', 'not checked: no model document');
+    else {
+      const actual = modelBlob.digests.sha256;
+      const problems = [];
+      if (provenance.model_id !== actual) problems.push(`the provenance model_id ${provenance.model_id} differs from the model document's sha256 ${actual}`);
+      const listed = facts.documents.sourceManifest?.files?.find((f) => f.kind === 'model-document');
+      if (listed && listed.sha256 !== actual) problems.push(`the source manifest lists model-document sha256 ${listed.sha256}, the blob hashes to ${actual}`);
+      add('documents', 'model.sha256', problems.length === 0, problems.length === 0 ? `the model document's sha256 ${actual} equals the recorded model_id` : problems.join('; '));
+    }
+
+    // world.contract: as in v4, with the contract the provenance records.
+    const contract = provenance?.core_wasm_contract;
+    const guest = at(CONTENT.guest);
+    if (!contract || !guest) skip('documents', 'world.contract', 'not checked: the provenance or the guest is missing');
+    else {
+      const world = checkWorld(contract, guest.content);
+      if (!world.known) skip('documents', 'world.contract', `not checked: this package has no world for the contract ${contract}`);
+      else add('documents', 'world.contract', world.conforms, world.conforms ? `the guest has exactly the imports and exports of the ${contract} world` : `the guest does not match the ${contract} world: ${world.problems.join('; ')}`);
+    }
+
+    // format.revision: the roles, the contract, the source manifest and the view.
+    {
+      const revision = spec.FORMAT_REVISIONS[spec.FORMAT_REVISION];
+      const differences = [];
+      if (!known) differences.push(`the archive holds ${archive.objects.length} objects, expected ${ROLES.length} or ${ROLES.length + 1} when signed`);
+      // As for v4: this package judges the unsigned holo, and `check` reads the attestations and strips them first.
+      if (archive.objects.length === ROLES.length + 1) differences.push(`the archive carries an ${ROLE_ATTESTATIONS} object, which this package does not read; check reads it`);
+      if (contract && contract !== revision.coreWasmContract) differences.push(`the guest contract is ${contract}, expected ${revision.coreWasmContract}`);
+      const sourceManifest = facts.documents.sourceManifest;
+      if (sourceManifest && sourceManifest.version !== revision.sourceManifestVersion) differences.push(`the source manifest version is ${sourceManifest.version}, expected ${revision.sourceManifestVersion}`);
+      const view = at(CONTENT.view)?.content;
+      if (view) {
+        const magic = view.length >= 10 ? String.fromCharCode(...view.subarray(0, 8)) : '';
+        const version = view.length >= 10 ? (view[8] << 8) | view[9] : null;
+        if (magic !== spec.HOLOVIEW.MAGIC || version !== revision.holoviewVersion) differences.push(`the view is not a HOLOVIEW version ${revision.holoviewVersion} bundle`);
+      }
+      // A signed holo has no layout revision, so verdict refuses it as for v4; check strips the attestations first.
+      if (known && archive.objects.length === ROLES.length) facts.layoutRevision = spec.FORMAT_REVISION;
+      if (differences.length === 0) facts.revision = spec.FORMAT_REVISION;
+      facts.newestDifferences = differences;
+      add('documents', 'format.revision', differences.length === 0, differences.length === 0 ? `holo v5, format revision ${spec.FORMAT_REVISION}` : `the archive matches no format revision this package knows (holo v5): ${differences.join('; ')}`);
+    }
+
+    checks.sort((a, b) => context.order.indexOf(a.id) - context.order.indexOf(b.id));
+    return { checks, facts };
+  }
+  return Object.freeze({ MANIFEST_SCHEMA, PROVENANCE_SCHEMA, ROLES, ROLE_ATTESTATIONS, isUorc, kappa, chainHex, readArchive, analyzeV5 });
 })();
 
 // src/asn1.mjs
@@ -1888,8 +2331,8 @@ const __vendor_predicates = (() => {
   // The predicate schemas the statement checks need, keyed by their path in @prism-code/spec, whitespace removed.
 
   const PREDICATE_SCHEMAS = Object.freeze({
-    "predicates/proof-v1.schema.json": {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://uor.foundation/prism/proof/v1/schema.json","title":"ProofPredicateV1","description":"The predicate of an in-toto Statement v1 with predicateType https://uor.foundation/prism/proof/v1. The statement has exactly one subject, the Core-Wasm guest blob. The predicate names the verifier, the model, every theorem with its verdict, and the trusted computing base. Design: docs/proposals/266-proof-predicate.md. Digests are lowercase hex without an algorithm prefix.","type":"object","additionalProperties":false,"required":["verifier","policy","model","theorems","verificationResult","verifiedLevels","tcb","evidence","timeVerified"],"properties":{"verifier":{"description":"The kernel that produced the verdict, the compiler whose Lean output was checked, the producer of the statement and the image that hosted the check.","type":"object","additionalProperties":false,"required":["id","lean","lexlean","prismpm","sdkImage"],"properties":{"id":{"const":"https://uor.foundation/prism/verifier/lean4"},"lean":{"description":"tools.lock [lean] release and commit.","type":"object","additionalProperties":false,"required":["version","commit"],"properties":{"version":{"$ref":"#/$defs/Version"},"commit":{"$ref":"#/$defs/GitCommit"}}},"lexlean":{"description":"model/dependencies.toml lexlean, and model-provenance.json lexlean_commit and lexlean_package_sha256.","type":"object","additionalProperties":false,"required":["version","commit","crateSha256"],"properties":{"version":{"$ref":"#/$defs/Version"},"commit":{"$ref":"#/$defs/GitCommit"},"crateSha256":{"$ref":"#/$defs/HexDigest"}}},"prismpm":{"description":"prismpm.lock sdk_version.","type":"object","additionalProperties":false,"required":["version"],"properties":{"version":{"$ref":"#/$defs/Version"}}},"sdkImage":{"description":"prismpm.lock sdk_image: <repository>@sha256:<hex>.","type":"string","pattern":"^[^@\\s]+@sha256:[0-9a-f]{64}$"}}},"policy":{"description":"The per-declaration axiom policy table. Its digest is the LexLean snapshot that carries it.","type":"object","additionalProperties":false,"required":["uri","digest"],"properties":{"uri":{"type":"string","minLength":1,"format":"uri"},"digest":{"$ref":"#/$defs/Sha256Digest"}}},"model":{"description":"The model the theorems are about, as model-provenance.json and the model document's provenance state it.","type":"object","additionalProperties":false,"required":["document","sourceId","semanticId","snapshotId","compilerSemanticsId","leanManifestSha256","modules"],"properties":{"document":{"$ref":"#/$defs/PrismDigestSet"},"sourceId":{"$ref":"#/$defs/HexDigest"},"semanticId":{"$ref":"#/$defs/HexDigest"},"snapshotId":{"$ref":"#/$defs/HexDigest"},"compilerSemanticsId":{"$ref":"#/$defs/HexDigest"},"leanManifestSha256":{"$ref":"#/$defs/HexDigest"},"modules":{"description":"The Lean modules that were elaborated and replayed: the build manifest rows of kind lean.","type":"array","minItems":1,"uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["name","leanSha256"],"properties":{"name":{"$ref":"#/$defs/LeanName"},"leanSha256":{"$ref":"#/$defs/HexDigest"}}}}}},"theorems":{"description":"Every theorem of the model, with its verdict and axiom audit. Definitions, structures and inductives are not listed. A statement that lists no theorem claims nothing, so at least one is required.","type":"array","minItems":1,"uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["name","module","verdict","axioms"],"properties":{"name":{"description":"Full Lean name, namespace plus declaration, as written in the generated module.","$ref":"#/$defs/LeanName"},"module":{"$ref":"#/$defs/LeanName"},"verdict":{"$ref":"#/$defs/Verdict"},"axioms":{"description":"The observed axioms against the declared policy (VR-05).","type":"object","additionalProperties":false,"required":["policy","observed"],"properties":{"policy":{"type":"object","additionalProperties":false,"required":["kind","axioms"],"properties":{"kind":{"enum":["none","allow","exact"]},"axioms":{"$ref":"#/$defs/LeanNames"}}},"observed":{"$ref":"#/$defs/LeanNames"}}}}}},"verificationResult":{"description":"PASSED only when every theorem is PASSED and every leanchecker replay exited 0.","$ref":"#/$defs/Verdict"},"verifiedLevels":{"description":"The signer's claim, exactly one level as in SLSA. A proof statement supports at most P2, so the value is fixed (#269). A checker computes the level from evidence and never reads this claim.","const":["P2"]},"tcb":{"description":"The named trusted computing base: every component whose failure would make the verdict false. No entry is verified, and trust admits only trusted.","type":"array","minItems":1,"uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["component","role","version","trust"],"properties":{"component":{"type":"string","pattern":"^[a-z0-9][a-z0-9-]*$"},"role":{"type":"string","minLength":1},"version":{"$ref":"#/$defs/Version"},"digest":{"description":"Optional. A git commit or a SHA-256 digest, lowercase hex.","type":"string","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"trust":{"const":"trusted"}}}},"evidence":{"description":"Digests a re-checker uses to fetch the retained evidence.","type":"object","additionalProperties":false,"required":["lexleanAttestation","verificationManifest"],"properties":{"lexleanAttestation":{"$ref":"#/$defs/Sha256Digest"},"verificationManifest":{"$ref":"#/$defs/Sha256Digest"}}},"timeVerified":{"description":"RFC 3339, UTC. Not an input to any identity.","type":"string","format":"date-time","pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"}},"$defs":{"HexDigest":{"description":"64 lowercase hex characters.","type":"string","pattern":"^[0-9a-f]{64}$"},"GitCommit":{"description":"A git commit, 40 lowercase hex characters.","type":"string","pattern":"^[0-9a-f]{40}$"},"Version":{"type":"string","minLength":1,"maxLength":128},"LeanName":{"type":"string","minLength":1},"LeanNames":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/LeanName"}},"Verdict":{"enum":["PASSED","FAILED"]},"Sha256Digest":{"type":"object","additionalProperties":false,"required":["sha256"],"properties":{"sha256":{"$ref":"#/$defs/HexDigest"}}},"PrismDigestSet":{"description":"Exactly sha256 and blake3, lowercase hex, over the same bytes (ADR-015). blake3 is default-mode BLAKE3 with 256-bit output; for a content blob it equals the label without the blake3: prefix. The archive footer never appears here.","type":"object","additionalProperties":false,"required":["blake3","sha256"],"properties":{"blake3":{"type":"string","pattern":"^[0-9a-f]{64}$"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}}},
-    "predicates/replay-v1.schema.json": {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://uor.foundation/prism/replay/v1/schema.json","title":"ReplayPredicateV1","description":"The predicate of an in-toto Statement v1 with predicateType https://uor.foundation/prism/replay/v1. The statement has exactly one subject, the Core-Wasm guest blob. The predicate names the runtime that re-executed the histories, the model of the build, every history by digest, and how many events diverged. It holds no clock, so the same replay writes the same bytes. Design: docs/proposals/284-histories-replay.md. Digests are lowercase hex without an algorithm prefix.","type":"object","additionalProperties":false,"required":["runtime","model","histories","divergenceCount"],"properties":{"runtime":{"description":"The runtime that re-executed the histories.","type":"object","additionalProperties":false,"required":["name","version"],"properties":{"name":{"description":"prism-code or prismpm.","type":"string","pattern":"^[a-z0-9][a-z0-9-]*$"},"version":{"type":"string","minLength":1,"maxLength":128}}},"model":{"description":"The model blob of the build that was replayed. sha256 is model_id; blake3 is the label of the blob without blake3:.","$ref":"#/$defs/PrismDigestSet"},"histories":{"description":"Every history that was replayed. A statement that replayed nothing claims nothing, so at least one is required.","type":"array","minItems":1,"uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["digest","events","divergences"],"properties":{"digest":{"description":"Both digests cover the canonical JSON of the history, with no trailing newline.","$ref":"#/$defs/PrismDigestSet"},"events":{"description":"Events re-executed. A history holds at least one.","type":"integer","minimum":1},"divergences":{"description":"Events whose outcome differs from the recording.","type":"integer","minimum":0}}}},"divergenceCount":{"description":"The sum of histories[].divergences. A check rejects a statement where they disagree, and anything but zero withholds P3.","type":"integer","minimum":0}},"$defs":{"PrismDigestSet":{"description":"Exactly sha256 and blake3, lowercase hex, over the same bytes (ADR-015). blake3 is default-mode BLAKE3 with 256-bit output.","type":"object","additionalProperties":false,"required":["blake3","sha256"],"properties":{"blake3":{"type":"string","pattern":"^[0-9a-f]{64}$"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}}},
+    "predicates/proof-v1.schema.json": {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://uor.foundation/prism/proof/v1/schema.json","title":"ProofPredicateV1","description":"The predicate of an in-toto Statement v1 with predicateType https://uor.foundation/prism/proof/v1. The statement has exactly one subject, the Core-Wasm guest blob. The predicate names the verifier, the model, every theorem with its verdict, and the trusted computing base. Design: docs/proposals/266-proof-predicate.md. Digests are lowercase hex without an algorithm prefix.","type":"object","additionalProperties":false,"required":["verifier","policy","model","theorems","verificationResult","verifiedLevels","tcb","evidence","timeVerified"],"properties":{"verifier":{"description":"The kernel that produced the verdict, the compiler whose Lean output was checked, the producer of the statement and the image that hosted the check.","type":"object","additionalProperties":false,"required":["id","lean","lexlean","prismpm","sdkImage"],"properties":{"id":{"const":"https://uor.foundation/prism/verifier/lean4"},"lean":{"description":"tools.lock [lean] release and commit.","type":"object","additionalProperties":false,"required":["version","commit"],"properties":{"version":{"$ref":"#/$defs/Version"},"commit":{"$ref":"#/$defs/GitCommit"}}},"lexlean":{"description":"model/dependencies.toml lexlean, and model-provenance.json lexlean_commit and lexlean_package_sha256.","type":"object","additionalProperties":false,"required":["version","commit","crateSha256"],"properties":{"version":{"$ref":"#/$defs/Version"},"commit":{"$ref":"#/$defs/GitCommit"},"crateSha256":{"$ref":"#/$defs/HexDigest"}}},"prismpm":{"description":"prismpm.lock sdk_version.","type":"object","additionalProperties":false,"required":["version"],"properties":{"version":{"$ref":"#/$defs/Version"}}},"sdkImage":{"description":"prismpm.lock sdk_image: <repository>@sha256:<hex>.","type":"string","pattern":"^[^@\\s]+@sha256:[0-9a-f]{64}$"}}},"policy":{"description":"The per-declaration axiom policy table. Its digest is the LexLean snapshot that carries it.","type":"object","additionalProperties":false,"required":["uri","digest"],"properties":{"uri":{"type":"string","minLength":1,"format":"uri"},"digest":{"$ref":"#/$defs/Sha256Digest"}}},"model":{"description":"The model the theorems are about, as model-provenance.json and the model document's provenance state it.","type":"object","additionalProperties":false,"required":["document","sourceId","semanticId","snapshotId","compilerSemanticsId","leanManifestSha256","modules"],"properties":{"document":{"$ref":"#/$defs/PrismDigestSet"},"sourceId":{"$ref":"#/$defs/HexDigest"},"semanticId":{"$ref":"#/$defs/HexDigest"},"snapshotId":{"$ref":"#/$defs/HexDigest"},"compilerSemanticsId":{"$ref":"#/$defs/HexDigest"},"leanManifestSha256":{"$ref":"#/$defs/HexDigest"},"modules":{"description":"The Lean modules that were elaborated and replayed: the build manifest rows of kind lean.","type":"array","minItems":1,"uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["name","leanSha256"],"properties":{"name":{"$ref":"#/$defs/LeanName"},"leanSha256":{"$ref":"#/$defs/HexDigest"}}}}}},"theorems":{"description":"Every theorem of the model, with its verdict and axiom audit. Definitions, structures and inductives are not listed. A statement that lists no theorem claims nothing, so at least one is required.","type":"array","minItems":1,"uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["name","module","verdict","axioms"],"properties":{"name":{"description":"Full Lean name, namespace plus declaration, as written in the generated module.","$ref":"#/$defs/LeanName"},"module":{"$ref":"#/$defs/LeanName"},"verdict":{"$ref":"#/$defs/Verdict"},"axioms":{"description":"The observed axioms against the declared policy (VR-05).","type":"object","additionalProperties":false,"required":["policy","observed"],"properties":{"policy":{"type":"object","additionalProperties":false,"required":["kind","axioms"],"properties":{"kind":{"enum":["none","allow","exact"]},"axioms":{"$ref":"#/$defs/LeanNames"}}},"observed":{"$ref":"#/$defs/LeanNames"}}}}}},"verificationResult":{"description":"PASSED only when every theorem is PASSED and every leanchecker replay exited 0.","$ref":"#/$defs/Verdict"},"verifiedLevels":{"description":"The signer's claim, exactly one level as in SLSA. A proof statement supports at most P2, so the value is fixed (#269). A checker computes the level from evidence and never reads this claim.","const":["P2"]},"tcb":{"description":"The named trusted computing base: every component whose failure would make the verdict false. No entry is verified, and trust admits only trusted.","type":"array","minItems":1,"uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["component","role","version","trust"],"properties":{"component":{"type":"string","pattern":"^[a-z0-9][a-z0-9-]*$"},"role":{"type":"string","minLength":1},"version":{"$ref":"#/$defs/Version"},"digest":{"description":"Optional. A git commit or a SHA-256 digest, lowercase hex.","type":"string","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"trust":{"const":"trusted"}}}},"evidence":{"description":"Digests a re-checker uses to fetch the retained evidence.","type":"object","additionalProperties":false,"required":["lexleanAttestation","verificationManifest"],"properties":{"lexleanAttestation":{"$ref":"#/$defs/Sha256Digest"},"verificationManifest":{"$ref":"#/$defs/Sha256Digest"}}},"timeVerified":{"description":"RFC 3339, UTC. Not an input to any identity.","type":"string","format":"date-time","pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"}},"$defs":{"HexDigest":{"description":"64 lowercase hex characters.","type":"string","pattern":"^[0-9a-f]{64}$"},"GitCommit":{"description":"A git commit, 40 lowercase hex characters.","type":"string","pattern":"^[0-9a-f]{40}$"},"Version":{"type":"string","minLength":1,"maxLength":128},"LeanName":{"type":"string","minLength":1},"LeanNames":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/LeanName"}},"Verdict":{"enum":["PASSED","FAILED"]},"Sha256Digest":{"type":"object","additionalProperties":false,"required":["sha256"],"properties":{"sha256":{"$ref":"#/$defs/HexDigest"}}},"PrismDigestSet":{"description":"sha256, the κ of the bytes (ADR-017); blake3 beside it only in statements and documents about a v4 holo (ADR-015). Lowercase hex.","type":"object","additionalProperties":false,"required":["sha256"],"properties":{"blake3":{"type":"string","pattern":"^[0-9a-f]{64}$"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}}},
+    "predicates/replay-v1.schema.json": {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://uor.foundation/prism/replay/v1/schema.json","title":"ReplayPredicateV1","description":"The predicate of an in-toto Statement v1 with predicateType https://uor.foundation/prism/replay/v1. The statement has exactly one subject, the Core-Wasm guest blob. The predicate names the runtime that re-executed the histories, the model of the build, every history by digest, and how many events diverged. It holds no clock, so the same replay writes the same bytes. Design: docs/proposals/284-histories-replay.md. Digests are lowercase hex without an algorithm prefix.","type":"object","additionalProperties":false,"required":["runtime","model","histories","divergenceCount"],"properties":{"runtime":{"description":"The runtime that re-executed the histories.","type":"object","additionalProperties":false,"required":["name","version"],"properties":{"name":{"description":"prism-code or prismpm.","type":"string","pattern":"^[a-z0-9][a-z0-9-]*$"},"version":{"type":"string","minLength":1,"maxLength":128}}},"model":{"description":"The model blob of the build that was replayed. sha256 is model_id; blake3 is the label of the blob without blake3:.","$ref":"#/$defs/PrismDigestSet"},"histories":{"description":"Every history that was replayed. A statement that replayed nothing claims nothing, so at least one is required.","type":"array","minItems":1,"uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["digest","events","divergences"],"properties":{"digest":{"description":"Both digests cover the canonical JSON of the history, with no trailing newline.","$ref":"#/$defs/PrismDigestSet"},"events":{"description":"Events re-executed. A history holds at least one.","type":"integer","minimum":1},"divergences":{"description":"Events whose outcome differs from the recording.","type":"integer","minimum":0}}}},"divergenceCount":{"description":"The sum of histories[].divergences. A check rejects a statement where they disagree, and anything but zero withholds P3.","type":"integer","minimum":0}},"$defs":{"PrismDigestSet":{"description":"sha256, the κ of the bytes (ADR-017); blake3 beside it only in statements and documents about a v4 holo (ADR-015). Lowercase hex.","type":"object","additionalProperties":false,"required":["sha256"],"properties":{"blake3":{"type":"string","pattern":"^[0-9a-f]{64}$"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}}},
   });
   return Object.freeze({ PREDICATE_SCHEMAS });
 })();
@@ -1913,6 +2356,17 @@ const __statements = (() => {
    */
 
   const { ASSURANCE } = assurance;
+
+  /**
+   * Whether the digest set a statement gives names `actual`, the digests of an object of this holo: its sha256, the κ
+   * (ADR-017), is equal, and a blake3 beside it, which only statements about a v4 holo carry (ADR-015), is equal too.
+   */
+  const sameDigests = (digest, actual) =>
+    isObject(digest) &&
+    Boolean(actual) &&
+    Object.keys(digest).every((key) => key === 'sha256' || key === 'blake3') &&
+    digest.sha256 === actual.sha256 &&
+    (digest.blake3 === undefined || digest.blake3 === actual.blake3);
 
   const STATEMENT_TYPE = 'https://in-toto.io/Statement/v1';
   const PROOF_PREDICATE_TYPE = ASSURANCE.PREDICATES.proof;
@@ -1976,13 +2430,13 @@ const __statements = (() => {
     const { subject, predicate } = statement;
 
     const digest = subject[0].digest;
-    if (!holo.guest || digest.blake3 !== holo.guest.blake3 || digest.sha256 !== holo.guest.sha256) {
-      reasons.push(reason('proof.subject', `The proof statement is about ${subject[0].name} with blake3 ${digest.blake3}, which is not this holo's guest${holo.guest ? ` (blake3 ${holo.guest.blake3})` : ''}.`));
+    if (!sameDigests(digest, holo.guest)) {
+      reasons.push(reason('proof.subject', `The proof statement is about ${subject[0].name} with sha256 ${digest.sha256}, which is not this holo's guest${holo.guest ? ` (sha256 ${holo.guest.sha256})` : ''}.`));
     }
 
     const model = [];
     const document = predicate.model.document;
-    if (!holo.model || document.sha256 !== holo.model.sha256 || document.blake3 !== holo.model.blake3) model.push('the model document digests are not those of the model blob');
+    if (!sameDigests(document, holo.model)) model.push('the model document digests are not those of the model blob');
     const provenance = holo.provenance ?? {};
     const pairs = [
       ['document.sha256', document.sha256, 'model_id'],
@@ -2048,7 +2502,7 @@ const __statements = (() => {
     }
     const unmatched = subjects.filter((subject) => {
       const digest = subject?.digest;
-      return !isObject(digest) || !holo.blobs.some((blob) => blob.digests && blob.digests.sha256 === digest.sha256 && blob.digests.blake3 === digest.blake3);
+      return !holo.blobs.some((blob) => sameDigests(digest, blob.digests));
     });
     if (unmatched.length > 0) {
       reasons.push(withheld('provenance.subject', `The provenance statement names ${unmatched.map((s) => s?.name ?? '(unnamed)').join(', ')}, which this holo does not contain with those digests.`));
@@ -2072,7 +2526,6 @@ const __statements = (() => {
     return { check, code: REPLAY_CODES[check], withholds: 'P3', message };
   }
 
-  const sameDigests = (a, b) => Boolean(a && b) && a.sha256 === b.sha256 && a.blake3 === b.blake3;
 
   /**
    * Check one replay statement against a build. Returns the reasons, in check
@@ -2109,17 +2562,17 @@ const __statements = (() => {
     const { subject, predicate } = statement;
 
     if (!sameDigests(subject[0].digest, holo.guest)) {
-      reasons.push(replayReason('replay.subject', `The replay statement is about ${subject[0].name} with blake3 ${subject[0].digest.blake3}, which is not this holo's guest${holo.guest ? ` (blake3 ${holo.guest.blake3})` : ''}.`));
+      reasons.push(replayReason('replay.subject', `The replay statement is about ${subject[0].name} with sha256 ${subject[0].digest.sha256}, which is not this holo's guest${holo.guest ? ` (sha256 ${holo.guest.sha256})` : ''}.`));
     }
     if (!sameDigests(predicate.model, holo.model)) {
-      reasons.push(replayReason('replay.model', `The replay statement is about the model with blake3 ${predicate.model.blake3}, which is not this holo's model${holo.model ? ` (blake3 ${holo.model.blake3})` : ''}.`));
+      reasons.push(replayReason('replay.model', `The replay statement is about the model with sha256 ${predicate.model.sha256}, which is not this holo's model${holo.model ? ` (sha256 ${holo.model.sha256})` : ''}.`));
     }
     if (predicate.divergenceCount > 0) {
       reasons.push(replayReason('replay.divergence', `The replay recorded ${predicate.divergenceCount} divergences from its histories.`));
     }
     return reasons;
   }
-  return Object.freeze({ STATEMENT_TYPE, PROOF_PREDICATE_TYPE, PROOF_SCHEMA, TCB_COMPONENTS, PROOF_CODES, checkProofStatement, PROVENANCE_PREDICATE_TYPE, checkProvenanceStatement, REPLAY_PREDICATE_TYPE, REPLAY_SCHEMA, REPLAY_CODES, checkReplayStatement });
+  return Object.freeze({ sameDigests, STATEMENT_TYPE, PROOF_PREDICATE_TYPE, PROOF_SCHEMA, TCB_COMPONENTS, PROOF_CODES, checkProofStatement, PROVENANCE_PREDICATE_TYPE, checkProvenanceStatement, REPLAY_PREDICATE_TYPE, REPLAY_SCHEMA, REPLAY_CODES, checkReplayStatement });
 })();
 
 // src/world.mjs
@@ -3523,7 +3976,7 @@ const __vendor_policies = (() => {
     "provenance-only": "# Provenance only: the holo carries a provenance statement whose signature checks, and no proof is\n# required. P1 includes the integrity of the archive, so a damaged holo cannot reach it.\npackage prism.policy\n\nimport rego.v1\n\nminimum := \"P1\"\n\ndeny contains {\"rule\": \"policy.provenance-only.absent\", \"message\": \"the holo carries no provenance statement\"} if {\n\tinput.predicates.provenance == null\n}\n\ndeny contains {\"rule\": \"policy.provenance-only.unverified\", \"message\": \"the provenance statement signature does not check against the trust root\"} if {\n\tinput.predicates.provenance.verified == false\n}\n",
   });
 
-  const POLICY_INPUT_JSON_SCHEMA = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://schemas.uor.foundation/prism/policy-input/1","title":"PolicyInput","description":"The document a policy judges, bound to `input` when a policy file is evaluated. It holds what the check found: the evidence, the declared world, the granted capabilities and the attested predicates. It never holds a policy, and nothing in it is read from a policy section of the holo. Design: docs/proposals/285-policy-file.md.","type":"object","additionalProperties":false,"required":["schema","holo","verdict","world","capabilities","predicates"],"properties":{"schema":{"const":"prism/policy-input/1"},"holo":{"type":"object","additionalProperties":false,"required":["fingerprint","revision","digests"],"properties":{"fingerprint":{"description":"The archive fingerprint, the same value as the holo member of a verdict.","type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"revision":{"description":"The format revision the archive matches, or null when it matches none.","type":["string","null"]},"digests":{"description":"Both digests of the whole file and of each content blob that could be located.","type":"object","additionalProperties":false,"required":["archive"],"properties":{"archive":{"$ref":"#/$defs/digests"},"capabilities":{"$ref":"#/$defs/digests"},"guest":{"$ref":"#/$defs/digests"},"view":{"$ref":"#/$defs/digests"},"model":{"$ref":"#/$defs/digests"}}}}},"verdict":{"description":"The evidence: the assurance level and every check that did not pass, before any policy judged them. A policy never changes the level.","type":"object","additionalProperties":false,"required":["level","reasons"],"properties":{"level":{"$ref":"#/$defs/level"},"reasons":{"type":"array","maxItems":1024,"items":{"$ref":"#/$defs/reason"}}}},"world":{"description":"The world the holo declares, or null when it names no guest contract.","oneOf":[{"type":"null"},{"$ref":"#/$defs/world"}]},"capabilities":{"description":"The capability set the caller granted, or null when nothing was granted. A policy file never grants; only the caller does.","oneOf":[{"type":"null"},{"$ref":"#/$defs/capabilitySet"}]},"predicates":{"description":"The attested statements the holo carries, by the kind of evidence each is. Null when the holo carries none of that kind.","type":"object","additionalProperties":false,"required":["provenance","proof","replay"],"properties":{"provenance":{"$ref":"#/$defs/predicate"},"proof":{"$ref":"#/$defs/predicate"},"replay":{"$ref":"#/$defs/predicate"}}}},"$defs":{"level":{"description":"P0 unverified, P1 provenance, P2 proof checked, P3 proof, replay and world.","enum":["P0","P1","P2","P3"]},"digests":{"type":"object","additionalProperties":false,"required":["sha256","blake3"],"properties":{"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"blake3":{"type":"string","pattern":"^[0-9a-f]{64}$"}}},"reason":{"description":"One check that did not pass, the same shape as a reason of prism/verdict/1.","type":"object","additionalProperties":false,"required":["check","withholds","message"],"properties":{"check":{"type":"string","pattern":"^[a-z][a-z0-9-]*([.][a-z][a-z0-9-]*)+$"},"code":{"type":"string","pattern":"^PP[0-9]{4}$"},"withholds":{"enum":["P1","P2","P3",null]},"message":{"type":"string","minLength":1,"maxLength":1024}}},"world":{"type":"object","additionalProperties":false,"required":["contract","known","within","pure","effects","imports","problems","capability_set"],"properties":{"contract":{"type":"string","minLength":1},"known":{"description":"False when this reader has no world for the contract. Then within, pure, effects and imports are null and nothing is stated about them.","type":"boolean"},"within":{"type":["boolean","null"]},"pure":{"type":["boolean","null"]},"effects":{"oneOf":[{"type":"null"},{"type":"array","items":{"enum":["clock","random","socket","filesystem","unknown"]}}]},"imports":{"oneOf":[{"type":"null"},{"type":"array","items":{"type":"object","additionalProperties":false,"required":["module","name","kind"],"properties":{"module":{"type":"string"},"name":{"type":"string"},"kind":{"type":"string"},"capability":{"enum":["outbound-hosts","key-value-stores","variables"]}}}}]},"problems":{"type":"array","items":{"type":"string"}},"capability_set":{"description":"The capability set blob the holo itself carries, or null when it could not be located. Empty means the holo requests nothing.","oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["label","empty"],"properties":{"label":{"type":"string","pattern":"^blake3:[0-9a-f]{64}$"},"empty":{"type":"boolean"}}}]}}},"capabilitySet":{"type":"object","additionalProperties":false,"properties":{"allow-outbound-hosts":{"$ref":"#/$defs/entries"},"deny-outbound-hosts":{"$ref":"#/$defs/entries"},"allow-key-value-stores":{"$ref":"#/$defs/entries"},"deny-key-value-stores":{"$ref":"#/$defs/entries"},"allow-variables":{"$ref":"#/$defs/entries"},"deny-variables":{"$ref":"#/$defs/entries"},"allow-providers":{"$ref":"#/$defs/entries"},"deny-providers":{"$ref":"#/$defs/entries"}}},"entries":{"type":"array","items":{"type":"string"}},"predicate":{"description":"One attested statement, or null. verified says its signature checked against the trust root.","oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["predicateType","verified","predicate"],"properties":{"predicateType":{"type":"string","minLength":1},"verified":{"type":"boolean"},"predicate":{"type":"object"}}}]}}};
+  const POLICY_INPUT_JSON_SCHEMA = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://schemas.uor.foundation/prism/policy-input/1","title":"PolicyInput","description":"The document a policy judges, bound to `input` when a policy file is evaluated. It holds what the check found: the evidence, the declared world, the granted capabilities and the attested predicates. It never holds a policy, and nothing in it is read from a policy section of the holo. Design: docs/proposals/285-policy-file.md.","type":"object","additionalProperties":false,"required":["schema","holo","verdict","world","capabilities","predicates"],"properties":{"schema":{"const":"prism/policy-input/1"},"holo":{"type":"object","additionalProperties":false,"required":["fingerprint","revision","digests"],"properties":{"fingerprint":{"description":"The archive fingerprint, the same value as the holo member of a verdict.","type":"string","pattern":"^(sha256|blake3):[0-9a-f]{64}$"},"revision":{"description":"The format revision the archive matches, or null when it matches none.","type":["string","null"]},"digests":{"description":"Both digests of the whole file and of each content blob that could be located.","type":"object","additionalProperties":false,"required":["archive"],"properties":{"archive":{"$ref":"#/$defs/digests"},"capabilities":{"$ref":"#/$defs/digests"},"guest":{"$ref":"#/$defs/digests"},"view":{"$ref":"#/$defs/digests"},"model":{"$ref":"#/$defs/digests"}}}}},"verdict":{"description":"The evidence: the assurance level and every check that did not pass, before any policy judged them. A policy never changes the level.","type":"object","additionalProperties":false,"required":["level","reasons"],"properties":{"level":{"$ref":"#/$defs/level"},"reasons":{"type":"array","maxItems":1024,"items":{"$ref":"#/$defs/reason"}}}},"world":{"description":"The world the holo declares, or null when it names no guest contract.","oneOf":[{"type":"null"},{"$ref":"#/$defs/world"}]},"capabilities":{"description":"The capability set the caller granted, or null when nothing was granted. A policy file never grants; only the caller does.","oneOf":[{"type":"null"},{"$ref":"#/$defs/capabilitySet"}]},"predicates":{"description":"The attested statements the holo carries, by the kind of evidence each is. Null when the holo carries none of that kind.","type":"object","additionalProperties":false,"required":["provenance","proof","replay"],"properties":{"provenance":{"$ref":"#/$defs/predicate"},"proof":{"$ref":"#/$defs/predicate"},"replay":{"$ref":"#/$defs/predicate"}}}},"$defs":{"level":{"description":"P0 unverified, P1 provenance, P2 proof checked, P3 proof, replay and world.","enum":["P0","P1","P2","P3"]},"digests":{"type":"object","additionalProperties":false,"required":["sha256"],"properties":{"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"blake3":{"type":"string","pattern":"^[0-9a-f]{64}$"}}},"reason":{"description":"One check that did not pass, the same shape as a reason of prism/verdict/1.","type":"object","additionalProperties":false,"required":["check","withholds","message"],"properties":{"check":{"type":"string","pattern":"^[a-z][a-z0-9-]*([.][a-z][a-z0-9-]*)+$"},"code":{"type":"string","pattern":"^PP[0-9]{4}$"},"withholds":{"enum":["P1","P2","P3",null]},"message":{"type":"string","minLength":1,"maxLength":1024}}},"world":{"type":"object","additionalProperties":false,"required":["contract","known","within","pure","effects","imports","problems","capability_set"],"properties":{"contract":{"type":"string","minLength":1},"known":{"description":"False when this reader has no world for the contract. Then within, pure, effects and imports are null and nothing is stated about them.","type":"boolean"},"within":{"type":["boolean","null"]},"pure":{"type":["boolean","null"]},"effects":{"oneOf":[{"type":"null"},{"type":"array","items":{"enum":["clock","random","socket","filesystem","unknown"]}}]},"imports":{"oneOf":[{"type":"null"},{"type":"array","items":{"type":"object","additionalProperties":false,"required":["module","name","kind"],"properties":{"module":{"type":"string"},"name":{"type":"string"},"kind":{"type":"string"},"capability":{"enum":["outbound-hosts","key-value-stores","variables"]}}}}]},"problems":{"type":"array","items":{"type":"string"}},"capability_set":{"description":"The capability set blob the holo itself carries, or null when it could not be located. Empty means the holo requests nothing.","oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["label","empty"],"properties":{"label":{"type":"string","pattern":"^(sha256|blake3):[0-9a-f]{64}$"},"empty":{"type":"boolean"}}}]}}},"capabilitySet":{"type":"object","additionalProperties":false,"properties":{"allow-outbound-hosts":{"$ref":"#/$defs/entries"},"deny-outbound-hosts":{"$ref":"#/$defs/entries"},"allow-key-value-stores":{"$ref":"#/$defs/entries"},"deny-key-value-stores":{"$ref":"#/$defs/entries"},"allow-variables":{"$ref":"#/$defs/entries"},"deny-variables":{"$ref":"#/$defs/entries"},"allow-providers":{"$ref":"#/$defs/entries"},"deny-providers":{"$ref":"#/$defs/entries"}}},"entries":{"type":"array","items":{"type":"string"}},"predicate":{"description":"One attested statement, or null. verified says its signature checked against the trust root.","oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["predicateType","verified","predicate"],"properties":{"predicateType":{"type":"string","minLength":1},"verified":{"type":"boolean"},"predicate":{"type":"object"}}}]}}};
   return Object.freeze({ POLICY_SOURCES, POLICY_INPUT_JSON_SCHEMA });
 })();
 
@@ -3623,6 +4076,7 @@ const __index = (() => {
   const { SCHEMA_FILES } = __vendor_schemas;
   const { sha256Hex } = __sha256;
   const { readStructure } = __reader;
+  const { analyzeV5, isUorc } = __holo5;
   const assurance = __vendor_assurance_levels;
   const transparency = __transparency;
   const { levelOf } = __level;
@@ -3721,6 +4175,9 @@ const __index = (() => {
     return { sha256: sha256Hex(bytes), blake3: blake3Hex(bytes) };
   }
 
+  /** The digest set of the whole file: its κ alone for a holo v5 (ADR-017), both digests for v4. */
+  const archiveDigests = (bytes, facts) => (facts.v5 ? { sha256: sha256Hex(bytes) } : digestsOf(bytes));
+
   function isLabel(bytes) {
     if (bytes.length !== spec.LABEL_LENGTH) return false;
     for (let i = 0; i < spec.LABEL_PREFIX.length; i++) if (bytes[i] !== spec.LABEL_PREFIX.charCodeAt(i)) return false;
@@ -3786,6 +4243,9 @@ const __index = (() => {
 
   /** Every check, and the facts both entry points report, computed once. */
   function analyze(bytes) {
+    if (isUorc(bytes)) {
+      return analyzeV5(bytes, { spec, schemaErrors, checkWorld, order: [...ARCHIVE_IDS, ...DOCUMENT_IDS], structureIds: STRUCTURE_IDS, archiveIds: ARCHIVE_IDS, documentIds: DOCUMENT_IDS });
+    }
     const structure = readStructure(bytes);
     const checks = structure.checks.map((c) => ({ ...c, level: 'archive' }));
     const facts = { structure, sections: [], documents: {}, roles: {}, revision: null, layoutRevision: null, footer: null, fingerprint: null };
@@ -4231,6 +4691,87 @@ const __index = (() => {
   }
 
   /**
+   * The `prismpm/holo-inspection/1` object of a holo v5 (ADR-017): the same members as for v4, where every section is one
+   * object of the UORC archive, kind and role are the object's role, every digest is the object's κ alone, the footer is
+   * the UORC-SHA256-CHAIN-v1 seal and the manifest labels are the κ the holo manifest names.
+   */
+  function inspectionOfV5(bytes, facts, checks) {
+    const status = (id) => checks.find((c) => c.id === id)?.status === 'pass';
+    const kappaOf = (payload) => ({ sha256: sha256Hex(payload) });
+    const objectOf = (role) => facts.sections.find((s) => s.role === role);
+    const sections = facts.sections.map((s) => ({
+      index: s.index,
+      kind: null,
+      kind_name: s.role,
+      role: s.role,
+      offset: s.offset,
+      length: s.length,
+      digest: kappaOf(s.payload),
+      label: `sha256:${sha256Hex(s.payload)}`,
+    }));
+    const { manifest, provenance, modelDocument } = facts.documents;
+    const application = modelDocument?.application ?? {};
+    const labelOf = (role) => orNull(objectOf(role) && `sha256:${sha256Hex(objectOf(role).payload)}`);
+    const capabilities = objectOf('capabilities');
+    const guest = objectOf('guest');
+    const model = objectOf('model');
+    const wasm = manifest?.layers?.find((l) => l.kind === 'wasm');
+    const contract = wasm?.contract ?? null;
+    return {
+      schema: INSPECTION_SCHEMA,
+      name: application.name ?? manifest?.name ?? null,
+      revision: facts.revision,
+      physical_version: 5,
+      flags: 0,
+      size: bytes.length,
+      digest: kappaOf(bytes),
+      footer: facts.footer.stored,
+      sections,
+      manifest: manifest
+        ? { uri: manifest.schema, labels: { capability_set: labelOf('capabilities'), guest: labelOf('guest'), view: labelOf('view') }, ...MANIFEST_SUFFIX_FIELDS }
+        : null,
+      model:
+        modelDocument && model
+          ? {
+              schema: orNull(modelDocument.schema),
+              name: orNull(application.name),
+              cargo_name: orNull(application.cargo_name),
+              cargo_version: orNull(application.cargo_version),
+              description: orNull(application.cargo_description),
+              profile: orNull(application.profile),
+              function: orNull(application.function_name),
+              vectors: Array.isArray(application.acceptance_vectors) ? application.acceptance_vectors.length : 0,
+              limits: {
+                request: orNull(application.request_maximum),
+                response: orNull(application.response_maximum),
+                guest_allocation: orNull(application.guest_allocation_maximum),
+              },
+              digest: kappaOf(model.payload),
+            }
+          : null,
+      provenance: provenance
+        ? {
+            schema: orNull(provenance.schema),
+            application_kappa: orNull(provenance.application_kappa),
+            model_id: orNull(provenance.model_id),
+            compiler_semantics_id: orNull(provenance.compiler_semantics_id),
+            stdlib_semantics_id: orNull(provenance.stdlib_semantics_id),
+            lexlean_commit: orNull(provenance.lexlean_commit),
+          }
+        : null,
+      world:
+        contract && capabilities
+          ? {
+              ...describeWorld(contract, guest ? guest.payload : null),
+              capability_set: { label: labelOf('capabilities'), empty: hex(capabilities.payload) === spec.CAPABILITY_SET.EMPTY_HEX },
+            }
+          : null,
+      attestations: [],
+      verification: { footer: status('archive.footer'), labels: status('blob.labels'), cross_references: status('references') },
+    };
+  }
+
+  /**
    * Describe a holo as a `prismpm/holo-inspection/1` object. Throws VerifyError
    * when the header or section table cannot be read, because then there are no
    * sections to describe. Later damage is reported, not thrown: `verification`
@@ -4244,7 +4785,7 @@ const __index = (() => {
     const { checks, facts } = analyze(bytes);
     const broken = checks.find((c) => c.status === 'fail' && STRUCTURE_IDS.includes(c.id));
     if (broken) throw new VerifyError(broken.id, broken.detail);
-    return inspectionOf(bytes, facts, checks);
+    return facts.v5 ? inspectionOfV5(bytes, facts, checks) : inspectionOf(bytes, facts, checks);
   }
 
   /**
@@ -4356,14 +4897,15 @@ const __index = (() => {
   }
 
   /**
-   * The evidence above the archive itself. Format revision 2026-10-23 has no
-   * attestation bundle, so no holo carries these statements yet; each absent
-   * statement withholds its level (docs/proposals/269-assurance-levels.md).
+   * The evidence above the archive itself, for a holo with no attestation
+   * section: each absent statement withholds its level
+   * (docs/proposals/269-assurance-levels.md). The messages are the Rust
+   * verifier's, so both name an absent statement the same way (#582).
    */
   const STATEMENTS = Object.freeze([
-    { check: 'provenance.statement', withholds: 'P1', message: 'The holo carries no provenance statement; format revision 2026-10-23 has no attestation bundle (issues #267 and #268).' },
-    { check: 'proof.statement', withholds: 'P2', message: 'The holo carries no proof statement (issue #266).' },
-    { check: 'replay.statement', withholds: 'P3', message: 'The holo carries no replay statement (issue #284).' },
+    { check: 'provenance.statement', withholds: 'P1', message: 'The holo carries no provenance statement.' },
+    { check: 'proof.statement', withholds: 'P2', message: 'The holo carries no proof statement.' },
+    { check: 'replay.statement', withholds: 'P3', message: 'The holo carries no replay statement.' },
   ]);
 
   /**
@@ -4449,7 +4991,7 @@ const __index = (() => {
   function inputOf(bytes, evidence, capabilities) {
     const { facts, reasons, contract, world, replay, attested, level } = evidence;
     const blob = (role) => (facts.roles[role] ? facts.sections.find((s) => s.label === facts.roles[role]) : undefined);
-    const digests = { archive: digestsOf(bytes) };
+    const digests = { archive: archiveDigests(bytes, facts) };
     for (const role of ['capabilities', 'guest', 'view', 'model']) {
       const section = blob(role);
       if (section?.digests) digests[role] = section.digests;
@@ -4527,13 +5069,19 @@ const __index = (() => {
     const { RANK } = ASSURANCE;
 
     let passed = !decision.denied;
+    // A holo whose bytes do not hold together fails every policy, P0 included: no policy can accept damage.
+    const damaged = reasons.filter((r) => r.check === 'holo.integrity');
+    if (damaged.length > 0) {
+      passed = false;
+      reasons.push({ check: 'policy.integrity', withholds: null, message: 'The holo is damaged, and an integrity failure fails every policy, whatever its minimum.' });
+    }
     if (RANK[level] < RANK[minimum]) {
       passed = false;
       reasons.push({ check: 'policy.level', code: 'PP5601', withholds: null, message: `The level is ${level}; the policy requires ${minimum} or above.` });
     }
     for (const [target, expected] of Object.entries(wanted.digests)) {
       let actual = null;
-      if (target === 'archive') actual = digestsOf(bytes);
+      if (target === 'archive') actual = archiveDigests(bytes, facts);
       else if (facts.roles[target]) actual = facts.sections.find((s) => s.label === facts.roles[target])?.digests ?? null;
       const mismatches = actual
         ? Object.entries(expected)

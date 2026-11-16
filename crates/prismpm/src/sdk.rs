@@ -1,11 +1,12 @@
 //! SDK inventory validation and locked consumer-input installation.
 
-use crate::contracts::CanonicalDocument;
+use crate::contracts::{strictly_ordered, CanonicalDocument, OwnerCheck};
 use crate::error::PrismError;
 use crate::holo::canonical::encode_value;
-pub use crate::supply_chain::{
-    validate_sdk_security_disposition, GraphBinding, LauncherBinding, LockBinding,
-    PlatformInventoryBinding, RuntimeBinding, SdkAdvisoryPolicy, SdkSecurityDisposition,
+pub use advisory::{
+    validate_advisory_coverage, validate_sdk_security_disposition, AdvisoryPolicy,
+    AdvisoryScanFact, GraphBinding, LauncherBinding, LockBinding, PlatformInventoryBinding,
+    RuntimeBinding, SdkAdvisoryPolicy, SdkSecurityDisposition,
 };
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -14,8 +15,10 @@ use std::io::{Cursor, Read};
 use std::path::PathBuf;
 use std::path::{Component, Path};
 
+mod advisory;
 mod executable_file;
 mod executable_inventory;
+pub(crate) mod process;
 pub(crate) use executable_file::ExecutableFile;
 
 pub(crate) const STDLIB_SOURCES: &[u8] = include_bytes!("../sdk/stdlib-sources.tar");
@@ -408,7 +411,7 @@ pub fn fetch_project_dependencies(root: &Path) -> Result<Vec<serde_json::Value>,
     let mut records = Vec::new();
     if root.join("Cargo.toml").is_file() && root.join("Cargo.lock").is_file() {
         let cargo = executable("cargo")?;
-        let record = crate::verification::run_process(
+        let record = process::run_process::<process::NoExtension>(
             "cargo-fetch",
             &cargo,
             &["fetch".to_owned(), "--locked".to_owned()],
@@ -424,7 +427,7 @@ pub fn fetch_project_dependencies(root: &Path) -> Result<Vec<serde_json::Value>,
     }
     if root.join("package.json").is_file() && root.join("package-lock.json").is_file() {
         let npm = executable("npm")?;
-        let record = crate::verification::run_process(
+        let record = process::run_process::<process::NoExtension>(
             "npm-ci",
             &npm,
             &[
@@ -475,7 +478,11 @@ pub(crate) fn parse_full_lock(bytes: &[u8]) -> Result<CanonicalDocument, PrismEr
         Some("prismpm/sdk-lock/3") => "prismpm/sdk-lock/3",
         _ => return Err(PrismError::new("PP5401", "unsupported SDK lock schema")),
     };
-    let lock = CanonicalDocument::parse(schema, bytes)?;
+    let lock = if schema == "prismpm/sdk-lock/1" {
+        CanonicalDocument::parse(schema, bytes)?
+    } else {
+        parse_contract(schema, bytes)?
+    };
     if lock.schema() == crate::input_lock::SDK_LOCK_V3 {
         sdk_projection(&lock)?;
     }
@@ -483,7 +490,7 @@ pub(crate) fn parse_full_lock(bytes: &[u8]) -> Result<CanonicalDocument, PrismEr
 }
 
 fn sdk_projection(lock: &CanonicalDocument) -> Result<CanonicalDocument, PrismError> {
-    CanonicalDocument::from_value(
+    contract_from_value(
         crate::input_lock::SDK_LOCK_V2,
         crate::input_lock::sdk_projection(lock.value()),
     )
@@ -784,6 +791,68 @@ fn decode_sdk_index(bytes: &[u8]) -> Option<serde_json::Value> {
     }
     serde_json::from_slice::<serde::de::IgnoredAny>(bytes).ok()?;
     Some(decoded)
+}
+
+/// The semantic checks of the SDK lock contracts, which this module owns.
+const CONTRACT_CHECK: OwnerCheck = OwnerCheck {
+    owner: "sdk",
+    check: check_contract,
+};
+
+fn check_contract(id: &str, value: &serde_json::Value) -> Result<(), PrismError> {
+    match id {
+        // A /3 lock carries every /2 field unchanged, so the same platform rules apply.
+        "prismpm/sdk-lock/2" | "prismpm/sdk-lock/3" => validate_platform_lock(value),
+        "prismpm/sdk-lock-migration/1" => {
+            CanonicalDocument::from_value(
+                "prismpm/sdk-lock/1",
+                value["patch"][0]["value"].clone(),
+            )?;
+            contract_from_value("prismpm/sdk-lock/2", value["patch"][1]["value"].clone())?;
+            Ok(())
+        }
+        "prismpm/sdk-lock-update/2" => {
+            validate_platform_lock(&value["proposed_lock"])?;
+            let changes = value["changes"]
+                .as_array()
+                .expect("schema-validated changes");
+            if !strictly_ordered(changes, |row| row["path"].as_str().map(str::to_owned))
+                || changes.iter().any(|row| {
+                    row["from"] == row["to"]
+                        || row["to"]
+                            != value["proposed_lock"][row["path"]
+                                .as_str()
+                                .unwrap_or_default()
+                                .trim_start_matches('/')]
+                })
+            {
+                return Err(PrismError::new(
+                    "PP5401",
+                    "SDK update changes do not exactly describe the proposed fields",
+                ));
+            }
+            Ok(())
+        }
+        _ => Err(PrismError::new(
+            "PP9001",
+            format!("sdk owns no semantic check for {id}"),
+        )),
+    }
+}
+
+/// Validate an SDK lock contract value, including the platform and update
+/// rules this module owns.
+pub fn contract_from_value(
+    id: &'static str,
+    value: serde_json::Value,
+) -> Result<CanonicalDocument, PrismError> {
+    CanonicalDocument::from_value_owned(id, value, CONTRACT_CHECK)
+}
+
+/// Validate exact canonical SDK lock contract bytes, including the rules this
+/// module owns.
+pub fn parse_contract(id: &'static str, bytes: &[u8]) -> Result<CanonicalDocument, PrismError> {
+    CanonicalDocument::parse_owned(id, bytes, CONTRACT_CHECK)
 }
 
 pub(crate) fn validate_platform_lock(value: &serde_json::Value) -> Result<(), PrismError> {
@@ -1130,7 +1199,7 @@ pub fn propose_lock_update(
     sdk_image: &str,
     standards_lock: &str,
 ) -> Result<serde_json::Value, PrismError> {
-    crate::oci::validate_reference(sdk_image, true)?;
+    crate::reference::validate_reference(sdk_image, true)?;
     let standards = standards_lock
         .strip_prefix("sha256:")
         .filter(|value| {
@@ -1180,7 +1249,7 @@ pub(crate) fn capture_update_target(
     sdk_image: &str,
     standards_lock: &str,
 ) -> Result<CanonicalDocument, PrismError> {
-    crate::oci::validate_reference(sdk_image, true)?;
+    crate::reference::validate_reference(sdk_image, true)?;
     if !standards_lock
         .strip_prefix("sha256:")
         .is_some_and(|digest| {
@@ -1206,7 +1275,7 @@ pub fn propose_lock_migration(
     standards_lock: &str,
 ) -> Result<serde_json::Value, PrismError> {
     verify_environment()?;
-    crate::oci::validate_reference(sdk_image, true)?;
+    crate::reference::validate_reference(sdk_image, true)?;
     if !standards_lock
         .strip_prefix("sha256:")
         .is_some_and(|digest| {
@@ -1255,7 +1324,7 @@ fn migration_proposal(
     current: &serde_json::Value,
     proposed: &serde_json::Value,
 ) -> Result<serde_json::Value, PrismError> {
-    let proposal = CanonicalDocument::from_value(
+    let proposal = contract_from_value(
         "prismpm/sdk-lock-migration/1",
         json!({
             "schema":"prismpm/sdk-lock-migration/1",
@@ -1334,7 +1403,7 @@ fn capture_platform_update(
             environment.insert(name.to_owned(), value.to_string_lossy().into_owned());
         }
     }
-    let result = crate::verification::run_process_limited(
+    let result = process::run_process_limited::<process::NoExtension>(
         "sdk-platform-update",
         &node,
         &[
@@ -1367,14 +1436,14 @@ fn platform_update_proposal(
     current: &serde_json::Value,
     proposed: &serde_json::Value,
 ) -> Result<serde_json::Value, PrismError> {
-    CanonicalDocument::from_value("prismpm/sdk-lock/2", current.clone())?;
-    CanonicalDocument::from_value("prismpm/sdk-lock/2", proposed.clone())?;
+    contract_from_value("prismpm/sdk-lock/2", current.clone())?;
+    contract_from_value("prismpm/sdk-lock/2", proposed.clone())?;
     let changes = ["platforms", "sdk_image", "sdk_index", "standards_lock"]
         .into_iter()
         .filter(|field| current[*field] != proposed[*field])
         .map(|field| json!({"from":current[field], "op":"replace", "path":format!("/{field}"), "to":proposed[field]}))
         .collect::<Vec<_>>();
-    let proposal = CanonicalDocument::from_value(
+    let proposal = contract_from_value(
         "prismpm/sdk-lock-update/2",
         json!({
             "changes":changes, "compatibility_review":"required", "generated_output_diff":"required",
@@ -1463,7 +1532,12 @@ pub(crate) fn execution_binding_regression(
                     }
                 }
             }
-            let document = CanonicalDocument::from_value(schema, lock.clone()).unwrap();
+            let document = if schema.ends_with("/1") {
+                CanonicalDocument::from_value(schema, lock.clone())
+            } else {
+                contract_from_value(schema, lock.clone())
+            }
+            .unwrap();
             std::fs::write(root.path().join("prismpm.lock"), document.bytes()).unwrap();
             let result = std::process::Command::new(std::env::current_exe().unwrap())
                 .args(["--exact", test_name, "--nocapture"])
@@ -1782,8 +1856,7 @@ mod tests {
                 Sha256::digest(raw.as_bytes())
             ));
             lock["sdk_index"] = json!(raw);
-            let constructed =
-                super::CanonicalDocument::from_value("prismpm/sdk-lock/2", lock.clone());
+            let constructed = super::contract_from_value("prismpm/sdk-lock/2", lock.clone());
             let parsed = super::parse_lock(&super::encode_value(&lock)?);
             assert_eq!(
                 constructed.is_ok(),
@@ -1986,11 +2059,9 @@ mod tests {
         assert_eq!(patch[0], json!({"op":"test","path":"","value":source}));
         assert_eq!(patch[1], json!({"op":"replace","path":"","value":target}));
         for row in target["platforms"].as_array().unwrap() {
-            let admitted = super::CanonicalDocument::from_value(
-                "prismpm/sdk-lock/2",
-                patch[1]["value"].clone(),
-            )
-            .unwrap();
+            let admitted =
+                super::contract_from_value("prismpm/sdk-lock/2", patch[1]["value"].clone())
+                    .unwrap();
             super::validate_running_inventory(
                 &admitted,
                 row["platform"].as_str().unwrap(),
@@ -2033,7 +2104,7 @@ mod tests {
                 if mutate {
                     std::fs::write(&path, changed.bytes()).unwrap();
                 }
-                super::CanonicalDocument::from_value("prismpm/sdk-lock/2", target.clone())
+                super::contract_from_value("prismpm/sdk-lock/2", target.clone())
             });
             if mutate {
                 let error = result.unwrap_err();
@@ -2082,8 +2153,7 @@ mod tests {
                 _ => invalid["patch"][1]["value"]["inventory"] = json!([]),
             }
             assert!(
-                super::CanonicalDocument::from_value("prismpm/sdk-lock-migration/1", invalid)
-                    .is_err(),
+                super::contract_from_value("prismpm/sdk-lock-migration/1", invalid).is_err(),
                 "mutation {mutation}"
             );
         }
@@ -2120,7 +2190,7 @@ mod tests {
         assert!(super::historical_migration_lock(root.path()).is_err());
         std::fs::write(
             &path,
-            super::CanonicalDocument::from_value("prismpm/sdk-lock/2", target)
+            super::contract_from_value("prismpm/sdk-lock/2", target)
                 .unwrap()
                 .bytes(),
         )
@@ -2178,7 +2248,7 @@ mod tests {
                 _ => invalid["proposed_lock"]["sdk_index"] = json!("tampered index"),
             }
             assert!(
-                super::CanonicalDocument::from_value("prismpm/sdk-lock-update/2", invalid).is_err(),
+                super::contract_from_value("prismpm/sdk-lock-update/2", invalid).is_err(),
                 "mutation {mutation}"
             );
         }

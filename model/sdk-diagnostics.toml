@@ -1,0 +1,906 @@
+spec = "prismpm/sdk-diagnostics/1"
+
+[[error]]
+code = "archive.blob"
+capability = "AL-07"
+statement = "A content blob of the .holo archive is shorter than its label says, or has no blake3 label; the archive is refused before any part of it is trusted."
+
+[[error]]
+code = "archive.bounds"
+capability = "AL-07"
+statement = "An offset, length or section table of the .holo archive runs past its end or past 2^53; the archive is refused before any section is read."
+
+[[error]]
+code = "archive.directory"
+capability = "AL-07"
+statement = "The application directory of the .holo archive is missing, has no wasm layer, or names a label that is not a content blob of the archive."
+
+[[error]]
+code = "archive.extension"
+capability = "AL-07"
+statement = "An extension section of the .holo archive is shorter than its name length or its name overruns the section."
+
+[[error]]
+code = "archive.flags"
+capability = "AL-07"
+statement = "The .holo archive header carries flags other than 0, which this version does not read."
+
+[[error]]
+code = "archive.input"
+capability = "AL-07"
+statement = "The archive was given as something other than bytes (a Uint8Array or an ArrayBuffer)."
+
+[[error]]
+code = "archive.kind"
+capability = "AL-07"
+statement = "A section of the .holo archive has a kind this version does not know; it is refused, never skipped."
+
+[[error]]
+code = "archive.magic"
+capability = "AL-07"
+statement = "The bytes do not start with the .holo magic, so they are not a holo archive."
+
+[[error]]
+code = "archive.manifest"
+capability = "AL-07"
+statement = "The application manifest of the .holo archive has the wrong length or names the wrong URI."
+
+[[error]]
+code = "archive.metadata"
+capability = "AL-07"
+statement = "The .holo archive has more than one metadata section."
+
+[[error]]
+code = "archive.model"
+capability = "AL-07"
+statement = "The model document of the .holo archive is not JSON, or names no application."
+
+[[error]]
+code = "archive.provenance"
+capability = "AL-07"
+statement = "The .holo archive has no model extension, or its model extension names no model_content_kappa, so the model cannot be bound to the archive."
+
+[[error]]
+code = "archive.version"
+capability = "AL-07"
+statement = "The .holo archive has a physical version other than the one this version reads."
+
+[[error]]
+code = "attest.unavailable"
+capability = "AL-07"
+statement = "Signing or verifying an attestation needs the optional Sigstore packages, which are not installed or need a newer Node; no signature was made or checked."
+
+[[error]]
+code = "attestation.bundle"
+capability = "AL-07"
+statement = "An attestation line is not a UTF-8 JSON object with the Sigstore bundle media type."
+
+[[error]]
+code = "attestation.duplicate"
+capability = "AL-07"
+statement = "The archive has more than one attestation section, or already carries the same bundle bytes; nothing is appended twice."
+
+[[error]]
+code = "attestation.envelope"
+capability = "AL-07"
+statement = "The bundle has no DSSE envelope, or a part of it is not valid base64."
+
+[[error]]
+code = "attestation.footer"
+capability = "AL-07"
+statement = "The archive footer does not verify, so no attestation is appended to it."
+
+[[error]]
+code = "attestation.format"
+capability = "AL-07"
+statement = "The holo is a physical-v4 archive, which stays readable but cannot be signed; rebuild it as a holo v5 (ADR-017) first."
+
+[[error]]
+code = "attestation.input"
+capability = "AL-07"
+statement = "appendAttestations was given no bundles, or a bundle that is not an object, a JSON string or UTF-8 bytes."
+
+[[error]]
+code = "attestation.lines"
+capability = "AL-07"
+statement = "The attestation section is empty, holds an empty line, or its last bundle line does not end with LF."
+
+[[error]]
+code = "attestation.position"
+capability = "AL-07"
+statement = "The attestation section is not the last row of the section table."
+
+[[error]]
+code = "attestation.statement"
+capability = "AL-07"
+statement = "The DSSE payload is not UTF-8 JSON, is not an in-toto statement, or has no predicateType."
+
+[[error]]
+code = "attestation.subject"
+capability = "AL-07"
+statement = "A statement subject has no digest set, or its digests are not exactly blake3 and sha256 as 64 lowercase hex characters (ADR-015)."
+
+[[error]]
+code = "attestation_not_found"
+class = "AttestationNotFoundError"
+capability = "CT-12"
+statement = "Verify-attestation found no attestation bundle for the holo."
+
+[[error]]
+code = "auth.unavailable"
+capability = "SE-09"
+statement = "prism.auth reads and writes Docker's credential stores, which this build of prism-code leaves out; use it in Node."
+
+[[error]]
+code = "axioms.probe"
+capability = "DK-41"
+statement = "Lean refused the axiom probe, said nothing about a declaration, or left no audit records."
+
+[[error]]
+code = "axioms.project"
+capability = "DK-41"
+statement = "The project has no .lex.tex file under its source roots, so there is nothing to audit."
+
+[[error]]
+code = "canonical.algorithm"
+capability = "DK-41"
+statement = "The digest algorithm needs node:crypto, which this host does not have; sha256 stays available."
+
+[[error]]
+code = "capabilities.invalid"
+capability = "AL-07"
+statement = "A capability file or capability set is malformed, or a set was named without a capability file."
+
+[[error]]
+code = "capabilities.kind"
+capability = "AL-07"
+statement = "A capability names a kind this version does not know."
+
+[[error]]
+code = "capabilities.path"
+capability = "DK-41"
+statement = "The capability file the manifest names does not exist."
+
+[[error]]
+code = "capability_denied"
+class = "CapabilityDeniedError"
+capability = "CT-12"
+statement = "The declared world exceeds the granted capabilities, or the runtime denied a guest import or a resource."
+
+[[error]]
+code = "client.option"
+capability = "DK-41"
+statement = "createPrism was given options that are not a plain object, an option it does not have, or a docker option that is not a function or null."
+
+[[error]]
+code = "closure.files"
+capability = "OC-11"
+statement = "The closure directory does not have exactly one *_bg.wasm, or lacks a file a closure needs, so its stem cannot be found."
+
+[[error]]
+code = "closure.glue"
+capability = "OC-11"
+statement = "The closure glue module has no initSync export, or exports neither invoke_bytes nor calculate."
+
+[[error]]
+code = "closure.model"
+capability = "OC-11"
+statement = "Numeric closure dispatch needs the model document (application.view.operations), and none was given."
+
+[[error]]
+code = "closure.provenance"
+capability = "OC-11"
+statement = "The closure's provenance.json is not JSON or names a schema other than the closure provenance schemas."
+
+[[error]]
+code = "container.ambiguous"
+capability = "DK-43"
+statement = "The id prefix names more than one container; give more of the id."
+
+[[error]]
+code = "container.input"
+capability = "DK-43"
+statement = "A container was given an input that is not one string or bytes."
+
+[[error]]
+code = "container.missing"
+capability = "DK-43"
+statement = "No container has that id."
+
+[[error]]
+code = "container.option"
+capability = "DK-43"
+statement = "prism.containers was given an option it does not have, or one of the wrong type."
+
+[[error]]
+code = "container.running"
+capability = "DK-43"
+statement = "The container is running and cannot be removed."
+
+[[error]]
+code = "container.state"
+capability = "DK-43"
+statement = "The container was read back from its store, which does not keep its input, so it cannot be started again; run the holo again."
+
+[[error]]
+code = "container.store"
+capability = "DK-43"
+statement = "The container store directory cannot be created or written; set PRISM_HOME to a directory that can be written."
+
+[[error]]
+code = "core.allocation"
+capability = "DK-41"
+statement = "The request is larger than the guest allocation maximum."
+
+[[error]]
+code = "core.compile"
+capability = "DK-41"
+statement = "The guest WebAssembly does not compile."
+
+[[error]]
+code = "core.exports"
+capability = "DK-41"
+statement = "The guest exports differ from the exports its ABI expects."
+
+[[error]]
+code = "core.request"
+capability = "DK-41"
+statement = "A request to the guest is not a Uint8Array."
+
+[[error]]
+code = "core.response"
+capability = "DK-41"
+statement = "The guest response lies outside the guest's memory."
+
+[[error]]
+code = "determinism_violation"
+class = "DeterminismViolationError"
+capability = "CT-12"
+statement = "A replay diverged from its recorded history."
+
+[[error]]
+code = "dev.path"
+capability = "DK-41"
+statement = "prism-code dev was given a path that is not a directory."
+
+[[error]]
+code = "dev.port"
+capability = "DK-41"
+statement = "The port the studio serves on is in use; the studio never moves to another port by itself."
+
+[[error]]
+code = "dev.project"
+capability = "DK-41"
+statement = "The directory has no prism.toml or prismpm.toml and no --build command was given, so there is nothing to build."
+
+[[error]]
+code = "digest_mismatch"
+class = "DigestMismatchError"
+capability = "CT-12"
+statement = "Bytes read from a registry or a remote build differ from the digest they were named by."
+
+[[error]]
+code = "docker.missing"
+capability = "DK-41"
+statement = "No Docker invocation could be resolved on this machine, from the config setup wrote or a fresh probe, so a delegated command cannot run."
+
+[[error]]
+code = "docker.mount"
+capability = "OC-11"
+statement = "The Docker mount style is not one of the styles prism-code knows, from an option or PRISM_DOCKER_MOUNT."
+
+[[error]]
+code = "export.directory"
+capability = "OC-11"
+statement = "The export directory or the release tarball cannot be read: the directory is absent or unreadable, or the tarball is not a well-formed ustar archive."
+
+[[error]]
+code = "export.exists"
+capability = "OC-11"
+statement = "A file or directory the export would write already exists; an export never replaces one."
+
+[[error]]
+code = "export.reference"
+capability = "OC-11"
+statement = "The release reference given to export is not a registry-qualified immutable reference, NAME@sha256:DIGEST."
+
+[[error]]
+code = "export.release"
+capability = "OC-11"
+statement = "The release export reads is absent or unreadable, or a digest in it is not an immutable sha256 digest."
+
+[[error]]
+code = "export.unsafe"
+capability = "OC-11"
+statement = "A path of the export is a link, not a regular file or directory, or has a file name that is not portable."
+
+[[error]]
+code = "export_mismatch"
+class = "ExportMismatchError"
+capability = "CT-12"
+statement = "A browser export's bytes differ from the release's build manifest, its layers or the files written."
+
+[[error]]
+code = "generate.language"
+capability = "DK-41"
+statement = "generate was asked for a language it has no writer for."
+
+[[error]]
+code = "generate.model"
+capability = "DK-41"
+statement = "The model document cannot be bound: it has no application, two generated files share a name, or an operation is not a request name generate can bind."
+
+[[error]]
+code = "generate.output"
+capability = "DK-41"
+statement = "generate has no output directory, or a file there was not written by prism-code generate; generate never writes to a default place or over a file it did not write."
+
+[[error]]
+code = "generate.wit"
+capability = "DK-41"
+statement = "The WIT file holds something outside the subset generate reads."
+
+[[error]]
+code = "generate.world"
+capability = "DK-41"
+statement = "The world has no WIT file, or the writer has no binding for it, such as a world with imports."
+
+[[error]]
+code = "hosted.coverage"
+capability = "DK-41"
+statement = "The hosted verifier did not prove every declaration the project asks it to."
+
+[[error]]
+code = "hosted.layout"
+capability = "DK-41"
+statement = "lexlean.toml cannot be read or has a layout the hosted profile does not take."
+
+[[error]]
+code = "hosted.unreachable"
+capability = "DK-41"
+statement = "The hosted verifier did not answer, or refused the call."
+
+[[error]]
+code = "identity_mismatch"
+class = "IdentityMismatchError"
+capability = "CT-12"
+statement = "The attestation was signed by an identity other than the one required."
+
+[[error]]
+code = "image.ambiguous"
+capability = "OC-12"
+statement = "An image id prefix names more than one stored image; nothing was read or changed."
+
+[[error]]
+code = "image.corrupt"
+capability = "OC-12"
+statement = "The bytes the local image store keeps for an image no longer match its digests, or are missing; they are never served."
+
+[[error]]
+code = "image.in-use"
+capability = "OC-12"
+statement = "prism.images.remove would delete an image a container references; it is refused unless forced, and always while that container runs."
+
+[[error]]
+code = "image.missing"
+capability = "OC-12"
+statement = "The local image store holds no image under that name, digest or id prefix."
+
+[[error]]
+code = "image.name"
+capability = "OC-12"
+statement = "An image name is not [registry/]repository[:tag], or pins a digest where a tag is a name."
+
+[[error]]
+code = "image.store"
+capability = "OC-12"
+statement = "The local image store cannot be read or written, or its index is not prism/image-store/1; nothing changed."
+
+[[error]]
+code = "image.tagged"
+capability = "OC-12"
+statement = "prism.images.remove named by digest an image that has more than one tag; it is refused unless forced."
+
+[[error]]
+code = "images.unavailable"
+capability = "OC-11"
+statement = "prism.images reads files and registries, which this build of prism-code leaves out; use it in Node."
+
+[[error]]
+code = "init.template"
+capability = "DK-41"
+statement = "init was asked for a template it does not have, or the template already holds a generated file."
+
+[[error]]
+code = "inspect.kind"
+capability = "OC-11"
+statement = "inspect was given a directory or a closure, which has no section table; it reads a .holo archive."
+
+[[error]]
+code = "inspect.selector"
+capability = "OC-11"
+statement = "The inspect selector is malformed; it is a dotted path such as sections[0].digest.sha256."
+
+[[error]]
+code = "load.fetch"
+capability = "DK-41"
+statement = "The URL a holo was loaded from answered with an HTTP error."
+
+[[error]]
+code = "load.path"
+capability = "OC-11"
+statement = "The holo path cannot be read, or is not a local file."
+
+[[error]]
+code = "load.source"
+capability = "OC-11"
+statement = "load or images.push was given a source that is not bytes, a Blob, a path or a URL; until the local image store (#349) a pushed image comes as options.source."
+
+[[error]]
+code = "lock.image"
+capability = "OC-11"
+statement = "prismpm.lock does not select an immutable SDK image, or the image named is not immutable."
+
+[[error]]
+code = "manifest.env"
+capability = "DK-41"
+statement = "A manifest variable reads an environment variable that is not set."
+
+[[error]]
+code = "manifest.invalid"
+capability = "DK-41"
+statement = "The manifest is missing, is not TOML text or bytes, or has a member it does not allow."
+
+[[error]]
+code = "manifest.overlay"
+capability = "DK-41"
+statement = "A manifest overlay is not a table, or names no target or an unknown one."
+
+[[error]]
+code = "manifest.path"
+capability = "DK-41"
+statement = "The main file the manifest names does not exist."
+
+[[error]]
+code = "manifest.secret"
+capability = "DK-41"
+statement = "The manifest lint found an error, such as a secret written in plain text; lint warnings are returned on the result instead."
+
+[[error]]
+code = "manifest.toml"
+capability = "DK-41"
+statement = "The manifest is not valid TOML or not UTF-8."
+
+[[error]]
+code = "manifest_not_found"
+class = "ManifestNotFoundError"
+capability = "CT-12"
+statement = "The registry has no manifest for the reference."
+
+[[error]]
+code = "middleware.name"
+capability = "DK-41"
+statement = "A middleware of that name is already on the stack; pass override: true to replace it."
+
+[[error]]
+code = "middleware.relative"
+capability = "DK-41"
+statement = "A middleware is placed before or after a middleware that is not on the stack."
+
+[[error]]
+code = "middleware.shape"
+capability = "DK-41"
+statement = "A middleware is not a function (next, context) => handler, or its tags are not an array of strings."
+
+[[error]]
+code = "middleware.step"
+capability = "DK-41"
+statement = "A middleware names a step that is not one of the middleware steps."
+
+[[error]]
+code = "middleware_failed"
+class = "MiddlewareError"
+capability = "CT-12"
+statement = "A middleware on the stack threw something that is not a PrismError."
+
+[[error]]
+code = "mount.environment"
+capability = "DK-41"
+statement = "mount() needs a DOM, which this host does not have."
+
+[[error]]
+code = "networks.exists"
+capability = "DK-39"
+statement = "prism.networks.create named a network the capability file already holds; a grant is never widened by creating it again."
+
+[[error]]
+code = "networks.not-found"
+capability = "DK-39"
+statement = "The capability file has no network of that name: no set with an outbound-hosts member."
+
+[[error]]
+code = "networks.option"
+capability = "DK-39"
+statement = "prism.networks was given an option it does not have, or a policy of the wrong shape; a Docker network option is refused and never ignored."
+
+[[error]]
+code = "networks.protected"
+capability = "DK-39"
+statement = "prism.networks.remove named the default set, which a capability file must have."
+
+[[error]]
+code = "networks.store"
+capability = "DK-39"
+statement = "prism.networks has no store to read the capability file from, or none to write it to, so nothing changed."
+
+[[error]]
+code = "networks.unavailable"
+capability = "DK-39"
+statement = "The call needs host effects (#216, #217), which this version does not have; nothing changed and no traffic can flow."
+
+[[error]]
+code = "open.agent"
+capability = "DK-41"
+statement = "The holo:// link names no agent and none is preferred, or names an agent prism-code does not open."
+
+[[error]]
+code = "open.clipboard"
+capability = "DK-41"
+statement = "The clipboard command could not set the clipboard."
+
+[[error]]
+code = "open.host"
+capability = "DK-41"
+statement = "The holo:// link names a host other than build."
+
+[[error]]
+code = "open.parameter"
+capability = "DK-41"
+statement = "The holo:// link has a parameter other than agent and q, or one given twice."
+
+[[error]]
+code = "open.sentence"
+capability = "DK-41"
+statement = "The holo:// link carries no sentence, one too long, or one with a control or bidirectional character."
+
+[[error]]
+code = "open.terminal"
+capability = "DK-41"
+statement = "No terminal was found to open the agent in; set TERMINAL or install one."
+
+[[error]]
+code = "open.ticket"
+capability = "DK-41"
+statement = "The open ticket cannot be read, is not JSON, or has the wrong schema."
+
+[[error]]
+code = "open.url"
+capability = "DK-41"
+statement = "The link is not a holo:// URL, or carries a user, password, port or fragment."
+
+[[error]]
+code = "policy_denied"
+class = "PolicyDeniedError"
+capability = "CT-12"
+statement = "A rule of a policy file denied the holo."
+
+[[error]]
+code = "policy_evaluation_failed"
+class = "PolicyEvaluationError"
+capability = "CT-12"
+statement = "A policy file could not be evaluated, so no verdict was reached."
+
+[[error]]
+code = "policy_parse_failed"
+class = "PolicyParseError"
+capability = "CT-12"
+statement = "A policy file could not be parsed, so no verdict was reached."
+
+[[error]]
+code = "prism_error"
+class = "PrismError"
+capability = "CT-12"
+statement = "The base class of every error prism-code throws; a code of its own is set only where no subclass fits."
+
+[[error]]
+code = "proof_mismatch"
+class = "ProofMismatchError"
+capability = "CT-12"
+statement = "A proof.* check of a verdict failed."
+
+[[error]]
+code = "provenance.archive"
+capability = "OC-11"
+statement = "The archive does not verify, so no provenance statement is made about it."
+
+[[error]]
+code = "provenance.duplicate"
+capability = "OC-11"
+statement = "The archive already carries a provenance statement."
+
+[[error]]
+code = "provenance.input"
+capability = "OC-11"
+statement = "An input provenance needs is missing or malformed, such as max mode without an invocationId or a time that is not UTC RFC 3339."
+
+[[error]]
+code = "provenance.lock"
+capability = "OC-11"
+statement = "The lock given to provenance is not the bytes of prismpm.lock as a string or UTF-8 bytes."
+
+[[error]]
+code = "provenance.mode"
+capability = "OC-11"
+statement = "The provenance mode is neither min nor max, or min mode was given a field only max mode records."
+
+[[error]]
+code = "provider_error"
+class = "ProviderError"
+capability = "CT-12"
+statement = "Running a provider service failed; the base of the provider errors."
+
+[[error]]
+code = "provider_failed"
+class = "ProviderFailedError"
+capability = "CT-12"
+statement = "The provider service ran and failed."
+
+[[error]]
+code = "provider_not_found"
+class = "ProviderNotFoundError"
+capability = "CT-12"
+statement = "No provider service of that name is registered."
+
+[[error]]
+code = "provider_reply_invalid"
+class = "ProviderReplyError"
+capability = "CT-12"
+statement = "The provider service answered with a reply of the wrong shape."
+
+[[error]]
+code = "pull_verification_failed"
+class = "PullVerificationError"
+capability = "CT-12"
+statement = "A pulled image failed verification, so nothing was written."
+
+[[error]]
+code = "reference_invalid"
+class = "ReferenceInvalidError"
+capability = "CT-12"
+statement = "The image reference is not valid."
+
+[[error]]
+code = "referrers_unsupported"
+class = "ReferrersUnsupportedError"
+capability = "CT-12"
+statement = "The registry has no referrers API and the tag fallback is turned off."
+
+[[error]]
+code = "registry_auth_failed"
+class = "RegistryAuthError"
+capability = "CT-12"
+statement = "The registry refused the credentials, or asked for credentials that were not given."
+
+[[error]]
+code = "registry_failed"
+class = "RegistryError"
+capability = "CT-12"
+statement = "The registry did not answer, or answered with an error."
+
+[[error]]
+code = "remote.api"
+capability = "DK-41"
+statement = "The GitHub API did not answer or answered with an HTTP error."
+
+[[error]]
+code = "remote.artifact"
+capability = "DK-41"
+statement = "The artifact of the remote build is not a zip archive, or lacks the files a build leaves."
+
+[[error]]
+code = "remote.attestation"
+capability = "DK-41"
+statement = "The provenance signature of the remote build cannot be checked here, or the check refused it."
+
+[[error]]
+code = "remote.auth"
+capability = "DK-41"
+statement = "No GitHub token was found for the remote build."
+
+[[error]]
+code = "remote.commit"
+capability = "DK-41"
+statement = "The remote build was made from a commit other than the one asked for."
+
+[[error]]
+code = "remote.digest"
+capability = "DK-41"
+statement = "The holo's SHA-256 differs from the one the runner recorded: the bytes changed in transit."
+
+[[error]]
+code = "remote.dirty"
+capability = "DK-41"
+statement = "The working tree has uncommitted changes, which a remote build cannot see."
+
+[[error]]
+code = "remote.fingerprint"
+capability = "DK-41"
+statement = "The holo of the remote build has a fingerprint other than the one the runner recorded."
+
+[[error]]
+code = "remote.permission"
+capability = "DK-41"
+statement = "The GitHub token cannot push to the repository, which starting a remote build needs."
+
+[[error]]
+code = "remote.provenance"
+capability = "DK-41"
+statement = "The provenance of the remote build is not a Sigstore bundle with a DSSE envelope holding a SLSA statement."
+
+[[error]]
+code = "remote.push"
+capability = "DK-41"
+statement = "The commit could not be pushed to the remote build ref."
+
+[[error]]
+code = "remote.ref"
+capability = "DK-41"
+statement = "The ref given to the remote build is not a commit of the repository."
+
+[[error]]
+code = "remote.repository"
+capability = "DK-41"
+statement = "The repository for the remote build cannot be named: --repo is malformed, or origin is missing or not on github.com."
+
+[[error]]
+code = "remote.run"
+capability = "DK-41"
+statement = "No run of the build workflow started for the commit within two minutes of the push."
+
+[[error]]
+code = "remote.signer"
+capability = "DK-41"
+statement = "The remote build was made in a repository other than the one asked for."
+
+[[error]]
+code = "remote.subject"
+capability = "DK-41"
+statement = "The provenance of the remote build is about bytes other than the holo."
+
+[[error]]
+code = "remote.timeout"
+capability = "DK-41"
+statement = "The run of the remote build did not end in time; it goes on, and --ref picks it up later."
+
+[[error]]
+code = "remote.workflow"
+capability = "DK-41"
+statement = "The commit holds no build workflow, so no remote build can start."
+
+[[error]]
+code = "replay_failed"
+class = "ReplayError"
+capability = "CT-12"
+statement = "A replay could not be carried out or its statement failed."
+
+[[error]]
+code = "session.busy"
+capability = "HO-45"
+statement = "A step was started on a session while another step of the same session was still running; steps of one session are taken in order, and the session stays open."
+
+[[error]]
+code = "session.closed"
+capability = "HO-45"
+statement = "A step was started on a session that was closed or that a failed step ended; nothing ran, and a new session must be opened."
+
+[[error]]
+code = "session.required"
+capability = "HO-45"
+statement = "dispatch was called on an application whose guest is the session world hologram:guest/core-wasm@2; its steps are taken on a session opened with open()."
+
+[[error]]
+code = "session.unsupported"
+capability = "HO-45"
+statement = "open was called on an application whose guest is the stateless world hologram:guest/core-wasm@1, which has no sessions."
+
+[[error]]
+code = "setup.agent"
+capability = "DK-41"
+statement = "setup was asked for an agent it does not know."
+
+[[error]]
+code = "setup.command"
+capability = "DK-41"
+statement = "A setup step's command failed."
+
+[[error]]
+code = "signature_invalid"
+class = "SignatureInvalidError"
+capability = "CT-12"
+statement = "The attestation's signature does not verify."
+
+[[error]]
+code = "signing_failed"
+class = "SigningError"
+capability = "CT-12"
+statement = "Attest could not produce a signature."
+
+[[error]]
+code = "subject_mismatch"
+class = "SubjectMismatchError"
+capability = "CT-12"
+statement = "The attestation is about bytes other than the holo."
+
+[[error]]
+code = "system.event"
+capability = "DK-41"
+statement = "prism.system.events was given a container action it does not report."
+
+[[error]]
+code = "system.events"
+capability = "DK-41"
+statement = "This client has no event bus; prism.system from createPrism() has one."
+
+[[error]]
+code = "system.lock"
+capability = "DK-41"
+statement = "prismpm.lock cannot be read, or this client cannot read files."
+
+[[error]]
+code = "system.option"
+capability = "DK-41"
+statement = "prism.system was given options that are not a plain object, an option it does not have, or a time that is not a Date, an ISO 8601 time or milliseconds."
+
+[[error]]
+code = "tier.project"
+capability = "DK-41"
+statement = "The LexLean project of a build tier cannot be found: --project is outside the root or has no project file, or more than one project is there."
+
+[[error]]
+code = "transparency_failed"
+class = "TransparencyError"
+capability = "CT-12"
+statement = "The attestation's transparency log entry does not verify."
+
+[[error]]
+code = "trust_root_invalid"
+class = "TrustRootError"
+capability = "CT-12"
+statement = "The trusted root is missing or malformed."
+
+[[error]]
+code = "verification_failed"
+class = "VerificationError"
+capability = "CT-12"
+statement = "No verdict could be reached, or the holo failed a check about the archive itself, its documents or its provenance."
+
+[[error]]
+code = "view.bounds"
+capability = "OC-11"
+statement = "The HOLOVIEW bundle is shorter than its header, or an entry or file overruns it."
+
+[[error]]
+code = "view.entry"
+capability = "OC-11"
+statement = "The HOLOVIEW entry is not one of the bundled files."
+
+[[error]]
+code = "view.magic"
+capability = "OC-11"
+statement = "The bytes are not a HOLOVIEW bundle."
+
+[[error]]
+code = "view.order"
+capability = "OC-11"
+statement = "The files of the HOLOVIEW bundle are not in strict lexical order, or one appears twice."
+
+[[error]]
+code = "view.version"
+capability = "OC-11"
+statement = "The HOLOVIEW bundle has a version other than the one this version reads."
+
+[[error]]
+code = "world_mismatch"
+class = "WorldMismatchError"
+capability = "CT-12"
+statement = "The guest does not have the interface of the WIT world it declares, or the world is not the one the caller pinned."

@@ -12,6 +12,10 @@ use std::rc::Rc;
 pub(super) struct Plan {
     pub(super) config: ProjectConfig,
     pub(super) project_file: Utf8PathBuf,
+    /// The directory of the LexLean project and the build root its `lexlean.toml`
+    /// configures, which the compiler resolved and confined when it loaded the project.
+    pub(super) lexlean_root: Utf8PathBuf,
+    pub(super) lexlean_build_root: Utf8PathBuf,
     config_identity: String,
     stack_bytes: usize,
     prism_witness: Witness,
@@ -53,6 +57,8 @@ impl Plan {
         Ok(Self {
             config,
             project_file,
+            lexlean_root: project.root.clone(),
+            lexlean_build_root: project.root.join(&project.config.build_root),
             config_identity: project.config.config_sha256().to_string(),
             stack_bytes,
             prism_witness,
@@ -250,5 +256,26 @@ mod tests {
             plan.stack_bytes,
             project.config.limits.compile_stack_plan().stack_bytes
         );
+    }
+
+    #[test]
+    fn the_build_root_is_read_from_lexlean_toml() {
+        let fixture = super::super::release_tests::calculator_project();
+        let configured = Plan::load(fixture.path(), None).unwrap();
+        assert_eq!(
+            configured.lexlean_build_root,
+            configured.lexlean_root.join(".lexlean")
+        );
+        let file = fixture.path().join("lexlean.toml");
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert!(text.contains("build_root = \".lexlean\""));
+        std::fs::write(
+            &file,
+            text.replace("build_root = \".lexlean\"", "build_root = \".lx\""),
+        )
+        .unwrap();
+        let plan = Plan::load(fixture.path(), None).unwrap();
+        assert_eq!(plan.lexlean_root, configured.lexlean_root);
+        assert_eq!(plan.lexlean_build_root, plan.lexlean_root.join(".lx"));
     }
 }

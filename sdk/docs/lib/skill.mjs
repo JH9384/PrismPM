@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { lintText } from '../lint.mjs';
 import { runExample } from './examples.mjs';
-import { code, fence, table } from './markdown.mjs';
+import { code, compactTable as table, fence } from './markdown.mjs';
 import { FIXTURE_DIR, prismCode } from './runtime.mjs';
 import { shippedCommandProblem, sitePath } from './site.mjs';
 import { ROOT } from './spec.mjs';
@@ -24,6 +24,9 @@ import { ROOT } from './spec.mjs';
 export const SKILL_NAME = 'prism';
 export const SKILL_FILE = 'skills/prism/SKILL.md';
 export const SKILL_PATH = join(ROOT, ...SKILL_FILE.split('/'));
+/** The copy prism-code ships, which `prism-code setup` installs into each agent. Written with the skill, byte for byte. */
+export const PACKAGE_SKILL_FILE = 'sdk/npm/prism-code/skill/SKILL.md';
+export const PACKAGE_SKILL_PATH = join(ROOT, ...PACKAGE_SKILL_FILE.split('/'));
 
 /** Where the sample holo is once `npm install prism-code` has run. */
 const SAMPLE = 'node_modules/prism-code/fixtures/Calculator.holo';

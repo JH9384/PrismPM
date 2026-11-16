@@ -86,21 +86,15 @@ pub(super) fn validate_receipt(value: &Value) -> Result<(), PrismError> {
             "browser publication receipt has no unique portable Wasm stem",
         ));
     }
-    let shim = format!("{}.js", stems[0]);
-    let wasm = format!("{}_bg.wasm", stems[0]);
-    if names
-        != BTreeSet::from([
-            "app.css",
-            "app.js",
-            "index.html",
-            "provenance.json",
-            shim.as_str(),
-            wasm.as_str(),
-        ])
-    {
+    let names = names
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect::<BTreeSet<_>>();
+    // Exactly closure v1 (six files) or closure v2 (v1 plus the brand files).
+    if crate::brand::closure_version(&names, stems[0]).is_none() {
         return Err(PrismError::new(
             "PP1101",
-            "browser publication receipt differs from its exact six-file profile",
+            "browser publication receipt differs from its exact closure profile",
         ));
     }
     Ok(())
@@ -304,7 +298,7 @@ fn verify_capture(
         .map(|(path, bytes)| json!({"path":path,"digest":sha(bytes),"size":bytes.len()}))
         .collect::<Vec<_>>();
     let result = json!({
-        "schema":"prismpm/browser-publication-integrity/1",
+        "schema":"prismpm/browser-publication-integrity/2",
         "scope":"browser-byte-integrity-only", "reference":reference,
         "release_digest":capture.state.root.digest,
         "model_digest":sha(&capture.build_files["model.prism.json"]),
@@ -312,7 +306,7 @@ fn verify_capture(
         "tree_digest":sha(&encode_value(&json!(rows))?),
         "url":url, "files":rows, "requests":7, "redirects":0
     });
-    CanonicalDocument::from_value("prismpm/browser-publication-integrity/1", result.clone())?;
+    crate::oci::contract_from_value("prismpm/browser-publication-integrity/2", result.clone())?;
     transport.fetch(
         url,
         files

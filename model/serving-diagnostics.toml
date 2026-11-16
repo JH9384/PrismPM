@@ -1,0 +1,111 @@
+spec = "prismpm/serving-diagnostics/1"
+# Closed vocabulary of the refusals a served application's generated adapter makes
+# itself, before the core is called or instead of its answer. Codes are the
+# constructors of Foundation.Server.V1.Model.ServingRefusal in order, the
+# ServingRefusal enum of the generated host library and the body of the refusal
+# response. Status is the HTTP status of the refusal.
+
+[[refusal]]
+code = "RequestLineMalformed"
+status = 400
+statement = "The request line is not `method SP target SP HTTP-version` with a token method and a target of visible ASCII, or it is empty or ends in a bare line feed."
+
+[[refusal]]
+code = "RequestLineTooLong"
+status = 414
+statement = "The request line is longer than the declared request line maximum."
+
+[[refusal]]
+code = "VersionUnsupported"
+status = 505
+statement = "The request line names an HTTP version other than HTTP/1.1."
+
+[[refusal]]
+code = "FieldMalformed"
+status = 400
+statement = "A field line has no colon, a name that is not a token (including whitespace before the colon or an obsolete line fold), a value with a control byte, or an unterminated line."
+
+[[refusal]]
+code = "HostInvalid"
+status = 400
+statement = "The request has no Host field or more than one (RFC 9112 section 3.2)."
+
+[[refusal]]
+code = "HeaderCountExceeded"
+status = 431
+statement = "The request has more field lines, trailers included, than the declared header count maximum."
+
+[[refusal]]
+code = "HeaderBytesExceeded"
+status = 431
+statement = "The field lines of the request, trailers included, are longer in bytes than the declared header bytes maximum."
+
+[[refusal]]
+code = "LengthInvalid"
+status = 400
+statement = "The request has more than one Content-Length field, or one that is not a sequence of decimal digits."
+
+[[refusal]]
+code = "FramingAmbiguous"
+status = 400
+statement = "The request carries both Content-Length and Transfer-Encoding, which RFC 9112 section 6.3 tells a server to treat as an error."
+
+[[refusal]]
+code = "TransferCodingUnsupported"
+status = 501
+statement = "The Transfer-Encoding of the request is anything but a single chunked coding."
+
+[[refusal]]
+code = "ExpectationUnsupported"
+status = 417
+statement = "The request has an Expect field other than a single 100-continue."
+
+[[refusal]]
+code = "BodyTooLarge"
+status = 413
+statement = "The Content-Length, or the sum of the chunks, is larger than the declared body maximum."
+
+[[refusal]]
+code = "ChunkMalformed"
+status = 400
+statement = "A chunked body has a chunk size that is not hexadecimal, a chunk not followed by a CRLF, or ends before its last chunk."
+
+[[refusal]]
+code = "OriginForbidden"
+status = 403
+statement = "The request carries an Origin that is repeated, unparsable or not one the declaration allows."
+
+[[refusal]]
+code = "AcceptRefused"
+status = 406
+statement = "The request is of a method the declaration checks and its Accept fields do not list every required media type."
+
+[[refusal]]
+code = "ContentTypeRefused"
+status = 415
+statement = "The request is of a method the declaration checks and does not carry exactly one Content-Type that is an allowed media type."
+
+[[refusal]]
+code = "ReadTimeout"
+status = 408
+statement = "The request did not arrive in full within the declared read time."
+
+[[refusal]]
+code = "FrameUnavailable"
+status = 503
+statement = "A declared host effect that supplies a section of the request frame failed, or its result is larger than declared."
+
+[[refusal]]
+code = "CoreFailed"
+status = 500
+statement = "The core failed, or its answer is not a response frame, or the adapter could not frame the request: a typed failure of the exchange, never an answer of the core."
+
+[[refusal]]
+code = "ResponseMalformed"
+status = 500
+statement = "The response frame of the core has a status outside 200 to 599, a malformed field, a notification, a field the adapter owns (Content-Length, Transfer-Encoding, Connection), a body on a status that has none, or bytes after the body."
+
+[[refusal]]
+code = "Busy"
+status = 503
+statement = "The declared number of connections are being served already."

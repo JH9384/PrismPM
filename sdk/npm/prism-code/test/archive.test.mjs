@@ -11,7 +11,8 @@ import {
 } from '../src/archive.mjs';
 import { decodeHoloview, encodeHoloview } from '../src/view.mjs';
 import { compileGuest, runGuest } from '../src/core.mjs';
-import { load, loadArchive, PrismCodeError } from '../src/index.mjs';
+import { blake3 } from '../src/blake3.mjs';
+import { DigestMismatchError, load, loadArchive, PrismCodeError } from '../src/index.mjs';
 
 const fixture = new URL('../fixtures/Calculator.holo', import.meta.url);
 const bytes = new Uint8Array(readFileSync(fixture));
@@ -152,4 +153,28 @@ test('a flipped content byte is reported as a label mismatch and an unverified f
   assert.equal(damaged.verification.labels, false);
   assert.equal(damaged.verification.labelMismatches[0].label, CALCULATOR.guestKappa);
   assert.equal(resolveArchive(damaged).identities.verified, false);
+});
+
+test('load refuses an altered holo with DigestMismatchError, and opens it only when asked (#583)', async () => {
+  // The two flips of #583: inside the application manifest, and inside the model document. Neither reseals the footer.
+  for (const at of [300, 19000]) {
+    const altered = corrupt(at, bytes[at] ^ 1);
+    await assert.rejects(load(altered), (error) => {
+      assert.ok(error instanceof DigestMismatchError, error.stack);
+      assert.equal(error.code, 'digest_mismatch');
+      assert.equal(error.check, 'holo.integrity');
+      assert.match(error.message, /^integrity failure: the holo was altered: the footer is not the BLAKE3 of the body/);
+      assert.match(error.message, /to open it anyway, pass allowUnverified: true \(--allow-unverified on the command line\)$/);
+      return true;
+    });
+    await assert.rejects(loadArchive(altered), DigestMismatchError);
+    const opened = await load(altered, { allowUnverified: true });
+    assert.equal(opened.identities.verified, false);
+  }
+  // The model document's blob, altered and the footer resealed: is refused for the label.
+  const resealed = corrupt(19000, bytes[19000] ^ 1);
+  resealed.set(blake3(resealed.subarray(0, resealed.length - 32)), resealed.length - 32);
+  await assert.rejects(load(resealed), (error) => error instanceof DigestMismatchError && /^integrity failure: the holo was altered: a content blob does not hash to its label;/.test(error.message));
+  // An intact holo opens as before.
+  assert.equal((await load(bytes)).identities.verified, true);
 });

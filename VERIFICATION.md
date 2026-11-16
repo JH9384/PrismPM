@@ -3535,36 +3535,83 @@ Node preparation suite passes 10/10 locally; it is not Rust-gate evidence.
 
 ## Host-effect service systems (SY-09)
 
-`prismpm/system-model/3` (`Production.HostEffectSystem`) was run on the branch
-head in WSL, with `PRISMPM_TEST_SDK_IMAGE` unset. Six of the seven owning
-tests passed: contract registration and closure, the mcp-loopback example and
-its manifest, the loopback-only Compose projection, every non-loopback
-binding, a table of open or inconsistent declarations, and the named
-release built from Lean source. The seventh runs the locked Compose and SPDX
-oracles in the SDK image and was not run locally. `lexlean verify` accepts the
-module with an empty axiom set: the soundness theorem and 25 decided theorems. The projection
-was also read by Docker Compose 2.40.3 (`config --quiet`), which is not the
-locked oracle.
+`prismpm/system-model/3` (`Production.HostEffectSystem`) puts each `api`
+component on the host network. A served application listens on `127.0.0.1`
+only, and Docker forwards a port published from a bridge network to the
+container's interface, so the first projection, with `ports` bound to
+`127.0.0.1`, could not reach the listener it published. Measured on Docker
+29.1.3 (Linux) with a process listening on `127.0.0.1:P` in its container:
+
+| Network | From the host's `127.0.0.1` | From the host's LAN address |
+| --- | --- | --- |
+| bridge, published `127.0.0.1:P:P` | no answer | not published |
+| host | answers | no answer |
+
+Run on the branch head in WSL:
+
+- The seven owning tests pass, the locked Compose and SPDX oracles included,
+  with `PRISMPM_TEST_SDK_IMAGE` set to the SDK candidate
+  `sha256:0519fe6e2f1d731fc0d475c70ad21d00396d9089051f0c703d477e1ffe39a11c`.
+- `lexlean verify` (LexLean 0.4.0 from that image) with the module added as an
+  entrypoint verifies 61 modules. The module states the soundness theorem and
+  26 decided theorems, each with an empty axiom set.
+- `cargo xtask validate-model` reports the documents current.
+
+Review of the first draft found two gaps, closed in the same change:
+
+- **The audit did not know the roles.** It refused a network mode other than
+  `host` and the host network beside another, but accepted a worker moved
+  whole onto the host network (`networks` removed, `network_mode: host`
+  added). `audit_compose` now takes the model: the services are exactly the
+  components, an `api` service is on the host network alone with one replica,
+  and every other service names no network mode and is on exactly its
+  declared networks.
+- **Replicas of an `api` component.** The schema admits up to 1024, and the
+  projection copies `replicas_min` into `deploy.replicas`; on the host network
+  every replica would bind the same loopback port. An `api` component now runs
+  exactly one replica (`apiRunsOnce` in Lean, mirrored in `host_effect.rs`);
+  workers may run several.
+
+Run on that head in WSL, with the same SDK candidate: the seven owning tests
+pass, the locked Compose oracle and the named release included;
+`authority resolve --locked`, `shipped_standards_lock` and
+`validate-model` pass after `standards.lock` and `sdk/stdlib-sources.tar` were
+regenerated (the lock hashes `authority.rs`, whose test changed); and
+`lexlean check` and `lexlean verify` pass on a project of the module, its
+`Production.Core`, the fixture release and its Calculator (4 modules), with the
+module as an entrypoint. The module now states 28 decided theorems.
 
 Planted defects, each applied alone and reverted afterwards:
 
 | Defect | Rejected by |
 | --- | --- |
-| Lean validator ignores the bind address | `wildcardBindingIsRefused` and the other binding theorems |
-| Lean validator ignores the `api` owner | `listenerOnAWorkerIsRefused` |
-| Lean validator ignores dependency order | `dependencyOnALaterComponentIsRefused` |
-| Lean validator ignores the manifest listeners | `manifestMustNameThePublishedListeners` |
-| Rust validator ignores the bind address | `host_effect_system_refuses_every_non_loopback_port_binding` |
-| Projection copies a non-loopback address | `host_effect_system_refuses_every_non_loopback_port_binding` |
-| Emitted-bytes audit ignores `host_ip` | `host_effect_system_refuses_every_non_loopback_port_binding` |
-| Schema constant for `bind_address` removed | the same test and the named release |
-| Rust validator ignores dependency order | `host_effect_system_refuses_open_or_inconsistent_declarations` |
-| Rust validator ignores the `api` owner | the named release (the unit case is also refused by the network rule) |
-| Manifest binding not compared | the example test and the named release |
-| Adapter policy names `0.0.0.0` | all six owning tests |
+| Lean network rule admits every component | `lexlean verify`: `LLV7002`, `decide` refutes two refusal theorems |
+| Lean network rule lets an `api` component declare a network | `lexlean verify`: `LLV7002`, `apiComponentOnANetworkIsRefused` |
+| Lean listener rule ignores the `api` owner | `lexlean verify`: `LLV7002`, the worker and unknown-component theorems |
+| Rust validator ignores the network rule | `host_effect_system_refuses_open_or_inconsistent_declarations` |
+| Rust validator ignores the `api` owner | `host_effect_system_refuses_open_or_inconsistent_declarations` |
+| Projection leaves the `api` on its declared networks | four owning tests, the oracle test and the named release among them |
+| Projection keeps the `api`'s networks beside the host network | `host_effect_system_compose_puts_each_api_on_the_host_network`, the oracle test, the named release |
+| Projection also publishes the listener's port | the same three tests |
+| Projection no longer refuses a non-loopback listener | `host_effect_system_refuses_every_non_loopback_port_binding` |
+| Audit admits any network mode | `host_effect_system_refuses_every_non_loopback_port_binding` |
+| Audit admits a published port | `host_effect_system_refuses_every_non_loopback_port_binding` |
+| Audit admits the host network beside another | `host_effect_system_refuses_every_non_loopback_port_binding` |
+| Schema requires a network of every component again | every owning test but the manifest one |
+| Audit ignores where a non-`api` service is placed | `host_effect_system_refuses_every_non_loopback_port_binding` |
+| Audit ignores the replicas of an `api` service | `host_effect_system_refuses_every_non_loopback_port_binding` |
+| Rust validator ignores the one-replica rule | `host_effect_system_refuses_open_or_inconsistent_declarations` |
+| Lean `apiRunsOnce` admits every component | `lexlean verify`: `LLV7002`, `decide` refutes `apiComponentWithASecondReplicaIsRefused` |
+| Lean `apiRunsOnce` ignores the kind | `lexlean verify`: `LLV7002`, `decide` refutes `workerWithSeveralReplicasIsAdmitted` |
 
-Not established here: the oracle test, the server application binding that
-issue 216 will supply, and any OCI release, replay or deployment of
+The named release does not check the module's theorems: with the listener
+rule's `api` owner removed it still passed. The Lean planted defects are
+therefore held by `lexlean verify` alone.
+
+Not established here: the server application binding that issue 216 will
+supply, which would tie a listener to the address the application declares;
+that the listener is reached on a Docker Desktop engine, where host networking
+means something else; and any OCI release, replay or deployment of
 `system-model/3`.
 
 ## crates.io readiness (#214)
@@ -3610,3 +3657,47 @@ here; the Buildx test ("pinned Buildx pushes a genuine two-platform OCI index")
 needs `docker buildx`, which this environment lacks, and does not touch the
 `crates` job. The layout-custody test failed once when the file ran beside
 `crate-readiness.test.mjs` and passed alone and in the next full run.
+
+## Definitions that share a last name component (HO-46, #644)
+
+`prod-export` named every definition by the last component of its Lean name, so
+two modules of one application that each define `answer` gave a crate with two
+`pub fn answer` (E0428). The fixture `tests/fixtures/holo/ho-46-qualified-definitions`
+is that application: the entry calls `Kernel.Admission::answer` and
+`Kernel.Range::answer`, and the request `hé` must answer `admit:hé range:hé`.
+
+Run on 2026-11-12 with `cargo test --locked -p repo-conformance --test conformance
+conformance_ho_46`, inside the SDK image
+`ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:cd3b47d7a370c4a26b8285f5e9c3bb15e639973c55505c3809ddbe55352fea58`,
+on a copy of the checkout at each commit:
+
+| Tree | Exporter archive | Observed |
+| --- | --- | --- |
+| the fixture and HO-46 without the fix (`a449e567`) | `7a1a716a…66bf` | FAILED in 80 s: `PP4102 application-cargo-check exited 101`, `error[E0428]: the name answer is defined multiple times` |
+| the fix (`9fd2de55`) | `50e08562…47db` | ok in 634 s, including the two-roots case refused with `PP5004` naming both definitions |
+| the fix with the defect planted again: `vendor/lean4-prod/lean.tar`, `model/dependencies.toml` and `lean4_prod_dependency.rs` restored from `a449e567` | `7a1a716a…66bf` | FAILED in 101 s, the same `PP4102` and E0428 |
+
+The planted tree was a scratch clone, discarded after the run. The failure is
+reported as `PP4102`, the stage's own code, because #643 is fixed; before that
+fix the same failure was `PP5008` about exporter retirement.
+
+The exporter alone, built from each archive with Lean 4.32.1 and run on one
+three-module package, wrote byte-identical `kernel.ir`, `roots.json` and
+`coverage.json` when no two definitions share a last component, and distinct
+qualified names when they do.
+
+The unchanged Text Request application (`tests/fixtures/holo/ho-11-text-application`)
+was built in the same image with `prismpm build --no-provenance`, by `prismpm`
+from `0e9d75de` (old archive) and from `4f4ba8bd` (new archive). Its
+`Text Request.holo` is the same bytes from both,
+`1d9608c0d4bf22e0b55d885d63c3eb5649def6c85e7c0f7eaf5ca5b90767863e`, and so are
+`cargo/kernel.ir`, `cargo/roots.json`, `cargo/coverage.json`, the generated crate,
+the Core-Wasm guest and the browser Wasm. Only `application/exporter-identity.json`,
+which records the exporter archive and executable, differs, and with it the
+build identity. `--no-provenance` was needed because the fixture has no
+`prismpm.lock`; it omits the provenance statement. A build with a statement was
+not compared.
+
+What this does not show: the native library profile, which still requires a
+distinct last component for every definition of its closure, and two types that
+share a last component, which `prod-codegen` refuses with `DuplicateTypeName`.

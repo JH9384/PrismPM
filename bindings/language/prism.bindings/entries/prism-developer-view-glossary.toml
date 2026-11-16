@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-developer-view-glossary"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Views.V1.Developer"
+component = "checkDeveloperView"
+
+[[form]]
+id = "prism-developer-view-glossary"
+channel = "text"
+surface = "Developer view glossary"
+canonical_source = true
+features = ["sentence-case", "singular"]

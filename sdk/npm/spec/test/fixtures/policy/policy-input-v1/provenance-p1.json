@@ -32,12 +32,12 @@
       {
         "check": "proof.statement",
         "withholds": "P2",
-        "message": "The holo carries no proof statement (issue #266)."
+        "message": "The holo carries no proof statement."
       },
       {
         "check": "replay.statement",
         "withholds": "P3",
-        "message": "The holo carries no replay statement (issue #284)."
+        "message": "The holo carries no replay statement."
       }
     ]
   },

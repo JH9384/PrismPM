@@ -93,7 +93,7 @@
           "files": {
             "type": "array",
             "minItems": 3,
-            "maxItems": 3,
+            "maxItems": 13,
             "items": {
               "type": "object",
               "additionalProperties": false,

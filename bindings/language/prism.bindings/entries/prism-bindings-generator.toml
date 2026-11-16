@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-bindings-generator"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Bindings.V1.Generate"
+component = "generateJsBindings"
+
+[[form]]
+id = "prism-bindings-generator"
+channel = "text"
+surface = "Bindings generator"
+canonical_source = true
+features = ["sentence-case", "singular"]

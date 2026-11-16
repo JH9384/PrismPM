@@ -54,5 +54,22 @@
       "scenarios": ["capabilities"]
     }
   ],
-  "exemptions": []
+  "exemptions": [
+    {
+      "files": ["sdk/npm/spec/schemas/documents/sdk-lock-v3.schema.json"],
+      "reason": "prismpm.lock is a project file and is never written into a holo; the optional authoring record (#325) changes no holo byte."
+    },
+    {
+      "files": ["sdk/npm/spec/schemas/documents/browser-provenance-v2.schema.json"],
+      "reason": "provenance.json is a file of the browser export (closure v2), written beside the holo and never into it; the holo and its HOLOVIEW bundle format are unchanged."
+    },
+    {
+      "files": ["crates/prismpm/src/holo/model_document.rs"],
+      "reason": "Slice 1 of #216 (#246) adds the Server variant, model-document/7, which no holo carries: a server application's build writes its certified core and host adapter under server/, and its release (#342) is an OCI image of the consumer workspace; neither assembles a holo. Every other application keeps its document version and its document layout; the accessors that now return owned values change no encoding. Existing holos change only through the emitter semantics id, as with any change to an emitter input. The scenario comes with the change that writes a server holo."
+    },
+    {
+      "files": ["crates/prismpm/src/holo/canonical.rs", "crates/prismpm/src/holo/model_document.rs"],
+      "reason": "Module cut (#448, #626): encode_canonical and decode_canonical move verbatim from canonical.rs to model_document.rs, so the errors module keeps only the value codec. No document byte changes; existing holos change only through the emitter semantics id, as with any change to an emitter input."
+    }
+  ]
 }

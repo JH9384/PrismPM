@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { handleSbom } from './sdk-candidate-sbom.mjs';
+import { workspaceVersion } from './workspace-version.mjs';
 
 const sha = bytes => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const json = path => JSON.parse(readFileSync(path));
@@ -16,8 +17,8 @@ export function validateConfig(config, architecture, revision) {
   assert.equal(config.os, 'linux');
   const labels = config.config.Labels;
   assert.equal(labels['org.opencontainers.image.revision'], revision);
-  assert.equal(labels['org.opencontainers.image.source'], 'https://github.com/UOR-Foundation/PrismPM');
-  assert.equal(labels['org.opencontainers.image.version'], '0.4.0');
+  assert.equal(labels['org.opencontainers.image.source'], 'https://github.com/UOR-Foundation/prismpm');
+  assert.equal(labels['org.opencontainers.image.version'], workspaceVersion());
   assert.equal(labels['org.opencontainers.image.created'], '1970-01-01T00:00:00Z');
 }
 
@@ -86,9 +87,9 @@ function main([command, ...args]) {
   switch (command) {
     case 'inspect': assert.equal(args.length, 4); inspect(...args); break;
     case 'environment': {
-      assert.equal(process.env.GITHUB_REPOSITORY, 'UOR-Foundation/PrismPM');
+      assert.equal(process.env.GITHUB_REPOSITORY, 'UOR-Foundation/prismpm');
       assert.equal(process.env.GITHUB_REF, 'refs/heads/main');
-      const endpoint = 'repos/UOR-Foundation/PrismPM/environments/sdk-candidate';
+      const endpoint = 'repos/UOR-Foundation/prismpm/environments/sdk-candidate';
       validateEnvironment(JSON.parse(execFileSync('gh', ['api', endpoint])),
         JSON.parse(execFileSync('gh', ['api', `${endpoint}/deployment-branch-policies`])));
       break;

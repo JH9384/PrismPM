@@ -5,11 +5,23 @@ test "$#" -eq 3 -o "$#" -eq 4 || { echo 'usage: product-sdk-check.sh SDK_INDEX@s
 image=$1
 revision=$2
 evidence=$3
-root=$(cd "$(dirname "$0")/.." && pwd -P)
-helper="$root/scripts/product-sdk-check.mjs"
+harness=$(cd "$(dirname "$0")/.." && pwd -P)
+root=$harness
+helper="$harness/scripts/product-sdk-check.mjs"
+# Candidate qualification (release-qualify.yml): this checkout's check scripts
+# run against an already built candidate image. SOURCE_COMMIT and every source
+# binding then name the candidate's own checkout, and this checkout's scripts/
+# is mounted over the image's copy. Without it, harness and source are one root.
+harness_mount=()
+if test -n "${PRISMPM_QUALIFY_SOURCE:-}"; then
+  root=$(cd "$PRISMPM_QUALIFY_SOURCE" && pwd -P)
+  test "$root" != "$harness"
+  harness_mount=(--mount "type=bind,source=$harness/scripts,target=/opt/prismpm/share/conformance-root/scripts,readonly"
+    --mount "type=bind,source=$harness/tests/browser-system,target=/opt/prismpm/share/conformance-root/tests/browser-system,readonly")
+fi
 qualification_trust=()
 if test "$#" -eq 4; then
-  node "$root/scripts/sdk-qualification-trust.mjs" "$4"
+  node "$harness/scripts/sdk-qualification-trust.mjs" "$4"
   export NODE_EXTRA_CA_CERTS=$4
   qualification_trust=(--mount "type=bind,source=$4,target=/run/prismpm-qualification-ca.crt,readonly" --env NODE_EXTRA_CA_CERTS=/run/prismpm-qualification-ca.crt)
 fi
@@ -45,7 +57,10 @@ container=$(docker container create --network none --read-only --platform "linux
 mkdir "$sdk_work/source"
 while IFS= read -r path; do
   mkdir -p "$sdk_work/source/$(dirname "$path")"
-  docker container cp "$container:/opt/prismpm/share/conformance-root/$path" "$sdk_work/source/$path"
+  # Stream the root as a tar so tracked relative symlinks such as
+  # crates/prismpm/model -> ../../model stay symlinks; docker cp refuses to
+  # extract a link that points outside its destination. verify checks every alias.
+  docker container cp "$container:/opt/prismpm/share/conformance-root/$path" - | tar -x -C "$sdk_work/source/$(dirname "$path")"
 done < <(node "$helper" roots)
 node "$helper" verify "$sdk_work/source" "$evidence/source.json"
 docker container cp "$container:/opt/prismpm/share/inventory.json" "$evidence/inventory.json"
@@ -63,12 +78,14 @@ project_volume=$(docker volume create)
 receiver_volume=$(docker volume create)
 [[ $project_volume =~ ^[0-9a-f]{64}$ && $receiver_volume =~ ^[0-9a-f]{64}$ ]] || exit 1
 socket_gid=$(stat -c '%g' /var/run/docker.sock)
+# The root filesystem is read-only, so the Docker CLI and Buildx state used by
+# `fetch --locked` (image advisory acquisition) lives on the project volume.
 [[ $socket_gid =~ ^[0-9]+$ ]] || exit 1
 container=$(docker container create --user 1000:1000 --group-add "$socket_gid" --read-only --cap-drop ALL --platform "linux/$architecture" \
   "${qualification_trust[@]}" \
   --security-opt no-new-privileges --mount "type=volume,source=$project_volume,target=/tmp" \
   --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
-  --env PRISMPM_EPHEMERAL_HOME=1 --env CARGO_BUILD_JOBS=2 \
+  --env PRISMPM_EPHEMERAL_HOME=1 --env CARGO_BUILD_JOBS=2 --env DOCKER_CONFIG=/tmp/prismpm-docker-config "${harness_mount[@]}" \
   --workdir /opt/prismpm/share/conformance-root "$image" node scripts/product-sdk-check.mjs acquire)
 [[ $container =~ ^[0-9a-f]{64}$ ]] || exit 1
 docker container cp "$sdk_work/inputs" "$container:/tmp/prismpm-product-input"
@@ -77,10 +94,14 @@ test "$(docker container inspect --format '{{.State.ExitCode}}' "$container")" =
 docker container cp "$container:/tmp/prismpm-product-cli/acquisition.json" "$evidence/acquisition.json"
 docker container rm "$container" >/dev/null
 container=''
-# The build has no socket, external network, host source or host dependency cache.
-container=$(docker container create --user 1000:1000 --read-only --network none --cap-drop ALL --platform "linux/$architecture" \
+# The build has no external network, host source or host dependency cache.
+# `prismpm build` validates each modeled projection with its locked external
+# oracle, which PrismPM runs only in a network-denied sandbox through the
+# Docker socket (PP5403 without it), so the socket is the build's one host input.
+container=$(docker container create --user 1000:1000 --group-add "$socket_gid" --read-only --network none --cap-drop ALL --platform "linux/$architecture" \
   --security-opt no-new-privileges --mount "type=volume,source=$project_volume,target=/tmp" \
-  --env PRISMPM_EPHEMERAL_HOME=1 --env CARGO_NET_OFFLINE=true --env CARGO_BUILD_JOBS=2 \
+  --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+  --env PRISMPM_EPHEMERAL_HOME=1 --env CARGO_NET_OFFLINE=true --env CARGO_BUILD_JOBS=2 --env DOCKER_CONFIG=/tmp/prismpm-docker-config "${harness_mount[@]}" \
   --workdir /opt/prismpm/share/conformance-root "$image" node scripts/product-sdk-check.mjs build)
 [[ $container =~ ^[0-9a-f]{64}$ ]] || exit 1
 docker container start --attach "$container" > "$evidence/build.stdout.json" 2> "$evidence/build.stderr.txt"
@@ -94,7 +115,7 @@ container=''
 # A separate fresh volume carries only the immutable OCI graph and result facts.
 container=$(docker container create --user 1000:1000 --read-only --network none --cap-drop ALL --platform "linux/$architecture" \
   --security-opt no-new-privileges --mount "type=volume,source=$receiver_volume,target=/tmp" \
-  --env PRISMPM_EPHEMERAL_HOME=1 --env CARGO_NET_OFFLINE=true \
+  --env PRISMPM_EPHEMERAL_HOME=1 --env CARGO_NET_OFFLINE=true "${harness_mount[@]}" \
   --workdir /opt/prismpm/share/conformance-root "$image" node scripts/product-sdk-check.mjs receive)
 [[ $container =~ ^[0-9a-f]{64}$ ]] || exit 1
 docker container cp "$sdk_work/receiver" "$container:/tmp/prismpm-product-cli"

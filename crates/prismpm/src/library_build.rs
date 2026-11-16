@@ -534,7 +534,7 @@ fn generate_in(
     artifacts.push((format!("library/{archive_name}"), crate_bytes));
     artifacts.push((
         "library/model-binding.json".to_owned(),
-        crate::contracts::CanonicalDocument::from_value(
+        contract_from_value(
             "prismpm/library-build-binding/1",
             json!({
                 "acceptance_roots": library.acceptance_roots, "export_roots": library.export_roots,
@@ -554,6 +554,79 @@ fn generate_in(
         artifacts,
         processes,
     })
+}
+
+/// The semantic checks of the native-library build binding, which this module owns.
+const CONTRACT_CHECK: crate::contracts::OwnerCheck = crate::contracts::OwnerCheck {
+    owner: "library_build",
+    check: check_contract,
+};
+
+fn check_contract(id: &str, value: &Value) -> Result<(), PrismError> {
+    if id != "prismpm/library-build-binding/1" {
+        return Err(PrismError::new(
+            "PP9001",
+            format!("library_build owns no semantic check for {id}"),
+        ));
+    }
+    check_evidence_roots(id, value)
+}
+
+/// Every acceptance root of a native-library build binding or acceptance
+/// record is a qualified, ordered, exported root.
+pub(crate) fn check_evidence_roots(id: &str, value: &Value) -> Result<(), PrismError> {
+    let invalid = || PrismError::new("PP4004", "native-library evidence roots are inconsistent");
+    let roots = |rows: &Value| -> Result<Vec<String>, PrismError> {
+        let rows = rows.as_array().ok_or_else(invalid)?;
+        let names = rows
+            .iter()
+            .map(|row| row.as_str().map(str::to_owned).ok_or_else(invalid))
+            .collect::<Result<Vec<_>, _>>()?;
+        if names.is_empty()
+            || names.len() > 1024
+            || names
+                .iter()
+                .any(|name| !crate::holo::library::qualified(name))
+            || names.windows(2).any(|rows| rows[0] >= rows[1])
+        {
+            return Err(invalid());
+        }
+        Ok(names)
+    };
+    let exports = roots(&value["export_roots"])?;
+    let acceptance = if id == "prismpm/library-build-binding/1" {
+        roots(&value["acceptance_roots"])?
+    } else {
+        let first = roots(&value["executions"][0]["roots"])?;
+        if first != roots(&value["executions"][1]["roots"])? {
+            return Err(invalid());
+        }
+        first
+    };
+    if acceptance
+        .iter()
+        .any(|root| exports.binary_search(root).is_err())
+    {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+/// Validate a native-library build binding, including the root rules this
+/// module owns.
+pub fn contract_from_value(
+    id: &'static str,
+    value: Value,
+) -> Result<crate::contracts::CanonicalDocument, PrismError> {
+    crate::contracts::CanonicalDocument::from_value_owned(id, value, CONTRACT_CHECK)
+}
+
+/// Validate exact canonical contract bytes, including the rules this module owns.
+pub fn parse_contract(
+    id: &'static str,
+    bytes: &[u8],
+) -> Result<crate::contracts::CanonicalDocument, PrismError> {
+    crate::contracts::CanonicalDocument::parse_owned(id, bytes, CONTRACT_CHECK)
 }
 
 #[cfg(test)]

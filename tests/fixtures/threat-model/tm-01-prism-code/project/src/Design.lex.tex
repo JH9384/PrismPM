@@ -1,0 +1,1620 @@
+\begin{lexlean}{Design}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Architecture}
+\importmodule{Foundation.Arch}
+\title{Prism-code design views}
+\begin{semanticmodule}
+structure{
+  name: IdEntry,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: index, type: Nat}, {name: id, type: String}]
+}
+
+structure{
+  name: ProcessEntry,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: process, type: Foundation.Arch::SystemProcess}]
+}
+
+structure{
+  name: StateEntry,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: state, type: Foundation.Arch::SystemState}]
+}
+
+structure{
+  name: ViewEntry,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: view, type: Foundation.Arch::DesignView}]
+}
+
+structure{
+  name: Anchor,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: id, type: String}, {name: claim, type: Architecture::Claim}]
+}
+
+definition{
+  name: processCheck,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: processParse,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: processAdmit,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: processFind,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: processCertify,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: processRender,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: processDispatch,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: processSubmit,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: processShowAccepted,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: processShowRejected,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: processShowError,
+  parameters: [],
+  result: Foundation.Arch::SystemProcess,
+  body: (record Foundation.Arch::SystemProcess {owner := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: stateProjectEmpty,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: stateProjectBuilt,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: stateProjectAccepted,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: stateProjectRejected,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: statePageIdle,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: statePageChecking,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: statePageAccepted,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: statePageRejected,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: statePageError,
+  parameters: [],
+  result: Foundation.Arch::SystemState,
+  body: (record Foundation.Arch::SystemState {owner := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: viewOpmCheck,
+  parameters: [],
+  result: Foundation.Arch::DesignView,
+  body: (record Foundation.Arch::DesignView {title := "The check process", viewpoint := "Architecture::viewpointComponentCorrectness", diagram := (ctor Foundation.Arch::DesignDiagram.opmObjectProcess)})
+}
+
+definition{
+  name: viewUmlComponents,
+  parameters: [],
+  result: Foundation.Arch::DesignView,
+  body: (record Foundation.Arch::DesignView {title := "Components of the browser and CLI", viewpoint := "Architecture::viewpointComponentParity", diagram := (ctor Foundation.Arch::DesignDiagram.umlComponent)})
+}
+
+definition{
+  name: viewUmlSequence,
+  parameters: [],
+  result: Foundation.Arch::DesignView,
+  body: (record Foundation.Arch::DesignView {title := "A request through dispatch", viewpoint := "Architecture::viewpointComponentParity", diagram := (ctor Foundation.Arch::DesignDiagram.umlSequence)})
+}
+
+definition{
+  name: viewUmlPage,
+  parameters: [],
+  result: Foundation.Arch::DesignView,
+  body: (record Foundation.Arch::DesignView {title := "States of the page", viewpoint := "Architecture::viewpointComponentCorrectness", diagram := (ctor Foundation.Arch::DesignDiagram.umlStateMachine)})
+}
+
+definition{
+  name: opmThingGuest,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmThingKind.object), subject := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: opmThingBrowserView,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmThingKind.object), subject := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: opmThingCliAdapter,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmThingKind.object), subject := "Architecture::componentCliAdapter"})
+}
+
+definition{
+  name: opmThingCheck,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmThingKind.process), subject := "Design::processCheck"})
+}
+
+definition{
+  name: opmThingParse,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmThingKind.process), subject := "Design::processParse"})
+}
+
+definition{
+  name: opmThingAdmit,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmThingKind.process), subject := "Design::processAdmit"})
+}
+
+definition{
+  name: opmThingFind,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmThingKind.process), subject := "Design::processFind"})
+}
+
+definition{
+  name: opmThingCertify,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmThingKind.process), subject := "Design::processCertify"})
+}
+
+definition{
+  name: opmThingRender,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmThingKind.process), subject := "Design::processRender"})
+}
+
+definition{
+  name: opmStateEmpty,
+  parameters: [],
+  result: Foundation.Arch::OpmState,
+  body: (record Foundation.Arch::OpmState {view := "Design::viewOpmCheck", thing := "Architecture::componentCoreWasmGuest", state := "Design::stateProjectEmpty"})
+}
+
+definition{
+  name: opmStateBuilt,
+  parameters: [],
+  result: Foundation.Arch::OpmState,
+  body: (record Foundation.Arch::OpmState {view := "Design::viewOpmCheck", thing := "Architecture::componentCoreWasmGuest", state := "Design::stateProjectBuilt"})
+}
+
+definition{
+  name: opmStateAccepted,
+  parameters: [],
+  result: Foundation.Arch::OpmState,
+  body: (record Foundation.Arch::OpmState {view := "Design::viewOpmCheck", thing := "Architecture::componentCoreWasmGuest", state := "Design::stateProjectAccepted"})
+}
+
+definition{
+  name: opmStateRejected,
+  parameters: [],
+  result: Foundation.Arch::OpmState,
+  body: (record Foundation.Arch::OpmState {view := "Design::viewOpmCheck", thing := "Architecture::componentCoreWasmGuest", state := "Design::stateProjectRejected"})
+}
+
+definition{
+  name: opmLinkBrowserChecks,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.agent), source := "Architecture::componentBrowserView", target := "Design::processCheck"})
+}
+
+definition{
+  name: opmLinkCliChecks,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.agent), source := "Architecture::componentCliAdapter", target := "Design::processCheck"})
+}
+
+definition{
+  name: opmLinkAdmitBuilds,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.effect), source := "Architecture::componentCoreWasmGuest", target := "Design::processAdmit"})
+}
+
+definition{
+  name: opmLinkFindReads,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.instrument), source := "Architecture::componentCoreWasmGuest", target := "Design::processFind"})
+}
+
+definition{
+  name: opmLinkCertifyJudges,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.effect), source := "Architecture::componentCoreWasmGuest", target := "Design::processCertify"})
+}
+
+definition{
+  name: opmLinkRenderBrowser,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.result), source := "Design::processRender", target := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: opmLinkRenderCli,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.result), source := "Design::processRender", target := "Architecture::componentCliAdapter"})
+}
+
+definition{
+  name: opmLinkParseInvokesAdmit,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.invocation), source := "Design::processParse", target := "Design::processAdmit"})
+}
+
+definition{
+  name: opmLinkAdmitInvokesFind,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.invocation), source := "Design::processAdmit", target := "Design::processFind"})
+}
+
+definition{
+  name: opmLinkFindInvokesCertify,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.invocation), source := "Design::processFind", target := "Design::processCertify"})
+}
+
+definition{
+  name: opmLinkCertifyInvokesRender,
+  parameters: [],
+  result: Foundation.Arch::OpmLink,
+  body: (record Foundation.Arch::OpmLink {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmLinkKind.invocation), source := "Design::processCertify", target := "Design::processRender"})
+}
+
+definition{
+  name: opmZoomParse,
+  parameters: [],
+  result: Foundation.Arch::OpmZoom,
+  body: (record Foundation.Arch::OpmZoom {view := "Design::viewOpmCheck", process := "Design::processCheck", subprocess := "Design::processParse", order := 0})
+}
+
+definition{
+  name: opmZoomAdmit,
+  parameters: [],
+  result: Foundation.Arch::OpmZoom,
+  body: (record Foundation.Arch::OpmZoom {view := "Design::viewOpmCheck", process := "Design::processCheck", subprocess := "Design::processAdmit", order := 1})
+}
+
+definition{
+  name: opmZoomFind,
+  parameters: [],
+  result: Foundation.Arch::OpmZoom,
+  body: (record Foundation.Arch::OpmZoom {view := "Design::viewOpmCheck", process := "Design::processCheck", subprocess := "Design::processFind", order := 2})
+}
+
+definition{
+  name: opmZoomCertify,
+  parameters: [],
+  result: Foundation.Arch::OpmZoom,
+  body: (record Foundation.Arch::OpmZoom {view := "Design::viewOpmCheck", process := "Design::processCheck", subprocess := "Design::processCertify", order := 3})
+}
+
+definition{
+  name: opmZoomRender,
+  parameters: [],
+  result: Foundation.Arch::OpmZoom,
+  body: (record Foundation.Arch::OpmZoom {view := "Design::viewOpmCheck", process := "Design::processCheck", subprocess := "Design::processRender", order := 4})
+}
+
+definition{
+  name: umlCompGuest,
+  parameters: [],
+  result: Foundation.Arch::UmlComponent,
+  body: (record Foundation.Arch::UmlComponent {view := "Design::viewUmlComponents", component := "Architecture::componentCoreWasmGuest"})
+}
+
+definition{
+  name: umlCompBrowserView,
+  parameters: [],
+  result: Foundation.Arch::UmlComponent,
+  body: (record Foundation.Arch::UmlComponent {view := "Design::viewUmlComponents", component := "Architecture::componentBrowserView"})
+}
+
+definition{
+  name: umlCompCliAdapter,
+  parameters: [],
+  result: Foundation.Arch::UmlComponent,
+  body: (record Foundation.Arch::UmlComponent {view := "Design::viewUmlComponents", component := "Architecture::componentCliAdapter"})
+}
+
+definition{
+  name: umlCompPagesTarget,
+  parameters: [],
+  result: Foundation.Arch::UmlComponent,
+  body: (record Foundation.Arch::UmlComponent {view := "Design::viewUmlComponents", component := "Architecture::componentPagesTarget"})
+}
+
+definition{
+  name: umlConnViewRequest,
+  parameters: [],
+  result: Foundation.Arch::UmlConnector,
+  body: (record Foundation.Arch::UmlConnector {view := "Design::viewUmlComponents", edge := "Architecture::edgeViewRequest"})
+}
+
+definition{
+  name: umlConnViewResponse,
+  parameters: [],
+  result: Foundation.Arch::UmlConnector,
+  body: (record Foundation.Arch::UmlConnector {view := "Design::viewUmlComponents", edge := "Architecture::edgeViewResponse"})
+}
+
+definition{
+  name: umlConnCliRequest,
+  parameters: [],
+  result: Foundation.Arch::UmlConnector,
+  body: (record Foundation.Arch::UmlConnector {view := "Design::viewUmlComponents", edge := "Architecture::edgeCliRequest"})
+}
+
+definition{
+  name: umlConnCliResponse,
+  parameters: [],
+  result: Foundation.Arch::UmlConnector,
+  body: (record Foundation.Arch::UmlConnector {view := "Design::viewUmlComponents", edge := "Architecture::edgeCliResponse"})
+}
+
+definition{
+  name: umlConnPagesServeView,
+  parameters: [],
+  result: Foundation.Arch::UmlConnector,
+  body: (record Foundation.Arch::UmlConnector {view := "Design::viewUmlComponents", edge := "Architecture::edgePagesServeView"})
+}
+
+definition{
+  name: seqLifeBrowserView,
+  parameters: [],
+  result: Foundation.Arch::UmlLifeline,
+  body: (record Foundation.Arch::UmlLifeline {view := "Design::viewUmlSequence", component := "Architecture::componentBrowserView", order := 0})
+}
+
+definition{
+  name: seqLifeCliAdapter,
+  parameters: [],
+  result: Foundation.Arch::UmlLifeline,
+  body: (record Foundation.Arch::UmlLifeline {view := "Design::viewUmlSequence", component := "Architecture::componentCliAdapter", order := 1})
+}
+
+definition{
+  name: seqLifeGuest,
+  parameters: [],
+  result: Foundation.Arch::UmlLifeline,
+  body: (record Foundation.Arch::UmlLifeline {view := "Design::viewUmlSequence", component := "Architecture::componentCoreWasmGuest", order := 2})
+}
+
+definition{
+  name: seqMsgPageRequest,
+  parameters: [],
+  result: Foundation.Arch::UmlMessage,
+  body: (record Foundation.Arch::UmlMessage {view := "Design::viewUmlSequence", kind := (ctor Foundation.Arch::UmlMessageKind.synchronous), order := 0, source := "Architecture::componentBrowserView", target := "Architecture::componentCoreWasmGuest", process := "Design::processDispatch"})
+}
+
+definition{
+  name: seqMsgPageCheck,
+  parameters: [],
+  result: Foundation.Arch::UmlMessage,
+  body: (record Foundation.Arch::UmlMessage {view := "Design::viewUmlSequence", kind := (ctor Foundation.Arch::UmlMessageKind.synchronous), order := 1, source := "Architecture::componentCoreWasmGuest", target := "Architecture::componentCoreWasmGuest", process := "Design::processCheck"})
+}
+
+definition{
+  name: seqMsgPageReply,
+  parameters: [],
+  result: Foundation.Arch::UmlMessage,
+  body: (record Foundation.Arch::UmlMessage {view := "Design::viewUmlSequence", kind := (ctor Foundation.Arch::UmlMessageKind.reply), order := 2, source := "Architecture::componentCoreWasmGuest", target := "Architecture::componentBrowserView", process := "Design::processDispatch"})
+}
+
+definition{
+  name: seqMsgCliRequest,
+  parameters: [],
+  result: Foundation.Arch::UmlMessage,
+  body: (record Foundation.Arch::UmlMessage {view := "Design::viewUmlSequence", kind := (ctor Foundation.Arch::UmlMessageKind.synchronous), order := 3, source := "Architecture::componentCliAdapter", target := "Architecture::componentCoreWasmGuest", process := "Design::processDispatch"})
+}
+
+definition{
+  name: seqMsgCliCheck,
+  parameters: [],
+  result: Foundation.Arch::UmlMessage,
+  body: (record Foundation.Arch::UmlMessage {view := "Design::viewUmlSequence", kind := (ctor Foundation.Arch::UmlMessageKind.synchronous), order := 4, source := "Architecture::componentCoreWasmGuest", target := "Architecture::componentCoreWasmGuest", process := "Design::processCheck"})
+}
+
+definition{
+  name: seqMsgCliReply,
+  parameters: [],
+  result: Foundation.Arch::UmlMessage,
+  body: (record Foundation.Arch::UmlMessage {view := "Design::viewUmlSequence", kind := (ctor Foundation.Arch::UmlMessageKind.reply), order := 5, source := "Architecture::componentCoreWasmGuest", target := "Architecture::componentCliAdapter", process := "Design::processDispatch"})
+}
+
+definition{
+  name: pageIdle,
+  parameters: [],
+  result: Foundation.Arch::UmlState,
+  body: (record Foundation.Arch::UmlState {view := "Design::viewUmlPage", state := "Design::statePageIdle", initial := true})
+}
+
+definition{
+  name: pageChecking,
+  parameters: [],
+  result: Foundation.Arch::UmlState,
+  body: (record Foundation.Arch::UmlState {view := "Design::viewUmlPage", state := "Design::statePageChecking", initial := false})
+}
+
+definition{
+  name: pageAccepted,
+  parameters: [],
+  result: Foundation.Arch::UmlState,
+  body: (record Foundation.Arch::UmlState {view := "Design::viewUmlPage", state := "Design::statePageAccepted", initial := false})
+}
+
+definition{
+  name: pageRejected,
+  parameters: [],
+  result: Foundation.Arch::UmlState,
+  body: (record Foundation.Arch::UmlState {view := "Design::viewUmlPage", state := "Design::statePageRejected", initial := false})
+}
+
+definition{
+  name: pageError,
+  parameters: [],
+  result: Foundation.Arch::UmlState,
+  body: (record Foundation.Arch::UmlState {view := "Design::viewUmlPage", state := "Design::statePageError", initial := false})
+}
+
+definition{
+  name: pageSubmits,
+  parameters: [],
+  result: Foundation.Arch::UmlTransition,
+  body: (record Foundation.Arch::UmlTransition {view := "Design::viewUmlPage", order := 0, source := "Design::statePageIdle", target := "Design::statePageChecking", trigger := "Design::processSubmit"})
+}
+
+definition{
+  name: pageAccepts,
+  parameters: [],
+  result: Foundation.Arch::UmlTransition,
+  body: (record Foundation.Arch::UmlTransition {view := "Design::viewUmlPage", order := 1, source := "Design::statePageChecking", target := "Design::statePageAccepted", trigger := "Design::processShowAccepted"})
+}
+
+definition{
+  name: pageRejects,
+  parameters: [],
+  result: Foundation.Arch::UmlTransition,
+  body: (record Foundation.Arch::UmlTransition {view := "Design::viewUmlPage", order := 2, source := "Design::statePageChecking", target := "Design::statePageRejected", trigger := "Design::processShowRejected"})
+}
+
+definition{
+  name: pageFails,
+  parameters: [],
+  result: Foundation.Arch::UmlTransition,
+  body: (record Foundation.Arch::UmlTransition {view := "Design::viewUmlPage", order := 3, source := "Design::statePageChecking", target := "Design::statePageError", trigger := "Design::processShowError"})
+}
+
+definition{
+  name: pageResubmitsAccepted,
+  parameters: [],
+  result: Foundation.Arch::UmlTransition,
+  body: (record Foundation.Arch::UmlTransition {view := "Design::viewUmlPage", order := 4, source := "Design::statePageAccepted", target := "Design::statePageChecking", trigger := "Design::processSubmit"})
+}
+
+definition{
+  name: pageResubmitsRejected,
+  parameters: [],
+  result: Foundation.Arch::UmlTransition,
+  body: (record Foundation.Arch::UmlTransition {view := "Design::viewUmlPage", order := 5, source := "Design::statePageRejected", target := "Design::statePageChecking", trigger := "Design::processSubmit"})
+}
+
+definition{
+  name: pageResubmitsError,
+  parameters: [],
+  result: Foundation.Arch::UmlTransition,
+  body: (record Foundation.Arch::UmlTransition {view := "Design::viewUmlPage", order := 6, source := "Design::statePageError", target := "Design::statePageChecking", trigger := "Design::processSubmit"})
+}
+
+definition{
+  name: componentTable,
+  parameters: [],
+  result: (List IdEntry),
+  body: (cons (record IdEntry {index := 0, id := "Architecture::componentBrowserRuntime"}) (cons (record IdEntry {index := 1, id := "Architecture::componentBrowserView"}) (cons (record IdEntry {index := 2, id := "Architecture::componentCliAdapter"}) (cons (record IdEntry {index := 3, id := "Architecture::componentCoreWasmGuest"}) (cons (record IdEntry {index := 4, id := "Architecture::componentPagesTarget"}) (cons (record IdEntry {index := 5, id := "Architecture::componentProjectAuthor"}) (cons (record IdEntry {index := 6, id := "Architecture::componentReleaseBinaries"}) (nil IdEntry))))))))
+}
+
+definition{
+  name: edgeTable,
+  parameters: [],
+  result: (List IdEntry),
+  body: (cons (record IdEntry {index := 0, id := "Architecture::edgeAuthorBrowser"}) (cons (record IdEntry {index := 1, id := "Architecture::edgeAuthorCli"}) (cons (record IdEntry {index := 2, id := "Architecture::edgeBinariesShipCli"}) (cons (record IdEntry {index := 3, id := "Architecture::edgeBrowserHostsView"}) (cons (record IdEntry {index := 4, id := "Architecture::edgeCliRequest"}) (cons (record IdEntry {index := 5, id := "Architecture::edgeCliResponse"}) (cons (record IdEntry {index := 6, id := "Architecture::edgePagesBrowser"}) (cons (record IdEntry {index := 7, id := "Architecture::edgePagesServeView"}) (cons (record IdEntry {index := 8, id := "Architecture::edgeViewRequest"}) (cons (record IdEntry {index := 9, id := "Architecture::edgeViewResponse"}) (nil IdEntry)))))))))))
+}
+
+definition{
+  name: viewpointTable,
+  parameters: [],
+  result: (List IdEntry),
+  body: (cons (record IdEntry {index := 0, id := "Architecture::viewpointComponentAudit"}) (cons (record IdEntry {index := 1, id := "Architecture::viewpointComponentCorrectness"}) (cons (record IdEntry {index := 2, id := "Architecture::viewpointComponentParity"}) (cons (record IdEntry {index := 3, id := "Architecture::viewpointComponentPrivacy"}) (cons (record IdEntry {index := 4, id := "Architecture::viewpointContextParity"}) (cons (record IdEntry {index := 5, id := "Architecture::viewpointContextPrivacy"}) (cons (record IdEntry {index := 6, id := "Architecture::viewpointDeploymentAvailability"}) (nil IdEntry))))))))
+}
+
+definition{
+  name: processEntries,
+  parameters: [],
+  result: (List ProcessEntry),
+  body: (cons (record ProcessEntry {id := "Design::processCheck", process := (processCheck)}) (cons (record ProcessEntry {id := "Design::processParse", process := (processParse)}) (cons (record ProcessEntry {id := "Design::processAdmit", process := (processAdmit)}) (cons (record ProcessEntry {id := "Design::processFind", process := (processFind)}) (cons (record ProcessEntry {id := "Design::processCertify", process := (processCertify)}) (cons (record ProcessEntry {id := "Design::processRender", process := (processRender)}) (cons (record ProcessEntry {id := "Design::processDispatch", process := (processDispatch)}) (cons (record ProcessEntry {id := "Design::processSubmit", process := (processSubmit)}) (cons (record ProcessEntry {id := "Design::processShowAccepted", process := (processShowAccepted)}) (cons (record ProcessEntry {id := "Design::processShowRejected", process := (processShowRejected)}) (cons (record ProcessEntry {id := "Design::processShowError", process := (processShowError)}) (nil ProcessEntry))))))))))))
+}
+
+definition{
+  name: stateEntries,
+  parameters: [],
+  result: (List StateEntry),
+  body: (cons (record StateEntry {id := "Design::stateProjectEmpty", state := (stateProjectEmpty)}) (cons (record StateEntry {id := "Design::stateProjectBuilt", state := (stateProjectBuilt)}) (cons (record StateEntry {id := "Design::stateProjectAccepted", state := (stateProjectAccepted)}) (cons (record StateEntry {id := "Design::stateProjectRejected", state := (stateProjectRejected)}) (cons (record StateEntry {id := "Design::statePageIdle", state := (statePageIdle)}) (cons (record StateEntry {id := "Design::statePageChecking", state := (statePageChecking)}) (cons (record StateEntry {id := "Design::statePageAccepted", state := (statePageAccepted)}) (cons (record StateEntry {id := "Design::statePageRejected", state := (statePageRejected)}) (cons (record StateEntry {id := "Design::statePageError", state := (statePageError)}) (nil StateEntry))))))))))
+}
+
+definition{
+  name: viewEntries,
+  parameters: [],
+  result: (List ViewEntry),
+  body: (cons (record ViewEntry {id := "Design::viewOpmCheck", view := (viewOpmCheck)}) (cons (record ViewEntry {id := "Design::viewUmlComponents", view := (viewUmlComponents)}) (cons (record ViewEntry {id := "Design::viewUmlSequence", view := (viewUmlSequence)}) (cons (record ViewEntry {id := "Design::viewUmlPage", view := (viewUmlPage)}) (nil ViewEntry)))))
+}
+
+definition{
+  name: opmThings,
+  parameters: [],
+  result: (List Foundation.Arch::OpmThing),
+  body: (cons (opmThingGuest) (cons (opmThingBrowserView) (cons (opmThingCliAdapter) (cons (opmThingCheck) (cons (opmThingParse) (cons (opmThingAdmit) (cons (opmThingFind) (cons (opmThingCertify) (cons (opmThingRender) (nil Foundation.Arch::OpmThing))))))))))
+}
+
+definition{
+  name: opmStates,
+  parameters: [],
+  result: (List Foundation.Arch::OpmState),
+  body: (cons (opmStateEmpty) (cons (opmStateBuilt) (cons (opmStateAccepted) (cons (opmStateRejected) (nil Foundation.Arch::OpmState)))))
+}
+
+definition{
+  name: opmLinks,
+  parameters: [],
+  result: (List Foundation.Arch::OpmLink),
+  body: (cons (opmLinkBrowserChecks) (cons (opmLinkCliChecks) (cons (opmLinkAdmitBuilds) (cons (opmLinkFindReads) (cons (opmLinkCertifyJudges) (cons (opmLinkRenderBrowser) (cons (opmLinkRenderCli) (cons (opmLinkParseInvokesAdmit) (cons (opmLinkAdmitInvokesFind) (cons (opmLinkFindInvokesCertify) (cons (opmLinkCertifyInvokesRender) (nil Foundation.Arch::OpmLink))))))))))))
+}
+
+definition{
+  name: opmZooms,
+  parameters: [],
+  result: (List Foundation.Arch::OpmZoom),
+  body: (cons (opmZoomParse) (cons (opmZoomAdmit) (cons (opmZoomFind) (cons (opmZoomCertify) (cons (opmZoomRender) (nil Foundation.Arch::OpmZoom))))))
+}
+
+definition{
+  name: umlComponents,
+  parameters: [],
+  result: (List Foundation.Arch::UmlComponent),
+  body: (cons (umlCompGuest) (cons (umlCompBrowserView) (cons (umlCompCliAdapter) (cons (umlCompPagesTarget) (nil Foundation.Arch::UmlComponent)))))
+}
+
+definition{
+  name: umlConnectors,
+  parameters: [],
+  result: (List Foundation.Arch::UmlConnector),
+  body: (cons (umlConnViewRequest) (cons (umlConnViewResponse) (cons (umlConnCliRequest) (cons (umlConnCliResponse) (cons (umlConnPagesServeView) (nil Foundation.Arch::UmlConnector))))))
+}
+
+definition{
+  name: umlLifelines,
+  parameters: [],
+  result: (List Foundation.Arch::UmlLifeline),
+  body: (cons (seqLifeBrowserView) (cons (seqLifeCliAdapter) (cons (seqLifeGuest) (nil Foundation.Arch::UmlLifeline))))
+}
+
+definition{
+  name: umlMessages,
+  parameters: [],
+  result: (List Foundation.Arch::UmlMessage),
+  body: (cons (seqMsgPageRequest) (cons (seqMsgPageCheck) (cons (seqMsgPageReply) (cons (seqMsgCliRequest) (cons (seqMsgCliCheck) (cons (seqMsgCliReply) (nil Foundation.Arch::UmlMessage)))))))
+}
+
+definition{
+  name: umlStates,
+  parameters: [],
+  result: (List Foundation.Arch::UmlState),
+  body: (cons (pageIdle) (cons (pageChecking) (cons (pageAccepted) (cons (pageRejected) (cons (pageError) (nil Foundation.Arch::UmlState))))))
+}
+
+definition{
+  name: umlTransitions,
+  parameters: [],
+  result: (List Foundation.Arch::UmlTransition),
+  body: (cons (pageSubmits) (cons (pageAccepts) (cons (pageRejects) (cons (pageFails) (cons (pageResubmitsAccepted) (cons (pageResubmitsRejected) (cons (pageResubmitsError) (nil Foundation.Arch::UmlTransition))))))))
+}
+
+definition{
+  name: processAnchors,
+  parameters: [],
+  result: (List Anchor),
+  body: (cons (record Anchor {id := "Design::processCheck", claim := (record Architecture::Claim {module := "Specification", name := "dispatchText", kind := "definition"})}) (cons (record Anchor {id := "Design::processParse", claim := (record Architecture::Claim {module := "Interaction", name := "parseLine", kind := "definition"})}) (cons (record Anchor {id := "Design::processAdmit", claim := (record Architecture::Claim {module := "Interaction", name := "applyIntent", kind := "definition"})}) (cons (record Anchor {id := "Design::processFind", claim := (record Architecture::Claim {module := "Compliance", name := "findings", kind := "definition"})}) (cons (record Anchor {id := "Design::processCertify", claim := (record Architecture::Claim {module := "Engine", name := "certify", kind := "definition"})}) (cons (record Anchor {id := "Design::processRender", claim := (record Architecture::Claim {module := "Engine", name := "outcomeText", kind := "definition"})}) (cons (record Anchor {id := "Design::processDispatch", claim := (record Architecture::Claim {module := "Specification", name := "dispatch", kind := "definition"})}) (cons (record Anchor {id := "Design::processSubmit", claim := (record Architecture::Claim {module := "Specification", name := "dispatch", kind := "definition"})}) (cons (record Anchor {id := "Design::processShowAccepted", claim := (record Architecture::Claim {module := "Workbench", name := "statusTexts", kind := "definition"})}) (cons (record Anchor {id := "Design::processShowRejected", claim := (record Architecture::Claim {module := "Workbench", name := "statusTexts", kind := "definition"})}) (cons (record Anchor {id := "Design::processShowError", claim := (record Architecture::Claim {module := "Workbench", name := "statusTexts", kind := "definition"})}) (nil Anchor))))))))))))
+}
+
+definition{
+  name: stateAnchors,
+  parameters: [],
+  result: (List Anchor),
+  body: (cons (record Anchor {id := "Design::stateProjectEmpty", claim := (record Architecture::Claim {module := "Core", name := "emptyProject", kind := "definition"})}) (cons (record Anchor {id := "Design::stateProjectBuilt", claim := (record Architecture::Claim {module := "Interaction", name := "applyIntent", kind := "definition"})}) (cons (record Anchor {id := "Design::stateProjectAccepted", claim := (record Architecture::Claim {module := "Engine", name := "Outcome", kind := "inductive"})}) (cons (record Anchor {id := "Design::stateProjectRejected", claim := (record Architecture::Claim {module := "Engine", name := "Outcome", kind := "inductive"})}) (cons (record Anchor {id := "Design::statePageIdle", claim := (record Architecture::Claim {module := "Workbench", name := "workbench", kind := "definition"})}) (cons (record Anchor {id := "Design::statePageChecking", claim := (record Architecture::Claim {module := "Workbench", name := "statusTexts", kind := "definition"})}) (cons (record Anchor {id := "Design::statePageAccepted", claim := (record Architecture::Claim {module := "Workbench", name := "statusTexts", kind := "definition"})}) (cons (record Anchor {id := "Design::statePageRejected", claim := (record Architecture::Claim {module := "Workbench", name := "statusTexts", kind := "definition"})}) (cons (record Anchor {id := "Design::statePageError", claim := (record Architecture::Claim {module := "Workbench", name := "statusTexts", kind := "definition"})}) (nil Anchor))))))))))
+}
+
+definition{
+  name: strMember,
+  parameters: [value : String, values : (List String)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head rest => ((prim equal value head : Bool) || (strMember value rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: allStrMember,
+  parameters: [wanted : (List String), values : (List String)],
+  result: Bool,
+  body: (match wanted
+    | List.nil => true
+    | List.cons head rest => ((strMember head values) && (allStrMember rest values))),
+  recursive_argument: wanted
+}
+
+definition{
+  name: noRepeats,
+  parameters: [values : (List String)],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons head rest => (if (strMember head rest) then false else (noRepeats rest))),
+  recursive_argument: values
+}
+
+structure{
+  name: PairKey,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: left, type: String}, {name: right, type: String}]
+}
+
+structure{
+  name: TripleKey,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: one, type: String}, {name: two, type: String}, {name: three, type: String}]
+}
+
+definition{
+  name: key2,
+  parameters: [left : String, right : String],
+  result: PairKey,
+  body: (record PairKey {left := left, right := right})
+}
+
+definition{
+  name: key3,
+  parameters: [one : String, two : String, three : String],
+  result: TripleKey,
+  body: (record TripleKey {one := one, two := two, three := three})
+}
+
+definition{
+  name: pairMember,
+  parameters: [value : PairKey, values : (List PairKey)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head rest => (((prim equal (project value left) (project head left) : Bool) && (prim equal (project value right) (project head right) : Bool)) || (pairMember value rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: pairsDistinct,
+  parameters: [values : (List PairKey)],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons head rest => (if (pairMember head rest) then false else (pairsDistinct rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: tripleMember,
+  parameters: [value : TripleKey, values : (List TripleKey)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head rest => (((prim equal (project value one) (project head one) : Bool) && ((prim equal (project value two) (project head two) : Bool) && (prim equal (project value three) (project head three) : Bool))) || (tripleMember value rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: triplesDistinct,
+  parameters: [values : (List TripleKey)],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons head rest => (if (tripleMember head rest) then false else (triplesDistinct rest))),
+  recursive_argument: values
+}
+
+definition{
+  name: differ,
+  parameters: [left : String, right : String],
+  result: Bool,
+  body: (if (prim equal left right : Bool) then false else true)
+}
+
+definition{
+  name: differNat,
+  parameters: [left : Nat, right : Nat],
+  result: Bool,
+  body: (if (left =? right) then false else true)
+}
+
+definition{
+  name: idsOf,
+  parameters: [entries : (List IdEntry)],
+  result: (List String),
+  body: (match entries
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head id) (idsOf rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: entryIndexes,
+  parameters: [entries : (List IdEntry)],
+  result: (List Nat),
+  body: (match entries
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (entryIndexes rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: idAt,
+  parameters: [wanted : Nat, entries : (List IdEntry)],
+  result: String,
+  body: (match entries
+    | List.nil => ""
+    | List.cons head rest => (if ((project head index) =? wanted) then (project head id) else (idAt wanted rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: componentIds,
+  parameters: [],
+  result: (List String),
+  body: (idsOf (componentTable))
+}
+
+definition{
+  name: edgeFlows,
+  parameters: [origin : String, dest : String, edges : (List Foundation.Arch::Edge)],
+  result: Bool,
+  body: (match edges
+    | List.nil => false
+    | List.cons head rest => (((prim equal (idAt (project head fromIndex) (componentTable)) origin : Bool) && (prim equal (idAt (project head toIndex) (componentTable)) dest : Bool)) || (edgeFlows origin dest rest))),
+  recursive_argument: edges
+}
+
+definition{
+  name: flows,
+  parameters: [origin : String, dest : String],
+  result: Bool,
+  body: (edgeFlows origin dest (Architecture::edgeRecords))
+}
+
+definition{
+  name: connected,
+  parameters: [left : String, right : String],
+  result: Bool,
+  body: ((flows left right) || (flows right left))
+}
+
+definition{
+  name: edgeEnds,
+  parameters: [wanted : Nat, edges : (List Foundation.Arch::Edge), shown : (List String)],
+  result: Bool,
+  body: (match edges
+    | List.nil => false
+    | List.cons head rest => (if ((project head index) =? wanted) then ((strMember (idAt (project head fromIndex) (componentTable)) shown) && (strMember (idAt (project head toIndex) (componentTable)) shown)) else (edgeEnds wanted rest shown))),
+  recursive_argument: edges
+}
+
+definition{
+  name: edgeBound,
+  parameters: [wanted : String, table : (List IdEntry), shown : (List String)],
+  result: Bool,
+  body: (match table
+    | List.nil => false
+    | List.cons head rest => (if (prim equal wanted (project head id) : Bool) then (edgeEnds (project head index) (Architecture::edgeRecords) shown) else (edgeBound wanted rest shown))),
+  recursive_argument: table
+}
+
+definition{
+  name: processIds,
+  parameters: [entries : (List ProcessEntry)],
+  result: (List String),
+  body: (match entries
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head id) (processIds rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: stateIds,
+  parameters: [entries : (List StateEntry)],
+  result: (List String),
+  body: (match entries
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head id) (stateIds rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: viewIds,
+  parameters: [entries : (List ViewEntry)],
+  result: (List String),
+  body: (match entries
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head id) (viewIds rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: processOwner,
+  parameters: [wanted : String, entries : (List ProcessEntry)],
+  result: String,
+  body: (match entries
+    | List.nil => ""
+    | List.cons head rest => (if (prim equal wanted (project head id) : Bool) then (project (project head process) owner) else (processOwner wanted rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: stateOwner,
+  parameters: [wanted : String, entries : (List StateEntry)],
+  result: String,
+  body: (match entries
+    | List.nil => ""
+    | List.cons head rest => (if (prim equal wanted (project head id) : Bool) then (project (project head state) owner) else (stateOwner wanted rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: ownedProcesses,
+  parameters: [entries : (List ProcessEntry)],
+  result: Bool,
+  body: (match entries
+    | List.nil => true
+    | List.cons head rest => ((strMember (project (project head process) owner) (componentIds)) && (ownedProcesses rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: ownedStates,
+  parameters: [entries : (List StateEntry)],
+  result: Bool,
+  body: (match entries
+    | List.nil => true
+    | List.cons head rest => ((strMember (project (project head state) owner) (componentIds)) && (ownedStates rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: ownersKnown,
+  parameters: [],
+  result: Bool,
+  body: ((ownedProcesses (processEntries)) && (ownedStates (stateEntries)))
+}
+
+definition{
+  name: diagramCode,
+  parameters: [diagram : Foundation.Arch::DesignDiagram],
+  result: Nat,
+  body: (match diagram
+    | Foundation.Arch::DesignDiagram.opmObjectProcess => 0
+    | Foundation.Arch::DesignDiagram.umlComponent => 1
+    | Foundation.Arch::DesignDiagram.umlSequence => 2
+    | Foundation.Arch::DesignDiagram.umlStateMachine => 3)
+}
+
+definition{
+  name: viewOfKind,
+  parameters: [wanted : String, code : Nat, entries : (List ViewEntry)],
+  result: Bool,
+  body: (match entries
+    | List.nil => false
+    | List.cons head rest => (((prim equal wanted (project head id) : Bool) && ((diagramCode (project (project head view) diagram)) =? code)) || (viewOfKind wanted code rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: designViewsConform,
+  parameters: [entries : (List ViewEntry)],
+  result: Bool,
+  body: (match entries
+    | List.nil => true
+    | List.cons head rest => ((strMember (project (project head view) viewpoint) (idsOf (viewpointTable))) && (designViewsConform rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: edgeRecordIndexes,
+  parameters: [records : (List Foundation.Arch::Edge)],
+  result: (List Nat),
+  body: (match records
+    | List.nil => (nil Nat)
+    | List.cons head rest => (cons (project head index) (edgeRecordIndexes rest))),
+  recursive_argument: records
+}
+
+definition{
+  name: tablesAligned,
+  parameters: [],
+  result: Bool,
+  body: ((Architecture::sameNats (entryIndexes (componentTable)) (Architecture::componentIndexes (Architecture::componentRecords))) && ((Architecture::sameNats (entryIndexes (edgeTable)) (edgeRecordIndexes (Architecture::edgeRecords))) && (Architecture::sameNats (entryIndexes (viewpointTable)) (Architecture::viewpointIndexes (Architecture::viewpointRecords)))))
+}
+
+definition{
+  name: kindCode,
+  parameters: [kind : Foundation.Arch::OpmThingKind],
+  result: Nat,
+  body: (match kind
+    | Foundation.Arch::OpmThingKind.object => 1
+    | Foundation.Arch::OpmThingKind.process => 2)
+}
+
+definition{
+  name: thingCode,
+  parameters: [view : String, name : String, things : (List Foundation.Arch::OpmThing)],
+  result: Nat,
+  body: (match things
+    | List.nil => 0
+    | List.cons head rest => (if ((prim equal view (project head view) : Bool) && (prim equal name (project head subject) : Bool)) then (kindCode (project head kind)) else (thingCode view name rest))),
+  recursive_argument: things
+}
+
+definition{
+  name: thingKeys,
+  parameters: [things : (List Foundation.Arch::OpmThing)],
+  result: (List PairKey),
+  body: (match things
+    | List.nil => (nil PairKey)
+    | List.cons head rest => (cons (key2 (project head view) (project head subject)) (thingKeys rest))),
+  recursive_argument: things
+}
+
+definition{
+  name: thingsResolve,
+  parameters: [things : (List Foundation.Arch::OpmThing)],
+  result: Bool,
+  body: (match things
+    | List.nil => true
+    | List.cons head rest => ((viewOfKind (project head view) 0 (viewEntries)) && ((match (project head kind)
+      | Foundation.Arch::OpmThingKind.object => (strMember (project head subject) (componentIds))
+      | Foundation.Arch::OpmThingKind.process => (strMember (project head subject) (processIds (processEntries)))) && (thingsResolve rest)))),
+  recursive_argument: things
+}
+
+definition{
+  name: statesResolve,
+  parameters: [states : (List Foundation.Arch::OpmState)],
+  result: Bool,
+  body: (match states
+    | List.nil => true
+    | List.cons head rest => ((viewOfKind (project head view) 0 (viewEntries)) && (((thingCode (project head view) (project head thing) (opmThings)) =? 1) && ((strMember (project head state) (stateIds (stateEntries))) && ((prim equal (stateOwner (project head state) (stateEntries)) (project head thing) : Bool) && (statesResolve rest)))))),
+  recursive_argument: states
+}
+
+definition{
+  name: stateKeys,
+  parameters: [states : (List Foundation.Arch::OpmState)],
+  result: (List TripleKey),
+  body: (match states
+    | List.nil => (nil TripleKey)
+    | List.cons head rest => (cons (key3 (project head view) (project head thing) (project head state)) (stateKeys rest))),
+  recursive_argument: states
+}
+
+definition{
+  name: linkShaped,
+  parameters: [
+    kind : Foundation.Arch::OpmLinkKind,
+    source : String,
+    target : String,
+    left : Nat,
+    right : Nat
+  ],
+  result: Bool,
+  body: (match kind
+    | Foundation.Arch::OpmLinkKind.agent => ((left =? 1) && (right =? 2))
+    | Foundation.Arch::OpmLinkKind.instrument => ((left =? 1) && (right =? 2))
+    | Foundation.Arch::OpmLinkKind.consumption => ((left =? 1) && (right =? 2))
+    | Foundation.Arch::OpmLinkKind.effect => ((left =? 1) && (right =? 2))
+    | Foundation.Arch::OpmLinkKind.result => ((left =? 2) && (right =? 1))
+    | Foundation.Arch::OpmLinkKind.invocation => ((left =? 2) && (right =? 2))
+    | Foundation.Arch::OpmLinkKind.aggregation => ((left =? right) && ((differNat left 0) && (differ source target)))
+    | Foundation.Arch::OpmLinkKind.exhibition => ((differNat left 0) && ((differNat right 0) && (differ source target)))
+    | Foundation.Arch::OpmLinkKind.generalization => ((left =? right) && ((differNat left 0) && (differ source target)))
+    | Foundation.Arch::OpmLinkKind.classification => ((left =? right) && ((differNat left 0) && (differ source target))))
+}
+
+definition{
+  name: processBacked,
+  parameters: [step : String, owner : String],
+  result: Bool,
+  body: ((prim equal (processOwner step (processEntries)) owner : Bool) || (connected owner (processOwner step (processEntries))))
+}
+
+definition{
+  name: linkBacked,
+  parameters: [kind : Foundation.Arch::OpmLinkKind, source : String, target : String, left : Nat],
+  result: Bool,
+  body: (match kind
+    | Foundation.Arch::OpmLinkKind.agent => (if (left =? 1) then (processBacked target source) else (processBacked source target))
+    | Foundation.Arch::OpmLinkKind.instrument => (if (left =? 1) then (processBacked target source) else (processBacked source target))
+    | Foundation.Arch::OpmLinkKind.consumption => (if (left =? 1) then (processBacked target source) else (processBacked source target))
+    | Foundation.Arch::OpmLinkKind.effect => (if (left =? 1) then (processBacked target source) else (processBacked source target))
+    | Foundation.Arch::OpmLinkKind.result => (if (left =? 1) then (processBacked target source) else (processBacked source target))
+    | Foundation.Arch::OpmLinkKind.invocation => ((prim equal (processOwner source (processEntries)) (processOwner target (processEntries)) : Bool) || (flows (processOwner source (processEntries)) (processOwner target (processEntries))))
+    | Foundation.Arch::OpmLinkKind.aggregation => true
+    | Foundation.Arch::OpmLinkKind.exhibition => true
+    | Foundation.Arch::OpmLinkKind.generalization => true
+    | Foundation.Arch::OpmLinkKind.classification => true)
+}
+
+definition{
+  name: linkKeyKind,
+  parameters: [kind : Foundation.Arch::OpmLinkKind],
+  result: String,
+  body: (match kind
+    | Foundation.Arch::OpmLinkKind.agent => "agent"
+    | Foundation.Arch::OpmLinkKind.instrument => "instrument"
+    | Foundation.Arch::OpmLinkKind.consumption => "consumption"
+    | Foundation.Arch::OpmLinkKind.effect => "effect"
+    | Foundation.Arch::OpmLinkKind.result => "result"
+    | Foundation.Arch::OpmLinkKind.invocation => "invocation"
+    | Foundation.Arch::OpmLinkKind.aggregation => "aggregation"
+    | Foundation.Arch::OpmLinkKind.exhibition => "exhibition"
+    | Foundation.Arch::OpmLinkKind.generalization => "generalization"
+    | Foundation.Arch::OpmLinkKind.classification => "classification")
+}
+
+definition{
+  name: linksResolve,
+  parameters: [links : (List Foundation.Arch::OpmLink)],
+  result: Bool,
+  body: (match links
+    | List.nil => true
+    | List.cons head rest => ((viewOfKind (project head view) 0 (viewEntries)) && ((linkShaped (project head kind) (project head source) (project head target) (thingCode (project head view) (project head source) (opmThings)) (thingCode (project head view) (project head target) (opmThings))) && ((linkBacked (project head kind) (project head source) (project head target) (thingCode (project head view) (project head source) (opmThings))) && (linksResolve rest))))),
+  recursive_argument: links
+}
+
+definition{
+  name: linkKeys,
+  parameters: [links : (List Foundation.Arch::OpmLink)],
+  result: (List TripleKey),
+  body: (match links
+    | List.nil => (nil TripleKey)
+    | List.cons head rest => (cons (key3 (linkKeyKind (project head kind)) (project head source) (project head target)) (linkKeys rest))),
+  recursive_argument: links
+}
+
+definition{
+  name: zoomsResolve,
+  parameters: [zooms : (List Foundation.Arch::OpmZoom)],
+  result: Bool,
+  body: (match zooms
+    | List.nil => true
+    | List.cons head rest => ((viewOfKind (project head view) 0 (viewEntries)) && (((thingCode (project head view) (project head process) (opmThings)) =? 2) && (((thingCode (project head view) (project head subprocess) (opmThings)) =? 2) && ((differ (project head process) (project head subprocess)) && (zoomsResolve rest)))))),
+  recursive_argument: zooms
+}
+
+definition{
+  name: zoomClash,
+  parameters: [head : Foundation.Arch::OpmZoom, rest : (List Foundation.Arch::OpmZoom)],
+  result: Bool,
+  body: (match rest
+    | List.nil => false
+    | List.cons other more => ((((prim equal (project head view) (project other view) : Bool) && (prim equal (project head process) (project other process) : Bool)) && ((project head order) =? (project other order))) || (zoomClash head more))),
+  recursive_argument: rest
+}
+
+definition{
+  name: zoomPositionsFree,
+  parameters: [zooms : (List Foundation.Arch::OpmZoom)],
+  result: Bool,
+  body: (match zooms
+    | List.nil => true
+    | List.cons head rest => (if (zoomClash head rest) then false else (zoomPositionsFree rest))),
+  recursive_argument: zooms
+}
+
+definition{
+  name: zoomChildren,
+  parameters: [zooms : (List Foundation.Arch::OpmZoom)],
+  result: (List PairKey),
+  body: (match zooms
+    | List.nil => (nil PairKey)
+    | List.cons head rest => (cons (key2 (project head view) (project head subprocess)) (zoomChildren rest))),
+  recursive_argument: zooms
+}
+
+definition{
+  name: zoomSubprocesses,
+  parameters: [zooms : (List Foundation.Arch::OpmZoom)],
+  result: (List String),
+  body: (match zooms
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head subprocess) (zoomSubprocesses rest))),
+  recursive_argument: zooms
+}
+
+definition{
+  name: opmResolves,
+  parameters: [],
+  result: Bool,
+  body: ((thingsResolve (opmThings)) && ((pairsDistinct (thingKeys (opmThings))) && ((statesResolve (opmStates)) && ((triplesDistinct (stateKeys (opmStates))) && ((linksResolve (opmLinks)) && ((triplesDistinct (linkKeys (opmLinks))) && ((zoomsResolve (opmZooms)) && ((zoomPositionsFree (opmZooms)) && (pairsDistinct (zoomChildren (opmZooms)))))))))))
+}
+
+definition{
+  name: componentsShown,
+  parameters: [view : String, rows : (List Foundation.Arch::UmlComponent)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head rest => (if (prim equal view (project head view) : Bool) then (cons (project head component) (componentsShown view rest)) else (componentsShown view rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: componentRowsResolve,
+  parameters: [rows : (List Foundation.Arch::UmlComponent)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((viewOfKind (project head view) 1 (viewEntries)) && ((strMember (project head component) (componentIds)) && (componentRowsResolve rest)))),
+  recursive_argument: rows
+}
+
+definition{
+  name: componentRowKeys,
+  parameters: [rows : (List Foundation.Arch::UmlComponent)],
+  result: (List PairKey),
+  body: (match rows
+    | List.nil => (nil PairKey)
+    | List.cons head rest => (cons (key2 (project head view) (project head component)) (componentRowKeys rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: connectorsResolve,
+  parameters: [rows : (List Foundation.Arch::UmlConnector)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((viewOfKind (project head view) 1 (viewEntries)) && ((edgeBound (project head edge) (edgeTable) (componentsShown (project head view) (umlComponents))) && (connectorsResolve rest)))),
+  recursive_argument: rows
+}
+
+definition{
+  name: connectorKeys,
+  parameters: [rows : (List Foundation.Arch::UmlConnector)],
+  result: (List PairKey),
+  body: (match rows
+    | List.nil => (nil PairKey)
+    | List.cons head rest => (cons (key2 (project head view) (project head edge)) (connectorKeys rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: componentViewResolves,
+  parameters: [],
+  result: Bool,
+  body: ((componentRowsResolve (umlComponents)) && ((pairsDistinct (componentRowKeys (umlComponents))) && ((connectorsResolve (umlConnectors)) && (pairsDistinct (connectorKeys (umlConnectors))))))
+}
+
+definition{
+  name: lifelinesOf,
+  parameters: [view : String, rows : (List Foundation.Arch::UmlLifeline)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head rest => (if (prim equal view (project head view) : Bool) then (cons (project head component) (lifelinesOf view rest)) else (lifelinesOf view rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: lifelinesResolve,
+  parameters: [rows : (List Foundation.Arch::UmlLifeline)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((viewOfKind (project head view) 2 (viewEntries)) && ((strMember (project head component) (componentIds)) && (lifelinesResolve rest)))),
+  recursive_argument: rows
+}
+
+definition{
+  name: lifelineKeys,
+  parameters: [rows : (List Foundation.Arch::UmlLifeline)],
+  result: (List PairKey),
+  body: (match rows
+    | List.nil => (nil PairKey)
+    | List.cons head rest => (cons (key2 (project head view) (project head component)) (lifelineKeys rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: lifelineClash,
+  parameters: [head : Foundation.Arch::UmlLifeline, rest : (List Foundation.Arch::UmlLifeline)],
+  result: Bool,
+  body: (match rest
+    | List.nil => false
+    | List.cons other more => (((prim equal (project head view) (project other view) : Bool) && ((project head order) =? (project other order))) || (lifelineClash head more))),
+  recursive_argument: rest
+}
+
+definition{
+  name: lifelinePositionsFree,
+  parameters: [rows : (List Foundation.Arch::UmlLifeline)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => (if (lifelineClash head rest) then false else (lifelinePositionsFree rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: callerOf,
+  parameters: [row : Foundation.Arch::UmlMessage],
+  result: String,
+  body: (match (project row kind)
+    | Foundation.Arch::UmlMessageKind.synchronous => (project row source)
+    | Foundation.Arch::UmlMessageKind.asynchronous => (project row source)
+    | Foundation.Arch::UmlMessageKind.reply => (project row target))
+}
+
+definition{
+  name: calleeOf,
+  parameters: [row : Foundation.Arch::UmlMessage],
+  result: String,
+  body: (match (project row kind)
+    | Foundation.Arch::UmlMessageKind.synchronous => (project row target)
+    | Foundation.Arch::UmlMessageKind.asynchronous => (project row target)
+    | Foundation.Arch::UmlMessageKind.reply => (project row source))
+}
+
+definition{
+  name: messagesResolve,
+  parameters: [rows : (List Foundation.Arch::UmlMessage)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((viewOfKind (project head view) 2 (viewEntries)) && ((strMember (project head source) (lifelinesOf (project head view) (umlLifelines))) && ((strMember (project head target) (lifelinesOf (project head view) (umlLifelines))) && ((strMember (project head process) (processIds (processEntries))) && ((prim equal (processOwner (project head process) (processEntries)) (calleeOf head) : Bool) && (((prim equal (callerOf head) (calleeOf head) : Bool) || (flows (callerOf head) (calleeOf head))) && (messagesResolve rest)))))))),
+  recursive_argument: rows
+}
+
+definition{
+  name: messageClash,
+  parameters: [head : Foundation.Arch::UmlMessage, rest : (List Foundation.Arch::UmlMessage)],
+  result: Bool,
+  body: (match rest
+    | List.nil => false
+    | List.cons other more => (((prim equal (project head view) (project other view) : Bool) && ((project head order) =? (project other order))) || (messageClash head more))),
+  recursive_argument: rest
+}
+
+definition{
+  name: messagePositionsFree,
+  parameters: [rows : (List Foundation.Arch::UmlMessage)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => (if (messageClash head rest) then false else (messagePositionsFree rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: sequenceResolves,
+  parameters: [],
+  result: Bool,
+  body: ((lifelinesResolve (umlLifelines)) && ((pairsDistinct (lifelineKeys (umlLifelines))) && ((lifelinePositionsFree (umlLifelines)) && ((messagesResolve (umlMessages)) && (messagePositionsFree (umlMessages))))))
+}
+
+definition{
+  name: machineStates,
+  parameters: [view : String, rows : (List Foundation.Arch::UmlState)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head rest => (if (prim equal view (project head view) : Bool) then (cons (project head state) (machineStates view rest)) else (machineStates view rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: machineOwner,
+  parameters: [view : String, rows : (List Foundation.Arch::UmlState)],
+  result: String,
+  body: (match rows
+    | List.nil => ""
+    | List.cons head rest => (if (prim equal view (project head view) : Bool) then (stateOwner (project head state) (stateEntries)) else (machineOwner view rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: initialStates,
+  parameters: [view : String, rows : (List Foundation.Arch::UmlState)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head rest => (if ((prim equal view (project head view) : Bool) && (project head initial)) then (cons (project head state) (initialStates view rest)) else (initialStates view rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: exactlyOne,
+  parameters: [values : (List String)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head rest => (match rest | List.nil => true | List.cons other more => false))
+}
+
+definition{
+  name: machineStatesResolve,
+  parameters: [rows : (List Foundation.Arch::UmlState)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((viewOfKind (project head view) 3 (viewEntries)) && ((strMember (project head state) (stateIds (stateEntries))) && ((prim equal (stateOwner (project head state) (stateEntries)) (machineOwner (project head view) (umlStates)) : Bool) && ((exactlyOne (initialStates (project head view) (umlStates))) && (machineStatesResolve rest)))))),
+  recursive_argument: rows
+}
+
+definition{
+  name: machineStateKeys,
+  parameters: [rows : (List Foundation.Arch::UmlState)],
+  result: (List PairKey),
+  body: (match rows
+    | List.nil => (nil PairKey)
+    | List.cons head rest => (cons (key2 (project head view) (project head state)) (machineStateKeys rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: transitionsResolve,
+  parameters: [rows : (List Foundation.Arch::UmlTransition)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => ((viewOfKind (project head view) 3 (viewEntries)) && ((strMember (project head source) (machineStates (project head view) (umlStates))) && ((strMember (project head target) (machineStates (project head view) (umlStates))) && ((strMember (project head trigger) (processIds (processEntries))) && ((prim equal (processOwner (project head trigger) (processEntries)) (machineOwner (project head view) (umlStates)) : Bool) && (transitionsResolve rest))))))),
+  recursive_argument: rows
+}
+
+definition{
+  name: transitionClash,
+  parameters: [head : Foundation.Arch::UmlTransition, rest : (List Foundation.Arch::UmlTransition)],
+  result: Bool,
+  body: (match rest
+    | List.nil => false
+    | List.cons other more => (((prim equal (project head view) (project other view) : Bool) && ((project head order) =? (project other order))) || (transitionClash head more))),
+  recursive_argument: rest
+}
+
+definition{
+  name: transitionPositionsFree,
+  parameters: [rows : (List Foundation.Arch::UmlTransition)],
+  result: Bool,
+  body: (match rows
+    | List.nil => true
+    | List.cons head rest => (if (transitionClash head rest) then false else (transitionPositionsFree rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: stateMachineResolves,
+  parameters: [],
+  result: Bool,
+  body: ((machineStatesResolve (umlStates)) && ((pairsDistinct (machineStateKeys (umlStates))) && ((transitionsResolve (umlTransitions)) && (transitionPositionsFree (umlTransitions)))))
+}
+
+definition{
+  name: anchorIds,
+  parameters: [rows : (List Anchor)],
+  result: (List String),
+  body: (match rows
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (project head id) (anchorIds rest))),
+  recursive_argument: rows
+}
+
+definition{
+  name: anchorsCover,
+  parameters: [],
+  result: Bool,
+  body: ((allStrMember (processIds (processEntries)) (anchorIds (processAnchors))) && ((allStrMember (anchorIds (processAnchors)) (processIds (processEntries))) && ((allStrMember (stateIds (stateEntries)) (anchorIds (stateAnchors))) && (allStrMember (anchorIds (stateAnchors)) (stateIds (stateEntries))))))
+}
+
+definition{
+  name: designValid,
+  parameters: [],
+  result: Bool,
+  body: ((tablesAligned) && ((ownersKnown) && ((noRepeats (processIds (processEntries))) && ((noRepeats (stateIds (stateEntries))) && ((noRepeats (viewIds (viewEntries))) && ((designViewsConform (viewEntries)) && ((opmResolves) && ((componentViewResolves) && ((sequenceResolves) && ((stateMachineResolves) && (anchorsCover)))))))))))
+}
+
+theorem{name: designViewsHold, parameters: [], statement: ((designValid) = true), proof: decide{}}
+
+definition{
+  name: plantedThing,
+  parameters: [],
+  result: Foundation.Arch::OpmThing,
+  body: (record Foundation.Arch::OpmThing {view := "Design::viewOpmCheck", kind := (ctor Foundation.Arch::OpmThingKind.object), subject := "Architecture::componentNoSuch"})
+}
+
+definition{
+  name: plantedConnector,
+  parameters: [],
+  result: Foundation.Arch::UmlConnector,
+  body: (record Foundation.Arch::UmlConnector {view := "Design::viewUmlComponents", edge := "Architecture::edgeNoSuch"})
+}
+
+definition{
+  name: plantedTransition,
+  parameters: [],
+  result: Foundation.Arch::UmlTransition,
+  body: (record Foundation.Arch::UmlTransition {view := "Design::viewUmlPage", order := 7, source := "Design::statePageIdle", target := "Design::statePageChecking", trigger := "Design::processParse"})
+}
+
+theorem{
+  name: unknownComponentRefused,
+  parameters: [],
+  statement: ((thingsResolve (cons (plantedThing) (nil Foundation.Arch::OpmThing))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: unknownEdgeRefused,
+  parameters: [],
+  statement: ((connectorsResolve (cons (plantedConnector) (nil Foundation.Arch::UmlConnector))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: foreignTriggerRefused,
+  parameters: [],
+  statement: ((transitionsResolve (cons (plantedTransition) (nil Foundation.Arch::UmlTransition))) = false),
+  proof: decide{}
+}
+
+theorem{
+  name: zoomOrderIsPipeline,
+  parameters: [],
+  statement: ((zoomSubprocesses (opmZooms)) = (cons "Design::processParse" (cons "Design::processAdmit" (cons "Design::processFind" (cons "Design::processCertify" (cons "Design::processRender" (nil String))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: pageStatesAreFive,
+  parameters: [],
+  statement: ((machineStates "Design::viewUmlPage" (umlStates)) = (cons "Design::statePageIdle" (cons "Design::statePageChecking" (cons "Design::statePageAccepted" (cons "Design::statePageRejected" (cons "Design::statePageError" (nil String))))))),
+  proof: decide{}
+}
+
+theorem{
+  name: componentViewShowsFour,
+  parameters: [],
+  statement: ((componentsShown "Design::viewUmlComponents" (umlComponents)) = (cons "Architecture::componentCoreWasmGuest" (cons "Architecture::componentBrowserView" (cons "Architecture::componentCliAdapter" (cons "Architecture::componentPagesTarget" (nil String)))))),
+  proof: decide{}
+}
+\end{semanticmodule}
+\end{lexlean}

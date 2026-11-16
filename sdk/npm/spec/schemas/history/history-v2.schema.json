@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.uor.foundation/prism/history/2",
+  "title": "HistoryV2",
+  "description": "A history of sessions: the ordered steps of one or more sessions of an application whose guest is the session world hologram:guest/core-wasm@2, each step with the responses it returned. A session starts with an empty state on a fresh instance, so its responses are a function of its ordered requests; a failure ends the session and is its last record. Replay re-executes every session on a fresh instance and compares outcomes byte for byte. Its digests cover its canonical JSON with no trailing newline. prism/history/1 keeps its meaning for the stateless world. Design: docs/proposals/629-session-world.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "application",
+    "sessions"
+  ],
+  "properties": {
+    "schema": {
+      "const": "prism/history/2"
+    },
+    "application": {
+      "description": "The name of the application when it was recorded, or null. Information for a person; replay never compares it.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recordedFrom": {
+      "description": "The build the history was recorded from. Information for a person; replay never compares it, because the point of a replay is to run a different build.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guest",
+        "model"
+      ],
+      "properties": {
+        "guest": {
+          "$ref": "#/$defs/PrismDigestSet"
+        },
+        "model": {
+          "$ref": "#/$defs/PrismDigestSet"
+        }
+      }
+    },
+    "sessions": {
+      "description": "The sessions in the order they were recorded. A history of nothing proves nothing, so at least one is required.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Session"
+      }
+    }
+  },
+  "$defs": {
+    "Session": {
+      "description": "One session: its steps in order, and the failure that ended it, if one did. A session records at least one step or a failure.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "steps"
+      ],
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Step"
+          }
+        },
+        "failure": {
+          "$ref": "#/$defs/Failure"
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "steps": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "required": [
+            "failure"
+          ]
+        }
+      ]
+    },
+    "Step": {
+      "description": "A step that returned: its request and the responses it returned, in order. A step may return no response.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request",
+        "responses"
+      ],
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/Hex"
+        },
+        "responses": {
+          "type": "array",
+          "maxItems": 65535,
+          "items": {
+            "$ref": "#/$defs/Hex"
+          }
+        }
+      }
+    },
+    "Failure": {
+      "description": "The step that ended the session in a refusal or a trap, named by its stable code. No step follows it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request",
+        "error"
+      ],
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/Hex"
+        },
+        "error": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*(\\.[a-z0-9-]+)+$"
+        }
+      }
+    },
+    "Hex": {
+      "description": "Bytes as lowercase hex, two characters each. Hex has one spelling per value, so a digest has one meaning.",
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$"
+    },
+    "PrismDigestSet": {
+      "description": "sha256, the κ of the bytes (ADR-017); blake3 beside it only in statements and documents about a v4 holo (ADR-015). Lowercase hex.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256"
+      ],
+      "properties": {
+        "blake3": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

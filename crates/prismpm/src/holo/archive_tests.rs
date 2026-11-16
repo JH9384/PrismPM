@@ -35,7 +35,7 @@ fn modeled_wire_matches_independent_frozen_upstream_bytes() {
     let fixture = oracle();
     for label in fixture["labels"].as_array().unwrap() {
         assert_eq!(
-            content_kappa(&hex_field(label, "bytes_hex")),
+            v4_label(&hex_field(label, "bytes_hex")),
             label["kappa"].as_str().unwrap()
         );
     }
@@ -45,7 +45,7 @@ fn modeled_wire_matches_independent_frozen_upstream_bytes() {
         hex_field(&fixture["empty_capabilities"], "bytes_hex")
     );
     assert_eq!(
-        content_kappa(&capabilities),
+        v4_label(&capabilities),
         fixture["empty_capabilities"]["kappa"].as_str().unwrap()
     );
     let refs = fixture["manifest"]["references"].as_array().unwrap();
@@ -57,7 +57,7 @@ fn modeled_wire_matches_independent_frozen_upstream_bytes() {
     .unwrap();
     assert_eq!(manifest, hex_field(&fixture["manifest"], "bytes_hex"));
     assert_eq!(
-        content_kappa(&manifest),
+        v4_label(&manifest),
         fixture["manifest"]["kappa"].as_str().unwrap()
     );
     let inputs = &fixture["archive_inputs"];
@@ -78,7 +78,7 @@ fn modeled_wire_matches_independent_frozen_upstream_bytes() {
     let archive = seal(body);
     assert_eq!(archive, hex_field(&fixture["archive"], "bytes_hex"));
     assert_eq!(
-        content_kappa(&archive),
+        v4_label(&archive),
         fixture["archive"]["kappa"].as_str().unwrap()
     );
     let decoded = decode_wire_archive(&archive).unwrap();
@@ -180,12 +180,13 @@ fn application_input() -> ApplicationArchiveInput {
             view_model_id: digest.clone(),
             browser_projection_sha256: digest,
         },
+        basis: None,
     }
 }
 
 #[test]
 fn public_archive_validation_distinguishes_footer_mismatch_from_header_failure() {
-    let archive = compose_application(&application_input()).unwrap();
+    let archive = compose_application_v4(&application_input()).unwrap();
     validate_application(&archive.bytes).unwrap();
     let footer = archive.bytes.len() - 32;
     for offset in footer..archive.bytes.len() {
@@ -223,8 +224,8 @@ fn recompose(archive: &GeneratedHolo, directory: Vec<u8>, provenance: Vec<u8>) -
 #[test]
 fn archive_composition_is_deterministic_and_directory_layers_are_exact() {
     let input = application_input();
-    let archive = compose_application(&input).unwrap();
-    assert_eq!(archive.bytes, compose_application(&input).unwrap().bytes);
+    let archive = compose_application_v4(&input).unwrap();
+    assert_eq!(archive.bytes, compose_application_v4(&input).unwrap().bytes);
     let parsed = parse_application(&archive.bytes).unwrap();
     assert_eq!(parsed.identities, archive.identities);
     assert_eq!(parsed.metadata, input.source_manifest);
@@ -270,7 +271,7 @@ fn archive_composition_is_deterministic_and_directory_layers_are_exact() {
 
 #[test]
 fn archive_provenance_rejects_changed_links_unknown_fields_and_noncanonical_bytes() {
-    let archive = compose_application(&application_input()).unwrap();
+    let archive = compose_application_v4(&application_input()).unwrap();
     for (field, value) in [
         ("application_kappa", json!("blake3:wrong")),
         ("model_content_kappa", json!("blake3:wrong")),
@@ -320,4 +321,180 @@ fn archive_provenance_rejects_changed_links_unknown_fields_and_noncanonical_byte
         .code,
         "PP3015"
     );
+}
+
+// --- holo v5 (ADR-017) ------------------------------------------------------
+
+fn v5_objects(bytes: &[u8]) -> Vec<Vec<u8>> {
+    v5::read_objects(bytes, v5::APPLICATION_BUDGET)
+        .unwrap()
+        .into_iter()
+        .map(<[u8]>::to_vec)
+        .collect()
+}
+
+#[test]
+fn v5_composition_is_a_deterministic_uorc_archive_named_by_kappa() {
+    let mut input = application_input();
+    input.basis = Some(format!("sha256:{}", "a".repeat(64)));
+    let archive = compose_application(&input).unwrap();
+    assert_eq!(archive.bytes, compose_application(&input).unwrap().bytes);
+    assert!(archive.bytes.starts_with(b"UORC\x02\x01\x00\x00\x07"));
+    let parsed = parse_application(&archive.bytes).unwrap();
+    assert_eq!(parsed.identities, archive.identities);
+    assert_eq!(parsed.metadata, input.source_manifest);
+    let identities = &archive.identities;
+    assert_eq!(identities.archive_kappa, v5::kappa(&archive.bytes));
+    assert_eq!(identities.guest_content_kappa, v5::kappa(&input.guest_wasm));
+    assert_eq!(
+        identities.model_content_kappa,
+        v5::kappa(&input.model_document)
+    );
+    assert_eq!(
+        identities.application_kappa,
+        v5::kappa(&archive.application_manifest)
+    );
+    assert_eq!(identities.archive_fingerprint.len(), 64);
+    // Every label the holo carries is a κ: no BLAKE3 survives in v5.
+    assert!(!archive.bytes.windows(7).any(|window| window == b"blake3:"));
+    let objects = v5_objects(&archive.bytes);
+    assert_eq!(objects.len(), ROLES_V5.len());
+    assert_eq!(objects[1], input.source_manifest);
+    assert_eq!(objects[4], input.guest_wasm);
+    assert_eq!(objects[5], input.view_bundle);
+    assert_eq!(objects[6], input.model_document);
+    let manifest: Value = serde_json::from_slice(&objects[0]).unwrap();
+    assert_eq!(manifest["schema"], "prism/holo/5");
+    assert_eq!(manifest["basis"], json!(input.basis));
+    let roles: Vec<&str> = manifest["objects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| row["role"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        roles,
+        ROLES_V5[1..]
+            .iter()
+            .filter(|role| **role != "provenance")
+            .copied()
+            .collect::<Vec<_>>()
+    );
+    // Without a pinned SDK the manifest names no basis.
+    let unpinned = compose_application(&application_input()).unwrap();
+    let manifest: Value = serde_json::from_slice(&v5_objects(&unpinned.bytes)[0]).unwrap();
+    assert!(manifest.get("basis").is_none());
+    let mut bad = application_input();
+    bad.basis = Some("blake3:".to_owned() + &"a".repeat(64));
+    assert_eq!(compose_application(&bad).unwrap_err().code, "PP3010");
+}
+
+#[test]
+fn v5_validation_refuses_changed_objects_manifest_and_provenance() {
+    let archive = compose_application(&application_input()).unwrap();
+    let objects = v5_objects(&archive.bytes);
+    let rewrite = |index: usize, bytes: Vec<u8>| {
+        let mut changed = objects.clone();
+        changed[index] = bytes;
+        v5::write_objects(&changed)
+    };
+    // A changed content object no longer matches the manifest's κ.
+    assert_eq!(
+        validate_application(&rewrite(4, b"\0asm\x01\0\0\x01".to_vec()))
+            .unwrap_err()
+            .code,
+        "PP3012"
+    );
+    // A manifest that is not canonical, or names a different κ.
+    let mut noncanonical = objects[0].clone();
+    noncanonical.push(b'\n');
+    assert_eq!(
+        validate_application(&rewrite(0, noncanonical))
+            .unwrap_err()
+            .code,
+        "PP3012"
+    );
+    let mut manifest: Value = serde_json::from_slice(&objects[0]).unwrap();
+    manifest["requires"] = json!(archive.identities.guest_content_kappa);
+    assert_eq!(
+        validate_application(&rewrite(0, encode_value(&manifest).unwrap()))
+            .unwrap_err()
+            .code,
+        "PP3012"
+    );
+    for (field, value) in [
+        (
+            "application_kappa",
+            json!(format!("sha256:{}", "0".repeat(64))),
+        ),
+        (
+            "model_content_kappa",
+            json!(archive.identities.guest_content_kappa),
+        ),
+        ("schema", json!("prismpm/model-provenance/1")),
+        ("unknown", json!(true)),
+    ] {
+        let mut provenance: Value = serde_json::from_slice(&objects[2]).unwrap();
+        provenance[field] = value;
+        assert_eq!(
+            validate_application(&rewrite(2, encode_value(&provenance).unwrap()))
+                .unwrap_err()
+                .code,
+            "PP3015",
+            "{field}"
+        );
+    }
+    // Objects out of role order, or one missing.
+    let mut swapped = objects.clone();
+    swapped.swap(4, 5);
+    assert!(validate_application(&v5::write_objects(&swapped)).is_err());
+    assert_eq!(
+        validate_application(&v5::write_objects(&objects[..6]))
+            .unwrap_err()
+            .code,
+        "PP3003"
+    );
+    // A broken seal is an integrity failure.
+    let mut flipped = archive.bytes.clone();
+    let middle = flipped.len() / 2;
+    flipped[middle] ^= 0x40;
+    assert_eq!(validate_application(&flipped).unwrap_err().code, "PP3004");
+}
+
+#[test]
+fn legacy_v4_holos_stay_readable_but_cannot_be_signed() {
+    let legacy = compose_application_v4(&application_input()).unwrap();
+    let parsed = parse_application(&legacy.bytes).unwrap();
+    assert!(parsed.identities.guest_content_kappa.starts_with("blake3:"));
+    let error = attach_attestations(&legacy.bytes, &[b"{}".to_vec()]).unwrap_err();
+    assert_eq!(error.code, "PP3001");
+}
+
+#[test]
+fn upgrading_a_v4_holo_keeps_every_content_object_byte_for_byte() {
+    let input = application_input();
+    let legacy = compose_application_v4(&input).unwrap();
+    let upgraded = upgrade_application(&legacy.bytes).unwrap();
+    let parsed = parse_application(&upgraded).unwrap();
+    for content in [&input.guest_wasm, &input.view_bundle, &input.model_document] {
+        assert_eq!(parsed.blobs.get(&v5::kappa(content)), Some(content));
+    }
+    assert_eq!(parsed.metadata, input.source_manifest);
+    // Upgrading is idempotent on v5.
+    assert_eq!(upgrade_application(&upgraded).unwrap(), upgraded);
+}
+
+#[test]
+#[ignore = "writes the v5 reference fixture; run with --ignored to regenerate"]
+fn write_v5_reference_fixtures() {
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sdk/npm/prism-code/fixtures");
+    for name in ["Calculator", "PaymentApproval"] {
+        let legacy = std::fs::read(root.join(format!("{name}.holo"))).unwrap();
+        std::fs::write(
+            root.join(format!("{name}.v5.holo")),
+            upgrade_application(&legacy).unwrap(),
+        )
+        .unwrap();
+    }
 }

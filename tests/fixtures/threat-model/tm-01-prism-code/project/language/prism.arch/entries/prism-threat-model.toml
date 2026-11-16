@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-threat-model"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Security"
+component = "securityValid"
+
+[[form]]
+id = "prism-threat-model"
+channel = "text"
+surface = "Prism-code threat model"
+canonical_source = true
+features = ["sentence-case", "singular"]

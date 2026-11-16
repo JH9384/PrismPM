@@ -11,6 +11,9 @@ const files=['.devcontainer/Dockerfile','sdk/Dockerfile','.github/workflows/rust
   'scripts/sdk-image-inputs.test.mjs','scripts/sdk-image-inputs.mjs','scripts/sdk-vv-inputs.mjs','sdk/inventory-metadata.mjs',
   '.github/workflows/release.yml','.github/workflows/sdk-candidate.yml','scripts/vv.sh',
   'scripts/rust-oracle-tools-inputs.mjs','scripts/rust-oracle-tools-inputs.test.mjs'];
+const constructionHarness=['.github/workflows/rust-oracle-tools.yml',
+  'scripts/rust-oracle-tools-inputs.mjs','scripts/rust-oracle-tools-inputs.test.mjs'];
+const validationOnly=files.slice(2).filter(path=>!constructionHarness.includes(path));
 const originals=new Map(files.map(path=>[path,readFileSync(new URL('../'+path,import.meta.url),'utf8')]));
 function fixture(t) {
   const root=mkdtempSync(join(tmpdir(),'rust-tool-inputs-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
@@ -29,6 +32,22 @@ test('downstream-only changes do not claim new native tool qualification',t=>{
     const result=toolInputChanges(f.root,f.base);assert.equal(result.changed,false);
     assert.equal(result.scope,'change-detection-only-not-qualification');
     assert.deepEqual(result.stages.map(row=>row.path),files.slice(0,2));
+  }
+});
+test('unrelated release callers and source validators still require validation but not native tool builds',t=>{
+  for(const path of validationOnly) {
+    const f=fixture(t);f.put(path,originals.get(path)+'\n# unrelated validation edit\n');f.commit();
+    const result=toolInputChanges(f.root,f.base);
+    assert.equal(result.changed,false,path);
+    assert.deepEqual(result.dependencies.map(row=>row.path),constructionHarness);
+  }
+});
+test('downstream heredocs and continuations cannot change the already-delimited tool stage',t=>{
+  for(const suffix of ['\nRUN cat <<EOF\nFROM literal-downstream-data\nEOF\n',
+    '\nRUN echo downstream \\\n      && echo continuation\n']) {
+    const f=fixture(t),path=files[0];f.put(path,originals.get(path)+suffix);f.commit();
+    assert.equal(toolInputChanges(f.root,f.base).changed,false);
+    assert.equal(toolStage(originals.get(path)+suffix),toolStage(originals.get(path)));
   }
 });
 test('untracked aliases and Git object mode substitutions cannot authorize a skip',t=>{
@@ -84,7 +103,7 @@ test('every stage, syntax and qualification harness change requires both native 
     const f=fixture(t),changed=change(originals.get(path));assert.notEqual(changed,originals.get(path));
     f.put(path,changed);f.commit();assert.equal(toolInputChanges(f.root,f.base).changed,true);
   }
-  for(const path of files.slice(2)) {
+  for(const path of constructionHarness) {
     const f=fixture(t);f.put(path,originals.get(path)+'\n// changed harness\n');f.commit();
     assert.equal(toolInputChanges(f.root,f.base).changed,true);
   }

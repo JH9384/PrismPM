@@ -165,9 +165,9 @@ pub fn verify(root: &Path) {
             );
         }
     }
-    let bytes = prismpm::holo::canonical::encode_canonical(&document).unwrap();
+    let bytes = prismpm::holo::model_document::encode_canonical(&document).unwrap();
     assert_eq!(
-        prismpm::holo::canonical::decode_canonical(&bytes).unwrap(),
+        prismpm::holo::model_document::decode_canonical(&bytes).unwrap(),
         document
     );
     let value = serde_json::to_value(&document).unwrap();
@@ -177,7 +177,7 @@ pub fn verify(root: &Path) {
     .unwrap();
     let schema = jsonschema::validator_for(&schema).unwrap();
     assert!(schema.is_valid(&value));
-    prismpm::contracts::CanonicalDocument::parse("prismpm/model-document/4", &bytes).unwrap();
+    prismpm::model_contract::parse_contract("prismpm/model-document/4", &bytes).unwrap();
     let controller = prismpm::Controller::load(first.path()).unwrap();
     controller
         .check(prismpm::controller::CheckRequest { config_path: None })
@@ -443,7 +443,7 @@ pub fn verify(root: &Path) {
     prismpm::holo::browser_application::validate(&typed(maxima.clone())).unwrap();
     let mut maximum_document = value.clone();
     maximum_document["application"] = maxima.clone();
-    prismpm::contracts::CanonicalDocument::parse(
+    prismpm::model_contract::parse_contract(
         "prismpm/model-document/4",
         &prismpm::holo::canonical::encode_value(&maximum_document).unwrap(),
     )

@@ -23,6 +23,28 @@ import {
 } from './errors.mjs';
 import { parseReference } from './oci-reference.mjs';
 import { experimental_pull, experimental_push, shortDigest } from './push-pull.mjs';
+import { createImageStore, fileImageStore, imageFile, imagesDirectory, localName, storedName } from './image-store.mjs';
+
+/** The local image store of this machine, as `Prism.fromEnv()` keeps it; no container is consulted, since nothing here removes. */
+const localStore = async () => createImageStore({ backend: fileImageStore(imagesDirectory()) });
+
+/**
+ * What `run`, `inspect` and `push` read when they are given an image (#347): the path,
+ * when one exists there, else the file the local store keeps the image of that name,
+ * tag or id in, as `docker run calc:1` runs a stored image. The store checks the bytes
+ * against their digests first. Anything else comes back as given, so the caller's own
+ * error names it.
+ */
+export async function imageArgument(argument, exists) {
+  if (typeof argument !== 'string' || argument === '' || (await exists(resolve(argument)))) return argument;
+  try {
+    const image = await (await localStore()).get(argument);
+    return imageFile(imagesDirectory(), image.digest.slice('blake3:'.length));
+  } catch (error) {
+    if (error instanceof ReferenceInvalidError || (error instanceof PrismCodeError && /^image\.(missing|name)$/.test(error.code))) return argument;
+    throw error;
+  }
+}
 
 const PUSH_OPTIONS = ['store', 'key', 'keyless', 'no-attestations', 'signing-config', 'plain-http', 'json', 'tuf-mirror-url', 'tuf-root', 'tuf-cache'];
 const PULL_OPTIONS = ['store', 'policy', 'key', 'certificate-identity', 'certificate-identity-regexp', 'certificate-oidc-issuer', 'type', 'trusted-root', 'entries', 'timestamps', 'plain-http', 'json', 'tuf-mirror-url', 'tuf-root', 'tuf-cache'];
@@ -63,11 +85,11 @@ const unknownOption = (options, known) => Object.keys(options).find((name) => !k
 export async function runPush(positional, options, usage) {
   const unknown = unknownOption(options, PUSH_OPTIONS);
   if (unknown) return usage(`push has no option --${unknown}`);
-  if (positional.length !== 2) return usage('push takes a holo and a reference');
+  if (positional.length !== 1 && positional.length !== 2) return usage('push takes a holo and a reference, or the reference of a stored image');
   if (Object.hasOwn(options, 'key') && !present(options, 'key')) return usage('--key takes a private key file');
   if (present(options, 'key') && options.keyless) return usage('push signs with --key or --keyless, not both');
   try {
-    const target = parseReference(positional[1], { store: present(options, 'store') ? resolve(options.store) : undefined });
+    const target = parseReference(positional.at(-1), { store: present(options, 'store') ? resolve(options.store) : undefined });
     const key = present(options, 'key') ? await readOperand(options.key, 'the key') : undefined;
     const json = options.json === true;
     let headed = false;
@@ -78,7 +100,9 @@ export async function runPush(positional, options, usage) {
       process.stdout.write(`The push refers to repository [${name}]\n`);
     };
     heading();
-    const result = await experimental_push(/^dir:\/\//.test(positional[0]) ? positional[0] : resolve(positional[0]), target, {
+    // One operand is `docker push name:tag`: the image of that name in the local store (#349).
+    const source = positional.length === 1 ? (await localStore()).get(localName(positional[0])).then((image) => image.bytes) : /^dir:\/\//.test(positional[0]) ? positional[0] : resolve(positional[0]);
+    const result = await experimental_push(await source, target, {
       key,
       keyless: options.keyless === true,
       noAttestations: options['no-attestations'] === true,
@@ -148,6 +172,8 @@ export async function runPull(positional, options, usage) {
       plainHttp: options['plain-http'] === true,
       ...tuf(options),
     });
+    // Verified, so it is kept in the local store under the name it was pulled by, as docker pull keeps it (#349).
+    await (await localStore()).add(holo, { tags: [storedName(source)].filter((name) => name !== null) });
     if (json) {
       process.stdout.write(`${canonicalJson(result)}\n`);
       return 0;

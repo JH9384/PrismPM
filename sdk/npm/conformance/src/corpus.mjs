@@ -10,7 +10,8 @@
  *
  * Rows of the reference table: 0 manifest, 1 metadata, 2 directory, 3 model
  * extension, 4 guest, 5 view, 6 capability set, 7 model document. A content blob
- * starts with a 71-byte `blake3:<hex>` label.
+ * starts with a 71-byte `blake3:<hex>` label, and the blobs are in label order;
+ * an archive with another guest re-sorts them, so its guest may be another row.
  */
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -20,9 +21,11 @@ import { blake3 } from './vendor/blake3.mjs';
 
 const here = (relative) => fileURLToPath(new URL(relative, import.meta.url));
 export const REFERENCE_PATH = here('../corpus/Calculator.holo');
+export const REFERENCE_V5_PATH = here('../corpus/Calculator.v5.holo');
 export const LOCK_PATH = here('../corpus/archives.lock.json');
 
 const KIND_EXTENSION = 14;
+const KIND_BLOB = 16;
 const LABEL = 71;
 const GUEST = 4;
 const VIEW = 5;
@@ -160,17 +163,21 @@ function referenceGuest() {
  * The archive with another guest module, every fingerprint recomputed: the label
  * in the manifest, the directory and the provenance, the directory's byte length,
  * the application kappa, the table and the footer. Only the guest is wrong.
+ * With `contract`, the directory and the provenance also name that guest
+ * contract. The manifest suffix is a constant of the format and the model
+ * document has its own schema, so both keep naming @1.
  */
-function withGuest(wasm) {
+function withGuest(wasm, contract = null) {
   const bytes = reference();
   const rows = rowsOf(bytes);
   const oldLabel = dec.decode(rows[GUEST].body.subarray(0, LABEL));
   const newLabel = `blake3:${hex(blake3(wasm))}`;
+  const named = (text) => (contract === null ? text : text.replaceAll(CORE_WASM_1, contract));
   rows[GUEST].body = concat([enc.encode(newLabel), wasm]);
   rows[0].body = enc.encode(dec.decode(rows[0].body).replace(oldLabel, newLabel));
   const editJson = (body, edit) => {
     const nameLength = body[0] | (body[1] << 8);
-    const json = JSON.parse(dec.decode(body.subarray(2 + nameLength)));
+    const json = JSON.parse(named(dec.decode(body.subarray(2 + nameLength))));
     edit(json);
     return concat([body.subarray(0, 2 + nameLength), enc.encode(JSON.stringify(json))]);
   };
@@ -187,7 +194,19 @@ function withGuest(wasm) {
     provenance.guest_content_kappa = newLabel;
     provenance.application_kappa = `blake3:${hex(blake3(rows[0].body))}`;
   });
-  return assemble(rows);
+  return assemble(canonicalBlobOrder(rows));
+}
+
+/**
+ * The content blobs in the order Holo/1 requires: by label, ascending. A new
+ * guest has a new label, which may sort before or after the other blobs; the
+ * Wire codec (`wireCanonicalRowsValid`) refuses any other order as a table it
+ * cannot read, so without this a world check would test the table instead.
+ */
+function canonicalBlobOrder(rows) {
+  const first = rows.findIndex((row) => row.kind === KIND_BLOB);
+  const blobs = rows.slice(first).sort((a, b) => Buffer.compare(Buffer.from(a.body.subarray(0, LABEL)), Buffer.from(b.body.subarray(0, LABEL))));
+  return [...rows.slice(0, first), ...blobs];
 }
 
 function mutateGuest(edit) {
@@ -198,12 +217,19 @@ function mutateGuest(edit) {
 
 const name = (text) => concat([leb(enc.encode(text).length), enc.encode(text)]);
 
+const CORE_WASM_1 = 'hologram:guest/core-wasm@1';
+/** A guest of the session world (#629): the session ABI probe of prism-code, the generated shim around a test entry. */
+const SESSION_PROBE = here('../corpus/session-probe.wasm');
+
 /**
  * Every archive by name. A name is part of the suite's contract: scenarios refer
  * to it, so rename one only together with the scenarios that use it.
  */
 export const ARCHIVES = Object.freeze({
   reference,
+  // The reference application as a holo v5, a UORC archive named by κ (ADR-017). Committed, not derived:
+  // its bytes come from compose_application, and a v4 recipe cannot write them.
+  'reference-v5': () => new Uint8Array(readFileSync(REFERENCE_V5_PATH)),
 
   // Not a holo at all, or a structure no reader may accept.
   empty: () => new Uint8Array(0),
@@ -271,6 +297,10 @@ export const ARCHIVES = Object.freeze({
       const payload = concat([Uint8Array.of(1), name('env'), name('host'), Uint8Array.of(1, 0x70, 0, 0)]);
       sections.splice(at(1) + 1, 0, { id: 2, payload });
     }),
+
+  // A guest of the session world hologram:guest/core-wasm@2 (#629), named as such by the directory and the
+  // provenance. The manifest suffix and the model document keep @1 until a format revision admits the session world (#630).
+  'session-world': () => withGuest(new Uint8Array(readFileSync(SESSION_PROBE)), 'hologram:guest/core-wasm@2'),
 
   // The attestation section.
   'unsigned-p3-claim': () => assemble([...rowsOf(reference()), attestationRow()]),

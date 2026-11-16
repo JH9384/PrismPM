@@ -185,6 +185,10 @@ export interface ContainerRecord {
   /** ISO 8601. */
   created: string;
   rm: boolean;
+  /** Whether the caller asked to run past a refusing check. */
+  allowUnverified: boolean;
+  /** Each volume the container asked for, and the typed refusal that keeps it from the guest until host effects land (#216, #217). */
+  volumes: ContainerVolume[];
   state: {
     status: ContainerStatus;
     /** Null until exited. */
@@ -197,6 +201,8 @@ export interface ContainerRecord {
   };
   /** The verdict of the check this run was gated on, or null when none was reached. */
   verdict: Verdict | null;
+  /** Set when the last start ran past a refusing check under `allowUnverified`: when, the error check gave, and the warning. Null otherwise. */
+  unverified: { at: string; warning: string; code: string | null; check: string | null } | null;
   /** The output the guest returned, as text when it is valid UTF-8, otherwise as hex. Never the input. */
   output: { encoding: 'utf-8' | 'hex'; data: string } | null;
 }
@@ -218,6 +224,51 @@ export interface Container {
   inspect(): Promise<ContainerRecord>;
   /** Refused with `container.running` while it runs. */
   remove(): Promise<void>;
+  /** The output, from the record, as `docker logs`; empty before any run. Takes no options. */
+  logs(): Promise<Uint8Array>;
+}
+
+/** Experimental. A refusal of `prism.volumes`, as plain JSON (`refusalRecord`). */
+export interface VolumeRefusal {
+  name: string;
+  code: string;
+  /** `capabilities.host-effects`, `capabilities.host-folder`, `capabilities.key-value-stores` or `capabilities.providers`. */
+  check: string;
+  message: string;
+  details: { module: 'volumes'; verb: string; volume: string | null; outside?: 'grant' | 'declaration' | 'world' | 'policy'; dependsOn?: readonly string[]; [member: string]: unknown };
+}
+
+/** One volume a container asked for (#443, #445). */
+export interface ContainerVolume {
+  name: string;
+  attached: boolean;
+  refusal: VolumeRefusal | null;
+}
+
+/** Experimental. A volume: a named store the capability file allows and a provider declares (#445). Never a host folder. */
+export interface Volume {
+  readonly name: string;
+  /** The capability set in force, or null when none grants anything. */
+  readonly set: string | null;
+  /** The provider type that serves it, or null when none declares it. */
+  readonly provider: string | null;
+  readonly options: Record<string, unknown> | null;
+  /** A guest has no access yet; it depends on host effects. */
+  readonly guest: { readonly access: false; readonly dependsOn: readonly string[] };
+}
+
+/** What `volumes.create` returns: the volume and what the provider's `up` returned. `env` may hold secrets. */
+export interface CreatedVolume extends Volume {
+  readonly env: Record<string, string>;
+  readonly withheld: readonly object[];
+}
+
+/** Experimental. `prism.volumes` (#445). Every refusal is a `CapabilityDeniedError`; no verb takes options or writes the capability file. */
+export interface Volumes {
+  create(name: string, options?: Record<string, never>): Promise<CreatedVolume>;
+  list(options?: Record<string, never>): Promise<readonly Volume[]>;
+  inspect(name: string, options?: Record<string, never>): Promise<Volume>;
+  remove(name: string, options?: Record<string, never>): Promise<void>;
 }
 
 /** Where records are kept. `memoryContainerStore` is the default. */
@@ -235,8 +286,10 @@ export interface ContainerOptions extends LoadOptions {
   policy?: VerifyOptions | (() => VerifyOptions | Promise<VerifyOptions>);
   /** Run a holo that fails check, or that check cannot judge. Warns on every start; never the default. */
   allowUnverified?: boolean;
-  /** Remove the container when it exits, as `docker run --rm` does. */
+  /** Remove the container when it exits, as `docker run --rm` does. `dispatch` defaults it to true. */
   rm?: boolean;
+  /** Volume names, attached through `prism.volumes`; each refusal is kept on the record and the guest never runs (#445). */
+  volumes?: string[];
 }
 
 /** Experimental. `prism.containers` (#348). `image` is what `load` takes, or an application it returned. */
@@ -245,16 +298,158 @@ export interface Containers {
   run(image: Uint8Array | ArrayBuffer | Blob | string | URL | Application, input: string | Uint8Array | ArrayBuffer | ArrayBufferView, options?: ContainerOptions): Promise<Container>;
   /** Open the image and make a container in state `created`. An image that cannot be opened makes no container. */
   create(image: Uint8Array | ArrayBuffer | Blob | string | URL | Application, input: string | Uint8Array | ArrayBuffer | ArrayBufferView, options?: ContainerOptions): Promise<Container>;
+  /** Run once and return the output, as a call: the container is removed on exit unless `rm: false`, and a failed run rejects with its typed error. */
+  dispatch(image: Uint8Array | ArrayBuffer | Blob | string | URL | Application, input: string | Uint8Array | ArrayBuffer | ArrayBufferView, options?: ContainerOptions): Promise<Uint8Array>;
   start(id: string): Promise<Container>;
+  logs(id: string): Promise<Uint8Array>;
+  inspect(id: string): Promise<ContainerRecord>;
   /** The container with this id or unique id prefix. Rejects with `container.missing` or `container.ambiguous`. */
   get(id: string): Promise<Container>;
   remove(id: string): Promise<void>;
+  /** Running containers, or every one with `all`, oldest first, as `docker ps`. */
+  list(options?: { all?: boolean }): Promise<Container[]>;
+  /** Remove exited containers, those that finished before `until` (ms since the epoch) when given. Created and running ones are kept. */
+  prune(options?: { until?: number }): Promise<{ containersDeleted: string[]; spaceReclaimed: number }>;
 }
 
+/** One image in the local store (#349): kept once under its BLAKE3 digest, with its tags as names. */
+export interface StoredImage {
+  readonly schema: 'prism/image/1';
+  /** `blake3:<hex>`, the digest the image's own footer names; `id` is the same. */
+  readonly id: string;
+  readonly digest: string;
+  /** The digests of the file's bytes, BLAKE3 and sha256. */
+  readonly fileDigest: { sha256: string; blake3: string };
+  readonly size: number;
+  readonly created: string;
+  /** `[registry/]repository:tag`, sorted; none for an untagged image. */
+  readonly tags: readonly string[];
+}
+
+/** The backend of the local image store: `fileImageStore(dir)` or `memoryImageStore()` from `prism-code/node`. */
+export interface ImageStoreBackend {
+  readonly location: string | null;
+  read(): unknown;
+  write(index: object): unknown;
+  get(hex: string): Uint8Array | null | Promise<Uint8Array | null>;
+  put(hex: string, bytes: Uint8Array): unknown;
+  drop(hex: string): unknown;
+}
+
+/** Experimental. `prism.images` (#442): docker-py's verbs over the code that already does the work, and the local image store (#349). Node only; in a browser build every verb raises `images.unavailable`. */
+export interface Images {
+  /** Builds the image and keeps it in the local store, tagged with `tag` when that is a local name. */
+  build(options?: { path?: string; tag?: string; file?: string; locked?: boolean; update?: boolean; release?: string; env?: Record<string, string | undefined> }): Promise<{ schema: 'prism/image-build/1'; digest: string; tag: string | null; tags: string[]; path: string | null; bytes: Uint8Array; [member: string]: unknown }>;
+  /** Verifies before anything is written, then keeps the image in the local store under the name it was pulled by. */
+  pull(repository: string, options?: Record<string, unknown>): Promise<{ schema: 'prism/image-pull/1'; digest: string; tags: string[]; bytes: Uint8Array; [member: string]: unknown }>;
+  /** Pushes `source`, or without one the stored image `repository:tag` names. */
+  push(repository: string, options?: Record<string, unknown>): Promise<{ schema: 'prism/image-push/1'; digest: string; [member: string]: unknown }>;
+  /** The stored images, newest first. */
+  list(options?: { dangling?: boolean; name?: string }): Promise<StoredImage[]>;
+  /** One stored image by tag, `blake3:` digest or id prefix, with its bytes checked against its digests. */
+  get(name: string): Promise<StoredImage & { bytes: Uint8Array }>;
+  /** `docker tag SOURCE TARGET`. */
+  tag(source: string, target: string): Promise<StoredImage>;
+  /** `docker rmi`: refused with `image.in-use` while a container references the image unless `force`, and always while one runs. */
+  remove(name: string, options?: { force?: boolean }): Promise<{ schema: 'prism/image-remove/1'; untagged: string[]; deleted: string[]; spaceReclaimed: number }>;
+  /** `docker image prune [-a]`: untagged images no container references, or with `all` every image none references. */
+  prune(options?: { all?: boolean }): Promise<{ schema: 'prism/image-prune/1'; imagesDeleted: string[]; spaceReclaimed: number }>;
+  /** What `system.df` reports for images. */
+  usage(): Promise<{ rows: { digest: string; tags: string[]; size: number; containers: number }[]; location: string | null }>;
+  inspect(image: Uint8Array | ArrayBuffer | Blob | string | URL): Promise<{ schema: 'prism/image-inspection/1'; digest: string; [member: string]: unknown }>;
+  verify(image: Uint8Array | ArrayBuffer | Blob | string | URL, options?: Record<string, unknown>): Promise<Verdict>;
+}
+
+export type SystemEventAction = 'create' | 'start' | 'die' | 'destroy';
+
+/** One container lifecycle event, as `docker events` reports it. */
+export interface SystemEvent {
+  readonly schema: 'prism/system-event/1';
+  readonly sequence: number;
+  readonly type: 'container';
+  readonly action: SystemEventAction;
+  readonly id: string;
+  /** `blake3:<fingerprint>` of the image, or null. */
+  readonly image: string | null;
+  readonly exitCode: number | null;
+  readonly time: string;
+  readonly timeMs: number;
+}
+
+export interface SystemEventStream extends AsyncIterable<SystemEvent> {
+  close(): void;
+}
+
+/** What `prismpm.lock` pins, or null without one. */
+export interface PinnedLock {
+  schema: string | null;
+  sdkVersion: string | null;
+  builder: string;
+  toolchain: Record<string, string> | null;
+}
+
+/** Experimental. `prism.system` (#446): this installation, and its housekeeping. */
+export interface System {
+  version(options?: { path?: string }): Promise<{ schema: 'prism/system-version/1'; version: string; formatRevision: string; runtime: { name: 'node' | 'browser'; version: string | null; platform: string | null }; toolchain: Record<string, string> | null; builder: string | null }>;
+  info(options?: { path?: string }): Promise<{ schema: 'prism/system-info/1'; version: string; formatRevision: string; containers: { total: number; created: number; running: number; exited: number }; images: number | null; lock: PinnedLock | null; events: boolean; [member: string]: unknown }>;
+  df(): Promise<{ schema: 'prism/system-df/1'; containers: { total: number; active: number; size: number; reclaimable: number; rows: { id: string; image: string | null; status: ContainerStatus; size: number }[] }; images: { total: number; active: number; size: number; reclaimable: number; location: string | null; rows: { digest: string; tags: string[]; size: number; containers: number }[] } | null }>;
+  /** Exited containers, then images no remaining container references: untagged ones, or with `all` tagged ones too. */
+  prune(options?: { until?: Date | string | number; all?: boolean }): Promise<{ schema: 'prism/system-prune/1'; containersDeleted: string[]; imagesDeleted: string[]; spaceReclaimed: number }>;
+  events(options?: { since?: Date | string | number; until?: Date | string | number; signal?: AbortSignal; filters?: { action?: SystemEventAction | SystemEventAction[]; id?: string | string[] } }): SystemEventStream;
+}
+
+/** The bus a client's containers report to and `system.events` reads. */
+export interface EventBus {
+  emit(event: { action: SystemEventAction; id: string; image?: string | null; exitCode?: number | null }): SystemEvent;
+  subscribe(options?: { since?: number; until?: number; signal?: AbortSignal }): SystemEventStream;
+}
+
+/** Experimental. The nine modules of #440 as one client (#441). `networks`, `volumes`, `auth`, `errors` and `verify` are the namespaces of their own modules. */
+export interface PrismClient {
+  readonly images: Images;
+  readonly containers: Containers;
+  readonly networks: { readonly [verb: string]: (...args: any[]) => Promise<unknown> };
+  readonly volumes: Volumes;
+  readonly system: System;
+  readonly auth: { readonly [member: string]: unknown };
+  readonly errors: { readonly [member: string]: unknown };
+  readonly verify: { readonly [member: string]: unknown };
+}
+
+export interface CreatePrismOptions {
+  store?: ContainerStore;
+  warn?: (message: string) => void;
+  /** The capability file, and none grants nothing. */
+  capabilities?: object | string | Uint8Array | null;
+  /** Holds the capability file for `networks`; in memory unless given. */
+  capabilityStore?: { read(): unknown; write?(text: string): unknown };
+  capabilitySet?: string;
+  policy?: { name?: string; effects?: string[] | null; capabilities?: object | null } | null;
+  world?: { contract?: string; imports: object[] } | null;
+  declarations?: { name: string; type: string; options?: object }[];
+  runner?: { up(declaration: object): Promise<{ env?: object; withheld?: object[] }>; down(declaration: object): Promise<unknown> } | null;
+  /** Builds the Docker invocation for `images.build`. */
+  docker?: ((request: { image: string; cwd: string; command: string; args: string[] }) => { command: string; args: string[]; display: string } | Promise<{ command: string; args: string[]; display: string }>) | null;
+  spawn?: (...args: any[]) => unknown;
+  /** Returns `<path>/prismpm.lock`, or null, for `system.info` and `system.version`. */
+  readLock?: ((path: string) => string | null | Promise<string | null>) | null;
+  /** A namespace from `createAuth`; in a browser every verb raises `auth.unavailable`. */
+  auth?: { readonly [member: string]: unknown };
+  events?: EventBus;
+  /** The local image store's backend; in memory unless given. */
+  imageStore?: ImageStoreBackend;
+}
+
+/** The nine modules, `client` first. */
+export const MODULES: readonly ['client', 'images', 'containers', 'networks', 'volumes', 'system', 'auth', 'errors', 'verify'];
+
+/** A capability file kept in memory. */
+export function memoryCapabilityStore(initial?: object | string | Uint8Array | null): { read(): string | null; write(text: string): void };
+
 /** Experimental. The default client. Its records live in memory until removed. */
-export const prism: { readonly containers: Containers };
-/** Experimental. A client with containers of its own. `warn` receives the warning of an unverified run. */
-export function createPrism(options?: { store?: ContainerStore; warn?: (message: string) => void }): { readonly containers: Containers };
+export const prism: PrismClient;
+/** Experimental. A client of the nine modules. In Node, `Prism.fromEnv()` from `prism-code/node` configures one from this machine. */
+export function createPrism(options?: CreatePrismOptions): PrismClient;
 
 export type AssuranceLevel = 'P0' | 'P1' | 'P2' | 'P3';
 
@@ -408,13 +603,19 @@ export interface Application {
     readonly within: boolean | null;
     readonly pure: boolean | null;
     readonly effects: ReadonlyArray<'clock' | 'random' | 'socket' | 'filesystem' | 'unknown'> | null;
+    /** True for the session world `hologram:guest/core-wasm@2` (#629): steps are taken on `open()`, and `dispatch` is refused. */
+    readonly session: boolean;
   };
-  /** Run one request through the guest on a fresh instance; bytes in, bytes out. */
+  /** The acceptance of a session world as ordered sessions of steps (#629); empty for a stateless world. */
+  sessions: SessionVector[][];
+  /** A new session on a fresh instance (#629). Throws `session.unsupported` for a stateless world. */
+  open(): Promise<Session>;
+  /** Run one request through the guest on a fresh instance; bytes in, bytes out. Rejects with `session.required` for a session world. */
   dispatch(request: Uint8Array | ArrayBuffer): Promise<Uint8Array>;
-  /** Replay every acceptance vector, comparing bytes. */
+  /** Replay every acceptance vector, or every step of every acceptance session, comparing bytes. */
   acceptance(): Promise<AcceptanceResult>;
-  /** The acceptance vectors as a history, this application's first. Rejects with `replay.history` when it carries none. */
-  history(): Promise<History>;
+  /** The acceptance vectors as a history, this application's first: `prism/history/2` for a session world. Rejects with `replay.history` when it carries none. */
+  history(): Promise<History | SessionHistory>;
   /** Experimental. Record dispatches as they run. */
   experimental_recorder(): Recorder;
   /** Experimental. Re-execute histories against this build; see `experimental_replay`. */
@@ -534,13 +735,61 @@ export interface History {
   events: HistoryEvent[];
 }
 
+/** One step of a session history: the request and the responses it returned, lowercase hex. */
+export interface SessionHistoryStep {
+  request: string;
+  responses: string[];
+}
+
+/** A history of sessions, `prism/history/2` (#629): each session's steps, and the failure that ended it, if any. */
+export interface SessionHistory {
+  schema: 'prism/history/2';
+  application: string | null;
+  recordedFrom?: { guest: DigestSet; model: DigestSet };
+  sessions: { steps: SessionHistoryStep[]; failure?: { request: string; error: string } }[];
+}
+
+/** One acceptance step of a session world. */
+export interface SessionVector {
+  request: Uint8Array;
+  responses: Uint8Array[];
+}
+
+/** A session of the session world (#629). One instance; every failure ends it. */
+export interface Session {
+  /** Take one step. Resolves to its responses in order. Rejects with `session.closed` once ended, `session.busy` while a step runs. */
+  dispatch(request: Uint8Array | ArrayBuffer): Promise<Uint8Array[]>;
+  /** Take one step and yield its responses one at a time, after the step has run. */
+  stream(request: Uint8Array | ArrayBuffer): AsyncIterable<Uint8Array>;
+  close(): void;
+  readonly closed: boolean;
+  readonly steps: number;
+}
+
+export declare const SESSION_CONTRACT: 'hologram:guest/core-wasm@2';
+export declare const SESSION_HISTORY_SCHEMA: 'prism/history/2';
+/** The records of a history in order: the events of `/1`, or every step and failure of every session of `/2`. */
+export function historyEvents(history: History | SessionHistory): (HistoryEvent | SessionHistoryStep | { request: string; error: string })[];
+/** Decode the responses frame of one step from guest memory; throws `core.response` when it is malformed or over a bound. */
+export function decodeResponses(buffer: ArrayBuffer, offset: number, length: number, limits?: { response?: number; responseCount?: number }): Uint8Array[];
+/** Run one step on a session instance and return copies of its responses. */
+export function runStep(instance: WebAssembly.Instance, request: Uint8Array, limits?: { response?: number; responseCount?: number }): Uint8Array[];
+/** A session over one instance, from its parts. */
+export function openSession(parts: {
+  instantiate: () => WebAssembly.Instance | Promise<WebAssembly.Instance>;
+  step: (instance: WebAssembly.Instance, request: Uint8Array) => Uint8Array[] | Promise<Uint8Array[]>;
+  check?: (request: Uint8Array) => void;
+}): Promise<Session>;
+/** Run acceptance sessions, each on a fresh session, comparing every step's responses. */
+export function runSessionAcceptance(sessions: SessionVector[][], open: () => Promise<Session>): Promise<AcceptanceResult>;
+
 /** A history as text, UTF-8 bytes or a parsed value. */
-export type HistorySource = string | Uint8Array | ArrayBuffer | History;
+export type HistorySource = string | Uint8Array | ArrayBuffer | History | SessionHistory;
 
 export declare const HISTORY_SCHEMA: 'prism/history/1';
 export declare const REPLAY_PREDICATE_TYPE: 'https://uor.foundation/prism/replay/v1';
 /** Read a history. Rejects with `ReplayError` (`replay.history`) for anything the schema rejects. */
-export function parseHistory(source: HistorySource): History;
+export function parseHistory(source: HistorySource): History | SessionHistory;
 /** The bytes both digests of a history cover: its canonical JSON, with no trailing newline. */
 export function historyBytes(history: HistorySource): Uint8Array;
 /** Both digests of a history, as `prism/replay/v1` names it. */
@@ -548,13 +797,15 @@ export function historyDigest(history: HistorySource): Promise<DigestSet>;
 /** A history as a file: canonical JSON and one LF. */
 export function historyJson(history: HistorySource): string;
 /** The acceptance vectors of an application as a history. */
-export function acceptanceHistory(app: Application): Promise<History>;
+export function acceptanceHistory(app: Application): Promise<History | SessionHistory>;
 
 export interface Recorder {
   /** Behaves as `app.dispatch` does, a refusal included, and records the outcome. */
   dispatch(request: Uint8Array | ArrayBuffer): Promise<Uint8Array>;
+  /** For a session world: a new session whose steps are recorded (#629). */
+  open?(): Promise<Session>;
   /** What has finished, in call order. Rejects with `replay.history` when nothing has. */
-  history(): Promise<History>;
+  history(): Promise<History | SessionHistory>;
   /** How many dispatches have finished. */
   events(): number;
 }
@@ -744,6 +995,14 @@ export interface LoadOptions {
   capabilities?: Capabilities | Uint8Array | string | URL | null;
   /** The set of `capabilities` to apply. Default `default`. */
   capabilitySet?: string;
+  /**
+   * Open an application whose bytes do not match its identities (#583): an
+   * altered footer, a blob that does not hash to its label, or a closure file
+   * that does not match its provenance. Without it, `load` rejects with
+   * `DigestMismatchError` (`check` `holo.integrity`). `identities.verified`
+   * stays false on what it opens. Default false.
+   */
+  allowUnverified?: boolean;
 }
 
 /** The resource kinds a capability set grants. */
@@ -845,11 +1104,11 @@ export function parseToml(source: string | Uint8Array): Record<string, unknown>;
 
 /** Open a `.holo` (bytes, Blob, path or URL) or a closure (directory path or URL). */
 export function load(source: Uint8Array | ArrayBuffer | Blob | string | URL, options?: LoadOptions): Promise<Application>;
-export function loadArchive(source: Uint8Array | ArrayBuffer, options?: Pick<LoadOptions, 'capabilities' | 'capabilitySet'>): Promise<Application>;
+export function loadArchive(source: Uint8Array | ArrayBuffer, options?: Pick<LoadOptions, 'capabilities' | 'capabilitySet' | 'allowUnverified'>): Promise<Application>;
 export function loadClosure(
   files: Map<string, Uint8Array>,
   importGlue: (name: string) => Promise<Record<string, unknown>>,
-  options?: { model?: Record<string, unknown> | Uint8Array | null } & Pick<LoadOptions, 'capabilities' | 'capabilitySet'>,
+  options?: { model?: Record<string, unknown> | Uint8Array | null } & Pick<LoadOptions, 'capabilities' | 'capabilitySet' | 'allowUnverified'>,
 ): Promise<Application>;
 
 export interface ParsedArchive {
@@ -884,7 +1143,7 @@ export function decodeHoloview(bytes: Uint8Array): View;
 export function encodeHoloview(view: View): Uint8Array;
 
 /** Compile the guest and link its imports against `grant` (default: nothing granted, so any import throws `CapabilityDeniedError`). */
-export function compileGuest(wasm: Uint8Array, grant?: CapabilityGrant): Promise<WebAssembly.Module>;
+export function compileGuest(wasm: Uint8Array, grant?: CapabilityGrant, contract?: 'hologram:guest/core-wasm@1' | 'hologram:guest/core-wasm@2'): Promise<WebAssembly.Module>;
 export function runGuest(module: WebAssembly.Module, request: Uint8Array, limits?: Partial<Limits>): Uint8Array;
 export function runAcceptance(vectors: Vector[], dispatch: (request: Uint8Array) => Uint8Array | Promise<Uint8Array>): Promise<AcceptanceResult>;
 

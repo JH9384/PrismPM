@@ -1,0 +1,49 @@
+
+  # The SDK image the source V&V parts run their external oracles in. It is
+  # built once for its identity and pushed by digest, instead of once by each
+  # of the eight parts: a 5xx from the Ubuntu snapshot or a registry costs one
+  # retried build here, not an hour-old part. A fetch obligation: a failure is
+  # observed again, never taken as a refutation.
+  vv-sdk:
+    needs: [policy, factory]
+    if: ${{ needs.factory.outputs.vv-sdk == 'establish' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: false
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the source-bound publication policy before registry credentials
+        env:
+          DISPATCH_VERSION: ${{ inputs.version }}
+          PUBLISH_CRATES: ${{ toJSON(inputs.publish-crates) }}
+          REHEARSAL: ${{ toJSON(inputs.rehearsal) }}
+        run: node scripts/release-phases.mjs policy
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      # The obligation's own command (prism-factory/obligations/vv-sdk.sh),
+      # which the Prism delegation also runs on a lent runner.
+      - name: Build the V&V SDK image once, retrying its fetches
+        env:
+          FACTORY_OBLIGATION: vv-sdk
+          PRISM_SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/vv-sdk"
+          PRISM_OUTPUTS="$RUNNER_TEMP/vv-sdk-outputs" bash prism-factory/obligations/vv-sdk.sh
+          sed -n 's/^image //p' "$RUNNER_TEMP/vv-sdk-outputs" > "$RUNNER_TEMP/vv-sdk/vv-sdk-image.txt"
+          cat "$RUNNER_TEMP/vv-sdk/vv-sdk-image.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: vv-sdk
+          path: ${{ runner.temp }}/vv-sdk/
+          if-no-files-found: error
+          retention-days: 30

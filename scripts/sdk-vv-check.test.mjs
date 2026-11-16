@@ -9,6 +9,7 @@ import {createServer as createTlsServer} from 'node:https';
 import {execFileSync} from 'node:child_process';
 import {networkInterfaces} from 'node:os';
 import test from 'node:test';
+import {parts} from './vv-assemble.mjs';
 import {bootstrapFixture} from './sdk-bootstrap-retention-fixture.mjs';
 import { selectPlatform, validateIsolation, validateLoadedImage, validateExecution,
   sdkContainerArguments, readRuntimeLock, runOuter, execute, acquireImageMetadata, inspectLoadedImage, validateOwningTests } from './sdk-vv-check.mjs';
@@ -49,7 +50,7 @@ case "$1:$2" in
         '{{.Id}}') printf '%s\n' "$cid" ;;
         '{{index .Config.Labels "org.uor.prismpm.sdk-outer"}}')
           if test "$UNIT_MODE" = wrong-label; then echo foreign
-          elif test "$UNIT_MODE" = foreign-matching-label; then cat "$UNIT_ROOT/sdk-$UNIT_ARCH-full-sdk-vv-outer-owner/owner.name"
+          elif test "$UNIT_MODE" = foreign-matching-label; then cat "$UNIT_ROOT/sdk-$UNIT_ARCH-full-sdk-vv-source-outer-owner/owner.name"
           else cat "$UNIT_ROOT/owner"; fi ;;
         '{{.State.Running}}') echo false ;;
         '{{.State.ExitCode}}') echo 0 ;;
@@ -101,7 +102,7 @@ df() { printf 'Avail\n30064771072\n'; }
 stat() { printf '1000\n'; }
 cat() { if test "$*" = /proc/sys/kernel/random/uuid; then echo 01234567-89ab-cdef-0123-456789abcdef; else command cat "$@"; fi; }
 export -f git df stat cat
-/bin/bash root-a/scripts/sdk-vv-outer.sh "$UNIT_IMAGE" "$UNIT_REVISION" "$UNIT_ARCH" "sdk-$UNIT_ARCH-full-sdk-vv"
+/bin/bash root-a/scripts/sdk-vv-outer.sh "$UNIT_IMAGE" "$UNIT_REVISION" "$UNIT_ARCH" source "sdk-$UNIT_ARCH-full-sdk-vv-source"
 `;
   for (const mode of ['complete', 'foreign-container', 'foreign-matching-label', 'foreign-tag', 'create-partial', 'create-renamed', 'create-missing-id',
     'wrong-label', 'wrong-id', 'build-partial', 'build-missing-id', 'build-success-missing-id',
@@ -110,7 +111,9 @@ export -f git df stat cat
     t.after(() => rmSync(dir, {recursive: true, force: true}));
     mkdirSync(join(dir, 'bin')); mkdirSync(join(dir, 'root-a/scripts'), {recursive: true});
     writeFileSync(join(dir, 'bin/docker'), docker, {mode: 0o700});
-    writeFileSync(join(dir, 'root-a/scripts/sdk-vv-outer.sh'), readFileSync(new URL('./sdk-vv-outer.sh', import.meta.url)));
+    // sdk-vv-outer.sh reads the closed part list from vv-assemble.mjs, so its import closure travels with it.
+    for (const file of ['sdk-vv-outer.sh', 'vv-assemble.mjs', 'sdk-vv-run.mjs', 'sdk-bootstrap-retention.mjs', 'bootstrap-evidence.mjs', 'semantic-source.mjs', 'sdk-vv-inputs.mjs'])
+      writeFileSync(join(dir, 'root-a/scripts', file), readFileSync(new URL('./' + file, import.meta.url)));
     if (['foreign-container', 'foreign-matching-label'].includes(mode)) {writeFileSync(join(dir, 'container.exists'), ''); writeFileSync(join(dir, 'owner'), 'foreign');}
     if (mode === 'foreign-tag') writeFileSync(join(dir, 'image.exists'), '');
     const architecture = process.arch === 'x64' ? 'amd64' : 'arm64';
@@ -127,7 +130,7 @@ export -f git df stat cat
     if (mode.startsWith('foreign-')) assert(!/^buildx build /m.test(commands), 'collision must be refused before building');
     if (['foreign-container', 'foreign-matching-label'].includes(mode)) assert(existsSync(join(dir, 'container.exists')), 'rejected foreign container must survive');
     if (mode === 'foreign-tag') assert(existsSync(join(dir, 'image.exists')), 'rejected foreign tag must survive');
-    const evidence = join(dir, `sdk-${architecture}-full-sdk-vv-outer-owner`);
+    const evidence = join(dir, `sdk-${architecture}-full-sdk-vv-source-outer-owner`);
     assert.equal(readFileSync(join(evidence, 'cleanup.status'), 'utf8').trim(), String(result.status));
     if (['complete', 'create-partial', 'create-renamed', 'build-partial'].includes(mode)) {
       assert.equal(readFileSync(join(evidence, 'cleanup-owned.status'), 'utf8').trim(), '0');
@@ -231,19 +234,20 @@ test('SDK execution is same-daemon, read-only and unprivileged with only owned p
   assert.throws(() => sdkContainerArguments('prismpm-unit-sdk', image, 2375, '/'));
 });
 
-test('both original full-VV records and execution identity are independently required', () => {
-  const raw = Buffer.from(canonical({schema: 'prismpm/vv-evidence/1', commit: revision, gates: Array.from({length: 15}, (_, index) => index + 1), status: 'passed'}));
-  const runs = [1, 2].map(run => ({run, path: `run-${run}/vv-evidence.json`, byte_length: raw.length, sha256: digest(raw).slice(7)}));
-  const record = {schema: 'prismpm/sdk-vv-execution/1', scope: 'two-full-vv-executions-only', source_revision: revision,
+test('the original part record and execution identity are independently required', () => {
+  const raw = Buffer.from(canonical({commit: revision, part: 'dk-2', schema: 'prismpm/vv-part/1', status: 'passed'}));
+  const run = {part: 'dk-2', path: 'part/vv-part.json', byte_length: raw.length, sha256: digest(raw).slice(7)};
+  const record = {schema: 'prismpm/sdk-vv-execution/2', scope: 'one-vv-part-execution-only', part: 'dk-2', source_revision: revision,
     image_reference: image, process_architecture: 'x64', inventory_sha256: 'd'.repeat(64), cli_sha256: 'e'.repeat(64),
-    input_policy_sha256: 'f'.repeat(64), input_manifest_sha256: '1'.repeat(64), advisory_revision: '2'.repeat(40), runs,
+    input_policy_sha256: 'f'.repeat(64), input_manifest_sha256: '1'.repeat(64), advisory_revision: '2'.repeat(40), run,
     unclaimed: ['native-host', 'network-isolation', 'oci-image-identity', 'sdk-release', 'product-readiness']};
-  validateExecution(Buffer.from(canonical(record)), [raw, raw], image, revision, 'amd64');
-  for (const changed of [{...record, runs: runs.slice(1)}, {...record, source_revision: '3'.repeat(40)},
+  validateExecution(Buffer.from(canonical(record)), raw, image, revision, 'amd64', 'dk-2');
+  for (const changed of [{...record, run: {...run, part: 'source'}}, {...record, part: 'source'}, {...record, source_revision: '3'.repeat(40)},
     {...record, process_architecture: 'arm64'}, {...record, unclaimed: []}, {...record, extra: true}]) {
-    assert.throws(() => validateExecution(Buffer.from(canonical(changed)), [raw, raw], image, revision, 'amd64'));
+    assert.throws(() => validateExecution(Buffer.from(canonical(changed)), raw, image, revision, 'amd64', 'dk-2'));
   }
-  assert.throws(() => validateExecution(Buffer.from(canonical(record)), [raw, Buffer.from('{}')], image, revision, 'amd64'));
+  assert.throws(() => validateExecution(Buffer.from(canonical(record)), Buffer.from('{}'), image, revision, 'amd64', 'dk-2'));
+  assert.throws(() => validateExecution(Buffer.from(canonical(record)), raw, image, revision, 'amd64', 'other'));
 });
 
 test('runtime image authority has exact fixed members and no floating references', () => {
@@ -287,14 +291,14 @@ function orchestrationFixture(t, fault, store = 'classic', registryEndpoint) {
   const lock = {schema: 'prismpm/sdk-vv-runtime-inputs/1', images: Object.fromEntries(Object.entries(images).filter(([name]) => name !== 'sdk').map(([name, row]) =>
     [name, name === 'dind' ? {reference: row.reference, source: 'https://github.com/docker-library/docker', source_revision: revision, version: '28.4.0-dind'} : {reference: row.reference}]))};
   writeFileSync(join(source, 'sdk/vv-runtime.lock.json'), canonical(lock) + '\n');
-  for (const name of ['sdk-vv-run', 'sdk-vv-probe', 'sdk-vv-check', 'sdk-bootstrap-retention', 'bootstrap-evidence', 'sdk-registry-reader', 'sdk-qualification-trust']) writeFileSync(join(source, `scripts/${name}.mjs`), `// unit-only source-binding fixture: ${name}\n`);
+  for (const name of ['sdk-vv-run', 'vv-assemble', 'sdk-vv-probe', 'sdk-vv-check', 'sdk-bootstrap-retention', 'bootstrap-evidence', 'sdk-registry-reader', 'sdk-qualification-trust']) writeFileSync(join(source, `scripts/${name}.mjs`), `// unit-only source-binding fixture: ${name}\n`);
   for (const name of ['sdk-command-owner.mjs', 'sdk-command-owner.py', 'sdk-vv-outer.sh']) writeFileSync(join(source, 'scripts', name), `# unit-only binding fixture: ${name}\n`);
   const policy = Buffer.from(canonical({source_revision: revision, advisory_revision: '2'.repeat(40)})), inventory = Buffer.from('unit inventory'), inputManifest = Buffer.from('unit input manifest'), cli = Buffer.from('unit CLI bytes');
-  const raw = Buffer.from(canonical({schema: 'prismpm/vv-evidence/1', commit: revision, gates: Array.from({length: 15}, (_, i) => i + 1), status: 'passed'}));
-  const record = {schema: 'prismpm/sdk-vv-execution/1', scope: 'two-full-vv-executions-only', source_revision: revision, image_reference: images.sdk.reference,
+  const raw = Buffer.from(canonical({commit: revision, part: 'source', schema: 'prismpm/vv-part/1', status: 'passed'}));
+  const record = {schema: 'prismpm/sdk-vv-execution/2', scope: 'one-vv-part-execution-only', part: 'source', source_revision: revision, image_reference: images.sdk.reference,
     process_architecture: process.arch, inventory_sha256: digest(inventory).slice(7), cli_sha256: digest(cli).slice(7), input_policy_sha256: digest(policy).slice(7),
     input_manifest_sha256: digest(inputManifest).slice(7), advisory_revision: '2'.repeat(40),
-    runs: [1, 2].map(run => ({run, path: `run-${run}/vv-evidence.json`, byte_length: raw.length, sha256: digest(raw).slice(7)})),
+    run: {part: 'source', path: 'part/vv-part.json', byte_length: raw.length, sha256: digest(raw).slice(7)},
     unclaimed: ['native-host', 'network-isolation', 'oci-image-identity', 'sdk-release', 'product-readiness']};
   const namespace = {identity: 'net:[123]', interfaces: ['docker0', 'lo'], ipv4: 'Iface Destination Gateway Flags RefCnt Use Metric Mask MTU Window IRTT\ndocker0 000011AC 00000000 0001 0 0 0 0000FFFF 0 0 0\n', ipv6: ''};
   const ok = value => ({status: 0, signal: null, stdout: Buffer.isBuffer(value) ? value : Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)), stderr: Buffer.alloc(0)});
@@ -336,7 +340,7 @@ function orchestrationFixture(t, fault, store = 'classic', registryEndpoint) {
       return fault === 'egress' ? bad(1) : ok({local_tcp: 'passed', bootstrap_tcp: 'blocked', external_dns: 'blocked'});
     }
     if (command[0] === 'node' && command[1].endsWith('/sdk-vv-run.mjs')) {
-      assert.deepEqual(command.slice(2), ['run', images.sdk.reference, revision, '/workspace/run']);
+      assert.deepEqual(command.slice(2), ['run', images.sdk.reference, revision, 'source', '/workspace/run']);
       if (fault === 'run-one' || fault === 'run-two') return bad(42);
       executed = fault !== 'omitted-execution'; return ok('unit-only execution transcript');
     }
@@ -350,7 +354,7 @@ function orchestrationFixture(t, fault, store = 'classic', registryEndpoint) {
       if (bootstrap.retained.has(name)) return fault === 'bootstrap-missing' ? bad(1)
         : ok(fault === 'bootstrap-changed' ? '{}' : bootstrap.retained.get(name));
       if (path.endsWith('execution.json')) return ok(Buffer.from(canonical(fault === 'stale-evidence' ? {...record, source_revision: '9'.repeat(40)} : record)));
-      return ok(fault === 'partial-evidence' && path.includes('run-2') ? '{}' : raw);
+      return ok(fault === 'partial-evidence' && path.endsWith('vv-part.json') ? '{}' : raw);
     }
     const payload = {'/opt/prismpm/share/inventory.json': inventory, '/opt/prismpm/share/vv-input-policy.json': policy,
       '/opt/prismpm/share/vv-inputs/manifest.json': inputManifest, '/usr/local/bin/prismpm': cli}[path];
@@ -428,7 +432,7 @@ function orchestrationFixture(t, fault, store = 'classic', registryEndpoint) {
   const destination = join(root, 'output');
   const environment = {PATH: process.env.PATH, GITHUB_ACTIONS: 'true', GITHUB_SHA: revision, RUNNER_ENVIRONMENT: 'github-hosted',
     RUNNER_OS: 'Linux', RUNNER_ARCH: arch === 'amd64' ? 'X64' : 'ARM64', GITHUB_RUN_ID: '123', GITHUB_RUN_ATTEMPT: '1'};
-  return {destination, calls, resources, metadata, images, run: (run = runOuter) => run({image: images.sdk.reference, revision, arch, source, destination,
+  return {destination, calls, resources, metadata, images, run: (run = runOuter) => run({image: images.sdk.reference, revision, arch, part: 'source', source, destination,
     ...(registryEndpoint ? {registryCertificate: registryEndpoint.ca} : {})}, transport, environment)};
 }
 
@@ -480,7 +484,7 @@ test('owned-registry orchestration uses real TLS metadata and bound daemon CA wi
       const buildx = fixture.calls.filter(args => args[0] === 'buildx');
       assert.equal(buildx.length, 8); assert(buildx.every(args => !args.at(-1).startsWith(authority + '/')));
       assert.deepEqual(result.phases, ['exact-native-images-acquired', 'external-network-disconnected', 'isolated-native-sdk-probed',
-        'both-full-vv-records-verified', 'owned-resources-removed']);
+        'vv-part-record-verified', 'owned-resources-removed']);
     }
     assert.equal(fixture.resources.size, 0);
   }
@@ -490,7 +494,7 @@ test('owned-registry orchestration uses real TLS metadata and bound daemon CA wi
 test('complete orchestration executes acquisition, disconnection, owning runner and cleanup in order', async t => {
   for (const store of ['classic', 'containerd']) {
     const f = orchestrationFixture(t, undefined, store); const value = await f.run();
-    assert.deepEqual(value.phases, ['exact-native-images-acquired', 'external-network-disconnected', 'isolated-native-sdk-probed', 'both-full-vv-records-verified', 'owned-resources-removed']);
+    assert.deepEqual(value.phases, ['exact-native-images-acquired', 'external-network-disconnected', 'isolated-native-sdk-probed', 'vv-part-record-verified', 'owned-resources-removed']);
     assert.equal(f.resources.size, 0); assert(existsSync(join(f.destination, 'acceptance.json')));
     const loaded = JSON.parse(readFileSync(join(f.destination, 'loaded-identities.json')));
     assert.equal(Object.keys(loaded).length, 4); assert(Object.values(loaded).every(row => row.store === store));
@@ -655,7 +659,7 @@ test('executed omission mutants cannot satisfy the owning orchestration contract
   const absoluteImports = text => text.replace(/from '(\.[^']+)'/g, (_, path) => `from '${new URL(path, import.meta.url).href}'`);
   const mutants = [
     text => text.replace("await outer(['network', 'disconnect', names.network, names.daemon]);", '/* unit mutant: omitted disconnect */'),
-    text => text.replace(/const run = await inside\(\['exec', names.sdk, 'node', `\$\{SHARED\}\/conformance-root\/scripts\/sdk-vv-run.mjs`,\s*'run', image, revision, '\/workspace\/run'\], \{timeout: 14400000, limit: 64 \* 1024 \* 1024\}\);/,
+    text => text.replace(/const run = await inside\(\['exec', names.sdk, 'node', `\$\{SHARED\}\/conformance-root\/scripts\/sdk-vv-run.mjs`,\s*'run', image, revision, part, '\/workspace\/run'\], \{timeout: 18000000, limit: 64 \* 1024 \* 1024\}\);/,
       "const run = {status:0,signal:null,stdout:Buffer.alloc(0),stderr:Buffer.alloc(0)};"),
     text => text.replace('for (const resource of owned.reverse()) {', 'for (const resource of []) {'),
   ];
@@ -703,29 +707,27 @@ test('native release matrix executes the additional exact-image gate and preserv
     const jobs = [...source.matchAll(new RegExp(`^  ${name}:\\n([\\s\\S]*?)(?=^  [a-z][a-z-]*:\\n)`, 'gm'))];
     assert.equal(jobs.length, 1); return jobs[0][1];
   };
-  const job = extract('installed-sdk'), repro = extract('reproducibility');
-  assert.match(job, /^    runs-on: \$\{\{ matrix.os \}\}$/m);
-  assert.match(job, /^    needs: \[gate, images\]$/m);
-  assert(!/^    (?:if|continue-on-error):/m.test(job));
+  const installed = extract('installed-sdk'), repro = extract('reproducibility');
+  // Installed V&V re-ran the source parts on a projection; it is retired from
+  // the release route (Factory.Release). The product build stays mandatory.
+  assert(!/^  installed-vv:$/m.test(source));
+  // A build receipt (Factory.Release buildRoute) skips the whole build stage;
+  // otherwise the product build runs unconditionally and cannot be softened.
+  assert.match(installed, /^    needs: \[policy, factory, images\]$/m);
+  assert(!installed.includes('sdk-release-evidence.mjs assemble-installed'));
+  assert.deepEqual(installed.match(/^    if:.*$/gm), ["    if: ${{ needs.factory.outputs.build-route == 'establish' }}"]);
+  assert(!/^\s*continue-on-error:/m.test(installed));
   const setupNode = '      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38\n        with:\n          node-version: 22.23.2\n';
   const hostPrerequisite = (job, command) => {
     assert.equal(job.split(setupNode).length, 2, 'exactly one pinned host Node setup required');
     const firstNode = job.indexOf(command);
     assert(firstNode > job.indexOf(setupNode), 'pinned Node must precede the first source helper');
   };
-  for (const [text, command] of [[job, 'node root-a/scripts/product-sdk-check.mjs tests'], [repro, 'node "$root/scripts/sdk-image-inputs.mjs"']]) {
+  for (const [text, command] of [[installed, 'bash root-a/scripts/product-sdk-check.sh'], [repro, 'bash root-a/scripts/release-rebuild.sh root-b']]) {
     hostPrerequisite(text, command);
     assert.throws(() => hostPrerequisite(text.replace(setupNode, ''), command));
     assert.throws(() => hostPrerequisite(text.replace('node-version: 22.23.2', 'node-version: 20'), command));
   }
-  const sdkRows = [...job.matchAll(/          - os: ([^\n]+)\n            arch: ([^\n]+)\n/g)];
-  assert.equal([...job.matchAll(/^            arch: /gm)].length, 2);
-  assert.deepEqual(sdkRows.map(row => row.slice(1)),
-    [['ubuntu-24.04', 'amd64'], ['ubuntu-24.04-arm', 'arm64']]);
-  const steps = [...job.matchAll(/^      - name: Verify both complete installed-SDK runs on the native isolated runner\n([\s\S]*?)(?=^      - )/gm)]; assert.equal(steps.length, 1);
-  const step = /^        shell: bash\n        env:\n          RESULT_NAME: sdk-\$\{\{ matrix.arch \}\}\n          NATIVE_PLATFORM: linux\/\$\{\{ matrix.arch \}\}\n        run: \|\n((?:          .*\n)+)$/.exec(steps[0][1]);
-  assert(step, 'closed mandatory SDK step required');
-  const run = step[1].split('\n').map(line => line.slice(10)).join('\n');
   const wrapper = readFileSync(new URL('./sdk-vv-outer.sh', import.meta.url), 'utf8');
   const inner = /  '(node root-a\/scripts\/sdk-vv-check\.mjs tests; node root-a\/scripts\/sdk-vv-check\.mjs run [^'\n]+)'/.exec(wrapper);
   assert(inner, 'both original owning and installed operations must execute inside the pinned image');
@@ -734,14 +736,17 @@ test('native release matrix executes the additional exact-image gate and preserv
   assert(wrapper.includes('test "$(controlled actor-running 10 container inspect "$container_id" --format'));
   assert(wrapper.includes('absent id-absence "$container_id"'));
   assert(repro.includes('browser-api-sdk-check.sh')); assert(repro.includes('library-sdk-check.sh'));
+  // The launcher's own invocation, as an explicit installed run outside the release route uses it.
+  const run = 'set -euo pipefail\nbash root-a/scripts/sdk-vv-outer.sh "$(cat .shipped-image/sdk-image.txt)" \\\n'
+    + '  "$GITHUB_SHA" "${NATIVE_PLATFORM#linux/}" "$PART" "$RESULT_NAME-full-sdk-vv-$PART"\n';
   const dir = mkdtempSync(join(tmpdir(), 'prismpm-vv-workflow-unit-')); t.after(() => rmSync(dir, {recursive:true, force:true}));
   mkdirSync(join(dir, '.shipped-image')); writeFileSync(join(dir, '.shipped-image/sdk-image.txt'), image + '\n');
   // Explicit workflow units, not real Docker/image/SDK acceptance. Execute the
   // actual job command and its exact image-owned inner command in real shells.
-  const script = `cd "$UNIT_ROOT"\nnode() { printf '%s\\n' "$*" >> "$UNIT_ROOT/commands"; [ "\${UNIT_FAIL:-}" != "$2" ]; }; export -f node\nbash() { test "$1" = root-a/scripts/sdk-vv-outer.sh; shift; test "$#" = 4; /bin/bash --noprofile --norc -euo pipefail -c ${JSON.stringify(inner[1])} sdk-outer "$@"; }\n` + run;
-  const env = {PATH:process.env.PATH, UNIT_ROOT:dir, RESULT_NAME:'sdk-unit', NATIVE_PLATFORM:'linux/amd64', GITHUB_SHA:revision};
+  const script = `cd "$UNIT_ROOT"\nnode() { printf '%s\\n' "$*" >> "$UNIT_ROOT/commands"; [ "\${UNIT_FAIL:-}" != "$2" ]; }; export -f node\nbash() { test "$1" = root-a/scripts/sdk-vv-outer.sh; shift; test "$#" = 5; /bin/bash --noprofile --norc -euo pipefail -c ${JSON.stringify(inner[1])} sdk-outer "$@"; }\n` + run;
+  const env = {PATH:process.env.PATH, UNIT_ROOT:dir, RESULT_NAME:'sdk-unit', NATIVE_PLATFORM:'linux/amd64', PART:'dk-2', GITHUB_SHA:revision};
   const result = await execute('/bin/bash', ['-c', script], {environment:env}); assert.equal(result.status,0);
   assert.deepEqual(readFileSync(join(dir, 'commands'), 'utf8').trim().split('\n'), [
-    'root-a/scripts/sdk-vv-check.mjs tests', `root-a/scripts/sdk-vv-check.mjs run ${image} ${revision} amd64 sdk-unit-full-sdk-vv`]);
+    'root-a/scripts/sdk-vv-check.mjs tests', `root-a/scripts/sdk-vv-check.mjs run ${image} ${revision} amd64 dk-2 sdk-unit-full-sdk-vv-dk-2`]);
   for (const mode of ['tests', 'run']) assert.notEqual((await execute('/bin/bash', ['-c', script], {environment:{...env,UNIT_FAIL:mode}})).status,0);
 });

@@ -216,21 +216,22 @@ Everything is held in memory until every step passes. The write is a temporary f
 | 3 | The layer's size and `sha256` equal its descriptor | `DigestMismatchError` |
 | 4 | The archive parses; footer and every section label verify | `DigestMismatchError`, `pull.archive` |
 | 5 | The BLAKE3 annotations, and a `@blake3:` address, equal what the bytes give | `DigestMismatchError` |
-| 6 | The verdict of `holo.verify()` passes the policy | `PullVerificationError`, `pull.verdict`, with the whole verdict |
-| 7 | Every attestation line decodes, and every subject matches its blob | `PullVerificationError`, `pull.attestation` |
+| 6 | Every attestation line decodes, and every subject matches its blob | `PullVerificationError`, `pull.attestation` |
+| 7 | The verdict of `check` passes the policy | `PullVerificationError`, `pull.verdict`, with the whole verdict |
 | 8 | With a signer policy, at least one bundle passes it | `PullVerificationError`, `pull.signer`, with the cause |
 
 **The policy.**
-`--policy <file>` is the file `check` reads, judged by the same `experimental_verify`, so `pull`, `check` and `run` cannot disagree.
+`--policy <file>` is the file `check` reads, and the verdict is `check`'s, so `pull` and `check` cannot disagree.
 Without it the policy is `pull-default`, minimum P0 unless `PRISM_MINIMUM_LEVEL` says otherwise.
 The default is lower than `check`'s P2 on purpose: every holo is P0 today, so a P2 default would refuse every pull.
 `run` still gates at P2 when the holo is used.
 A pull that passes P0 has still passed every integrity and document check in the verdict.
 
 **The attestation section and the verdict.**
-`check` refuses a holo with an attestation section (`format.revision`) until a format revision admits the ninth row, and PR 369 does not add that revision.
-So step 6 judges the unsigned archive, `stripAttestations(holo)`, which #267 guarantees is byte for byte what was signed, and steps 7 and 8 judge the section.
-The verdict's `holo` field therefore names the unsigned fingerprint until the revision lands.
+Since #270, `check` judges a holo with an attestation section by the statements in it, each counting only when its signature verifies against the signer the caller names, and step 7 is that verdict.
+So with a signer a holo can reach P1 or P2 in a pull, and without one a signed holo is P0.
+The verdict's `holo` field is the fingerprint of the file as given, the `fingerprint` the pull reports.
+Referrers do not raise the level, because they are about the manifest and not part of the holo. Step 8 judges them.
 
 **The signer policy.**
 `--key`, or `--certificate-identity` (or `--certificate-identity-regexp`) with `--certificate-oidc-issuer`, are the flags of `verify-attestation`.
@@ -337,7 +338,6 @@ Running this against cosign found a defect in #272: `@sigstore/sign` writes the 
 - The GHCR half of the done criterion has not been run. It runs only when someone dispatches the workflow, because it needs the repository's package permission and asks Sigstore for a certificate. Keyless signing at push is therefore tested only by that job.
 - `registry:2.8.3` has not been run either: Docker was unavailable where this was written, so only `distribution` 3.1.2 is evidence so far. The interop workflow runs it.
 - Conformance ID `HO-28`, which PR 369 reserves for `prism push`, is not registered: a new ID needs a case in `crates/conformance`, and that is Rust side work. The tests above are its oracle.
-- `check` and `verify` do not read the attestation section yet (see above), so a pulled holo's level is P0 whatever it carries.
 - `pull` does not write referrers next to an output file. `pull <ref> dir://<store>` keeps them.
 - A resumable or chunked upload: a blob is one `PUT`, which is enough for a holo.
 

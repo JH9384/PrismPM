@@ -10,6 +10,33 @@
 \noindent Constructor \texttt{RootfsImage}: \texttt{()}.\par
 \noindent Constructor \texttt{View}: \texttt{()}.\par
 \noindent Constructor \texttt{InferenceModel}: \texttt{()}.\par
+\subsection*{\texttt{layerKindCode}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(kind : LayerKind)}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{(match kind with | LayerKind.WasmCodemodule => 0 | LayerKind.TensorPlan => 1 | LayerKind.RootfsImage => 2 | LayerKind.View => 3 | LayerKind.InferenceModel => 4)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{layerKindOfCode}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(code : Nat)}.\par
+\noindent Type: \texttt{Option (LayerKind)}.\par
+\noindent Definition: \texttt{(if (Nat.beq (code) (0)) then Option.some (LayerKind.WasmCodemodule) else (if (Nat.beq (code) (1)) then Option.some (LayerKind.TensorPlan) else (if (Nat.beq (code) (2)) then Option.some (LayerKind.RootfsImage) else (if (Nat.beq (code) (3)) then Option.some (LayerKind.View) else (if (Nat.beq (code) (4)) then Option.some (LayerKind.InferenceModel) else Option.none)))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{layerKindRoundTrip}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(code : Nat)}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match layerKindOfCode (code) with | Option.none => false | Option.some kind => (Nat.beq (layerKindCode (kind)) (code)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{layerKindCodesClosed}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(layerKindRoundTrip (0) \&\& (layerKindRoundTrip (1) \&\& (layerKindRoundTrip (2) \&\& (layerKindRoundTrip (3) \&\& (layerKindRoundTrip (4) \&\& ((!layerKindRoundTrip (5)) \&\& true))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{layerKindCodesBijective}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Statement: \texttt{(layerKindCodesClosed = true)}.\par
+\noindent Axiom policy: \texttt{none}.\par
 \subsection*{\texttt{Layer}}
 \noindent Kind: \texttt{structure}.\par
 \noindent Field \texttt{kind}: \texttt{LayerKind}.\par

@@ -1,0 +1,100 @@
+name: Focused release image reproducibility
+
+# Only PRs changing this diagnostic workflow launch it automatically.
+# New heads replace older runs. This is not release acceptance evidence.
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths: ['.github/workflows/release-repro-diagnostic.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-repro-diagnostic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compose-arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 210
+    env:
+      BUILDKIT_PROGRESS: plain
+      SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Free space for two independent OCI builds
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup \
+            /usr/share/swift /usr/local/share/boost /usr/local/julia* /opt/az /opt/microsoft \
+            /usr/lib/jvm /usr/share/miniconda /usr/local/share/powershell
+          df -h /
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_REVISION }}
+          path: root-a
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_REVISION }}
+          path: root-b
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - name: Build the same compose target independently in two roots
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir diagnostics
+          printf '%s\n' "$SOURCE_REVISION" > diagnostics/source-revision.txt
+          for root in root-a root-b; do
+            printf 'Starting independent build %s at %s\n' "$root" "$(date -u +%FT%TZ)"
+            test "$(git -C "$root" rev-parse HEAD)" = "$SOURCE_REVISION"
+            node "$root/scripts/sdk-image-inputs.mjs" build "$root" "$SOURCE_REVISION" adapter-compose \
+              --no-cache --provenance=false --sbom=false \
+              --build-arg SOURCE_DATE_EPOCH=0 \
+              --label org.opencontainers.image.created=1970-01-01T00:00:00Z \
+              --label "org.opencontainers.image.revision=$SOURCE_REVISION" \
+              --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+              --label "org.opencontainers.image.version=$(node --input-type=module -e "import {workspaceVersion} from './scripts/workspace-version.mjs'; process.stdout.write(workspaceVersion())")" \
+              --platform linux/arm64 \
+              --output "type=oci,dest=$root.oci.tar,rewrite-timestamp=true,oci-mediatypes=true" \
+              2>&1 | tee "diagnostics/$root-build.log"
+            mkdir "$root.oci"
+            tar -xf "$root.oci.tar" -C "$root.oci"
+            # The layout contains the exact exported blobs; retaining a second
+            # tar copy consumes disk without adding diagnostic information.
+            rm "$root.oci.tar"
+            cp "$root.oci/index.json" "diagnostics/$root-index.json"
+            jq -r '.manifests[0].digest' "$root.oci/index.json" > "diagnostics/$root.digest"
+            printf 'Completed %s: ' "$root"
+            cat "diagnostics/$root.digest"
+            df -h /
+          done
+          cmp diagnostics/root-a.digest diagnostics/root-b.digest
+          cmp root-a.oci/index.json root-b.oci/index.json
+      - name: Diagnose residual differences
+        if: failure()
+        timeout-minutes: 5
+        run: |
+          if [ -f root-a.oci/index.json ] && [ -f root-b.oci/index.json ]; then
+            status=0
+            python3 -I -B root-a/scripts/oci-repro-diagnostics.py root-a.oci root-b.oci > diagnostics/differences.json 2> diagnostics/differences.log || status=$?
+            cat diagnostics/differences.json diagnostics/differences.log
+            exit "$status"
+          fi
+      - name: Retain selected-target diagnostic results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: compose-arm64-repro-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 7

@@ -65,7 +65,7 @@ definition{
   name: browserValidArchiveBody,
   parameters: [body : Bytes],
   result: Bool,
-  body: (if ((202 <=? (prim length body : Nat)) && ((Foundation.Holo.V1.Wire::wireWindowEquals body 0 10 0x484f4c4f040000000800) && true)) then (if (Foundation.Holo.V1.Wire::wireRowsValid body 0 202 8) then (browserWireBodyPayloadsValid body) else false) else false),
+  body: (if (Foundation.Holo.V1.Wire::validCanonicalArchiveBody body) then (if ((202 <=? (prim length body : Nat)) && ((Foundation.Holo.V1.Wire::wireWindowEquals body 0 10 0x484f4c4f040000000800) && true)) then (if (Foundation.Holo.V1.Wire::wireRowsValid body 0 202 8) then (browserWireBodyPayloadsValid body) else false) else false) else false),
   axioms: [propext]
 }
 
@@ -82,7 +82,7 @@ definition{
     blob3 : Bytes
   ],
   result: (Option Bytes),
-  body: (if (browserWirePayloadsValid manifest blob0 blob1 blob2 blob3) then (ctor Option.some [Bytes] (Foundation.Holo.V1.Wire::wireComposeBodyUnchecked manifest metadata (prim append (prim append 0x (Foundation.Holo.V1.Wire::wireDirectoryPrefix) : Bytes) directory : Bytes) (prim append (prim append 0x (browserWireProvenancePrefix) : Bytes) provenance : Bytes) blob0 blob1 blob2 blob3)) else (ctor Option.none [Bytes])),
+  body: (if (browserWirePayloadsValid manifest blob0 blob1 blob2 blob3) then (Foundation.Holo.V1.Wire::wireCheckedCanonicalBody (Foundation.Holo.V1.Wire::wireComposeBodyUnchecked manifest metadata (prim append (prim append 0x (Foundation.Holo.V1.Wire::wireDirectoryPrefix) : Bytes) directory : Bytes) (prim append (prim append 0x (browserWireProvenancePrefix) : Bytes) provenance : Bytes) blob0 blob1 blob2 blob3)) else (ctor Option.none [Bytes])),
   axioms: [propext]
 }
 

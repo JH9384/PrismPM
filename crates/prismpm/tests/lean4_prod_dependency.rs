@@ -121,14 +121,14 @@ fn lean4_prod_dependency_record_and_checksums_are_valid() {
         (
             "vendor/lean4-prod/lean.tar",
             (
-                "7a1a716a57040ea2307f7a34e895a75ebdca7438cf9d5d0364007acb594366bf",
+                "50e085623708a3ffa3d582027589a0cc8b78e79fd62b176049f2eaad8efe47db",
                 None,
             ),
         ),
         (
             "vendor/lean4-prod/rust/MANIFEST.sha256",
             (
-                "8aff4bd39ccd82cfb634c0cb6fcc216eca6fbbe9a4776a5382f44734b606f52b",
+                "45fe620c63632e8a4cfa950cc75531b8266b5d56caafff24a31abe6eb81f309d",
                 Some("vendor/lean4-prod/rust"),
             ),
         ),
@@ -142,7 +142,7 @@ fn lean4_prod_dependency_record_and_checksums_are_valid() {
         (
             "vendor/lean4-prod/crates/prod-codegen-0.1.0.crate",
             (
-                "29270825b581f950b3914509b7a0613f34964f003eb3c61772636d0805b09148",
+                "81602aea6d0e08cebc8be4ea77d28b68ba8f84d0957b7a6d32175aa66b560b55",
                 None,
             ),
         ),
@@ -315,7 +315,7 @@ source = "vendored"
 [[dependency.artifact]]
 kind = "file"
 path = "vendor/lean4-prod/lean.tar"
-sha256 = "7a1a716a57040ea2307f7a34e895a75ebdca7438cf9d5d0364007acb594366bf"
+sha256 = "50e085623708a3ffa3d582027589a0cc8b78e79fd62b176049f2eaad8efe47db"
 "#;
 
     let parsed = parse_lean4_prod_dependency(valid_toml).expect("valid parse");

@@ -1,0 +1,671 @@
+// Generated acceptance of the serving adapter against the serving declaration.
+// Every bound is read from the generated surface, never written here: the tests
+// build the requests that sit exactly on a declared bound and one step past it,
+// so a bound that is off by one, or not enforced, fails whatever the model says.
+use @HOST@::acceptance::{SERVED, VECTORS};
+use @HOST@::frame::{self, Context};
+use @HOST@::refusal::ServingRefusal as Refusal;
+use @HOST@::script::ScriptedHost;
+use @HOST@::serve::{self, Abort, Input, Request, Response, Root, Source};
+use @HOST@::surface;
+use @HOST@::Failure;
+use std::io::{Cursor, Read, Write};
+use std::net::{Ipv4Addr, TcpStream};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
+
+type Binding = @BINDING_HOST@;
+
+fn window() -> Duration {
+    Duration::from_millis(u64::from(surface::READ_TIMEOUT_MILLIS))
+}
+
+/// A response frame the core stand-ins return: status 200, no field, no notification, body `ok`.
+fn ok_frame() -> Vec<u8> {
+    vec![0, 0, 0, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, b'o', b'k']
+}
+
+/// Counts how often the core is called, one counter per test that asks.
+macro_rules! counting_core {
+    ($calls:ident, $root:ident) => {
+        static $calls: AtomicUsize = AtomicUsize::new(0);
+        fn $root(_: Vec<u8>) -> Result<Vec<u8>, Failure> {
+            $calls.fetch_add(1, Ordering::SeqCst);
+            Ok(ok_frame())
+        }
+    };
+}
+
+fn parse(bytes: &[u8]) -> Result<Request, Abort> {
+    let mut input = Input::new(Cursor::new(bytes.to_vec()), window());
+    serve::read_request(&mut input, &mut Vec::new())
+}
+
+fn refused(bytes: &[u8]) -> Refusal {
+    match parse(bytes) {
+        Err(Abort::Refuse(refusal)) => refusal,
+        other => panic!("expected a refusal, got {other:?}"),
+    }
+}
+
+fn accepted(bytes: &[u8]) -> Request {
+    match parse(bytes) {
+        Ok(request) => request,
+        other => panic!("expected a request, got {other:?}"),
+    }
+}
+
+/// The method of the requests below: one the media requirements apply to, when there is one.
+fn method() -> &'static str {
+    surface::ENFORCED_METHODS.first().copied().unwrap_or("POST")
+}
+
+/// The field lines every request below carries: the host, and what the model requires.
+fn base_lines() -> Vec<String> {
+    let mut lines = vec!["Host: 127.0.0.1".to_owned()];
+    if !surface::ACCEPT.is_empty() {
+        lines.push(format!("Accept: {}", surface::ACCEPT.join(", ")));
+    }
+    if let Some(media) = surface::CONTENT_TYPES.first() {
+        lines.push(format!("Content-Type: {media}"));
+    }
+    lines
+}
+
+fn message(line: &str, lines: &[String], body: &[u8]) -> Vec<u8> {
+    let mut out = format!("{line}\r\n").into_bytes();
+    for field in lines {
+        out.extend_from_slice(field.as_bytes());
+        out.extend_from_slice(b"\r\n");
+    }
+    out.extend_from_slice(b"\r\n");
+    out.extend_from_slice(body);
+    out
+}
+
+fn request_line() -> String {
+    format!("{} /p HTTP/1.1", method())
+}
+
+fn with(extra: &[&str]) -> Vec<u8> {
+    let mut lines = base_lines();
+    lines.extend(extra.iter().map(|line| (*line).to_owned()));
+    message(&request_line(), &lines, b"")
+}
+
+/// What the field lines of `lines` weigh against the declared byte bound.
+fn weight(lines: &[String]) -> usize {
+    lines.iter().map(|line| line.len() + 2).sum()
+}
+
+fn status(response: &[u8]) -> u16 {
+    assert!(response.starts_with(b"HTTP/1.1 "), "{:?}", String::from_utf8_lossy(response));
+    String::from_utf8_lossy(&response[9..12]).parse().expect("a status code")
+}
+
+fn body_of(response: &[u8]) -> &[u8] {
+    let at = response.windows(4).position(|window| window == b"\r\n\r\n").expect("a head") + 4;
+    &response[at..]
+}
+
+fn answer(bytes: &[u8], root: Root) -> Vec<u8> {
+    let mut input = Input::new(Cursor::new(bytes.to_vec()), window());
+    let mut output = Vec::new();
+    serve::serve_one(&mut input, &mut output, "127.0.0.1:1", &mut Binding::default(), root);
+    output
+}
+
+/// Serve one connection of `root` over a real loopback socket: send `bytes`,
+/// read the answer to its end.
+fn over_socket(bytes: &[u8], root: Root) -> Vec<u8> {
+    let listener = serve::listen(Ipv4Addr::LOCALHOST, 0).expect("the loopback interface binds");
+    let port = listener.local_addr().unwrap().port();
+    let server = std::thread::spawn(move || serve::run(listener, Binding::default(), root, Some(1)));
+    let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).unwrap();
+    stream.set_read_timeout(Some(window() * 4)).unwrap();
+    // The server may answer and close before it has read everything.
+    let _ = stream.write_all(bytes);
+    let mut response = Vec::new();
+    let _ = stream.read_to_end(&mut response);
+    server.join().unwrap().unwrap();
+    response
+}
+
+#[test]
+fn the_listener_binds_loopback_only_and_refuses_any_other_address() {
+    assert_eq!(surface::ADDRESS, [127, 0, 0, 1]);
+    for address in [
+        Ipv4Addr::UNSPECIFIED,
+        Ipv4Addr::BROADCAST,
+        Ipv4Addr::new(127, 0, 0, 2),
+        Ipv4Addr::new(10, 0, 0, 1),
+        Ipv4Addr::new(192, 168, 1, 1),
+        Ipv4Addr::new(169, 254, 0, 1),
+    ] {
+        assert_eq!(serve::listen(address, 0).err(), Some(Failure::ListenAddress), "{address}");
+    }
+    let listener = serve::listen(Ipv4Addr::LOCALHOST, 0).unwrap();
+    assert_eq!(listener.local_addr().unwrap().ip(), std::net::IpAddr::V4(Ipv4Addr::LOCALHOST));
+    if surface::PORT == 0 {
+        let declared = serve::declared_listener().unwrap();
+        assert!(declared.local_addr().unwrap().ip().is_loopback());
+    }
+}
+
+counting_core!(MALFORMED_CALLS, malformed_core);
+
+#[test]
+fn a_malformed_request_line_is_a_400_before_the_core_is_called() {
+    for line in [
+        &b"GET /\r\n\r\n"[..],
+        b"GET  / HTTP/1.1\r\n\r\n",
+        b"G ET / HTTP/1.1\r\n\r\n",
+        b"GET / HTTP/1.1 extra\r\n\r\n",
+        b"GET / HTTP/1.1\n\n",
+        b"GET / HTTP/1.1\r\r\n\r\n",
+        b"\r\n",
+        b"GET / HTTP/one\r\n\r\n",
+        b"GET /\x01 HTTP/1.1\r\n\r\n",
+        b"(GET) / HTTP/1.1\r\n\r\n",
+    ] {
+        assert_eq!(refused(line), Refusal::RequestLineMalformed, "{:?}", String::from_utf8_lossy(line));
+        let response = answer(line, malformed_core);
+        assert_eq!(status(&response), 400);
+        assert_eq!(body_of(&response), b"RequestLineMalformed\n");
+    }
+    assert_eq!(refused(b"GET / HTTP/2.0\r\n\r\n"), Refusal::VersionUnsupported);
+    assert_eq!(refused(b"GET / HTTP/1.0\r\n\r\n"), Refusal::VersionUnsupported);
+    let long = format!("GET /{} HTTP/1.1\r\n\r\n", "a".repeat(surface::REQUEST_LINE_MAXIMUM));
+    assert_eq!(refused(long.as_bytes()), Refusal::RequestLineTooLong);
+    let exact = format!("GET /{} HTTP/1.1", "a".repeat(surface::REQUEST_LINE_MAXIMUM.saturating_sub(14)));
+    if exact.len() == surface::REQUEST_LINE_MAXIMUM {
+        let mut lines = base_lines();
+        lines.push("X-Exact: 1".to_owned());
+        assert!(parse(&message(&exact, &lines, b"")).is_ok());
+    }
+    // A missing Host, or two of them, is a malformed request (RFC 9112 section 3.2).
+    assert_eq!(refused(&message(&request_line(), &[], b"")), Refusal::HostInvalid);
+    let mut twice = base_lines();
+    twice.push("Host: localhost".to_owned());
+    assert_eq!(refused(&message(&request_line(), &twice, b"")), Refusal::HostInvalid);
+    // A field line without a colon, with a space before it or an empty name, is malformed.
+    for field in ["NoColon", "Bad Name: v", "Name : v", ": v", "X: \u{1}"] {
+        assert_eq!(refused(&with(&[field])), Refusal::FieldMalformed, "{field:?}");
+    }
+    let client_left = parse(b"");
+    assert!(matches!(client_left, Err(Abort::Silent)));
+    assert_eq!(status(&over_socket(b"GET /\r\n\r\n", malformed_core)), 400);
+    assert_eq!(MALFORMED_CALLS.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn an_oversized_header_section_is_a_431() {
+    let base = weight(&base_lines());
+    // `X-Pad: ` and the CRLF take nine bytes with the field; the rest is the value.
+    let Some(room) = surface::HEADER_BYTES_MAXIMUM.checked_sub(base + 9) else {
+        assert_eq!(refused(&with(&["X-Pad: 1"])), Refusal::HeaderBytesExceeded);
+        return;
+    };
+    let exact = format!("X-Pad: {}", "a".repeat(room));
+    let at_the_bound = accepted(&with(&[&exact]));
+    assert_eq!(at_the_bound.fields.last().map(|field| field.value.len()), Some(room));
+    let over = format!("X-Pad: {}", "a".repeat(room + 1));
+    assert_eq!(refused(&with(&[&over])), Refusal::HeaderBytesExceeded);
+    let huge = format!("X-Pad: {}", "a".repeat(surface::HEADER_BYTES_MAXIMUM * 2));
+    assert_eq!(refused(&with(&[&huge])), Refusal::HeaderBytesExceeded);
+    assert_eq!(status(&answer(&with(&[&over]), malformed_core)), 431);
+    // Trailers count against the same bound.
+    let mut lines = base_lines();
+    lines.push("Transfer-Encoding: chunked".to_owned());
+    let mut bytes = message(&request_line(), &lines, b"0\r\n");
+    bytes.extend_from_slice(format!("X-Trailer: {}\r\n\r\n", "a".repeat(room)).as_bytes());
+    assert_eq!(refused(&bytes), Refusal::HeaderBytesExceeded);
+}
+
+#[test]
+fn too_many_header_fields_are_a_431() {
+    let base = base_lines();
+    let spare = surface::HEADER_COUNT_MAXIMUM.saturating_sub(base.len());
+    let numbered = |count: usize| (0..count).map(|index| format!("X: {index}")).collect::<Vec<_>>();
+    let build = |count: usize| {
+        let mut lines = base.clone();
+        lines.extend(numbered(count));
+        lines
+    };
+    let fits_bytes = weight(&build(spare)) <= surface::HEADER_BYTES_MAXIMUM;
+    if fits_bytes {
+        assert_eq!(accepted(&message(&request_line(), &build(spare), b"")).fields.len(), surface::HEADER_COUNT_MAXIMUM);
+        let over = refused(&message(&request_line(), &build(spare + 1), b""));
+        assert!(matches!(over, Refusal::HeaderCountExceeded | Refusal::HeaderBytesExceeded), "{over:?}");
+    }
+    let flood = message(&request_line(), &build(surface::HEADER_COUNT_MAXIMUM + 1), b"");
+    assert!(matches!(refused(&flood), Refusal::HeaderCountExceeded | Refusal::HeaderBytesExceeded));
+    assert_eq!(status(&answer(&flood, malformed_core)), 431);
+}
+
+counting_core!(BODY_CALLS, body_core);
+
+#[test]
+fn an_oversized_body_is_a_413_by_content_length_and_by_chunks() {
+    let max = surface::BODY_MAXIMUM;
+    let with_length = |length: usize, body: &[u8]| {
+        let mut lines = base_lines();
+        lines.push(format!("Content-Length: {length}"));
+        message(&request_line(), &lines, body)
+    };
+    let exact = accepted(&with_length(max, &vec![b'x'; max]));
+    assert_eq!(exact.body.len(), max);
+    // The size is decided from the field, before any body byte is read.
+    assert_eq!(refused(&with_length(max + 1, b"")), Refusal::BodyTooLarge);
+    assert_eq!(refused(&with_length(max + 1, &vec![b'x'; max + 1])), Refusal::BodyTooLarge);
+    assert_eq!(refused(&with_length(usize::MAX, b"")), Refusal::BodyTooLarge);
+    assert_eq!(refused(&with_length(max.saturating_mul(1 << 20), b"")), Refusal::BodyTooLarge);
+    let chunked = |sizes: &[usize]| {
+        let mut lines = base_lines();
+        lines.push("Transfer-Encoding: chunked".to_owned());
+        let mut body = Vec::new();
+        for size in sizes {
+            body.extend_from_slice(format!("{size:x}\r\n").as_bytes());
+            body.extend_from_slice(&vec![b'y'; *size]);
+            body.extend_from_slice(b"\r\n");
+        }
+        body.extend_from_slice(b"0\r\n\r\n");
+        message(&request_line(), &lines, &body)
+    };
+    assert_eq!(accepted(&chunked(&[max])).body.len(), max);
+    assert_eq!(accepted(&chunked(&[max - 1, 1])).body.len(), max);
+    assert_eq!(refused(&chunked(&[max + 1])), Refusal::BodyTooLarge);
+    assert_eq!(refused(&chunked(&[max, 1])), Refusal::BodyTooLarge);
+    assert_eq!(refused(&chunked(&[1, max])), Refusal::BodyTooLarge);
+    // A chunk size that does not fit a machine word is too large, not malformed.
+    let mut lines = base_lines();
+    lines.push("Transfer-Encoding: chunked".to_owned());
+    assert_eq!(refused(&message(&request_line(), &lines, b"ffffffffffffffff\r\n")), Refusal::BodyTooLarge);
+    // Over a socket the answer arrives although the client is still sending.
+    let oversized = with_length(max + 1, &vec![b'z'; max + 1]);
+    let response = over_socket(&oversized, body_core);
+    assert_eq!(status(&response), 413);
+    assert_eq!(BODY_CALLS.load(Ordering::SeqCst), 0);
+}
+
+counting_core!(ORIGIN_CALLS, origin_core);
+
+fn origin_text((scheme, host, port): (&str, &str, u16)) -> String {
+    if port == 0 {
+        format!("{scheme}://{host}")
+    } else {
+        format!("{scheme}://{host}:{port}")
+    }
+}
+
+#[test]
+fn a_forbidden_origin_is_a_403_before_the_core_is_called() {
+    for origin in surface::ORIGINS {
+        let text = origin_text(*origin);
+        let request = accepted(&with(&[&format!("Origin: {text}")]));
+        assert!(request.fields.iter().any(|field| field.name == b"Origin"));
+        assert!(serve::origin_allowed(text.as_bytes()), "{text}");
+        assert!(serve::origin_allowed(text.to_ascii_uppercase().as_bytes()), "{text}");
+        if origin.2 == 0 {
+            assert!(serve::origin_allowed(format!("{text}:8081").as_bytes()), "{text}");
+        } else {
+            assert!(!serve::origin_allowed(format!("{}://{}:{}", origin.0, origin.1, origin.2 % 60_000 + 1).as_bytes()));
+        }
+    }
+    // A request with no Origin is not a browser's, and is not judged.
+    assert!(parse(&with(&[])).is_ok());
+    let stranger = "http://origin-nobody-declared.invalid";
+    assert!(!serve::origin_allowed(stranger.as_bytes()));
+    for origin in [
+        stranger,
+        "null",
+        "",
+        "http://",
+        "http://origin-nobody-declared.invalid:80",
+        "ftp://localhost",
+        "http://localhost/path",
+        "http://localhost?query",
+        "http://user@localhost",
+        "http://localhost:99999",
+        "http://localhost:80a",
+        "http://[::1",
+        "localhost",
+    ] {
+        let wanted = surface::ORIGINS.iter().any(|allowed| origin_text(*allowed) == origin);
+        if !wanted {
+            assert_eq!(refused(&with(&[&format!("Origin: {origin}")])), Refusal::OriginForbidden, "{origin:?}");
+        }
+    }
+    // Two Origin fields are one more than a browser sends.
+    if let Some(allowed) = surface::ORIGINS.first() {
+        let text = origin_text(*allowed);
+        assert_eq!(
+            refused(&with(&[&format!("Origin: {text}"), &format!("Origin: {text}")])),
+            Refusal::OriginForbidden
+        );
+    }
+    let forbidden = with(&["Origin: http://origin-nobody-declared.invalid", "Mcp-Method: tools/call"]);
+    let response = answer(&forbidden, origin_core);
+    assert_eq!(status(&response), 403);
+    assert_eq!(body_of(&response), b"OriginForbidden\n");
+    assert_eq!(status(&over_socket(&forbidden, origin_core)), 403);
+    assert_eq!(ORIGIN_CALLS.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn accept_and_content_type_are_required_from_the_model() {
+    if surface::ENFORCED_METHODS.is_empty() {
+        assert!(surface::ACCEPT.is_empty() && surface::CONTENT_TYPES.is_empty());
+        assert!(parse(&message("POST /p HTTP/1.1", &["Host: 127.0.0.1".to_owned()], b"")).is_ok());
+        return;
+    }
+    let host = "Host: 127.0.0.1".to_owned();
+    let content = surface::CONTENT_TYPES.first().map(|media| format!("Content-Type: {media}"));
+    let with_media = |accept: Option<&str>, content: Option<&str>| {
+        let mut lines = vec![host.clone()];
+        lines.extend(accept.map(str::to_owned));
+        lines.extend(content.map(str::to_owned));
+        message(&request_line(), &lines, b"")
+    };
+    let accept_all = format!("Accept: {}", surface::ACCEPT.join(", "));
+    let accept_all = if surface::ACCEPT.is_empty() { None } else { Some(accept_all.as_str()) };
+    assert!(parse(&with_media(accept_all, content.as_deref())).is_ok());
+    if !surface::ACCEPT.is_empty() {
+        assert_eq!(refused(&with_media(None, content.as_deref())), Refusal::AcceptRefused);
+        assert_eq!(refused(&with_media(Some("Accept: */*"), content.as_deref())), Refusal::AcceptRefused);
+        assert_eq!(refused(&with_media(Some("Accept: text/*"), content.as_deref())), Refusal::AcceptRefused);
+        for left_out in 0..surface::ACCEPT.len() {
+            let some = surface::ACCEPT
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| *index != left_out)
+                .map(|(_, media)| *media)
+                .collect::<Vec<_>>();
+            if !some.is_empty() {
+                let accept = format!("Accept: {}", some.join(", "));
+                assert_eq!(refused(&with_media(Some(&accept), content.as_deref())), Refusal::AcceptRefused);
+            } else if surface::ACCEPT.len() == 1 {
+                assert_eq!(refused(&with_media(Some("Accept: x/y"), content.as_deref())), Refusal::AcceptRefused);
+            }
+        }
+        let weighted = format!("Accept: {};q=0", surface::ACCEPT[0]);
+        assert_eq!(refused(&with_media(Some(&weighted), content.as_deref())), Refusal::AcceptRefused);
+        // Weights, parameters, case and several fields are all ordinary.
+        let spelled = format!("Accept: {};q=0.5, {}", surface::ACCEPT[0].to_ascii_uppercase(), surface::ACCEPT.get(1).copied().unwrap_or(surface::ACCEPT[0]));
+        assert!(parse(&with_media(Some(&spelled), content.as_deref())).is_ok());
+    }
+    if let Some(media) = surface::CONTENT_TYPES.first() {
+        assert_eq!(refused(&with_media(accept_all, None)), Refusal::ContentTypeRefused);
+        assert_eq!(refused(&with_media(accept_all, Some("Content-Type: x/y"))), Refusal::ContentTypeRefused);
+        assert_eq!(refused(&with_media(accept_all, Some("Content-Type: "))), Refusal::ContentTypeRefused);
+        let twice = format!("Content-Type: {media}\r\nContent-Type: {media}");
+        assert_eq!(refused(&with_media(accept_all, Some(&twice))), Refusal::ContentTypeRefused);
+        assert!(parse(&with_media(accept_all, Some(&format!("Content-Type: {media}; charset=utf-8")))).is_ok());
+        assert!(parse(&with_media(accept_all, Some(&format!("Content-Type: {}", media.to_ascii_uppercase())))).is_ok());
+        assert_eq!(refused(&with_media(accept_all, Some(&format!("Content-Type: {media}x")))), Refusal::ContentTypeRefused);
+    }
+    // A method the model does not name is not judged.
+    let other = if surface::ENFORCED_METHODS.contains(&"GET") { "OPTIONS" } else { "GET" };
+    if !surface::ENFORCED_METHODS.contains(&other) {
+        assert!(parse(&message(&format!("{other} /p HTTP/1.1"), &[host.clone()], b"")).is_ok());
+    }
+    assert_eq!(status(&answer(&with_media(None, None), malformed_core)), 406);
+}
+
+#[test]
+fn fields_reach_the_core_in_received_order_without_merging() {
+    let received = [
+        "Host: 127.0.0.1",
+        "X-Dup: first",
+        "x-mixed-CASE:   padded value \t",
+        "X-Dup: second",
+        "X-Empty:",
+        "X-Dup: third, with a comma",
+    ];
+    let mut lines = base_lines();
+    lines.retain(|line| !line.starts_with("Host"));
+    let mut all = vec![received[0].to_owned()];
+    all.extend(lines);
+    all.extend(received[1..].iter().map(|line| (*line).to_owned()));
+    let request = accepted(&message(&request_line(), &all, b""));
+    let tail = request.fields.iter().skip(request.fields.len() - 5).collect::<Vec<_>>();
+    let names = tail.iter().map(|field| String::from_utf8_lossy(&field.name).into_owned()).collect::<Vec<_>>();
+    assert_eq!(names, ["X-Dup", "x-mixed-CASE", "X-Dup", "X-Empty", "X-Dup"]);
+    let values = tail.iter().map(|field| String::from_utf8_lossy(&field.value).into_owned()).collect::<Vec<_>>();
+    assert_eq!(values, ["first", "padded value", "second", "", "third, with a comma"]);
+    assert_eq!(request.fields[0].name, b"Host");
+    assert_eq!(request.fields.len(), all.len());
+    // The frame carries the same lines in the same order: count, then name and value of each.
+    let framed = serve::request_frame(&request, &[]).unwrap();
+    let mut at = 0;
+    let chunk = |at: &mut usize| {
+        let length = u32::from_be_bytes(framed[*at..*at + 4].try_into().unwrap()) as usize;
+        let value = framed[*at + 4..*at + 4 + length].to_vec();
+        *at += 4 + length;
+        value
+    };
+    assert_eq!(chunk(&mut at), request.method);
+    assert_eq!(chunk(&mut at), request.target);
+    let count = u32::from_be_bytes(framed[at..at + 4].try_into().unwrap()) as usize;
+    at += 4;
+    assert_eq!(count, request.fields.len());
+    for field in &request.fields {
+        assert_eq!(chunk(&mut at), field.name);
+        assert_eq!(chunk(&mut at), field.value);
+    }
+    assert_eq!(chunk(&mut at), request.body);
+    assert_eq!(at, framed.len());
+}
+
+#[test]
+fn content_length_and_chunked_bodies_are_delimited_by_rfc_9112() {
+    let post = |extra: &[&str], body: &[u8]| {
+        let mut lines = base_lines();
+        lines.extend(extra.iter().map(|line| (*line).to_owned()));
+        message(&request_line(), &lines, body)
+    };
+    // The length is the field's: the bytes after it are the next message, not this body.
+    let request = accepted(&post(&["Content-Length: 3"], b"abcdef"));
+    assert_eq!(request.body, b"abc");
+    assert!(accepted(&post(&[], b"abcdef")).body.is_empty());
+    assert!(accepted(&post(&["Content-Length: 0"], b"")).body.is_empty());
+    // A body shorter than its length is a malformed message, and never a short body.
+    assert!(matches!(parse(&post(&["Content-Length: 9"], b"abc")), Err(Abort::Refuse(Refusal::RequestLineMalformed))));
+    let chunked = post(&["Transfer-Encoding: Chunked"], b"3;ext=1\r\nabc\r\n2\r\nde\r\n0\r\nX-Trailer: t\r\n\r\n");
+    assert_eq!(accepted(&chunked).body, b"abcde");
+    assert!(accepted(&chunked).fields.iter().all(|field| field.name != b"X-Trailer"));
+    assert_eq!(accepted(&post(&["Transfer-Encoding: chunked"], b"A\r\n0123456789\r\n0\r\n\r\n")).body, b"0123456789");
+    // Ambiguous framing is refused, whichever way (RFC 9112 section 6.3).
+    assert_eq!(refused(&post(&["Content-Length: 3", "Transfer-Encoding: chunked"], b"abc")), Refusal::FramingAmbiguous);
+    for length in ["+3", "-1", "3 3", "3,3", "0x3", "", "3.0", "٣"] {
+        assert_eq!(refused(&post(&[&format!("Content-Length: {length}")], b"abc")), Refusal::LengthInvalid, "{length:?}");
+    }
+    assert_eq!(refused(&post(&["Content-Length: 3", "Content-Length: 3"], b"abc")), Refusal::LengthInvalid);
+    for coding in ["gzip", "gzip, chunked", "chunked, gzip", "identity", "chunkedx"] {
+        assert_eq!(
+            refused(&post(&[&format!("Transfer-Encoding: {coding}")], b"0\r\n\r\n")),
+            Refusal::TransferCodingUnsupported,
+            "{coding}"
+        );
+    }
+    for body in [&b"zz\r\n"[..], b"\r\n", b"3\r\nabcde\r\n0\r\n\r\n", b"3\nabc\r\n0\r\n\r\n", b"1\r\na\r\r\n", b"-1\r\n"] {
+        assert_eq!(
+            refused(&post(&["Transfer-Encoding: chunked"], body)),
+            Refusal::ChunkMalformed,
+            "{:?}",
+            String::from_utf8_lossy(body)
+        );
+    }
+    // A bare line feed ends no line, and a lone carriage return is not a line ending.
+    assert!(matches!(parse(&post(&["Content-Length: 1\n"], b"a")), Err(Abort::Refuse(_))));
+    assert_eq!(refused(b"POST /p HTTP/1.1\r\nHost: 127.0.0.1\nX: 1\r\n\r\n"), Refusal::FieldMalformed);
+    // `Expect: 100-continue` is answered before the body is read; any other expectation fails.
+    let mut lines = base_lines();
+    lines.extend(["Expect: 100-continue".to_owned(), "Content-Length: 2".to_owned()]);
+    let mut interim = Vec::new();
+    let mut input = Input::new(Cursor::new(message(&request_line(), &lines, b"ok")), window());
+    assert_eq!(serve::read_request(&mut input, &mut interim).unwrap().body, b"ok");
+    assert_eq!(interim, b"HTTP/1.1 100 Continue\r\n\r\n");
+    assert_eq!(refused(&post(&["Expect: something-else"], b"")), Refusal::ExpectationUnsupported);
+    // A client that stops sending is timed out, and one that never began is not answered.
+    struct Stalls(Vec<u8>);
+    impl Source for Stalls {
+        fn read_within(&mut self, into: &mut [u8], _: Duration) -> std::io::Result<usize> {
+            if self.0.is_empty() {
+                return Err(std::io::ErrorKind::TimedOut.into());
+            }
+            let count = self.0.len().min(into.len());
+            into[..count].copy_from_slice(&self.0[..count]);
+            self.0.drain(..count);
+            Ok(count)
+        }
+    }
+    let mut half = Input::new(Stalls(b"POST /p HT".to_vec()), window());
+    assert!(matches!(serve::read_request(&mut half, &mut Vec::new()), Err(Abort::Refuse(Refusal::ReadTimeout))));
+    let mut nothing = Input::new(Stalls(Vec::new()), window());
+    assert!(matches!(serve::read_request(&mut nothing, &mut Vec::new()), Err(Abort::Silent)));
+    assert_eq!(Refusal::ReadTimeout.status(), 408);
+}
+
+counting_core!(FRAME_CALLS, frame_core);
+
+#[test]
+fn host_provided_frame_sections_come_from_declared_effects() {
+    // Every served request is framed as the frame vector it names says: the host's
+    // sections follow the body, in the declared order, from the effects the model names.
+    for (index, served) in SERVED.iter().enumerate() {
+        let request = accepted(served.request);
+        let counted = serve::counted(&request);
+        let mut host = Binding::default();
+        let sections = frame::sections(&mut host, &Context { peer: "127.0.0.1:1", counted }).unwrap();
+        let framed = serve::request_frame(&request, &sections).unwrap();
+        assert_eq!(framed, VECTORS[served.vector].request, "served vector {index}");
+        assert!(framed.ends_with(&sections));
+    }
+    // The counted request is the one with the declared field and exactly the declared value.
+    if !surface::COUNTED_FIELD.is_empty() {
+        let line = |value: &str| format!("{}: {value}", surface::COUNTED_FIELD);
+        assert!(serve::counted(&accepted(&with(&[&line(surface::COUNTED_VALUE)]))));
+        assert!(!serve::counted(&accepted(&with(&[&line(&format!("{}x", surface::COUNTED_VALUE))]))));
+        assert!(!serve::counted(&accepted(&with(&[]))));
+    } else {
+        assert!(!serve::counted(&accepted(&with(&[]))));
+    }
+    // An effect that cannot be performed leaves no frame: the core is not called, the answer is 503.
+    let silent = frame::sections(&mut ScriptedHost::new(Vec::new()), &Context { peer: "127.0.0.1:1", counted: true });
+    if let Err(refusal) = silent {
+        assert_eq!(refusal, Refusal::FrameUnavailable);
+        let mut input = Input::new(Cursor::new(with(&[])), window());
+        let mut output = Vec::new();
+        serve::serve_one(&mut input, &mut output, "127.0.0.1:1", &mut ScriptedHost::new(Vec::new()), frame_core);
+        assert_eq!(status(&output), 503);
+        assert_eq!(FRAME_CALLS.load(Ordering::SeqCst), 0);
+    }
+}
+
+#[test]
+fn the_core_response_is_serialized_as_returned() {
+    for (index, served) in SERVED.iter().enumerate() {
+        let response = serve::response_frame(VECTORS[served.vector].response).unwrap();
+        assert_eq!(serve::response_bytes(&response), served.response, "served vector {index}");
+    }
+    let frame = |status: u32, fields: &[(&str, &str)], notifications: u32, body: &[u8]| {
+        let mut out = status.to_be_bytes().to_vec();
+        out.extend_from_slice(&(fields.len() as u32).to_be_bytes());
+        for (name, value) in fields {
+            for part in [name, value] {
+                out.extend_from_slice(&(part.len() as u32).to_be_bytes());
+                out.extend_from_slice(part.as_bytes());
+            }
+        }
+        out.extend_from_slice(&notifications.to_be_bytes());
+        out.extend_from_slice(&(body.len() as u32).to_be_bytes());
+        out.extend_from_slice(body);
+        out
+    };
+    // What the core decides, the adapter writes: status, fields in order, body bytes
+    // untouched. An event stream is only a body and a content type to it.
+    let stream = b"event: message\r\ndata: {\"a\":1}\n\nid: 2\r\n\r\n";
+    let returned = frame(200, &[("Content-Type", "text/event-stream"), ("Cache-Control", "no-store"), ("X-B", "2"), ("X-A", "1")], 0, stream);
+    let bytes = serve::response_bytes(&serve::response_frame(&returned).unwrap());
+    let expected = [
+        &b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\nX-B: 2\r\nX-A: 1\r\n"[..],
+        format!("Content-Length: {}\r\nConnection: close\r\n\r\n", stream.len()).as_bytes(),
+        stream,
+    ]
+    .concat();
+    assert_eq!(bytes, expected);
+    for status in [201, 202, 204, 301, 404, 409, 429, 500, 503] {
+        let body: &[u8] = if status == 204 { b"" } else { b"b" };
+        let response = serve::response_frame(&frame(status, &[], 0, body)).unwrap();
+        assert_eq!(u32::from(response.status), status);
+        assert_eq!(response.body, body);
+    }
+    assert!(!serve::response_bytes(&serve::response_frame(&frame(204, &[], 0, b"")).unwrap())
+        .windows(15)
+        .any(|window| window == b"Content-Length:"));
+    // The framing fields are the adapter's; a final status is required; nothing may trail the body.
+    for malformed in [
+        frame(200, &[("Content-Length", "1")], 0, b"x"),
+        frame(200, &[("transfer-encoding", "chunked")], 0, b"x"),
+        frame(200, &[("Connection", "keep-alive")], 0, b"x"),
+        frame(200, &[("Bad Name", "v")], 0, b""),
+        frame(200, &[("X", "line\r\nbreak")], 0, b""),
+        frame(100, &[], 0, b""),
+        frame(199, &[], 0, b""),
+        frame(600, &[], 0, b""),
+        frame(0, &[], 0, b""),
+        frame(200, &[], 1, b""),
+        frame(204, &[], 0, b"x"),
+        frame(304, &[], 0, b"x"),
+        [frame(200, &[], 0, b"x"), vec![0]].concat(),
+        frame(200, &[], 0, b"x")[..16].to_vec(),
+        vec![0, 0, 0, 200, 0xff, 0xff, 0xff, 0xff],
+        Vec::new(),
+    ] {
+        assert_eq!(serve::response_frame(&malformed).err(), Some(Refusal::ResponseMalformed), "{malformed:?}");
+    }
+    let refusal: Response = Response { status: 500, fields: Vec::new(), body: Vec::new() };
+    assert!(serve::response_bytes(&refusal).starts_with(b"HTTP/1.1 500 Internal Server Error\r\n"));
+    assert_eq!(Refusal::CoreFailed.status(), 500);
+    assert_eq!(Refusal::ResponseMalformed.status(), 500);
+}
+
+#[test]
+fn every_served_vector_is_answered_over_a_real_socket() {
+    assert!(!SERVED.is_empty());
+    for (index, served) in SERVED.iter().enumerate() {
+        let response = over_socket(served.request, @HOST@::exchange::core);
+        assert_eq!(
+            String::from_utf8_lossy(&response),
+            String::from_utf8_lossy(served.response),
+            "served vector {index}"
+        );
+    }
+}
+
+counting_core!(BUSY_CALLS, busy_core);
+
+#[test]
+fn a_connection_over_the_declared_maximum_is_refused_with_503() {
+    if surface::CONNECTION_MAXIMUM > 32 || surface::READ_TIMEOUT_MILLIS > 10_000 {
+        return;
+    }
+    let listener = serve::listen(Ipv4Addr::LOCALHOST, 0).unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let limit = surface::CONNECTION_MAXIMUM + 1;
+    let server = std::thread::spawn(move || serve::run(listener, Binding::default(), busy_core, Some(limit)));
+    // The first connections say nothing, and hold their places until the read time ends.
+    let idle = (0..surface::CONNECTION_MAXIMUM)
+        .map(|_| TcpStream::connect((Ipv4Addr::LOCALHOST, port)).unwrap())
+        .collect::<Vec<_>>();
+    let mut turned_away = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).unwrap();
+    turned_away.set_read_timeout(Some(window() * 4)).unwrap();
+    let mut response = Vec::new();
+    let _ = turned_away.read_to_end(&mut response);
+    assert_eq!(status(&response), 503);
+    assert_eq!(body_of(&response), b"Busy\n");
+    server.join().unwrap().unwrap();
+    drop(idle);
+    assert_eq!(BUSY_CALLS.load(Ordering::SeqCst), 0);
+}

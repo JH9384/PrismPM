@@ -59,3 +59,15 @@ Feature: oci
     Given the locked PrismPM production fixture
     When the OC-10 contract is exercised
     Then its positive evidence passes and its planted defect is rejected
+
+  @OC-11 @build
+  Scenario: The prism.images namespace of prism-code exposes build, pull, push, list, get, tag, remove, prune, inspect and verify in developer-view terms over the code that already does the work: pull refuses a failing image before writing a byte, verify returns the verdict of check, credentials come only from Docker's configuration, and an option a verb does not have is refused.
+    Given images built, pushed and planted in a store or a registry, including one with changed bytes, a false statement and a verdict below the policy
+    When prism.images pulls, pushes, inspects, verifies and builds them
+    Then a failing image leaves no byte at any output, and every value returned is the one the code underneath returned, in developer-view terms
+
+  @OC-12 @build
+  Scenario: The local image store of prism-code keeps each image once under its BLAKE3 digest with tags as names, build and pull write into it and push reads from it, its bytes are hashed again on every read, and remove and prune follow the store model's decision table: an image a container references is never removed without force or while it runs, and prune removes only images no container references.
+    Given images kept in a store by build and pull, tagged once and twice, untagged, held by created and running containers, and one whose bytes changed on disk
+    When prism.images lists, tags, removes and prunes them, and prism.system reports and prunes
+    Then every outcome is the decision table's row, no held image is deleted, and a changed image is refused, not served

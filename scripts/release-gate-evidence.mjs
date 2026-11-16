@@ -6,7 +6,9 @@ import {closeSync, constants, lstatSync, mkdirSync, openSync, realpathSync, unli
 import {basename, dirname, join, resolve} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {bootstrapNames, canonical, captureBootstrap, hash, readOriginal, validateBootstrapBytes} from './sdk-bootstrap-retention.mjs';
-import {validateVvEvidence} from './sdk-vv-run.mjs';
+import {assembleVvEvidence, validateVvPart, vvParts} from './sdk-vv-run.mjs';
+import {isAncestor, kappa} from './factory.mjs';
+import {workspaceVersion} from './workspace-version.mjs';
 
 export function releaseContext(revision, architecture, image, runId, attempt) {
   assert.match(revision, /^[0-9a-f]{40}$/); assert(['amd64', 'arm64'].includes(architecture));
@@ -20,6 +22,13 @@ function directory(path, fresh) {
   assert.equal(realpathSync(path), path); assert(lstatSync(path).isDirectory()); return path;
 }
 const describe = (path, bytes) => ({path, byte_length: bytes.length, sha256: hash(bytes)});
+// A re-run job records a later attempt than its unchanged siblings of the same run.
+function sameExecution(result, context) {
+  for (const [key, value] of Object.entries(context)) {
+    if (key !== 'run_attempt') {assert.equal(result[key], value); continue;}
+    assert.match(result[key], /^[1-9][0-9]{0,19}$/); assert(BigInt(result[key]) <= BigInt(value), 'attempt later than this execution');
+  }
+}
 export async function captureCommand(output, prefix, command, args, cwd, environment = process.env) {
   assert(/^[a-z][a-z0-9-]{0,63}$/.test(prefix)); directory(output, false);
   assert(Array.isArray(args) && args.every(value => typeof value === 'string'));
@@ -123,34 +132,71 @@ export function validateCommand(files, prefix, expectedCommand, expectedArgs, st
   }
   return row;
 }
-export function validateSourceRun(files, run, context) {
-  const prefix = `source-${run}`, raw = files.get(`${prefix}-vv.json`); validateVvEvidence(raw, context.source_revision);
-  validateCommand(files, prefix, 'just', ['vv'], 0);
-  const bootstrap = new Map(bootstrapNames.map(name => [name, files.get(`run-${run}-${name}`)]));
+const sourcePartPrefix = part => {assert(vvParts.includes(part), 'closed V&V part'); return `source-${part}`;};
+export function validateSourcePart(files, part, context) {
+  const prefix = sourcePartPrefix(part), raw = files.get(`${prefix}-vv.json`); validateVvPart(raw, context.source_revision, part);
+  validateCommand(files, prefix, 'just', ['vv-part', part], 0);
+  const result = JSON.parse(files.get(`${prefix}-result.json`));
+  assert.deepEqual(Object.keys(result).sort(), ['architecture', 'bootstrap', 'image_reference', 'part', 'run_attempt', 'run_id', 'schema', 'scope', 'source_revision', 'vv']);
+  sameExecution(result, context);
+  assert.equal(result.schema, 'prismpm/source-vv-retention/2'); assert.equal(result.scope, 'original-source-part-only');
+  assert.equal(result.part, part); assert.deepEqual(result.vv, describe(`${prefix}-vv.json`, raw));
+  if (part !== 'source') {assert.equal(result.bootstrap, null); return;}
+  const bootstrap = new Map(bootstrapNames.map(name => [name, files.get(`run-1-${name}`)]));
   validateBootstrapBytes(bootstrap);
-  assert.deepEqual(JSON.parse(files.get(`${prefix}-result.json`)), {
-    schema: 'prismpm/source-vv-retention/1', scope: 'original-source-run-only', ...context, run,
-    vv: describe(`${prefix}-vv.json`, raw), bootstrap: {run, files: [...bootstrap].map(([name, bytes]) => describe(`run-${run}-${name}`, bytes))},
-  });
+  assert.deepEqual(result.bootstrap, {run: 1, files: [...bootstrap].map(([name, bytes]) => describe(`run-1-${name}`, bytes))});
 }
-async function sourceRun(root, output, context, run) {
-  assert([1, 2].includes(run)); assert.equal(context.image_reference, null);
+// All 15 gates pass only when every part record of this commit validates.
+export function assembleSourceEvidence(files, context) {
+  for (const part of vvParts) validateSourcePart(files, part, context);
+  return assembleVvEvidence(new Map(vvParts.map(part => [part, files.get(`source-${part}-vv.json`)])), context.source_revision);
+}
+async function sourceRun(root, output, context, part) {
+  const prefix = sourcePartPrefix(part); assert.equal(context.image_reference, null);
   assert.equal(context.architecture, process.arch === 'x64' ? 'amd64' : process.arch);
   const target = join(root, 'target');
   if (!lstatSync(target, {throwIfNoEntry: false})) mkdirSync(target, {mode: 0o755});
   assert.equal(realpathSync(target), target); assert.equal(resolve(output), join(target, 'source-vv-evidence'));
-  output = directory(output, run === 1);
-  for (const name of ['vv-evidence.json', ...bootstrapNames]) {
+  output = directory(output, true);
+  const record = `vv-part-${part}.json`;
+  for (const name of [record, ...(part === 'source' ? bootstrapNames : [])]) {
     const path = join(root, 'target', name), stat = lstatSync(path, {throwIfNoEntry: false});
     if (stat) {assert(stat.isFile() && stat.nlink === 1); unlinkSync(path);}
   }
-  const prefix = `source-${run}`, command = await captureCommand(output, prefix, 'just', ['vv'], root);
-  assert.equal(command.status, 0, 'unchanged full source VV failed'); assert.equal(command.signal, null);
-  const raw = readOriginal(join(root, 'target/vv-evidence.json'), 4096); validateVvEvidence(raw, context.source_revision);
+  const command = await captureCommand(output, prefix, 'just', ['vv-part', part], root);
+  assert.equal(command.status, 0, 'unchanged source V&V part failed'); assert.equal(command.signal, null);
+  const raw = readOriginal(join(root, 'target', record), 4096); validateVvPart(raw, context.source_revision, part);
   writeFileSync(join(output, `${prefix}-vv.json`), raw, {flag: 'wx', mode: 0o644});
-  const bootstrap = captureBootstrap(root, output, run);
-  writeFileSync(join(output, `${prefix}-result.json`), canonical({schema: 'prismpm/source-vv-retention/1',
-    scope: 'original-source-run-only', ...context, run, vv: describe(`${prefix}-vv.json`, raw), bootstrap}), {flag: 'wx', mode: 0o644});
+  const bootstrap = part === 'source' ? captureBootstrap(root, output, 1) : null;
+  writeFileSync(join(output, `${prefix}-result.json`), canonical({schema: 'prismpm/source-vv-retention/2',
+    scope: 'original-source-part-only', ...context, part, vv: describe(`${prefix}-vv.json`, raw), bootstrap}), {flag: 'wx', mode: 0o644});
+}
+export const sourceEvidenceNames = () => [
+  'source-vv.json',
+  ...vvParts.flatMap(part => [...['json', 'stdout', 'stderr'].map(suffix => `source-${part}.${suffix}`),
+    `source-${part}-vv.json`, `source-${part}-result.json`]),
+  ...bootstrapNames.map(name => `run-1-${name}`),
+].sort();
+function sourceAssemble(output, context) {
+  output = directory(output, false);
+  const names = sourceEvidenceNames().filter(name => name !== 'source-vv.json');
+  const files = new Map(names.map(name => [name, readOriginal(join(output, name), 256 * 1024 * 1024)]));
+  writeFileSync(join(output, 'source-vv.json'), assembleSourceEvidence(files, context), {flag: 'wx', mode: 0o644});
+}
+// A factory receipt: the complete retained source evidence of an earlier run
+// for an ancestor with the same κ (scripts/factory.mjs). Every part record is
+// validated against that run's own context, exactly as its gate did.
+export function validateSourceReceipt(files, context) {
+  assert.deepEqual([...files.keys()].sort(), sourceEvidenceNames());
+  assert.deepEqual(files.get('source-vv.json'), assembleSourceEvidence(files, context), 'exact assembled receipt evidence');
+}
+function sourceReceipt(root, output, context) {
+  output = directory(output, false);
+  assert(isAncestor(root, context.source_revision, 'HEAD'), 'a receipt comes from an ancestor');
+  assert.equal(kappa(root, context.source_revision), kappa(root, execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim()),
+    'the receipt is for a different κ');
+  const files = new Map(sourceEvidenceNames().map(name => [name, readOriginal(join(output, name), 256 * 1024 * 1024)]));
+  validateSourceReceipt(files, context);
 }
 export function nativeInvocations(root, image, architecture, uid, gid) {
   for (const id of [uid, gid]) assert(Number.isInteger(id) && id >= 0 && id <= 4294967294);
@@ -163,17 +209,18 @@ export function nativeInvocations(root, image, architecture, uid, gid) {
   const sdk = [...common, ...workspace, image, 'prismpm'];
   return [['native-check', [...native, '--project', '/workspace', '--json', 'check'], 0],
     ['container-check', [...sdk, '--project', '/workspace', '--json', 'check'], 0],
-    ['native-error', [...native, '--project', '/workspace', '--json', 'inspect', 'ghcr.io/uor-foundation/calculator:mutable'], 6],
-    ['container-error', [...sdk, '--project', '/workspace', '--json', 'inspect', 'ghcr.io/uor-foundation/calculator:mutable'], 6]];
+    ['native-error', [...native, '--project', '/workspace', '--json', 'inspect', 'ghcr.io/uor-foundation/calculator:mutable'], 5],
+    ['container-error', [...sdk, '--project', '/workspace', '--json', 'inspect', 'ghcr.io/uor-foundation/calculator:mutable'], 5]];
 }
 export function validateNative(files, context) {
   const result = JSON.parse(files.get('native-result.json'));
   assert.deepEqual(Object.keys(result).sort(), ['architecture', 'archive', 'gid', 'image_reference', 'root', 'run_attempt', 'run_id', 'schema', 'scope', 'source_revision', 'uid']);
-  for (const [key, value] of Object.entries(context)) assert.equal(result[key], value);
+  sameExecution(result, context);
   assert.equal(result.schema, 'prismpm/native-equivalence-retention/1'); assert.equal(result.scope, 'original-native-sdk-comparison-only');
   assert.equal(resolve(result.root), result.root); assert(!result.root.includes(','));
   assert.deepEqual(Object.keys(result.archive).sort(), ['byte_length', 'path', 'sha256']);
-  assert.match(result.archive.path, /^prismpm-0\.3\.0-(?:aarch64|x86_64)-unknown-linux-gnu\.tar\.gz$/);
+  const version = workspaceVersion().replaceAll('.', '\\.');
+  assert.match(result.archive.path, new RegExp(`^prismpm-${version}-(?:aarch64|x86_64)-unknown-linux-gnu\\.tar\\.gz$`));
   assert.equal(result.archive.path.includes('aarch64'), context.architecture === 'arm64');
   assert(Number.isSafeInteger(result.archive.byte_length) && result.archive.byte_length > 0);
   assert.match(result.archive.sha256, /^[0-9a-f]{64}$/);
@@ -198,9 +245,12 @@ async function nativeRun(root, output, context, archive) {
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [operation, rootPath, output, revision, architecture, image, runId, attempt, selection, ...extra] = process.argv.slice(2);
-  assert.equal(extra.length, 0); assert(['source-run', 'native'].includes(operation));
+  assert.equal(extra.length, 0); assert(['source-run', 'source-assemble', 'source-receipt', 'native'].includes(operation));
   const root = realpathSync(rootPath), context = releaseContext(revision, architecture, image === '-' ? null : image, runId, attempt);
-  assert.equal(execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(), revision);
-  if (operation === 'source-run') await sourceRun(root, output, context, Number(selection));
+  // A receipt keeps its own commit; every other operation is for this one.
+  if (operation !== 'source-receipt') assert.equal(execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(), revision);
+  if (operation === 'source-receipt') {assert.equal(selection, '-'); assert.equal(context.image_reference, null); sourceReceipt(root, output, context);}
+  else if (operation === 'source-run') await sourceRun(root, output, context, selection);
+  else if (operation === 'source-assemble') {assert.equal(selection, '-'); sourceAssemble(output, context);}
   else await nativeRun(root, output, context, resolve(selection));
 }

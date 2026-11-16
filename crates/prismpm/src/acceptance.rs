@@ -1,6 +1,6 @@
 //! Digest-bound closure of executed production acceptance evidence.
 
-use crate::contracts::CanonicalDocument;
+use crate::contracts::{strictly_ordered, CanonicalDocument, OwnerCheck};
 use crate::error::PrismError;
 use crate::oci::{self, PRISM_PRODUCTION_ACCEPTANCE};
 use serde::{Deserialize, Serialize};
@@ -64,6 +64,52 @@ pub(crate) fn verify_closure(value: &Value) -> Result<(), PrismError> {
         ));
     }
     verify_transcript(value)
+}
+
+/// The semantic checks of the acceptance contracts, which this module owns.
+const CONTRACT_CHECK: OwnerCheck = OwnerCheck {
+    owner: "acceptance",
+    check: check_contract,
+};
+
+fn check_contract(id: &str, value: &Value) -> Result<(), PrismError> {
+    match id {
+        "prismpm/production-acceptance/1" => {
+            verify_transcript(value)?;
+            let rows = value["cases"].as_array().expect("schema-validated array");
+            if !strictly_ordered(rows, |row| match row["kind"].as_str()? {
+                "feature" => Some(format!("0/{}", row["feature_id"].as_str()?)),
+                "diagnostic" => Some(format!("1/{}", row["diagnostic"].as_str()?)),
+                _ => None,
+            }) {
+                return Err(PrismError::new(
+                    "PP1101",
+                    "production acceptance cases are duplicate or noncanonical",
+                ));
+            }
+            Ok(())
+        }
+        "prismpm/conformance-result/1" => verify_result_counts(value),
+        _ => Err(PrismError::new(
+            "PP9001",
+            format!("acceptance owns no semantic check for {id}"),
+        )),
+    }
+}
+
+/// Validate an acceptance contract value, including the transcript and count
+/// rules this module owns.
+pub fn contract_from_value(
+    id: &'static str,
+    value: Value,
+) -> Result<CanonicalDocument, PrismError> {
+    CanonicalDocument::from_value_owned(id, value, CONTRACT_CHECK)
+}
+
+/// Validate exact canonical acceptance contract bytes, including the rules
+/// this module owns.
+pub fn parse_contract(id: &'static str, bytes: &[u8]) -> Result<CanonicalDocument, PrismError> {
+    CanonicalDocument::parse_owned(id, bytes, CONTRACT_CHECK)
 }
 
 pub(crate) fn verify_transcript(value: &Value) -> Result<(), PrismError> {
@@ -310,7 +356,7 @@ pub(crate) fn attach(root: &Path, reference: &str, input: &Path) -> Result<Value
     let digest = release_digest(reference)?;
     let bytes = std::fs::read(input)
         .map_err(|error| PrismError::new("PP6002", format!("acceptance evidence: {error}")))?;
-    let document = CanonicalDocument::parse("prismpm/production-acceptance/1", &bytes)?;
+    let document = parse_contract("prismpm/production-acceptance/1", &bytes)?;
     let (descriptor, sdk_digest) = attach_document(root, digest, &document)?;
     Ok(json!({
         "acceptance_digest": sha(document.bytes()),
@@ -331,7 +377,7 @@ fn result_document(
     path: &str,
 ) -> Result<Value, PrismError> {
     verify_closure(transcript.value())?;
-    CanonicalDocument::from_value(
+    contract_from_value(
         "prismpm/conformance-result/1",
         json!({
             "diagnostic_count":transcript.value()["diagnostic_count"],
@@ -392,7 +438,7 @@ pub(crate) fn run(root: &Path, reference: &str) -> Result<Value, PrismError> {
         .strip_suffix('\n')
         .unwrap_or(&record.stdout)
         .as_bytes();
-    let document = CanonicalDocument::parse("prismpm/production-acceptance/1", bytes)?;
+    let document = parse_contract("prismpm/production-acceptance/1", bytes)?;
     let expected_runner = format!("sha256:{}", record.executable_sha256);
     if document.value()["runner_digest"].as_str() != Some(expected_runner.as_str()) {
         return Err(PrismError::new(
@@ -1286,8 +1332,8 @@ pub fn validate_ecosystem_release_closure(
 
 #[cfg(test)]
 mod tests {
+    use super::contract_from_value;
     use super::{registered_values, result_document, verify_closure};
-    use crate::contracts::CanonicalDocument;
     use serde_json::{json, Value};
 
     #[test]
@@ -1355,7 +1401,7 @@ mod tests {
     fn exact_feature_and_diagnostic_closure_is_required() {
         let value = complete();
         verify_closure(&value).unwrap();
-        CanonicalDocument::from_value("prismpm/production-acceptance/1", value.clone()).unwrap();
+        contract_from_value("prismpm/production-acceptance/1", value.clone()).unwrap();
         let mut missing = value;
         missing["cases"].as_array_mut().unwrap().pop();
         assert_eq!(
@@ -1380,8 +1426,7 @@ mod tests {
             .iter()
             .any(|row| row["diagnostic"] == "PP2009"));
         let transcript =
-            CanonicalDocument::from_value("prismpm/production-acceptance/1", value.clone())
-                .unwrap();
+            contract_from_value("prismpm/production-acceptance/1", value.clone()).unwrap();
         let digest = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         let result = result_document(
             &transcript,
@@ -1398,7 +1443,7 @@ mod tests {
             let mut stale = result.clone();
             stale[field] = json!(stale[field].as_u64().unwrap() - 1);
             assert_eq!(
-                CanonicalDocument::from_value("prismpm/conformance-result/1", stale)
+                contract_from_value("prismpm/conformance-result/1", stale)
                     .unwrap_err()
                     .code,
                 "PP6002"
@@ -1421,7 +1466,7 @@ mod tests {
             missing[count] = json!(missing[count].as_u64().unwrap() - 1);
             assert_eq!(verify_closure(&missing).unwrap_err().code, "PP6002");
             assert_eq!(
-                CanonicalDocument::from_value("prismpm/production-acceptance/1", missing)
+                contract_from_value("prismpm/production-acceptance/1", missing)
                     .unwrap_err()
                     .code,
                 "PP6002"
@@ -1439,8 +1484,7 @@ mod tests {
             .retain(|row| row["feature_id"] != "HO-11");
         value["feature_count"] = json!(value["feature_count"].as_u64().unwrap() - 1);
         let transcript =
-            CanonicalDocument::from_value("prismpm/production-acceptance/1", value.clone())
-                .unwrap();
+            contract_from_value("prismpm/production-acceptance/1", value.clone()).unwrap();
         assert_eq!(verify_closure(&value).unwrap_err().code, "PP6002");
         let digest = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         assert_eq!(
@@ -1466,14 +1510,12 @@ mod tests {
         ] {
             let mut bad = value.clone();
             *bad.pointer_mut(pointer).unwrap() = replacement;
-            assert!(CanonicalDocument::from_value("prismpm/production-acceptance/1", bad).is_err());
+            assert!(contract_from_value("prismpm/production-acceptance/1", bad).is_err());
         }
         let mut duplicate = value;
         let row = duplicate["cases"][0].clone();
         duplicate["cases"].as_array_mut().unwrap().insert(0, row);
         duplicate["feature_count"] = json!(duplicate["feature_count"].as_u64().unwrap() + 1);
-        assert!(
-            CanonicalDocument::from_value("prismpm/production-acceptance/1", duplicate).is_err()
-        );
+        assert!(contract_from_value("prismpm/production-acceptance/1", duplicate).is_err());
     }
 }

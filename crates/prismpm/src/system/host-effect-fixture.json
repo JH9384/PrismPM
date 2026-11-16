@@ -152,10 +152,7 @@
         ],
         "id": "gateway",
         "kind": "api",
-        "networks": [
-          "backend",
-          "edge"
-        ],
+        "networks": [],
         "parameters": [
           "listen-port",
           "log-level"
@@ -214,10 +211,6 @@
       {
         "id": "backend",
         "internal": true
-      },
-      {
-        "id": "edge",
-        "internal": false
       }
     ],
     "parameters": [

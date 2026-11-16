@@ -1,0 +1,182 @@
+\begin{lexlean}{Factory.PrismPM}
+\useglossary{lexlean.std.nat@1.2.0}
+\importmodule{Factory.Engine}
+\title{Natural number addition}
+\begin{semanticmodule}
+definition{
+  name: whole,
+  parameters: [],
+  result: (List String),
+  body: (cons "" (nil String)),
+  executable: true
+}
+
+definition{
+  name: obligation,
+  parameters: [name : String, kind : Factory.Engine::Kind, environment : String, run : String, inputs : (List String), needs : (List String)],
+  result: Factory.Engine::Obligation,
+  body: (record Factory.Engine::Obligation {name := name, kind := kind, environment := environment, run := run, inputs := inputs, needs := needs}),
+  executable: true
+}
+
+definition{
+  name: checks,
+  parameters: [],
+  result: (List Factory.Engine::Obligation),
+  body: (cons (obligation "lint" (ctor Factory.Engine::Kind.fetch) "prism" "cargo fetch --locked && cargo fmt --check && cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings && cargo deny fetch && cargo deny --frozen --all-features check" (cons "" (nil String)) (nil String)) (cons (obligation "model-audits" (ctor Factory.Engine::Kind.fetch) "prism" "bash scripts/fetch.sh && cargo xtask validate" (cons "" (cons "@base:model/modules.toml" (nil String))) (nil String)) (cons (obligation "fixtures-golden" (ctor Factory.Engine::Kind.fetch) "prism" "cargo fetch --locked && bash scripts/fetch-oracle-cargo.sh && cargo xtask check-fixtures && cargo run --locked --offline --manifest-path tests/holo-codec-oracle/Cargo.toml --target-dir target/holo-codec-oracle && cargo xtask check-golden" (cons "" (nil String)) (nil String)) (nil Factory.Engine::Obligation)))),
+  executable: true
+}
+
+definition{
+  name: images,
+  parameters: [],
+  result: (List Factory.Engine::Obligation),
+  body: (cons (obligation "devcontainer" (ctor Factory.Engine::Kind.fetch) "prism" "bash prism-factory/obligations/devcontainer.sh" (cons ".devcontainer/" (cons "prism-factory/obligations/devcontainer.sh" (cons "prism-factory/obligations/image.sh" (cons "scripts/browser-environment-preflight.mjs" (cons "scripts/browser-environment-preflight.sh" (cons "sdk/bootstrap/" (cons "sdk/browser-engine/" (cons "sdk/browser/browser-test-server.mjs" (cons "sdk/oracles/go/cloudevents-validator/" (cons "sdk/oracles/openid-conformance.sh" (cons "sdk/oracles/package-lock.json" (cons "sdk/oracles/package.json" (cons "standards/oracles/cloudevents-sdk-go-2.16.2/" (cons "standards/oracles/oci-distribution-1.1.1/" (cons "standards/oracles/oci-image-1.1.1/" (cons "standards/oracles/oci-runtime-1.3.0/" (cons "standards/oracles/openid-conformance-suite-3e09b13b/" (nil String)))))))))))))))))) (nil String)) (nil Factory.Engine::Obligation)),
+  executable: true
+}
+
+definition{
+  name: verification,
+  parameters: [],
+  result: (List Factory.Engine::Obligation),
+  body: (cons (obligation "vv-conformance" (ctor Factory.Engine::Kind.fetch) "prism" "bash prism-factory/obligations/vv-part.sh conformance" (cons "" (nil String)) (cons "vv-sdk" (cons "devcontainer" (nil String)))) (cons (obligation "vv-dk-0-1" (ctor Factory.Engine::Kind.fetch) "prism" "bash prism-factory/obligations/vv-part.sh dk-0-1" (cons "" (nil String)) (cons "vv-sdk" (cons "devcontainer" (nil String)))) (cons (obligation "vv-dk-2" (ctor Factory.Engine::Kind.fetch) "prism" "bash prism-factory/obligations/vv-part.sh dk-2" (cons "" (nil String)) (cons "vv-sdk" (cons "devcontainer" (nil String)))) (cons (obligation "vv-dk-3" (ctor Factory.Engine::Kind.fetch) "prism" "bash prism-factory/obligations/vv-part.sh dk-3" (cons "" (nil String)) (cons "vv-sdk" (cons "devcontainer" (nil String)))) (cons (obligation "vv-gates" (ctor Factory.Engine::Kind.fetch) "prism" "bash prism-factory/obligations/vv-part.sh gates" (cons "" (nil String)) (cons "vv-sdk" (cons "devcontainer" (nil String)))) (cons (obligation "vv-ho-oc" (ctor Factory.Engine::Kind.fetch) "prism" "bash prism-factory/obligations/vv-part.sh ho-oc" (cons "" (nil String)) (cons "vv-sdk" (cons "devcontainer" (nil String)))) (cons (obligation "vv-source" (ctor Factory.Engine::Kind.fetch) "prism" "bash prism-factory/obligations/vv-part.sh source" (cons "" (nil String)) (cons "vv-sdk" (cons "devcontainer" (nil String)))) (cons (obligation "vv-st-sy" (ctor Factory.Engine::Kind.fetch) "prism" "bash prism-factory/obligations/vv-part.sh st-sy" (cons "" (nil String)) (cons "vv-sdk" (cons "devcontainer" (nil String)))) (nil Factory.Engine::Obligation))))))))),
+  executable: true
+}
+
+definition{
+  name: graph,
+  parameters: [],
+  result: (List Factory.Engine::Obligation),
+  body: (cons (obligation "policy" (ctor Factory.Engine::Kind.hermetic) "actions" "release.yml/policy" (cons ".github/workflows/release.yml" (cons "Cargo.toml" (cons "model/errors.toml" (cons "scripts/" (cons "@mode" (cons "@run" (nil String))))))) (nil String)) (cons (obligation "factory-model" (ctor Factory.Engine::Kind.hermetic) "host" "bash prism-factory/check.sh" (cons ".github/workflows/factory.yml" (cons ".github/workflows/prism-delegation.yml" (cons ".github/workflows/release-cut.yml" (cons ".github/workflows/release.yml" (cons "prism-factory/" (cons "vendor/lexlean/" (nil String))))))) (nil String)) (cons (obligation "plumbing" (ctor Factory.Engine::Kind.hermetic) "actions" "release.yml/devcontainer-image" (cons "" (cons "@run" (nil String))) (cons "policy" (nil String))) (cons (obligation "vv-sdk" (ctor Factory.Engine::Kind.fetch) "actions" "bash prism-factory/obligations/vv-sdk.sh" (cons "" (cons "!.github/workflows/release-cut.yml" (cons "!.github/workflows/release-qualify.yml" (cons "!.github/workflows/release.yml" (cons "!factory/" (cons "!scripts/browser-api-sdk-check.test.mjs" (cons "!scripts/ci-capacity.test.mjs" (cons "!scripts/factory.mjs" (cons "!scripts/factory.test.mjs" (cons "!scripts/lexlean-pin.test.mjs" (cons "!scripts/library-sdk-check.test.mjs" (cons "!scripts/product-sdk-check.test.mjs" (cons "!scripts/release-gate-evidence.mjs" (cons "!scripts/release-gate-evidence.test.mjs" (cons "!scripts/release-native-contract.test.mjs" (cons "!scripts/release-phases.md" (cons "!scripts/release-phases.test.mjs" (cons "!scripts/release-publication.mjs" (cons "!scripts/release-publication.test.mjs" (cons "!scripts/release-rebuild.sh" (cons "!scripts/rust-oracle-tools-inputs.test.mjs" (cons "!scripts/sdk-construction-handoff.test.mjs" (cons "!scripts/sdk-image-inputs.test.mjs" (cons "!scripts/sdk-release-evidence.mjs" (cons "!scripts/sdk-release-evidence.test.mjs" (cons "!scripts/sdk-vv-check.test.mjs" (cons "!scripts/unpublished-sdk-qualification.test.mjs" (cons "!prism-factory/" (cons "prism-factory/jobs/header.yml" (cons "prism-factory/jobs/vv-sdk.yml" (cons "prism-factory/obligations/history.sh" (cons "prism-factory/obligations/image.sh" (cons "prism-factory/obligations/vv-sdk.sh" (nil String)))))))))))))))))))))))))))))))))) (nil String)) (cons (obligation "source-vv" (ctor Factory.Engine::Kind.fetch) "actions" "release.yml/source-vv" (cons "" (cons "!.github/workflows/release-cut.yml" (cons "!.github/workflows/release-qualify.yml" (cons "!.github/workflows/release.yml" (cons "!factory/" (cons "!scripts/browser-api-sdk-check.test.mjs" (cons "!scripts/ci-capacity.test.mjs" (cons "!scripts/factory.mjs" (cons "!scripts/factory.test.mjs" (cons "!scripts/lexlean-pin.test.mjs" (cons "!scripts/library-sdk-check.test.mjs" (cons "!scripts/product-sdk-check.test.mjs" (cons "!scripts/release-gate-evidence.mjs" (cons "!scripts/release-gate-evidence.test.mjs" (cons "!scripts/release-native-contract.test.mjs" (cons "!scripts/release-phases.md" (cons "!scripts/release-phases.mjs" (cons "!scripts/release-phases.test.mjs" (cons "!scripts/release-publication.mjs" (cons "!scripts/release-publication.test.mjs" (cons "!scripts/release-rebuild.sh" (cons "!scripts/rust-oracle-tools-inputs.test.mjs" (cons "!scripts/sdk-candidate-sbom.test.mjs" (cons "!scripts/sdk-construction-handoff.test.mjs" (cons "!scripts/sdk-image-inputs.test.mjs" (cons "!scripts/sdk-release-evidence.mjs" (cons "!scripts/sdk-release-evidence.test.mjs" (cons "!scripts/sdk-vv-check.test.mjs" (cons "!scripts/unpublished-sdk-qualification.test.mjs" (cons "!prism-factory/" (cons "prism-factory/jobs/header.yml" (cons "prism-factory/jobs/source-vv.yml" (nil String))))))))))))))))))))))))))))))))) (cons "vv-sdk" (nil String))) (cons (obligation "build" (ctor Factory.Engine::Kind.fetch) "actions" "release.yml/build" (cons "" (cons "!.github/workflows/release-cut.yml" (cons "!.github/workflows/release-qualify.yml" (cons "!.github/workflows/release.yml" (cons "!factory/" (cons "!scripts/browser-api-sdk-check.test.mjs" (cons "!scripts/ci-capacity.test.mjs" (cons "!scripts/factory.mjs" (cons "!scripts/factory.test.mjs" (cons "!scripts/lexlean-pin.test.mjs" (cons "!scripts/library-sdk-check.test.mjs" (cons "!scripts/product-sdk-check.test.mjs" (cons "!scripts/release-gate-evidence.test.mjs" (cons "!scripts/release-native-contract.test.mjs" (cons "!scripts/release-phases.md" (cons "!scripts/release-phases.test.mjs" (cons "!scripts/release-publication.mjs" (cons "!scripts/release-publication.test.mjs" (cons "!scripts/rust-oracle-tools-inputs.test.mjs" (cons "!scripts/sdk-candidate-sbom.test.mjs" (cons "!scripts/sdk-construction-handoff.test.mjs" (cons "!scripts/sdk-image-inputs.test.mjs" (cons "!scripts/sdk-release-evidence.mjs" (cons "!scripts/sdk-release-evidence.test.mjs" (cons "!scripts/sdk-vv-check.test.mjs" (cons "!scripts/unpublished-sdk-qualification.test.mjs" (cons "!prism-factory/" (cons "scripts/release-gate-evidence.mjs" (cons "scripts/release-phases.mjs" (cons "scripts/release-rebuild.sh" (cons "prism-factory/jobs/header.yml" (cons "prism-factory/jobs/image-platforms.yml" (cons "prism-factory/jobs/images.yml" (cons "prism-factory/jobs/reproducibility.yml" (cons "prism-factory/jobs/native.yml" (cons "prism-factory/jobs/installed-sdk.yml" (nil String))))))))))))))))))))))))))))))))))))) (nil String)) (cons (obligation "gate" (ctor Factory.Engine::Kind.hermetic) "actions" "release.yml/gate" (cons "" (cons "@run" (nil String))) (cons "plumbing" (cons "source-vv" (nil String)))) (cons (obligation "oci-native" (ctor Factory.Engine::Kind.fetch) "actions" "release.yml/oci-native" (cons "" (cons "@mode" (cons "@run" (nil String)))) (cons "gate" (cons "build" (nil String)))) (cons (obligation "crates" (ctor Factory.Engine::Kind.fetch) "actions" "release.yml/crates" (cons "" (cons "@mode" (cons "@run" (nil String)))) (cons "oci-native" (nil String))) (cons (obligation "release" (ctor Factory.Engine::Kind.fetch) "actions" "release.yml/release" (cons "" (cons "@mode" (cons "@run" (nil String)))) (cons "factory-model" (cons "crates" (nil String)))) (nil Factory.Engine::Obligation))))))))))),
+  executable: true
+}
+
+definition{
+  name: onLegacyAdapter,
+  parameters: [items : (List Factory.Engine::Obligation)],
+  result: Nat,
+  body: (prim list_fold (fun (sofar : Nat) (item : Factory.Engine::Obligation) => (if (prim equal (project item environment) "actions" : Bool) then (sofar + 1) else sofar)) 0 items : Nat),
+  executable: true
+}
+
+definition{
+  name: declaring,
+  parameters: [input : String, items : (List Factory.Engine::Obligation)],
+  result: Nat,
+  body: (prim list_fold (fun [input] (sofar : Nat) (item : Factory.Engine::Obligation) => (if (Factory.Engine::member input (project item inputs)) then (sofar + 1) else sofar)) 0 items : Nat),
+  executable: true
+}
+
+definition{
+  name: jobs,
+  parameters: [],
+  result: (List (String * (List String))),
+  body: (cons ("policy", (cons "policy" (nil String))) (cons ("factory-model", (cons "factory" (nil String))) (cons ("plumbing", (cons "devcontainer-image" (nil String))) (cons ("vv-sdk", (cons "vv-sdk" (nil String))) (cons ("source-vv", (cons "source-vv" (cons "gate" (nil String)))) (cons ("build", (cons "image-platforms" (cons "images" (cons "reproducibility" (cons "installed-sdk" (cons "native" (nil String))))))) (cons ("gate", (cons "gate" (nil String))) (cons ("oci-native", (cons "oci-native" (nil String))) (cons ("crates", (cons "crates" (nil String))) (cons ("release", (cons "release" (nil String))) (nil (String * (List String))))))))))))),
+  executable: true
+}
+
+definition{
+  name: fragments,
+  parameters: [],
+  result: (List String),
+  body: (cons "policy" (cons "devcontainer-image" (cons "vv-sdk" (cons "source-vv" (cons "gate" (cons "image-platforms" (cons "images" (cons "reproducibility" (cons "installed-sdk" (cons "native" (cons "oci-native" (cons "crates" (cons "release" (nil String)))))))))))))),
+  executable: true
+}
+
+definition{
+  name: mapped,
+  parameters: [items : (List Factory.Engine::Obligation), table : (List (String * (List String))), known : (List String)],
+  result: Bool,
+  body: (prim list_fold (fun [known, table] (sofar : Bool) (item : Factory.Engine::Obligation) => (sofar && (prim list_fold (fun [item, known] (found : Bool) (entry : (String * (List String))) => (found || ((prim equal (first entry) (project item name) : Bool) && ((Factory.Engine::subset (second entry) known) && (Factory.Engine::nonEmpty (second entry)))))) false table : Bool))) true items : Bool),
+  executable: true
+}
+
+theorem{
+  name: every_obligation_is_carried_out_by_named_jobs,
+  parameters: [],
+  statement: ((mapped (graph) (jobs) (cons "factory" (fragments))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: every_job_is_named_once,
+  parameters: [],
+  statement: ((Factory.Engine::distinct (cons "factory" (cons "receipts" (fragments)))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: every_obligation_has_a_distinct_name,
+  parameters: [],
+  statement: ((Factory.Engine::distinct (Factory.Engine::names (graph))) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: every_need_is_declared_before_it_is_needed,
+  parameters: [],
+  statement: ((Factory.Engine::needsComeFirst (graph)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: every_obligation_declares_its_inputs_and_its_run,
+  parameters: [],
+  statement: ((Factory.Engine::allDeclared (graph)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: no_obligation_is_arbitrary,
+  parameters: [],
+  statement: ((Factory.Engine::noArbitraryObligation (graph) "release") = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: the_release_has_ten_obligations,
+  parameters: [],
+  statement: ((prim length (graph) : Nat) = 10),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: nine_obligations_still_run_on_the_legacy_adapter,
+  parameters: [],
+  statement: ((onLegacyAdapter (graph)) = 9),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: eight_obligations_read_the_whole_source,
+  parameters: [],
+  statement: ((declaring "" (graph)) = 8),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: only_the_policy_and_the_three_publication_stages_depend_on_the_release_mode,
+  parameters: [],
+  statement: ((declaring "@mode" (graph)) = 4),
+  proof: decide{},
+  axioms: []
+}
+theorem{
+  name: a_cut_rests_only_on_the_model_the_vv_sdk_the_source_vv_and_the_build,
+  parameters: [],
+  statement: ((Factory.Engine::cutSet (graph)) = (cons "factory-model" (cons "vv-sdk" (cons "source-vv" (cons "build" (nil String)))))),
+  proof: decide{},
+  axioms: []
+}
+
+\end{semanticmodule}
+\end{lexlean}

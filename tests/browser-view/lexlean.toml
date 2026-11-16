@@ -1,6 +1,6 @@
 spec = "lexlean/project/1"
 name = "workspace-view-conformance"
-language = "1.1"
+language = "1.2"
 module_prefix = "PrismPM"
 source_roots = ["src"]
 entrypoints = ["src/Foundation/View/Workspace/V1/Labels.lex.tex"]
@@ -9,8 +9,15 @@ lockfile = "lexlean.lock"
 lean_workspace = "."
 lean_toolchain = "leanprover/lean4:v4.32.1"
 [[lexicon_source]]
+package = "lexlean.std.bool"
+kind = "builtin"
+[[lexicon_source]]
 package = "lexlean.std.nat"
 kind = "builtin"
+[[lexicon_source]]
+package = "prism.arch"
+kind = "path"
+path = "language/prism.arch"
 [limits]
 max_file_bytes = 4194304
 max_total_source_bytes = 67108864

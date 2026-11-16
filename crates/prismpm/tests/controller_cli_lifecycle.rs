@@ -250,6 +250,7 @@ fn shell_completions_match_all_executable_commands() {
         "verify",
         "check",
         "export-browser",
+        "replay-acceptance",
     ] {
         assert!(
             registered_commands.contains(expected),

@@ -116,7 +116,7 @@ export function validatePagesClosure({project, releaseDigest, output, treeDigest
     .map(path => path.slice(BROWSER_PREFIX.length))
     .sort();
   if (expected.length === 0) throw refuse('PP6101', 'browser system release binding names no browser files');
-  // The build manifest's six browser rows, each read back from its stored
+  // The build manifest's browser rows (closure v1 or v2), each read back from its stored
   // release blob, so served bytes are bound to the verified store content.
   const closure = registered(() => browserClosure(release));
   const names = closure.files.map(file => file.path);

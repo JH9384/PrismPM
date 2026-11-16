@@ -31,7 +31,7 @@ The shim contract is specified in [`sdk/npm/conformance/README.md`](../../sdk/np
 ## Decisions to check in review
 
 - **`N/A` for a runtime with no shim.** The issue defines three cells and no fourth for "not measured". `-` would claim a failure nobody observed, so an unmeasured column reads `N/A`, and the legend says it means nothing was measured.
-- **Placeholders.** Replay checks are named with no body and report `xfail` for every runtime. A body written before #284 merges would be a guess at an API. They read `-` in the matrix, and the suite still passes, because the milestone's criterion is that what is on main conforms.
+- **Placeholders.** Replay checks are named with no body and report `xfail` for every runtime. A body written before #284 merges would be a guess at an API. They read `-` in the matrix, and the suite still passes, because the milestone's criterion is that what is on main conforms. After #284 merged, the five replay checks were written against `experimental_replay` and `experimental_recorder` through a `replay` operation, and the suite has no placeholder left.
 - **Exemptions in the gate.** The issue says a format change cannot merge without a scenario. A pure refactor of the writer changes no format, and without a way out it would force a meaningless edit to a scenario, which teaches people to game the gate. So `format-gate.json` takes an entry with a reason, in the same change, visible in review. If that is too loose, delete the mechanism; nothing else depends on it.
 - **`load` reports damage, it does not refuse it.** A holo with a wrong footer, or a guest that differs from its label, opens with `verified: false` and still dispatches. The checks `load.damage.*` pin this, because `prism-code`'s tests pin it as intended and `prism-code run` is gated on `check`. A second runtime must do the same. Whether a bare `load` should refuse is a question for the v0.6 freeze, and changing the answer means changing those checks.
 - **Error codes are compared exactly.** A Rust runtime must report `archive.magic`, not a code of its own. That is the point of stable codes, and it makes today's `prism-code` codes part of the contract.
@@ -39,7 +39,6 @@ The shim contract is specified in [`sdk/npm/conformance/README.md`](../../sdk/np
 
 ## Not in this change
 
-- Replay scenarios: they fill in when #284 merges.
 - A Rust or Python shim. Both columns read `N/A` until one exists.
 - Making the gate a required status check. That is a repository setting, and the `main` ruleset is disabled today.
 - Publishing to npm. Like `@prism-code/spec` and `@prism-code/verify`, the package has no publish job yet.

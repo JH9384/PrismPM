@@ -225,6 +225,166 @@
 \noindent Type: \texttt{Bool}.\par
 \noindent Definition: \texttt{(validAppManifest (manifest) \&\& (wireBlobsValid (blob0) (blob1) (blob2) (blob3) \&\& (wireCapabilitiesPresent (wireSlice (manifest) (57) (71)) (blob0) (blob1) (blob2) (blob3) \&\& (wireReferencePresent (wireSlice (manifest) (128) (71)) (blob0) (blob1) (blob2) (blob3) \&\& (wireReferencePresent (wireSlice (manifest) (199) (71)) (blob0) (blob1) (blob2) (blob3) \&\& true)))))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{CanonicalSection}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{kind}: \texttt{PrismPM.Foundation.Holo.V1.Format.SectionKind}.\par
+\noindent Field \texttt{payload}: \texttt{ByteArray}.\par
+\subsection*{\texttt{wireUtf8Octet}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (index : Nat)}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{wireDecodeOctet (wireSlice (value) (index) (1))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireUtf8Range}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (index : Nat) (low : Nat) (high : Nat)}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{((Nat.ble (low) (wireUtf8Octet (value) (index))) \&\& ((Nat.blt (wireUtf8Octet (value) (index)) (high)) \&\& true))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireUtf8Valid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (index : Nat) (fuel : Nat)}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => (Nat.ble ((LexLeanRuntime.length (value) : Nat)) (index)) | Nat.succ rest => (if (Nat.ble ((LexLeanRuntime.length (value) : Nat)) (index)) then true else (if (Nat.blt (wireUtf8Octet (value) (index)) (128)) then wireUtf8Valid (value) ((index + 1)) (rest) else (if wireUtf8Range (value) (index) (194) (224) then (wireUtf8Range (value) ((index + 1)) (128) (192) \&\& wireUtf8Valid (value) ((index + 2)) (rest)) else (if wireUtf8Range (value) (index) (224) (225) then (wireUtf8Range (value) ((index + 1)) (160) (192) \&\& (wireUtf8Range (value) ((index + 2)) (128) (192) \&\& wireUtf8Valid (value) ((index + 3)) (rest))) else (if (wireUtf8Range (value) (index) (225) (237) || wireUtf8Range (value) (index) (238) (240)) then (wireUtf8Range (value) ((index + 1)) (128) (192) \&\& (wireUtf8Range (value) ((index + 2)) (128) (192) \&\& wireUtf8Valid (value) ((index + 3)) (rest))) else (if wireUtf8Range (value) (index) (237) (238) then (wireUtf8Range (value) ((index + 1)) (128) (160) \&\& (wireUtf8Range (value) ((index + 2)) (128) (192) \&\& wireUtf8Valid (value) ((index + 3)) (rest))) else (if wireUtf8Range (value) (index) (240) (241) then (wireUtf8Range (value) ((index + 1)) (144) (192) \&\& (wireUtf8Range (value) ((index + 2)) (128) (192) \&\& (wireUtf8Range (value) ((index + 3)) (128) (192) \&\& wireUtf8Valid (value) ((index + 4)) (rest)))) else (if wireUtf8Range (value) (index) (241) (244) then (wireUtf8Range (value) ((index + 1)) (128) (192) \&\& (wireUtf8Range (value) ((index + 2)) (128) (192) \&\& (wireUtf8Range (value) ((index + 3)) (128) (192) \&\& wireUtf8Valid (value) ((index + 4)) (rest)))) else (if wireUtf8Range (value) (index) (244) (245) then (wireUtf8Range (value) ((index + 1)) (128) (144) \&\& (wireUtf8Range (value) ((index + 2)) (128) (192) \&\& (wireUtf8Range (value) ((index + 3)) (128) (192) \&\& wireUtf8Valid (value) ((index + 4)) (rest)))) else false))))))))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireExtensionKey}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(payload : ByteArray)}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(if ((Nat.ble (2) ((LexLeanRuntime.length (payload) : Nat))) \&\& ((Nat.ble ((2 + wireDecodeLe16 (wireSlice (payload) (0) (2)))) ((LexLeanRuntime.length (payload) : Nat))) \&\& true)) then (if wireUtf8Valid (wireSlice (payload) (2) (wireDecodeLe16 (wireSlice (payload) (0) (2)))) (0) (wireDecodeLe16 (wireSlice (payload) (0) (2))) then Option.some (wireSlice (payload) (2) (wireDecodeLe16 (wireSlice (payload) (0) (2)))) else Option.none) else Option.none)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireSectionOrderKey}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(kind : PrismPM.Foundation.Holo.V1.Format.SectionKind) (payload : ByteArray)}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(if (Nat.beq (PrismPM.Foundation.Holo.V1.Format.sectionKindCode (kind)) (14)) then wireExtensionKey (payload) else (if (Nat.beq (PrismPM.Foundation.Holo.V1.Format.sectionKindCode (kind)) (16)) then (if wireBlobValid (payload) then Option.some (wireBlobLabel (payload)) else Option.none) else Option.some (ByteArray.mk \#[])))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireCanonicalOrderValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(previousRank : Nat) (previousKey : ByteArray) (kind : PrismPM.Foundation.Holo.V1.Format.SectionKind) (key : ByteArray)}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{((Nat.blt (previousRank) (PrismPM.Foundation.Holo.V1.Format.sectionKindRank (kind))) || ((Nat.beq (previousRank) (PrismPM.Foundation.Holo.V1.Format.sectionKindRank (kind))) \&\& (PrismPM.Foundation.Holo.V1.Format.sectionKindRepeatable (kind) \&\& (wireBytesLess (previousKey) (key) \&\& true))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireCanonicalRowKind}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray) (index : Nat)}.\par
+\noindent Type: \texttt{Option (PrismPM.Foundation.Holo.V1.Format.SectionKind)}.\par
+\noindent Definition: \texttt{PrismPM.Foundation.Holo.V1.Format.sectionKindOfCode (wireDecodeOctet (wireSlice (body) ((10 + (LexLeanRuntime.multiply (index) (24) : Nat))) (1)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireCanonicalRowsValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray) (index : Nat) (offset : Nat) (previousRank : Nat) (previousKey : ByteArray) (remaining : Nat)}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match remaining with | Nat.zero => (Nat.beq (offset) ((LexLeanRuntime.length (body) : Nat))) | Nat.succ rest => (match wireCanonicalRowKind (body) (index) with | Option.none => false | Option.some kind => (match wireSectionOrderKey (kind) (wireSectionBytesUnchecked (body) (index)) with | Option.none => false | Option.some key => (if (wireWindowEquals (body) ((11 + (LexLeanRuntime.multiply (index) (24) : Nat))) (7) (ByteArray.mk \#[0, 0, 0, 0, 0, 0, 0]) \&\& ((Nat.beq (wireRowOffset (body) (index)) (offset)) \&\& ((Nat.ble (1) (wireRowLength (body) (index))) \&\& ((Nat.ble (wireRowLength (body) (index)) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (body) : Nat)) (offset) : Nat))) \&\& (wireCanonicalOrderValid (previousRank) (previousKey) (kind) (key) \&\& true))))) then wireCanonicalRowsValid (body) ((index + 1)) ((offset + wireRowLength (body) (index))) (PrismPM.Foundation.Holo.V1.Format.sectionKindRank (kind)) (key) (rest) else false))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireCanonicalSectionCount}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray)}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{wireDecodeLe16 (wireSlice (body) (8) (2))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{validCanonicalArchiveBody}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray)}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(if ((Nat.ble (10) ((LexLeanRuntime.length (body) : Nat))) \&\& (wireWindowEquals (body) (0) (8) (ByteArray.mk \#[72, 79, 76, 79, 4, 0, 0, 0]) \&\& ((Nat.ble ((10 + (LexLeanRuntime.multiply (wireCanonicalSectionCount (body)) (24) : Nat))) ((LexLeanRuntime.length (body) : Nat))) \&\& true))) then wireCanonicalRowsValid (body) (0) ((10 + (LexLeanRuntime.multiply (wireCanonicalSectionCount (body)) (24) : Nat))) (0) (ByteArray.mk \#[]) (wireCanonicalSectionCount (body)) else false)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{validCanonicalArchiveFrame}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(if (Nat.ble (42) ((LexLeanRuntime.length (value) : Nat))) then validCanonicalArchiveBody (wireSlice (value) (0) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (value) : Nat)) (32) : Nat))) else false)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{canonicalFrameArchive}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray) (footer : ByteArray)}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(if (validCanonicalArchiveBody (body) \&\& ((Nat.beq ((LexLeanRuntime.length (footer) : Nat)) (32)) \&\& true)) then Option.some ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (body) : ByteArray)) (footer) : ByteArray)) else Option.none)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{canonicalArchiveBodyBytes}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(if validCanonicalArchiveFrame (value) then Option.some (wireSlice (value) (0) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (value) : Nat)) (32) : Nat))) else Option.none)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{canonicalArchiveFooter}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray)}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(if validCanonicalArchiveFrame (value) then Option.some (wireSlice (value) ((LexLeanRuntime.subtract ((LexLeanRuntime.length (value) : Nat)) (32) : Nat)) (32)) else Option.none)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{canonicalArchiveSectionKind}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (index : Nat)}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(if (validCanonicalArchiveFrame (value) \&\& ((Nat.blt (index) (wireCanonicalSectionCount (value))) \&\& true)) then Option.some (wireSlice (value) ((10 + (LexLeanRuntime.multiply (index) (24) : Nat))) (1)) else Option.none)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{canonicalArchiveSection}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(value : ByteArray) (index : Nat)}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(if (validCanonicalArchiveFrame (value) \&\& ((Nat.blt (index) (wireCanonicalSectionCount (value))) \&\& true)) then Option.some (wireSectionBytesUnchecked (value) (index)) else Option.none)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireSectionKeyOrEmpty}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(<U+00AB>section<U+00BB> : CanonicalSection)}.\par
+\noindent Type: \texttt{ByteArray}.\par
+\noindent Definition: \texttt{(match wireSectionOrderKey ((<U+00AB>section<U+00BB>).kind) ((<U+00AB>section<U+00BB>).payload) with | Option.none => ByteArray.mk \#[] | Option.some key => key)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireSectionBefore}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(left : CanonicalSection) (right : CanonicalSection)}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{((Nat.blt (PrismPM.Foundation.Holo.V1.Format.sectionKindRank ((left).kind)) (PrismPM.Foundation.Holo.V1.Format.sectionKindRank ((right).kind))) || ((Nat.beq (PrismPM.Foundation.Holo.V1.Format.sectionKindRank ((left).kind)) (PrismPM.Foundation.Holo.V1.Format.sectionKindRank ((right).kind))) \&\& (wireBytesLess (wireSectionKeyOrEmpty (left)) (wireSectionKeyOrEmpty (right)) \&\& true)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireSectionMinimumAfter}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(sections : List (CanonicalSection)) (previousRank : Nat) (previousKey : ByteArray)}.\par
+\noindent Type: \texttt{Option (CanonicalSection)}.\par
+\noindent Definition: \texttt{(match sections with | List.nil => Option.none | List.cons head tail => (match wireSectionMinimumAfter (tail) (previousRank) (previousKey) with | Option.none => (if wireCanonicalOrderValid (previousRank) (previousKey) ((head).kind) (wireSectionKeyOrEmpty (head)) then Option.some (head) else Option.none) | Option.some current => (if (wireCanonicalOrderValid (previousRank) (previousKey) ((head).kind) (wireSectionKeyOrEmpty (head)) \&\& (wireSectionBefore (head) (current) \&\& true)) then Option.some (head) else Option.some (current))))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireSectionListCount}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(sections : List (CanonicalSection))}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{(match sections with | List.nil => 0 | List.cons \_ tail => (1 + wireSectionListCount (tail)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{wireCanonicalTableRow}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(kind : PrismPM.Foundation.Holo.V1.Format.SectionKind) (offset : Nat) (length : Nat)}.\par
+\noindent Type: \texttt{ByteArray}.\par
+\noindent Definition: \texttt{(LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireEncodeOctet (PrismPM.Foundation.Holo.V1.Format.sectionKindCode (kind))) : ByteArray)) (ByteArray.mk \#[0, 0, 0, 0, 0, 0, 0]) : ByteArray)) (wireEncodeLe64 (offset)) : ByteArray)) (wireEncodeLe64 (length)) : ByteArray)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{wireComposeTableRows}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(sections : List (CanonicalSection)) (previousRank : Nat) (previousKey : ByteArray) (offset : Nat) (fuel : Nat)}.\par
+\noindent Type: \texttt{ByteArray}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => ByteArray.mk \#[] | Nat.succ rest => (match wireSectionMinimumAfter (sections) (previousRank) (previousKey) with | Option.none => ByteArray.mk \#[] | Option.some <U+00AB>section<U+00BB> => (LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireCanonicalTableRow ((<U+00AB>section<U+00BB>).kind) (offset) ((LexLeanRuntime.length ((<U+00AB>section<U+00BB>).payload) : Nat))) : ByteArray)) (wireComposeTableRows (sections) (PrismPM.Foundation.Holo.V1.Format.sectionKindRank ((<U+00AB>section<U+00BB>).kind)) (wireSectionKeyOrEmpty (<U+00AB>section<U+00BB>)) ((offset + (LexLeanRuntime.length ((<U+00AB>section<U+00BB>).payload) : Nat))) (rest)) : ByteArray)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireComposePayloads}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(sections : List (CanonicalSection)) (previousRank : Nat) (previousKey : ByteArray) (fuel : Nat)}.\par
+\noindent Type: \texttt{ByteArray}.\par
+\noindent Definition: \texttt{(match fuel with | Nat.zero => ByteArray.mk \#[] | Nat.succ rest => (match wireSectionMinimumAfter (sections) (previousRank) (previousKey) with | Option.none => ByteArray.mk \#[] | Option.some <U+00AB>section<U+00BB> => (LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) ((<U+00AB>section<U+00BB>).payload) : ByteArray)) (wireComposePayloads (sections) (PrismPM.Foundation.Holo.V1.Format.sectionKindRank ((<U+00AB>section<U+00BB>).kind)) (wireSectionKeyOrEmpty (<U+00AB>section<U+00BB>)) (rest)) : ByteArray)))}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireComposeCanonicalUnchecked}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(sections : List (CanonicalSection))}.\par
+\noindent Type: \texttt{ByteArray}.\par
+\noindent Definition: \texttt{(LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (ByteArray.mk \#[72, 79, 76, 79, 4, 0, 0, 0]) : ByteArray)) (wireEncodeLe16 (wireSectionListCount (sections))) : ByteArray)) (wireComposeTableRows (sections) (0) (ByteArray.mk \#[]) ((10 + (LexLeanRuntime.multiply (wireSectionListCount (sections)) (24) : Nat))) (wireSectionListCount (sections))) : ByteArray)) (wireComposePayloads (sections) (0) (ByteArray.mk \#[]) (wireSectionListCount (sections))) : ByteArray)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{wireCheckedCanonicalBody}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(body : ByteArray)}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(if validCanonicalArchiveBody (body) then Option.some (body) else Option.none)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
+\subsection*{\texttt{canonicalArchiveBody}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(sections : List (CanonicalSection))}.\par
+\noindent Type: \texttt{Option (ByteArray)}.\par
+\noindent Definition: \texttt{(if (Nat.beq ((LexLeanRuntime.length (wireComposeTableRows (sections) (0) (ByteArray.mk \#[]) ((10 + (LexLeanRuntime.multiply (wireSectionListCount (sections)) (24) : Nat))) (wireSectionListCount (sections))) : Nat)) ((LexLeanRuntime.multiply (wireSectionListCount (sections)) (24) : Nat))) then wireCheckedCanonicalBody (wireComposeCanonicalUnchecked (sections)) else Option.none)}.\par
+\noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireBodyPayloadsValid}}
 \noindent Kind: \texttt{definition}.\par
 \noindent Parameters: \texttt{(body : ByteArray)}.\par
@@ -247,7 +407,7 @@
 \noindent Kind: \texttt{definition}.\par
 \noindent Parameters: \texttt{(body : ByteArray)}.\par
 \noindent Type: \texttt{Bool}.\par
-\noindent Definition: \texttt{(if ((Nat.ble (202) ((LexLeanRuntime.length (body) : Nat))) \&\& (wireWindowEquals (body) (0) (10) (ByteArray.mk \#[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]) \&\& true)) then (if wireRowsValid (body) (0) (202) (8) then wireBodyPayloadsValid (body) else false) else (if ((Nat.ble (226) ((LexLeanRuntime.length (body) : Nat))) \&\& (wireWindowEquals (body) (0) (10) (ByteArray.mk \#[72, 79, 76, 79, 4, 0, 0, 0, 9, 0]) \&\& true)) then (if wireRowsValid (body) (0) (226) (9) then (wireBodyPayloadsValid (body) \&\& (wireAttestationRowValid (wireSectionBytesUnchecked (body) (8)) \&\& true)) else false) else false))}.\par
+\noindent Definition: \texttt{(if ((Nat.ble (202) ((LexLeanRuntime.length (body) : Nat))) \&\& (wireWindowEquals (body) (0) (10) (ByteArray.mk \#[72, 79, 76, 79, 4, 0, 0, 0, 8, 0]) \&\& true)) then (if validCanonicalArchiveBody (body) then (if wireRowsValid (body) (0) (202) (8) then wireBodyPayloadsValid (body) else false) else false) else (if ((Nat.ble (226) ((LexLeanRuntime.length (body) : Nat))) \&\& (wireWindowEquals (body) (0) (10) (ByteArray.mk \#[72, 79, 76, 79, 4, 0, 0, 0, 9, 0]) \&\& true)) then (if wireRowsValid (body) (0) (226) (9) then (wireBodyPayloadsValid (body) \&\& ((Nat.ble (1) (wireRowLength (body) (1))) \&\& (wireAttestationRowValid (wireSectionBytesUnchecked (body) (8)) \&\& true))) else false) else false))}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireRowCount}}
 \noindent Kind: \texttt{definition}.\par
@@ -265,7 +425,7 @@
 \noindent Kind: \texttt{definition}.\par
 \noindent Parameters: \texttt{(manifest : ByteArray) (metadata : ByteArray) (directory : ByteArray) (provenance : ByteArray) (blob0 : ByteArray) (blob1 : ByteArray) (blob2 : ByteArray) (blob3 : ByteArray)}.\par
 \noindent Type: \texttt{Option (ByteArray)}.\par
-\noindent Definition: \texttt{(if wirePayloadsValid (manifest) (blob0) (blob1) (blob2) (blob3) then Option.some (wireComposeBodyUnchecked (manifest) (metadata) ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireDirectoryPrefix) : ByteArray)) (directory) : ByteArray)) ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireProvenancePrefix) : ByteArray)) (provenance) : ByteArray)) (blob0) (blob1) (blob2) (blob3)) else Option.none)}.\par
+\noindent Definition: \texttt{(if wirePayloadsValid (manifest) (blob0) (blob1) (blob2) (blob3) then wireCheckedCanonicalBody (wireComposeBodyUnchecked (manifest) (metadata) ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireDirectoryPrefix) : ByteArray)) (directory) : ByteArray)) ((LexLeanRuntime.append ((LexLeanRuntime.append (ByteArray.mk \#[]) (wireProvenancePrefix) : ByteArray)) (provenance) : ByteArray)) (blob0) (blob1) (blob2) (blob3)) else Option.none)}.\par
 \noindent Axiom policy: \texttt{exact [propext]}.\par
 \subsection*{\texttt{wireTableRowShifted}}
 \noindent Kind: \texttt{definition}.\par

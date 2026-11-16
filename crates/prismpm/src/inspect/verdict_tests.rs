@@ -17,12 +17,16 @@ use std::path::{Path, PathBuf};
 const CALCULATOR: &[u8] = include_bytes!("../../../../sdk/npm/prism-code/fixtures/Calculator.holo");
 const PAYMENT_APPROVAL: &[u8] =
     include_bytes!("../../../../sdk/npm/prism-code/fixtures/PaymentApproval.holo");
-/// `appendAttestations(CALCULATOR, two placeholder bundles)` as written by `sdk/npm/prism-code`.
+/// The reference archive as a holo v5 (ADR-017): the only format that can be signed.
+const CALCULATOR_V5: &[u8] =
+    include_bytes!("../../../../sdk/npm/prism-code/fixtures/Calculator.v5.holo");
+/// `appendAttestations(CALCULATOR_V5, two placeholder bundles)` as written by `sdk/npm/prism-code`.
 const SIGNED_BY_JAVASCRIPT: &[u8] = include_bytes!(
-    "../../../../sdk/npm/prism-code/test/fixtures/attestation/Calculator.signed.holo"
+    "../../../../sdk/npm/prism-code/test/fixtures/attestation/Calculator.v5.signed.holo"
 );
 const FOOTER: &str = "8408e0895572fab09e783f7aadb129dc4cb96d0b62850a16f3ddbe44ed6021ba";
 const GUEST_LABEL: &str = "blake3:2adca3e7ca42d7415a5227a20002baad90047d087249cbb9ea36e557f5a4a380";
+const GUEST_KAPPA: &str = "sha256:dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03";
 const GUEST_SHA256: &str = "dcf53677c7c80636f8fc2247676b8f747d1549ce4af742c8505eb0f0ae334c03";
 const STATEMENTS: [&str; 3] = [
     "provenance.statement",
@@ -64,17 +68,14 @@ fn tampered() -> Vec<u8> {
     bytes
 }
 
-/// The file offset of the guest blob's content: its row offset in the body plus the label.
+/// The file offset of the guest blob's content, in a v4 or a v5 holo: where the
+/// reference guest's bytes occur.
 fn guest_content_offset(bytes: &[u8]) -> usize {
-    let table_at = 10;
-    for row in 0..9 {
-        let at = table_at + row * 24;
-        let offset = u64::from_le_bytes(bytes[at + 8..at + 16].try_into().unwrap()) as usize;
-        if bytes.get(offset..offset + 71) == Some(GUEST_LABEL.as_bytes()) {
-            return offset + 71;
-        }
-    }
-    panic!("the guest blob is not in the table");
+    let guest = &parse_application(CALCULATOR_V5).unwrap().blobs[GUEST_KAPPA];
+    bytes
+        .windows(guest.len())
+        .position(|window| window == guest.as_slice())
+        .expect("the guest blob is in the holo")
 }
 
 fn reseal(bytes: &mut [u8]) {
@@ -128,21 +129,18 @@ fn bundle(statement: &Value) -> Vec<u8> {
 }
 
 fn guest_subject() -> Value {
-    let blobs = parse_application(CALCULATOR).unwrap().blobs;
-    let content = &blobs[GUEST_LABEL];
+    let blobs = parse_application(CALCULATOR_V5).unwrap().blobs;
+    assert!(blobs.contains_key(GUEST_KAPPA));
     json!({
         "name": "core-wasm/prism_calculator_core_wasm.wasm",
-        "digest": {
-            "blake3": GUEST_LABEL.strip_prefix("blake3:").unwrap(),
-            "sha256": format!("{:x}", Sha256::digest(content)),
-        }
+        "digest": {"sha256": GUEST_SHA256},
     })
 }
 
 /// A proof statement whose every check this CLI can run passes for the
 /// reference archive. `verified_levels` is the signer's claim.
 fn proof_statement(verified_levels: Value) -> Value {
-    let parsed = parse_application(CALCULATOR).unwrap();
+    let parsed = parse_application(CALCULATOR_V5).unwrap();
     let provenance: Value = serde_json::from_slice(&parsed.prism_extension).unwrap();
     let model_label = provenance["model_content_kappa"].as_str().unwrap();
     let model = &parsed.blobs[model_label];
@@ -173,7 +171,7 @@ fn proof_statement(verified_levels: Value) -> Value {
             },
             "policy": {"uri": "https://uor.foundation/prism/axioms/v1", "digest": {"sha256": "0".repeat(64)}},
             "model": {
-                "document": {"sha256": format!("{:x}", Sha256::digest(model)), "blake3": model_label.strip_prefix("blake3:").unwrap()},
+                "document": {"sha256": format!("{:x}", Sha256::digest(model))},
                 "sourceId": digest("source_id"),
                 "semanticId": digest("semantic_id"),
                 "snapshotId": digest("snapshot_id"),
@@ -192,7 +190,7 @@ fn proof_statement(verified_levels: Value) -> Value {
 }
 
 fn with_proof(verified_levels: Value) -> Vec<u8> {
-    attach_attestations(CALCULATOR, &[bundle(&proof_statement(verified_levels))]).unwrap()
+    attach_attestations(CALCULATOR_V5, &[bundle(&proof_statement(verified_levels))]).unwrap()
 }
 
 #[test]
@@ -265,7 +263,7 @@ fn a_tampered_guest_blob_fails_holo_integrity_twice_and_drops_to_p0() {
         [
             &["holo.integrity", "holo.integrity"][..],
             &STATEMENTS[..],
-            &["policy.level"]
+            &["policy.integrity", "policy.level"]
         ]
         .concat()
     );
@@ -279,8 +277,12 @@ fn a_tampered_guest_blob_fails_holo_integrity_twice_and_drops_to_p0() {
         "Section 4 is labelled {GUEST_LABEL} but its content hashes to blake3:"
     )));
     assert_eq!(verdict.reasons[0].withholds, Some(Level::P1));
-    // P0 asks only that check could read the file, so a policy of P0 accepts even a damaged holo.
-    assert!(verify(&bytes, &p0()).unwrap().passed);
+    // Planted defect G7: an integrity failure fails every policy, so even a policy of P0 refuses a damaged holo.
+    assert!(!verify(&bytes, &p0()).unwrap().passed);
+    assert!(verdict
+        .reasons
+        .iter()
+        .any(|r| r.check == "policy.integrity" && r.withholds.is_none()));
 }
 
 #[test]
@@ -290,7 +292,12 @@ fn a_resealed_footer_does_not_hide_a_changed_blob() {
     let verdict = verify(&bytes, &Policy::default()).unwrap();
     assert_eq!(
         checks(&verdict),
-        [&["holo.integrity"][..], &STATEMENTS[..], &["policy.level"]].concat()
+        [
+            &["holo.integrity"][..],
+            &STATEMENTS[..],
+            &["policy.integrity", "policy.level"],
+        ]
+        .concat()
     );
     assert!(verdict.reasons[0]
         .message
@@ -627,10 +634,7 @@ fn al_03_the_javascript_signed_fixture_reaches_a_verdict_and_its_bare_proof_stat
     assert_eq!(verdict.level, Level::P0);
     assert_eq!(
         verdict.holo,
-        format!(
-            "blake3:{}",
-            blake3::hash(&SIGNED_BY_JAVASCRIPT[..SIGNED_BY_JAVASCRIPT.len() - 32]).to_hex()
-        )
+        format!("sha256:{:x}", Sha256::digest(SIGNED_BY_JAVASCRIPT))
     );
     assert_eq!(
         checks(&verdict),
@@ -667,7 +671,7 @@ fn a_tampered_guest_under_a_proof_statement_fails_with_proof_mismatch() {
     assert_eq!(title_of(&mismatch.check), "ProofMismatch");
     assert!(mismatch
         .message
-        .contains("which is not this holo's guest (blake3 "));
+        .contains("which is not this holo's guest (sha256 "));
     assert_eq!(&checks(&verdict)[..2], ["holo.integrity", "holo.integrity"]);
 }
 
@@ -677,7 +681,7 @@ fn a_proof_about_another_model_or_a_failed_theorem_or_a_short_tcb_is_reported() 
     statement["predicate"]["model"]["sourceId"] = json!("0".repeat(64));
     statement["predicate"]["theorems"][0]["verdict"] = json!("FAILED");
     statement["predicate"]["tcb"].as_array_mut().unwrap().pop();
-    let bytes = attach_attestations(CALCULATOR, &[bundle(&statement)]).unwrap();
+    let bytes = attach_attestations(CALCULATOR_V5, &[bundle(&statement)]).unwrap();
     let verdict = verify(&bytes, &Policy::default()).unwrap();
     assert_valid(&verdict);
     let codes = verdict

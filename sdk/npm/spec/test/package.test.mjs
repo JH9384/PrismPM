@@ -41,8 +41,8 @@ test('every constant the types declare is exported, and nothing more', () => {
   for (const file of ['constants.d.ts', 'index.d.ts']) {
     const types = readFileSync(here(`../${file}`), 'utf8');
     declared.push(
-      ...[...types.matchAll(/^export declare const ([A-Z_]+)/gm)].map((m) => m[1]),
-      ...[...types.matchAll(/^export \{ ([A-Z_]+) \} from/gm)].map((m) => m[1]),
+      ...[...types.matchAll(/^export declare const ([A-Z][A-Z0-9_]*)/gm)].map((m) => m[1]),
+      ...[...types.matchAll(/^export \{ ([A-Z][A-Z0-9_]*) \} from/gm)].map((m) => m[1]),
     );
   }
   assert.deepEqual(declared.sort(), Object.keys(spec).sort());

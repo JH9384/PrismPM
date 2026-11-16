@@ -1,7 +1,8 @@
 spec = "prismpm/emitter-inputs/1"
-digest = "3964c9c3578af9bf5917b5e317001ce67d62585b8b56dbef3effa872f53da915"
+digest = "498c4446d53df1496fdc4b31e23cfff52ba7f03e3f70c156be61fcb3bdac7832"
 inputs = [
     "crates/prismpm/src/application_build.rs",
+    "crates/prismpm/src/brand.rs",
     "crates/prismpm/src/holo/application.rs",
     "crates/prismpm/src/holo/application/workbench.rs",
     "crates/prismpm/src/holo/browser_application.rs",
@@ -17,6 +18,11 @@ inputs = [
     "crates/prismpm/src/holo/mod.rs",
     "crates/prismpm/src/holo/model_document.rs",
     "crates/prismpm/src/holo/projector.rs",
+    "crates/prismpm/src/holo/server_application.rs",
+    "crates/prismpm/src/holo/server_application/model.rs",
+    "crates/prismpm/src/holo/server_application/serving.rs",
+    "crates/prismpm/src/holo/server_application/source.rs",
+    "crates/prismpm/src/holo/server_application/wire.rs",
     "crates/prismpm/src/holo/text_cli.rs",
     "crates/prismpm/src/holo/validate.rs",
     "crates/prismpm/src/holo/workbench.rs",
@@ -30,6 +36,17 @@ inputs = [
     "schemas/model-document-v4.schema.json",
     "schemas/model-document-v5.schema.json",
     "schemas/model-document-v6.schema.json",
+    "schemas/model-document-v7.schema.json",
+    "schemas/model-document-v8.schema.json",
     "schemas/model-document.schema.json",
-    "schemas/workbench-view-projection.schema.json"
+    "schemas/workbench-view-projection.schema.json",
+    "vendor/hologram-brand/fonts/Archivo-SemiBold.woff2",
+    "vendor/hologram-brand/fonts/Geist-Medium.woff2",
+    "vendor/hologram-brand/fonts/Geist-Regular.woff2",
+    "vendor/hologram-brand/fonts/Geist-SemiBold.woff2",
+    "vendor/hologram-brand/fonts/GeistMono-Regular.woff2",
+    "vendor/hologram-brand/fonts/OFL-Archivo.txt",
+    "vendor/hologram-brand/fonts/OFL-Geist.txt",
+    "vendor/hologram-brand/icon-512.png",
+    "vendor/hologram-brand/icon.svg"
 ]

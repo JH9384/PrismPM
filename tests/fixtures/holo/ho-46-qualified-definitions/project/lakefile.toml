@@ -1,0 +1,6 @@
+name = "PrismQualifiedDefinitions"
+version = "0.1.0"
+defaultTargets = ["PrismQualifiedDefinitions"]
+
+[[lean_lib]]
+name = "PrismQualifiedDefinitions"

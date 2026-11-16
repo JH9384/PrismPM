@@ -64,6 +64,11 @@ export async function startRegistry(options = {}) {
     }
 
     const match = url.pathname.match(/^\/v2\/(.+?)\/(blobs\/uploads\/?(.*)|blobs\/(.+)|manifests\/(.+)|referrers\/(.+))$/);
+    // `GET /v2/` is the login check: it answers 401 with a challenge until the credentials are good.
+    if (url.pathname === '/v2/' && !allowed(request, false)) {
+      const challenge = state.auth === 'basic' ? 'Basic realm="registry"' : `Bearer realm="http://${request.headers.host}/token",service="registry.test"`;
+      return send(401, errorBody('UNAUTHORIZED', 'authentication required'), { 'www-authenticate': challenge });
+    }
     if (!match) return send(url.pathname === '/v2/' ? 200 : 404, '{}');
     const [, repository, , uploadId, blobDigest, manifestRef, referrersDigest] = match;
     const write = request.method === 'POST' || request.method === 'PUT';

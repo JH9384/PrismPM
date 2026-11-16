@@ -1,0 +1,727 @@
+\begin{lexlean}{Foundation.Bindings.V1.Source}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.bindings@1.0.0}
+\importmodule{Foundation.Bindings.V1.Model}
+\importmodule{Foundation.Bindings.V1.Text}
+\title{Bindings source reader}
+\begin{semanticmodule}
+structure{
+  name: BindingSourceOperation,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: requestName, type: String},
+    {name: label, type: String},
+    {name: discriminant, type: Nat}
+  ]
+}
+
+structure{
+  name: BindingSource,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: generator, type: String},
+    {name: contract, type: String},
+    {name: package, type: String},
+    {name: worldName, type: String},
+    {name: worldFile, type: String},
+    {name: worldBlake3, type: String},
+    {name: worldSha256, type: String},
+    {name: worldExports, type: (List String)},
+    {name: worldImports, type: (List String)},
+    {name: conforms, type: Bool},
+    {name: witText, type: String},
+    {name: witBlake3, type: String},
+    {name: witSha256, type: String},
+    {name: applicationName, type: (Option String)},
+    {name: cargoName, type: (Option String)},
+    {name: description, type: (Option String)},
+    {name: schema, type: String},
+    {name: inputGrammar, type: String},
+    {name: functionName, type: String},
+    {name: operationType, type: String},
+    {name: errorType, type: String},
+    {name: modelBlake3, type: String},
+    {name: modelSha256, type: String},
+    {name: operations, type: (List BindingSourceOperation)},
+    {name: overflowError, type: (Option String)},
+    {name: divisionError, type: (Option String)},
+    {name: inputError, type: (Option String)}
+  ]
+}
+
+structure{
+  name: WitItem,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: exported, type: Bool},
+    {name: entry, type: Foundation.Bindings.V1.Model::BindingFunction}
+  ]
+}
+
+inductive{
+  name: WitRead,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Read, fields: [String, String, (List WitItem)]},
+    {name: Unread, fields: [Nat, Bytes, String]}
+  ]
+}
+
+inductive{
+  name: ParametersRead,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Parameters, fields: [(List Foundation.Bindings.V1.Model::BindingParameter)]},
+    {name: ParametersUnread, fields: [String]}
+  ]
+}
+
+inductive{
+  name: FunctionRead,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Function, fields: [WitItem]},
+    {name: NotFunction, fields: []},
+    {name: FunctionUnread, fields: [String]}
+  ]
+}
+
+inductive{
+  name: BindingSourceResult,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: Ready, fields: [Foundation.Bindings.V1.Model::BindingModel]},
+    {name: Unbound, fields: [String, String]}
+  ]
+}
+
+definition{
+  name: minusFrom,
+  parameters: [left : Nat, right : Nat, difference : Nat, remaining : Nat],
+  result: Nat,
+  body: (match remaining
+    | Nat.zero => 0
+    | Nat.succ rest => (if ((difference + right) =? left) then difference else (minusFrom left right (difference + 1) rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: minus,
+  parameters: [left : Nat, right : Nat],
+  result: Nat,
+  body: (minusFrom left right 0 (left + 1)),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: size,
+  parameters: [value : Bytes],
+  result: Nat,
+  body: (prim length value : Nat),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: isBlank,
+  parameters: [octet : Bytes],
+  result: Bool,
+  body: (Foundation.Bindings.V1.Text::among octet 0x20090d 3),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: firstFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Nat,
+  body: (match remaining
+    | Nat.zero => index
+    | Nat.succ rest => (if (isBlank (Foundation.Bindings.V1.Text::piece source index 1)) then (firstFrom source (index + 1) rest) else index)),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: lastFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat, last : Nat],
+  result: Nat,
+  body: (match remaining
+    | Nat.zero => last
+    | Nat.succ rest => (lastFrom source (index + 1) rest (if (isBlank (Foundation.Bindings.V1.Text::piece source index 1)) then last else (index + 1)))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: trim,
+  parameters: [source : Bytes],
+  result: Bytes,
+  body: (let start : Nat := (firstFrom source 0 (size source)); (let finish : Nat := (lastFrom source 0 (size source) 0); (if (finish <=? start) then 0x else (Foundation.Bindings.V1.Text::piece source start (minus finish start))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: startsWith,
+  parameters: [source : Bytes, prefix : Bytes],
+  result: Bool,
+  body: (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source 0 (size prefix)) prefix),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: endsWith,
+  parameters: [source : Bytes, suffix : Bytes],
+  result: Bool,
+  body: (if ((size suffix) <=? (size source)) then (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source (minus (size source) (size suffix)) (size suffix)) suffix) else false),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: between,
+  parameters: [source : Bytes, start : Nat, finish : Nat],
+  result: Bytes,
+  body: (if ((start + finish) <=? (size source)) then (Foundation.Bindings.V1.Text::piece source start (minus (size source) (start + finish))) else 0x),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: indexFrom,
+  parameters: [source : Bytes, octet : Bytes, index : Nat, remaining : Nat],
+  result: (Option Nat),
+  body: (match remaining
+    | Nat.zero => (ctor Option.none [Nat])
+    | Nat.succ rest => (if (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 1) octet) then (ctor Option.some [Nat] index) else (indexFrom source octet (index + 1) rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: splitFrom,
+  parameters: [source : Bytes, octet : Bytes, index : Nat, current : Bytes, remaining : Nat],
+  result: (List Bytes),
+  body: (match remaining
+    | Nat.zero => (cons current (nil Bytes))
+    | Nat.succ rest => (if (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 1) octet) then (cons current (splitFrom source octet (index + 1) 0x rest)) else (splitFrom source octet (index + 1) (prim append current (Foundation.Bindings.V1.Text::piece source index 1) : Bytes) rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: split,
+  parameters: [source : Bytes, octet : Bytes],
+  result: (List Bytes),
+  body: (splitFrom source octet 0 0x (size source)),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: decode,
+  parameters: [value : Bytes],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::textOf value ""),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: isLowerLetter,
+  parameters: [octet : Bytes],
+  result: Bool,
+  body: (Foundation.Bindings.V1.Text::among octet (Foundation.Bindings.V1.Text::lowerLetters) 26),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: isUpperLetter,
+  parameters: [octet : Bytes],
+  result: Bool,
+  body: (Foundation.Bindings.V1.Text::among octet (Foundation.Bindings.V1.Text::upperLetters) 26),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: isDigit,
+  parameters: [octet : Bytes],
+  result: Bool,
+  body: (Foundation.Bindings.V1.Text::among octet (Foundation.Bindings.V1.Text::digits) 10),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: identFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat, dash : Bool],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => (not dash)
+    | Nat.succ rest => (if (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 1) 0x2d) then (if dash then false else (identFrom source (index + 1) rest true)) else (if ((isLowerLetter (Foundation.Bindings.V1.Text::piece source index 1)) || (isDigit (Foundation.Bindings.V1.Text::piece source index 1))) then (identFrom source (index + 1) rest false) else false))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: isIdent,
+  parameters: [source : Bytes],
+  result: Bool,
+  body: ((isLowerLetter (Foundation.Bindings.V1.Text::piece source 0 1)) && (identFrom source 0 (size source) false)),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: requestFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => true
+    | Nat.succ rest => (if ((isLowerLetter (Foundation.Bindings.V1.Text::piece source index 1)) || ((isDigit (Foundation.Bindings.V1.Text::piece source index 1)) || (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 1) 0x2d))) then (requestFrom source (index + 1) rest) else false)),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: isRequestName,
+  parameters: [name : String],
+  result: Bool,
+  body: (let source : Bytes := (prim utf8_encode name : Bytes); ((isLowerLetter (Foundation.Bindings.V1.Text::piece source 0 1)) && (requestFrom source 0 (size source)))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: alphanumericFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => true
+    | Nat.succ rest => (if ((isLowerLetter (Foundation.Bindings.V1.Text::piece source index 1)) || ((isUpperLetter (Foundation.Bindings.V1.Text::piece source index 1)) || (isDigit (Foundation.Bindings.V1.Text::piece source index 1)))) then (alphanumericFrom source (index + 1) rest) else false)),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: isClassName,
+  parameters: [name : String],
+  result: Bool,
+  body: (let source : Bytes := (prim utf8_encode name : Bytes); ((isUpperLetter (Foundation.Bindings.V1.Text::piece source 0 1)) && (alphanumericFrom source 0 (size source)))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: versionFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => true
+    | Nat.succ rest => (if ((isLowerLetter (Foundation.Bindings.V1.Text::piece source index 1)) || ((isUpperLetter (Foundation.Bindings.V1.Text::piece source index 1)) || ((isDigit (Foundation.Bindings.V1.Text::piece source index 1)) || (Foundation.Bindings.V1.Text::among (Foundation.Bindings.V1.Text::piece source index 1) 0x2e2b2d 3)))) then (versionFrom source (index + 1) rest) else false)),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: isVersioned,
+  parameters: [source : Bytes],
+  result: Bool,
+  body: (match (indexFrom source 0x40 0 (size source))
+    | Option.none => (isIdent source)
+    | Option.some at => ((isIdent (Foundation.Bindings.V1.Text::piece source 0 at)) && ((not ((size source) =? (at + 1))) && (versionFrom (between source (at + 1) 0) 0 (minus (size source) (at + 1)))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: isPackage,
+  parameters: [source : Bytes],
+  result: Bool,
+  body: (match (indexFrom source 0x3a 0 (size source))
+    | Option.none => false
+    | Option.some at => ((isIdent (Foundation.Bindings.V1.Text::piece source 0 at)) && (isVersioned (between source (at + 1) 0)))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: scalars,
+  parameters: [],
+  result: (List String),
+  body: (cons "bool" (cons "u8" (cons "s8" (cons "u16" (cons "s16" (cons "u32" (cons "s32" (cons "char" (cons "u64" (cons "s64" (cons "f32" (cons "f64" (nil String))))))))))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: scalarRefusal,
+  parameters: [type : Bytes],
+  result: String,
+  body: (Foundation.Bindings.V1.Text::concat (cons "type " (cons (decode type) (cons " is outside the scalar subset generate reads" (nil String))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: underscoredFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Bytes,
+  body: (match remaining
+    | Nat.zero => 0x
+    | Nat.succ rest => (prim append (if (Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece source index 1) 0x2d) then 0x5f else (Foundation.Bindings.V1.Text::piece source index 1)) (underscoredFrom source (index + 1) rest) : Bytes)),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: coreName,
+  parameters: [name : Bytes],
+  result: String,
+  body: (decode (underscoredFrom name 0 (size name))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: parametersFrom,
+  parameters: [parts : (List Bytes)],
+  result: ParametersRead,
+  body: (match parts
+    | List.nil => (ctor ParametersRead.Parameters (nil Foundation.Bindings.V1.Model::BindingParameter))
+    | List.cons raw rest => (let part : Bytes := (trim raw); (match (indexFrom part 0x3a 0 (size part))
+      | Option.none => (ctor ParametersRead.ParametersUnread (Foundation.Bindings.V1.Text::concat (cons "cannot read parameter " (cons (Foundation.Bindings.V1.Text::doubleQuoted (decode part)) (nil String)))))
+      | Option.some at => (let name : Bytes := (Foundation.Bindings.V1.Text::piece part 0 at); (let type : Bytes := (between part (at + 2) 0); (if ((Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece part (at + 1) 1) 0x20) && ((isIdent name) && (isIdent type))) then (if (Foundation.Bindings.V1.Text::memberText (decode type) (scalars)) then (match (parametersFrom rest)
+        | ParametersRead.Parameters read => (ctor ParametersRead.Parameters (cons (record Foundation.Bindings.V1.Model::BindingParameter {name := (decode name), scalar := (decode type)}) read))
+        | ParametersRead.ParametersUnread message => (ctor ParametersRead.ParametersUnread message)) else (ctor ParametersRead.ParametersUnread (scalarRefusal type))) else (ctor ParametersRead.ParametersUnread (Foundation.Bindings.V1.Text::concat (cons "cannot read parameter " (cons (Foundation.Bindings.V1.Text::doubleQuoted (decode part)) (nil String))))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: parts
+}
+
+definition{
+  name: parametersOf,
+  parameters: [source : Bytes],
+  result: ParametersRead,
+  body: (if ((size (trim source)) =? 0) then (ctor ParametersRead.Parameters (nil Foundation.Bindings.V1.Model::BindingParameter)) else (parametersFrom (split source 0x2c))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: functionOf,
+  parameters: [line : Bytes, docs : (List String)],
+  result: FunctionRead,
+  body: (let rest : Bytes := (between line 7 0); (match (indexFrom rest 0x3a 0 (size rest))
+    | Option.none => (ctor FunctionRead.NotFunction)
+    | Option.some at => (let name : Bytes := (Foundation.Bindings.V1.Text::piece rest 0 at); (let tail : Bytes := (between rest (at + 7) 0); (if ((Foundation.Bindings.V1.Text::bytesEqual (Foundation.Bindings.V1.Text::piece rest at 7) 0x3a2066756e6328) && ((isIdent name) && (endsWith tail 0x3b))) then (match (indexFrom tail 0x29 0 (size tail))
+      | Option.none => (ctor FunctionRead.NotFunction)
+      | Option.some close => (let after : Bytes := (between tail (close + 1) 0); (let shaped : Bool := ((Foundation.Bindings.V1.Text::bytesEqual after 0x3b) || ((startsWith after 0x202d3e20) && (isIdent (between after 4 1)))); (if shaped then (let result : (Option String) := (if (Foundation.Bindings.V1.Text::bytesEqual after 0x3b) then (ctor Option.none [String]) else (ctor Option.some [String] (decode (between after 4 1)))); (match result
+        | Option.some type => (if (Foundation.Bindings.V1.Text::memberText type (scalars)) then (match (parametersOf (Foundation.Bindings.V1.Text::piece tail 0 close))
+          | ParametersRead.Parameters read => (ctor FunctionRead.Function (record WitItem {exported := (startsWith line 0x6578706f727420), entry := (record Foundation.Bindings.V1.Model::BindingFunction {name := (coreName name), parameters := read, result := result, docs := docs})}))
+          | ParametersRead.ParametersUnread message => (ctor FunctionRead.FunctionUnread message)) else (ctor FunctionRead.FunctionUnread (scalarRefusal (prim utf8_encode type : Bytes))))
+        | Option.none => (match (parametersOf (Foundation.Bindings.V1.Text::piece tail 0 close))
+          | ParametersRead.Parameters read => (ctor FunctionRead.Function (record WitItem {exported := (startsWith line 0x6578706f727420), entry := (record Foundation.Bindings.V1.Model::BindingFunction {name := (coreName name), parameters := read, result := result, docs := docs})}))
+          | ParametersRead.ParametersUnread message => (ctor FunctionRead.FunctionUnread message)))) else (ctor FunctionRead.NotFunction))))) else (ctor FunctionRead.NotFunction)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: present,
+  parameters: [value : (Option String)],
+  result: Bool,
+  body: (match value | Option.none => false | Option.some text => true),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: lineRefusal,
+  parameters: [number : Nat, message : String],
+  result: WitRead,
+  body: (ctor WitRead.Unread number 0x message),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: outside,
+  parameters: [number : Nat, line : Bytes],
+  result: WitRead,
+  body: (ctor WitRead.Unread number line ""),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: witRefusal,
+  parameters: [number : Nat, line : Bytes, message : String],
+  result: String,
+  body: (if (number =? 0) then message else (Foundation.Bindings.V1.Text::concat (cons "line " (cons (Foundation.Bindings.V1.Text::decimal number) (cons ": " (cons (if ((size (prim utf8_encode message : Bytes)) =? 0) then (Foundation.Bindings.V1.Text::concat (cons (Foundation.Bindings.V1.Text::doubleQuoted (decode line)) (cons " is outside the WIT subset generate reads" (nil String)))) else message) (nil String))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: worldFrom,
+  parameters: [
+    lines : (List Bytes),
+    number : Nat,
+    package : (Option String),
+    world : (Option String),
+    closed : Bool,
+    docs : (List String),
+    items : (List WitItem)
+  ],
+  result: WitRead,
+  body: (match lines
+    | List.nil => (match package
+      | Option.none => (ctor WitRead.Unread 0 0x "the WIT text has no complete package and world")
+      | Option.some declared => (match world
+        | Option.none => (ctor WitRead.Unread 0 0x "the WIT text has no complete package and world")
+        | Option.some named => (if closed then (ctor WitRead.Read declared named items) else (ctor WitRead.Unread 0 0x "the WIT text has no complete package and world"))))
+    | List.cons raw rest => (let line : Bytes := (trim raw); (if (startsWith line 0x2f2f2f) then (worldFrom rest (number + 1) package world closed (prim append docs (cons (decode (trim (between line 3 0))) (nil String)) : (List String)) items) else (if (((size line) =? 0) || (startsWith line 0x2f2f)) then (worldFrom rest (number + 1) package world closed (nil String) items) else (if closed then (lineRefusal number "nothing may follow the world") else (if ((not (present package)) && ((not (present world)) && ((startsWith line 0x7061636b61676520) && ((endsWith line 0x3b) && (isPackage (between line 8 1)))))) then (worldFrom rest (number + 1) (ctor Option.some [String] (decode (between line 8 1))) world closed (nil String) items) else (if ((present package) && ((not (present world)) && ((startsWith line 0x776f726c6420) && ((endsWith line 0x207b) && (isIdent (between line 6 2)))))) then (worldFrom rest (number + 1) package (ctor Option.some [String] (decode (between line 6 2))) closed (nil String) items) else (if ((present world) && ((startsWith line 0x6578706f727420) || (startsWith line 0x696d706f727420))) then (match (functionOf line docs)
+      | FunctionRead.Function item => (worldFrom rest (number + 1) package world closed (nil String) (prim append items (cons item (nil WitItem)) : (List WitItem)))
+      | FunctionRead.NotFunction => (outside number line)
+      | FunctionRead.FunctionUnread message => (lineRefusal number message)) else (if ((present world) && (Foundation.Bindings.V1.Text::bytesEqual line 0x7d)) then (worldFrom rest (number + 1) package world true (nil String) items) else (outside number line)))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: lines
+}
+
+definition{
+  name: readWorld,
+  parameters: [text : String],
+  result: WitRead,
+  body: (worldFrom (split (prim utf8_encode text : Bytes) 0x0a) 1 (ctor Option.none [String]) (ctor Option.none [String]) false (nil String) (nil WitItem)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: functionsOf,
+  parameters: [items : (List WitItem), exported : Bool],
+  result: (List Foundation.Bindings.V1.Model::BindingFunction),
+  body: (match items
+    | List.nil => (nil Foundation.Bindings.V1.Model::BindingFunction)
+    | List.cons item rest => (if (if exported then (project item exported) else (not (project item exported))) then (cons (project item entry) (functionsOf rest exported)) else (functionsOf rest exported))),
+  axioms: [],
+  executable: true,
+  recursive_argument: items
+}
+
+definition{
+  name: functionNames,
+  parameters: [functions : (List Foundation.Bindings.V1.Model::BindingFunction)],
+  result: (List String),
+  body: (match functions
+    | List.nil => (nil String)
+    | List.cons entry rest => (cons (project entry name) (functionNames rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: functions
+}
+
+definition{
+  name: missingFrom,
+  parameters: [names : (List String), among : (List String)],
+  result: (List String),
+  body: (match names
+    | List.nil => (nil String)
+    | List.cons name rest => (if (Foundation.Bindings.V1.Text::memberText name among) then (missingFrom rest among) else (cons name (missingFrom rest among)))),
+  axioms: [],
+  executable: true,
+  recursive_argument: names
+}
+
+definition{
+  name: count,
+  parameters: [values : (List String)],
+  result: Nat,
+  body: (match values | List.nil => 0 | List.cons head rest => ((count rest) + 1)),
+  axioms: [],
+  executable: true,
+  recursive_argument: values
+}
+
+definition{
+  name: countFunctions,
+  parameters: [values : (List Foundation.Bindings.V1.Model::BindingFunction)],
+  result: Nat,
+  body: (match values | List.nil => 0 | List.cons head rest => ((countFunctions rest) + 1)),
+  axioms: [],
+  executable: true,
+  recursive_argument: values
+}
+
+definition{
+  name: onlyMemory,
+  parameters: [values : (List String)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head rest => ((prim equal head "memory" : Bool) && ((count rest) =? 0))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: refused,
+  parameters: [code : String, message : String],
+  result: BindingSourceResult,
+  body: (ctor BindingSourceResult.Unbound code message),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: operationsRefusal,
+  parameters: [operations : (List BindingSourceOperation), methods : (List String)],
+  result: (Option String),
+  body: (match operations
+    | List.nil => (ctor Option.none [String])
+    | List.cons operation rest => (if (isRequestName (project operation requestName)) then (if (Foundation.Bindings.V1.Text::memberText (Foundation.Bindings.V1.Text::camel (project operation requestName)) methods) then (ctor Option.some [String] (Foundation.Bindings.V1.Text::concat (cons "operation " (cons (project operation requestName) (cons " collides with the method " (cons (Foundation.Bindings.V1.Text::camel (project operation requestName)) (nil String))))))) else (operationsRefusal rest (cons (Foundation.Bindings.V1.Text::camel (project operation requestName)) methods))) else (ctor Option.some [String] (Foundation.Bindings.V1.Text::concat (cons "operation " (cons (Foundation.Bindings.V1.Text::doubleQuoted (project operation requestName)) (cons " is not a request name generate can bind" (nil String)))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: operations
+}
+
+definition{
+  name: bindingOperations,
+  parameters: [operations : (List BindingSourceOperation)],
+  result: (List Foundation.Bindings.V1.Model::BindingOperation),
+  body: (match operations
+    | List.nil => (nil Foundation.Bindings.V1.Model::BindingOperation)
+    | List.cons operation rest => (cons (record Foundation.Bindings.V1.Model::BindingOperation {name := (project operation requestName), label := (project operation label), discriminant := (project operation discriminant)}) (bindingOperations rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: operations
+}
+
+definition{
+  name: errorCases,
+  parameters: [source : BindingSource],
+  result: (List Foundation.Bindings.V1.Model::BindingErrorCase),
+  body: (cons (record Foundation.Bindings.V1.Model::BindingErrorCase {code := "overflow", message := (project source overflowError)}) (cons (record Foundation.Bindings.V1.Model::BindingErrorCase {code := "division-by-zero", message := (project source divisionError)}) (cons (record Foundation.Bindings.V1.Model::BindingErrorCase {code := "malformed-request", message := (project source inputError)}) (cons (record Foundation.Bindings.V1.Model::BindingErrorCase {code := "unsupported-version", message := (ctor Option.none [String])}) (cons (record Foundation.Bindings.V1.Model::BindingErrorCase {code := "unknown-operation", message := (ctor Option.none [String])}) (nil Foundation.Bindings.V1.Model::BindingErrorCase)))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: isNumeric,
+  parameters: [source : BindingSource],
+  result: Bool,
+  body: ((prim equal (project source schema) "prismpm/model-document/1" : Bool) && ((endsWith (prim utf8_encode (project source inputGrammar) : Bytes) 0x41736369695369676e6564493634) || (endsWith (prim utf8_encode (project source inputGrammar) : Bytes) 0x41736369695369676e6564496e743634))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: applicationWith,
+  parameters: [
+    source : BindingSource,
+    world : Foundation.Bindings.V1.Model::BindingWorld,
+    name : String,
+    type : String,
+    interface : Foundation.Bindings.V1.Model::BindingInterface
+  ],
+  result: BindingSourceResult,
+  body: (ctor BindingSourceResult.Ready (record Foundation.Bindings.V1.Model::BindingModel {generator := (project source generator), world := world, application := (record Foundation.Bindings.V1.Model::BindingApplication {name := name, typeName := type, file := (Foundation.Bindings.V1.Text::kebab type), description := (project source description), schema := (project source schema), blake3 := (project source modelBlake3), sha256 := (project source modelSha256), interface := interface})})),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: applicationOf,
+  parameters: [
+    source : BindingSource,
+    world : Foundation.Bindings.V1.Model::BindingWorld,
+    name : String
+  ],
+  result: BindingSourceResult,
+  body: (let type : String := (Foundation.Bindings.V1.Text::pascal name); (if (isClassName type) then (if (isNumeric source) then (match (operationsRefusal (project source operations) (cons (project source functionName) (cons "constructor" (nil String))))
+    | Option.some message => (refused "generate.model" message)
+    | Option.none => match{
+      branches: [
+        {
+          body: (refused "generate.model" "the model document has no operations"),
+          binders: [],
+          constructor: List.nil
+        },
+        {
+          body: (applicationWith source world name type (ctor Foundation.Bindings.V1.Model::BindingInterface.Operations (record Foundation.Bindings.V1.Model::BindingOperations {version := "1", method := (project source functionName), operationType := (project source operationType), errorType := (project source errorType), operations := (bindingOperations (project source operations)), errors := (errorCases source)}))),
+          binders: [first, rest],
+          constructor: List.cons
+        }
+      ],
+      scrutinee: (project source operations)
+    }) else (applicationWith source world name type (ctor Foundation.Bindings.V1.Model::BindingInterface.RequestBytes))) else (refused "generate.model" (Foundation.Bindings.V1.Text::concat (cons "the application name " (cons (Foundation.Bindings.V1.Text::doubleQuoted name) (cons " is not one generate can turn into a class name" (nil String)))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: worldShaped,
+  parameters: [
+    source : BindingSource,
+    package : String,
+    name : String,
+    exports : (List Foundation.Bindings.V1.Model::BindingFunction),
+    imports : (List Foundation.Bindings.V1.Model::BindingFunction)
+  ],
+  result: BindingSourceResult,
+  body: (let file : String := (project source worldFile); (let contract : String := (project source contract); (if ((onlyMemory (missingFrom (project source worldExports) (functionNames exports))) && ((count (missingFrom (functionNames exports) (project source worldExports))) =? 0)) then (if ((countFunctions imports) =? (count (project source worldImports))) then (let world : Foundation.Bindings.V1.Model::BindingWorld := (record Foundation.Bindings.V1.Model::BindingWorld {contract := contract, package := package, name := name, file := file, blake3 := (project source worldBlake3), sha256 := (project source worldSha256), memory := "memory", imports := imports, exports := exports}); (match (project source applicationName)
+    | Option.some named => (applicationOf source world named)
+    | Option.none => (match (project source cargoName)
+      | Option.some named => (applicationOf source world named)
+      | Option.none => (refused "generate.model" "the application has no name")))) else (refused "generate.world" (Foundation.Bindings.V1.Text::concat (cons "the imports of " (cons file (cons " do not match " (cons contract (nil String)))))))) else (refused "generate.world" (Foundation.Bindings.V1.Text::concat (cons "the exports of " (cons file (cons " do not match " (cons contract (cons ": " (cons (prim join (project source worldExports) ", " : String) (nil String)))))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: worldOf,
+  parameters: [source : BindingSource, package : String, name : String, items : (List WitItem)],
+  result: BindingSourceResult,
+  body: (let file : String := (project source worldFile); (let contract : String := (project source contract); (if ((prim equal package (project source package) : Bool) && (prim equal name (project source worldName) : Bool)) then (worldShaped source package name (functionsOf items true) (functionsOf items false)) else (refused "generate.world" (Foundation.Bindings.V1.Text::concat (cons file (cons " declares " (cons package (cons " world " (cons name (cons "; " (cons contract (cons " is " (cons (project source package) (cons " world " (cons (project source worldName) (nil String))))))))))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: bindingModel,
+  parameters: [source : BindingSource],
+  result: BindingSourceResult,
+  body: (let contract : String := (project source contract); (if ((size (prim utf8_encode (project source worldBlake3) : Bytes)) =? 0) then (refused "generate.world" (Foundation.Bindings.V1.Text::concat (cons "the holo declares no world generate knows (" (cons (if ((size (prim utf8_encode contract : Bytes)) =? 0) then "none" else contract) (cons ")" (nil String)))))) else (if (project source conforms) then (if ((size (prim utf8_encode (project source witText) : Bytes)) =? 0) then (refused "generate.world" (Foundation.Bindings.V1.Text::concat (cons "generate has no WIT file for the world " (cons contract (nil String))))) else (if ((prim equal (project source witBlake3) (project source worldBlake3) : Bool) && (prim equal (project source witSha256) (project source worldSha256) : Bool)) then (match (readWorld (project source witText))
+    | WitRead.Unread number line message => (refused "generate.wit" (witRefusal number line message))
+    | WitRead.Read package name items => (worldOf source package name items)) else (refused "generate.world" (Foundation.Bindings.V1.Text::concat (cons "the vendored " (cons (project source worldFile) (cons " is not the world " (cons contract (cons " names (blake3 " (cons (project source witBlake3) (cons ", expected " (cons (project source worldBlake3) (cons ")" (nil String)))))))))))))) else (refused "generate.world" (Foundation.Bindings.V1.Text::concat (cons "the guest does not conform to " (cons contract (cons "; inspect the holo to see why" (nil String))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+\end{semanticmodule}
+\end{lexlean}

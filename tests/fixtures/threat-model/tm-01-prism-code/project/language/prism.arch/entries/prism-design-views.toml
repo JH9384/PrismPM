@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-design-views"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Design"
+component = "designValid"
+
+[[form]]
+id = "prism-design-views"
+channel = "text"
+surface = "Prism-code design views"
+canonical_source = true
+features = ["sentence-case", "singular"]

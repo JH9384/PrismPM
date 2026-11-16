@@ -64,13 +64,19 @@ result_schema = "prismpm/deployment-evidence/1"
 name = "export-browser"
 mutates = "new-local-browser-directory"
 requires_digest = true
-result_schema = "prismpm/browser-export/1"
+result_schema = "prismpm/browser-export/2"
 
 [[command]]
 name = "fetch"
 mutates = "immutable-cache"
 requires_digest = false
 result_schema = "prismpm/fetch-result/1"
+
+[[command]]
+name = "generate"
+mutates = "generated-bindings-directory"
+requires_digest = false
+result_schema = "prismpm/generate-result/1"
 
 [[command]]
 name = "finalize-contract"
@@ -129,6 +135,12 @@ name = "replay"
 mutates = "local-evidence"
 requires_digest = false
 result_schema = "prismpm/replay-result/1"
+
+[[command]]
+name = "replay-acceptance"
+mutates = "ephemeral-runtime"
+requires_digest = true
+result_schema = "prismpm/server-release-replay/1"
 
 [[command]]
 name = "rollback"
@@ -194,7 +206,7 @@ result_schema = "prismpm/attestation-verification-result/1"
 name = "verify-browser-publication"
 mutates = "never"
 requires_digest = true
-result_schema = "prismpm/browser-publication-integrity/1"
+result_schema = "prismpm/browser-publication-integrity/2"
 
 [[command]]
 name = "verify-release"
@@ -207,3 +219,146 @@ name = "verify-signature"
 mutates = "verified-local-evidence"
 requires_digest = true
 result_schema = "prismpm/signature-result/1"
+
+# Module groups (#441): `prismpm <module> <verb>` runs `prismpm <command>`.
+# Sorted by module, then verb. The modules are those of model/modules.toml.
+
+[[group]]
+module = "auth"
+verb = "attest"
+command = "attest"
+
+[[group]]
+module = "auth"
+verb = "sign"
+command = "sign"
+
+[[group]]
+module = "auth"
+verb = "sign-evidence"
+command = "sign-evidence"
+
+[[group]]
+module = "client"
+verb = "completion"
+command = "completion"
+
+[[group]]
+module = "client"
+verb = "generate"
+command = "generate"
+
+[[group]]
+module = "client"
+verb = "template"
+command = "template"
+
+[[group]]
+module = "containers"
+verb = "run"
+command = "run"
+
+[[group]]
+module = "containers"
+verb = "status"
+command = "status"
+
+[[group]]
+module = "images"
+verb = "build"
+command = "build"
+
+[[group]]
+module = "images"
+verb = "export-browser"
+command = "export-browser"
+
+[[group]]
+module = "images"
+verb = "inspect"
+command = "inspect"
+
+[[group]]
+module = "images"
+verb = "pull"
+command = "pull"
+
+[[group]]
+module = "images"
+verb = "push"
+command = "push"
+
+[[group]]
+module = "images"
+verb = "verify"
+command = "check"
+
+[[group]]
+module = "system"
+verb = "authority"
+command = "authority"
+
+[[group]]
+module = "system"
+verb = "clean"
+command = "clean"
+
+[[group]]
+module = "system"
+verb = "fetch"
+command = "fetch"
+
+[[group]]
+module = "system"
+verb = "lock"
+command = "lock"
+
+[[group]]
+module = "system"
+verb = "update"
+command = "update"
+
+[[group]]
+module = "verify"
+verb = "acceptance"
+command = "replay-acceptance"
+
+[[group]]
+module = "verify"
+verb = "attestation"
+command = "verify-attestation"
+
+[[group]]
+module = "verify"
+verb = "browser-publication"
+command = "verify-browser-publication"
+
+[[group]]
+module = "verify"
+verb = "check"
+command = "check"
+
+[[group]]
+module = "verify"
+verb = "conformance"
+command = "conformance"
+
+[[group]]
+module = "verify"
+verb = "model"
+command = "verify"
+
+[[group]]
+module = "verify"
+verb = "release"
+command = "verify-release"
+
+[[group]]
+module = "verify"
+verb = "replay"
+command = "replay"
+
+[[group]]
+module = "verify"
+verb = "signature"
+command = "verify-signature"

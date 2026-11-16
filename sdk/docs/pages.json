@@ -125,11 +125,19 @@
           "narrative": true
         },
         {
+          "path": "guides/local-images",
+          "narrative": true
+        },
+        {
           "path": "guides/run-and-gate",
           "narrative": true
         },
         {
           "path": "guides/write-a-middleware",
+          "narrative": true
+        },
+        {
+          "path": "guides/test-your-application",
           "narrative": true
         },
         {

@@ -24,7 +24,7 @@ const digestOf = (bytes) => `sha256:${sha256(bytes)}`;
 const sortKeys = (v) => (Array.isArray(v) ? v.map(sortKeys) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])])) : v);
 const canonical = (v) => Buffer.from(JSON.stringify(sortKeys(v)));
 
-const holo = new Uint8Array(readFileSync(new URL('../fixtures/Calculator.holo', import.meta.url)));
+const holo = new Uint8Array(readFileSync(new URL('../fixtures/Calculator.v5.holo', import.meta.url)));
 const resolved = resolveArchive(parseArchive(holo));
 const browser = Object.fromEntries(readdirSync(CLOSURE).sort().map((name) => [name, readFileSync(join(CLOSURE, name))]));
 
@@ -33,7 +33,7 @@ function bundle(predicateType) {
   const guest = resolved.guest.content;
   const statement = {
     _type: 'https://in-toto.io/Statement/v1',
-    subject: [{ name: 'guest', digest: { blake3: resolved.guest.label.slice('blake3:'.length), sha256: sha256(guest) } }],
+    subject: [{ name: 'guest', digest: { sha256: sha256(guest) } }],
     predicateType,
     predicate: {},
   };
@@ -107,7 +107,7 @@ test('the export is the six build-manifest files, byte for byte, with the holo a
   }
   const files = Object.entries(browser).map(([p, bytes]) => ({ digest: digestOf(bytes), path: p, size: bytes.length }));
   assert.deepEqual(receipt, {
-    schema: 'prismpm/browser-export/1',
+    schema: 'prismpm/browser-export/2',
     reference: r.reference,
     release_digest: r.releaseDigest,
     model_digest: digestOf(r.build['model.prism.json']),

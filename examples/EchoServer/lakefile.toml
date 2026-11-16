@@ -1,0 +1,6 @@
+name = "EchoServer"
+version = "0.1.0"
+defaultTargets = ["EchoServer"]
+
+[[lean_lib]]
+name = "EchoServer"

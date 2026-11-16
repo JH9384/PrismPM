@@ -2,16 +2,16 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { test } from 'node:test';
-import { blake3Hex } from '../../prism-code/src/blake3.mjs';
 import { KIND } from '../../prism-code/src/archive.mjs';
 import * as bundles from '../../prism-code/src/attestations.mjs';
 import { spec } from './spec.mjs';
 import { validate } from './json-schema.mjs';
-import { loadReference, readJson, schema } from './reference.mjs';
+import { loadReference, readJson, referenceV5, schema } from './reference.mjs';
 
-const { ATTESTATION, ATTESTATION_BUNDLE, LABEL_PREFIX, PROOF_PREDICATE_TYPE, SECTION_KIND } = spec;
+const { ATTESTATION, ATTESTATION_BUNDLE, PROOF_PREDICATE_TYPE, SECTION_KIND } = spec;
 
 const ref = loadReference();
+const v5 = referenceV5();
 const fixture = readJson('fixtures/attestation/statement/calculator.json');
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const b64 = (value) => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)).toString('base64');
@@ -24,17 +24,14 @@ const keyed = readJson('fixtures/attestation/sigstore-bundle/keyed.json');
 /** The keyless shape cosign 3 writes: leaf certificate, one Rekor entry with proof, one timestamp. Values are placeholders. */
 const keyless = readJson('fixtures/attestation/sigstore-bundle/keyless.json');
 
-test('the calculator fixture statement names the guest blob with both digests over the same bytes (ADR-015)', () => {
+test('the calculator fixture statement names the guest object by its κ alone (ADR-017)', () => {
   valid(ATTESTATION.STATEMENT_SCHEMA, fixture);
   assert.equal(fixture.predicateType, PROOF_PREDICATE_TYPE);
   assert.equal(fixture.subject.length, 1);
   const [subject] = fixture.subject;
   const guest = ref.resolved.guest;
-  assert.equal(subject.digest.blake3, blake3Hex(guest.content));
-  assert.equal(`${LABEL_PREFIX}${subject.digest.blake3}`, guest.label);
-  assert.equal(subject.digest.sha256, sha256(guest.content));
-  assert.notEqual(subject.digest.blake3, ref.parsed.footer, 'a subject never names the footer');
-  assert.notEqual(subject.digest.sha256, ref.sha256, 'a subject never names the whole file');
+  assert.deepEqual(subject.digest, { sha256: sha256(guest.content) });
+  assert.notEqual(subject.digest.sha256, sha256(v5), 'a subject never names the whole file');
 });
 
 test('the bundle schema restates the DSSE envelope schema exactly', () => {
@@ -70,7 +67,7 @@ test('prism-code constants equal ATTESTATION_BUNDLE', () => {
 });
 
 test('a bundle appended by prism-code reads back as schema-valid bundle and statement', () => {
-  const signed = bundles.appendAttestations(ref.bytes, [keyed, keyless]);
+  const signed = bundles.appendAttestations(v5, [keyed, keyless]);
   const read = bundles.readAttestations(signed);
   assert.equal(read.length, 2);
   for (const attestation of read) {
@@ -78,7 +75,7 @@ test('a bundle appended by prism-code reads back as schema-valid bundle and stat
     valid(ATTESTATION.STATEMENT_SCHEMA, attestation.statement);
     assert.deepEqual(attestation.statement, fixture);
     assert.equal(attestation.resolved, true);
-    assert.equal(attestation.subjects[0].blob, ref.resolved.guest.label);
+    assert.equal(attestation.subjects[0].blob, `sha256:${sha256(ref.resolved.guest.content)}`);
   }
-  assert.ok(Buffer.from(bundles.stripAttestations(signed)).equals(ref.bytes));
+  assert.ok(Buffer.from(bundles.stripAttestations(signed)).equals(Buffer.from(v5)));
 });

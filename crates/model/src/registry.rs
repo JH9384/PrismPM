@@ -467,7 +467,7 @@ pub struct ContractRow {
 impl Contracts {
     /// Validate public contract registry invariants.
     pub fn check(&self, root: &std::path::Path) -> Result<(), ModelError> {
-        if self.spec != "prismpm/contracts/1" || self.contract.len() != 67 {
+        if self.spec != "prismpm/contracts/1" || self.contract.len() != 73 {
             return Err(ModelError::Inconsistent(
                 "public contract registry is incomplete".to_owned(),
             ));
@@ -490,10 +490,14 @@ impl Contracts {
                     || row.schema == "prismpm/model-document/4"
                     || row.schema == "prismpm/model-document/5"
                     || row.schema == "prismpm/model-document/6"
+                    || row.schema == "prismpm/model-document/7"
+                    || row.schema == "prismpm/model-document/8"
                     || row.schema == "prismpm/sdk-lock/2"
                     || row.schema == "prismpm/sdk-lock/3"
                     || row.schema == "prismpm/sdk-lock-update/2"
-                    || row.schema == "prismpm/library-verification-manifest/2")
+                    || row.schema == "prismpm/library-verification-manifest/2"
+                    || row.schema == "prismpm/browser-export/2"
+                    || row.schema == "prismpm/browser-publication-integrity/2")
                 || !row.path.starts_with("schemas/")
                 || !row.path.ends_with(".schema.json")
                 || !root.join(&row.path).is_file()
@@ -547,6 +551,21 @@ pub struct Commands {
     pub spec: String,
     /// Stable public command contracts.
     pub command: Vec<CommandRow>,
+    /// Module groups (#441): `prismpm <module> <verb>` names a command above.
+    #[serde(default)]
+    pub group: Vec<CommandGroup>,
+}
+
+/// One group verb: `prismpm <module> <verb>` runs `prismpm <command>`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CommandGroup {
+    /// One of the nine modules of model/modules.toml.
+    pub module: String,
+    /// The verb under the module.
+    pub verb: String,
+    /// The command it runs: a command name, then any of its subcommands.
+    pub command: String,
 }
 
 /// One stable public command contract.
@@ -569,7 +588,7 @@ pub struct CommandRow {
 impl Commands {
     /// Validate the complete stable command surface.
     pub fn check(&self) -> Result<(), ModelError> {
-        const EXPECTED: [&str; 34] = [
+        const EXPECTED: [&str; 36] = [
             "backup",
             "attest",
             "authority",
@@ -582,6 +601,7 @@ impl Commands {
             "destroy",
             "export-browser",
             "fetch",
+            "generate",
             "finalize-contract",
             "inspect",
             "lock",
@@ -591,6 +611,7 @@ impl Commands {
             "pull",
             "push",
             "replay",
+            "replay-acceptance",
             "rollback",
             "restore",
             "run",
@@ -643,6 +664,12 @@ impl Commands {
                     || !row.result_schema.starts_with("prismpm/")
                     || if row.name == "lock" {
                         row.result_schema != "prismpm/sdk-lock-change/1"
+                    } else if matches!(
+                        row.name.as_str(),
+                        "export-browser" | "verify-browser-publication"
+                    ) {
+                        // Closure v2 receipts; their /2 schemas admit closure v1 or v2.
+                        !row.result_schema.ends_with("/2")
                     } else {
                         !row.result_schema.ends_with("/1")
                     }
@@ -651,6 +678,41 @@ impl Commands {
             return Err(ModelError::Inconsistent(
                 "public command contract is incomplete or noncanonical".to_owned(),
             ));
+        }
+        self.check_groups(&names)
+    }
+
+    /// Group rows are sorted and unique by module and verb, use lowercase
+    /// kebab-case words, and run a registered command. A module that is also a
+    /// command keeps that command: its group verbs must not be the command's
+    /// own subcommands.
+    fn check_groups(&self, names: &[&str]) -> Result<(), ModelError> {
+        let word = |text: &str| {
+            !text.is_empty()
+                && !text.starts_with('-')
+                && !text.ends_with('-')
+                && text.bytes().all(|b| b.is_ascii_lowercase() || b == b'-')
+        };
+        let bad = |row: &CommandGroup, why: &str| {
+            Err(ModelError::Inconsistent(format!(
+                "command group `{} {}` {why}",
+                row.module, row.verb
+            )))
+        };
+        let mut previous: Option<(&str, &str)> = None;
+        for row in &self.group {
+            let key = (row.module.as_str(), row.verb.as_str());
+            if previous.is_some_and(|previous| previous >= key) {
+                return bad(row, "is out of order or repeated");
+            }
+            previous = Some(key);
+            if !word(&row.module) || !word(&row.verb) {
+                return bad(row, "is not lowercase kebab-case");
+            }
+            let mut words = row.command.split(' ');
+            if !words.clone().all(word) || !words.next().is_some_and(|head| names.contains(&head)) {
+                return bad(row, "does not run a registered command");
+            }
         }
         Ok(())
     }

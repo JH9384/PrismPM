@@ -8,6 +8,7 @@ import { artifactManifest, describeSpdx, digest, emptyConfig, handleSbom, issuer
   manifestType, repository, sbomRecord, signingArguments, trustRootDigest,
   releaseTransportPolicy, validateArtifact, verificationArguments, workflow } from './sdk-candidate-sbom.mjs';
 import { releaseSbomRecord } from './release-phases.mjs';
+import { workspaceVersion } from './workspace-version.mjs';
 
 const revision = 'a'.repeat(40);
 const encode = value => Buffer.from(`${JSON.stringify(value)}\n`);
@@ -30,12 +31,12 @@ function fixture(sbom = rawSpdx()) {
   return {candidate, child, sbom, record, manifest};
 }
 
-function releaseFixture(sbom = rawSpdx(), architecture = 'amd64', imageName = 'sdk', ref = 'refs/heads/main') {
+function releaseFixture(sbom = rawSpdx(), architecture = 'amd64', imageName = 'sdk', ref = 'refs/heads/release/v0.4', event) {
   const config = encode({architecture, os: 'linux', config: {Labels: {
     'org.opencontainers.image.created': '1970-01-01T00:00:00Z',
     'org.opencontainers.image.revision': revision,
-    'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/PrismPM',
-    'org.opencontainers.image.version': '0.4.0'}}});
+    'org.opencontainers.image.source': 'https://github.com/UOR-Foundation/prismpm',
+    'org.opencontainers.image.version': workspaceVersion()}}});
   const child = encode({schemaVersion: 2, mediaType: manifestType,
     config: {mediaType: 'application/vnd.oci.image.config.v1+json', digest: digest(config), size: config.length}, layers: []});
   const subject = {mediaType: manifestType, digest: digest(child), size: child.length};
@@ -43,24 +44,25 @@ function releaseFixture(sbom = rawSpdx(), architecture = 'amd64', imageName = 's
     manifests: ['amd64', 'arm64'].map(arch => ({...subject, platform: {os: 'linux', architecture: arch},
       digest: arch === architecture ? subject.digest : `sha256:${'b'.repeat(64)}`}))});
   const repository = `ghcr.io/uor-foundation/prismpm-${imageName}`;
-  const options = releaseTransportPolicy(repository, ref);
+  const options = releaseTransportPolicy(repository, ref, event);
   const record = releaseSbomRecord(`${repository}@${digest(index)}`, index, child, config, sbom, architecture, revision);
   return {child, sbom, record, options, manifest: encode(artifactManifest(record, options))};
 }
 
 test('release transport has exact repository/ref/signer policies without pretending candidate or SDK acceptance', () => {
-  for (const ref of ['refs/heads/main', 'refs/tags/v0.4.0']) {
-    for (const name of ['sdk', 'runtime', 'adapter-compose', 'adapter-kubernetes', 'adapter-github-pages', 'oracles']) {
+  for (const [ref, event] of [['refs/heads/release/v0.4', 'workflow_dispatch'], ['refs/heads/main', 'workflow_dispatch'],
+    ['refs/heads/release/v0.4', 'push'], ['refs/tags/v0.4.0', 'push'], ['refs/tags/v0.5.0', 'workflow_dispatch']]) {
+    for (const name of ['sdk', 'runtime', 'adapter-compose', 'adapter-kubernetes', 'adapter-github-pages', 'oracles', 'sdk-build']) {
       for (const architecture of ['amd64', 'arm64']) {
-        const {record, sbom, manifest, options} = releaseFixture(rawSpdx(), architecture, name, ref);
+        const {record, sbom, manifest, options} = releaseFixture(rawSpdx(), architecture, name, ref, event);
         validateArtifact(manifest, digest(manifest), record, sbom, options);
         const subject = `ghcr.io/uor-foundation/prismpm-${name}@${digest(manifest)}`;
         const args = verificationArguments(record, digest(manifest), '/trusted-root', options);
         assert.deepEqual(args, ['verify', '--trusted-root', '/trusted-root', '--certificate-identity',
-          `https://github.com/UOR-Foundation/PrismPM/.github/workflows/release.yml@${ref}`,
-          '--certificate-oidc-issuer', issuer, '--certificate-github-workflow-repository', 'UOR-Foundation/PrismPM',
+          `https://github.com/UOR-Foundation/prismpm/.github/workflows/release.yml@${ref}`,
+          '--certificate-oidc-issuer', issuer, '--certificate-github-workflow-repository', 'UOR-Foundation/prismpm',
           '--certificate-github-workflow-ref', ref, '--certificate-github-workflow-sha', revision,
-          '--certificate-github-workflow-trigger', ref === 'refs/heads/main' ? 'workflow_dispatch' : 'push',
+          '--certificate-github-workflow-trigger', event,
           '--certificate-github-workflow-name', 'PrismPM OCI/native and Cargo publication', subject]);
         assert.equal(signingArguments(digest(manifest), '/trusted-root', '/bundle', options).at(-1), subject);
         const annotation = JSON.parse(manifest).annotations;
@@ -74,7 +76,9 @@ test('release transport has exact repository/ref/signer policies without pretend
   }
   const {record, manifest, options, sbom} = releaseFixture();
   for (const bad of [{...options, repository: 'registry.attacker.test/sdk'}, {...options, ref: 'refs/heads/feature'},
-    {...options, kind: 'candidate'}, {...options, skipTransparency: true}, {...options, ref: 'refs/tags/v0.3.0'}]) {
+    {...options, event: 'pull_request'}, {...options, event: 'push|workflow_dispatch'},
+    {...options, ref: 'refs/heads/main', event: 'push'}, {...options, event: null}, {...options, ref: 'refs/heads/release/v04'},
+    {...options, kind: 'candidate'}, {...options, skipTransparency: true}, {...options, ref: 'refs/tags/v0.3'}, {...options, ref: 'refs/tags/0.3.0'}]) {
     assert.throws(() => artifactManifest(record, bad));
     assert.throws(() => verificationArguments(record, digest(manifest), '/root', bad));
     assert.throws(() => signingArguments(digest(manifest), '/root', '/bundle', bad));
@@ -210,7 +214,7 @@ test('candidate signature policy is exact and never disables identity or transpa
   const args = verificationArguments(record, digest(manifest), '/trusted-root.json');
   assert.deepEqual(args, ['verify', '--trusted-root', '/trusted-root.json',
     '--certificate-identity', workflow, '--certificate-oidc-issuer', issuer,
-    '--certificate-github-workflow-repository', 'UOR-Foundation/PrismPM',
+    '--certificate-github-workflow-repository', 'UOR-Foundation/prismpm',
     '--certificate-github-workflow-ref', 'refs/heads/main',
     '--certificate-github-workflow-sha', revision,
     '--certificate-github-workflow-trigger', 'workflow_dispatch',
@@ -251,7 +255,7 @@ test('pinned real Sigstore verification rejects wrong identity, issuer, digest a
     const verify = value => execFileSync('cosign', value, {stdio: 'pipe'});
     verify(args);
     for (const [key, value] of [['--certificate-identity', workflow],
-      ['--certificate-identity', 'https://github.com/UOR-Foundation/PrismPM/.github/workflows/release.yml@refs/heads/main'],
+      ['--certificate-identity', 'https://github.com/UOR-Foundation/prismpm/.github/workflows/release.yml@refs/heads/main'],
       ['--certificate-oidc-issuer', issuer],
       ['--bundle', join(directory, 'missing.sigstore.json')]]) {
       const changed = [...args]; changed[changed.indexOf(key) + 1] = value;

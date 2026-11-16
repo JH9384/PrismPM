@@ -17,7 +17,7 @@
  */
 import { readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { experimental_verify } from './verify.mjs';
+import { experimental_verify, verifyWithStatements } from './verify.mjs';
 import { ASSURANCE, POLICIES } from './vendor/verify.mjs';
 import { canonicalJson, parseArchive } from './archive.mjs';
 import { attestationSection, readAttestations, stripAttestations } from './attestations.mjs';
@@ -74,6 +74,20 @@ export async function readPolicy(path) {
   return { name: path, ...policy };
 }
 
+/**
+ * A policy as the caller holds it: what `readPolicy` reads, or an object of the
+ * same members. A rule that names no member here cannot reach the verdict, so
+ * evidence such as `statements` stays the holo's to give and never the policy's.
+ */
+export async function policyOf(policy) {
+  if (typeof policy === 'string') return readPolicy(policy);
+  if (policy === null || typeof policy !== 'object' || Array.isArray(policy)) throw noVerdict('policy.invalid', 'a policy is a file path, a shipped name or an object');
+  const members = [...POLICY_MEMBERS, 'rego'];
+  const unknown = Object.keys(policy).filter((key) => !members.includes(key));
+  if (unknown.length > 0) throw noVerdict('policy.invalid', `the policy has unknown members ${unknown.join(', ')}; expected ${members.join(', ')}`);
+  return { ...policy };
+}
+
 /** The holo's bytes, or a no-verdict error for a path that is not a file. */
 async function holoBytes(path) {
   const info = await stat(resolve(path)).catch(() => null);
@@ -102,15 +116,18 @@ async function readReplay(path) {
  * footer is recomputed. So a file whose own footer does not match its bytes would read as intact: this puts the damage
  * back as the first `holo.integrity` reason, which withholds P1, and moves the level and the policy result with it.
  */
-function withoutIntegrity(verdict, { footer, fingerprint }) {
+function withoutIntegrity(verdict, { footer, fingerprint, v5 }) {
   const { RANK } = ASSURANCE;
-  const message = `The footer ${footer} does not equal the BLAKE3 of everything before it, ${fingerprint}.`;
-  const kept = verdict.reasons.filter((r) => r.check !== 'policy.level');
+  const message = v5
+    ? `The seal ${footer} is not the UORC-SHA256-CHAIN-v1 of everything before it: the holo was altered.`
+    : `The footer ${footer} does not equal the BLAKE3 of everything before it, ${fingerprint}.`;
+  const kept = verdict.reasons.filter((r) => r.check !== 'policy.level' && r.check !== 'policy.integrity');
   const reasons = [{ check: 'holo.integrity', withholds: 'P1', message }, ...kept];
   const level = 'P0';
-  let passed = !kept.some((r) => r.withholds === null);
+  // An integrity failure fails every policy, P0 included.
+  const passed = false;
+  reasons.push({ check: 'policy.integrity', withholds: null, message: 'The holo is damaged, and an integrity failure fails every policy, whatever its minimum.' });
   if (RANK[level] < RANK[verdict.policy.minimum]) {
-    passed = false;
     reasons.push({ check: 'policy.level', code: 'PP5601', withholds: null, message: `The level is ${level}; the policy requires ${verdict.policy.minimum} or above.` });
   }
   return { level, passed, reasons };
@@ -153,7 +170,10 @@ async function attestedEvidence(bytes, signer) {
       if (statements[kind] === undefined || (envelope.verified && !statements[kind].envelope.verified)) statements[kind] = { statement: attestation.statement, envelope };
     }
   }
-  return { unsigned: stripAttestations(parsed), statements, footerMatches: parsed.verification.footer, footer: Buffer.from(bytes.subarray(bytes.length - 32)).toString('hex'), computed: parsed.fingerprint, fingerprint: `blake3:${parsed.fingerprint}` };
+  const footer = Buffer.from(bytes.subarray(bytes.length - 32)).toString('hex');
+  // A holo v5 is named by its κ, the sha256 of the file (ADR-017); a v4 holo by the BLAKE3 of its body.
+  if (parsed.format === 5) return { unsigned: stripAttestations(parsed), statements, footerMatches: parsed.verification.seal, footer, computed: parsed.kappa, fingerprint: parsed.kappa, v5: true };
+  return { unsigned: stripAttestations(parsed), statements, footerMatches: parsed.verification.footer, footer, computed: parsed.fingerprint, fingerprint: `blake3:${parsed.fingerprint}` };
 }
 
 async function signatureOutcome(attestation, signer) {
@@ -179,20 +199,20 @@ async function signatureOutcome(attestation, signer) {
  * P0, because an unchecked signature is no evidence. The verdict's `holo`
  * member is the fingerprint of the file as given, computed over its body.
  *
- * @param {string} path the holo
- * @param {{ policy?: string, capabilities?: object | null, replay?: string, env?: object, signer?: object }} [options] `policy` is a shipped policy's name or a file path; `capabilities` the granted set; `replay` the path of a `prism/replay/v1` statement; `signer` the signer policy of `experimental_verifyBundle` (`key`, or `certificateIdentity` or `certificateIdentityRegexp` with `certificateOidcIssuer`, and `trustedRoot`)
+ * @param {string | Uint8Array} path the holo, as a path or its bytes
+ * @param {{ policy?: string | object, capabilities?: object | null, replay?: string, env?: object, signer?: object }} [options] `policy` is a shipped policy's name, a file path or an object of the same members; `capabilities` the granted set; `replay` the path of a `prism/replay/v1` statement; `signer` the signer policy of `experimental_verifyBundle` (`key`, or `certificateIdentity` or `certificateIdentityRegexp` with `certificateOidcIssuer`, and `trustedRoot`)
  */
 export async function check(path, options = {}) {
-  const policy = options.policy === undefined ? {} : await readPolicy(options.policy);
+  const policy = options.policy === undefined ? {} : await policyOf(options.policy);
   // The capability set the caller grants (run, #282); a policy file never grants.
   if (options.capabilities !== undefined) policy.capabilities = options.capabilities;
   if (options.replay !== undefined) policy.replay = await readReplay(options.replay);
-  const bytes = await holoBytes(path);
+  const bytes = path instanceof Uint8Array ? path : await holoBytes(path);
   const attested = await attestedEvidence(bytes, options.signer);
   try {
     if (!attested) return await experimental_verify(bytes, { ...policy, env: options.env });
-    const verdict = await experimental_verify(attested.unsigned, { ...policy, statements: attested.statements, env: options.env });
-    return { ...verdict, ...(attested.footerMatches ? {} : withoutIntegrity(verdict, { footer: attested.footer, fingerprint: attested.computed })), holo: attested.fingerprint };
+    const verdict = await verifyWithStatements(attested.unsigned, { ...policy, env: options.env }, attested.statements);
+    return { ...verdict, ...(attested.footerMatches ? {} : withoutIntegrity(verdict, { footer: attested.footer, fingerprint: attested.computed, v5: attested.v5 })), holo: attested.fingerprint };
   } catch (error) {
     if (error instanceof PrismError) throw error;
     throw noVerdict('verify.input', error.message, error);

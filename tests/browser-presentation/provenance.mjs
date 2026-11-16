@@ -96,7 +96,7 @@ export function provenanceProfile(name) {
     return new Map([...value].map(([path, value]) => [path, bytes(value, label + ' ' + path)]));
   }
   function inspect({verified, sources, manifestBytes, attestationBytes, generated, outputs}) {
-    closed(verified, ['attestation_id', 'build_id', 'semantic_id', 'source_id', 'root', 'modules'], 'closed actual driver record');
+    closed(verified, ['attestation_id', 'build_id', 'semantic_id', 'source_id', 'root', 'modules', 'runtime'], 'closed actual driver record');
     assert.deepEqual(verified.modules, modules, 'driver exact ' + inventory + ' inventory');
     assert.ok(typeof verified.root === 'string' && verified.root.startsWith('/'), 'actual verified root');
     const source = capturedMap(sources, 'source'), lean = capturedMap(generated, 'generated Lean');

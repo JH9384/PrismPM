@@ -106,6 +106,13 @@ exit = 1
 statement = "An OPM or UML design view names a component, edge, process, state or viewpoint the system model does not declare, or violates the structure its notation allows."
 
 [[error]]
+code = "PP2013"
+title = "Invalid server application declaration"
+class = "semantic"
+exit = 1
+statement = "A server application violates its closed source-owned profile, host effect declaration, effect bounds, exit codes or acceptance transcripts."
+
+[[error]]
 code = "PP2014"
 title = "Feature without a call"
 class = "semantic"
@@ -139,6 +146,55 @@ title = "Invalid feature or journey declaration"
 class = "semantic"
 exit = 1
 statement = "A feature or journey is not a closed literal record, a feature statement is out of bounds, or a call or acceptance row of a feature names no declaration."
+
+[[error]]
+code = "PP2019"
+title = "Threat without a control or an accepted risk"
+class = "semantic"
+exit = 1
+statement = "A threat of a threat model has no mapped control and no accepted risk."
+
+[[error]]
+code = "PP2020"
+title = "Control without evidence"
+class = "semantic"
+exit = 1
+statement = "A control of a threat model names no evidence that realizes it."
+
+[[error]]
+code = "PP2021"
+title = "Threat without a STRIDE category"
+class = "semantic"
+exit = 1
+statement = "A threat of a threat model has no modeled threat row, so it has no STRIDE category."
+
+[[error]]
+code = "PP2022"
+title = "Invalid threat model declaration"
+class = "semantic"
+exit = 1
+statement = "A threat model row is not a closed literal record, is repeated, is blank or out of bounds, names no record of the model document, or the model does not declare exactly one control set with a valid time, or an asset has no row."
+
+[[error]]
+code = "PP2024"
+title = "Invalid serving declaration"
+class = "semantic"
+exit = 1
+statement = "A server application's serving declaration names an address other than 127.0.0.1, a bound outside its closed range, an origin or media type that is not a valid value, a frame section that does not come from exactly one declared source, or a request frame that can exceed the exchange request maximum."
+
+[[error]]
+code = "PP2025"
+title = "Server core build refused"
+class = "semantic"
+exit = 1
+statement = "The LexLean compiler refuses to export the declared core of a server application: the root is not a production root of the project, the project does not verify or changed while it was exported, or the exported package exhibits an effect the host adapter gives no bound for."
+
+[[error]]
+code = "PP2026"
+title = "Server effect not exercised"
+class = "semantic"
+exit = 1
+statement = "The acceptance of a server application observes a declared host effect that no vector reaches: a core effect that no replayed transcript step requests, or an effect that fills the request frame and no served exchange reaches."
 
 [[error]]
 code = "PP3001"
@@ -260,6 +316,13 @@ exit = 1
 statement = "An attestation bundle is not a Sigstore bundle v0.3 with a DSSE envelope over an in-toto Statement v1 whose subjects carry exactly sha256 and blake3, or it names the OCI manifest."
 
 [[error]]
+code = "PP3018"
+title = "Build provenance refused"
+class = "holo"
+exit = 1
+statement = "prismpm build could not make the provenance statement of the holo it built: prismpm.lock is absent or not /2 or /3, pins no image by digest, or does not describe this archive, or the archive already carries a statement."
+
+[[error]]
 code = "PP3101"
 title = "Attestation signing failure"
 class = "attestation"
@@ -307,6 +370,20 @@ title = "Trusted root invalid"
 class = "attestation"
 exit = 1
 statement = "The Sigstore trusted root cannot be read, is not pinned, or pins none of what the policy relies on."
+
+[[error]]
+code = "PP3201"
+title = "Bindings generation refused"
+class = "holo"
+exit = 1
+statement = "generate cannot bind the holo: its world is not one generate knows or its guest does not conform to it, the vendored WIT world differs from the world the holo names or leaves the subset generate reads, or the model document names no application or operation generate can bind."
+
+[[error]]
+code = "PP3202"
+title = "Bindings output refused"
+class = "artifact"
+exit = 1
+statement = "generate cannot write the bindings: the output directory holds a file generate did not write where a generated file belongs, or a file cannot be written."
 
 [[error]]
 code = "PP4001"

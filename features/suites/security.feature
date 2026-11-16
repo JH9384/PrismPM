@@ -47,3 +47,9 @@ Feature: security
     Given the workspace Cargo.lock
     When cargo-deny checks dependencies
     Then zero advisories, bans, or unauthorized licenses exist
+
+  @SE-09 @build
+  Scenario: The prism.auth namespace of prism-code logs in and out through the stores Docker reads, fails a login or logout that does not read back as done, and keeps the secrets it is given: no return value, error or output holds a password, key or token, and it makes no trust decision.
+    Given Docker configs and credential helpers, including a helper that prints the secret and a config that does not parse
+    When prism.auth logs in, logs out, inspects its stores and makes signing identities
+    Then what login stored is what push reads, and no value returned, error thrown or line printed holds the secret

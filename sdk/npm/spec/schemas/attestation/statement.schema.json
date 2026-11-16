@@ -40,11 +40,10 @@
   },
   "$defs": {
     "PrismDigestSet": {
-      "description": "Exactly sha256 and blake3, lowercase hex, over the same bytes (ADR-015). blake3 is default-mode BLAKE3 with 256-bit output; for a content blob it equals the label without the blake3: prefix. The archive footer never appears here.",
+      "description": "sha256, the κ of the bytes (ADR-017); blake3 beside it only in statements and documents about a v4 holo (ADR-015). Lowercase hex.",
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "blake3",
         "sha256"
       ],
       "properties": {

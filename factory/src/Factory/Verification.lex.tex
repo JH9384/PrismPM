@@ -1,0 +1,83 @@
+\begin{lexlean}{Factory.Verification}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\title{Boolean}
+\begin{semanticmodule}
+inductive{
+  name: Mechanism,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: kernel, fields: []},
+    {name: certificateCheck, fields: []},
+    {name: plasticity, fields: []}
+  ]
+}
+
+definition{
+  name: establishes,
+  parameters: [mechanism : Mechanism],
+  result: Bool,
+  body: (match mechanism
+    | Mechanism.kernel => true
+    | Mechanism.certificateCheck => false
+    | Mechanism.plasticity => false)
+}
+
+definition{
+  name: enforcesOnChange,
+  parameters: [mechanism : Mechanism],
+  result: Bool,
+  body: (match mechanism
+    | Mechanism.kernel => false
+    | Mechanism.certificateCheck => true
+    | Mechanism.plasticity => false)
+}
+
+definition{
+  name: decidesAcceptance,
+  parameters: [mechanism : Mechanism],
+  result: Bool,
+  body: ((establishes mechanism) || (enforcesOnChange mechanism))
+}
+
+theorem{
+  name: plasticityNeverDecidesAcceptance,
+  parameters: [],
+  statement: ((decidesAcceptance (ctor Mechanism.plasticity)) = false),
+  proof: reflexivity{},
+  axioms: []
+}
+
+inductive{
+  name: Event,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: changeRoutes, fields: []},
+    {name: changeLacksReceipt, fields: []},
+    {name: changeUnresolved, fields: []},
+    {name: bundlePublished, fields: []}
+  ]
+}
+
+definition{
+  name: compiles,
+  parameters: [event : Event],
+  result: Bool,
+  body: (match event
+    | Event.changeRoutes => false
+    | Event.changeLacksReceipt => false
+    | Event.changeUnresolved => false
+    | Event.bundlePublished => true)
+}
+
+theorem{
+  name: onlyPublicationCompiles,
+  parameters: [],
+  statement: (((not (compiles (ctor Event.changeRoutes))) && ((not (compiles (ctor Event.changeLacksReceipt))) && ((not (compiles (ctor Event.changeUnresolved))) && (compiles (ctor Event.bundlePublished))))) = true),
+  proof: decide{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

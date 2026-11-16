@@ -203,6 +203,36 @@ rust_name = "archiveStripAttestation"
 rust_signature = "fn(Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"
 
 [[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.canonicalArchiveBody"
+rust_name = "canonicalArchiveBody"
+rust_signature = "fn(&[CanonicalSection]) -> Result<Option<Vec<u8>>, ComputeError>"
+
+[[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.canonicalArchiveBodyBytes"
+rust_name = "canonicalArchiveBodyBytes"
+rust_signature = "fn(Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"
+
+[[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.canonicalArchiveFooter"
+rust_name = "canonicalArchiveFooter"
+rust_signature = "fn(Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"
+
+[[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.canonicalArchiveSection"
+rust_name = "canonicalArchiveSection"
+rust_signature = "fn(Vec<u8>, u64) -> Result<Option<Vec<u8>>, ComputeError>"
+
+[[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.canonicalArchiveSectionKind"
+rust_name = "canonicalArchiveSectionKind"
+rust_signature = "fn(Vec<u8>, u64) -> Result<Option<Vec<u8>>, ComputeError>"
+
+[[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.canonicalFrameArchive"
+rust_name = "canonicalFrameArchive"
+rust_signature = "fn(Vec<u8>, Vec<u8>) -> Result<Option<Vec<u8>>, ComputeError>"
+
+[[export]]
 lean_name = "PrismPM.Foundation.Holo.V1.Wire.contentBlob"
 rust_name = "contentBlob"
 rust_signature = "fn(Vec<u8>, Vec<u8>) -> Option<Vec<u8>>"
@@ -245,6 +275,16 @@ rust_signature = "fn(&[u8]) -> Result<bool, ComputeError>"
 [[export]]
 lean_name = "PrismPM.Foundation.Holo.V1.Wire.validArchiveFrame"
 rust_name = "validArchiveFrame"
+rust_signature = "fn(&[u8]) -> Result<bool, ComputeError>"
+
+[[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.validCanonicalArchiveBody"
+rust_name = "validCanonicalArchiveBody"
+rust_signature = "fn(&[u8]) -> Result<bool, ComputeError>"
+
+[[export]]
+lean_name = "PrismPM.Foundation.Holo.V1.Wire.validCanonicalArchiveFrame"
+rust_name = "validCanonicalArchiveFrame"
 rust_signature = "fn(&[u8]) -> Result<bool, ComputeError>"
 
 [[export]]

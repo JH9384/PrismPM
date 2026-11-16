@@ -787,7 +787,13 @@ mod tests {
         let (root, _) = fixture();
         let pinned = b"pinned dependency bytes";
         let mut register = String::from("spec = \"prismpm/dependencies/1\"\n");
-        for id in ["lean4-prod", "lexlean", "hologram-live", "uor-hologram"] {
+        for id in [
+            "lean4-prod",
+            "lexlean",
+            "hologram-live",
+            "uor-hologram",
+            "hologram-brand",
+        ] {
             let source = if id == "uor-hologram" {
                 "git"
             } else {

@@ -214,6 +214,13 @@ export function createRegistryClient(reference, options = {}) {
     registry,
     repository,
 
+    /** `GET /v2/` with the credentials, as `docker login` checks them: resolves when the registry accepts them. */
+    async ping() {
+      const response = await request('/v2/', {}, { what: 'the login check' });
+      await response.body?.cancel();
+      if (!response.ok) throw await failure(response, 'the login check');
+    },
+
     async hasBlob(digest) {
       const response = await request(`${v2}/blobs/${digest}`, { method: 'HEAD' }, { scope: pullScope, what: `blob ${digest}` });
       await response.body?.cancel();

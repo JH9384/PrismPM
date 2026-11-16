@@ -13,7 +13,7 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const work = mkdtempSync(join(tmpdir(), 'prismpm-semantic-source-'));
 const modules = ['Fixture', 'Foundation.Bytes', 'Foundation.Codec', 'Foundation.Codec.Cbor.V1.Primitive',
   'Foundation.View.Browser.V1.Model', 'Foundation.View.Browser.V1.Wire',
-  'Foundation.View.Browser.V1.Design', 'Foundation.View.Browser.V1.DesignWire', 'Foundation.View.Browser.V1.Semantics',
+  'Foundation.View.Browser.V1.Design', 'Foundation.View.Browser.V1.DesignWire', 'Foundation.View.Browser.V1.HologramDesign', 'Foundation.View.Browser.V1.Semantics',
   'Foundation.View.Browser.V1.SemanticsWire'].sort();
 const frozen = [];
 const write = (path, bytes) => { mkdirSync(dirname(path), {recursive: true}); writeFileSync(path, bytes, {flag: 'wx'}); };

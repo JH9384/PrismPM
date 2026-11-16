@@ -243,3 +243,46 @@ Feature: sdk
     Given the locked PrismPM production fixture
     When the DK-06 contract is exercised
     Then its positive evidence passes and its planted defect is rejected
+
+  @DK-39 @build
+  Scenario: The prism.networks namespace is a view over a capability file with create, list, inspect, remove, connect and disconnect: it refuses with CapabilityDeniedError any grant outside the image's declared world or the active policy, raises networks.unavailable naming #216 and #217 for any call that needs host effects, never reads or writes a system model, and imports only errors and the capability code of verify.
+    Given a capability file, an active policy and an image's declared world
+    When the owning Node suite calls each verb inside and outside them
+    Then a grant outside the world or the policy is refused with a typed error that can be recorded, and nothing is written
+    And a call that needs host effects raises a typed error naming #216 and #217 and never appears to succeed
+
+  @DK-40 @build
+  Scenario: The prism.volumes namespace of prism-code is a view over the capability file with create, list, inspect and remove: a host-folder mount, a name or provider outside the grant, and a store outside the image's declared world or the active policy are refused with CapabilityDeniedError before any provider runs, attaching a store to a guest raises a typed error naming host effects #216 and #217, and the module never reads or writes a system model and imports only errors and the capability code.
+    Given a capability file, provider declarations and a recording runner, and prism-provider-kv through providers.mjs
+    When prism.volumes creates, lists, inspects and removes stores, and a store is attached to a guest
+    Then a host folder or anything outside the grant, the declared world or the active policy is refused with a typed error and no provider runs
+    And attaching a store within all of them raises a typed error naming host effects #216 and #217, and never succeeds
+
+  @DK-41 @build
+  Scenario: The prism.system namespace of prism-code reports info, version, df, prune and events over the containers of its own client: info and version name the package, the holo format revision, the runtime and the toolchain and builder image a project's prismpm.lock pins, prune removes exited containers only and no image, events streams the create, start, die and destroy events of the client's containers with since, until and filters, and createPrism and Prism.fromEnv expose the eight other modules of #440 on one client.
+    Given a client from createPrism, and one from Prism.fromEnv over a scratch PRISM_HOME
+    When containers are created, run and removed, and prism.system reports, prunes and streams events
+    Then info and version name the package, the format, the runtime and what the lock pins, and df counts every record
+    And prune removes exited containers only, events arrive as create, start, die and destroy, and every unknown option is refused
+
+  @DK-42 @build
+  Scenario: The Rust runtime runs @prism-code/conformance through its shim, prism-conformance-shim, which translates prism/conformance-shim/1 requests to the prismpm library's inspect and verify and judges nothing: every check of the suite runs, the digests checks pass in full, and each check the Rust runtime does not pass is named with its reason in crates/conformance/runtime/declaration.json, so a check that starts to pass or newly fails fails the run.
+    Given the shim built from the conformance crate and the Rust runtime's declaration
+    When the suite runs every check against the shim
+    Then the run passes with every gap declared, and the digests checks pass in full
+    And the checks that pass are exactly the ones DK-42 lists, by feature
+
+
+  @DK-43 @build
+  Scenario: The prism.containers namespace of prism-code runs images as containers with Docker's states: run, create, start, dispatch, list, inspect, logs, remove and prune work by id or unique prefix, a holo that fails check exits without instantiating the guest, an allowUnverified bypass is recorded on the prism/container/1 record with its time, error and warning, logs are served from the stored output, a volume a container asks for goes through prism.volumes and its typed host-effects refusal is kept on the record before check runs, and stop waits for #350, which builds it.
+    Given a client from createPrism over a memory store and one over a file store, and a capability file with a store declared
+    When containers are created, started, dispatched, inspected, read for logs and removed, with and without allowUnverified and with a volume
+    Then a holo that fails check exits without the guest running, and an allowUnverified run records when it bypassed check and why
+    And a volume is refused with a typed host-effects error kept on the record, and logs come from the stored output
+
+  @DK-44 @build
+  Scenario: The prism-code system and auth command groups are the CLI of prism.system and prism.auth: system info and version name the package, the holo format, the runtime and the toolchain and builder image the project's prismpm.lock pins, events replays and follows create, start, die and destroy from the container store with since, until and filters, df counts every record and prune removes exited containers only and asks first unless forced; auth login checks the credential with the registry before storing it where Docker would, refuses a password on the command line, and no password reaches stdout, stderr or an error in any spelling, and logout names an ambient token it cannot clear.
+    Given a PRISM_HOME with containers, a project with a prismpm.lock, a Docker config folder and an in-process registry
+    When the system and auth verbs are called as the CLI dispatcher calls them, with good and bad arguments
+    Then system reports, replays and follows events, counts and prunes as prism.system does, and every bad argument is a usage error
+    And login stores only a credential the registry accepts, a password on the command line is refused, and no secret appears in any output or error

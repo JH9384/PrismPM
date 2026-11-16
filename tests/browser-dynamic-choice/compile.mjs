@@ -36,7 +36,7 @@ export function frozenInputs() {
     ...['compile.mjs', 'driver-cache.mjs', 'prerequisites.mjs', 'file-custody.mjs',
       'compiler-owner.mjs', 'compiler-artifact.mjs', 'compiler-owner-checks.mjs', 'generated-package.mjs',
       'generated-package.test.mjs', 'generated-wasm.mjs', 'generated-wasm.test.mjs',
-      'generated-wasm-mutations.test.mjs'].map(path => 'tests/browser-view/' + path),
+      'generated-wasm-mutations.test.mjs', 'lexicon-inputs.mjs'].map(path => 'tests/browser-view/' + path),
     ...lexiconPaths(repository), 'tests/fixtures/library/native-library/project/lexlean.toml', 'model/authorities.toml',
     'stdlib/src/Foundation/View/Browser/V1/Wire.cddl', 'stdlib/src/Foundation/View/Browser/V1/Wire.md',
     'SPEC.md', 'model/ids.toml', 'features/suites/sdk.feature',
@@ -143,7 +143,11 @@ function prepareStage(mutation, sourceOnly, baseline, inputs) {
   try {
     if (mutation) mutateSources(sources, mutation);
     const project = join(work, 'project');
-    for (const path of lexiconPaths(repository)) stage('project/' + path, capturedInput(path, inputs));
+    for (const path of lexiconPaths(repository)) {
+      const destination = join(project, path);
+      mkdirSync(dirname(destination), {recursive: true});
+      writeFileSync(destination, capturedInput(path, inputs), {flag: 'wx'});
+    }
     for (const [module, bytes] of sources) {
       const destination = join(project, 'src', ...module.split('.')) + '.lex.tex';
       mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, bytes, {flag: 'wx'});

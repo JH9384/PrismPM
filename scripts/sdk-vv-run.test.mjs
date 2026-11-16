@@ -7,13 +7,14 @@ import { dirname, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { canonical, executionEnvironment, gateInvocation, retainTwoRuns, validateVvEvidence } from './sdk-vv-run.mjs';
+import { assembleVvEvidence, canonical, executionEnvironment, gateInvocation, retainPart, validateVvEvidence, validateVvPart, vvParts } from './sdk-vv-run.mjs';
 import { stop } from './ci-observe.mjs';
 import {bootstrapFixture} from './sdk-bootstrap-retention-fixture.mjs';
 
 const revision = '1'.repeat(40);
 const image = `localhost:5000/prismpm@sha256:${'2'.repeat(64)}`;
 const evidence = () => ({ commit: revision, gates: Array.from({ length: 15 }, (_, i) => i + 1), schema: 'prismpm/vv-evidence/1', status: 'passed' });
+const partEvidence = (part = 'source') => ({ commit: revision, part, schema: 'prismpm/vv-part/1', status: 'passed' });
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 function writeResult(f, bytes) {
   writeFileSync(f.input, bytes);
@@ -26,7 +27,7 @@ function fixture(t) {
   const source = join(work, 'source'), output = join(work, 'evidence');
   mkdirSync(join(source, 'target'), { recursive: true });
   mkdirSync(output);
-  return { work, source, output, input: join(source, 'target/vv-evidence.json') };
+  return { work, source, output, input: join(source, 'target/vv-part-source.json') };
 }
 
 test('exact raw VV evidence requires all ordered gates and the external source revision', () => {
@@ -49,63 +50,61 @@ test('exact raw VV evidence requires all ordered gates and the external source r
   }
 });
 
-test('two consecutive executions retain separate unchanged raw evidence after removing stale success', async t => {
-  const f = fixture(t), bytes = Buffer.from(canonical(evidence()));
+test('one part execution retains its unchanged raw evidence after removing stale success', async t => {
+  const f = fixture(t), bytes = Buffer.from(canonical(partEvidence()));
   writeFileSync(f.input, bytes);
-  const calls = [];
-  const retained = await retainTwoRuns(f.source, f.output, revision, async index => {
-    assert(!existsSync(f.input), 'previous success must be invalidated before each execution');
-    calls.push(index);
+  let calls = 0;
+  const retained = await retainPart(f.source, f.output, revision, 'source', async () => {
+    assert(!existsSync(f.input), 'previous success must be invalidated before execution');
+    calls++;
     writeResult(f, bytes);
     return 0;
   });
-  assert.deepEqual(calls, [1, 2]);
-  assert.deepEqual(retained, [1, 2].map(run => ({ run, path: `run-${run}/vv-evidence.json`, byte_length: bytes.length, sha256: sha(bytes) })));
-  for (const row of retained) assert.deepEqual(readFileSync(join(f.output, row.path)), bytes);
-});
-
-test('failed, missing, wrong-commit or aliased results cannot promote a first success', async t => {
-  for (const mode of ['nonzero', 'missing', 'wrong-commit', 'symlink', 'directory']) {
-    const f = fixture(t), bytes = Buffer.from(canonical(evidence()));
-    let calls = 0;
-    await assert.rejects(retainTwoRuns(f.source, f.output, revision, async index => {
-      calls++;
-      if (index === 1) { writeResult(f, bytes); return 0; }
-      if (mode === 'nonzero') { writeFileSync(f.input, bytes); return 7; }
-      if (mode === 'missing') return 0;
-      if (mode === 'directory') mkdirSync(f.input);
-      if (mode === 'wrong-commit') writeFileSync(f.input, canonical({ ...evidence(), commit: '4'.repeat(40) }));
-      if (mode === 'symlink') symlinkSync(join(f.output, 'run-1/vv-evidence.json'), f.input);
-      return 0;
-    }));
-    assert.equal(calls, 2);
-    assert.deepEqual(readFileSync(join(f.output, 'run-1/vv-evidence.json')), bytes);
-    assert(!existsSync(join(f.output, 'run-2/vv-evidence.json')));
+  assert.equal(calls, 1);
+  assert.deepEqual(retained, { part: 'source', path: 'part/vv-part.json', byte_length: bytes.length, sha256: sha(bytes) });
+  assert.deepEqual(readFileSync(join(f.output, retained.path)), bytes);
+  assert(existsSync(join(f.output, 'bootstrap.json')));
+  for (const part of vvParts.filter(part => part !== 'source')) {
+    const other = fixture(t), raw = Buffer.from(canonical(partEvidence(part)));
+    await retainPart(other.source, other.output, revision, part, async () => { writeFileSync(join(other.source, `target/vv-part-${part}.json`), raw); return 0; });
+    assert(!existsSync(join(other.output, 'bootstrap.json')), 'only the source part runs the bootstrap gate');
   }
 });
 
-test('second execution cannot alter, delete or alias the first retained receipt', async t => {
-  for (const mode of ['tamper', 'delete', 'symlink']) {
-    const f = fixture(t), bytes = Buffer.from(canonical(evidence()));
+test('failed, missing, wrong-commit, wrong-part or aliased results cannot promote a part', async t => {
+  for (const mode of ['nonzero', 'missing', 'wrong-commit', 'wrong-part', 'symlink', 'directory']) {
+    const f = fixture(t), bytes = Buffer.from(canonical(partEvidence()));
     let calls = 0;
-    await assert.rejects(retainTwoRuns(f.source, f.output, revision, async index => {
+    await assert.rejects(retainPart(f.source, f.output, revision, 'source', async () => {
       calls++;
-      if (index === 2) {
-        const retained = join(f.output, 'run-1/vv-evidence.json');
-        if (mode === 'tamper') {
-          // The retaining process owns this file; mode 0444 is not immutable.
-          chmodSync(retained, 0o644);
-          writeFileSync(retained, canonical({ ...evidence(), commit: '4'.repeat(40) }));
-        } else {
-          rmSync(retained);
-          if (mode === 'symlink') symlinkSync(f.input, retained);
-        }
-      }
-      writeResult(f, bytes);
+      if (mode === 'nonzero') { writeFileSync(f.input, bytes); return 7; }
+      if (mode === 'missing') return 0;
+      if (mode === 'directory') mkdirSync(f.input);
+      if (mode === 'wrong-commit') writeFileSync(f.input, canonical({ ...partEvidence(), commit: '4'.repeat(40) }));
+      if (mode === 'wrong-part') writeFileSync(f.input, canonical(partEvidence('gates')));
+      if (mode === 'symlink') { writeFileSync(join(f.work, 'elsewhere'), bytes); symlinkSync(join(f.work, 'elsewhere'), f.input); }
       return 0;
     }));
-    assert.equal(calls, 2);
-    assert(!existsSync(join(f.output, 'execution.json')));
+    assert.equal(calls, 1);
+    assert(!existsSync(join(f.output, 'part/vv-part.json')));
+  }
+});
+
+test('assembled evidence requires exactly every passed part of one commit', () => {
+  const records = () => new Map(vvParts.map(part => [part, Buffer.from(canonical(partEvidence(part)))]));
+  assert.deepEqual(validateVvEvidence(assembleVvEvidence(records(), revision), revision), evidence());
+  assert.deepEqual(validateVvPart(records().get('source'), revision, 'source'), partEvidence());
+  for (const mutate of [
+    map => map.delete('st-sy'),
+    map => map.set('extra', map.get('source')),
+    map => map.set('st-sy', map.get('source')),
+    map => map.set('source', Buffer.from(canonical({ ...partEvidence(), status: 'failed' }))),
+    map => map.set('source', Buffer.from(canonical({ ...partEvidence(), commit: '4'.repeat(40) }))),
+    map => map.set('source', Buffer.from(canonical({ ...partEvidence(), extra: true }))),
+    map => map.set('source', Buffer.from(canonical(partEvidence()) + '\n')),
+  ]) {
+    const map = records(); mutate(map);
+    assert.throws(() => assembleVvEvidence(map, revision));
   }
 });
 
@@ -163,31 +162,32 @@ test('SIGHUP cancels the actual observer, stops its monitor and cannot return su
   }
 });
 
-test('first-run failure stops immediately and never overwrites caller evidence', async t => {
+test('failure never overwrites caller evidence', async t => {
   const f = fixture(t);
   let calls = 0;
-  await assert.rejects(retainTwoRuns(f.source, f.output, revision, async () => { calls++; return 1; }));
+  await assert.rejects(retainPart(f.source, f.output, revision, 'source', async () => { calls++; return 1; }));
   assert.equal(calls, 1);
-  assert(!existsSync(join(f.output, 'run-2')));
   const other = fixture(t);
-  mkdirSync(join(other.output, 'run-1'));
-  writeFileSync(join(other.output, 'run-1/sentinel'), 'retain');
-  await assert.rejects(retainTwoRuns(other.source, other.output, revision, async () => { throw Error('must not execute'); }));
-  assert.equal(readFileSync(join(other.output, 'run-1/sentinel'), 'utf8'), 'retain');
+  mkdirSync(join(other.output, 'part'));
+  writeFileSync(join(other.output, 'part/sentinel'), 'retain');
+  await assert.rejects(retainPart(other.source, other.output, revision, 'source', async () => { throw Error('must not execute'); }));
+  assert.equal(readFileSync(join(other.output, 'part/sentinel'), 'utf8'), 'retain');
+  await assert.rejects(retainPart(other.source, other.output, revision, 'other', async () => { throw Error('must not execute'); }));
 });
 
-test('exact full gate invocation has no alternate binary, source command or login shell', () => {
-  assert.deepEqual(gateInvocation('/fresh/source', '/fresh/evidence/run-1'), {
+test('exact part gate invocation has no alternate binary, source command or login shell', () => {
+  assert.deepEqual(gateInvocation('/fresh/source', '/fresh/evidence/part', 'dk-2'), {
     command: '/usr/local/bin/node',
-    args: ['/fresh/source/scripts/ci-observe.mjs', 'run', '/fresh/evidence/run-1/diagnostics', '--', '/usr/local/bin/just', 'vv'],
+    args: ['/fresh/source/scripts/ci-observe.mjs', 'run', '/fresh/evidence/part/diagnostics', '--', '/usr/local/bin/just', 'vv-part', 'dk-2'],
     cwd: '/fresh/source',
   });
+  assert.throws(() => gateInvocation('/fresh/source', '/fresh/evidence/part', 'other'));
 });
 
-test('a successful VV marker cannot replace the four original bootstrap outputs', async t => {
+test('a successful part marker cannot replace the four original bootstrap outputs', async t => {
   const f = fixture(t);
-  await assert.rejects(retainTwoRuns(f.source, f.output, revision, async () => {
-    writeFileSync(f.input, canonical(evidence()));
+  await assert.rejects(retainPart(f.source, f.output, revision, 'source', async () => {
+    writeFileSync(f.input, canonical(partEvidence()));
     return 0;
   }));
 });
@@ -199,9 +199,10 @@ test('execution environment uses fresh writable caches and fixed SDK tools, not 
   assert.equal(environment.CARGO_TARGET_DIR, '/fresh/inputs/source/target/vv-driver');
   assert.equal(environment.CARGO_NET_OFFLINE, 'true');
   assert.equal(environment.DOCKER_CONFIG, '/fresh/docker');
+  assert.equal(environment.HOME, '/fresh/home', 'HOME is a fresh owned directory, never inherited');
   assert.equal(environment.GIT_CONFIG_GLOBAL, '/dev/null');
   assert.equal(environment.PRISMPM_SDK_INVENTORY, '/opt/prismpm/share/inventory.json');
-  for (const key of ['LD_PRELOAD', 'RUSTC_WRAPPER', 'CARGO_ENCODED_RUSTFLAGS', 'GH_TOKEN', 'NODE_OPTIONS', 'BASH_ENV', 'ENV', 'HOME']) assert(!Object.hasOwn(environment, key));
+  for (const key of ['LD_PRELOAD', 'RUSTC_WRAPPER', 'CARGO_ENCODED_RUSTFLAGS', 'GH_TOKEN', 'NODE_OPTIONS', 'BASH_ENV', 'ENV']) assert(!Object.hasOwn(environment, key));
   for (const endpoint of ['tcp://remote:2375', 'unix://relative', 'unix:///tmp/../escape', 'unix:///']) assert.throws(() => executionEnvironment('/fresh', image, endpoint));
   for (const ref of ['sdk:latest', `${image}#other`, '', 'https://registry/image']) assert.throws(() => executionEnvironment('/fresh', ref, 'unix:///var/run/docker.sock'));
 });

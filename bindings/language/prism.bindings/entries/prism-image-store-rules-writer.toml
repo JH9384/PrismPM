@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-image-store-rules-writer"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Foundation.Images.V1.Store"
+component = "writeImageStoreRules"
+
+[[form]]
+id = "prism-image-store-rules-writer"
+channel = "text"
+surface = "Image store rules writer"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -218,6 +218,63 @@ realized_by = ["AU-01", "SY-04"]
 # Oracles are deliberately separate from their authorities. The lock resolves
 # each executable through the SDK inventory and hashes this wrapper source.
 
+[[authority]]
+id = "OSCAL-1-1-0"
+name = "OSCAL 1.1.0 complete JSON schema"
+issuer = "NIST"
+canonical_identifier = "usnistgov/OSCAL/oscal_complete_schema.json"
+edition = "1.1.0"
+source_role = "normative"
+immutable_url = "https://github.com/usnistgov/OSCAL/releases/download/v1.1.0/oscal_complete_schema.json"
+revision = "ef4df067c280e718e107c646f7567c053c2abfc8"
+acquired_sha256 = "c57fe854b05dd6c249343349ea76aaf59cca87289e5c791ba832eedc2a0ae653"
+signature = "not-published-or-not-relied-upon"
+media_type = "application/schema+json"
+license = "CC0-1.0"
+redistribution = "redistributable"
+retrieval_date = "2026-10-30"
+supersession_policy = "explicit-lock-update-only"
+statement = "The OSCAL 1.1.0 complete schema is one of the two JSON structural boundaries of an emitted component definition; it does not establish control implementation or whole-standard conformance."
+realized_by = ["AU-07", "AU-08"]
+
+[[authority]]
+id = "OSCAL-COMPONENT-SCHEMA-1-1-0"
+name = "OSCAL 1.1.0 component definition JSON schema"
+issuer = "NIST"
+canonical_identifier = "usnistgov/OSCAL/oscal_component_schema.json"
+edition = "1.1.0"
+source_role = "normative"
+immutable_url = "https://github.com/usnistgov/OSCAL/releases/download/v1.1.0/oscal_component_schema.json"
+revision = "ef4df067c280e718e107c646f7567c053c2abfc8"
+acquired_sha256 = "41c14d6a7d6798a7cc3b87d07bf2888b2027210acd79d27f10b6579610f3afd2"
+signature = "not-published-or-not-relied-upon"
+media_type = "application/schema+json"
+license = "CC0-1.0"
+redistribution = "redistributable"
+retrieval_date = "2026-10-30"
+supersession_policy = "explicit-lock-update-only"
+statement = "The OSCAL 1.1.0 component schema defines the structure of the component definition a threat model emits."
+realized_by = ["AU-07", "AU-08"]
+
+[[authority]]
+id = "JSONSCHEMA-ENGINE-0-58-2"
+name = "jsonschema 0.58.2 Rust crate"
+issuer = "Stranger6667/jsonschema"
+canonical_identifier = "crates.io/jsonschema"
+edition = "0.58.2"
+source_role = "informative"
+immutable_url = "https://static.crates.io/crates/jsonschema/jsonschema-0.58.2.crate"
+revision = "3d48b9026c6518e7f3a2ecc6c9c94a9f77f6083c"
+acquired_sha256 = "657c6a38b0e00dda091d9c006cc1741957ba2377f00dccfd6e79df4c95619bb1"
+signature = "not-published-or-not-relied-upon"
+media_type = "application/gzip"
+license = "MIT"
+redistribution = "redistributable"
+retrieval_date = "2026-10-30"
+supersession_policy = "explicit-lock-update-only"
+statement = "The published engine executes the pinned OSCAL schemas without network retrieval; it is the validator, not a standard."
+realized_by = ["AU-07", "AU-08"]
+
 [[oracle]]
 id = "oci-layout-1.1"
 authority_ids = ["OCI-IMAGE-1-1-1"]
@@ -701,96 +758,96 @@ statement = "The locked OSV schema owns vulnerability-exchange validation; datab
 realized_by = ["AU-05", "SC-04"]
 
 [[authority]]
-id = "OSV-CRATES-DB-G1792096384043606"
+id = "OSV-CRATES-DB-G1794521886372368"
 name = "OSV crates.io vulnerability database snapshot"
 issuer = "OpenSSF OSV project"
 canonical_identifier = "gs://osv-vulnerabilities/crates.io/all.zip"
-edition = "gcs-generation-1792096384043606"
+edition = "gcs-generation-1794521886372368"
 source_role = "informative"
-immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip?generation=1792096384043606"
-revision = "1792096384043606"
-acquired_sha256 = "5ebac98116c0148f8a2b72615cbd3e60c3c5e937786e2427714546f8fc686f5b"
+immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip?generation=1794521886372368"
+revision = "1794521886372368"
+acquired_sha256 = "abc40983f21e0a7a5803cd3ab52f9ef11ad3e2a4784b41961bf37ab221a06c19"
 signature = "gcs-generation-and-acquired-sha256"
 media_type = "application/zip"
 license = "record-level upstream provenance; no aggregate relicensing claim"
 redistribution = "citation-only"
-retrieval_date = "2026-10-16"
+retrieval_date = "2026-11-13"
 supersession_policy = "explicit-lock-update-only"
 statement = "This immutable crates.io snapshot bounds offline vulnerability facts; it does not establish current status after its acquisition time."
 realized_by = ["AU-05", "SC-04"]
 
 [[authority]]
-id = "OSV-DEBIAN-DB-G1792130564825991"
+id = "OSV-DEBIAN-DB-G1794564185785911"
 name = "OSV Debian vulnerability database snapshot"
 issuer = "OpenSSF OSV project"
 canonical_identifier = "gs://osv-vulnerabilities/Debian/all.zip"
-edition = "gcs-generation-1792130564825991"
+edition = "gcs-generation-1794564185785911"
 source_role = "informative"
-immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Debian/all.zip?generation=1792130564825991"
-revision = "1792130564825991"
-acquired_sha256 = "019d7daaca77666111070f333fb1e5d047ad40d50ba852391018979d08005bb9"
+immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Debian/all.zip?generation=1794564185785911"
+revision = "1794564185785911"
+acquired_sha256 = "e8682fabfb63c859a36237cf90600a1daac8197d2b240c77658c51c6d253c622"
 signature = "gcs-generation-and-acquired-sha256"
 media_type = "application/zip"
 license = "record-level upstream provenance; no aggregate relicensing claim"
 redistribution = "citation-only"
-retrieval_date = "2026-10-16"
+retrieval_date = "2026-11-13"
 supersession_policy = "explicit-lock-update-only"
 statement = "This immutable Debian snapshot bounds offline vulnerability facts for image packages; it does not establish current status after its acquisition time."
 realized_by = ["AU-05", "SC-04"]
 
 [[authority]]
-id = "OSV-GO-DB-G1792097294361139"
+id = "OSV-GO-DB-G1794524582407843"
 name = "OSV Go vulnerability database snapshot"
 issuer = "OpenSSF OSV project"
 canonical_identifier = "gs://osv-vulnerabilities/Go/all.zip"
-edition = "gcs-generation-1792097294361139"
+edition = "gcs-generation-1794524582407843"
 source_role = "informative"
-immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip?generation=1792097294361139"
-revision = "1792097294361139"
-acquired_sha256 = "3f3c63ba77efa8a7f0c47f572c69692eb538c26a5ff70b6e84926078e10ad914"
+immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip?generation=1794524582407843"
+revision = "1794524582407843"
+acquired_sha256 = "35b9748882baeee13c298a9c0167088309dd199a4980b9f950fd9483e2d9952f"
 signature = "gcs-generation-and-acquired-sha256"
 media_type = "application/zip"
 license = "record-level upstream provenance; no aggregate relicensing claim"
 redistribution = "citation-only"
-retrieval_date = "2026-10-16"
+retrieval_date = "2026-11-13"
 supersession_policy = "explicit-lock-update-only"
 statement = "This immutable Go snapshot bounds offline vulnerability facts for statically linked image packages; it does not establish current status after its acquisition time."
 realized_by = ["AU-05", "SC-04"]
 
 [[authority]]
-id = "OSV-NPM-DB-G1792124305700257"
+id = "OSV-NPM-DB-G1794573192929689"
 name = "OSV npm vulnerability database snapshot"
 issuer = "OpenSSF OSV project"
 canonical_identifier = "gs://osv-vulnerabilities/npm/all.zip"
-edition = "gcs-generation-1792124305700257"
+edition = "gcs-generation-1794573192929689"
 source_role = "informative"
-immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1792124305700257"
-revision = "1792124305700257"
-acquired_sha256 = "c242de6ea6f70b5491ca1e536ac7533e719349cea740db2f8d59d25ee729c0cd"
+immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1794573192929689"
+revision = "1794573192929689"
+acquired_sha256 = "5421bcc45abc9d1499596051928e2e217b0aad7b3951c1f30eae4fe239236055"
 signature = "gcs-generation-and-acquired-sha256"
 media_type = "application/zip"
 license = "record-level upstream provenance; no aggregate relicensing claim"
 redistribution = "citation-only"
-retrieval_date = "2026-10-16"
+retrieval_date = "2026-11-13"
 supersession_policy = "explicit-lock-update-only"
 statement = "This immutable npm snapshot bounds offline vulnerability facts for JavaScript image packages; it does not establish current status after its acquisition time."
 realized_by = ["AU-05", "SC-04"]
 
 [[authority]]
-id = "OSV-UBUNTU-DB-G1791997399062112"
+id = "OSV-UBUNTU-DB-G1794573197870891"
 name = "OSV Ubuntu vulnerability database snapshot"
 issuer = "OpenSSF OSV project"
 canonical_identifier = "gs://osv-vulnerabilities/Ubuntu/all.zip"
-edition = "gcs-generation-1791997399062112"
+edition = "gcs-generation-1794573197870891"
 source_role = "informative"
-immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Ubuntu/all.zip?generation=1791997399062112"
-revision = "1791997399062112"
-acquired_sha256 = "9c4f5e08e3a7490c90c78ac85f72004d5715c8b1641e9d5ed9e65a6438dd986d"
+immutable_url = "https://osv-vulnerabilities.storage.googleapis.com/Ubuntu/all.zip?generation=1794573197870891"
+revision = "1794573197870891"
+acquired_sha256 = "dc6a0aafff6bcd4cc1fa7a4fa560a125622bd469a1b7be9a1c2c80550b32d6e6"
 signature = "gcs-generation-and-acquired-sha256"
 media_type = "application/zip"
 license = "record-level upstream provenance; no aggregate relicensing claim"
 redistribution = "citation-only"
-retrieval_date = "2026-10-16"
+retrieval_date = "2026-11-13"
 supersession_policy = "explicit-lock-update-only"
 statement = "This immutable Ubuntu snapshot bounds offline vulnerability facts for image packages; it does not establish current status after its acquisition time."
 realized_by = ["AU-05", "SC-04"]
@@ -1220,3 +1277,23 @@ retrieval_date = "2026-09-06"
 supersession_policy = "explicit-lock-update-only"
 statement = "The exact official CloudEvents Go SDK supplies the executable CloudEvents event-validation behavior and its upstream tests."
 realized_by = ["AU-06", "SY-04"]
+
+[[oracle]]
+id = "oscal-1.1.0-structural"
+authority_ids = ["JSONSCHEMA-ENGINE-0-58-2", "OSCAL-1-1-0", "OSCAL-COMPONENT-SCHEMA-1-1-0"]
+edition = "1.1.0"
+executable = "oscal-validator"
+supported_platforms = ["linux/amd64", "linux/arm64"]
+input_media_types = ["application/oscal+json"]
+output_schema = "prismpm/validation-result/1"
+arguments = ["{input}"]
+timeout_ms = 120000
+memory_bytes = 1073741824
+output_bytes = 4194304
+network = "deny"
+normalization = "prismpm/oracle-diagnostics/1"
+covers = ["JSON structural validity of one OSCAL 1.1.0 document against its model schema and the complete schema, under strict JSON decoding and bounded single-file capture"]
+does_not_cover = ["profile resolution, control implementation, the truth of named evidence, assessment authenticity, inheritance, security, and whole-standard conformance"]
+expected_exits = ["0=pass", "2=invocation error", "4=invalid", "5=resource refusal", "6=unavailable"]
+upstream_payload_sha256 = "41c14d6a7d6798a7cc3b87d07bf2888b2027210acd79d27f10b6579610f3afd2"
+wrapper_source = "sdk/oracles/oscal/src/main.rs"

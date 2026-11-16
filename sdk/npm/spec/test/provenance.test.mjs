@@ -4,10 +4,9 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import * as provenance from '../../prism-code/src/provenance.mjs';
-import { blake3Hex } from '../../prism-code/src/blake3.mjs';
 import { spec } from './spec.mjs';
 import { validate } from './json-schema.mjs';
-import { here, loadReference, readJson, schema } from './reference.mjs';
+import { here, loadReference, readJson, referenceV5, schema } from './reference.mjs';
 
 const { ASSURANCE, ATTESTATION, ATTESTATION_BUNDLE, PROVENANCE } = spec;
 
@@ -63,31 +62,27 @@ test('min records nothing that varies between machines or runs; max adds exactly
   assert.deepEqual(min.subject, max.subject);
 });
 
-test('the four subjects are the content blobs of the calculator, with both digests over the same bytes (ADR-015)', () => {
+test('the four subjects are the content objects of the calculator, each named by its κ alone (ADR-017)', () => {
   const { guest, view, model, capabilities } = ref.resolved;
   assert.deepEqual(
     min.subject.map((s) => s.name),
     ['core-wasm/prism_calculator_core_wasm.wasm', PROVENANCE.SUBJECTS.VIEW, PROVENANCE.SUBJECTS.MODEL, PROVENANCE.SUBJECTS.CAPABILITIES],
   );
   [guest, view, model, capabilities].forEach((blob, i) => {
-    assert.deepEqual(min.subject[i].digest, { blake3: blake3Hex(blob.content), sha256: sha256(blob.content) });
-    assert.equal(`blake3:${min.subject[i].digest.blake3}`, blob.label);
+    assert.deepEqual(min.subject[i].digest, { sha256: sha256(blob.content) });
   });
-  for (const s of min.subject) {
-    assert.notEqual(s.digest.blake3, ref.parsed.footer, 'a subject never names the footer');
-    assert.notEqual(s.digest.sha256, ref.sha256, 'a subject never names the whole file');
-  }
+  for (const s of min.subject) assert.notEqual(s.digest.sha256, sha256(referenceV5()), 'a subject never names the whole file');
 });
 
 test('resolvedDependencies is the lock: every row follows from a member of the sdk-lock/3 fixture', () => {
   const rows = new Map(min.predicate.buildDefinition.resolvedDependencies.map((r) => [r.name, r]));
-  assert.deepEqual(rows.get('sdk-lock').digest, { blake3: blake3Hex(lockBytes), sha256: sha256(lockBytes) });
+  assert.deepEqual(rows.get('sdk-lock').digest, { sha256: sha256(lockBytes) });
   assert.equal(rows.get('sdk-lock').uri, PROVENANCE.DEPENDENCIES.LOCK);
   assert.equal(rows.get('sdk-lock').mediaType, PROVENANCE.DEPENDENCIES.LOCK_MEDIA_TYPES[lock.schema]);
   assert.equal(rows.get('sdk-image').uri, lock.sdk_image);
   assert.equal(`sha256:${rows.get('sdk-image').digest.sha256}`, lock.sdk_image.slice(lock.sdk_image.indexOf('@') + 1));
   assert.equal(`sha256:${rows.get('standards-lock').digest.sha256}`, lock.standards_lock);
-  assert.deepEqual(rows.get('world').digest, { blake3: lock.inputs.world.blake3, sha256: lock.inputs.world.sha256 });
+  assert.deepEqual(rows.get('world').digest, { sha256: lock.inputs.world.sha256 });
   assert.equal(rows.get('world').uri, lock.inputs.world.contract);
   for (const [tool, version] of Object.entries(lock.inputs.toolchain)) {
     const name = tool.replaceAll('_', '-');
@@ -96,13 +91,14 @@ test('resolvedDependencies is the lock: every row follows from a member of the s
   assert.equal(rows.get('application-generator').digest.sha256, lock.inputs.generation.application_generator_sha256);
   assert.equal(rows.get('library-generator').digest.sha256, lock.inputs.generation.library_generator_sha256);
   // The model and the spec are the build's external parameters, not dependencies, so each appears once.
-  assert.deepEqual(min.predicate.buildDefinition.externalParameters, { model: lock.inputs.model, spec: lock.inputs.spec });
+  // sdk-lock/3 records the model by two digests; the statement names it by its κ (ADR-017).
+  assert.deepEqual(min.predicate.buildDefinition.externalParameters, { model: { sha256: lock.inputs.model.sha256 }, spec: lock.inputs.spec });
   assert.equal(min.predicate.runDetails.builder.id, lock.sdk_image);
   assert.equal(rows.size, min.predicate.buildDefinition.resolvedDependencies.length, 'row names are unique');
 });
 
 test('the fixtures are what prism-code generates from the calculator and the lock fixture', async () => {
-  const bytes = new Uint8Array(ref.bytes);
+  const bytes = referenceV5();
   assert.deepEqual(await provenance.provenanceStatement(bytes, { lock: lockBytes }), min);
   assert.deepEqual(
     await provenance.provenanceStatement(bytes, {

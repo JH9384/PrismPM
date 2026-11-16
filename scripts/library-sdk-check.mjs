@@ -305,8 +305,13 @@ function readLibraryEvidence(project,receipt,exporterArchiveSha256,compilerIdent
  const snapshot=JSON.parse(regularBytes(join(build,'lexlean/snapshot.json')));assert.ok(Array.isArray(snapshot.modules));const declarations=snapshot.modules.flatMap(module=>module.declarations.map(declaration=>({name:module.lean_module+'.'+declaration.lean_name,policy:declaration.axiom_policy})));
  const names=['LibraryProbe.Foundation.Library.V1.Model.NativeLibrary','LibraryProbe.Probe.acceptance','LibraryProbe.Probe.identity','LibraryProbe.Probe.probeLibrary'];same(declarations.map(row=>row.name).sort(),names,'complete selected declaration closure');
  assert.equal(lexAttestation.spec,'lexlean/attestation/2');assert.equal(lexAttestation.status,'verified');assert.equal(lexAttestation.build_id,inputs.lexlean_build_id);assert.equal(lexAttestation.source_id,inputs.lexlean_source_id);assert.equal(lexAttestation.semantic_id,inputs.lexlean_semantic_id);
- assert.ok(Array.isArray(lexAttestation.declarations));same(lexAttestation.declarations.map(row=>row.name).sort(),names,'complete published declaration audit');
- for(const row of lexAttestation.declarations){keys(row,['name','observed','policy','result']);assert.equal(row.result,'ok');same(row.policy,declarations.find(declaration=>declaration.name===row.name).policy,'exact declaration axiom policy');same(row.policy,{axioms:[],kind:'none'},'fixture has no admitted axioms');same(row.observed,[],'fixture has no observed axioms');}
+ assert.ok(Array.isArray(lexAttestation.declarations));
+ // LexLean 1.2 also attests the runtime declarations the verified modules import.
+ const runtimeAudit=row=>row.name.startsWith('LexLeanRuntime.');
+ for(const row of lexAttestation.declarations.filter(runtimeAudit)){keys(row,['name','observed','policy','result']);assert.equal(row.result,'ok');assert.equal(row.policy.kind,'exact');same(row.observed,row.policy.axioms,'exact runtime declaration audit');}
+ const ownedAudits=lexAttestation.declarations.filter(row=>!runtimeAudit(row));
+ same(ownedAudits.map(row=>row.name).sort(),names,'complete published declaration audit');
+ for(const row of ownedAudits){keys(row,['name','observed','policy','result']);assert.equal(row.result,'ok');same(row.policy,declarations.find(declaration=>declaration.name===row.name).policy,'exact declaration axiom policy');same(row.policy,{axioms:[],kind:'none'},'fixture has no admitted axioms');same(row.observed,[],'fixture has no observed axioms');}
  const library=artifacts.filter(row=>row.path.startsWith('library/'));
  same(library.map(row=>row.path),['library/coverage.json','library/kernel.ir','library/model-binding.json','library/package/Cargo.lock','library/package/Cargo.toml','library/package/LICENSE-APACHE','library/package/LICENSE-MIT','library/package/README.md','library/package/generation-manifest.json','library/package/src/lib.rs','library/prism-library-probe-0.1.0.crate','library/roots.json'],'complete fixture native artifact set');
  same(manifest.artifacts,library.map(row=>({path:row.path,byte_length:row.size,sha256:row.sha256})),'complete exact native package replay artifacts');

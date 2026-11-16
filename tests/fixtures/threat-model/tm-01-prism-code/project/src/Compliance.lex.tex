@@ -1,0 +1,248 @@
+\begin{lexlean}{Compliance}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Core}
+\title{Policy compliance}
+\begin{semanticmodule}
+inductive{
+  name: Finding,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: MemoryExceeded, fields: [String, UInt64, UInt64]},
+    {name: PlaintextPii, fields: [String]}
+  ]
+}
+
+structure{
+  name: FindingList,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: items, type: (List Finding)}]
+}
+
+definition{
+  name: exceeds,
+  parameters: [memory : UInt64, limit : UInt64],
+  result: Bool,
+  body: (match (prim checked_subtract limit memory : (Option UInt64))
+    | Option.none => true
+    | Option.some headroom => false),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: memoryFindings,
+  parameters: [nodes : (List Core::Node), limit : UInt64],
+  result: FindingList,
+  body: (match nodes
+    | List.nil => (record FindingList {items := (nil Finding)})
+    | List.cons head rest => (if (exceeds (project head memory) limit) then (record FindingList {items := (cons (ctor Finding.MemoryExceeded (project head name) (project head memory) limit) (project (memoryFindings rest limit) items))}) else (memoryFindings rest limit))),
+  axioms: [Quot.sound, propext],
+  recursive_argument: nodes
+}
+
+definition{
+  name: memoryPolicyFindings,
+  parameters: [project : Core::Project],
+  result: FindingList,
+  body: (match (project (project var{name: project} policies) memoryLimit)
+    | Option.none => (record FindingList {items := (nil Finding)})
+    | Option.some limit => (memoryFindings (project var{name: project} nodes) limit)),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: carries,
+  parameters: [project : Core::Project, name : String],
+  result: Bool,
+  body: (match (Core::findNode (project var{name: project} nodes) name)
+    | Option.none => false
+    | Option.some node => (not (Core::isEncrypt (project node kind))))
+}
+
+definition{
+  name: spreads,
+  parameters: [edge : Core::Edge, project : Core::Project, labelled : (List String), reached : (List String)],
+  result: Bool,
+  body: ((Core::listsName labelled (project edge source)) && ((carries var{name: project} (project edge source)) && (not (Core::listsName reached (project edge target)))))
+}
+
+definition{
+  name: spread,
+  parameters: [edges : (List Core::Edge), project : Core::Project, labelled : (List String), reached : (List String)],
+  result: Core::NameList,
+  body: (match edges
+    | List.nil => (record Core::NameList {items := reached})
+    | List.cons head rest => (if (spreads head var{name: project} labelled reached) then (spread rest var{name: project} labelled (cons (project head target) reached)) else (spread rest var{name: project} labelled reached))),
+  recursive_argument: edges
+}
+
+definition{
+  name: propagate,
+  parameters: [rounds : (List Core::Node), project : Core::Project, labelled : (List String)],
+  result: Core::NameList,
+  body: (match rounds
+    | List.nil => (record Core::NameList {items := labelled})
+    | List.cons round rest => (propagate rest var{name: project} (project (spread (project var{name: project} edges) var{name: project} labelled labelled) items))),
+  recursive_argument: rounds
+}
+
+definition{
+  name: labelledNodes,
+  parameters: [project : Core::Project],
+  result: Core::NameList,
+  body: (propagate (project var{name: project} nodes) var{name: project} (project var{name: project} pii))
+}
+
+definition{
+  name: exposesPii,
+  parameters: [node : Core::Node, labelled : (List String)],
+  result: Bool,
+  body: ((Core::isOutput (project node kind)) && (Core::listsName labelled (project node name)))
+}
+
+definition{
+  name: piiFindings,
+  parameters: [nodes : (List Core::Node), labelled : (List String)],
+  result: FindingList,
+  body: (match nodes
+    | List.nil => (record FindingList {items := (nil Finding)})
+    | List.cons head rest => (if (exposesPii head labelled) then (record FindingList {items := (cons (ctor Finding.PlaintextPii (project head name)) (project (piiFindings rest labelled) items))}) else (piiFindings rest labelled))),
+  recursive_argument: nodes
+}
+
+definition{
+  name: piiPolicyFindings,
+  parameters: [project : Core::Project],
+  result: FindingList,
+  body: (if (project (project var{name: project} policies) piiEncryption) then (piiFindings (project var{name: project} nodes) (project (labelledNodes var{name: project}) items)) else (record FindingList {items := (nil Finding)}))
+}
+
+definition{
+  name: findings,
+  parameters: [project : Core::Project],
+  result: FindingList,
+  body: (record FindingList {items := (prim append (project (memoryPolicyFindings var{name: project}) items) (project (piiPolicyFindings var{name: project}) items) : (List Finding))}),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: noFindings,
+  parameters: [found : (List Finding)],
+  result: Bool,
+  body: (match found | List.nil => true | List.cons head rest => false)
+}
+
+definition{
+  name: compliant,
+  parameters: [project : Core::Project],
+  result: Bool,
+  body: (noFindings (project (findings var{name: project}) items)),
+  axioms: [Quot.sound, propext]
+}
+
+definition{
+  name: findingLine,
+  parameters: [finding : Finding],
+  result: String,
+  body: (match finding
+    | Finding.MemoryExceeded name memory limit => (prim join (cons "finding" (cons "memory" (cons name (cons (prim format_decimal memory : String) (cons "exceeds" (cons (prim format_decimal limit : String) (nil String))))))) " " : String)
+    | Finding.PlaintextPii name => (prim join (cons "finding" (cons "plaintext-pii" (cons name (nil String)))) " " : String)),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: findingPrecedes,
+  parameters: [left : Finding, right : Finding],
+  result: Bool,
+  body: (match left
+    | Finding.MemoryExceeded leftName leftMemory leftLimit => (match right
+      | Finding.MemoryExceeded rightName rightMemory rightLimit => (Core::precedes leftName rightName)
+      | Finding.PlaintextPii rightName => true)
+    | Finding.PlaintextPii leftName => (match right
+      | Finding.MemoryExceeded rightName rightMemory rightLimit => false
+      | Finding.PlaintextPii rightName => (Core::precedes leftName rightName))),
+  axioms: [propext]
+}
+
+definition{
+  name: insertFinding,
+  parameters: [item : Finding, sorted : (List Finding)],
+  result: FindingList,
+  body: (match sorted
+    | List.nil => (record FindingList {items := (cons item (nil Finding))})
+    | List.cons head rest => (if (findingPrecedes item head) then (record FindingList {items := (cons item (cons head rest))}) else (record FindingList {items := (cons head (project (insertFinding item rest) items))}))),
+  axioms: [propext],
+  recursive_argument: sorted
+}
+
+definition{
+  name: sortFindings,
+  parameters: [items : (List Finding)],
+  result: FindingList,
+  body: (match items
+    | List.nil => (record FindingList {items := (nil Finding)})
+    | List.cons head rest => (insertFinding head (project (sortFindings rest) items))),
+  axioms: [propext],
+  recursive_argument: items
+}
+
+definition{
+  name: findingsText,
+  parameters: [found : (List Finding)],
+  result: String,
+  body: (match found
+    | List.nil => ""
+    | List.cons head rest => (prim join (cons "\n" (cons (findingLine head) (cons (findingsText rest) (nil String)))) "" : String)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  recursive_argument: found
+}
+
+definition{
+  name: encryptedPipeline,
+  parameters: [],
+  result: Core::Project,
+  body: (record Core::Project {policies := (record Core::Policies {memoryLimit := (ctor Option.some [UInt64] (4000000 : UInt64)), piiEncryption := true}), nodes := (cons (record Core::Node {name := "camera", kind := (ctor Core::NodeKind.Input), memory := (0 : UInt64)}) (cons (record Core::Node {name := "detector", kind := (ctor Core::NodeKind.Operator), memory := (2000000 : UInt64)}) (cons (record Core::Node {name := "vault", kind := (ctor Core::NodeKind.Encrypt), memory := (1000 : UInt64)}) (cons (record Core::Node {name := "screen", kind := (ctor Core::NodeKind.Output), memory := (0 : UInt64)}) (nil Core::Node))))), edges := (cons (record Core::Edge {source := "camera", target := "detector"}) (cons (record Core::Edge {source := "detector", target := "vault"}) (cons (record Core::Edge {source := "vault", target := "screen"}) (nil Core::Edge)))), pii := (cons "camera" (nil String))})
+}
+
+definition{
+  name: bypassedPipeline,
+  parameters: [],
+  result: Core::Project,
+  body: (record Core::Project {policies := (record Core::Policies {memoryLimit := (ctor Option.none [UInt64]), piiEncryption := true}), nodes := (cons (record Core::Node {name := "camera", kind := (ctor Core::NodeKind.Input), memory := (0 : UInt64)}) (cons (record Core::Node {name := "detector", kind := (ctor Core::NodeKind.Operator), memory := (2000000 : UInt64)}) (cons (record Core::Node {name := "vault", kind := (ctor Core::NodeKind.Encrypt), memory := (1000 : UInt64)}) (cons (record Core::Node {name := "screen", kind := (ctor Core::NodeKind.Output), memory := (0 : UInt64)}) (nil Core::Node))))), edges := (cons (record Core::Edge {source := "camera", target := "detector"}) (cons (record Core::Edge {source := "detector", target := "vault"}) (cons (record Core::Edge {source := "vault", target := "screen"}) (cons (record Core::Edge {source := "detector", target := "screen"}) (nil Core::Edge))))), pii := (cons "camera" (nil String))})
+}
+
+definition{
+  name: oversizedPipeline,
+  parameters: [],
+  result: Core::Project,
+  body: (record Core::Project {policies := (record Core::Policies {memoryLimit := (ctor Option.some [UInt64] (1000000 : UInt64)), piiEncryption := false}), nodes := (cons (record Core::Node {name := "camera", kind := (ctor Core::NodeKind.Input), memory := (0 : UInt64)}) (cons (record Core::Node {name := "detector", kind := (ctor Core::NodeKind.Operator), memory := (2000000 : UInt64)}) (cons (record Core::Node {name := "screen", kind := (ctor Core::NodeKind.Output), memory := (0 : UInt64)}) (nil Core::Node)))), edges := (cons (record Core::Edge {source := "camera", target := "detector"}) (cons (record Core::Edge {source := "detector", target := "screen"}) (nil Core::Edge))), pii := (nil String)})
+}
+
+theorem{
+  name: encryptedPipelineCompliant,
+  parameters: [],
+  statement: ((compliant (encryptedPipeline)) = true),
+  proof: decide{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: bypassedPipelineDetected,
+  parameters: [],
+  statement: ((compliant (bypassedPipeline)) = false),
+  proof: decide{},
+  axioms: [Quot.sound, propext]
+}
+
+theorem{
+  name: oversizedPipelineDetected,
+  parameters: [],
+  statement: ((compliant (oversizedPipeline)) = false),
+  proof: decide{},
+  axioms: [Quot.sound, propext]
+}
+\end{semanticmodule}
+\end{lexlean}

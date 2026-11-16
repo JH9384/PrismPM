@@ -1011,7 +1011,15 @@ pub fn audit_dependencies(root: &Path) -> Result<(), Fail> {
         .iter()
         .filter_map(|row| row.get("id").and_then(toml::Value::as_str))
         .collect::<Vec<_>>();
-    if ids != ["lean4-prod", "lexlean", "hologram-live", "uor-hologram"] {
+    if ids
+        != [
+            "lean4-prod",
+            "lexlean",
+            "hologram-live",
+            "uor-hologram",
+            "hologram-brand",
+        ]
+    {
         return Err("dependency rows are not the exact canonical set/order".into());
     }
     for row in rows {
@@ -1451,7 +1459,7 @@ pub fn audit_tools_ci(root: &Path) -> Result<(), Fail> {
         .and_then(toml::Value::as_table)
         .ok_or("tools.lock has no verification-executables row")?;
     let verification_source =
-        std::fs::read_to_string(root.join("crates/prismpm/src/verification.rs"))?;
+        std::fs::read_to_string(root.join("crates/prismpm/src/sdk/process.rs"))?;
     for name in ["elan_proxy_sha256", "rustup_proxy_sha256", "timeout_sha256"] {
         let digest = verification
             .get(name)
@@ -1477,11 +1485,9 @@ pub fn audit_tools_ci(root: &Path) -> Result<(), Fail> {
     }
     for workflow in [
         ".github/actions/devcontainer-cache/action.yml",
-        ".github/workflows/ci-parallel.yml",
         ".github/workflows/bootstrap.yml",
         ".github/workflows/native-golden.yml",
         ".github/workflows/reproducibility.yml",
-        ".github/workflows/vv.yml",
     ] {
         let source = std::fs::read_to_string(root.join(workflow))?;
         for line in source.lines().map(str::trim) {
@@ -1540,8 +1546,9 @@ pub fn audit_errors(root: &Path, model: &Model) -> Result<(), Fail> {
 
 /// Audit the exact Holo emitter input closure and its stored semantics digest.
 pub fn audit_emitter_inputs(root: &Path, model: &Model) -> Result<(), Fail> {
-    const EXPECTED: [&str; 31] = [
+    const EXPECTED: [&str; 48] = [
         "crates/prismpm/src/application_build.rs",
+        "crates/prismpm/src/brand.rs",
         "crates/prismpm/src/holo/application.rs",
         "crates/prismpm/src/holo/application/workbench.rs",
         "crates/prismpm/src/holo/browser_application.rs",
@@ -1557,6 +1564,11 @@ pub fn audit_emitter_inputs(root: &Path, model: &Model) -> Result<(), Fail> {
         "crates/prismpm/src/holo/mod.rs",
         "crates/prismpm/src/holo/model_document.rs",
         "crates/prismpm/src/holo/projector.rs",
+        "crates/prismpm/src/holo/server_application.rs",
+        "crates/prismpm/src/holo/server_application/model.rs",
+        "crates/prismpm/src/holo/server_application/serving.rs",
+        "crates/prismpm/src/holo/server_application/source.rs",
+        "crates/prismpm/src/holo/server_application/wire.rs",
         "crates/prismpm/src/holo/text_cli.rs",
         "crates/prismpm/src/holo/validate.rs",
         "crates/prismpm/src/holo/workbench.rs",
@@ -1570,8 +1582,19 @@ pub fn audit_emitter_inputs(root: &Path, model: &Model) -> Result<(), Fail> {
         "schemas/model-document-v4.schema.json",
         "schemas/model-document-v5.schema.json",
         "schemas/model-document-v6.schema.json",
+        "schemas/model-document-v7.schema.json",
+        "schemas/model-document-v8.schema.json",
         "schemas/model-document.schema.json",
         "schemas/workbench-view-projection.schema.json",
+        "vendor/hologram-brand/fonts/Archivo-SemiBold.woff2",
+        "vendor/hologram-brand/fonts/Geist-Medium.woff2",
+        "vendor/hologram-brand/fonts/Geist-Regular.woff2",
+        "vendor/hologram-brand/fonts/Geist-SemiBold.woff2",
+        "vendor/hologram-brand/fonts/GeistMono-Regular.woff2",
+        "vendor/hologram-brand/fonts/OFL-Archivo.txt",
+        "vendor/hologram-brand/fonts/OFL-Geist.txt",
+        "vendor/hologram-brand/icon-512.png",
+        "vendor/hologram-brand/icon.svg",
     ];
     if model.emitter_inputs.spec != "prismpm/emitter-inputs/1"
         || model.emitter_inputs.inputs != EXPECTED
@@ -1755,7 +1778,9 @@ mod lean_source_audit_tests {
              [[dependency.artifact]]\nkind = 'file'\npath = 'vendor/lexlean/lexlean-0.4.0.crate'\nsha256 = '{archive_digest}'\n\n\
              [[dependency]]\nid = 'hologram-live'\nrevision = '{revision}'\nsource = 'vendored'\nrole = 'validation-oracle'\n\
              [[dependency.artifact]]\nkind = 'file'\npath = 'vendor/fixture.bin'\nsha256 = '{other_digest}'\n\n\
-             [[dependency]]\nid = 'uor-hologram'\nrevision = '{revision}'\nsource = 'git'\nrole = 'validation-oracle'\n"
+             [[dependency]]\nid = 'uor-hologram'\nrevision = '{revision}'\nsource = 'git'\nrole = 'validation-oracle'\n\n\
+             [[dependency]]\nid = 'hologram-brand'\nrevision = '{revision}'\nsource = 'vendored'\nrole = 'brand-assets'\n\
+             [[dependency.artifact]]\nkind = 'file'\npath = 'vendor/fixture.bin'\nsha256 = '{other_digest}'\n"
         );
         std::fs::write(root.join("model/dependencies.toml"), source).unwrap();
     }

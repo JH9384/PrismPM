@@ -1,5 +1,5 @@
 import type { Server } from 'node:http';
-import type { Application, Capabilities, ContainerStore, LoadOptions, ManifestTarget, ParsedManifest, PrismError } from './index.js';
+import type { Application, Capabilities, ContainerStore, CreatePrismOptions, ImageStoreBackend, LoadOptions, ManifestTarget, ParsedManifest, PrismClient, PrismError } from './index.js';
 
 /** Open a `.holo` file or a closure directory. */
 export function fromFile(source: string | URL, options?: LoadOptions): Promise<Application>;
@@ -7,8 +7,19 @@ export function fromFile(source: string | URL, options?: LoadOptions): Promise<A
 export function readClosureDirectory(directory: string): Promise<Map<string, Uint8Array>>;
 /** Experimental. Where `prism-code run` keeps containers: `$PRISM_HOME/containers`, by default `~/.prism/containers`. */
 export function containersDirectory(env?: Record<string, string | undefined>): string;
+/** Where `Prism.fromEnv()` keeps images (#349): `$PRISM_IMAGES`, else `$PRISM_HOME/images`, by default `~/.prism/images`. */
+export function imagesDirectory(env?: Record<string, string | undefined>): string;
+/** The local image store on disk: `index.json` and `blobs/blake3/<hex>`, readable only by this user. */
+export function fileImageStore(directory: string): ImageStoreBackend;
+/** The local image store in memory. */
+export function memoryImageStore(): ImageStoreBackend;
 /** Experimental. Container records as one JSON file each, readable only by this user. A record holds the output and never the input. */
 export function fileContainerStore(directory?: string): ContainerStore;
+/** docker-py's `docker.from_env()` (#441): containers under `$PRISM_HOME/containers`, `images.build` through this machine's Docker, `system` reading `prismpm.lock`, and `auth` over Docker's credential stores. Other options are `createPrism`'s and win. */
+export const Prism: {
+  fromEnv(options?: CreatePrismOptions & { env?: Record<string, string | undefined> }): PrismClient;
+  create(options?: CreatePrismOptions): PrismClient;
+};
 /** Serve `app.view` as static files and answer `POST /_hologram/intent` with `app.dispatch`. */
 export function serve(app: Application, options?: { port?: number; host?: string }): Promise<{ server: Server; url: string; close(): Promise<void> }>;
 
@@ -217,9 +228,9 @@ export interface PushResult {
 export interface PullOptions extends RegistryOptions {
   /** A path, or a `dir://` reference to store the holo with all its referrers. Without one, nothing is written. */
   output?: string;
-  /** A policy file path or object, as `check` takes. Default: P0 or `PRISM_MINIMUM_LEVEL`. */
+  /** A policy file path, a shipped name, or an object of the same members. Default: P0 or `PRISM_MINIMUM_LEVEL`. */
   policy?: string | object;
-  /** With any of these, at least one attestation must pass, as `experimental_verifyAttestations`. */
+  /** With any of these, at least one attestation must pass, as `experimental_verifyAttestations`, and the signed statements in the holo count toward the level, as in `check`. */
   key?: string | KeyObject;
   certificateIdentity?: string;
   certificateIdentityRegexp?: string | RegExp;
@@ -332,9 +343,9 @@ export interface ExportFile {
   digest: string;
   size: number;
 }
-/** `prismpm/browser-export/1`, the receipt `prismpm export-browser` prints. Integrity only. */
+/** `prismpm/browser-export/2`, the receipt `prismpm export-browser` prints, over closure v1 or v2. Integrity only. */
 export interface BrowserExportReceipt {
-  schema: 'prismpm/browser-export/1';
+  schema: 'prismpm/browser-export/2';
   reference: string;
   release_digest: string;
   model_digest: string;
@@ -345,7 +356,7 @@ export interface BrowserExportReceipt {
   tree_digest: string;
 }
 /**
- * Experimental. Write the six-file browser export of a verified release in `<project>/.prism/oci`
+ * Experimental. Write the browser export (closure v1 or v2) of a verified release in `<project>/.prism/oci`
  * to a new directory (`out`) or a new `<name>.tar` (`tar`) in the project, and the holo's attestation
  * bundles to `<name>.attestations.jsonl` beside it. Throws `ExportMismatchError` when a file's bytes
  * differ from its build manifest row or release layer, and `PrismCodeError` (`export.*`) otherwise.

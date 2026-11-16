@@ -1,0 +1,635 @@
+\begin{lexlean}{Foundation.Bindings.V1.Text}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.bindings@1.0.0}
+\importmodule{Foundation.Bindings.V1.Model}
+\title{Bindings source text}
+\begin{semanticmodule}
+definition{
+  name: piece,
+  parameters: [value : Bytes, start : Nat, count : Nat],
+  result: Bytes,
+  body: (match (prim slice value start count : (Option Bytes))
+    | Option.none => 0x
+    | Option.some part => part),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: bytesEqual,
+  parameters: [left : Bytes, right : Bytes],
+  result: Bool,
+  body: (prim equal (prim compare_bytes left right : Ordering) (prim compare_bytes 0x00 0x00 : Ordering) : Bool),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: lowerLetters,
+  parameters: [],
+  result: Bytes,
+  body: 0x6162636465666768696a6b6c6d6e6f707172737475767778797a,
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: upperLetters,
+  parameters: [],
+  result: Bytes,
+  body: 0x4142434445464748494a4b4c4d4e4f505152535455565758595a,
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: swapCaseSearch,
+  parameters: [octet : Bytes, from : Bytes, to : Bytes, count : Nat],
+  result: Bytes,
+  body: (match count
+    | Nat.zero => octet
+    | Nat.succ rest => (if (bytesEqual (piece from rest 1) octet) then (piece to rest 1) else (swapCaseSearch octet from to rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: count
+}
+
+definition{
+  name: upperOctet,
+  parameters: [octet : Bytes],
+  result: Bytes,
+  body: (swapCaseSearch octet (lowerLetters) (upperLetters) 26),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: lowerOctet,
+  parameters: [octet : Bytes],
+  result: Bytes,
+  body: (swapCaseSearch octet (upperLetters) (lowerLetters) 26),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: isUpperOctet,
+  parameters: [octet : Bytes],
+  result: Bool,
+  body: (not (bytesEqual (lowerOctet octet) octet)),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: isSeparator,
+  parameters: [octet : Bytes],
+  result: Bool,
+  body: ((bytesEqual octet 0x2d) || (bytesEqual octet 0x5f)),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: camelFrom,
+  parameters: [source : Bytes, index : Nat, raise : Bool, remaining : Nat],
+  result: Bytes,
+  body: (match remaining
+    | Nat.zero => 0x
+    | Nat.succ rest => (if (isSeparator (piece source index 1)) then (camelFrom source (index + 1) true rest) else (prim append (if raise then (upperOctet (piece source index 1)) else (piece source index 1)) (camelFrom source (index + 1) false rest) : Bytes))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: kebabFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Bytes,
+  body: (match remaining
+    | Nat.zero => 0x
+    | Nat.succ rest => (if (isUpperOctet (piece source index 1)) then (prim append (if (index =? 0) then (lowerOctet (piece source index 1)) else (prim append 0x2d (lowerOctet (piece source index 1)) : Bytes)) (kebabFrom source (index + 1) rest) : Bytes) else (prim append (piece source index 1) (kebabFrom source (index + 1) rest) : Bytes))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: textOf,
+  parameters: [value : Bytes, fallback : String],
+  result: String,
+  body: (match (prim utf8_decode value : (Option String))
+    | Option.none => fallback
+    | Option.some text => text),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: camel,
+  parameters: [name : String],
+  result: String,
+  body: (textOf (camelFrom (prim utf8_encode name : Bytes) 0 false (prim length (prim utf8_encode name : Bytes) : Nat)) name),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: pascal,
+  parameters: [name : String],
+  result: String,
+  body: (textOf (camelFrom (prim utf8_encode name : Bytes) 0 true (prim length (prim utf8_encode name : Bytes) : Nat)) name),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: kebab,
+  parameters: [name : String],
+  result: String,
+  body: (textOf (kebabFrom (prim utf8_encode name : Bytes) 0 (prim length (prim utf8_encode name : Bytes) : Nat)) name),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: escapeFrom,
+  parameters: [source : Bytes, index : Nat, quoteOctet : Bytes, remaining : Nat],
+  result: Bytes,
+  body: (match remaining
+    | Nat.zero => 0x
+    | Nat.succ rest => (prim append (if (bytesEqual (piece source index 1) 0x5c) then 0x5c5c else (if (bytesEqual (piece source index 1) quoteOctet) then (prim append 0x5c quoteOctet : Bytes) else (if (bytesEqual (piece source index 1) 0x0a) then 0x5c6e else (piece source index 1)))) (escapeFrom source (index + 1) quoteOctet rest) : Bytes)),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: quoteWith,
+  parameters: [value : String, quoteOctet : Bytes],
+  result: String,
+  body: (textOf (prim append (prim append quoteOctet (escapeFrom (prim utf8_encode value : Bytes) 0 quoteOctet (prim length (prim utf8_encode value : Bytes) : Nat)) : Bytes) quoteOctet : Bytes) value),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: singleQuoted,
+  parameters: [value : String],
+  result: String,
+  body: (quoteWith value 0x27),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: doubleQuoted,
+  parameters: [value : String],
+  result: String,
+  body: (quoteWith value 0x22),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: concat,
+  parameters: [parts : (List String)],
+  result: String,
+  body: (prim join parts "" : String),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: block,
+  parameters: [parts : (List String)],
+  result: String,
+  body: (prim join (prim append parts (cons "" (nil String)) : (List String)) "\n" : String),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: trimEndFrom,
+  parameters: [source : Bytes, remaining : Nat],
+  result: Bytes,
+  body: (match remaining
+    | Nat.zero => 0x
+    | Nat.succ rest => (if (bytesEqual (piece source rest 1) 0x20) then (trimEndFrom (piece source 0 rest) rest) else source)),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: trimEnd,
+  parameters: [value : String],
+  result: String,
+  body: (textOf (trimEndFrom (prim utf8_encode value : Bytes) (prim length (prim utf8_encode value : Bytes) : Nat)) value),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: header,
+  parameters: [marker : String, generator : String, source : String],
+  result: String,
+  body: (concat (cons marker (cons " Generated by `" (cons generator (cons "` from " (cons source (cons ".\n" (cons marker (cons " Do not edit: run `" (cons generator (cons "` again.\n" (nil String)))))))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: worldSource,
+  parameters: [world : Foundation.Bindings.V1.Model::BindingWorld],
+  result: String,
+  body: (concat (cons "the WIT world " (cons (project world contract) (cons " (" (cons (project world file) (cons ")" (nil String))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: modelSource,
+  parameters: [application : Foundation.Bindings.V1.Model::BindingApplication],
+  result: String,
+  body: (concat (cons (project application name) (cons "'s model (" (cons (project application schema) (cons ", blake3:" (cons (project application blake3) (cons ")" (nil String)))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: errorText,
+  parameters: [
+    application : Foundation.Bindings.V1.Model::BindingApplication,
+    version : String,
+    case : Foundation.Bindings.V1.Model::BindingErrorCase
+  ],
+  result: String,
+  body: (match (project case message)
+    | Option.some message => message
+    | Option.none => (if (prim equal (project case code) "unsupported-version" : Bool) then (concat (cons (project application name) (cons " does not answer request version " (cons version (cons "." (nil String)))))) else (if (prim equal (project case code) "unknown-operation" : Bool) then (concat (cons (project application name) (cons " does not know this operation." (nil String)))) else (concat (cons (project application name) (cons " refused the request: " (cons (project case code) (cons "." (nil String))))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: described,
+  parameters: [application : Foundation.Bindings.V1.Model::BindingApplication, opening : String],
+  result: (List String),
+  body: (match (project application description)
+    | Option.none => (cons opening (nil String))
+    | Option.some text => (cons opening (cons "" (cons text (nil String))))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: digits,
+  parameters: [],
+  result: Bytes,
+  body: 0x30313233343536373839,
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: among,
+  parameters: [octet : Bytes, set : Bytes, count : Nat],
+  result: Bool,
+  body: (match count
+    | Nat.zero => false
+    | Nat.succ rest => ((bytesEqual (piece set rest 1) octet) || (among octet set rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: count
+}
+
+definition{
+  name: isLowerOrDigit,
+  parameters: [octet : Bytes],
+  result: Bool,
+  body: ((among octet (lowerLetters) 26) || (among octet (digits) 10)),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: snakeFrom,
+  parameters: [source : Bytes, index : Nat, after : Bool, remaining : Nat],
+  result: Bytes,
+  body: (match remaining
+    | Nat.zero => 0x
+    | Nat.succ rest => (let octet : Bytes := (piece source index 1); (if (bytesEqual octet 0x2d) then (prim append 0x5f (snakeFrom source (index + 1) false rest) : Bytes) else (if (isUpperOctet octet) then (prim append (if after then (prim append 0x5f (lowerOctet octet) : Bytes) else (lowerOctet octet)) (snakeFrom source (index + 1) false rest) : Bytes) else (prim append octet (snakeFrom source (index + 1) (isLowerOrDigit octet) rest) : Bytes))))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: snake,
+  parameters: [name : String],
+  result: String,
+  body: (textOf (snakeFrom (prim utf8_encode name : Bytes) 0 false (prim length (prim utf8_encode name : Bytes) : Nat)) name),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: upperFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Bytes,
+  body: (match remaining
+    | Nat.zero => 0x
+    | Nat.succ rest => (prim append (upperOctet (piece source index 1)) (upperFrom source (index + 1) rest) : Bytes)),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: constant,
+  parameters: [name : String],
+  result: String,
+  body: (let snaked : Bytes := (prim utf8_encode (snake name) : Bytes); (textOf (upperFrom snaked 0 (prim length snaked : Nat)) name)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: identifierFrom,
+  parameters: [source : Bytes, index : Nat, remaining : Nat],
+  result: Bool,
+  body: (match remaining
+    | Nat.zero => true
+    | Nat.succ rest => (((isLowerOrDigit (piece source index 1)) || (bytesEqual (piece source index 1) 0x5f)) && (identifierFrom source (index + 1) rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: remaining
+}
+
+definition{
+  name: isIdentifier,
+  parameters: [name : String],
+  result: Bool,
+  body: (let encoded : Bytes := (prim utf8_encode name : Bytes); ((not ((prim length encoded : Nat) =? 0)) && ((not (among (piece encoded 0 1) (digits) 10)) && (identifierFrom encoded 0 (prim length encoded : Nat))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: memberText,
+  parameters: [value : String, values : (List String)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head rest => ((prim equal head value : Bool) || (memberText value rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: values
+}
+
+definition{
+  name: textBefore,
+  parameters: [left : String, right : String],
+  result: Bool,
+  body: (prim equal (prim compare_bytes (prim utf8_encode left : Bytes) (prim utf8_encode right : Bytes) : Ordering) (prim compare_bytes 0x00 0x01 : Ordering) : Bool),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: insertText,
+  parameters: [value : String, sorted : (List String)],
+  result: (List String),
+  body: (match sorted
+    | List.nil => (cons value (nil String))
+    | List.cons head rest => (if (textBefore value head) then (cons value (cons head rest)) else (cons head (insertText value rest)))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: sorted
+}
+
+definition{
+  name: sortTexts,
+  parameters: [values : (List String)],
+  result: (List String),
+  body: (match values
+    | List.nil => (nil String)
+    | List.cons head rest => (insertText head (sortTexts rest))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: values
+}
+
+definition{
+  name: digitText,
+  parameters: [digit : Nat],
+  result: String,
+  body: (textOf (piece (digits) digit 1) "0"),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: decimalFrom,
+  parameters: [value : Nat, fuel : Nat],
+  result: String,
+  body: (match fuel
+    | Nat.zero => ""
+    | Nat.succ rest => (if (value <? 10) then (digitText value) else (concat (cons (decimalFrom (prim quotient value 10 0 : Nat) rest) (cons (digitText (prim remainder value 10 0 : Nat)) (nil String)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: fuel
+}
+
+definition{
+  name: decimal,
+  parameters: [value : Nat],
+  result: String,
+  body: (decimalFrom value (value + 1)),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: fits,
+  parameters: [line : String],
+  result: Bool,
+  body: ((prim length line : Nat) <=? 100),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: quotedAll,
+  parameters: [values : (List String)],
+  result: (List String),
+  body: (match values
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (doubleQuoted head) (quotedAll rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: values
+}
+
+definition{
+  name: indented,
+  parameters: [indent : String, values : (List String), suffix : String],
+  result: (List String),
+  body: (match values
+    | List.nil => (nil String)
+    | List.cons head rest => (cons (concat (cons indent (cons head (cons suffix (nil String))))) (indented indent rest suffix))),
+  axioms: [propext],
+  executable: true,
+  recursive_argument: values
+}
+
+definition{
+  name: either,
+  parameters: [earlier : (Option (String * String)), later : (Option (String * String))],
+  result: (Option (String * String)),
+  body: (match earlier | Option.none => later | Option.some refusal => earlier),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: nameRefusal,
+  parameters: [writer : String, name : String],
+  result: (Option (String * String)),
+  body: (if (isIdentifier name) then (ctor Option.none [(String * String)]) else (ctor Option.some [(String * String)] ("generate.model", (concat (cons (doubleQuoted name) (cons " is not a name the " (cons writer (cons " writer can bind" (nil String))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: worldRefusal,
+  parameters: [writer : String, world : Foundation.Bindings.V1.Model::BindingWorld],
+  result: (Option (String * String)),
+  body: (if (not (prim equal (project world contract) "hologram:guest/core-wasm@1" : Bool)) then (ctor Option.some [(String * String)] ("generate.world", (concat (cons "the " (cons writer (cons " writer has no host protocol for " (cons (project world contract) (nil String)))))))) else (match (project world imports)
+    | List.nil => (ctor Option.none [(String * String)])
+    | List.cons function rest => (ctor Option.some [(String * String)] ("generate.world", (concat (cons "the " (cons writer (cons " writer binds import-free worlds; " (cons (project world contract) (cons " has imports" (nil String))))))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: hasCode,
+  parameters: [code : String, cases : (List Foundation.Bindings.V1.Model::BindingErrorCase)],
+  result: Bool,
+  body: (match cases
+    | List.nil => false
+    | List.cons case rest => ((prim equal (project case code) code : Bool) || (hasCode code rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: cases
+}
+
+definition{
+  name: versionRefusal,
+  parameters: [
+    application : Foundation.Bindings.V1.Model::BindingApplication,
+    api : Foundation.Bindings.V1.Model::BindingOperations
+  ],
+  result: (Option (String * String)),
+  body: (if (hasCode "unsupported-version" (project api errors)) then (ctor Option.none [(String * String)]) else (ctor Option.some [(String * String)] ("generate.model", (concat (cons (project application name) (cons "'s model has no unsupported-version error" (nil String))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: generated,
+  parameters: [
+    refusal : (Option (String * String)),
+    files : (List Foundation.Bindings.V1.Model::BindingFile)
+  ],
+  result: Foundation.Bindings.V1.Model::BindingOutput,
+  body: (match refusal
+    | Option.none => (ctor Foundation.Bindings.V1.Model::BindingOutput.Files files)
+    | Option.some reason => (ctor Foundation.Bindings.V1.Model::BindingOutput.Refused (first reason) (second reason))),
+  axioms: [],
+  executable: true
+}
+
+definition{
+  name: lookupText,
+  parameters: [key : String, table : (List (String * String))],
+  result: (Option String),
+  body: (match table
+    | List.nil => (ctor Option.none [String])
+    | List.cons entry rest => (if (prim equal (first entry) key : Bool) then (ctor Option.some [String] (second entry)) else (lookupText key rest))),
+  axioms: [],
+  executable: true,
+  recursive_argument: table
+}
+
+definition{
+  name: typeRefusal,
+  parameters: [writer : String, scalar : String, table : (List (String * String))],
+  result: (Option (String * String)),
+  body: (match (lookupText scalar table)
+    | Option.some name => (ctor Option.none [(String * String)])
+    | Option.none => (ctor Option.some [(String * String)] ("generate.world", (concat (cons "the " (cons writer (cons " writer has no type for WIT " (cons scalar (nil String))))))))),
+  axioms: [propext],
+  executable: true
+}
+
+definition{
+  name: parameterRefusal,
+  parameters: [
+    writer : String,
+    names : Bool,
+    table : (List (String * String)),
+    parameters : (List Foundation.Bindings.V1.Model::BindingParameter)
+  ],
+  result: (Option (String * String)),
+  body: (match parameters
+    | List.nil => (ctor Option.none [(String * String)])
+    | List.cons parameter rest => (either (if names then (nameRefusal writer (snake (project parameter name))) else (ctor Option.none [(String * String)])) (either (typeRefusal writer (project parameter scalar) table) (parameterRefusal writer names table rest)))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: parameters
+}
+
+definition{
+  name: exportRefusal,
+  parameters: [
+    writer : String,
+    names : Bool,
+    table : (List (String * String)),
+    functions : (List Foundation.Bindings.V1.Model::BindingFunction)
+  ],
+  result: (Option (String * String)),
+  body: (match functions
+    | List.nil => (ctor Option.none [(String * String)])
+    | List.cons function rest => (either (if names then (nameRefusal writer (project function name)) else (ctor Option.none [(String * String)])) (either (parameterRefusal writer names table (project function parameters)) (either (match (project function result)
+      | Option.none => (ctor Option.none [(String * String)])
+      | Option.some scalar => (typeRefusal writer scalar table)) (exportRefusal writer names table rest))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: functions
+}
+
+definition{
+  name: operationRefusal,
+  parameters: [writer : String, operations : (List Foundation.Bindings.V1.Model::BindingOperation)],
+  result: (Option (String * String)),
+  body: (match operations
+    | List.nil => (ctor Option.none [(String * String)])
+    | List.cons operation rest => (either (nameRefusal writer (snake (project operation name))) (operationRefusal writer rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true,
+  recursive_argument: operations
+}
+
+definition{
+  name: collision,
+  parameters: [name : String, function : String],
+  result: (Option (String * String)),
+  body: (ctor Option.some [(String * String)] ("generate.model", (concat (cons "operation " (cons name (cons " collides with the method " (cons function (nil String)))))))),
+  axioms: [propext],
+  executable: true
+}
+\end{semanticmodule}
+\end{lexlean}

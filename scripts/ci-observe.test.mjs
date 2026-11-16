@@ -346,32 +346,8 @@ test('cancellation kills a resistant descendant even when it has no inherited ou
   assert.equal(readJson(join(directory, 'monitor-result.json')).reason, 'stopped');
 });
 
-test('actual normative single-pass VV workflow propagates failure and rejects a swallowed failure', t => {
-  const body = workflow('vv.yml').jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd;
-  const check = candidate => {
-    for (const status of [0, 19]) {
-      const {root, env: baseEnv} = fixture(t);
-      const env = sessionFixture(root, baseEnv, {readDuringPreparation: true, image: `ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:${'b'.repeat(64)}`});
-      copyFileSync(script, join(root, 'scripts/ci-observe.mjs'));
-      const just = join(root, 'bin/just');
-      writeFileSync(just, `#!${process.execPath}\nconst fs=require('node:fs');const assert=require('node:assert/strict');assert.deepEqual(process.argv.slice(2),['vv']);const path='count';const count=fs.existsSync(path)?Number(fs.readFileSync(path))+1:1;fs.writeFileSync(path,String(count));process.stdout.write('call:'+count+'\\n');process.exit(${status});\n`);
-      chmodSync(just, 0o700);
-      if (!status) assert.equal(execFileSync('bash', ['-c', candidate], {cwd: root, env, encoding: 'utf8', timeout: 20_000}), 'call:1\n');
-      else assert.throws(() => execFileSync('bash', ['-c', candidate], {cwd: root, env, encoding: 'utf8', timeout: 20_000}), error => {
-        assert.equal(error.status, status); return true;
-      });
-      assert.equal(readFileSync(join(root, 'count'), 'utf8'), '1');
-      const directory = join(root, 'target/ci-diagnostics/vv');
-      assert.equal(readJson(join(directory, 'monitor-result.json')).reason, 'stopped');
-      assert.equal(readJson(join(directory, 'gate-result.json')).exitCode, status);
-    }
-  };
-  check(body);
-  assert.throws(() => check(body.replace('-- just vv', '-- just vv || true')));
-});
-
 test('all observed workflows retain their full gates, always stop/upload, and keep pinned actions', () => {
-  for (const [name, job, runs] of [['bootstrap.yml', 'native-gate', 1], ['vv.yml', 'vv', 1]]) {
+  for (const [name, job, runs, recipe] of [['bootstrap.yml', 'native-gate', 1, 'vv']]) {
     const steps = workflow(name).jobs[job].steps;
     const start = steps.findIndex(step => step.run?.includes('ci-observe.mjs start'));
     const gate = steps.findIndex(step => step.with?.runCmd);
@@ -381,7 +357,7 @@ test('all observed workflows retain their full gates, always stop/upload, and ke
     assert.equal(steps[stop].if, 'always()'); assert.equal(steps[upload].if, 'always()');
     assert.equal(steps[upload].with.path, 'target/ci-diagnostics/');
     assert.equal(steps[upload].with['retention-days'], 7);
-    assert.equal((steps[gate].with.runCmd.match(/ -- just vv/g) ?? []).length, runs);
+    assert.equal(steps[gate].with.runCmd.split(` -- just ${recipe}`).length - 1, runs);
     assert.equal(steps[gate]['continue-on-error'], undefined);
     for (const step of steps.filter(value => value.uses && !value.uses.startsWith('./'))) assert.match(step.uses, /@[0-9a-f]{40}$/);
   }
@@ -398,56 +374,22 @@ test('all observed workflows retain their full gates, always stop/upload, and ke
   assert.match(readFileSync(join(repository, 'xtask/src/main.rs'), 'utf8'), /"scripts\/ci-observe\.test\.mjs"/);
 });
 
-test('one normative workflow owns complete main acceptance and diagnostic owners stay on request, PR or schedule', () => {
-  const names = ['bootstrap.yml', 'ci-parallel.yml', 'reproducibility.yml'];
-  const check = (normative, diagnostics) => {
-    assert.deepEqual(normative.on, {push: {branches: ['main'], tags: ['v*']}, workflow_dispatch: null});
-    assert.deepEqual(normative.permissions, {contents: 'read'});
-    assert.deepEqual(normative.concurrency, {
-      group: '${{ github.workflow }}-${{ github.ref }}',
-      'cancel-in-progress': true,
-    });
-    assert.equal(normative.jobs.vv.if, undefined);
-    assert.equal(normative.jobs.vv['continue-on-error'], undefined);
-    assert.equal(normative.jobs.vv['timeout-minutes'], 360);
-    const checkout = normative.jobs.vv.steps.find(step => step.uses?.startsWith('actions/checkout@'));
-    assert.equal(checkout.with['fetch-depth'], 0);
-    assert.equal(checkout.with['persist-credentials'], false);
-    const gate = normative.jobs.vv.steps.find(step => step.with?.runCmd);
-    assert.equal(gate.if, undefined);
-    assert.equal(gate['continue-on-error'], undefined);
-    assert.equal(gate.with.push, 'never');
-    assert.equal(gate.with.runCmd, 'set -euo pipefail\n'
-      + 'bash scripts/vv.sh --with-sdk bash -euo pipefail -c "$(cat <<\'PRISMPM_VV\'\n'
-      + 'node scripts/ci-observe.mjs run target/ci-diagnostics/vv -- just vv\n'
-      + 'PRISMPM_VV\n)"\n');
-    const events = [{workflow_dispatch: null}, {pull_request: null, merge_group: {branches: ['main']}, workflow_dispatch: null},
-      {schedule: [{cron: '17 3 * * *'}], workflow_dispatch: null}];
+test('the delegation owns complete main acceptance and diagnostic owners stay on request or schedule', () => {
+  // The eight normative parts are the delegation's vv-<part> obligations
+  // (prism-factory/model/src/Factory/PrismPM.lex.tex); vv.yml is retired.
+  assert(!existsSync(join(repository, '.github/workflows/vv.yml')));
+  assert.deepEqual(workflow('prism-delegation.yml').on.push, {branches: ['main', 'release/v*'], tags: ['v*']});
+  const names = ['bootstrap.yml', 'reproducibility.yml'];
+  const events = [{workflow_dispatch: null}, {schedule: [{cron: '17 3 * * *'}], workflow_dispatch: null}];
+  const check = diagnostics => {
     for (const [index, diagnostic] of diagnostics.entries()) assert.deepEqual(diagnostic.on, events[index]);
   };
-  const normative = workflow('vv.yml'), diagnostics = names.map(workflow);
-  check(normative, diagnostics);
-  for (const alter of [
-    value => { delete value.on.push; },
-    value => { value.on.pull_request = {paths: ['crates/**']}; },
-    value => { value.jobs.vv.if = 'false'; },
-    value => { value.jobs.vv['continue-on-error'] = true; },
-    value => { value.jobs.vv.steps.find(step => step.with?.runCmd).if = 'false'; },
-    value => { value.jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd = value.jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd.replace('--with-sdk', '--without-sdk'); },
-    value => { value.jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd += 'true\n'; },
-    value => { value.jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd = value.jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd.replace('just vv', 'just validate'); },
-    value => { value.concurrency['cancel-in-progress'] = false; },
-    value => { value.concurrency.group = '${{ github.ref }}'; },
-    value => { value.concurrency.group = '${{ github.workflow }}-${{ github.run_id }}'; },
-    value => { value.jobs.vv.steps.find(step => step.uses?.startsWith('actions/checkout@')).with['fetch-depth'] = 1; },
-  ]) {
-    const changed = structuredClone(normative); alter(changed);
-    assert.throws(() => check(changed, diagnostics));
-  }
+  const diagnostics = names.map(workflow);
+  check(diagnostics);
   for (let index = 0; index < diagnostics.length; index++) {
     const changed = structuredClone(diagnostics); changed[index].on.push = {};
-    assert.throws(() => check(normative, changed));
+    assert.throws(() => check(changed));
     const omitted = structuredClone(diagnostics); delete omitted[index].on.workflow_dispatch;
-    assert.throws(() => check(normative, omitted));
+    assert.throws(() => check(omitted));
   }
 });

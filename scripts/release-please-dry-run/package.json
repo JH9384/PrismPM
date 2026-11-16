@@ -1,0 +1,10 @@
+{
+  "name": "prismpm-release-please-dry-run",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pins the release-please library for scripts/release-please-dry-run/dry-run.mjs at the version release-please-action bundles.",
+  "type": "module",
+  "dependencies": {
+    "release-please": "17.1.3"
+  }
+}

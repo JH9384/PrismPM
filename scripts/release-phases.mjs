@@ -3,42 +3,67 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { constants, closeSync, createReadStream, fstatSync, lstatSync, mkdtempSync, openSync,
-  readFileSync, readSync, readdirSync, realpathSync, rmSync } from 'node:fs';
+  readFileSync, readSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateConfig } from './sdk-candidate.mjs';
+import { semver, workspaceVersion } from './workspace-version.mjs';
+
+export { workspaceVersion };
 import { describeSpdx, releaseTransportPolicy, transportSbom, trustRootDigest, verificationArguments } from './sdk-candidate-sbom.mjs';
 
-const repository = 'UOR-Foundation/PrismPM';
-const imageNames = ['sdk', 'runtime', 'adapter-compose', 'adapter-kubernetes', 'adapter-github-pages', 'oracles'];
+const repository = 'UOR-Foundation/prismpm';
+const imageNames = ['sdk', 'runtime', 'adapter-compose', 'adapter-kubernetes', 'adapter-github-pages', 'oracles', 'sdk-build'];
 const sha = bytes => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
-const ociNeeds = ['gate', 'images', 'native', 'reproducibility', 'installed-sdk'];
+const buildStages = ['images', 'native', 'reproducibility', 'installed-sdk'];
+const ociNeeds = ['gate', 'factory', ...buildStages];
 
-export function publicationPolicy(value) {
-  assert.deepEqual(Object.keys(value).sort(), ['event', 'publishCrates', 'ref', 'repository', 'revision', 'version']);
-  assert.equal(value.repository, repository);
-  assert.equal(value.version, '0.4.0');
-  assert.match(value.revision, /^[0-9a-f]{40}$/);
-  let publishCrates;
-  if (value.event === 'workflow_dispatch') {
-    assert.equal(value.ref, 'refs/heads/main');
-    assert.equal(typeof value.publishCrates, 'boolean', 'Cargo publication choice must be explicit');
-    publishCrates = value.publishCrates;
-  } else {
-    assert.equal(value.event, 'push');
-    assert.equal(value.ref, 'refs/tags/v0.4.0');
-    assert.equal(value.publishCrates, null);
-    publishCrates = true;
-  }
-  return {version: value.version, publishCrates};
+// The release line. The version has one source, the workspace version in
+// Cargo.toml (release-please bumps it). A rehearsal runs on `main` or on the
+// release branch of that minor (`release/vMAJOR.MINOR`); publication runs only
+// at the tag `vVERSION`, by a push of that tag or by the factory's cut, which
+// dispatches the run at the tag once a rehearsal of the same commit passed.
+export function releaseRefKind(ref, version) {
+  assert.match(version, semver);
+  const [major, minor] = version.split('.');
+  if (ref === 'refs/heads/main' || ref === `refs/heads/release/v${major}.${minor}`) return 'branch';
+  if (ref === `refs/tags/v${version}`) return 'tag';
+  throw new assert.AssertionError({message: `${ref} is not a release ref for ${version}`});
 }
 
-function policyFromEnvironment(environment) {
+export function publicationPolicy(value) {
+  assert.deepEqual(Object.keys(value).sort(), ['event', 'publishCrates', 'ref', 'rehearsal', 'repository', 'revision', 'version']);
+  assert.equal(value.repository, repository);
+  assert.match(value.version, semver);
+  assert.match(value.revision, /^[0-9a-f]{40}$/);
+  const kind = releaseRefKind(value.ref, value.version);
+  let publishCrates, rehearsal;
+  if (value.event === 'workflow_dispatch') {
+    assert.equal(typeof value.publishCrates, 'boolean', 'Cargo publication choice must be explicit');
+    assert.equal(typeof value.rehearsal, 'boolean', 'rehearsal choice must be explicit');
+    publishCrates = value.publishCrates; rehearsal = value.rehearsal;
+    assert(!(rehearsal && publishCrates), 'a rehearsal cannot publish crates');
+    assert.equal(rehearsal, kind === 'branch', 'a branch run is a rehearsal and only the tag publishes');
+  } else {
+    assert.equal(value.event, 'push');
+    assert.equal(value.publishCrates, null);
+    assert.equal(value.rehearsal, null);
+    assert.notEqual(value.ref, 'refs/heads/main', 'main rehearses only by dispatch');
+    rehearsal = kind === 'branch'; publishCrates = !rehearsal;
+  }
+  return {version: value.version, publishCrates, rehearsal};
+}
+
+export function policyFromEnvironment(environment) {
   const event = environment.GITHUB_EVENT_NAME;
+  const version = workspaceVersion();
+  if (event === 'workflow_dispatch' && environment.DISPATCH_VERSION)
+    assert.equal(environment.DISPATCH_VERSION, version, 'the dispatched version must be the workspace version');
   return publicationPolicy({repository: environment.GITHUB_REPOSITORY, ref: environment.GITHUB_REF,
-    event, version: environment.DISPATCH_VERSION || environment.GITHUB_REF_NAME?.replace(/^v/, ''),
-    publishCrates: event === 'push' ? null : JSON.parse(environment.PUBLISH_CRATES), revision: environment.GITHUB_SHA});
+    event, version,
+    publishCrates: event === 'push' ? null : JSON.parse(environment.PUBLISH_CRATES),
+    rehearsal: event === 'push' ? null : JSON.parse(environment.REHEARSAL), revision: environment.GITHUB_SHA});
 }
 
 function publicationTag(environment) {
@@ -57,7 +82,14 @@ export function requirePrerequisites(phase, needs) {
   assert.ok(['oci-native', 'release'].includes(phase));
   const expected = phase === 'oci-native' ? ociNeeds : [...ociNeeds, 'oci-native', 'crates'];
   assert.deepEqual(Object.keys(needs).sort(), [...expected].sort());
-  for (const name of expected) assert.equal(needs[name]?.result, 'success', `${name} did not succeed`);
+  // A build receipt (scripts/factory.mjs) proves the build stages: they are
+  // skipped exactly when the factory routed the build to its receipt.
+  const route = needs.factory?.outputs?.['build-route'];
+  assert.ok(['establish', 'proved'].includes(route), 'factory build route');
+  for (const name of expected) {
+    const result = route === 'proved' && buildStages.includes(name) ? 'skipped' : 'success';
+    assert.equal(needs[name]?.result, result, `${name} did not ${result === 'success' ? 'succeed' : 'route to its build receipt'}`);
+  }
 }
 
 const metadataLimit = 16 * 1024 ** 2;
@@ -185,11 +217,32 @@ function publishedPlatform(image, indexBytes, architecture) {
   return index.manifests.find(row => row.platform.architecture === architecture);
 }
 
-export function verifyReproducibility(image, indexBytes, architecture, revision, first, second) {
+// The two platform manifests were pushed by digest from native builds; the
+// index that names them is the published identity. Its bytes are canonical
+// so that the same two manifests always give the same index digest.
+export function platformIndex(platforms) {
+  assert.equal(platforms.length, 2);
+  const manifests = platforms.map(({architecture, digest, bytes}, position) => {
+    assert.equal(architecture, ['amd64', 'arm64'][position]);
+    assert.match(digest, /^sha256:[0-9a-f]{64}$/);
+    assert.equal(sha(bytes), digest, 'platform manifest differs from its pushed digest');
+    const manifest = JSON.parse(bytes);
+    assert.equal(manifest.schemaVersion, 2);
+    assert.equal(manifest.mediaType, 'application/vnd.oci.image.manifest.v1+json');
+    assert.equal(manifest.config?.mediaType, 'application/vnd.oci.image.config.v1+json');
+    return {mediaType: manifest.mediaType, digest, size: bytes.length, platform: {architecture, os: 'linux'}};
+  });
+  return Buffer.from(JSON.stringify({schemaVersion: 2, mediaType: 'application/vnd.oci.image.index.v1+json', manifests}));
+}
+
+// Each rebuild is an independent build in its own root; the shipped platform
+// manifest is the other. One rebuild establishes reproducibility.
+export function verifyReproducibility(image, indexBytes, architecture, revision, ...rebuilds) {
   assert.match(revision, /^[0-9a-f]{40}$/);
+  assert(rebuilds.length >= 1, 'at least one rebuild');
   const published = publishedPlatform(image, indexBytes, architecture);
   const owners = [];
-  for (const directory of [first, second]) {
+  for (const directory of rebuilds) {
     const {descriptor: rebuilt, verify} = rebuiltManifest(directory, architecture, revision);
     owners.push(verify);
     assert.equal(rebuilt.digest, published.digest, 'rebuilt bytes differ from the shipped platform manifest');
@@ -213,11 +266,11 @@ export function releaseSbomRecord(image, indexBytes, childBytes, configBytes, sp
     spdx: describeSpdx(spdxBytes), production_accepted: false};
 }
 
-export function imageVerificationArguments(image, revision, ref, trustedRoot) {
+export function imageVerificationArguments(image, revision, ref, trustedRoot, event) {
   const [name, digest, extra] = image.split('@');
   assert.equal(extra, undefined);
   return verificationArguments({source_revision: revision}, digest, trustedRoot,
-    releaseTransportPolicy(name, ref));
+    releaseTransportPolicy(name, ref, event));
 }
 
 export function verifyExistingRelease(release, expected, downloaded, tagCommit, draft = false) {
@@ -275,22 +328,22 @@ export function publicationNotes(revision) {
     'These immutable OCI/native assets passed the workflow prerequisites and are published for verification.\n' +
     'This phase does not publish Cargo packages, versioned discovery aliases, or an accepted SDK/ecosystem release.\n' +
     'Each platform has complete raw SPDX in a separately signed OCI artifact, not an inline SPDX attestation.\n' +
-    'Original native installed-SDK two-run evidence is retained; independent SDK acceptance remains separate.\n' +
+    'Source V&V evidence is bound to its content identity in factory-route.json; independent SDK acceptance remains separate.\n' +
     'Public Cargo qualification and ecosystem acceptance are separate later phases.\n';
 }
 
-export function assetNames() {
+export function assetNames(version = workspaceVersion()) {
   return [
-    'SHA256SUMS', 'source-vv.tar', 'sdk-metadata-native-join.json',
+    'SHA256SUMS', 'factory-route.json', 'source-vv.tar', 'sdk-metadata-native-join.json',
     ...['amd64', 'arm64'].flatMap(architecture => [
-      `sdk-${architecture}-full-sdk-vv.tar`, `sdk-${architecture}-product-cli.tar`,
+      `sdk-${architecture}-product-cli.tar`,
       `sdk-${architecture}-native-equivalence.tar`,
       `sdk-${architecture}-native-metadata.tar`,
       `sdk-${architecture}-browser-sdk.log`, `sdk-${architecture}-library-sdk.log`,
     ]),
     ...['x86_64', 'aarch64'].flatMap(architecture => [
-      `prismpm-0.4.0-${architecture}-unknown-linux-gnu.tar.gz`,
-      `prismpm-0.4.0-${architecture}-unknown-linux-gnu.tar.gz.sha256`,
+      `prismpm-${version}-${architecture}-unknown-linux-gnu.tar.gz`,
+      `prismpm-${version}-${architecture}-unknown-linux-gnu.tar.gz.sha256`,
     ]),
     ...imageNames.flatMap(name => [
       `${name}-image.txt`, `${name}-image-index.json`, `${name}-provenance.sigstore.json`,
@@ -349,23 +402,30 @@ async function main([command, ...args]) {
   if (command === 'policy') {
     assert.equal(args.length, 0);
     const policy = policyFromEnvironment(process.env);
-    process.stdout.write(`version=${policy.version}\npublish-crates=${policy.publishCrates}\n`);
+    process.stdout.write(`version=${policy.version}\npublish-crates=${policy.publishCrates}\nrehearsal=${policy.rehearsal}\n`);
   } else if (command === 'prerequisites') {
     assert.equal(args.length, 1);
     requirePrerequisites(args[0], JSON.parse(process.env.RELEASE_NEEDS));
   } else if (command === 'reproducibility') {
-    assert.equal(args.length, 6);
-    const [reference, index, architecture, revision, first, second] = args;
+    assert.equal(args.length, 5);
+    const [reference, index, architecture, revision, rebuilt] = args;
     const image = readFileSync(reference, 'utf8').trim();
-    const digest = verifyReproducibility(image, readFileSync(index), architecture, revision, first, second);
+    const digest = verifyReproducibility(image, readFileSync(index), architecture, revision, rebuilt);
     process.stdout.write(`${revision} linux/${architecture} ${image} ${digest}\n`);
+  } else if (command === 'image-index') {
+    assert.equal(args.length, 5);
+    const [amd64, amd64Manifest, arm64, arm64Manifest, output] = args;
+    const index = platformIndex([{architecture: 'amd64', digest: amd64, bytes: readFileSync(amd64Manifest)},
+      {architecture: 'arm64', digest: arm64, bytes: readFileSync(arm64Manifest)}]);
+    writeFileSync(output, index, {flag: 'wx'});
+    process.stdout.write(`${sha(index)}\n`);
   } else if (command === 'publish-oci') {
     assert.equal(args.length, 1);
     requirePrerequisites('oci-native', JSON.parse(process.env.RELEASE_NEEDS));
     process.stdout.write(`${await publishOci(resolve(args[0]), process.env.GITHUB_SHA)}\n`);
   } else if (command === 'image-verify') {
     assert.equal(args.length, 4);
-    const verification = imageVerificationArguments(...args);
+    const verification = imageVerificationArguments(...args, process.env.GITHUB_EVENT_NAME);
     assert.equal(sha(readFileSync(args[3])), trustRootDigest);
     process.stdout.write(execFileSync('cosign', verification,
       {stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 8 * 1024 * 1024, timeout: 300_000}));
@@ -375,7 +435,7 @@ async function main([command, ...args]) {
     const read = name => readFileSync(join(directory, name));
     const record = releaseSbomRecord(image, read('index.json'), read('manifest.json'), read('config.json'),
       read('sbom.spdx.json'), architecture, revision);
-    const options = releaseTransportPolicy(image.split('@')[0], ref);
+    const options = releaseTransportPolicy(image.split('@')[0], ref, process.env.GITHUB_EVENT_NAME);
     if (command === 'sbom-publish') policyFromEnvironment(process.env);
     transportSbom(command, directory, record, trustedRoot, options);
   } else throw new Error('unsupported release phase operation');

@@ -253,12 +253,11 @@ fn run() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         "sdk_digest":arguments.sdk_digest,
         "status":if complete { "accepted" } else { "passed" }
     });
-    Ok(prismpm::contracts::CanonicalDocument::from_value(
-        "prismpm/production-acceptance/1",
-        transcript,
-    )?
-    .bytes()
-    .to_vec())
+    Ok(
+        prismpm::acceptance::contract_from_value("prismpm/production-acceptance/1", transcript)?
+            .bytes()
+            .to_vec(),
+    )
 }
 
 fn main() -> std::process::ExitCode {

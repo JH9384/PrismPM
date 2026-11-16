@@ -25,7 +25,7 @@ const result=release=>({schema:'prismpm/product-release-result/1',reference:'ghc
  product_digest:'sha256:'+'c'.repeat(64),release_digest:'sha256:'+(release==='A'?'d':'e').repeat(64),model_digest:'sha256:'+'f'.repeat(64),build_digest:'sha256:'+'1'.repeat(64),
  evidence_path:'.prism/releases/'+(release==='A'?'d':'e').repeat(64)+'/result.json'});
 function completed(){
- const files=['app.css','app.js','index.html','prism_calculator.js','prism_calculator_bg.wasm','provenance.json'].map(path=>({path,digest:sha(path),size:Buffer.byteLength(path)}));
+ const files=['Archivo-SemiBold.woff2','Geist-Medium.woff2','Geist-Regular.woff2','Geist-SemiBold.woff2','GeistMono-Regular.woff2','OFL-Archivo.txt','OFL-Geist.txt','app.css','app.js','icon-512.png','icon.svg','index.html','manifest.webmanifest','prism_calculator.js','prism_calculator_bg.wasm','provenance.json'].map(path=>({path,digest:sha(path),size:Buffer.byteLength(path)}));
  return{schema:'prismpm/installed-product-cli-check/1',scope:'installed-cli-product-build-and-source-free-integrity',status:'passed',sdk_image:image,
   releases:['A','B'].map(release=>({release,release_digest:result(release).release_digest,model_digest:result(release).model_digest,build_digest:result(release).build_digest,
    files,tree_digest:sha(canonical(files)),checks:['source-free-proof-replay','exact-browser-export','missing-proof-refused','changed-proof-refused','restored-export']})),
@@ -143,7 +143,7 @@ test('actual deadline kills descendant process group and cannot hang on retained
  const before=Date.now();await assert.rejects(()=>command(process.execPath,['-e',source,pidFile],{timeout:1000}),/timed out/);
  assert(Date.now()-before<5000,'deadline must not wait for descendant pipe closure');
  const pid=Number(readFileSync(pidFile,'utf8'));assert(Number.isSafeInteger(pid)&&pid>1);
- const state=()=>{try{return readFileSync('/proc/'+pid+'/stat','utf8').split(') ')[1][0];}catch(error){if(error.code==='ENOENT')return null;throw error;}};
+ const state=()=>{try{return readFileSync('/proc/'+pid+'/stat','utf8').split(') ')[1][0];}catch(error){if(error.code==='ENOENT'||error.code==='ESRCH')return null;throw error;}};
  t.after(()=>{if(!['Z',null].includes(state()))try{process.kill(pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}});
  for(let attempt=0;attempt<30&&!['Z',null].includes(state());attempt++)await new Promise(resolve=>setTimeout(resolve,10));
  assert(['Z',null].includes(state()),'timed-out descendant must not remain executing');
@@ -203,11 +203,20 @@ function confinedShell(script){
  for(const invocation of creates)assert(invocation.includes('--platform "linux/$architecture"'));
  assert(creates[0].includes('--entrypoint /usr/bin/true'));const [acquire,build,receiver]=creates.slice(1);
  for(const invocation of [acquire,build,receiver])for(const token of ['--user 1000:1000','--read-only','--cap-drop ALL','--security-opt no-new-privileges'])assert(invocation.includes(token),token);
- assert(acquire.includes('target=/var/run/docker.sock'));assert(acquire.includes('product-sdk-check.mjs acquire'));
+ assert(acquire.includes('target=/var/run/docker.sock'));assert(acquire.includes('--env DOCKER_CONFIG=/tmp/prismpm-docker-config'));
+ // Candidate qualification mounts this checkout's check over the image's copy in
+ // every phase; an ordinary run mounts nothing.
+ for(const invocation of [acquire,build,receiver])assert(invocation.includes('"${harness_mount[@]}"'));
+ assert(script.includes('harness_mount=()\nif test -n "${PRISMPM_QUALIFY_SOURCE:-}"; then'));assert(acquire.includes('product-sdk-check.mjs acquire'));
  for(const [invocation,phase] of [[build,'build'],[receiver,'receive']]){
-  assert(invocation.includes('--network none'));assert(!invocation.includes('/var/run/docker.sock'));assert(!invocation.includes('type=bind'));assert(!invocation.includes('--entrypoint'));
+  assert(invocation.includes('--network none'));assert(!invocation.includes('--entrypoint'));
   assert(invocation.includes('product-sdk-check.mjs '+phase));
  }
+ // The build's only host input is the socket of PrismPM's network-denied
+ // external-oracle sandbox; the receiver has none at all.
+ assert.deepEqual(build.match(/type=bind,[^"\s]*/g),['type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock']);
+ assert(build.includes('--group-add "$socket_gid"'));assert(build.includes('--env DOCKER_CONFIG=/tmp/prismpm-docker-config'));
+ assert(!receiver.includes('/var/run/docker.sock'));assert(!receiver.includes('type=bind'));assert(!receiver.includes('--group-add'));
  assert(build.includes('source=$project_volume'));assert(receiver.includes('source=$receiver_volume'));assert(!receiver.includes('source=$project_volume'));
  assert.equal((script.match(/docker container start --attach "\$container"/g)??[]).length,3);
  assert.equal((script.match(/\.State.ExitCode/g)??[]).length,3);
@@ -232,13 +241,13 @@ test('owning shell contract rejects missing executions, shared producer mount an
  ]){assert(script.includes(before));assert.throws(()=>confinedShell(script.replace(before,after)));}
 });
 
-test('native release gate remains downstream of published images and mandatory alongside complete SDK VV',()=>{
+test('native release gate remains downstream of published images and mandatory on both platforms',()=>{
  const source=readFileSync(new URL('../.github/workflows/release.yml',import.meta.url),'utf8');
+ assert(!source.includes('\n  installed-vv:\n'),'installed V&V is retired: it verified the source again on a projection');
  const job=source.split('\n  installed-sdk:\n')[1]?.split('\n  native:\n')[0];assert(job);
- assert(job.includes('needs: [gate, images]'));assert(job.includes('os: ubuntu-24.04-arm'));assert(job.includes('arch: amd64'));assert(job.includes('arch: arm64'));
- const outer=job.indexOf('bash root-a/scripts/sdk-vv-outer.sh');
- assert(outer>=0&&outer<job.indexOf('product-sdk-check.sh'));
- assert(job.includes('node root-a/scripts/product-sdk-check.mjs tests'));
+ assert(job.includes('needs: [policy, factory, images]'));assert(job.includes("if: ${{ needs.factory.outputs.build-route == 'establish' }}"));assert(job.includes('os: ubuntu-24.04-arm'));assert(job.includes('arch: amd64'));assert(job.includes('arch: arm64'));
+ // This file's own tests run in the release plumbing check, not again here.
+ assert(!job.includes('node root-a/scripts/product-sdk-check.mjs tests'));
  assert(job.includes('bash root-a/scripts/product-sdk-check.sh "$(cat .shipped-image/sdk-image.txt)"'));
  assert(!job.includes('continue-on-error'));assert(!job.includes('if: false'));
  const script=readFileSync(new URL('./product-sdk-check.mjs',import.meta.url),'utf8');
@@ -249,7 +258,7 @@ test('native release gate remains downstream of published images and mandatory a
 
 test('actual owning CLI boundary test rejects a removed exit-status guard',t=>{
  const root=temporary(t),source=readFileSync(new URL('./product-sdk-check.mjs',import.meta.url),'utf8');
- const line=" assert.equal(child.status,status,'command exit status: '+program+' '+args.join(' ')+'\\n'+(child.stderr??'').slice(-4000));";
+ const line=" assert.equal(child.status,status,'command exit status: '+program+' '+args.join(' ')+'\\n'+(child.stderr??'').slice(-4000)+'\\n'+(child.stdout??'').slice(-4000));";
  assert.equal(source.split(line).length,2);
  const module=source.replace(line,'').replace("'./library-sdk-check.mjs'",JSON.stringify(new URL('./library-sdk-check.mjs',import.meta.url).href))
   .replace("'./browser-api-sdk-check.mjs'",JSON.stringify(new URL('./browser-api-sdk-check.mjs',import.meta.url).href))
@@ -296,6 +305,8 @@ if(args[1]==='cp'){
  const from=args[2],to=args[3];if(to.includes(':/tmp/'))process.exit(0);
  if(from.endsWith('/usr/local/bin/prismpm-devcontainer-init')){fs.copyFileSync(path.join(env.RECORD_SOURCE,'sdk/devcontainer-init.sh'),to);process.exit(0);}
  if(from.endsWith('/.prism/oci')){fs.mkdirSync(to,{recursive:true});put(path.join(to,'index.json'),'{}');process.exit(0);}
+ if(to==='-'){const stage=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'cp-'));put(path.join(stage,path.basename(from)),'{}');
+  require('node:child_process').execFileSync('tar',['-c','-C',stage,path.basename(from)],{stdio:['ignore','inherit','inherit']});process.exit(0);}
  put(to,'{}');process.exit(0);
 }
 if(args[1]==='start'){

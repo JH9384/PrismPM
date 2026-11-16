@@ -1,8 +1,13 @@
-//! Modeled physical-v4 application composition and strict Holo/1 validation.
+//! Application holo composition and strict validation.
+//!
+//! Prism writes holo v5, a UORC archive whose ordered objects have the roles
+//! [`ROLES_V5`] and whose identities are κ-labels (ADR-017). The modeled
+//! physical-v4 reader stays for archives written before v5; nothing writes v4.
 
 use crate::error::PrismError;
 use crate::holo::attestation::{self, Attestation};
 use crate::holo::canonical::{content_id, encode_value};
+use crate::holo::v5;
 use prism_stdlib as wire;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -28,6 +33,10 @@ pub struct ApplicationArchiveInput {
     pub source_manifest: Vec<u8>,
     /// Closed provenance fields excluding kappas computed by this function.
     pub provenance: ArchiveProvenance,
+    /// κ of the Prism SDK release the application was built on (the digest
+    /// `prismpm.lock` pins for the SDK image), when the project pins one. A v5
+    /// holo names it as its basis (ADR-017).
+    pub basis: Option<String>,
 }
 
 /// Closed pre-archive provenance values.
@@ -148,13 +157,15 @@ pub struct HoloIdentities {
 /// Fully composed archive and its extension/evidence payloads.
 #[derive(Debug, Clone)]
 pub struct GeneratedHolo {
-    /// Binary Hologram v4 archive.
+    /// The holo: a v5 UORC archive (ADR-017).
     pub bytes: Vec<u8>,
-    /// Canonical AppManifest bytes.
+    /// The manifest object: canonical `prism/holo/5` JSON (the binary
+    /// AppManifest in a legacy v4 holo).
     pub application_manifest: Vec<u8>,
     /// Canonical empty CapabilitySet bytes.
     pub capability_request: Vec<u8>,
-    /// Canonical application-directory JSON bytes.
+    /// Canonical application-directory JSON bytes of a legacy v4 holo; empty
+    /// for v5, whose manifest names the layers.
     pub directory: Vec<u8>,
     /// Canonical Prism provenance-extension bytes.
     pub prism_extension: Vec<u8>,
@@ -201,9 +212,15 @@ struct DirectoryBlob {
     byte_length: u64,
 }
 
-/// The standard BLAKE3 primitive supplies the digest; modeled wire functions
-/// own the archive, manifest, capability and content-blob representations.
+/// The κ-label of `bytes`, `sha256:<hex>` (ADR-017): every identity a holo v5
+/// carries or that is computed over one.
 pub(crate) fn content_kappa(bytes: &[u8]) -> String {
+    v5::kappa(bytes)
+}
+
+/// The `blake3:<hex>` label a legacy physical-v4 archive names its blobs with.
+/// Only the v4 reader uses it; nothing writes it (ADR-017).
+pub(crate) fn v4_label(bytes: &[u8]) -> String {
     format!("blake3:{}", blake3::hash(bytes).to_hex())
 }
 
@@ -289,8 +306,13 @@ fn validate_provenance(value: &ArchiveProvenance) -> Result<(), PrismError> {
     Ok(())
 }
 
-/// Compose one deterministic, self-contained Wasm + portable-View application.
-pub fn compose_application(input: &ApplicationArchiveInput) -> Result<GeneratedHolo, PrismError> {
+/// Compose a legacy physical-v4 archive. Only tests use it, to hold the v4
+/// reader to archives the v4 writer produced; no command writes v4 (ADR-017).
+#[cfg(test)]
+pub(crate) fn compose_application_v4(
+    input: &ApplicationArchiveInput,
+) -> Result<GeneratedHolo, PrismError> {
+    let content_kappa = v4_label;
     validate_provenance(&input.provenance)?;
     if input.application_name.is_empty()
         || !input.guest_wasm.starts_with(b"\0asm")
@@ -434,10 +456,9 @@ pub fn compose_application(input: &ApplicationArchiveInput) -> Result<GeneratedH
     })
 }
 
-/// Strictly validate the closed Holo/1 Calculator/portable-app archive profile.
-///
-/// The archive has eight rows, or nine when it carries the attestation section
-/// (`docs/proposals/267-attestation-bundle.md`). Both shapes validate.
+/// Strictly validate an application holo: a v5 UORC archive of [`ROLES_V5`]
+/// (plus the attestation object when signed), or a legacy physical-v4 archive
+/// of eight rows, or nine when it carries the attestation section.
 pub fn validate_application(bytes: &[u8]) -> Result<(), PrismError> {
     parse_application(bytes).map(|_| ())
 }
@@ -464,15 +485,21 @@ fn attestation_payload(bytes: &[u8]) -> Result<Option<Vec<u8>>, PrismError> {
 /// bundle is decoded, its signature is not checked.
 pub fn read_attestations(bytes: &[u8]) -> Result<Vec<Attestation>, PrismError> {
     let parsed = parse_application(bytes)?;
+    if v5::is_uorc(bytes) {
+        return match split_v5(bytes)?.1 {
+            None => Ok(Vec::new()),
+            Some(payload) => attestation::decode_section(&payload, &parsed.blobs),
+        };
+    }
     match attestation_payload(bytes)? {
         None => Ok(Vec::new()),
         Some(payload) => attestation::decode_section(&payload, &parsed.blobs),
     }
 }
 
-/// A new archive with `bundles` added to the attestation section, creating it
-/// as the last row when absent. Rows 0 to 7 keep their bytes, offsets shift by
-/// one table row and the footer is recomputed. The input must already
+/// A new holo v5 with `bundles` added to its attestation object, creating it
+/// as the last object when absent. Every other object keeps its bytes and the
+/// seal is recomputed. A legacy v4 holo is refused: v4 is never written. The input must already
 /// validate, and every bundle must be a well-formed line of its own.
 pub fn attach_attestations(bytes: &[u8], bundles: &[Vec<u8>]) -> Result<Vec<u8>, PrismError> {
     if bundles.is_empty() {
@@ -481,8 +508,15 @@ pub fn attach_attestations(bytes: &[u8], bundles: &[Vec<u8>]) -> Result<Vec<u8>,
             "attaching attestations takes at least one bundle",
         ));
     }
+    if !v5::is_uorc(bytes) {
+        return Err(PrismError::new(
+            "PP3001",
+            "a physical-v4 holo is read-only; rebuild it as a holo v5 before signing (ADR-017)",
+        ));
+    }
     let parsed = parse_application(bytes)?;
-    let mut lines: Vec<Vec<u8>> = match attestation_payload(bytes)? {
+    let (mut objects, payload) = split_v5(bytes)?;
+    let mut lines: Vec<Vec<u8>> = match payload {
         None => Vec::new(),
         Some(payload) => attestation::decode_section(&payload, &parsed.blobs)?
             .into_iter()
@@ -499,23 +533,8 @@ pub fn attach_attestations(bytes: &[u8], bundles: &[Vec<u8>]) -> Result<Vec<u8>,
         }
         lines.push(line.clone());
     }
-    let unsigned = match modeled(wire::archiveStripAttestation(bytes.to_vec()))? {
-        Some(body) => body,
-        None => required(
-            modeled(wire::archiveBodyBytes(bytes.to_vec()))?,
-            "PP3003",
-            "archive structure is not the closed Holo/1 profile",
-        )?,
-    };
-    let body = required(
-        modeled(wire::archiveBodyWithAttestation(
-            unsigned,
-            attestation::join_lines(&lines),
-        ))?,
-        "PP3016",
-        "modeled archive composer rejected the attestation section",
-    )?;
-    let signed = seal_body(body)?;
+    objects.push(attestation::join_lines(&lines));
+    let signed = v5::write_objects(&objects);
     validate_application(&signed)?;
     Ok(signed)
 }
@@ -525,6 +544,12 @@ pub fn attach_attestations(bytes: &[u8], bundles: &[Vec<u8>]) -> Result<Vec<u8>,
 /// original, so reproducibility checks compare it rather than the signed file.
 /// An archive without the section is returned unchanged.
 pub fn strip_attestations(bytes: &[u8]) -> Result<Vec<u8>, PrismError> {
+    if v5::is_uorc(bytes) {
+        return match split_v5(bytes)? {
+            (_, None) => Ok(bytes.to_vec()),
+            (objects, Some(_)) => Ok(v5::write_objects(&objects)),
+        };
+    }
     validate_application(bytes)?;
     match modeled(wire::archiveStripAttestation(bytes.to_vec()))? {
         None => Ok(bytes.to_vec()),
@@ -536,10 +561,11 @@ pub fn strip_attestations(bytes: &[u8]) -> Result<Vec<u8>, PrismError> {
 pub(crate) struct ParsedApplicationArchive {
     pub(crate) application_manifest: Vec<u8>,
     pub(crate) metadata: Vec<u8>,
-    pub(crate) directory: Vec<u8>,
     pub(crate) prism_extension: Vec<u8>,
     pub(crate) blobs: BTreeMap<String, Vec<u8>>,
     pub(crate) identities: HoloIdentities,
+    /// Label of the capability set the application requires.
+    pub(crate) capability_kappa: String,
 }
 
 struct DecodedWireArchive {
@@ -615,7 +641,7 @@ fn decode_wire_archive(bytes: &[u8]) -> Result<DecodedWireArchive, PrismError> {
         )?;
         let label = String::from_utf8(label)
             .map_err(|error| PrismError::new("PP3008", format!("blob label: {error}")))?;
-        if content_kappa(&content) != label || seen.insert(label, content).is_some() {
+        if v4_label(&content) != label || seen.insert(label, content).is_some() {
             return Err(PrismError::new(
                 "PP3008",
                 "content blob label is duplicate or does not match its bytes",
@@ -642,7 +668,18 @@ fn decode_wire_archive(bytes: &[u8]) -> Result<DecodedWireArchive, PrismError> {
     })
 }
 
+/// Parse and validate an application holo: v5 (a UORC archive), or a legacy
+/// physical-v4 archive, which stays readable but is never written.
 pub(crate) fn parse_application(bytes: &[u8]) -> Result<ParsedApplicationArchive, PrismError> {
+    if v5::is_uorc(bytes) {
+        parse_application_v5(bytes)
+    } else {
+        parse_application_v4(bytes)
+    }
+}
+
+fn parse_application_v4(bytes: &[u8]) -> Result<ParsedApplicationArchive, PrismError> {
+    let content_kappa = v4_label;
     let decoded = decode_wire_archive(bytes)?;
     let manifest_bytes = &decoded.manifest;
     let [requires, guest, view] = &decoded.references;
@@ -749,11 +786,450 @@ pub(crate) fn parse_application(bytes: &[u8]) -> Result<ParsedApplicationArchive
     Ok(ParsedApplicationArchive {
         application_manifest: decoded.manifest,
         metadata: decoded.metadata,
-        directory: decoded.directory,
         prism_extension: decoded.prism_extension,
         blobs: decoded.blobs,
         identities,
+        capability_kappa: requires.clone(),
     })
+}
+
+// ---------------------------------------------------------------------------
+// Holo v5 (ADR-017): the application is a UORC archive of ordered objects.
+// ---------------------------------------------------------------------------
+
+/// Schema of the v5 application manifest, object 0.
+pub const MANIFEST_SCHEMA_V5: &str = "prism/holo/5";
+/// Schema of the v5 model provenance, object 2. Its kappa fields are κ-labels.
+pub(crate) const PROVENANCE_SCHEMA_V5: &str = "prismpm/model-provenance/2";
+/// Roles of the ordered objects of a v5 application holo, in archive order.
+/// An eighth object, [`ROLE_ATTESTATIONS`], is present only when signed.
+pub const ROLES_V5: [&str; 7] = [
+    "manifest",
+    "source-manifest",
+    "provenance",
+    "capabilities",
+    "guest",
+    "view",
+    "model",
+];
+/// Role of the optional last object: attestation bundles, one per line.
+pub const ROLE_ATTESTATIONS: &str = "attestations";
+pub(crate) const CONTENT_OBJECTS: std::ops::Range<usize> = 3..7;
+
+/// Object 0 of a v5 holo: what the application is and what each object is.
+/// It replaces v4's binary AppManifest and its application directory, which
+/// both restated the same references.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ManifestV5 {
+    pub(crate) schema: String,
+    pub(crate) name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) basis: Option<String>,
+    pub(crate) requires: String,
+    pub(crate) layers: Vec<LayerV5>,
+    pub(crate) objects: Vec<ObjectV5>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct LayerV5 {
+    pub(crate) kind: String,
+    pub(crate) kappa: String,
+    pub(crate) entry: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) contract: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) surface: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ObjectV5 {
+    pub(crate) role: String,
+    pub(crate) kappa: String,
+    pub(crate) length: u64,
+}
+
+pub(crate) fn layers_v5(guest: &str, view: &str) -> Vec<LayerV5> {
+    vec![
+        LayerV5 {
+            kind: "wasm".to_owned(),
+            kappa: guest.to_owned(),
+            entry: "holo_run".to_owned(),
+            contract: Some(wire::contractName()),
+            surface: None,
+        },
+        LayerV5 {
+            kind: "view".to_owned(),
+            kappa: view.to_owned(),
+            entry: "index.html".to_owned(),
+            contract: None,
+            surface: Some("portable".to_owned()),
+        },
+    ]
+}
+
+pub(crate) fn encode_json<T: Serialize>(value: &T) -> Result<Vec<u8>, PrismError> {
+    encode_value(
+        &serde_json::to_value(value)
+            .map_err(|error| PrismError::new("PP9001", error.to_string()))?,
+    )
+}
+
+/// Compose one deterministic, self-contained Wasm + portable-View application
+/// as a holo v5: a UORC archive whose ordered objects are [`ROLES_V5`].
+pub fn compose_application(input: &ApplicationArchiveInput) -> Result<GeneratedHolo, PrismError> {
+    validate_provenance(&input.provenance)?;
+    if input.application_name.is_empty()
+        || !input.guest_wasm.starts_with(b"\0asm")
+        || !input.view_bundle.starts_with(b"HOLOVIEW\0\x01")
+        || input.model_document.first() != Some(&b'{')
+        || input
+            .basis
+            .as_deref()
+            .is_some_and(|basis| !v5::is_kappa(basis))
+    {
+        return Err(PrismError::new(
+            "PP3010",
+            "application layers, model document or basis are malformed",
+        ));
+    }
+    let capability_request = wire::emptyCapabilities();
+    let contents: [&[u8]; 4] = [
+        &capability_request,
+        &input.guest_wasm,
+        &input.view_bundle,
+        &input.model_document,
+    ];
+    let [capability_kappa, guest_kappa, view_kappa, model_kappa] = contents.map(content_kappa);
+    let object_row = |role: &str, bytes: &[u8]| ObjectV5 {
+        role: role.to_owned(),
+        kappa: content_kappa(bytes),
+        length: bytes.len() as u64,
+    };
+    // The manifest lists the objects that do not depend on it. The provenance
+    // object names the manifest's κ, so the manifest cannot name it back.
+    let mut objects = vec![object_row("source-manifest", &input.source_manifest)];
+    for (role, bytes) in ROLES_V5[CONTENT_OBJECTS].iter().zip(contents) {
+        objects.push(object_row(role, bytes));
+    }
+    let manifest = encode_json(&ManifestV5 {
+        schema: MANIFEST_SCHEMA_V5.to_owned(),
+        name: input.application_name.clone(),
+        basis: input.basis.clone(),
+        requires: capability_kappa.clone(),
+        layers: layers_v5(&guest_kappa, &view_kappa),
+        objects,
+    })?;
+    let application_kappa = content_kappa(&manifest);
+    let provenance = &input.provenance;
+    let prism_extension = encode_json(&ModelProvenanceV1 {
+        schema: PROVENANCE_SCHEMA_V5.to_owned(),
+        model_content_kappa: model_kappa.clone(),
+        model_id: content_id(&input.model_document),
+        source_id: provenance.source_id.clone(),
+        semantic_id: provenance.semantic_id.clone(),
+        compiler_semantics_id: provenance.compiler_semantics_id.clone(),
+        snapshot_id: provenance.snapshot_id.clone(),
+        stdlib_semantics_id: provenance.stdlib_semantics_id.clone(),
+        prism_stdlib_crate_sha256: provenance.prism_stdlib_crate_sha256.clone(),
+        lexlean_commit: provenance.lexlean_commit.clone(),
+        lexlean_package_sha256: provenance.lexlean_package_sha256.clone(),
+        lean4_prod_commit: provenance.lean4_prod_commit.clone(),
+        hologram_live_commit: provenance.hologram_live_commit.clone(),
+        uor_hologram_commit: provenance.uor_hologram_commit.clone(),
+        target_profile_id: provenance.target_profile_id.clone(),
+        core_wasm_contract: wire::contractName(),
+        lean_manifest_sha256: provenance.lean_manifest_sha256.clone(),
+        lcnf_manifest_sha256: provenance.lcnf_manifest_sha256.clone(),
+        generated_core_sha256: provenance.generated_core_sha256.clone(),
+        cargo_name: provenance.cargo_name.clone(),
+        cargo_version: provenance.cargo_version.clone(),
+        cargo_crate_sha256: provenance.cargo_crate_sha256.clone(),
+        guest_content_kappa: guest_kappa.clone(),
+        view_binding: ViewBinding::Present {
+            view_model_id: provenance.view_model_id.clone(),
+            view_content_kappa: view_kappa.clone(),
+            browser_projection: BrowserProjection::Present {
+                sha256: provenance.browser_projection_sha256.clone(),
+            },
+        },
+        application_kappa: application_kappa.clone(),
+    })?;
+    let bytes = v5::write_objects(&[
+        manifest.as_slice(),
+        &input.source_manifest,
+        &prism_extension,
+        &capability_request,
+        &input.guest_wasm,
+        &input.view_bundle,
+        &input.model_document,
+    ]);
+    let identities = HoloIdentities {
+        guest_content_kappa: guest_kappa,
+        view_content_kappa: view_kappa,
+        model_content_kappa: model_kappa,
+        application_kappa,
+        archive_fingerprint: seal_hex(&bytes),
+        archive_kappa: content_kappa(&bytes),
+    };
+    validate_application(&bytes)?;
+    Ok(GeneratedHolo {
+        bytes,
+        application_manifest: manifest,
+        capability_request,
+        directory: Vec::new(),
+        prism_extension,
+        identities,
+    })
+}
+
+/// The UORC seal of a v5 archive in lowercase hex: its integrity fingerprint.
+fn seal_hex(bytes: &[u8]) -> String {
+    bytes[bytes.len() - v5::SEAL..]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+fn parse_application_v5(bytes: &[u8]) -> Result<ParsedApplicationArchive, PrismError> {
+    let objects = v5::read_objects(bytes, v5::APPLICATION_BUDGET)?;
+    if objects.len() != ROLES_V5.len() && objects.len() != ROLES_V5.len() + 1 {
+        return Err(PrismError::new(
+            "PP3003",
+            format!(
+                "a v5 application holo holds {} objects, or {} when signed; this one holds {}",
+                ROLES_V5.len(),
+                ROLES_V5.len() + 1,
+                objects.len()
+            ),
+        ));
+    }
+    let manifest_bytes = objects[0];
+    let manifest: ManifestV5 = serde_json::from_slice(manifest_bytes)
+        .map_err(|error| PrismError::new("PP3012", format!("holo manifest: {error}")))?;
+    let [capabilities, guest, view, model] = [objects[3], objects[4], objects[5], objects[6]];
+    let [capability_kappa, guest_kappa, view_kappa, model_kappa] =
+        [capabilities, guest, view, model].map(content_kappa);
+    let mut expected_objects = vec![ObjectV5 {
+        role: "source-manifest".to_owned(),
+        kappa: content_kappa(objects[1]),
+        length: objects[1].len() as u64,
+    }];
+    for (role, bytes) in ROLES_V5[CONTENT_OBJECTS]
+        .iter()
+        .zip([capabilities, guest, view, model])
+    {
+        expected_objects.push(ObjectV5 {
+            role: (*role).to_owned(),
+            kappa: content_kappa(bytes),
+            length: bytes.len() as u64,
+        });
+    }
+    if manifest.schema != MANIFEST_SCHEMA_V5
+        || manifest.name.is_empty()
+        || manifest
+            .basis
+            .as_deref()
+            .is_some_and(|basis| !v5::is_kappa(basis))
+        || manifest.requires != capability_kappa
+        || manifest.layers != layers_v5(&guest_kappa, &view_kappa)
+        || manifest.objects != expected_objects
+        || encode_json(&manifest)? != manifest_bytes
+    {
+        return Err(PrismError::new(
+            "PP3012",
+            "holo manifest disagrees with the archive's objects or is not canonical",
+        ));
+    }
+    let application_kappa = content_kappa(manifest_bytes);
+    let provenance: ModelProvenanceV1 = serde_json::from_slice(objects[2])
+        .map_err(|error| PrismError::new("PP3015", format!("model provenance: {error}")))?;
+    let (view_model_id, browser_sha256) = match &provenance.view_binding {
+        ViewBinding::Present {
+            view_model_id,
+            view_content_kappa,
+            browser_projection: BrowserProjection::Present { sha256 },
+        } if *view_content_kappa == view_kappa => (view_model_id, sha256),
+        _ => {
+            return Err(PrismError::new(
+                "PP3015",
+                "portable View applications require a bound browser projection of the view object",
+            ));
+        }
+    };
+    let digest_fields = [
+        &provenance.model_id,
+        &provenance.source_id,
+        &provenance.semantic_id,
+        &provenance.compiler_semantics_id,
+        &provenance.snapshot_id,
+        &provenance.stdlib_semantics_id,
+        &provenance.prism_stdlib_crate_sha256,
+        &provenance.lexlean_package_sha256,
+        &provenance.target_profile_id,
+        &provenance.lean_manifest_sha256,
+        &provenance.lcnf_manifest_sha256,
+        &provenance.generated_core_sha256,
+        &provenance.cargo_crate_sha256,
+        view_model_id,
+        browser_sha256,
+    ];
+    if provenance.schema != PROVENANCE_SCHEMA_V5
+        || provenance.core_wasm_contract != wire::contractName()
+        || provenance.application_kappa != application_kappa
+        || provenance.guest_content_kappa != guest_kappa
+        || provenance.model_content_kappa != model_kappa
+        || !guest.starts_with(b"\0asm")
+        || !view.starts_with(b"HOLOVIEW\0\x01")
+        || content_id(model) != provenance.model_id
+        || digest_fields
+            .into_iter()
+            .any(|digest| !digest_is_valid(digest))
+        || !revision_is_valid(&provenance.lexlean_commit)
+        || !revision_is_valid(&provenance.lean4_prod_commit)
+        || !revision_is_valid(&provenance.hologram_live_commit)
+        || !revision_is_valid(&provenance.uor_hologram_commit)
+        || provenance.cargo_name.is_empty()
+        || provenance.cargo_version.is_empty()
+        || encode_json(&provenance)? != objects[2]
+    {
+        return Err(PrismError::new(
+            "PP3015",
+            "Prism provenance is missing or disagrees with archive content",
+        ));
+    }
+    let mut blobs = BTreeMap::new();
+    for (kappa, bytes) in [
+        (capability_kappa.clone(), capabilities),
+        (guest_kappa.clone(), guest),
+        (view_kappa.clone(), view),
+        (model_kappa.clone(), model),
+    ] {
+        if blobs.insert(kappa, bytes.to_vec()).is_some() {
+            return Err(PrismError::new(
+                "PP3008",
+                "two content objects of the holo have the same κ",
+            ));
+        }
+    }
+    if let Some(payload) = objects.get(ROLES_V5.len()) {
+        attestation::decode_section(payload, &blobs)?;
+    }
+    let identities = HoloIdentities {
+        guest_content_kappa: guest_kappa,
+        view_content_kappa: view_kappa,
+        model_content_kappa: model_kappa,
+        application_kappa,
+        archive_fingerprint: seal_hex(bytes),
+        archive_kappa: content_kappa(bytes),
+    };
+    Ok(ParsedApplicationArchive {
+        application_manifest: manifest_bytes.to_vec(),
+        metadata: objects[1].to_vec(),
+        prism_extension: objects[2].to_vec(),
+        blobs,
+        identities,
+        capability_kappa,
+    })
+}
+
+/// Re-emit a legacy physical-v4 application holo as a holo v5 (ADR-017).
+///
+/// The guest, view, model, capability set and source manifest keep their
+/// bytes; the manifest and provenance are derived again with κ-labels, and the
+/// result is sealed as a UORC archive. Attestations are not carried over:
+/// their subjects name BLAKE3 labels, so the holo is signed again. A v5 holo
+/// is returned unchanged.
+pub fn upgrade_application(bytes: &[u8]) -> Result<Vec<u8>, PrismError> {
+    if v5::is_uorc(bytes) {
+        validate_application(bytes)?;
+        return Ok(bytes.to_vec());
+    }
+    let parsed = parse_application_v4(bytes)?;
+    let provenance: ModelProvenanceV1 = serde_json::from_slice(&parsed.prism_extension)
+        .map_err(|error| PrismError::new("PP3015", format!("model provenance: {error}")))?;
+    let blob =
+        |label: &str| {
+            parsed.blobs.get(label).cloned().ok_or_else(|| {
+                PrismError::new("PP3008", format!("{label} is not a blob of the holo"))
+            })
+        };
+    let identities = &parsed.identities;
+    let model_document = blob(&identities.model_content_kappa)?;
+    let (view_model_id, browser_projection_sha256) = match &provenance.view_binding {
+        ViewBinding::Present {
+            view_model_id,
+            browser_projection: BrowserProjection::Present { sha256 },
+            ..
+        } => (view_model_id.clone(), sha256.clone()),
+        _ => {
+            return Err(PrismError::new(
+                "PP3015",
+                "portable View applications require a bound browser projection",
+            ))
+        }
+    };
+    let application_name = serde_json::from_slice::<serde_json::Value>(&model_document)
+        .ok()
+        .and_then(|document| document["application"]["name"].as_str().map(str::to_owned))
+        .unwrap_or_else(|| provenance.cargo_name.clone());
+    let input = ApplicationArchiveInput {
+        application_name,
+        guest_wasm: blob(&identities.guest_content_kappa)?,
+        view_bundle: blob(&identities.view_content_kappa)?,
+        model_document,
+        source_manifest: parsed.metadata.clone(),
+        provenance: ArchiveProvenance {
+            source_id: provenance.source_id,
+            semantic_id: provenance.semantic_id,
+            compiler_semantics_id: provenance.compiler_semantics_id,
+            snapshot_id: provenance.snapshot_id,
+            stdlib_semantics_id: provenance.stdlib_semantics_id,
+            prism_stdlib_crate_sha256: provenance.prism_stdlib_crate_sha256,
+            lexlean_commit: provenance.lexlean_commit,
+            lexlean_package_sha256: provenance.lexlean_package_sha256,
+            lean4_prod_commit: provenance.lean4_prod_commit,
+            hologram_live_commit: provenance.hologram_live_commit,
+            uor_hologram_commit: provenance.uor_hologram_commit,
+            target_profile_id: provenance.target_profile_id,
+            lean_manifest_sha256: provenance.lean_manifest_sha256,
+            lcnf_manifest_sha256: provenance.lcnf_manifest_sha256,
+            generated_core_sha256: provenance.generated_core_sha256,
+            cargo_name: provenance.cargo_name,
+            cargo_version: provenance.cargo_version,
+            cargo_crate_sha256: provenance.cargo_crate_sha256,
+            view_model_id,
+            browser_projection_sha256,
+        },
+        basis: None,
+    };
+    let holo = compose_application(&input)?;
+    if !parsed
+        .blobs
+        .contains_key(&v4_label(&holo.capability_request))
+    {
+        return Err(PrismError::new(
+            "PP3008",
+            "the v4 holo requests capabilities this writer does not compose",
+        ));
+    }
+    Ok(holo.bytes)
+}
+
+/// The unsigned objects of a holo v5 and its attestation payload, if any.
+type SplitV5 = (Vec<Vec<u8>>, Option<Vec<u8>>);
+
+/// The unsigned objects of a validated v5 holo and its attestation payload.
+fn split_v5(bytes: &[u8]) -> Result<SplitV5, PrismError> {
+    parse_application_v5(bytes)?;
+    let mut objects: Vec<Vec<u8>> = v5::read_objects(bytes, v5::APPLICATION_BUDGET)?
+        .into_iter()
+        .map(<[u8]>::to_vec)
+        .collect();
+    let attestations = (objects.len() > ROLES_V5.len()).then(|| objects.remove(ROLES_V5.len()));
+    Ok((objects, attestations))
 }
 
 #[cfg(test)]

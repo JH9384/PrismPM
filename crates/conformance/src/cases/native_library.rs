@@ -197,7 +197,7 @@ fn accepted(root: &Path, project: &Path, verified: &prismpm::controller::VerifyR
         phases[1]["processes"][2]["exporter"]
     );
     assert_eq!(phases[1]["processes"], json!(&processes[5..9]));
-    prismpm::contracts::CanonicalDocument::from_value(
+    prismpm::contract_owners::from_value(
         "prismpm/library-verification-manifest/2",
         manifest.clone(),
     )
@@ -228,7 +228,7 @@ fn accepted(root: &Path, project: &Path, verified: &prismpm::controller::VerifyR
         let mut changed = manifest.clone();
         *changed.pointer_mut(pointer).unwrap() = replacement;
         assert!(
-            prismpm::contracts::CanonicalDocument::from_value(
+            prismpm::contract_owners::from_value(
                 "prismpm/library-verification-manifest/2",
                 changed,
             )

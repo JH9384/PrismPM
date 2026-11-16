@@ -1,4 +1,4 @@
-// Internal two-run executor. Native-host, network and OCI-image identity checks
+// Internal one-part executor. Native-host, network and OCI-image identity checks
 // belong to the independent outer job; this file cannot attest those facts.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { parts as vvParts } from './vv-assemble.mjs';
 import { materializeClosure, verifyClosure } from './sdk-vv-inputs.mjs';
 import {bootstrapNames, captureBootstrap, readOriginal, validateBootstrapRetention} from './sdk-bootstrap-retention.mjs';
 
@@ -52,10 +53,40 @@ export function validateVvEvidence(bytes, revision) {
   return value;
 }
 
-export function gateInvocation(source, output) {
+// The part list lives only in vv-assemble.mjs (a live-binding cycle: nothing
+// here reads it while modules evaluate).
+export { vvParts };
+
+export function validateVvPart(bytes, revision, part) {
+  assert.match(revision, /^[a-f0-9]{40}$/);
+  assert(vvParts.includes(part), 'closed V&V part');
+  assert(Buffer.isBuffer(bytes) && bytes.length <= 4096);
+  const value = JSON.parse(bytes.toString('utf8'));
+  assert.equal(bytes.toString('utf8'), canonical(value), 'original canonical V&V part bytes required');
+  assert.deepEqual(value, {commit: revision, part, schema: 'prismpm/vv-part/1', status: 'passed'},
+    'complete exact-commit V&V part required');
+  return value;
+}
+
+// The evidence for all 15 gates exists only when every listed part passed.
+export function assembleVvEvidence(records, revision) {
+  assert(records instanceof Map);
+  assert.deepEqual([...records.keys()].sort(), [...vvParts].sort(), 'exactly the part records required');
+  for (const part of vvParts) validateVvPart(records.get(part), revision, part);
+  const evidence = Buffer.from(canonical({
+    commit: revision,
+    gates: Array.from({ length: 15 }, (_, index) => index + 1),
+    schema: 'prismpm/vv-evidence/1', status: 'passed',
+  }));
+  validateVvEvidence(evidence, revision);
+  return evidence;
+}
+
+export function gateInvocation(source, output, part) {
+  assert(vvParts.includes(part), 'closed V&V part');
   return {
     command: '/usr/local/bin/node',
-    args: [join(source, 'scripts/ci-observe.mjs'), 'run', join(output, 'diagnostics'), '--', '/usr/local/bin/just', 'vv'],
+    args: [join(source, 'scripts/ci-observe.mjs'), 'run', join(output, 'diagnostics'), '--', '/usr/local/bin/just', 'vv-part', part],
     cwd: source,
   };
 }
@@ -75,51 +106,52 @@ export function executionEnvironment(work, image, socket) {
     PLAYWRIGHT_BROWSERS_PATH: '/ms-playwright',
     DOCKER_HOST: socket, DOCKER_CONFIG: join(work, 'docker'),
     GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0',
-    XDG_CACHE_HOME: join(work, 'cache'), TMPDIR: join(work, 'tmp'),
+    // Firefox under the read-only installed container hangs at launch without a
+    // writable HOME (rehearsal 42219829101). This fresh owned path is never the caller's.
+    HOME: join(work, 'home'), XDG_CACHE_HOME: join(work, 'cache'), TMPDIR: join(work, 'tmp'),
     LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', TZ: 'UTC', SOURCE_DATE_EPOCH: '0',
   };
 }
 
-export function verifyRetainedRuns(output, revision, records) {
-  assert(Array.isArray(records) && records.length === 2, 'both raw VV results required');
-  for (const [index, row] of records.entries()) {
-    const path = `run-${index + 1}/vv-evidence.json`;
-    assert(lstatSync(join(output, `run-${index + 1}`)).isDirectory(), 'retained run directory cannot be aliased');
-    const bytes = readOriginal(join(output, path), 4096);
-    validateVvEvidence(bytes, revision);
-    assert.deepEqual(row, { run: index + 1, path, byte_length: bytes.length, sha256: hash(bytes) }, 'retained VV bytes changed');
-  }
+export function verifyRetainedPart(output, revision, part, record) {
+  const path = 'part/vv-part.json';
+  assert(lstatSync(join(output, 'part')).isDirectory(), 'retained part directory cannot be aliased');
+  const bytes = readOriginal(join(output, path), 4096);
+  validateVvPart(bytes, revision, part);
+  assert.deepEqual(record, { part, path, byte_length: bytes.length, sha256: hash(bytes) }, 'retained V&V part bytes changed');
 }
 
 // The CLI supplies the fixed executor below. An injected executor is solely a
 // unit-test seam; it is not accepted through arguments, configuration or env.
-export async function retainTwoRuns(source, output, revision, execute) {
-  const evidencePath = join(source, 'target/vv-evidence.json');
-  const records = [], bootstrap = [];
-  for (const run of [1, 2]) {
-    const directory = join(output, `run-${run}`);
-    mkdirSync(directory, { mode: 0o700 });
-    for (const path of [evidencePath, ...bootstrapNames.map(name => join(source, 'target', name))]) {
-      const stale = lstatSync(path, { throwIfNoEntry: false });
-      if (stale) {
-        assert(stale.isFile() && stale.nlink === 1, 'refusing aliased or non-file stale evidence');
-        unlinkSync(path);
-      }
+// Only the source part runs the bootstrap gate, so only it retains bootstrap outputs.
+export async function retainPart(source, output, revision, part, execute) {
+  assert(vvParts.includes(part), 'closed V&V part');
+  const evidencePath = join(source, `target/vv-part-${part}.json`);
+  const bootstrapPaths = part === 'source' ? bootstrapNames.map(name => join(source, 'target', name)) : [];
+  const directory = join(output, 'part');
+  mkdirSync(directory, { mode: 0o700 });
+  for (const path of [evidencePath, ...bootstrapPaths]) {
+    const stale = lstatSync(path, { throwIfNoEntry: false });
+    if (stale) {
+      assert(stale.isFile() && stale.nlink === 1, 'refusing aliased or non-file stale evidence');
+      unlinkSync(path);
     }
-    assert.equal(await execute(run, directory), 0, `VV execution ${run} failed`);
-    const bytes = readOriginal(evidencePath, 4096);
-    validateVvEvidence(bytes, revision);
-    const path = `run-${run}/vv-evidence.json`;
-    writeFileSync(join(output, path), bytes, { flag: 'wx', mode: 0o444 });
-    records.push({ run, path, byte_length: bytes.length, sha256: hash(bytes) });
-    bootstrap.push(captureBootstrap(source, output, run));
   }
-  verifyRetainedRuns(output, revision, records);
-  const bootstrapBytes = Buffer.from(canonical({schema: 'prismpm/bootstrap-retention/1', source_revision: revision, runs: bootstrap}));
-  validateBootstrapRetention(bootstrapBytes, new Map(bootstrap.flatMap(row => row.files.map(file =>
-    [file.path, readOriginal(join(output, file.path))]))), revision);
-  writeFileSync(join(output, 'bootstrap.json'), bootstrapBytes, {flag: 'wx', mode: 0o444});
-  return records;
+  assert.equal(await execute(directory), 0, `V&V part ${part} failed`);
+  const bytes = readOriginal(evidencePath, 4096);
+  validateVvPart(bytes, revision, part);
+  const path = 'part/vv-part.json';
+  writeFileSync(join(output, path), bytes, { flag: 'wx', mode: 0o444 });
+  const record = { part, path, byte_length: bytes.length, sha256: hash(bytes) };
+  if (part === 'source') {
+    const bootstrap = captureBootstrap(source, output, 1);
+    const bootstrapBytes = Buffer.from(canonical({schema: 'prismpm/bootstrap-retention/1', source_revision: revision, runs: [bootstrap]}));
+    validateBootstrapRetention(bootstrapBytes, new Map(bootstrap.files.map(file =>
+      [file.path, readOriginal(join(output, file.path))])), revision);
+    writeFileSync(join(output, 'bootstrap.json'), bootstrapBytes, {flag: 'wx', mode: 0o444});
+  }
+  verifyRetainedPart(output, revision, part, record);
+  return record;
 }
 
 export function executeGate(invocation, environment) {
@@ -168,7 +200,8 @@ function cacheEntries(root, writable = false) {
   walk(root); return bytes;
 }
 
-export async function runInstalled(image, revision, destination, socket) {
+export async function runInstalled(image, revision, part, destination, socket) {
+  assert(vvParts.includes(part), 'closed V&V part');
   assert.equal(process.platform, 'linux');
   assert.equal(process.getuid(), 1000, 'installed SDK gate must run unprivileged');
   assert.match(revision, /^[a-f0-9]{40}$/);
@@ -199,7 +232,7 @@ export async function runInstalled(image, revision, destination, socket) {
   const manifest = materializeClosure(join(SHARED, 'vv-inputs'), policy, join(destination, 'inputs'));
   assert.equal(manifestBytes.toString('utf8'), `${canonical(manifest)}\n`, 'captured and materialized input manifests differ');
   const source = join(destination, 'inputs/source');
-  for (const name of ['docker', 'cache', 'tmp', 'evidence']) mkdirSync(join(destination, name), { mode: 0o700 });
+  for (const name of ['home', 'docker', 'cache', 'tmp', 'evidence']) mkdirSync(join(destination, name), { mode: 0o700 });
   cpSync(cache, join(destination, 'cargo'), { recursive: true, errorOnExist: true, force: false, verbatimSymlinks: true });
   cacheEntries(join(destination, 'cargo'), true);
   // Cargo deny 0.20.2 resolves this exact RustSec URL directory below CARGO_HOME.
@@ -211,20 +244,20 @@ export async function runInstalled(image, revision, destination, socket) {
   mkdirSync(bootstrap, { recursive: true, mode: 0o700 });
   copyFileSync(join(destination, 'inputs/bootstrap.tar.gz'), join(bootstrap, 'prismpm-0.2.0-x86_64-unknown-linux-gnu.tar.gz'), constants.COPYFILE_EXCL);
   const output = join(destination, 'evidence');
-  const runs = await retainTwoRuns(source, output, revision, async (_run, directory) =>
-    executeGate(gateInvocation(source, directory), environment));
+  const run = await retainPart(source, output, revision, part, async directory =>
+    executeGate(gateInvocation(source, directory, part), environment));
   assert.deepEqual(regular(join(SHARED, 'inventory.json'), 64 * 1024 * 1024), inventory, 'installed inventory changed');
   assert.deepEqual(regular('/usr/local/bin/prismpm', 256 * 1024 * 1024), cli, 'installed CLI changed');
   assert.deepEqual(regular(join(SHARED, 'vv-input-policy.json'), 16384), policyBytes, 'installed input policy changed');
   assert.deepEqual(regular(join(SHARED, 'vv-inputs/manifest.json'), 32 * 1024 * 1024), manifestBytes, 'installed input manifest changed');
   assert.deepEqual(verifyClosure(join(SHARED, 'vv-inputs'), policy), manifest, 'installed verification input bytes changed');
-  verifyRetainedRuns(output, revision, runs);
+  verifyRetainedPart(output, revision, part, run);
   const record = {
-    schema: 'prismpm/sdk-vv-execution/1', scope: 'two-full-vv-executions-only',
+    schema: 'prismpm/sdk-vv-execution/2', scope: 'one-vv-part-execution-only', part,
     source_revision: revision, image_reference: image, process_architecture: process.arch,
     inventory_sha256: hash(inventory), cli_sha256: hash(cli),
     input_policy_sha256: hash(policyBytes), input_manifest_sha256: hash(manifestBytes),
-    advisory_revision: manifest.policy.advisory_revision, runs,
+    advisory_revision: manifest.policy.advisory_revision, run,
     unclaimed: ['native-host', 'network-isolation', 'oci-image-identity', 'sdk-release', 'product-readiness'],
   };
   writeFileSync(join(output, 'execution.json'), canonical(record), { flag: 'wx', mode: 0o444 });
@@ -232,8 +265,8 @@ export async function runInstalled(image, revision, destination, socket) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [operation, image, revision, destination, ...extra] = process.argv.slice(2);
-  assert(operation === 'run' && image && revision && destination && extra.length === 0,
-    'usage: sdk-vv-run.mjs run IMAGE@sha256:DIGEST SOURCE_COMMIT FRESH_DESTINATION');
-  console.log(canonical(await runInstalled(image, revision, destination, process.env.DOCKER_HOST ?? 'unix:///var/run/docker.sock')));
+  const [operation, image, revision, part, destination, ...extra] = process.argv.slice(2);
+  assert(operation === 'run' && image && revision && part && destination && extra.length === 0,
+    'usage: sdk-vv-run.mjs run IMAGE@sha256:DIGEST SOURCE_COMMIT PART FRESH_DESTINATION');
+  console.log(canonical(await runInstalled(image, revision, part, destination, process.env.DOCKER_HOST ?? 'unix:///var/run/docker.sock')));
 }

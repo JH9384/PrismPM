@@ -1,8 +1,8 @@
 name: Prepare M0 LexLean reconciliation patch
 
+# lexlean-sync.yml dispatches this on its lexlean/<rev12> branch and imports
+# the proposal patch; it can also be dispatched by hand on any branch.
 on:
-  push:
-    branches: [work/compression-m0-reconcile]
   workflow_dispatch:
 
 permissions:

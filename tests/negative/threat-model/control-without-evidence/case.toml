@@ -1,0 +1,14 @@
+spec = "prismpm/test-case/1"
+command = "check"
+expected_exit = 1
+normalization = "canonical-json"
+capabilities = ["FT-15"]
+expected_artifacts = []
+
+[[expected_diagnostics]]
+code = "PP2020"
+message = "control Threats::control names no evidence that realizes it"
+primary = "none"
+labels = []
+notes = []
+help = []

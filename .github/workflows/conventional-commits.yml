@@ -1,0 +1,49 @@
+name: conventional commits
+
+# Holds the pull request title, and a lone commit's subject, to Conventional
+# Commits. release-please reads those subjects on main to choose the version and
+# write the changelog, and skips any it cannot parse. The rule and why a lone commit
+# counts are in scripts/conventional-commits.mjs. The token here can only read, and
+# the job uses no third-party action, so a pull request from a fork runs it safely.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  merge_group:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: conventional-commits-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  subjects:
+    name: pull request title and commit subjects
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: The check's own tests
+        run: node --test scripts/conventional-commits.test.mjs
+      # A merge group has no title of its own: each pull request in it passed here first.
+      - name: Check the title and the commits
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ github.event.pull_request.title }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api --paginate --slurp "repos/$REPOSITORY/pulls/$PULL_REQUEST/commits" |
+            jq '[.[][].commit.message]' > "$RUNNER_TEMP/commits.json"
+          node scripts/conventional-commits.mjs --title "$TITLE" --commits "$RUNNER_TEMP/commits.json"

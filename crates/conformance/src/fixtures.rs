@@ -116,6 +116,24 @@ fn publish_design_views(
     Ok(copied)
 }
 
+/// Copy the emitted OSCAL component definition of a build to a stable path.
+fn publish_oscal(project: &Path, build_id: &str) -> Result<Vec<String>, prismpm::PrismError> {
+    let io = |error: std::io::Error| prismpm::PrismError::new("PP4002", error.to_string());
+    let name = "component-definition.json";
+    let target = project.join("rendered/oscal");
+    std::fs::create_dir_all(&target).map_err(io)?;
+    std::fs::copy(
+        project
+            .join(".prism/build")
+            .join(build_id)
+            .join("oscal")
+            .join(name),
+        target.join(name),
+    )
+    .map_err(io)?;
+    Ok(vec![format!("rendered/oscal/{name}")])
+}
+
 /// Check one fixture directory against its expected files.
 pub fn check(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let case_path = dir.join("case.toml");
@@ -219,6 +237,9 @@ pub fn check(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         "design-views" => controller
             .build(prismpm::controller::BuildRequest { config_path: None })
             .and_then(|result| publish_design_views(temp_dir.path(), &result.build_id)),
+        "oscal" => controller
+            .build(prismpm::controller::BuildRequest { config_path: None })
+            .and_then(|result| publish_oscal(temp_dir.path(), &result.build_id)),
         "holo-dangling-edge"
         | "holo-unresolved-risk"
         | "holo-empty"
@@ -233,10 +254,10 @@ pub fn check(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                 if case.command == "holo-noncanonical" {
                     let mut malformed = bytes;
                     malformed.insert(1, b' ');
-                    return prismpm::holo::canonical::decode_canonical(&malformed)
+                    return prismpm::holo::model_document::decode_canonical(&malformed)
                         .map(|_| Vec::new());
                 }
-                let mut holo = prismpm::holo::canonical::decode_canonical(&bytes)?;
+                let mut holo = prismpm::holo::model_document::decode_canonical(&bytes)?;
                 if case.command == "holo-dangling-edge" {
                     let count = holo.architecture.components.len() as u64;
                     holo.architecture
@@ -547,7 +568,9 @@ pub fn write(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         prismpm::holo::canonical::encode_value(&value)?,
     )?;
     if !case.expected_artifacts.is_empty() {
-        if !matches!(case.command.as_str(), "build" | "design-views") || case.expected_exit != 0 {
+        if !matches!(case.command.as_str(), "build" | "design-views" | "oscal")
+            || case.expected_exit != 0
+        {
             return Err(format!(
                 "{}: artifact byte goldens require a successful build command",
                 dir.display()
@@ -561,6 +584,8 @@ pub fn write(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         let build_root = temp_dir.path().join(".prism/build").join(&result.build_id);
         let mut observed = if case.command == "design-views" {
             publish_design_views(temp_dir.path(), &result.build_id)?
+        } else if case.command == "oscal" {
+            publish_oscal(temp_dir.path(), &result.build_id)?
         } else {
             walkdir::WalkDir::new(&build_root)
                 .into_iter()

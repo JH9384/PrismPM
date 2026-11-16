@@ -1,0 +1,26 @@
+# The thin host of the Prism factory: input/output only. Every decision is made
+# by the certified packages under ../certified, exported from ../model.
+[package]
+name = "prism-factory-host"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "prism-factory"
+path = "src/main.rs"
+
+[dependencies]
+factory_delegate = { path = "../certified/packages/rust-std/factory_delegate" }
+factory_plan = { path = "../certified/packages/rust-std/factory_plan" }
+factory_reweigh = { path = "../certified/packages/rust-std/factory_reweigh" }
+factory_workflow = { path = "../certified/packages/rust-std/factory_workflow" }
+
+[profile.release]
+opt-level = 3
+
+[workspace]

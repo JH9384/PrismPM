@@ -1,0 +1,17 @@
+spec = "lexlean/entry/1"
+id = "prism-workbench-guidance"
+category = "label-word"
+surface_arity = 0
+frame = "atom"
+
+[denotation]
+kind = "document"
+module = "Workbench"
+component = "workbench"
+
+[[form]]
+id = "prism-workbench-guidance"
+channel = "text"
+surface = "Prism-code workbench guidance"
+canonical_source = true
+features = ["sentence-case", "singular"]

@@ -1,0 +1,133 @@
+name: Release candidate qualification
+
+# A change to the installed-SDK acceptance check is proved here, against the
+# newest release-line candidate images, before it merges. Without this, the
+# only place such a change ran was a complete release run that first rebuilt
+# every image. The candidate's own checkout supplies every source binding;
+# this pull request supplies only the checks (scripts/, the SDK check modules in
+# sdk/ and the browser-system fixture, mounted over the image's copies). The merged commit's release run
+# still checks its own images.
+on:
+  pull_request:
+    branches:
+      - main
+      - release/v*
+    paths:
+      - .github/workflows/release-qualify.yml
+      - scripts/product-sdk-check.*
+      - scripts/library-sdk-*
+      - sdk/exporter-*.mjs
+      - scripts/browser-api-sdk-check.mjs
+      - tests/browser-system/**
+
+concurrency:
+  group: release-qualify-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run-id: ${{ steps.find.outputs.run-id }}
+      revision: ${{ steps.find.outputs.revision }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          submodules: false
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node scripts/factory.mjs candidate "$GITHUB_SHA" | tee -a "$GITHUB_OUTPUT"
+
+  installed-sdk:
+    needs: candidate
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: root-a
+          submodules: false
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: root-c
+          ref: ${{ needs.candidate.outputs.revision }}
+          submodules: false
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sdk-image
+          path: .shipped-image
+          run-id: ${{ needs.candidate.outputs.run-id }}
+          github-token: ${{ github.token }}
+      - name: Qualify this check against the candidate's installed product CLI
+        shell: bash
+        env:
+          CANDIDATE_REVISION: ${{ needs.candidate.outputs.revision }}
+          RESULT_NAME: sdk-${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          PRISMPM_QUALIFY_SOURCE="$GITHUB_WORKSPACE/root-c" bash root-a/scripts/product-sdk-check.sh \
+            "$(cat .shipped-image/sdk-image.txt)" "$CANDIDATE_REVISION" "$RESULT_NAME-product-cli"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: qualified-product-cli-sdk-${{ matrix.arch }}
+          path: sdk-${{ matrix.arch }}-product-cli/
+          if-no-files-found: error
+          retention-days: 30
+      # The native-library closure runs in the release's reproducibility stage,
+      # hours after the images; qualify it here against the same candidate.
+      - name: Qualify this check against the candidate's native-library closure
+        if: ${{ !cancelled() }}
+        shell: bash
+        env:
+          CANDIDATE_REVISION: ${{ needs.candidate.outputs.revision }}
+          RESULT_NAME: sdk-${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          PRISMPM_QUALIFY_SOURCE="$GITHUB_WORKSPACE/root-c" bash root-a/scripts/library-sdk-check.sh \
+            "$(cat .shipped-image/sdk-image.txt)" "$CANDIDATE_REVISION" > "$RESULT_NAME-library-sdk.log" 2>&1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ !cancelled() }}
+        with:
+          name: qualified-library-sdk-${{ matrix.arch }}
+          path: sdk-${{ matrix.arch }}-library-sdk.log
+          if-no-files-found: error
+          retention-days: 30

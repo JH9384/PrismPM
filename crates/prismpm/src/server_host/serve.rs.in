@@ -1,0 +1,782 @@
+// Fixed serving fragment of the generated host adapter: a loopback listener and
+// RFC 9112 message framing. It maps bytes to the core's boundary frame and the
+// core's answer back to bytes, and reads the meaning of no field except the ones
+// the declaration names: Host (RFC 9112 section 3.2), Content-Length,
+// Transfer-Encoding and Expect (framing), Origin, Accept and Content-Type (the
+// model's allow-list and requirements) and the one counted field. Every bound is
+// a constant rendered into `surface` from the declaration.
+//
+// Order of the checks, so that each refusal is reached by exactly one cause:
+//   1. the request line: 400, 414, 505;
+//   2. the field lines, in received order: 400, 431;
+//   3. Host: 400;
+//   4. Origin: 403;
+//   5. Accept, then Content-Type, for the declared methods: 406, 415;
+//   6. the framing of the body: 400, 413, 417, 501;
+//   7. the body: 400, 408, 413.
+// The core is called only after every check has passed, once per request.
+//
+// One request is served per connection; the response says `Connection: close`.
+// Nothing here parses a body, a target or a field value beyond what is listed.
+
+use crate::failure::Failure;
+use crate::frame::{self, Context};
+use crate::protocol::Host;
+use crate::refusal::ServingRefusal as Refusal;
+use crate::shared::Shared;
+use crate::surface;
+use std::io::{Read, Write};
+use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+/// One field line, name as received and value without the optional whitespace
+/// around it (RFC 9112 section 5).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Field {
+    pub name: Vec<u8>,
+    pub value: Vec<u8>,
+}
+
+/// A request message as the core is given it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Request {
+    pub method: Vec<u8>,
+    pub target: Vec<u8>,
+    pub fields: Vec<Field>,
+    pub body: Vec<u8>,
+}
+
+/// Where a request ends without an answer or with a refusal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Abort {
+    /// The client sent nothing, or went away; there is nobody to answer.
+    Silent,
+    /// The request is refused with this typed refusal.
+    Refuse(Refusal),
+}
+
+impl From<Refusal> for Abort {
+    fn from(refusal: Refusal) -> Abort {
+        Abort::Refuse(refusal)
+    }
+}
+
+/// A byte source with a deadline: the timeout is what remains of the read time.
+pub trait Source {
+    fn read_within(&mut self, into: &mut [u8], remaining: Duration) -> std::io::Result<usize>;
+}
+
+impl Source for TcpStream {
+    fn read_within(&mut self, into: &mut [u8], remaining: Duration) -> std::io::Result<usize> {
+        self.set_read_timeout(Some(remaining.max(Duration::from_millis(1))))?;
+        Read::read(self, into)
+    }
+}
+
+impl Source for std::io::Cursor<Vec<u8>> {
+    fn read_within(&mut self, into: &mut [u8], _remaining: Duration) -> std::io::Result<usize> {
+        Read::read(self, into)
+    }
+}
+
+/// Buffered reader over a source that enforces one deadline for the whole request.
+pub struct Input<S: Source> {
+    source: S,
+    buffer: Vec<u8>,
+    at: usize,
+    deadline: Instant,
+    started: bool,
+}
+
+impl<S: Source> Input<S> {
+    pub fn new(source: S, window: Duration) -> Self {
+        Input { source, buffer: Vec::new(), at: 0, deadline: Instant::now() + window, started: false }
+    }
+
+    pub fn into_source(self) -> S {
+        self.source
+    }
+
+    fn fill(&mut self) -> Result<(), Abort> {
+        let remaining = self.deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(Refusal::ReadTimeout.into());
+        }
+        let mut chunk = [0u8; 4096];
+        match self.source.read_within(&mut chunk, remaining) {
+            Ok(0) if !self.started => Err(Abort::Silent),
+            Ok(0) => Err(Refusal::RequestLineMalformed.into()),
+            Ok(count) => {
+                self.started = true;
+                if self.at > 0 && self.at == self.buffer.len() {
+                    self.buffer.clear();
+                    self.at = 0;
+                }
+                self.buffer.extend_from_slice(&chunk[..count]);
+                Ok(())
+            }
+            Err(error) if matches!(error.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {
+                if self.started {
+                    Err(Refusal::ReadTimeout.into())
+                } else {
+                    Err(Abort::Silent)
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => Ok(()),
+            Err(_) => Err(Abort::Silent),
+        }
+    }
+
+    fn byte(&mut self) -> Result<u8, Abort> {
+        while self.at >= self.buffer.len() {
+            self.fill()?;
+        }
+        let byte = self.buffer[self.at];
+        self.at += 1;
+        Ok(byte)
+    }
+
+    /// Exactly `count` bytes.
+    fn exact(&mut self, count: usize) -> Result<Vec<u8>, Abort> {
+        let mut out = Vec::with_capacity(count.min(1 << 16));
+        while out.len() < count {
+            if self.at >= self.buffer.len() {
+                self.fill()?;
+            }
+            let take = (count - out.len()).min(self.buffer.len() - self.at);
+            out.extend_from_slice(&self.buffer[self.at..self.at + take]);
+            self.at += take;
+        }
+        Ok(out)
+    }
+
+    /// One line up to its CRLF, without it. A line feed with no carriage return
+    /// before it, or a carriage return with no line feed after it, is malformed
+    /// (RFC 9112 section 2.2 lets a server refuse it, and acting on it is how
+    /// requests are smuggled). A line longer than `limit` is `over`.
+    fn line(&mut self, limit: usize, over: Refusal, malformed: Refusal) -> Result<Vec<u8>, Abort> {
+        let mut line = Vec::new();
+        loop {
+            let byte = self.byte()?;
+            match byte {
+                b'\r' => {
+                    if self.byte()? != b'\n' {
+                        return Err(malformed.into());
+                    }
+                    return Ok(line);
+                }
+                b'\n' => return Err(malformed.into()),
+                _ => {
+                    if line.len() >= limit {
+                        return Err(over.into());
+                    }
+                    line.push(byte);
+                }
+            }
+        }
+    }
+}
+
+fn token_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric()
+        || matches!(
+            byte,
+            b'!' | b'#' | b'$' | b'%' | b'&' | b'\'' | b'*' | b'+' | b'-' | b'.' | b'^' | b'_' | b'`' | b'|' | b'~'
+        )
+}
+
+fn token(bytes: &[u8]) -> bool {
+    !bytes.is_empty() && bytes.iter().copied().all(token_byte)
+}
+
+fn optional_whitespace(byte: u8) -> bool {
+    byte == b' ' || byte == b'\t'
+}
+
+fn trim(bytes: &[u8]) -> &[u8] {
+    let start = bytes.iter().position(|b| !optional_whitespace(*b)).unwrap_or(bytes.len());
+    let end = bytes.iter().rposition(|b| !optional_whitespace(*b)).map_or(start, |at| at + 1);
+    &bytes[start..end]
+}
+
+fn field_value_byte(byte: u8) -> bool {
+    byte == b'\t' || (0x20..=0x7e).contains(&byte) || byte >= 0x80
+}
+
+/// The request line: `method SP target SP HTTP/1.1` (RFC 9112 section 3).
+fn request_line(line: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Refusal> {
+    let mut parts = line.split(|byte| *byte == b' ');
+    let (Some(method), Some(target), Some(version), None) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        return Err(Refusal::RequestLineMalformed);
+    };
+    if !token(method) || target.is_empty() || !target.iter().all(|b| (0x21..=0x7e).contains(b)) {
+        return Err(Refusal::RequestLineMalformed);
+    }
+    if version == b"HTTP/1.1" {
+        return Ok((method.to_vec(), target.to_vec()));
+    }
+    let numbered = version.len() == 8
+        && version.starts_with(b"HTTP/")
+        && version[5].is_ascii_digit()
+        && version[6] == b'.'
+        && version[7].is_ascii_digit();
+    Err(if numbered { Refusal::VersionUnsupported } else { Refusal::RequestLineMalformed })
+}
+
+/// One field line: `name ":" OWS value OWS` (RFC 9112 section 5).
+fn field_line(line: &[u8]) -> Result<Field, Refusal> {
+    let colon = line.iter().position(|b| *b == b':').ok_or(Refusal::FieldMalformed)?;
+    let name = &line[..colon];
+    let value = trim(&line[colon + 1..]);
+    if !token(name) || !value.iter().copied().all(field_value_byte) {
+        return Err(Refusal::FieldMalformed);
+    }
+    Ok(Field { name: name.to_vec(), value: value.to_vec() })
+}
+
+fn named<'a>(fields: &'a [Field], name: &'a str) -> impl Iterator<Item = &'a Field> {
+    fields.iter().filter(move |field| field.name.eq_ignore_ascii_case(name.as_bytes()))
+}
+
+/// Field lines up to the empty line that ends them, with the running totals that
+/// the declared bounds apply to. `count` and `bytes` carry over to trailers.
+fn field_lines<S: Source>(
+    input: &mut Input<S>,
+    count: &mut usize,
+    bytes: &mut usize,
+) -> Result<Vec<Field>, Abort> {
+    let mut fields = Vec::new();
+    loop {
+        let room = surface::HEADER_BYTES_MAXIMUM.saturating_sub(*bytes);
+        let line = input.line(room, Refusal::HeaderBytesExceeded, Refusal::FieldMalformed)?;
+        if line.is_empty() {
+            return Ok(fields);
+        }
+        *count += 1;
+        if *count > surface::HEADER_COUNT_MAXIMUM {
+            return Err(Refusal::HeaderCountExceeded.into());
+        }
+        *bytes += line.len() + 2;
+        if *bytes > surface::HEADER_BYTES_MAXIMUM {
+            return Err(Refusal::HeaderBytesExceeded.into());
+        }
+        fields.push(field_line(&line)?);
+    }
+}
+
+fn parse_port(text: &str) -> Option<u16> {
+    if text.is_empty() || text.len() > 5 || !text.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<u16>().ok()
+}
+
+/// Whether an `Origin` value is one the declaration allows: `scheme://host[:port]`
+/// with nothing else in it, compared without regard to case, and an allowed
+/// origin with port 0 matching any port.
+pub fn origin_allowed(value: &[u8]) -> bool {
+    let Ok(text) = std::str::from_utf8(value) else { return false };
+    let text = text.to_ascii_lowercase();
+    let Some((scheme, rest)) = text.split_once("://") else { return false };
+    let default = match scheme {
+        "http" => 80,
+        "https" => 443,
+        _ => return false,
+    };
+    let (host, port) = if let Some(inner) = rest.strip_prefix('[') {
+        let Some((address, after)) = inner.split_once(']') else { return false };
+        if address.is_empty() || !address.bytes().all(|b| b.is_ascii_hexdigit() || b == b':') {
+            return false;
+        }
+        let host = format!("[{address}]");
+        match after {
+            "" => (host, None),
+            _ => match after.strip_prefix(':').and_then(parse_port) {
+                Some(port) => (host, Some(port)),
+                None => return false,
+            },
+        }
+    } else {
+        let (host, port) = match rest.split_once(':') {
+            None => (rest, None),
+            Some((host, port)) => match parse_port(port) {
+                Some(port) => (host, Some(port)),
+                None => return false,
+            },
+        };
+        if host.is_empty() || !host.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'.' || b == b'-') {
+            return false;
+        }
+        (host.to_owned(), port)
+    };
+    surface::ORIGINS.iter().any(|(allowed_scheme, allowed_host, allowed_port)| {
+        *allowed_scheme == scheme
+            && *allowed_host == host
+            && (*allowed_port == 0 || port.unwrap_or(default) == *allowed_port)
+    })
+}
+
+fn judge_origin(fields: &[Field]) -> Result<(), Refusal> {
+    let mut origins = named(fields, "origin");
+    match (origins.next(), origins.next()) {
+        (None, _) => Ok(()),
+        (Some(field), None) if origin_allowed(&field.value) => Ok(()),
+        _ => Err(Refusal::OriginForbidden),
+    }
+}
+
+fn q_is_zero(parameters: &str) -> bool {
+    parameters.split(';').any(|parameter| {
+        let parameter = parameter.trim_matches([' ', '\t']);
+        let Some((name, value)) = parameter.split_once('=') else { return false };
+        if !name.trim_matches([' ', '\t']).eq_ignore_ascii_case("q") {
+            return false;
+        }
+        let value = value.trim_matches([' ', '\t']);
+        value.starts_with('0') && value.bytes().all(|b| b == b'0' || b == b'.') && value.matches('.').count() <= 1
+    })
+}
+
+/// Whether the `Accept` fields list a media type exactly, with a non-zero weight
+/// (RFC 9110 section 12.5.1). A wildcard does not list it: the declaration asks
+/// for the types by name.
+pub fn accepts(fields: &[Field], media: &str) -> bool {
+    named(fields, "accept").any(|field| {
+        let Ok(text) = std::str::from_utf8(&field.value) else { return false };
+        text.split(',').any(|entry| {
+            let (range, parameters) = entry.split_once(';').unwrap_or((entry, ""));
+            range.trim_matches([' ', '\t']).eq_ignore_ascii_case(media) && !q_is_zero(parameters)
+        })
+    })
+}
+
+fn judge_media(method: &[u8], fields: &[Field]) -> Result<(), Refusal> {
+    if !surface::ENFORCED_METHODS.iter().any(|name| name.as_bytes() == method) {
+        return Ok(());
+    }
+    if !surface::ACCEPT.iter().all(|media| accepts(fields, media)) {
+        return Err(Refusal::AcceptRefused);
+    }
+    if !surface::CONTENT_TYPES.is_empty() {
+        let mut types = named(fields, "content-type");
+        let (Some(field), None) = (types.next(), types.next()) else {
+            return Err(Refusal::ContentTypeRefused);
+        };
+        let Ok(text) = std::str::from_utf8(&field.value) else {
+            return Err(Refusal::ContentTypeRefused);
+        };
+        let media = text.split(';').next().unwrap_or("").trim_matches([' ', '\t']);
+        if !surface::CONTENT_TYPES.iter().any(|allowed| allowed.eq_ignore_ascii_case(media)) {
+            return Err(Refusal::ContentTypeRefused);
+        }
+    }
+    Ok(())
+}
+
+enum Framing {
+    None,
+    Length(usize),
+    Chunked,
+}
+
+/// How the body is delimited (RFC 9112 section 6.3).
+fn framing(fields: &[Field]) -> Result<Framing, Refusal> {
+    let lengths = named(fields, "content-length").collect::<Vec<_>>();
+    let codings = named(fields, "transfer-encoding").collect::<Vec<_>>();
+    if !lengths.is_empty() && !codings.is_empty() {
+        return Err(Refusal::FramingAmbiguous);
+    }
+    if !codings.is_empty() {
+        return match codings.as_slice() {
+            [only] if only.value.eq_ignore_ascii_case(b"chunked") => Ok(Framing::Chunked),
+            _ => Err(Refusal::TransferCodingUnsupported),
+        };
+    }
+    match lengths.as_slice() {
+        [] => Ok(Framing::None),
+        [only] => {
+            if only.value.is_empty() || !only.value.iter().all(u8::is_ascii_digit) {
+                return Err(Refusal::LengthInvalid);
+            }
+            let digits = std::str::from_utf8(&only.value).map_err(|_| Refusal::LengthInvalid)?;
+            match digits.parse::<usize>() {
+                Ok(length) if length <= surface::BODY_MAXIMUM => Ok(Framing::Length(length)),
+                _ => Err(Refusal::BodyTooLarge),
+            }
+        }
+        _ => Err(Refusal::LengthInvalid),
+    }
+}
+
+fn chunk_size(line: &[u8]) -> Result<usize, Refusal> {
+    let digits = line.split(|b| *b == b';').next().unwrap_or(&[]);
+    let digits = trim(digits);
+    if digits.is_empty() || digits.len() > 16 || !digits.iter().all(u8::is_ascii_hexdigit) {
+        return Err(Refusal::ChunkMalformed);
+    }
+    let text = std::str::from_utf8(digits).map_err(|_| Refusal::ChunkMalformed)?;
+    usize::from_str_radix(text, 16).map_err(|_| Refusal::BodyTooLarge)
+}
+
+fn chunked<S: Source>(input: &mut Input<S>, count: &mut usize, bytes: &mut usize) -> Result<Vec<u8>, Abort> {
+    let mut body = Vec::new();
+    loop {
+        let line = input.line(surface::REQUEST_LINE_MAXIMUM, Refusal::ChunkMalformed, Refusal::ChunkMalformed)?;
+        let size = chunk_size(&line)?;
+        if size == 0 {
+            // Trailers (RFC 9112 section 7.1.2) are read, bounded like any field lines, and not forwarded.
+            field_lines(input, count, bytes)?;
+            return Ok(body);
+        }
+        if size > surface::BODY_MAXIMUM - body.len() {
+            return Err(Refusal::BodyTooLarge.into());
+        }
+        body.extend_from_slice(&input.exact(size)?);
+        if input.byte()? != b'\r' || input.byte()? != b'\n' {
+            return Err(Refusal::ChunkMalformed.into());
+        }
+    }
+}
+
+/// Read one request message from `input`. `interim` receives the `100 Continue`
+/// line when the client asked for one and the request has passed every check
+/// that does not need the body.
+pub fn read_request<S: Source>(input: &mut Input<S>, interim: &mut dyn Write) -> Result<Request, Abort> {
+    let line = input.line(surface::REQUEST_LINE_MAXIMUM, Refusal::RequestLineTooLong, Refusal::RequestLineMalformed)?;
+    let (method, target) = request_line(&line)?;
+    let (mut count, mut bytes) = (0usize, 0usize);
+    let fields = field_lines(input, &mut count, &mut bytes)?;
+    if named(&fields, "host").count() != 1 {
+        return Err(Refusal::HostInvalid.into());
+    }
+    judge_origin(&fields)?;
+    judge_media(&method, &fields)?;
+    let framing = framing(&fields)?;
+    let expects = named(&fields, "expect").collect::<Vec<_>>();
+    match expects.as_slice() {
+        [] => {}
+        [field] if field.value.eq_ignore_ascii_case(b"100-continue") => {
+            if !matches!(framing, Framing::None | Framing::Length(0)) {
+                // The client is waiting for the go-ahead. A failed write is the client leaving.
+                let _ = interim.write_all(b"HTTP/1.1 100 Continue\r\n\r\n").and_then(|()| interim.flush());
+            }
+        }
+        _ => return Err(Refusal::ExpectationUnsupported.into()),
+    }
+    let body = match framing {
+        Framing::None => Vec::new(),
+        Framing::Length(length) => input.exact(length)?,
+        Framing::Chunked => chunked(input, &mut count, &mut bytes)?,
+    };
+    Ok(Request { method, target, fields, body })
+}
+
+/// Whether the request is one the host counts: it carries the declared field with
+/// exactly the declared value.
+pub fn counted(request: &Request) -> bool {
+    !surface::COUNTED_FIELD.is_empty()
+        && named(&request.fields, surface::COUNTED_FIELD)
+            .any(|field| field.value == surface::COUNTED_VALUE.as_bytes())
+}
+
+fn put_chunk(out: &mut Vec<u8>, bytes: &[u8]) -> Result<(), Refusal> {
+    out.extend_from_slice(&u32::try_from(bytes.len()).map_err(|_| Refusal::CoreFailed)?.to_be_bytes());
+    out.extend_from_slice(bytes);
+    Ok(())
+}
+
+/// The request frame of the core: method, target, the fields in the order
+/// received, the body, and the host-provided sections.
+pub fn request_frame(request: &Request, sections: &[u8]) -> Result<Vec<u8>, Refusal> {
+    let mut out = Vec::new();
+    put_chunk(&mut out, &request.method)?;
+    put_chunk(&mut out, &request.target)?;
+    out.extend_from_slice(&u32::try_from(request.fields.len()).map_err(|_| Refusal::CoreFailed)?.to_be_bytes());
+    for field in &request.fields {
+        put_chunk(&mut out, &field.name)?;
+        put_chunk(&mut out, &field.value)?;
+    }
+    put_chunk(&mut out, &request.body)?;
+    out.extend_from_slice(sections);
+    if out.len() > surface::REQUEST_MAXIMUM {
+        return Err(Refusal::CoreFailed);
+    }
+    Ok(out)
+}
+
+/// The response of the core: status, fields in order and body.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Response {
+    pub status: u16,
+    pub fields: Vec<Field>,
+    pub body: Vec<u8>,
+}
+
+struct Cursor<'a> {
+    bytes: &'a [u8],
+    at: usize,
+}
+
+impl<'a> Cursor<'a> {
+    fn word(&mut self) -> Result<u32, Refusal> {
+        let end = self.at.checked_add(4).ok_or(Refusal::ResponseMalformed)?;
+        let word = self.bytes.get(self.at..end).ok_or(Refusal::ResponseMalformed)?;
+        self.at = end;
+        Ok(u32::from_be_bytes([word[0], word[1], word[2], word[3]]))
+    }
+
+    fn chunk(&mut self) -> Result<&'a [u8], Refusal> {
+        let length = usize::try_from(self.word()?).map_err(|_| Refusal::ResponseMalformed)?;
+        let end = self.at.checked_add(length).ok_or(Refusal::ResponseMalformed)?;
+        let chunk = self.bytes.get(self.at..end).ok_or(Refusal::ResponseMalformed)?;
+        self.at = end;
+        Ok(chunk)
+    }
+}
+
+/// Read a response frame: `status, field count, (name, value)*, notification
+/// count, notification*, body`. The adapter owns the framing fields, a status
+/// has to be a final one, and the frame ends with the body.
+pub fn response_frame(bytes: &[u8]) -> Result<Response, Refusal> {
+    let mut cursor = Cursor { bytes, at: 0 };
+    let status = cursor.word()?;
+    if !(200..=599).contains(&status) {
+        return Err(Refusal::ResponseMalformed);
+    }
+    let count = usize::try_from(cursor.word()?).map_err(|_| Refusal::ResponseMalformed)?;
+    // Each field takes at least eight bytes, so a count the frame cannot hold is refused before it allocates.
+    if count > bytes.len() / 8 {
+        return Err(Refusal::ResponseMalformed);
+    }
+    let mut fields = Vec::with_capacity(count);
+    for _ in 0..count {
+        let name = cursor.chunk()?;
+        let value = cursor.chunk()?;
+        let owned = [&b"content-length"[..], b"transfer-encoding", b"connection"];
+        if !token(name)
+            || !value.iter().copied().all(field_value_byte)
+            || owned.iter().any(|reserved| name.eq_ignore_ascii_case(reserved))
+        {
+            return Err(Refusal::ResponseMalformed);
+        }
+        fields.push(Field { name: name.to_vec(), value: value.to_vec() });
+    }
+    if cursor.word()? != 0 {
+        return Err(Refusal::ResponseMalformed);
+    }
+    let body = cursor.chunk()?.to_vec();
+    if cursor.at != bytes.len() || ((status == 204 || status == 304) && !body.is_empty()) {
+        return Err(Refusal::ResponseMalformed);
+    }
+    Ok(Response { status: u16::try_from(status).map_err(|_| Refusal::ResponseMalformed)?, fields, body })
+}
+
+fn reason(status: u16) -> &'static str {
+    match status {
+        200 => "OK",
+        201 => "Created",
+        202 => "Accepted",
+        204 => "No Content",
+        301 => "Moved Permanently",
+        302 => "Found",
+        304 => "Not Modified",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
+        404 => "Not Found",
+        405 => "Method Not Allowed",
+        406 => "Not Acceptable",
+        408 => "Request Timeout",
+        409 => "Conflict",
+        413 => "Content Too Large",
+        414 => "URI Too Long",
+        415 => "Unsupported Media Type",
+        417 => "Expectation Failed",
+        429 => "Too Many Requests",
+        431 => "Request Header Fields Too Large",
+        500 => "Internal Server Error",
+        501 => "Not Implemented",
+        503 => "Service Unavailable",
+        505 => "HTTP Version Not Supported",
+        _ => "Status",
+    }
+}
+
+/// The bytes of a response message: the status line, the core's fields as
+/// returned, then the framing fields the adapter owns, then the body.
+pub fn response_bytes(response: &Response) -> Vec<u8> {
+    let mut out = format!("HTTP/1.1 {} {}\r\n", response.status, reason(response.status)).into_bytes();
+    for field in &response.fields {
+        out.extend_from_slice(&field.name);
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(&field.value);
+        out.extend_from_slice(b"\r\n");
+    }
+    if response.status != 204 && response.status != 304 {
+        out.extend_from_slice(format!("Content-Length: {}\r\n", response.body.len()).as_bytes());
+    }
+    out.extend_from_slice(b"Connection: close\r\n\r\n");
+    out.extend_from_slice(&response.body);
+    out
+}
+
+/// The response to a refusal: its registered code as a short plain text body.
+pub fn refusal_bytes(refusal: Refusal) -> Vec<u8> {
+    let body = format!("{}\n", refusal.code()).into_bytes();
+    response_bytes(&Response {
+        status: refusal.status(),
+        fields: vec![Field { name: b"Content-Type".to_vec(), value: b"text/plain; charset=utf-8".to_vec() }],
+        body,
+    })
+}
+
+/// The core of an exchange: a frame in, a frame out.
+pub type Root = fn(Vec<u8>) -> Result<Vec<u8>, Failure>;
+
+/// Serve one request read from `input`, writing the answer to `output`. The core
+/// is called only for a request that passed every check.
+pub fn serve_one<S: Source, W: Write, H: Host>(
+    input: &mut Input<S>,
+    output: &mut W,
+    peer: &str,
+    host: &mut H,
+    root: Root,
+) {
+    let (id, body, answer) = match read_request(input, output) {
+        Err(Abort::Silent) => return,
+        Err(Abort::Refuse(refusal)) => {
+            let id = next_request();
+            host.request_begin(id, &[]);
+            (id, Vec::new(), refusal_bytes(refusal))
+        }
+        Ok(request) => {
+            let id = next_request();
+            host.request_begin(id, &request.body);
+            let answer = answer(&request, peer, host, root).unwrap_or_else(refusal_bytes);
+            (id, request.body, answer)
+        }
+    };
+    // A client that has left cannot be told anything; the write is best effort.
+    let _ = output.write_all(&answer).and_then(|()| output.flush());
+    host.request_end(id, &body, message_body(&answer));
+}
+
+/// The number of the next answered request of this process. Connections are
+/// served on threads that share one host, so the begin and end of two requests
+/// can interleave; the number lets the host pair each end with its begin.
+fn next_request() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
+/// The body of a response message: what follows the blank line that ends its fields.
+fn message_body(message: &[u8]) -> &[u8] {
+    message
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .map_or(&[][..], |at| &message[at + 4..])
+}
+
+fn answer<H: Host>(request: &Request, peer: &str, host: &mut H, root: Root) -> Result<Vec<u8>, Refusal> {
+    let sections = frame::sections(host, &Context { peer, counted: counted(request) })?;
+    let frame = request_frame(request, &sections)?;
+    let returned = crate::exchange::drive(root, host, &frame).map_err(|_| Refusal::CoreFailed)?;
+    Ok(response_bytes(&response_frame(&returned)?))
+}
+
+/// Bind the loopback interface. Any other address is refused.
+pub fn listen(address: Ipv4Addr, port: u16) -> Result<TcpListener, Failure> {
+    if address != Ipv4Addr::LOCALHOST {
+        return Err(Failure::ListenAddress);
+    }
+    TcpListener::bind(SocketAddr::from((address, port))).map_err(|_| Failure::ListenIo)
+}
+
+/// The listener the declaration describes.
+pub fn declared_listener() -> Result<TcpListener, Failure> {
+    listen(Ipv4Addr::from(surface::ADDRESS), surface::PORT)
+}
+
+struct Slot(Arc<AtomicUsize>);
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+fn connection<H: Host + Send + 'static>(stream: TcpStream, shared: Shared<H>, root: Root, slot: Slot) {
+    let _slot = slot;
+    let window = Duration::from_millis(u64::from(surface::READ_TIMEOUT_MILLIS));
+    let peer = stream.peer_addr().map_or_else(|_| String::new(), |address| address.to_string());
+    let Ok(reader) = stream.try_clone() else { return };
+    let mut writer = stream;
+    let _ = writer.set_write_timeout(Some(window));
+    let mut input = Input::new(reader, window);
+    let mut host = shared;
+    serve_one(&mut input, &mut writer, &peer, &mut host, root);
+    // Closing a socket that still holds unread request bytes resets it, and a
+    // reset can destroy the answer before the client reads it. Say that the
+    // answer is complete, then discard what is still arriving, at most a body's worth and within the read time.
+    let _ = writer.shutdown(std::net::Shutdown::Write);
+    let mut reader = input.into_source();
+    let until = Instant::now() + window;
+    let mut discarded = 0usize;
+    let mut scrap = [0u8; 4096];
+    while discarded < surface::BODY_MAXIMUM {
+        let remaining = until.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match reader.read_within(&mut scrap, remaining) {
+            Ok(0) | Err(_) => break,
+            Ok(count) => discarded += count,
+        }
+    }
+}
+
+
+/// Accept connections and serve each on a thread with the declared stack. With
+/// `limit`, return after that many connections have been accepted and served.
+pub fn run<H: Host + Send + 'static>(listener: TcpListener, host: H, root: Root, limit: Option<usize>) -> Result<(), Failure> {
+    let shared = Shared(Arc::new(Mutex::new(host)));
+    let active = Arc::new(AtomicUsize::new(0));
+    let mut threads = Vec::new();
+    let mut accepted = 0usize;
+    while limit.is_none_or(|limit| accepted < limit) {
+        let (mut stream, _) = match listener.accept() {
+            Ok(pair) => pair,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => return Err(Failure::ListenIo),
+        };
+        accepted += 1;
+        if active.fetch_add(1, Ordering::SeqCst) >= surface::CONNECTION_MAXIMUM {
+            active.fetch_sub(1, Ordering::SeqCst);
+            let _ = stream.set_write_timeout(Some(Duration::from_millis(u64::from(surface::READ_TIMEOUT_MILLIS))));
+            let _ = stream.write_all(&refusal_bytes(Refusal::Busy));
+            continue;
+        }
+        let slot = Slot(active.clone());
+        let host = shared.clone();
+        let spawned = std::thread::Builder::new()
+            .stack_size(surface::ROOT_STACK_BYTES)
+            .spawn(move || connection(stream, host, root, slot));
+        match spawned {
+            Ok(handle) => {
+                if limit.is_some() {
+                    threads.push(handle);
+                }
+            }
+            // The slot moved into the failed closure and is released with it.
+            Err(_) => continue,
+        }
+    }
+    for handle in threads {
+        let _ = handle.join();
+    }
+    Ok(())
+}

@@ -39,11 +39,19 @@ enum Rule {
     BrowserApplication,
     BrowserRuntime,
     DesignView,
+    ServerApplication,
+    ServedApplication,
+    ServerCore,
     FeatureCall,
     FeatureAcceptance,
     FeatureStep,
     JourneyActor,
     FeatureDeclaration,
+    ThreatAnswer,
+    ControlEvidence,
+    ThreatCategory,
+    ThreatModelDeclaration,
+    ServerEffects,
 }
 
 impl Rule {
@@ -60,11 +68,40 @@ impl Rule {
                 json!({"component": "Probe::component"}),
                 json!({"component": "Probe::unknown"}),
             ),
+            Self::ServerApplication => {
+                let valid = server_specimen();
+                let mut invalid = valid.clone();
+                invalid["host"]["effect_budget"] = json!(0);
+                (valid, invalid)
+            }
+            Self::ServerCore => (
+                json!({"root": "Probe.Probe.run", "effects": ["allocation", "overflow"]}),
+                json!({"root": "Probe.Probe.run", "effects": ["allocation", "recursion"]}),
+            ),
+            Self::ServerEffects => (
+                json!({"effects": [
+                    {"name": "store.get", "role": "core", "steps": 1, "served": 0},
+                    {"name": "tool.calls", "role": "frame", "steps": 0, "served": 2}
+                ]}),
+                json!({"effects": [
+                    {"name": "store.get", "role": "core", "steps": 0, "served": 0}
+                ]}),
+            ),
+            Self::ServedApplication => {
+                let valid = served_specimen();
+                let mut invalid = valid.clone();
+                invalid["serving"][0]["address"] = json!("0.0.0.0");
+                (valid, invalid)
+            }
             Self::FeatureCall
             | Self::FeatureAcceptance
             | Self::FeatureStep
             | Self::JourneyActor
             | Self::FeatureDeclaration => feature_specimens(self),
+            Self::ThreatAnswer
+            | Self::ControlEvidence
+            | Self::ThreatCategory
+            | Self::ThreatModelDeclaration => threat_model_specimens(self),
             Self::ArtifactIntegrity => filesystem::specimens("PP4001"),
             Self::ConfinedOutput => filesystem::specimens("PP8001"),
             Self::ImmutableLock => filesystem::specimens("PP1101"),
@@ -140,11 +177,20 @@ impl Rule {
             Self::BrowserApplication => validate_browser_specimen(value).is_ok(),
             Self::BrowserRuntime => validate_browser_runtime(value).is_ok(),
             Self::DesignView => crate::design::probe(value).is_ok(),
+            Self::ServerApplication | Self::ServedApplication => {
+                validate_server_specimen(value).is_ok()
+            }
+            Self::ServerCore => validate_server_core(value).is_ok(),
+            Self::ServerEffects => validate_server_effects(value).is_ok(),
             Self::FeatureCall
             | Self::FeatureAcceptance
             | Self::FeatureStep
             | Self::JourneyActor
             | Self::FeatureDeclaration => crate::features::probe(value).is_ok(),
+            Self::ThreatAnswer
+            | Self::ControlEvidence
+            | Self::ThreatCategory
+            | Self::ThreatModelDeclaration => crate::threat_model::probe(value).is_ok(),
             Self::ArtifactIntegrity | Self::ConfinedOutput | Self::ImmutableLock => {
                 filesystem::validate(value).is_ok()
             }
@@ -254,6 +300,11 @@ probes!(
         BrowserRuntime
     ),
     ("PP2012", "unknown-design-view-name", DesignView),
+    (
+        "PP2013",
+        "invalid-server-application-declaration",
+        ServerApplication
+    ),
     ("PP2014", "feature-without-call", FeatureCall),
     ("PP2015", "feature-without-acceptance", FeatureAcceptance),
     ("PP2016", "journey-step-undeclared-feature", FeatureStep),
@@ -263,6 +314,21 @@ probes!(
         "invalid-feature-or-journey-declaration",
         FeatureDeclaration
     ),
+    (
+        "PP2019",
+        "threat-without-control-or-accepted-risk",
+        ThreatAnswer
+    ),
+    ("PP2020", "control-without-evidence", ControlEvidence),
+    ("PP2021", "threat-without-stride-category", ThreatCategory),
+    (
+        "PP2022",
+        "invalid-threat-model-declaration",
+        ThreatModelDeclaration
+    ),
+    ("PP2024", "invalid-serving-declaration", ServedApplication),
+    ("PP2025", "server-core-build-refused", ServerCore),
+    ("PP2026", "server-effect-not-exercised", ServerEffects),
     ("PP3002", "malformed-holo-section-table", PositiveBound),
     ("PP3003", "invalid-holo-section-closure", Complete),
     ("PP3004", "holo-footer-mismatch", Digest),
@@ -279,6 +345,7 @@ probes!(
     ("PP3015", "prism-provenance-disagreement", Exact),
     ("PP3016", "attestation-section-disagreement", Exact),
     ("PP3017", "attestation-bundle-disagreement", Exact),
+    ("PP3018", "build-provenance-refused", Exact),
     ("PP3101", "attestation-signing-failure", Complete),
     ("PP3102", "attestation-signature-invalid", Exact),
     ("PP3103", "attestation-identity-mismatch", Exact),
@@ -286,6 +353,8 @@ probes!(
     ("PP3105", "attestation-subject-mismatch", Exact),
     ("PP3106", "attestation-not-found", Required),
     ("PP3107", "trusted-root-invalid", Required),
+    ("PP3201", "bindings-generation-refused", Exact),
+    ("PP3202", "bindings-output-refused", Complete),
     ("PP4001", "artifact-checksum-mismatch", ArtifactIntegrity),
     ("PP4002", "missing-published-artifact", Required),
     ("PP4003", "emitter-input-digest-drift", Digest),
@@ -418,6 +487,25 @@ fn feature_specimens(rule: Rule) -> (Value, Value) {
     (valid, invalid)
 }
 
+fn threat_model_specimens(rule: Rule) -> (Value, Value) {
+    let valid = json!({
+        "last_modified": "2026-10-30T00:00:00Z",
+        "threats": ["Probe::threat"],
+        "controls": ["Probe::control"],
+        "categorized": ["Probe::threat"],
+        "mappings": {"Probe::threat": ["Probe::control"]},
+        "evidence": {"Probe::control": ["Probe gate"]},
+    });
+    let mut invalid = valid.clone();
+    match rule {
+        Rule::ThreatAnswer => invalid["mappings"] = json!({}),
+        Rule::ControlEvidence => invalid["evidence"] = json!({"Probe::control": []}),
+        Rule::ThreatCategory => invalid["categorized"] = json!([]),
+        _ => invalid["last_modified"] = json!("yesterday"),
+    }
+    (valid, invalid)
+}
+
 fn browser_specimen() -> Value {
     serde_json::from_str(r#"{"profile":"prismpm/browser-application/1","name":"Browser Contract","cargo_name":"prism-browser-contract","cargo_version":"0.1.0","cargo_description":"Source projection fixture, not an executable application.","cargo_repository":"https://github.com/UOR-Foundation/PrismPM","cargo_homepage":"https://github.com/UOR-Foundation/PrismPM","library_roots":["BrowserContract.Probe.dispatch","BrowserContract.Probe.present","BrowserContract.Probe.replay"],"acceptance_vectors":[{"request":[0],"response":[0]}],"entry_root":"BrowserContract.Probe.dispatch","core_contract":"hologram:guest/core-wasm@1","request_maximum":1,"response_maximum":1,"guest_allocation_maximum":1,"memory_pages":32,"capabilities_empty":true,"fat_archive":true,"primary_layer":0,"view_layer":1,"protocol":"prismpm/browser-application-session/1","requested_effects":[{"resource":"digest","adapter":{"kind":"digest","maximum":1048576}},{"resource":"guest","adapter":{"kind":"guest","entry_root":"BrowserContract.Probe.dispatch","protocol":"fixture/1","input_maximum":1,"output_maximum":1,"memory_pages":32}},{"resource":"random","adapter":{"kind":"random","maximum":65536}},{"resource":"sign","adapter":{"kind":"sign","credential_slot":"selected","context":"prismpm/fixture/1","maximum":1048576}},{"resource":"store","adapter":{"kind":"store","namespace":"browser-contract","max_object_bytes":1048576,"max_objects":4096,"max_heads":64}},{"resource":"verify","adapter":{"kind":"verify","context":"prismpm/fixture/1","maximum":1048576}}],"durability":{"protocol":"prismpm/browser-operation-journal/1","resource":"journal","head":"operations","replay_root":"BrowserContract.Probe.replay","max_pending":1,"namespace":"browser-contract-journal","staging_head":"staging","signing_resource":"journal-sign","credential_slot":"selected","maximum_records":1024},"view":{"surface":"prismpm-browser/1","protocol":"prismpm/browser-presentation/1","title":"Browser Contract","heading":"Declaration fixture","presentation_root":"BrowserContract.Probe.present","maximum":1,"labels":[{"id":"status","text":"Runtime unavailable"}]}}"#).expect("closed browser diagnostic fixture")
 }
@@ -426,6 +514,110 @@ fn validate_browser_specimen(value: &Value) -> Result<(), PrismError> {
     let declaration = serde_json::from_value(value.clone())
         .map_err(|_| PrismError::new("PP2010", "invalid browser declaration specimen"))?;
     crate::holo::browser_application::validate(&declaration)
+}
+
+fn server_specimen() -> Value {
+    json!({
+        "profile":"prismpm/server-application/1",
+        "name":"Server Contract",
+        "cargo_name":"prism-server-contract",
+        "cargo_version":"0.1.0",
+        "cargo_description":"Source projection fixture, not an executable application.",
+        "cargo_repository":"https://github.com/UOR-Foundation/PrismPM",
+        "cargo_homepage":"https://github.com/UOR-Foundation/PrismPM",
+        "acceptance_vectors":[{"request":[97],"response":[98]}],
+        "core":{"root":"ServerContract.Probe.dispatch","package":"server_contract_core","version":"0.1.0"},
+        "bindings":[{"path":"bindings/server-contract-binding","crate_name":"server-contract-binding","host":"server_contract_binding::Native"}],
+        "serving":[],
+        "verify_build_timeout_seconds":1800,
+        "request_maximum":8,
+        "response_maximum":8,
+        "host":{
+            "protocol":"prismpm/host-effects/1",
+            "description":"Diagnostic fixture for the server application declaration.",
+            "usage_code":2,"io_code":3,"fault_code":4,
+            "effect_budget":1,
+            "effects":[{
+                "name":"store.get",
+                "request":[{"name":"key","kind":"bytes"}],
+                "result":[{"name":"found","kind":"flag"}],
+                "failures":["unavailable"],
+                "request_maximum":64,
+                "result_maximum":16
+            }],
+            "transcripts":[{"vector":0,"steps":[{
+                "effect":"store.get",
+                "request":[0,0,0,1,97],
+                "outcome":[0,0,0,0,1]
+            }]}]
+        }
+    })
+}
+
+/// The server specimen served over loopback: one HTTP exchange of the one frame
+/// vector, with the smallest bounds the declaration admits.
+fn served_specimen() -> Value {
+    let mut value = server_specimen();
+    value["request_maximum"] = json!(1024);
+    value["serving"] = json!([{
+        "address":"127.0.0.1","port":0,"connection_maximum":1,"read_timeout_millis":1000,
+        "root_stack_bytes":65536,"request_line_maximum":16,"header_count_maximum":1,
+        "header_bytes_maximum":64,"body_maximum":1,"origins":[],"accept":[],"content_types":[],
+        "enforced_methods":[],"counted_field":"","counted_value":"","frame":[],
+        "vectors":[{"vector":0,"request":[71,69,84,32,47,32,72,84,84,80,47,49,46,49],"response":[72,84,84,80]}]
+    }]);
+    value
+}
+
+fn validate_server_specimen(value: &Value) -> Result<(), PrismError> {
+    let declaration = serde_json::from_value(value.clone())
+        .map_err(|_| PrismError::new("PP2013", "invalid server declaration specimen"))?;
+    crate::holo::server_application::validate(&declaration)
+}
+
+fn validate_server_core(value: &Value) -> Result<(), PrismError> {
+    let root = value["root"]
+        .as_str()
+        .ok_or_else(|| PrismError::new("PP2025", "invalid server core specimen"))?;
+    let effects = value["effects"]
+        .as_array()
+        .map(|effects| {
+            effects
+                .iter()
+                .filter_map(|effect| effect.as_str().map(str::to_owned))
+                .collect::<Vec<_>>()
+        })
+        .ok_or_else(|| PrismError::new("PP2025", "invalid server core specimen"))?;
+    crate::server_build::admit_effects(root, &effects)
+}
+
+fn validate_server_effects(value: &Value) -> Result<(), PrismError> {
+    use crate::server_host::acceptance::{require_exercised, Exercise, Role};
+    let specimen = || PrismError::new("PP2026", "invalid server effects specimen");
+    let rows = value["effects"]
+        .as_array()
+        .ok_or_else(specimen)?
+        .iter()
+        .map(|row| {
+            let count = |key: &str| {
+                row[key]
+                    .as_u64()
+                    .and_then(|count| usize::try_from(count).ok())
+            };
+            Some(Exercise {
+                name: row["name"].as_str()?.to_owned(),
+                role: match row["role"].as_str()? {
+                    "core" => Role::Core,
+                    "frame" => Role::Frame,
+                    _ => return None,
+                },
+                steps: count("steps")?,
+                served: count("served")?,
+            })
+        })
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(specimen)?;
+    require_exercised(&rows)
 }
 
 fn validate_browser_runtime(value: &Value) -> Result<(), PrismError> {
@@ -440,6 +632,15 @@ fn validate(spec: ProbeSpec, value: &Value) -> Result<(), PrismError> {
     }
     if matches!(spec.rule, Rule::BrowserRuntime) {
         return validate_browser_runtime(value);
+    }
+    if matches!(spec.rule, Rule::ServerApplication | Rule::ServedApplication) {
+        return validate_server_specimen(value);
+    }
+    if matches!(spec.rule, Rule::ServerCore) {
+        return validate_server_core(value);
+    }
+    if matches!(spec.rule, Rule::ServerEffects) {
+        return validate_server_effects(value);
     }
     if matches!(
         spec.rule,
@@ -474,6 +675,15 @@ fn validate(spec: ProbeSpec, value: &Value) -> Result<(), PrismError> {
             | Rule::FeatureDeclaration
     ) {
         return crate::features::probe(value);
+    }
+    if matches!(
+        spec.rule,
+        Rule::ThreatAnswer
+            | Rule::ControlEvidence
+            | Rule::ThreatCategory
+            | Rule::ThreatModelDeclaration
+    ) {
+        return crate::threat_model::probe(value);
     }
     if spec.rule.accepts(value) {
         Ok(())

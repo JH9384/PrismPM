@@ -403,6 +403,24 @@ fn invalid(message: impl Into<String>) -> NoVerdict {
 }
 
 impl Policy {
+    /// A policy given as one JSON object, as `holo.verify()` takes it: the
+    /// members of a policy file and `capabilities`. Any other member is refused.
+    pub fn from_json(value: &Value) -> Result<Self, NoVerdict> {
+        let object = value
+            .as_object()
+            .ok_or_else(|| invalid("the policy must be an object"))?;
+        if let Some(unknown) = object
+            .keys()
+            .find(|key| !POLICY_MEMBERS.contains(&key.as_str()) && *key != "capabilities")
+        {
+            return Err(invalid(format!(
+                "the policy has no member {unknown}; it has {}, capabilities",
+                POLICY_MEMBERS.join(", ")
+            )));
+        }
+        Self::from_value(value)
+    }
+
     /// The policy members of one JSON object, checked as `@prism-code/verify`
     /// checks them. The caller has already refused the members it does not admit.
     fn from_value(value: &Value) -> Result<Self, NoVerdict> {
@@ -810,6 +828,22 @@ impl Row {
     fn content_digests(&self) -> (String, String) {
         (sha256_hex(&self.content), blake3_hex(&self.content))
     }
+
+    /// Whether an in-toto digest set names this row's content: its sha256,
+    /// the κ (ADR-017), is equal, and a blake3 beside it, which only
+    /// statements about a v4 holo carry (ADR-015), is equal too.
+    fn named_by(&self, digest: &Value) -> bool {
+        let Some(digest) = digest.as_object() else {
+            return false;
+        };
+        let (sha256, blake3) = self.content_digests();
+        let text = |name: &str| digest.get(name).and_then(Value::as_str);
+        digest.keys().all(|key| key == "sha256" || key == "blake3")
+            && text("sha256") == Some(&sha256)
+            && digest
+                .get("blake3")
+                .is_none_or(|_| text("blake3") == Some(&blake3))
+    }
 }
 
 fn is_label(bytes: &[u8]) -> bool {
@@ -1024,6 +1058,65 @@ fn structure(bytes: &[u8]) -> Result<Structure, NoVerdict> {
     Ok((body, footer, rows))
 }
 
+/// The closed schema of each model document a holo can carry, as
+/// `@prism-code/spec` ships it under `schemas/documents/`.
+const MODEL_DOCUMENT_SCHEMA_FILES: [(&str, &str, &[u8]); 4] = [
+    (
+        "prismpm/model-document/1",
+        "model-document-v1.schema.json",
+        include_bytes!("../../schemas/model-document.schema.json"),
+    ),
+    (
+        "prismpm/model-document/2",
+        "model-document-v2.schema.json",
+        include_bytes!("../../schemas/model-document-v2.schema.json"),
+    ),
+    (
+        "prismpm/model-document/5",
+        "model-document-v5.schema.json",
+        include_bytes!("../../schemas/model-document-v5.schema.json"),
+    ),
+    (
+        "prismpm/model-document/6",
+        "model-document-v6.schema.json",
+        include_bytes!("../../schemas/model-document-v6.schema.json"),
+    ),
+];
+
+/// The model document against the closed schema it names, as
+/// `holo.verify()` checks it: every problem, or nothing when it matches.
+fn model_document_problems(value: &Value) -> Result<(), String> {
+    let name = value.get("schema").and_then(Value::as_str);
+    let Some((_, file, bytes)) = MODEL_DOCUMENT_SCHEMA_FILES
+        .iter()
+        .find(|(id, _, _)| Some(*id) == name)
+    else {
+        return Ok(());
+    };
+    let schema: Value = serde_json::from_slice(bytes)
+        .map_err(|error| format!("the schema {file} does not parse: {error}"))?;
+    let validator = jsonschema::validator_for(&schema)
+        .map_err(|error| format!("the schema {file} does not compile: {error}"))?;
+    let problems = validator
+        .iter_errors(value)
+        .take(8)
+        .map(|error| {
+            format!(
+                "${}: {error}",
+                error.instance_path().to_string().replace('/', ".")
+            )
+        })
+        .collect::<Vec<_>>();
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "the model document does not match schemas/documents/{file}: {}",
+            problems.join("; ")
+        ))
+    }
+}
+
 /// The JSON object of one document section, or the problem.
 fn document_object(what: &str, row: Option<&Row>) -> Result<Value, String> {
     let row = row.ok_or_else(|| format!("{what} is missing"))?;
@@ -1111,8 +1204,101 @@ fn world_problems(guest: &[u8]) -> Vec<String> {
     problems
 }
 
+/// model.schema: the model document is JSON under a schema a holo can carry.
+fn model_schema_finding(row: &Row) -> (bool, String) {
+    let decoded = serde_json::from_slice::<Value>(&row.content)
+        .map_err(|error| format!("the model document is not JSON: {error}"))
+        .and_then(|value| {
+            let schema = value.get("schema").and_then(Value::as_str);
+            if value.is_object() && schema.is_some_and(|schema| MODEL_DOCUMENT_SCHEMAS.contains(&schema)) {
+                model_document_problems(&value).map(|()| value)
+            } else {
+                Err(format!(
+                    "the model document names schema {}, which no known format revision packs into a holo",
+                    value.get("schema").cloned().unwrap_or(Value::Null)
+                ))
+            }
+        });
+    match decoded {
+        Ok(value) => (
+            true,
+            format!("the model document matches {}", value["schema"]),
+        ),
+        Err(problem) => (false, problem),
+    }
+}
+
+/// model.sha256: the provenance and the source manifest record the model
+/// document's sha256.
+fn model_sha256_finding(
+    provenance: &ModelProvenanceV1,
+    row: &Row,
+    source_manifest: &Result<Value, String>,
+) -> (bool, String) {
+    let actual = sha256_hex(&row.content);
+    let mut problems = Vec::new();
+    if provenance.model_id != actual {
+        problems.push(format!(
+            "the provenance model_id {} differs from the model document's sha256 {actual}",
+            provenance.model_id
+        ));
+    }
+    let listed = source_manifest
+        .as_ref()
+        .ok()
+        .and_then(|manifest| manifest.get("files")?.as_array())
+        .and_then(|files| {
+            files
+                .iter()
+                .find(|file| file.get("kind").and_then(Value::as_str) == Some("model-document"))
+        })
+        .and_then(|file| file.get("sha256").and_then(Value::as_str));
+    if let Some(listed) = listed {
+        if listed != actual {
+            problems.push(format!(
+                "the source manifest lists model-document sha256 {listed}, the blob hashes to {actual}"
+            ));
+        }
+    }
+    if problems.is_empty() {
+        (
+            true,
+            format!("the model document's sha256 {actual} equals the recorded model_id"),
+        )
+    } else {
+        (false, problems.join("; "))
+    }
+}
+
+/// world.contract: the guest has the imports and exports of its contract's
+/// world. `None` when there is no intact guest under the one known contract.
+fn world_finding(contract: Option<&str>, guest: Option<&Row>) -> Option<(bool, String)> {
+    let (contract, guest) = (contract?, guest?);
+    if guest.problem.is_some() || !guest.label_matches || contract != CORE_WASM_CONTRACT {
+        return None;
+    }
+    let problems = world_problems(&guest.content);
+    Some(if problems.is_empty() {
+        (
+            true,
+            format!("the guest has exactly the imports and exports of the {contract} world"),
+        )
+    } else {
+        (
+            false,
+            format!(
+                "the guest does not match the {contract} world: {}",
+                problems.join("; ")
+            ),
+        )
+    })
+}
+
 /// Every check on the archive and its documents, in verdict order.
 fn analyze(bytes: &[u8]) -> Result<Analysis, NoVerdict> {
+    if crate::holo::v5::is_uorc(bytes) {
+        return v5::analyze(bytes);
+    }
     let (body, footer, rows) = structure(bytes)?;
     let mut findings = Vec::new();
     let mut add =
@@ -1326,27 +1512,8 @@ fn analyze(bytes: &[u8]) -> Result<Analysis, NoVerdict> {
             ),
         ),
         (Ok(_), Some(row)) => {
-            let decoded = serde_json::from_slice::<Value>(&row.content)
-                .map_err(|error| format!("the model document is not JSON: {error}"))
-                .and_then(|value| {
-                    let schema = value.get("schema").and_then(Value::as_str);
-                    if value.is_object() && schema.is_some_and(|schema| MODEL_DOCUMENT_SCHEMAS.contains(&schema)) {
-                        Ok(value)
-                    } else {
-                        Err(format!(
-                            "the model document names schema {}, which no known format revision packs into a holo",
-                            value.get("schema").cloned().unwrap_or(Value::Null)
-                        ))
-                    }
-                });
-            add(
-                "model.schema",
-                decoded.is_ok(),
-                match &decoded {
-                    Ok(value) => format!("the model document matches {}", value["schema"]),
-                    Err(problem) => problem.clone(),
-                },
-            );
+            let (ok, detail) = model_schema_finding(row);
+            add("model.schema", ok, detail);
         }
     }
 
@@ -1456,62 +1623,16 @@ fn analyze(bytes: &[u8]) -> Result<Analysis, NoVerdict> {
 
     // model.sha256: the provenance records the model document's sha256 as model_id.
     if let (Ok(provenance), Some(row)) = (&provenance, model_row) {
-        let actual = sha256_hex(&row.content);
-        let mut problems = Vec::new();
-        if provenance.model_id != actual {
-            problems.push(format!(
-                "the provenance model_id {} differs from the model document's sha256 {actual}",
-                provenance.model_id
-            ));
-        }
-        let listed = source_manifest
-            .as_ref()
-            .ok()
-            .and_then(|manifest| manifest.get("files")?.as_array())
-            .and_then(|files| {
-                files
-                    .iter()
-                    .find(|file| file.get("kind").and_then(Value::as_str) == Some("model-document"))
-            })
-            .and_then(|file| file.get("sha256").and_then(Value::as_str));
-        if let Some(listed) = listed {
-            if listed != actual {
-                problems.push(format!(
-                    "the source manifest lists model-document sha256 {listed}, the blob hashes to {actual}"
-                ));
-            }
-        }
-        add(
-            "model.sha256",
-            problems.is_empty(),
-            if problems.is_empty() {
-                format!("the model document's sha256 {actual} equals the recorded model_id")
-            } else {
-                problems.join("; ")
-            },
-        );
+        let (ok, detail) = model_sha256_finding(provenance, row, &source_manifest);
+        add("model.sha256", ok, detail);
     }
 
     // world.contract: the guest has the imports and exports of its contract's world.
-    if let (Some(contract), Some(guest)) = (
+    if let Some((ok, detail)) = world_finding(
         contract.as_deref(),
         roles.get("guest").and_then(|label| blob_by_label(label)),
     ) {
-        if guest.problem.is_none() && guest.label_matches && contract == CORE_WASM_CONTRACT {
-            let problems = world_problems(&guest.content);
-            add(
-                "world.contract",
-                problems.is_empty(),
-                if problems.is_empty() {
-                    format!("the guest has exactly the imports and exports of the {contract} world")
-                } else {
-                    format!(
-                        "the guest does not match the {contract} world: {}",
-                        problems.join("; ")
-                    )
-                },
-            );
-        }
+        add("world.contract", ok, detail);
     }
 
     // format.revision: an archive carries no date; its identifiers name the revision.
@@ -1662,10 +1783,13 @@ struct ProofModel {
     modules: Vec<Value>,
 }
 
-#[derive(Deserialize)]
+/// A digest set: `sha256` alone, the κ, in a holo v5 statement (ADR-017);
+/// `blake3` beside it in a v4 one.
+#[derive(Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 struct DigestSet {
-    blake3: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    blake3: Option<String>,
     sha256: String,
 }
 
@@ -1825,35 +1949,27 @@ fn proof_reasons(statement: &Value, analysis: &Analysis, envelope: &Envelope) ->
     };
 
     let digest = &subject["digest"];
-    let subject_blake3 = digest
-        .get("blake3")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
     let subject_sha256 = digest
         .get("sha256")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    let guest = analysis.role("guest").map(Row::content_digests);
-    if guest
-        .as_ref()
-        .is_none_or(|(sha256, blake3)| subject_blake3 != blake3 || subject_sha256 != sha256)
-    {
+    let guest = analysis.role("guest");
+    if guest.is_none_or(|guest| !guest.named_by(digest)) {
         reasons.push(proof_reason(
             "proof.subject",
             PROOF_SUBJECT,
             format!(
-                "The proof statement is about {} with blake3 {subject_blake3}, which is not this holo's guest{}.",
+                "The proof statement is about {} with sha256 {subject_sha256}, which is not this holo's guest{}.",
                 subject.get("name").and_then(Value::as_str).unwrap_or("an unnamed subject"),
-                guest.map(|(_, blake3)| format!(" (blake3 {blake3})")).unwrap_or_default()
+                guest.map(|guest| format!(" (sha256 {})", guest.content_digests().0)).unwrap_or_default()
             ),
         ));
     }
 
     let mut model = Vec::new();
-    let model_blob = analysis.role("model").map(Row::content_digests);
-    if model_blob.as_ref().is_none_or(|(sha256, blake3)| {
-        predicate.model.document.sha256 != *sha256 || predicate.model.document.blake3 != *blake3
-    }) {
+    let model_blob = analysis.role("model");
+    let document = serde_json::to_value(&predicate.model.document).unwrap_or(Value::Null);
+    if model_blob.is_none_or(|model| !model.named_by(&document)) {
         model.push("the model document digests are not those of the model blob".to_owned());
     }
     let provenance = analysis.provenance.as_ref();
@@ -2131,16 +2247,12 @@ fn provenance_reasons(
         .rows
         .iter()
         .filter(|row| row.kind == KIND_CONTENT_BLOB && row.label.is_some())
-        .map(Row::content_digests)
         .collect::<Vec<_>>();
     let unmatched = subjects
         .iter()
         .filter(|subject| {
-            let digest = subject.get("digest").and_then(Value::as_object);
-            let text = |name: &str| digest.and_then(|d| d.get(name)).and_then(Value::as_str);
-            !blobs.iter().any(|(sha256, blake3)| {
-                text("sha256") == Some(sha256) && text("blake3") == Some(blake3)
-            })
+            let digest = subject.get("digest").unwrap_or(&Value::Null);
+            !blobs.iter().any(|row| row.named_by(digest))
         })
         .map(|subject| {
             subject
@@ -2297,6 +2409,20 @@ pub fn verify(bytes: &[u8], policy: &Policy) -> Result<Verdict, NoVerdict> {
     let minimum = policy.resolved_minimum();
 
     let mut passed = !outside_grant;
+    // A holo whose bytes do not hold together fails every policy, P0 included.
+    if reasons
+        .iter()
+        .any(|reason| reason.check == "holo.integrity")
+    {
+        passed = false;
+        reasons.push(Reason::new(
+            "policy.integrity",
+            None,
+            None,
+            "The holo is damaged, and an integrity failure fails every policy, whatever its minimum."
+                .to_owned(),
+        ));
+    }
     if level < minimum {
         passed = false;
         reasons.push(Reason::new(
@@ -2398,6 +2524,9 @@ pub fn verify(bytes: &[u8], policy: &Policy) -> Result<Verdict, NoVerdict> {
         reasons,
     })
 }
+
+#[path = "verdict_v5.rs"]
+mod v5;
 
 #[cfg(test)]
 #[path = "verdict_tests.rs"]

@@ -10,6 +10,8 @@ import {test} from 'node:test';
 import {capture} from './library-sdk-check.mjs';
 import {lockFixture,resultFixture,qualificationFixture} from './library-sdk-fixture.mjs';
 import {historicalLock,migrationChecks,expectedMigrationProcesses} from '../sdk/migration-qualification.mjs';
+// The workspace version the image label carries (scripts/workspace-version.mjs).
+const workspaceVersion=()=>/^version = "([^"]+)"$/m.exec(readFileSync(new URL('../Cargo.toml',import.meta.url),'utf8').split('[workspace.package]')[1])[1];
 
 const source=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const sourceAuthority={archive_sha256:createHash('sha256').update(readFileSync(join(source,'vendor/lean4-prod/lean.tar'))).digest('hex'),toolchain:readFileSync(join(source,'lean-toolchain'),'utf8').trim()};
@@ -22,14 +24,16 @@ const earlier=fs.existsSync(log)?fs.readFileSync(log,'utf8').trim().split('\\n')
 fs.appendFileSync(log,JSON.stringify(args)+'\\n');
 const id='c'.repeat(64);
 if(args[0]==='pull')process.exit(0);
-if(args[0]==='image'&&args[1]==='inspect'){console.log(JSON.stringify([{Os:'linux',Architecture:process.arch==='x64'?'amd64':'arm64',RepoDigests:[process.env.RECORDED_IMAGE],Config:{Entrypoint:['/usr/local/bin/prismpm-devcontainer-init'],Volumes:null,Labels:{'org.opencontainers.image.revision':process.env.RECORDED_REVISION,'org.opencontainers.image.source':'https://github.com/UOR-Foundation/PrismPM','org.opencontainers.image.version':'0.3.0'}}}]));process.exit(0);}
+if(args[0]==='image'&&args[1]==='inspect'){console.log(JSON.stringify([{Os:'linux',Architecture:process.arch==='x64'?'amd64':'arm64',RepoDigests:[process.env.RECORDED_IMAGE],Config:{Entrypoint:['/usr/local/bin/prismpm-devcontainer-init'],Volumes:null,Labels:{'org.opencontainers.image.revision':process.env.RECORDED_REVISION,'org.opencontainers.image.source':'https://github.com/UOR-Foundation/prismpm','org.opencontainers.image.version':'${workspaceVersion()}'}}}]));process.exit(0);}
 if(args[0]==='container'&&args[1]==='create'){console.log(id);process.exit(0);}
 if(args[0]==='container'&&args[1]==='cp'){
  const from=args[2].split(':').slice(1).join(':'),prefix='/opt/prismpm/share/conformance-root/';
  if(from==='/opt/prismpm/share/inventory.json'){fs.copyFileSync(process.env.RECORDED_INVENTORY,args[3]);process.exit(0);}
  if(from==='/opt/prismpm/share/standards.lock'){fs.copyFileSync(path.join(root,'standards.lock'),args[3]);process.exit(0);}
  const input=from.startsWith(prefix)?path.join(root,from.slice(prefix.length)):from==='/usr/local/bin/prismpm-devcontainer-init'?path.join(root,'sdk/devcontainer-init.sh'):null;
- if(!input)process.exit(65);fs.cpSync(input,args[3],{recursive:true,verbatimSymlinks:true});process.exit(0);
+ if(!input)process.exit(65);
+ if(args[3]==='-'){require('node:child_process').execFileSync('tar',['-c','-C',path.dirname(input),path.basename(input)],{stdio:['ignore','inherit','inherit']});process.exit(0);}
+ fs.cpSync(input,args[3],{recursive:true,verbatimSymlinks:true});process.exit(0);
 }
 if(args[0]==='container'&&args[1]==='start'){
  const created=earlier.filter(row=>row[0]==='container'&&row[1]==='create').at(-1);
@@ -85,7 +89,10 @@ function bounded(file,args,{env,timeout,maxBuffer}){
 }
 async function execute(context){
  try{
-  const result=await bounded('bash',[join(context.root,'scripts/library-sdk-check.sh'),image,revision],{env:context.env,timeout:30000,maxBuffer:1024*1024});
+  // Each real shell run took about 22 s on a hosted 4-core runner (source run 8-part: 88 s for the four
+  // runs each of the two workers executes, while the preceding docker-sequence test took 155 s), so a
+  // 30 s deadline failed whenever one run met contention. The deadline still bounds a hung shell.
+  const result=await bounded('bash',[join(context.root,'scripts/library-sdk-check.sh'),image,revision],{env:context.env,timeout:120000,maxBuffer:1024*1024});
   assert.equal(result.error,undefined,'shell transport must complete within its resource bounds');assert.equal(result.signal,null,'shell transport must exit without a signal');
   const calls=readFileSync(context.env.RECORDED_CALLS,'utf8').trim().split('\n').map(JSON.parse);
   const retainedPath=join(context.root,'target/library-sdk-evidence/linux-'+(process.arch==='x64'?'amd64':'arm64'));
@@ -118,7 +125,7 @@ async function accepted(context){
  assert.equal(custody[custody.indexOf('--user')+1],'0:0');
  assert.ok(custody.includes('/opt/prismpm-custody:rw,noexec,nosuid,nodev,size=16m,mode=0700'));
  assert.deepEqual(custody.slice(-2),[image,'sdk/exporter-seed-custody.integration.mjs']);
- const runtime=created[4];for(const arg of ['--interactive','--read-only','--network','none','--user','1000:1000','--cap-drop','ALL','--security-opt','no-new-privileges','--tmpfs','/tmp:rw,exec,nosuid,nodev,size=8g','PRISMPM_EPHEMERAL_HOME=1','CARGO_NET_OFFLINE=true'])assert.ok(runtime.includes(arg),arg);
+ const runtime=created[4];for(const arg of ['--interactive','--read-only','--network','none','--user','1000:1000','--cap-drop','ALL','--security-opt','no-new-privileges','--tmpfs','/tmp:rw,exec,nosuid,nodev,size=8g','PRISMPM_EPHEMERAL_HOME=1','CARGO_NET_OFFLINE=true','CARGO_TARGET_DIR=/tmp/prismpm-library-target'])assert.ok(runtime.includes(arg),arg);
  assert.ok(!runtime.includes('--mount')&&!runtime.includes('--volume')&&!runtime.includes('--entrypoint'));
  assert.deepEqual(runtime.slice(-5),[image,'node','scripts/library-sdk-check.mjs','run',image]);
  const start=calls.findIndex(row=>row[0]==='container'&&row[1]==='start');assert.ok(start>=0,'runtime must actually start');

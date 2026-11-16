@@ -7,6 +7,32 @@ they are not current integrated-source, installed-SDK or release acceptance.
 
 Private component evidence; installed SDK and application acceptance are separate.
 
+## Extended catalogue and contrast admission (2026-11-05)
+
+The catalogue gains nine appended colors, a Hologram font family and a separate
+contrast predicate. Admission (`designCatalogueAdmitted`) is shape plus WCAG
+text 4.5:1 and focus 3:1; `DesignWire.designCatalogueBytes` and the browser
+decoder both refuse a failing palette. Evidence from this change, in the
+pinned SDK image (LexLean 0.4.0, Lean 4.32.1):
+
+- A minimal project of `Design`, `DesignWire`, `HologramDesign` and their
+  imports passed `lexlean lock`, `check`, `build` and `verify` (30 s). The
+  attestation records `hologramDesignCatalogueValid` as ok with no axioms.
+- A planted failing palette (light muted text equal to its muted ground) made
+  `verify` fail: `decide` proved the statement false.
+- `wire.test.mjs` passed 8 of 9, including the 25-token capture, contrast
+  refusal and every corpus row; `scripts/hologram-design.test.mjs` passed 3 of 3,
+  including 4,000 random pairs where the integer rule never admits a pair below
+  its exact WCAG ratio.
+
+Not established, and pre-existing on the parent revision: `check-source.mjs`
+and `compile.mjs` cannot run because `src/Fixture.lex.tex` is still in the
+language 1.1 data form (`\semanticdata`) that language 1.2 refuses, and the
+whole-owner closure test fails on `tests/browser-view/lexicon-inputs.mjs`.
+The fixture and corpus were widened consistently (123 token records, cases
+93–126), but the complete generated native/Wasm, three-engine browser, axe and
+mutant owner was not rerun. This is not DK-38 acceptance.
+
 ## Earlier checkpoints
 
 The recorded run below predates complete generated-package provenance checks.

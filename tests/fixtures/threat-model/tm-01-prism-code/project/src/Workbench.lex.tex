@@ -1,0 +1,662 @@
+\begin{lexlean}{Workbench}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{prism.arch@1.0.0}
+\importmodule{Compliance}
+\importmodule{Core}
+\importmodule{Engine}
+\importmodule{Foundation.View.Text.V1.Model}
+\importmodule{Foundation.View.Text.V3.Model}
+\importmodule{Guide}
+\importmodule{Interaction}
+\importmodule{Specification}
+\title{Prism-code workbench guidance}
+\begin{semanticmodule}
+structure{
+  name: StatementForm,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: usage, type: String}, {name: meaning, type: String}]
+}
+
+structure{
+  name: Recovery,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: code, type: String}, {name: explanation, type: String}, {name: fix, type: String}]
+}
+
+structure{
+  name: StatusText,
+  type_parameters: [],
+  parameters: [],
+  fields: [{name: name, type: String}, {name: text, type: String}]
+}
+
+structure{
+  name: ExampleSpec,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: outcome, type: String},
+    {name: vector, type: Nat},
+    {name: requestBytes, type: Nat},
+    {name: responseBytes, type: Nat}
+  ]
+}
+
+structure{
+  name: WorkbenchExample,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: outcome, type: String},
+    {name: vector, type: Nat},
+    {name: script, type: String},
+    {name: report, type: String}
+  ]
+}
+
+structure{
+  name: Workbench,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: purpose, type: String},
+    {name: forms, type: (List StatementForm)},
+    {name: examples, type: (List WorkbenchExample)},
+    {name: recoveries, type: (List Recovery)},
+    {name: statuses, type: (List StatusText)}
+  ]
+}
+
+inductive{
+  name: RequestFault,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: EmptyRequest, fields: []},
+    {name: OversizedRequest, fields: []},
+    {name: InvalidEncoding, fields: []},
+    {name: MissingHeader, fields: []}
+  ]
+}
+
+definition{
+  name: requestFaultCode,
+  parameters: [fault : RequestFault],
+  result: String,
+  body: (match fault
+    | RequestFault.EmptyRequest => "empty"
+    | RequestFault.OversizedRequest => "too-large"
+    | RequestFault.InvalidEncoding => "invalid-utf8"
+    | RequestFault.MissingHeader => "missing-header")
+}
+
+definition{
+  name: requestFaultReport,
+  parameters: [fault : RequestFault],
+  result: String,
+  body: (match fault
+    | RequestFault.EmptyRequest => "status error\nrequest empty"
+    | RequestFault.OversizedRequest => "status error\nrequest too-large"
+    | RequestFault.InvalidEncoding => "status error\nrequest invalid-utf8"
+    | RequestFault.MissingHeader => "status error\nline 1 missing-header")
+}
+
+definition{
+  name: requestFaultVector,
+  parameters: [fault : RequestFault],
+  result: Nat,
+  body: (match fault
+    | RequestFault.EmptyRequest => 10
+    | RequestFault.OversizedRequest => 12
+    | RequestFault.InvalidEncoding => 9
+    | RequestFault.MissingHeader => 8)
+}
+
+definition{
+  name: findingCode,
+  parameters: [found : Compliance::Finding],
+  result: String,
+  body: (match found
+    | Compliance::Finding.MemoryExceeded name memory limit => "memory"
+    | Compliance::Finding.PlaintextPii name => "plaintext-pii")
+}
+
+definition{
+  name: recovery,
+  parameters: [wanted : String, explanation : String, fix : String],
+  result: Recovery,
+  body: (record Recovery {code := wanted, explanation := explanation, fix := fix})
+}
+
+definition{
+  name: parseErrorRecovery,
+  parameters: [problem : Interaction::ParseError],
+  result: Recovery,
+  body: (match problem
+    | Interaction::ParseError.UnknownCommand => (recovery (Engine::parseErrorCode problem) "The line starts with a word that is not a statement, or policy names an unknown policy." "Start the line with node, edge, pii or policy memory/encrypt-pii, or delete the line.")
+    | Interaction::ParseError.WrongArity => (recovery (Engine::parseErrorCode problem) "The statement has too few or too many fields." "Give the statement exactly the fields shown for it in the statement reference.")
+    | Interaction::ParseError.EmptyField => (recovery (Engine::parseErrorCode problem) "The line has two spaces in a row, which leaves a field empty." "Separate fields with exactly one space and remove leading or trailing spaces.")
+    | Interaction::ParseError.UnknownKind => (recovery (Engine::parseErrorCode problem) "The node kind is not one of the four kinds." "Use input, operator, encrypt or output as the node kind.")
+    | Interaction::ParseError.InvalidNumber => (recovery (Engine::parseErrorCode problem) "A memory value is not a whole number of bytes." "Write the memory or limit as digits only, with no sign, unit or separator."))
+}
+
+definition{
+  name: violationRecovery,
+  parameters: [violation : Core::Violation],
+  result: Recovery,
+  body: (match violation
+    | Core::Violation.DuplicateNode => (recovery (Engine::violationCode violation) "A node with this name is already declared." "Give each node a unique name, or remove the repeated node line.")
+    | Core::Violation.UnknownNode => (recovery (Engine::violationCode violation) "An edge or pii line names a node that has not been declared on an earlier line." "Declare the node with a node line before the line that uses it, or correct the name.")
+    | Core::Violation.SelfEdge => (recovery (Engine::violationCode violation) "The edge connects a node to itself." "Connect two different nodes, or remove the edge.")
+    | Core::Violation.DuplicateEdge => (recovery (Engine::violationCode violation) "This edge is already declared." "Remove the repeated edge line.")
+    | Core::Violation.OutputSource => (recovery (Engine::violationCode violation) "The edge starts at an output node, and data cannot flow out of an output." "Start the edge at an input, operator or encrypt node.")
+    | Core::Violation.InputTarget => (recovery (Engine::violationCode violation) "The edge ends at an input node, and data cannot flow into an input." "End the edge at an operator, encrypt or output node.")
+    | Core::Violation.NotAnInput => (recovery (Engine::violationCode violation) "Only an input node can be marked as carrying personal data." "Mark the input node where the personal data enters, not a later node.")
+    | Core::Violation.DuplicatePii => (recovery (Engine::violationCode violation) "This node is already marked as carrying personal data." "Remove the repeated pii line.")
+    | Core::Violation.DuplicatePolicy => (recovery (Engine::violationCode violation) "This policy is already stated; each policy may be stated once." "Remove the repeated policy line, or keep the one you want."))
+}
+
+definition{
+  name: stepErrorRecovery,
+  parameters: [error : Engine::StepError],
+  result: Recovery,
+  body: (match error
+    | Engine::StepError.Parse problem => (parseErrorRecovery problem)
+    | Engine::StepError.Refused violation => (violationRecovery violation)
+    | Engine::StepError.LineOverflow => (recovery (Engine::stepErrorCode error) "The script has more lines than the line counter can hold." "Split the script into smaller projects."))
+}
+
+definition{
+  name: requestFaultRecovery,
+  parameters: [fault : RequestFault],
+  result: Recovery,
+  body: (match fault
+    | RequestFault.EmptyRequest => (recovery (requestFaultCode fault) "The request is empty." "Enter the header dataflow-policy/1 on the first line, then the project statements.")
+    | RequestFault.OversizedRequest => (recovery (requestFaultCode fault) "The request is longer than 4096 bytes." "Shorten the script to at most 4096 bytes.")
+    | RequestFault.InvalidEncoding => (recovery (requestFaultCode fault) "The request is not valid UTF-8 text." "Paste the script as plain UTF-8 text.")
+    | RequestFault.MissingHeader => (recovery (requestFaultCode fault) "The first line is not the header dataflow-policy/1." "Start the script with the line dataflow-policy/1."))
+}
+
+definition{
+  name: findingRecovery,
+  parameters: [found : Compliance::Finding],
+  result: Recovery,
+  body: (match found
+    | Compliance::Finding.MemoryExceeded name memory limit => (recovery (findingCode found) "A node requires more memory than the policy memory limit allows." "Raise the policy memory limit, or lower the memory declared for the node the finding names.")
+    | Compliance::Finding.PlaintextPii name => (recovery (findingCode found) "Personal data reaches an output without passing an encrypt node." "Route the data through an encrypt node before the output the finding names, and remove any edge that bypasses it."))
+}
+
+definition{
+  name: recoveries,
+  parameters: [],
+  result: (List Recovery),
+  body: (cons (parseErrorRecovery (ctor Interaction::ParseError.UnknownCommand)) (cons (parseErrorRecovery (ctor Interaction::ParseError.WrongArity)) (cons (parseErrorRecovery (ctor Interaction::ParseError.EmptyField)) (cons (parseErrorRecovery (ctor Interaction::ParseError.UnknownKind)) (cons (parseErrorRecovery (ctor Interaction::ParseError.InvalidNumber)) (cons (violationRecovery (ctor Core::Violation.DuplicateNode)) (cons (violationRecovery (ctor Core::Violation.UnknownNode)) (cons (violationRecovery (ctor Core::Violation.SelfEdge)) (cons (violationRecovery (ctor Core::Violation.DuplicateEdge)) (cons (violationRecovery (ctor Core::Violation.OutputSource)) (cons (violationRecovery (ctor Core::Violation.InputTarget)) (cons (violationRecovery (ctor Core::Violation.NotAnInput)) (cons (violationRecovery (ctor Core::Violation.DuplicatePii)) (cons (violationRecovery (ctor Core::Violation.DuplicatePolicy)) (cons (stepErrorRecovery (ctor Engine::StepError.LineOverflow)) (cons (requestFaultRecovery (ctor RequestFault.EmptyRequest)) (cons (requestFaultRecovery (ctor RequestFault.OversizedRequest)) (cons (requestFaultRecovery (ctor RequestFault.InvalidEncoding)) (cons (requestFaultRecovery (ctor RequestFault.MissingHeader)) (cons (findingRecovery (ctor Compliance::Finding.MemoryExceeded "" (0 : UInt64) (0 : UInt64))) (cons (findingRecovery (ctor Compliance::Finding.PlaintextPii "")) (nil Recovery))))))))))))))))))))))
+}
+
+definition{
+  name: intentForm,
+  parameters: [intent : Interaction::Intent],
+  result: StatementForm,
+  body: (match intent
+    | Interaction::Intent.AddNode node => (record StatementForm {usage := "node NAME KIND MEMORY", meaning := "Declares a node; KIND is input, operator, encrypt or output and MEMORY is the bytes it requires."})
+    | Interaction::Intent.AddEdge edge => (record StatementForm {usage := "edge SOURCE TARGET", meaning := "Adds a dataflow edge between two nodes declared on earlier lines."})
+    | Interaction::Intent.MarkPii name => (record StatementForm {usage := "pii NAME", meaning := "Marks an input node as carrying personal data."})
+    | Interaction::Intent.RequireMemory limit => (record StatementForm {usage := "policy memory LIMIT", meaning := "No node may require more than LIMIT bytes."})
+    | Interaction::Intent.RequirePiiEncryption => (record StatementForm {usage := "policy encrypt-pii", meaning := "Personal data must pass an encrypt node before it reaches any output."}))
+}
+
+definition{
+  name: statementForms,
+  parameters: [],
+  result: (List StatementForm),
+  body: (cons (intentForm (ctor Interaction::Intent.AddNode (record Core::Node {name := "", kind := (ctor Core::NodeKind.Input), memory := (0 : UInt64)}))) (cons (intentForm (ctor Interaction::Intent.AddEdge (record Core::Edge {source := "", target := ""}))) (cons (intentForm (ctor Interaction::Intent.MarkPii "")) (cons (intentForm (ctor Interaction::Intent.RequireMemory (0 : UInt64))) (cons (intentForm (ctor Interaction::Intent.RequirePiiEncryption)) (nil StatementForm))))))
+}
+
+definition{
+  name: statusTexts,
+  parameters: [],
+  result: (List StatusText),
+  body: (cons (record StatusText {name := "checking", text := (Guide::checkingText)}) (cons (record StatusText {name := "accepted", text := (Guide::acceptedText)}) (cons (record StatusText {name := "rejected", text := (Guide::rejectedText)}) (cons (record StatusText {name := "error", text := (Guide::errorText)}) (nil StatusText)))))
+}
+
+definition{
+  name: exampleSpecs,
+  parameters: [],
+  result: (List ExampleSpec),
+  body: (cons (record ExampleSpec {name := "accepted", outcome := "accepted", vector := 0, requestBytes := 224, responseBytes := 240}) (cons (record ExampleSpec {name := "rejected", outcome := "rejected", vector := 3, requestBytes := 245, responseBytes := 338}) (cons (record ExampleSpec {name := "error", outcome := "error", vector := 4, requestBytes := 58, responseBytes := 32}) (nil ExampleSpec))))
+}
+
+definition{
+  name: declaredVectors,
+  parameters: [],
+  result: (List Foundation.View.Text.V1.Model::AcceptanceVector),
+  body: (project (Specification::application) acceptanceVectors)
+}
+
+definition{
+  name: vectorAt,
+  parameters: [
+    position : Nat,
+    current : Nat,
+    vectors : (List Foundation.View.Text.V1.Model::AcceptanceVector)
+  ],
+  result: (Option Foundation.View.Text.V1.Model::AcceptanceVector),
+  body: (match vectors
+    | List.nil => (ctor Option.none [Foundation.View.Text.V1.Model::AcceptanceVector])
+    | List.cons head rest => (if (position =? current) then (ctor Option.some [Foundation.View.Text.V1.Model::AcceptanceVector] head) else (vectorAt position (current + 1) rest))),
+  recursive_argument: vectors
+}
+
+definition{
+  name: textOf,
+  parameters: [content : Bytes],
+  result: String,
+  body: (match (prim utf8_decode content : (Option String))
+    | Option.none => ""
+    | Option.some text => text),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: resolveExample,
+  parameters: [spec : ExampleSpec],
+  result: WorkbenchExample,
+  body: (match (vectorAt (project spec vector) 0 (declaredVectors))
+    | Option.none => (record WorkbenchExample {name := (project spec name), outcome := (project spec outcome), vector := (project spec vector), script := "", report := ""})
+    | Option.some found => (record WorkbenchExample {name := (project spec name), outcome := (project spec outcome), vector := (project spec vector), script := (textOf (project found request)), report := (textOf (project found response))})),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: resolveExamples,
+  parameters: [specs : (List ExampleSpec)],
+  result: (List WorkbenchExample),
+  body: (match specs
+    | List.nil => (nil WorkbenchExample)
+    | List.cons head rest => (cons (resolveExample head) (resolveExamples rest))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  recursive_argument: specs
+}
+
+definition{
+  name: workbench,
+  parameters: [],
+  result: Workbench,
+  body: (record Workbench {purpose := (project (project (Specification::application) cli) description), forms := (statementForms), examples := (resolveExamples (exampleSpecs)), recoveries := (recoveries), statuses := (statusTexts)}),
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+definition{
+  name: notEmpty,
+  parameters: [text : String],
+  result: Bool,
+  body: (if (prim equal text "" : Bool) then false else true)
+}
+
+definition{
+  name: hasForm,
+  parameters: [wanted : String, forms : (List StatementForm)],
+  result: Bool,
+  body: (match forms
+    | List.nil => false
+    | List.cons head rest => (if (prim equal (project head usage) wanted : Bool) then (notEmpty (project head meaning)) else (hasForm wanted rest))),
+  recursive_argument: forms
+}
+
+definition{
+  name: recoveryComplete,
+  parameters: [entry : Recovery],
+  result: Bool,
+  body: ((notEmpty (project entry code)) && ((notEmpty (project entry explanation)) && (notEmpty (project entry fix))))
+}
+
+definition{
+  name: recoveriesComplete,
+  parameters: [entries : (List Recovery)],
+  result: Bool,
+  body: (match entries
+    | List.nil => true
+    | List.cons head rest => ((recoveryComplete head) && (recoveriesComplete rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: hasRecovery,
+  parameters: [wanted : String, entries : (List Recovery)],
+  result: Bool,
+  body: (match entries
+    | List.nil => false
+    | List.cons head rest => (if (prim equal (project head code) wanted : Bool) then true else (hasRecovery wanted rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: codesDistinct,
+  parameters: [entries : (List Recovery)],
+  result: Bool,
+  body: (match entries
+    | List.nil => true
+    | List.cons head rest => (if (hasRecovery (project head code) rest) then false else (codesDistinct rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: statusNamed,
+  parameters: [wanted : String, statuses : (List StatusText)],
+  result: Bool,
+  body: (match statuses
+    | List.nil => false
+    | List.cons head rest => (if (prim equal (project head name) wanted : Bool) then (notEmpty (project head text)) else (statusNamed wanted rest))),
+  recursive_argument: statuses
+}
+
+definition{
+  name: statusesCover,
+  parameters: [
+    outcomes : (List Foundation.View.Text.V3.Model::TextCliOutcome),
+    statuses : (List StatusText)
+  ],
+  result: Bool,
+  body: (match outcomes
+    | List.nil => (statusNamed "checking" statuses)
+    | List.cons head rest => ((statusNamed (project head name) statuses) && (statusesCover rest statuses))),
+  recursive_argument: outcomes
+}
+
+definition{
+  name: vectorPinned,
+  parameters: [
+    spec : ExampleSpec,
+    current : Nat,
+    vectors : (List Foundation.View.Text.V1.Model::AcceptanceVector)
+  ],
+  result: Bool,
+  body: (match vectors
+    | List.nil => false
+    | List.cons head rest => (if ((project spec vector) =? current) then (((prim length (project head request) : Nat) =? (project spec requestBytes)) && ((prim length (project head response) : Nat) =? (project spec responseBytes))) else (vectorPinned spec (current + 1) rest))),
+  recursive_argument: vectors
+}
+
+definition{
+  name: specsPinned,
+  parameters: [specs : (List ExampleSpec)],
+  result: Bool,
+  body: (match specs
+    | List.nil => true
+    | List.cons head rest => ((vectorPinned head 0 (declaredVectors)) && (specsPinned rest))),
+  recursive_argument: specs
+}
+
+definition{
+  name: specsMatchCli,
+  parameters: [
+    specs : (List ExampleSpec),
+    scripts : (List Foundation.View.Text.V3.Model::TextCliExample)
+  ],
+  result: Bool,
+  body: (match specs
+    | List.nil => (match scripts | List.nil => true | List.cons script more => false)
+    | List.cons head rest => (match scripts
+      | List.nil => false
+      | List.cons script more => ((prim equal (project head name) (project script name) : Bool) && ((prim equal (project head name) (project head outcome) : Bool) && (((prim length (project script text) : Nat) =? ((project head requestBytes) + 1)) && (specsMatchCli rest more)))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  recursive_argument: specs
+}
+
+definition{
+  name: responseLengthAt,
+  parameters: [
+    position : Nat,
+    current : Nat,
+    vectors : (List Foundation.View.Text.V1.Model::AcceptanceVector)
+  ],
+  result: Nat,
+  body: (match vectors
+    | List.nil => 0
+    | List.cons head rest => (if (position =? current) then (prim length (project head response) : Nat) else (responseLengthAt position (current + 1) rest))),
+  recursive_argument: vectors
+}
+
+definition{
+  name: recoveryHint,
+  parameters: [entry : Recovery],
+  result: Foundation.View.Text.V3.Model::ErrorHint,
+  body: (record Foundation.View.Text.V3.Model::ErrorHint {code := (project entry code), title := (project entry code), explanation := (project entry explanation), recovery := (project entry fix), fields := (nil String)})
+}
+
+definition{
+  name: recoveryHints,
+  parameters: [entries : (List Recovery)],
+  result: (List Foundation.View.Text.V3.Model::ErrorHint),
+  body: (match entries
+    | List.nil => (nil Foundation.View.Text.V3.Model::ErrorHint)
+    | List.cons head rest => (cons (recoveryHint head) (recoveryHints rest))),
+  recursive_argument: entries
+}
+
+definition{
+  name: formSection,
+  parameters: [identity : String, form : StatementForm],
+  result: Foundation.View.Text.V3.Model::Section,
+  body: (record Foundation.View.Text.V3.Model::Section {id := identity, title := (project form usage), paragraphs := (cons (project form meaning) (nil String))})
+}
+
+definition{
+  name: formSections,
+  parameters: [],
+  result: (List Foundation.View.Text.V3.Model::Section),
+  body: (cons (formSection "node" (intentForm (ctor Interaction::Intent.AddNode (record Core::Node {name := "", kind := (ctor Core::NodeKind.Input), memory := (0 : UInt64)})))) (cons (formSection "edge" (intentForm (ctor Interaction::Intent.AddEdge (record Core::Edge {source := "", target := ""})))) (cons (formSection "pii" (intentForm (ctor Interaction::Intent.MarkPii ""))) (cons (formSection "memory" (intentForm (ctor Interaction::Intent.RequireMemory (0 : UInt64)))) (cons (formSection "encrypt" (intentForm (ctor Interaction::Intent.RequirePiiEncryption))) (nil Foundation.View.Text.V3.Model::Section))))))
+}
+
+definition{
+  name: firstValue,
+  parameters: [values : (List String)],
+  result: String,
+  body: (match values | List.nil => "" | List.cons head rest => head)
+}
+
+definition{
+  name: guideMatchesCli,
+  parameters: [
+    examples : (List Foundation.View.Text.V3.Model::Example),
+    scripts : (List Foundation.View.Text.V3.Model::TextCliExample)
+  ],
+  result: Bool,
+  body: (match examples
+    | List.nil => (match scripts | List.nil => true | List.cons script more => false)
+    | List.cons head rest => (match scripts
+      | List.nil => false
+      | List.cons script more => ((prim equal (project head id) (project script name) : Bool) && (((prim length (project script text) : Nat) =? ((prim length (firstValue (project head values)) : Nat) + 1)) && (guideMatchesCli rest more))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  recursive_argument: examples
+}
+
+theorem{
+  name: statementFormsCoverIntents,
+  parameters: [intent : Interaction::Intent],
+  statement: ((hasForm (project (intentForm intent) usage) (statementForms)) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [node], constructor: AddNode},
+      {proof: reflexivity{}, binders: [edge], constructor: AddEdge},
+      {proof: reflexivity{}, binders: [name], constructor: MarkPii},
+      {proof: reflexivity{}, binders: [limit], constructor: RequireMemory},
+      {proof: reflexivity{}, binders: [], constructor: RequirePiiEncryption}
+    ],
+    scrutinee: intent
+  }
+}
+
+theorem{
+  name: statementFormsAreFive,
+  parameters: [],
+  statement: ((prim length (statementForms) : Nat) = 5),
+  proof: decide{}
+}
+
+theorem{
+  name: parseErrorsRecovered,
+  parameters: [problem : Interaction::ParseError],
+  statement: ((hasRecovery (Engine::parseErrorCode problem) (recoveries)) = true),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: UnknownCommand},
+      {proof: decide{}, binders: [], constructor: WrongArity},
+      {proof: decide{}, binders: [], constructor: EmptyField},
+      {proof: decide{}, binders: [], constructor: UnknownKind},
+      {proof: decide{}, binders: [], constructor: InvalidNumber}
+    ],
+    scrutinee: problem
+  }
+}
+
+theorem{
+  name: violationsRecovered,
+  parameters: [violation : Core::Violation],
+  statement: ((hasRecovery (Engine::violationCode violation) (recoveries)) = true),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: DuplicateNode},
+      {proof: decide{}, binders: [], constructor: UnknownNode},
+      {proof: decide{}, binders: [], constructor: SelfEdge},
+      {proof: decide{}, binders: [], constructor: DuplicateEdge},
+      {proof: decide{}, binders: [], constructor: OutputSource},
+      {proof: decide{}, binders: [], constructor: InputTarget},
+      {proof: decide{}, binders: [], constructor: NotAnInput},
+      {proof: decide{}, binders: [], constructor: DuplicatePii},
+      {proof: decide{}, binders: [], constructor: DuplicatePolicy}
+    ],
+    scrutinee: violation
+  }
+}
+
+theorem{
+  name: stepErrorsRecovered,
+  parameters: [error : Engine::StepError],
+  statement: ((hasRecovery (Engine::stepErrorCode error) (recoveries)) = true),
+  proof: cases{
+    branches: [
+      {
+        proof: apply{arguments: [problem], theorem: parseErrorsRecovered},
+        binders: [problem],
+        constructor: Parse
+      },
+      {
+        proof: apply{arguments: [violation], theorem: violationsRecovered},
+        binders: [violation],
+        constructor: Refused
+      },
+      {proof: decide{}, binders: [], constructor: LineOverflow}
+    ],
+    scrutinee: error
+  }
+}
+
+theorem{
+  name: findingsRecovered,
+  parameters: [found : Compliance::Finding],
+  statement: ((hasRecovery (findingCode found) (recoveries)) = true),
+  proof: cases{
+    branches: [
+      {proof: reflexivity{}, binders: [name, memory, limit], constructor: MemoryExceeded},
+      {proof: reflexivity{}, binders: [name], constructor: PlaintextPii}
+    ],
+    scrutinee: found
+  }
+}
+
+theorem{
+  name: requestFaultsRecovered,
+  parameters: [fault : RequestFault],
+  statement: ((hasRecovery (requestFaultCode fault) (recoveries)) = true),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: EmptyRequest},
+      {proof: decide{}, binders: [], constructor: OversizedRequest},
+      {proof: decide{}, binders: [], constructor: InvalidEncoding},
+      {proof: decide{}, binders: [], constructor: MissingHeader}
+    ],
+    scrutinee: fault
+  }
+}
+
+theorem{
+  name: requestFaultsMatchVectors,
+  parameters: [fault : RequestFault],
+  statement: ((responseLengthAt (requestFaultVector fault) 0 (declaredVectors)) = (prim length (requestFaultReport fault) : Nat)),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: EmptyRequest},
+      {proof: decide{}, binders: [], constructor: OversizedRequest},
+      {proof: decide{}, binders: [], constructor: InvalidEncoding},
+      {proof: decide{}, binders: [], constructor: MissingHeader}
+    ],
+    scrutinee: fault
+  },
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: recoveryTextsComplete,
+  parameters: [],
+  statement: ((recoveriesComplete (recoveries)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: recoveryCodesDistinct,
+  parameters: [],
+  statement: ((codesDistinct (recoveries)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: statusTextsCoverOutcomes,
+  parameters: [],
+  statement: ((statusesCover (project (project (Specification::application) cli) outcomes) (statusTexts)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: examplesArePinnedVectors,
+  parameters: [],
+  statement: ((specsPinned (exampleSpecs)) = true),
+  proof: decide{}
+}
+
+theorem{
+  name: examplesMatchCliExamples,
+  parameters: [],
+  statement: ((specsMatchCli (exampleSpecs) (project (project (Specification::application) cli) examples)) = true),
+  proof: decide{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+
+theorem{
+  name: guideErrorsAreRecoveries,
+  parameters: [],
+  statement: ((Guide::errors) = (recoveryHints (recoveries))),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: guideSectionsAreStatementForms,
+  parameters: [],
+  statement: ((Guide::sections) = (formSections)),
+  proof: reflexivity{}
+}
+
+theorem{
+  name: guideExamplesAreCliExamples,
+  parameters: [],
+  statement: ((guideMatchesCli (Guide::examples) (project (project (Specification::application) cli) examples)) = true),
+  proof: decide{},
+  axioms: [Classical.choice, Quot.sound, propext]
+}
+\end{semanticmodule}
+\end{lexlean}

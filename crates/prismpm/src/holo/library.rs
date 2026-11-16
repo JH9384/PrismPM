@@ -1,4 +1,5 @@
-//! Explicit native-library projection; no implicit facet or application fallback.
+//! Explicit native-library projection; no implicit application fallback.
+//! Facet records come only from the library's own declared modules.
 
 use super::application::{
     exact_fields, member_name, record_with_unevaluated_fields, string, Definitions,
@@ -215,20 +216,38 @@ pub fn project_library(snapshot: &SemanticSnapshot) -> Result<Option<ModelDocume
         acceptance_roots: roots::project(&definitions, &fields, "acceptanceRoots")?,
     };
     validate_roots(&library, snapshot)?;
+    // A library keeps the Foundation.Arch, Sec and Qual records its own
+    // modules declare (model-document/8); without them it stays /3.
+    let (schema, facet_packages, standards_profile, records) =
+        match super::facets::application_records(snapshot)? {
+            Some((packages, records)) => (
+                "prismpm/model-document/8",
+                packages,
+                super::facets::PROFILE
+                    .iter()
+                    .map(|value| (*value).to_owned())
+                    .collect(),
+                Some(records),
+            ),
+            None => ("prismpm/model-document/3", Vec::new(), Vec::new(), None),
+        };
+    let (architecture, security, quality) = records.map_or_else(Default::default, |records| {
+        (records.architecture, records.security, records.quality)
+    });
     let document = ModelDocument {
-        schema: "prismpm/model-document/3".to_owned(),
+        schema: schema.to_owned(),
         provenance: ProjectionProvenance {
             source_id: snapshot.source_id().to_string(),
             semantic_id: snapshot.semantic_id().to_string(),
             compiler_semantics_id: snapshot.compiler_semantics_id().to_string(),
             snapshot_id: snapshot.snapshot_id().to_string(),
             emitter_semantics_id: super::projector::compute_emitter_semantics_id(),
-            facet_packages: Vec::new(),
+            facet_packages,
         },
-        standards_profile: Vec::new(),
-        architecture: Default::default(),
-        security: Default::default(),
-        quality: Default::default(),
+        standards_profile,
+        architecture,
+        security,
+        quality,
         application: None,
         library: Some(library),
     };

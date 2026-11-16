@@ -204,11 +204,12 @@ test('a policy never lives in the holo: an archive with a policy section gets no
   const permissive = new TextEncoder().encode(`prism.policy\0${POLICIES['pure-only']}`);
   const sections = parsed.sections.map(({ kind, body }) => ({ kind, body }));
   sections.push({ kind: 14, body: permissive });
+  // The Wire codec admits a ninth row only as the attestation bundle, so the table itself is refused.
   const path = file('smuggled.holo', encodeArchive(sections, { version: parsed.version, flags: parsed.flags }));
   const { code, out, err } = run(['check', path, '--json']);
   assert.equal(code, EXIT.NO_VERDICT);
   assert.equal(out, '');
-  assert.match(err, /^no verdict: format\.revision: /);
+  assert.match(err, /^no verdict: archive\.table: .*row 8 is not the https:\/\/uor\.foundation\/extension\/attestation-bundle\/v1 extension/);
 });
 
 test('run gates on a policy file the same way check does', () => {

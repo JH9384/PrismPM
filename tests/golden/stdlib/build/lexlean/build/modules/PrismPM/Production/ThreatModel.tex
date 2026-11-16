@@ -1,0 +1,130 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\begin{document}
+\section*{Semantic declarations}
+\subsection*{\texttt{Stride}}
+\noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{spoofing}: \texttt{()}.\par
+\noindent Constructor \texttt{tampering}: \texttt{()}.\par
+\noindent Constructor \texttt{repudiation}: \texttt{()}.\par
+\noindent Constructor \texttt{informationDisclosure}: \texttt{()}.\par
+\noindent Constructor \texttt{denialOfService}: \texttt{()}.\par
+\noindent Constructor \texttt{elevationOfPrivilege}: \texttt{()}.\par
+\subsection*{\texttt{EvidenceKind}}
+\noindent Kind: \texttt{inductive}.\par
+\noindent Constructor \texttt{gate}: \texttt{()}.\par
+\noindent Constructor \texttt{proof}: \texttt{()}.\par
+\noindent Constructor \texttt{review}: \texttt{()}.\par
+\subsection*{\texttt{Evidence}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{kind}: \texttt{EvidenceKind}.\par
+\noindent Field \texttt{reference}: \texttt{String}.\par
+\subsection*{\texttt{ControlSet}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{title}: \texttt{String}.\par
+\noindent Field \texttt{text}: \texttt{String}.\par
+\noindent Field \texttt{version}: \texttt{String}.\par
+\noindent Field \texttt{lastModified}: \texttt{String}.\par
+\subsection*{\texttt{ModeledAsset}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{asset}: \texttt{String}.\par
+\noindent Field \texttt{name}: \texttt{String}.\par
+\noindent Field \texttt{text}: \texttt{String}.\par
+\subsection*{\texttt{ModeledThreat}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{threat}: \texttt{String}.\par
+\noindent Field \texttt{name}: \texttt{String}.\par
+\noindent Field \texttt{text}: \texttt{String}.\par
+\noindent Field \texttt{category}: \texttt{Stride}.\par
+\subsection*{\texttt{ModeledControl}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{control}: \texttt{String}.\par
+\noindent Field \texttt{name}: \texttt{String}.\par
+\noindent Field \texttt{text}: \texttt{String}.\par
+\noindent Field \texttt{evidence}: \texttt{List (Evidence)}.\par
+\subsection*{\texttt{ThreatMapping}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{threat}: \texttt{String}.\par
+\noindent Field \texttt{controls}: \texttt{List (String)}.\par
+\subsection*{\texttt{AcceptedRisk}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{threat}: \texttt{String}.\par
+\noindent Field \texttt{rationale}: \texttt{String}.\par
+\subsection*{\texttt{NormalizedThreatModel}}
+\noindent Kind: \texttt{structure}.\par
+\noindent Field \texttt{threatCount}: \texttt{Nat}.\par
+\noindent Field \texttt{categoryCounts}: \texttt{List (Nat)}.\par
+\noindent Field \texttt{mitigationCounts}: \texttt{List (Nat)}.\par
+\noindent Field \texttt{acceptanceCounts}: \texttt{List (Nat)}.\par
+\noindent Field \texttt{evidenceCounts}: \texttt{List (Nat)}.\par
+\subsection*{\texttt{threatListLength}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
+\noindent Type: \texttt{Nat}.\par
+\noindent Definition: \texttt{(match values with | List.nil => 0 | List.cons \_ rest => (threatListLength (rest) + 1))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{threatAllPositive}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(values : List (Nat))}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match values with | List.nil => true | List.cons value rest => ((Nat.blt (0) (value)) \&\& threatAllPositive (rest)))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{validateThreatsAnswered}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(mitigations : List (Nat)) (acceptances : List (Nat))}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{(match mitigations with | List.nil => true | List.cons mitigation rest => (match acceptances with | List.nil => ((Nat.blt (0) (mitigation)) \&\& validateThreatsAnswered (rest) (acceptances)) | List.cons acceptance others => (((Nat.blt (0) (mitigation)) || (Nat.blt (0) (acceptance))) \&\& validateThreatsAnswered (rest) (others))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{validateThreatCategories}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(categoryCounts : List (Nat))}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{threatAllPositive (categoryCounts)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{validateControlEvidence}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(evidenceCounts : List (Nat))}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{threatAllPositive (evidenceCounts)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{validateNormalizedThreatModel}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(model : NormalizedThreatModel)}.\par
+\noindent Type: \texttt{Bool}.\par
+\noindent Definition: \texttt{((Nat.beq (threatListLength ((model).categoryCounts)) ((model).threatCount)) \&\& ((Nat.beq (threatListLength ((model).mitigationCounts)) ((model).threatCount)) \&\& ((Nat.beq (threatListLength ((model).acceptanceCounts)) ((model).threatCount)) \&\& (validateThreatCategories ((model).categoryCounts) \&\& (validateThreatsAnswered ((model).mitigationCounts) ((model).acceptanceCounts) \&\& validateControlEvidence ((model).evidenceCounts))))))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{normalizedThreatModelValid}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(model : NormalizedThreatModel)}.\par
+\noindent Type: \texttt{Prop}.\par
+\noindent Definition: \texttt{(validateNormalizedThreatModel (model) = true)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{normalizedThreatModel\_sound\_complete}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Parameters: \texttt{(model : NormalizedThreatModel)}.\par
+\noindent Statement: \texttt{((validateNormalizedThreatModel (model) = true) <-> normalizedThreatModelValid (model))}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{threatModelVector}}
+\noindent Kind: \texttt{definition}.\par
+\noindent Parameters: \texttt{(categoryCounts : List (Nat)) (mitigationCounts : List (Nat)) (acceptanceCounts : List (Nat)) (evidenceCounts : List (Nat))}.\par
+\noindent Type: \texttt{NormalizedThreatModel}.\par
+\noindent Definition: \texttt{(\{ threatCount := 2, categoryCounts := categoryCounts, mitigationCounts := mitigationCounts, acceptanceCounts := acceptanceCounts, evidenceCounts := evidenceCounts \} : NormalizedThreatModel)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{threatModelVectorAccepted}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Statement: \texttt{(validateNormalizedThreatModel (threatModelVector ((1 :: (1 :: ([] : List (Nat))))) ((2 :: (0 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((1 :: (2 :: ([] : List (Nat)))))) = true)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{unmappedThreatRefused}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Statement: \texttt{(validateNormalizedThreatModel (threatModelVector ((1 :: (1 :: ([] : List (Nat))))) ((2 :: (0 :: ([] : List (Nat))))) ((0 :: (0 :: ([] : List (Nat))))) ((1 :: (2 :: ([] : List (Nat)))))) = false)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{controlWithoutEvidenceRefused}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Statement: \texttt{(validateNormalizedThreatModel (threatModelVector ((1 :: (1 :: ([] : List (Nat))))) ((2 :: (0 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((1 :: (0 :: ([] : List (Nat)))))) = false)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\subsection*{\texttt{threatWithoutCategoryRefused}}
+\noindent Kind: \texttt{theorem}.\par
+\noindent Statement: \texttt{(validateNormalizedThreatModel (threatModelVector ((1 :: (0 :: ([] : List (Nat))))) ((2 :: (0 :: ([] : List (Nat))))) ((0 :: (1 :: ([] : List (Nat))))) ((1 :: (2 :: ([] : List (Nat)))))) = false)}.\par
+\noindent Axiom policy: \texttt{none}.\par
+\end{document}

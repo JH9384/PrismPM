@@ -13,9 +13,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArchive, resolveArchive } from '../src/archive.mjs';
 import { readAttestations } from '../src/attestations.mjs';
-import { experimental_attest } from '../src/attest.mjs';
+import { experimental_attest } from '../src/attest-write.mjs';
 import { PullVerificationError } from '../src/errors.mjs';
 import { experimental_pull, experimental_push } from '../src/push-pull.mjs';
+
+// A CLI pull keeps what it pulled in the local image store (#349); this suite's stays in a scratch folder.
+process.env.PRISM_IMAGES ??= (await import('node:fs')).mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'prism-images-store-'));
 
 const bin = fileURLToPath(new URL('../bin/prism-code.mjs', import.meta.url));
 const fixture = new Uint8Array(readFileSync(new URL('../fixtures/Calculator.holo', import.meta.url)));
@@ -67,7 +70,9 @@ async function waitForRegistry() {
   throw new Error(`the registry at ${host} did not answer`);
 }
 
-const attested = async () => (await experimental_attest(fixture, { type: PROOF, predicate: { accepted: true }, key: privateKey })).holo;
+// Only a holo v5 can be signed (ADR-017).
+const signable = new Uint8Array(readFileSync(new URL('../fixtures/Calculator.v5.holo', import.meta.url)));
+const attested = async () => (await experimental_attest(signable, { type: PROOF, predicate: { accepted: true }, key: privateKey })).holo;
 
 test('a stock registry takes the holo and gives it back byte for byte, by tag, digest and fingerprint', { skip }, async () => {
   await waitForRegistry();
@@ -109,7 +114,7 @@ test('cosign verify-attestation accepts the pushed reference, and refuses anothe
   assert.equal(passed.status, 0, passed.stderr);
   const statement = JSON.parse(Buffer.from(JSON.parse(passed.stdout.trim().split('\n')[0]).payload, 'base64'));
   assert.equal(statement.subject[0].name, 'oci-manifest');
-  assert.deepEqual(Object.keys(statement.subject[1].digest).sort(), ['blake3', 'sha256'], 'cosign keeps the dual digest');
+  assert.deepEqual(Object.keys(statement.subject[1].digest), ['sha256'], 'cosign keeps the κ of the blob (ADR-017)');
   writeFileSync(join(dir, 'other.pem'), generateKeyPairSync('ec', { namedCurve: 'P-256' }).publicKey.export({ type: 'spki', format: 'pem' }));
   assert.notEqual(verify(join(dir, 'other.pem')).status, 0);
 });

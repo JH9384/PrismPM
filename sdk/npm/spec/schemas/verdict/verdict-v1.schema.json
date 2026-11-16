@@ -9,9 +9,9 @@
   "properties": {
     "schema": { "const": "prism/verdict/1" },
     "holo": {
-      "description": "The archive fingerprint of the holo that was checked.",
+      "description": "The holo that was checked: its κ, sha256: and the hex SHA-256 of the file, for a holo v5 (ADR-017); the blake3: archive fingerprint for a v4 holo.",
       "type": "string",
-      "pattern": "^blake3:[0-9a-f]{64}$"
+      "pattern": "^(sha256|blake3):[0-9a-f]{64}$"
     },
     "level": { "$ref": "#/$defs/level" },
     "policy": {

@@ -86,12 +86,14 @@ pub fn check(root: &Path, hidden_tests: &[String]) -> Result<(), Vec<String>> {
         }
     }
     let changelog = std::fs::read_to_string(root.join("CHANGELOG.md")).unwrap_or_default();
-    if !has_dated_release_entry(&changelog, "0.4.0") {
-        issues.push("CHANGELOG.md has no dated 0.4.0 release entry".to_owned());
-    }
     let cargo = std::fs::read_to_string(root.join("Cargo.toml")).unwrap_or_default();
-    if !cargo.contains("version = \"0.4.0\"") {
-        issues.push("workspace release version is not 0.4.0".to_owned());
+    // The release version is the workspace version, which release-please bumps.
+    let version = workspace_version(&cargo).unwrap_or_default();
+    if version.is_empty() {
+        issues.push("Cargo.toml has no [workspace.package] version".to_owned());
+    }
+    if !has_dated_release_entry(&changelog, &version) {
+        issues.push(format!("CHANGELOG.md has no dated {version} release entry"));
     }
     if !changelog.contains("### Compatibility")
         || !changelog.contains("incompatible schema change requires a new schema")
@@ -106,11 +108,12 @@ pub fn check(root: &Path, hidden_tests: &[String]) -> Result<(), Vec<String>> {
         .filter(|output| output.status.success())
         .and_then(|output| String::from_utf8(output.stdout).ok())
         .unwrap_or_default();
-    if !tag.lines().any(|line| line == "v0.4.0") {
-        issues.push("release source commit is not tagged v0.4.0".to_owned());
+    let tag_name = format!("v{version}");
+    if !tag.lines().any(|line| line == tag_name) {
+        issues.push(format!("release source commit is not tagged {tag_name}"));
     }
     let annotated = Command::new("git")
-        .args(["cat-file", "-t", "refs/tags/v0.4.0"])
+        .args(["cat-file", "-t", &format!("refs/tags/{tag_name}")])
         .current_dir(root)
         .output()
         .ok()
@@ -118,7 +121,7 @@ pub fn check(root: &Path, hidden_tests: &[String]) -> Result<(), Vec<String>> {
         .and_then(|output| String::from_utf8(output.stdout).ok())
         .is_some_and(|kind| kind.trim() == "tag");
     if !annotated {
-        issues.push("release tag v0.4.0 is absent or not annotated".to_owned());
+        issues.push(format!("release tag {tag_name} is absent or not annotated"));
     }
 
     match crate::Model::load(&root.join("model")) {
@@ -176,6 +179,17 @@ pub fn check(root: &Path, hidden_tests: &[String]) -> Result<(), Vec<String>> {
     } else {
         Err(issues)
     }
+}
+
+/// The `version` of `[workspace.package]` in a workspace manifest.
+pub fn workspace_version(manifest: &str) -> Option<String> {
+    let section = &manifest[manifest.find("[workspace.package]")?..];
+    section
+        .lines()
+        .skip(1)
+        .take_while(|line| !line.starts_with('['))
+        .find_map(|line| line.strip_prefix("version = \"")?.strip_suffix('"'))
+        .map(str::to_owned)
 }
 
 #[cfg(test)]

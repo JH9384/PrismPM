@@ -14,6 +14,7 @@
  * that is `prism verify` (#272) and `@prism-code/verify` (#273).
  */
 import { fail } from './errors.mjs';
+import { writeObjects } from './uorc.mjs';
 import { asBytes, parseArchive, KIND, MAGIC, VERSION, HEADER_LENGTH, TABLE_ENTRY_LENGTH, FOOTER_LENGTH } from './archive.mjs';
 import { blake3 } from './blake3.mjs';
 
@@ -81,9 +82,17 @@ function splitLines(payload) {
   return lines;
 }
 
-function digestSet(digest, where) {
+function digestSet(digest, where, legacy) {
   if (!isObject(digest)) fail('attestation.subject', `${where} has no digest set`);
   const keys = Object.keys(digest).sort();
+  if (!legacy) {
+    // A holo v5 names its objects by κ (sha256), so a subject is sha256 alone (ADR-017).
+    if (keys.length !== 1 || keys[0] !== 'sha256') {
+      fail('attestation.subject', `${where} must carry exactly sha256, the κ of the object it names (ADR-017), found ${keys.join(', ') || 'none'}`);
+    }
+    if (typeof digest.sha256 !== 'string' || !HEX64.test(digest.sha256)) fail('attestation.subject', `${where} sha256 is not 64 lowercase hex characters`);
+    return { sha256: digest.sha256 };
+  }
   if (keys.length !== 2 || keys[0] !== 'blake3' || keys[1] !== 'sha256') {
     fail('attestation.subject', `${where} must carry exactly blake3 and sha256 (ADR-015), found ${keys.join(', ') || 'none'}`);
   }
@@ -134,8 +143,9 @@ export function decodeBundle(line, labels = new Set()) {
     if (subject.name === OCI_MANIFEST_SUBJECT) {
       fail('attestation.subject', 'a statement inside the holo cannot name the OCI manifest; that statement is signed at push');
     }
-    const digest = digestSet(subject.digest, where);
-    const label = `blake3:${digest.blake3}`;
+    const legacy = [...labels].some((label) => label.startsWith('blake3:'));
+    const digest = digestSet(subject.digest, where, legacy);
+    const label = legacy ? `blake3:${digest.blake3}` : `sha256:${digest.sha256}`;
     return { name: subject.name, digest, blob: labels.has(label) ? label : null };
   });
   return {
@@ -225,6 +235,7 @@ function hex(bytes) {
  */
 export function appendAttestations(source, bundles) {
   const parsed = parsedOf(source);
+  if (parsed.format !== 5) fail('attestation.format', 'a physical-v4 holo is read-only; rebuild it as a holo v5 before signing (ADR-017)');
   if (!parsed.verification.footer) fail('attestation.footer', 'the archive footer does not verify; refusing to append');
   if (!Array.isArray(bundles) || bundles.length === 0) fail('attestation.input', 'appendAttestations takes a non-empty array of bundles');
   const existing = attestationSection(parsed);
@@ -246,9 +257,8 @@ export function appendAttestations(source, bundles) {
     payload[line.length + at] = LF;
     at += line.length + 1;
   }
-  const kept = parsed.sections.filter((s) => !existing || s.index !== existing.section).map(({ kind, body }) => ({ kind, body }));
-  kept.push({ kind: KIND.EXTENSION, body: extensionBody(ATTESTATION_EXTENSION, payload) });
-  return encodeArchive(kept, { version: parsed.version, flags: parsed.flags });
+  const kept = parsed.sections.filter((s) => !existing || s.index !== existing.section).map((s) => s.body);
+  return writeObjects([...kept, payload]);
 }
 
 /**
@@ -261,6 +271,7 @@ export function stripAttestations(source) {
   const parsed = parsedOf(source);
   const existing = attestationSection(parsed);
   if (!existing) return parsed.bytes.slice();
+  if (parsed.format === 5) return writeObjects(parsed.sections.filter((s) => s.index !== existing.section).map((s) => s.body));
   const kept = parsed.sections.filter((s) => s.index !== existing.section).map(({ kind, body }) => ({ kind, body }));
   return encodeArchive(kept, { version: parsed.version, flags: parsed.flags });
 }

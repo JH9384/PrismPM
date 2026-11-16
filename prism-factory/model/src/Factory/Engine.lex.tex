@@ -1,0 +1,748 @@
+\begin{lexlean}{Factory.Engine}
+\useglossary{lexlean.std.nat@1.2.0}
+\importmodule{LexLeanStd.Buffer}
+\importmodule{LexLeanStd.Sha256}
+\importmodule{LexLeanStd.Text}
+\title{Natural number addition}
+\begin{semanticmodule}
+inductive{
+  name: Kind,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: hermetic, fields: []}, {name: fetch, fields: []}]
+}
+
+structure{
+  name: Obligation,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: name, type: String},
+    {name: kind, type: Kind},
+    {name: environment, type: String},
+    {name: run, type: String},
+    {name: inputs, type: (List String)},
+    {name: needs, type: (List String)}
+  ]
+}
+
+inductive{
+  name: Route,
+  type_parameters: [],
+  parameters: [],
+  constructors: [{name: proved, fields: []}, {name: observe, fields: []}, {name: refuted, fields: []}, {name: blocked, fields: []}]
+}
+
+inductive{
+  name: Level,
+  type_parameters: [],
+  parameters: [],
+  constructors: [
+    {name: l1, fields: []},
+    {name: l2, fields: []},
+    {name: l3, fields: []},
+    {name: l4, fields: []},
+    {name: l5, fields: []},
+    {name: l6, fields: []},
+    {name: l7, fields: []},
+    {name: l8, fields: []},
+    {name: l9, fields: []},
+    {name: l10, fields: []},
+    {name: l11, fields: []},
+    {name: l12, fields: []},
+    {name: l13, fields: []},
+    {name: l14, fields: []},
+    {name: l15, fields: []},
+    {name: l16, fields: []}
+  ]
+}
+
+structure{
+  name: Planned,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: obligation, type: Obligation},
+    {name: kappa, type: String},
+    {name: verdict, type: Route}
+  ]
+}
+
+definition{
+  name: text,
+  parameters: [value : String],
+  result: Bytes,
+  body: (prim utf8_encode value : Bytes),
+  executable: true
+}
+
+definition{
+  name: decoded,
+  parameters: [raw : Bytes],
+  result: String,
+  body: (match (prim utf8_decode raw : (Option String))
+    | Option.some value => value
+    | Option.none => ""),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: line,
+  parameters: [pieces : (List Bytes)],
+  result: Bytes,
+  body: (prim append (LexLeanStd.Text::joinWith pieces 0x20) 0x0a : Bytes),
+  executable: true
+}
+
+definition{
+  name: joinedReversed,
+  parameters: [pieces : (List Bytes)],
+  result: Bytes,
+  body: (LexLeanStd.Buffer::joinAll (LexLeanStd.Text::reverse pieces)),
+  executable: true
+}
+
+definition{
+  name: kindName,
+  parameters: [kind : Kind],
+  result: String,
+  body: (match kind
+    | Kind.hermetic => "hermetic"
+    | Kind.fetch => "fetch"),
+  executable: true
+}
+
+definition{
+  name: routeName,
+  parameters: [verdict : Route],
+  result: String,
+  body: (match verdict
+    | Route.proved => "proved"
+    | Route.observe => "observe"
+    | Route.refuted => "refuted"
+    | Route.blocked => "blocked"),
+  executable: true
+}
+
+definition{
+  name: isProved,
+  parameters: [verdict : Route],
+  result: Bool,
+  body: (match verdict
+    | Route.proved => true
+    | Route.observe => false
+    | Route.refuted => false
+    | Route.blocked => false),
+  executable: true
+}
+
+definition{
+  name: isObserved,
+  parameters: [verdict : Route],
+  result: Bool,
+  body: (match verdict
+    | Route.proved => false
+    | Route.observe => true
+    | Route.refuted => false
+    | Route.blocked => false),
+  executable: true
+}
+
+definition{
+  name: levelValue,
+  parameters: [level : Level],
+  result: Nat,
+  body: (match level
+    | Level.l1 => 1
+    | Level.l2 => 2
+    | Level.l3 => 3
+    | Level.l4 => 4
+    | Level.l5 => 5
+    | Level.l6 => 6
+    | Level.l7 => 7
+    | Level.l8 => 8
+    | Level.l9 => 9
+    | Level.l10 => 10
+    | Level.l11 => 11
+    | Level.l12 => 12
+    | Level.l13 => 13
+    | Level.l14 => 14
+    | Level.l15 => 15
+    | Level.l16 => 16),
+  executable: true
+}
+
+definition{
+  name: weaker,
+  parameters: [level : Level],
+  result: Level,
+  body: (match level
+    | Level.l1 => (ctor Level.l1)
+    | Level.l2 => (ctor Level.l1)
+    | Level.l3 => (ctor Level.l2)
+    | Level.l4 => (ctor Level.l3)
+    | Level.l5 => (ctor Level.l4)
+    | Level.l6 => (ctor Level.l5)
+    | Level.l7 => (ctor Level.l6)
+    | Level.l8 => (ctor Level.l7)
+    | Level.l9 => (ctor Level.l8)
+    | Level.l10 => (ctor Level.l9)
+    | Level.l11 => (ctor Level.l10)
+    | Level.l12 => (ctor Level.l11)
+    | Level.l13 => (ctor Level.l12)
+    | Level.l14 => (ctor Level.l13)
+    | Level.l15 => (ctor Level.l14)
+    | Level.l16 => (ctor Level.l15)),
+  executable: true
+}
+
+definition{
+  name: stronger,
+  parameters: [level : Level],
+  result: Level,
+  body: (match level
+    | Level.l1 => (ctor Level.l3)
+    | Level.l2 => (ctor Level.l4)
+    | Level.l3 => (ctor Level.l5)
+    | Level.l4 => (ctor Level.l6)
+    | Level.l5 => (ctor Level.l7)
+    | Level.l6 => (ctor Level.l8)
+    | Level.l7 => (ctor Level.l9)
+    | Level.l8 => (ctor Level.l10)
+    | Level.l9 => (ctor Level.l11)
+    | Level.l10 => (ctor Level.l12)
+    | Level.l11 => (ctor Level.l13)
+    | Level.l12 => (ctor Level.l14)
+    | Level.l13 => (ctor Level.l15)
+    | Level.l14 => (ctor Level.l16)
+    | Level.l15 => (ctor Level.l16)
+    | Level.l16 => (ctor Level.l16)),
+  executable: true
+}
+
+definition{
+  name: reinforce,
+  parameters: [level : Level, passed : Bool],
+  result: Level,
+  body: (if passed then (weaker level) else (stronger level)),
+  executable: true
+}
+
+definition{
+  name: levelNamed,
+  parameters: [value : String],
+  result: Level,
+  body: (if (prim equal value "1" : Bool) then (ctor Level.l1) else (if (prim equal value "2" : Bool) then (ctor Level.l2) else (if (prim equal value "3" : Bool) then (ctor Level.l3) else (if (prim equal value "4" : Bool) then (ctor Level.l4) else (if (prim equal value "5" : Bool) then (ctor Level.l5) else (if (prim equal value "6" : Bool) then (ctor Level.l6) else (if (prim equal value "7" : Bool) then (ctor Level.l7) else (if (prim equal value "8" : Bool) then (ctor Level.l8) else (if (prim equal value "9" : Bool) then (ctor Level.l9) else (if (prim equal value "10" : Bool) then (ctor Level.l10) else (if (prim equal value "11" : Bool) then (ctor Level.l11) else (if (prim equal value "12" : Bool) then (ctor Level.l12) else (if (prim equal value "13" : Bool) then (ctor Level.l13) else (if (prim equal value "14" : Bool) then (ctor Level.l14) else (if (prim equal value "15" : Bool) then (ctor Level.l15) else (if (prim equal value "16" : Bool) then (ctor Level.l16) else (ctor Level.l4))))))))))))))))),
+  executable: true
+}
+
+definition{
+  name: levelText,
+  parameters: [level : Level],
+  result: String,
+  body: (match level
+    | Level.l1 => "1"
+    | Level.l2 => "2"
+    | Level.l3 => "3"
+    | Level.l4 => "4"
+    | Level.l5 => "5"
+    | Level.l6 => "6"
+    | Level.l7 => "7"
+    | Level.l8 => "8"
+    | Level.l9 => "9"
+    | Level.l10 => "10"
+    | Level.l11 => "11"
+    | Level.l12 => "12"
+    | Level.l13 => "13"
+    | Level.l14 => "14"
+    | Level.l15 => "15"
+    | Level.l16 => "16"),
+  executable: true
+}
+
+definition{
+  name: signed,
+  parameters: [input : String, sign : Bytes],
+  result: Bool,
+  body: (LexLeanStd.Text::startsWith (text input) sign),
+  executable: true
+}
+
+definition{
+  name: unsigned,
+  parameters: [input : String],
+  result: Bytes,
+  body: (let raw : Bytes := (text input); (LexLeanStd.Text::sliceOr raw 1 (prim subtract (prim length raw : Nat) 1 : Nat))),
+  executable: true
+}
+
+definition{
+  name: reaches,
+  parameters: [input : String, path : Bytes],
+  result: Nat,
+  body: (let prefix : Bytes := (if (signed input 0x21) then (unsigned input) else (text input)); (if (LexLeanStd.Text::startsWith path prefix) then (if (LexLeanStd.Text::startsWith path 0x40) then (if (LexLeanStd.Text::startsWith prefix 0x40) then ((prim length prefix : Nat) + 1) else 0) else ((prim length prefix : Nat) + 1)) else 0)),
+  executable: true
+}
+
+definition{
+  name: longest,
+  parameters: [inputs : (List String), path : Bytes, exclusion : Bool],
+  result: Nat,
+  body: (prim list_fold (fun [exclusion, path] (sofar : Nat) (input : String) => (if (prim equal (signed input 0x21) exclusion : Bool) then (let reach : Nat := (reaches input path); (if (sofar <? reach) then reach else sofar)) else sofar)) 0 inputs : Nat),
+  executable: true
+}
+
+definition{
+  name: covered,
+  parameters: [inputs : (List String), path : Bytes],
+  result: Bool,
+  body: ((longest inputs path true) <? (longest inputs path false)),
+  executable: true
+}
+
+definition{
+  name: closure,
+  parameters: [inputs : (List String), tree : (List (Bytes * Bytes))],
+  result: Bytes,
+  body: (joinedReversed (prim list_fold (fun [inputs] (sofar : (List Bytes)) (entry : (Bytes * Bytes)) => (if (covered inputs (second entry)) then (cons (line (cons (text "file") (cons (first entry) (cons (second entry) (nil Bytes))))) sofar) else sofar)) (nil Bytes) tree : (List Bytes))),
+  executable: true
+}
+
+definition{
+  name: listLines,
+  parameters: [tag : String, values : (List String)],
+  result: Bytes,
+  body: (joinedReversed (prim list_fold (fun [tag] (sofar : (List Bytes)) (value : String) => (cons (line (cons (text tag) (cons (text value) (nil Bytes)))) sofar)) (nil Bytes) values : (List Bytes))),
+  executable: true
+}
+
+definition{
+  name: upstreamLines,
+  parameters: [upstream : (List Planned)],
+  result: Bytes,
+  body: (joinedReversed (prim list_fold (fun (sofar : (List Bytes)) (entry : Planned) => (cons (line (cons (text "needs") (cons (text (project (project entry obligation) name)) (cons (text (project entry kappa)) (nil Bytes))))) sofar)) (nil Bytes) upstream : (List Bytes))),
+  executable: true
+}
+
+definition{
+  name: identityText,
+  parameters: [obligation : Obligation, digest : String, upstream : (List Planned)],
+  result: Bytes,
+  body: (LexLeanStd.Buffer::joinAll (cons (line (cons (text "prism-factory/obligation/1") (nil Bytes))) (cons (line (cons (text "name") (cons (text (project obligation name)) (nil Bytes)))) (cons (line (cons (text "kind") (cons (text (kindName (project obligation kind))) (nil Bytes)))) (cons (line (cons (text "environment") (cons (text (project obligation environment)) (nil Bytes)))) (cons (line (cons (text "run") (cons (text (project obligation run)) (nil Bytes)))) (cons (listLines "input" (project obligation inputs)) (cons (upstreamLines upstream) (cons (line (cons (text "closure") (cons (text digest) (nil Bytes)))) (nil Bytes)))))))))),
+  executable: true
+}
+
+definition{
+  name: identity,
+  parameters: [obligation : Obligation, digest : String, upstream : (List Planned)],
+  result: String,
+  body: (decoded (LexLeanStd.Sha256::sha256Hex (identityText obligation digest upstream))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: sameStrings,
+  parameters: [left : (List String), right : (List String)],
+  result: Bool,
+  body: (match left
+    | List.nil => (match right
+      | List.nil => true
+      | List.cons head tail => false)
+    | List.cons head tail => (match right
+      | List.nil => false
+      | List.cons other rest => ((prim equal head other : Bool) && (sameStrings tail rest)))),
+  executable: true,
+  recursive_argument: left
+}
+
+definition{
+  name: cachedDigest,
+  parameters: [inputs : (List String), cache : (List ((List String) * String))],
+  result: (Option String),
+  body: (prim list_fold (fun [inputs] (sofar : (Option String)) (entry : ((List String) * String)) => (if (sameStrings (first entry) inputs) then (ctor Option.some [String] (second entry)) else sofar)) (ctor Option.none [String]) cache : (Option String)),
+  executable: true
+}
+
+definition{
+  name: closureDigest,
+  parameters: [inputs : (List String), tree : (List (Bytes * Bytes))],
+  result: String,
+  body: (decoded (LexLeanStd.Sha256::sha256Hex (closure inputs tree))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: verdictOf,
+  parameters: [kappa : String, receipts : (List (String * Bool))],
+  result: (Option Bool),
+  body: (prim list_fold (fun [kappa] (sofar : (Option Bool)) (receipt : (String * Bool)) => (if (prim equal (first receipt) kappa : Bool) then (match sofar
+      | Option.some passed => (ctor Option.some [Bool] (passed || (second receipt)))
+      | Option.none => (ctor Option.some [Bool] (second receipt))) else sofar)) (ctor Option.none [Bool]) receipts : (Option Bool)),
+  executable: true
+}
+
+definition{
+  name: allProved,
+  parameters: [verdicts : (List Route)],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (verdict : Route) => (sofar && (isProved verdict))) true verdicts : Bool),
+  executable: true
+}
+
+definition{
+  name: routeFor,
+  parameters: [kind : Kind, kappa : String, receipts : (List (String * Bool)), upstream : (List Route)],
+  result: Route,
+  body: (if (allProved upstream) then (match (verdictOf kappa receipts)
+    | Option.some passed => (if passed then (ctor Route.proved) else (match kind
+      | Kind.hermetic => (ctor Route.refuted)
+      | Kind.fetch => (ctor Route.observe)))
+    | Option.none => (ctor Route.observe)) else (ctor Route.blocked)),
+  executable: true
+}
+
+definition{
+  name: lookup,
+  parameters: [wanted : String, planned : (List Planned)],
+  result: (Option Planned),
+  body: (prim list_fold (fun [wanted] (sofar : (Option Planned)) (entry : Planned) => (if (prim equal (project (project entry obligation) name) wanted : Bool) then (ctor Option.some [Planned] entry) else sofar)) (ctor Option.none [Planned]) planned : (Option Planned)),
+  executable: true
+}
+
+definition{
+  name: upstreamOf,
+  parameters: [needs : (List String), planned : (List Planned)],
+  result: (List Planned),
+  body: (prim list_fold (fun [planned] (sofar : (List Planned)) (need : String) => (match (lookup need planned)
+      | Option.some entry => (prim append sofar (cons entry (nil Planned)) : (List Planned))
+      | Option.none => sofar)) (nil Planned) needs : (List Planned)),
+  executable: true
+}
+
+definition{
+  name: allFound,
+  parameters: [needs : (List String), planned : (List Planned)],
+  result: Bool,
+  body: (prim list_fold (fun [planned] (sofar : Bool) (need : String) => (match (lookup need planned)
+      | Option.some entry => sofar
+      | Option.none => false)) true needs : Bool),
+  executable: true
+}
+
+definition{
+  name: verdictsOf,
+  parameters: [planned : (List Planned)],
+  result: (List Route),
+  body: (prim list_fold (fun (sofar : (List Route)) (entry : Planned) => (prim append sofar (cons (project entry verdict) (nil Route)) : (List Route))) (nil Route) planned : (List Route)),
+  executable: true
+}
+
+definition{
+  name: planOne,
+  parameters: [tree : (List (Bytes * Bytes)), receipts : (List (String * Bool)), state : ((List Planned) * (List ((List String) * String))), obligation : Obligation],
+  result: ((List Planned) * (List ((List String) * String))),
+  body: (let planned : (List Planned) := (first state); (let cache : (List ((List String) * String)) := (second state); (let inputs : (List String) := (project obligation inputs); (let digest : String := (match (cachedDigest inputs cache)
+      | Option.some known => known
+      | Option.none => (closureDigest inputs tree)); (let upstream : (List Planned) := (upstreamOf (project obligation needs) planned); (let kappa : String := (identity obligation digest upstream); (let gates : (List Route) := (if (allFound (project obligation needs) planned) then (verdictsOf upstream) else (cons (ctor Route.blocked) (nil Route))); ((prim append planned (cons (record Planned {obligation := obligation, kappa := kappa, verdict := (routeFor (project obligation kind) kappa receipts gates)}) (nil Planned)) : (List Planned)), (cons (inputs, digest) cache))))))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: planAll,
+  parameters: [graph : (List Obligation), tree : (List (Bytes * Bytes)), receipts : (List (String * Bool))],
+  result: (List Planned),
+  body: (first (prim list_fold (fun [receipts, tree] (state : ((List Planned) * (List ((List String) * String)))) (obligation : Obligation) => (planOne tree receipts state obligation)) ((nil Planned), (nil ((List String) * String))) graph : ((List Planned) * (List ((List String) * String))))),
+  axioms: [Classical.choice, Quot.sound, propext],
+  executable: true
+}
+
+definition{
+  name: releasable,
+  parameters: [planned : (List Planned)],
+  result: Bool,
+  body: (allProved (verdictsOf planned)),
+  executable: true
+}
+
+definition{
+  name: member,
+  parameters: [wanted : String, values : (List String)],
+  result: Bool,
+  body: (prim list_fold (fun [wanted] (sofar : Bool) (value : String) => (sofar || (prim equal value wanted : Bool))) false values : Bool),
+  executable: true
+}
+
+definition{
+  name: nonEmpty,
+  parameters: [values : (List String)],
+  result: Bool,
+  body: (match values
+    | List.nil => false
+    | List.cons head tail => true),
+  executable: true
+}
+
+definition{
+  name: distinct,
+  parameters: [values : (List String)],
+  result: Bool,
+  body: (match values
+    | List.nil => true
+    | List.cons head tail => ((not (member head tail)) && (distinct tail))),
+  executable: true,
+  recursive_argument: values
+}
+
+definition{
+  name: subset,
+  parameters: [values : (List String), within : (List String)],
+  result: Bool,
+  body: (prim list_fold (fun [within] (sofar : Bool) (value : String) => (sofar && (member value within))) true values : Bool),
+  executable: true
+}
+
+definition{
+  name: names,
+  parameters: [graph : (List Obligation)],
+  result: (List String),
+  body: (prim list_fold (fun (sofar : (List String)) (obligation : Obligation) => (prim append sofar (cons (project obligation name) (nil String)) : (List String))) (nil String) graph : (List String)),
+  executable: true
+}
+
+definition{
+  name: runIndependent,
+  parameters: [obligation : Obligation],
+  result: Bool,
+  body: ((not (member "@mode" (project obligation inputs))) && (not (member "@run" (project obligation inputs)))),
+  executable: true
+}
+
+definition{
+  name: cutSet,
+  parameters: [graph : (List Obligation)],
+  result: (List String),
+  body: (prim list_fold (fun (sofar : (List String)) (obligation : Obligation) => (if (runIndependent obligation) then (prim append sofar (cons (project obligation name) (nil String)) : (List String)) else sofar)) (nil String) graph : (List String)),
+  executable: true
+}
+
+definition{
+  name: cuttable,
+  parameters: [planned : (List Planned)],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (entry : Planned) => (sofar && ((not (runIndependent (project entry obligation))) || (isProved (project entry verdict))))) true planned : Bool),
+  executable: true
+}
+
+definition{
+  name: orderedStep,
+  parameters: [state : ((List String) * Bool), obligation : Obligation],
+  result: ((List String) * Bool),
+  body: ((prim append (first state) (cons (project obligation name) (nil String)) : (List String)), ((second state) && (subset (project obligation needs) (first state)))),
+  executable: true
+}
+
+definition{
+  name: needsComeFirst,
+  parameters: [graph : (List Obligation)],
+  result: Bool,
+  body: (second (prim list_fold (fun (state : ((List String) * Bool)) (obligation : Obligation) => (orderedStep state obligation)) ((nil String), true) graph : ((List String) * Bool))),
+  executable: true
+}
+
+definition{
+  name: isDeclared,
+  parameters: [obligation : Obligation],
+  result: Bool,
+  body: ((not (prim equal (project obligation run) "" : Bool)) && (match (project obligation inputs)
+    | List.nil => false
+    | List.cons head tail => true)),
+  executable: true
+}
+
+definition{
+  name: allDeclared,
+  parameters: [graph : (List Obligation)],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (obligation : Obligation) => (sofar && (isDeclared obligation))) true graph : Bool),
+  executable: true
+}
+
+definition{
+  name: reversedGraph,
+  parameters: [graph : (List Obligation)],
+  result: (List Obligation),
+  body: (prim list_fold (fun (sofar : (List Obligation)) (obligation : Obligation) => (cons obligation sofar)) (nil Obligation) graph : (List Obligation)),
+  executable: true
+}
+
+definition{
+  name: servedBy,
+  parameters: [graph : (List Obligation), root : String],
+  result: (List String),
+  body: (prim list_fold (fun (found : (List String)) (obligation : Obligation) => (if (member (project obligation name) found) then (prim append found (project obligation needs) : (List String)) else found)) (cons root (nil String)) (reversedGraph graph) : (List String)),
+  executable: true
+}
+
+definition{
+  name: noArbitraryObligation,
+  parameters: [graph : (List Obligation), root : String],
+  result: Bool,
+  body: (subset (names graph) (servedBy graph root)),
+  executable: true
+}
+
+theorem{
+  name: a_failure_never_lowers_priority,
+  parameters: [level : Level],
+  statement: (((levelValue level) <=? (levelValue (reinforce level false))) = true),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: l1},
+      {proof: decide{}, binders: [], constructor: l2},
+      {proof: decide{}, binders: [], constructor: l3},
+      {proof: decide{}, binders: [], constructor: l4},
+      {proof: decide{}, binders: [], constructor: l5},
+      {proof: decide{}, binders: [], constructor: l6},
+      {proof: decide{}, binders: [], constructor: l7},
+      {proof: decide{}, binders: [], constructor: l8},
+      {proof: decide{}, binders: [], constructor: l9},
+      {proof: decide{}, binders: [], constructor: l10},
+      {proof: decide{}, binders: [], constructor: l11},
+      {proof: decide{}, binders: [], constructor: l12},
+      {proof: decide{}, binders: [], constructor: l13},
+      {proof: decide{}, binders: [], constructor: l14},
+      {proof: decide{}, binders: [], constructor: l15},
+      {proof: decide{}, binders: [], constructor: l16}
+    ],
+    scrutinee: level
+  },
+  axioms: []
+}
+
+theorem{
+  name: a_pass_never_raises_priority,
+  parameters: [level : Level],
+  statement: (((levelValue (reinforce level true)) <=? (levelValue level)) = true),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: l1},
+      {proof: decide{}, binders: [], constructor: l2},
+      {proof: decide{}, binders: [], constructor: l3},
+      {proof: decide{}, binders: [], constructor: l4},
+      {proof: decide{}, binders: [], constructor: l5},
+      {proof: decide{}, binders: [], constructor: l6},
+      {proof: decide{}, binders: [], constructor: l7},
+      {proof: decide{}, binders: [], constructor: l8},
+      {proof: decide{}, binders: [], constructor: l9},
+      {proof: decide{}, binders: [], constructor: l10},
+      {proof: decide{}, binders: [], constructor: l11},
+      {proof: decide{}, binders: [], constructor: l12},
+      {proof: decide{}, binders: [], constructor: l13},
+      {proof: decide{}, binders: [], constructor: l14},
+      {proof: decide{}, binders: [], constructor: l15},
+      {proof: decide{}, binders: [], constructor: l16}
+    ],
+    scrutinee: level
+  },
+  axioms: []
+}
+
+theorem{
+  name: every_level_round_trips,
+  parameters: [level : Level],
+  statement: ((levelValue (levelNamed (levelText level))) = (levelValue level)),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: l1},
+      {proof: decide{}, binders: [], constructor: l2},
+      {proof: decide{}, binders: [], constructor: l3},
+      {proof: decide{}, binders: [], constructor: l4},
+      {proof: decide{}, binders: [], constructor: l5},
+      {proof: decide{}, binders: [], constructor: l6},
+      {proof: decide{}, binders: [], constructor: l7},
+      {proof: decide{}, binders: [], constructor: l8},
+      {proof: decide{}, binders: [], constructor: l9},
+      {proof: decide{}, binders: [], constructor: l10},
+      {proof: decide{}, binders: [], constructor: l11},
+      {proof: decide{}, binders: [], constructor: l12},
+      {proof: decide{}, binders: [], constructor: l13},
+      {proof: decide{}, binders: [], constructor: l14},
+      {proof: decide{}, binders: [], constructor: l15},
+      {proof: decide{}, binders: [], constructor: l16}
+    ],
+    scrutinee: level
+  },
+  axioms: []
+}
+
+theorem{
+  name: a_passing_receipt_proves,
+  parameters: [kind : Kind],
+  statement: ((isProved (routeFor kind "k1" (cons ("k0", false) (cons ("k1", true) (nil (String * Bool)))) (nil Route))) = true),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: hermetic},
+      {proof: decide{}, binders: [], constructor: fetch}
+    ],
+    scrutinee: kind
+  },
+  axioms: []
+}
+
+theorem{
+  name: a_hermetic_failure_is_refuted_not_rerun,
+  parameters: [],
+  statement: ((routeName (routeFor (ctor Kind.hermetic) "k1" (cons ("k1", false) (nil (String * Bool))) (nil Route))) = "refuted"),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_fetch_failure_is_observed_again,
+  parameters: [],
+  statement: ((routeName (routeFor (ctor Kind.fetch) "k1" (cons ("k1", false) (nil (String * Bool))) (nil Route))) = "observe"),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_new_identity_is_observed,
+  parameters: [kind : Kind],
+  statement: ((routeName (routeFor kind "k2" (cons ("k1", true) (nil (String * Bool))) (nil Route))) = "observe"),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: hermetic},
+      {proof: decide{}, binders: [], constructor: fetch}
+    ],
+    scrutinee: kind
+  },
+  axioms: []
+}
+
+theorem{
+  name: an_unproved_upstream_blocks_even_a_receipt,
+  parameters: [kind : Kind],
+  statement: ((routeName (routeFor kind "k1" (cons ("k1", true) (nil (String * Bool))) (cons (ctor Route.proved) (cons (ctor Route.observe) (nil Route))))) = "blocked"),
+  proof: cases{
+    branches: [
+      {proof: decide{}, binders: [], constructor: hermetic},
+      {proof: decide{}, binders: [], constructor: fetch}
+    ],
+    scrutinee: kind
+  },
+  axioms: []
+}
+
+theorem{
+  name: a_later_pass_outweighs_an_earlier_failure,
+  parameters: [],
+  statement: ((routeName (routeFor (ctor Kind.fetch) "k1" (cons ("k1", false) (cons ("k1", true) (nil (String * Bool)))) (nil Route))) = "proved"),
+  proof: decide{},
+  axioms: []
+}
+\end{semanticmodule}
+\end{lexlean}

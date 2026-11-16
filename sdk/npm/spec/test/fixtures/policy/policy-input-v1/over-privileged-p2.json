@@ -32,7 +32,7 @@
       {
         "check": "replay.statement",
         "withholds": "P3",
-        "message": "The holo carries no replay statement (issue #284)."
+        "message": "The holo carries no replay statement."
       },
       {
         "check": "world.capabilities",

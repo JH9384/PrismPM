@@ -79,3 +79,16 @@ Feature: facets
     Then a feature without a call is refused with PP2014 and a feature without an acceptance row with PP2015
     And a journey step naming an undeclared feature is refused with PP2016 and a journey whose actor is not a declared stakeholder with PP2017
     And a malformed declaration or a call or acceptance row naming no declaration is refused with PP2018 before any artifact is written
+
+  @FT-14 @build
+  Scenario: Production.ThreatModel declares assets, threats with a STRIDE category, controls with evidence, their mapping and accepted risks as rows that name Foundation.Sec records, and proves with an empty axiom set that its normalized validator is sound and complete and refuses an unmapped threat, a control without evidence and a threat without a category.
+    Given the Production.ThreatModel module of the stdlib
+    When its declarations are read
+    Then every row type, the normalized validator, its soundness and completeness theorem and each refusal theorem are declared
+
+  @FT-15 @build
+  Scenario: The SDK checks a threat model over every entrypoint in prismpm check and refuses a threat with no mapped control and no accepted risk with PP2019, a control that names no evidence with PP2020, a threat with no STRIDE category with PP2021, and a malformed or unresolved row with PP2022.
+    Given a model whose threat model rows name its Foundation.Sec records
+    When the controller checks the model
+    Then an unmapped threat is refused with PP2019 and a control without evidence with PP2020
+    And a threat without a category is refused with PP2021 and a malformed or unresolved row with PP2022 before any artifact is written

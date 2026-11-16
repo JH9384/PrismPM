@@ -9,7 +9,7 @@ export interface CanonicalizeOptions {
   stripBom?: boolean;
 }
 export interface HashOptions extends CanonicalizeOptions {
-  /** Digest passed to `node:crypto`. Default `'sha256'`. */
+  /** Digest passed to `node:crypto`. Default `'sha256'`, the only one on a host without `node:crypto`. */
   algorithm?: string;
   /** Hash the canonical form (`true`) or the bytes as given (`false`). Default `true`. */
   canonical?: boolean;

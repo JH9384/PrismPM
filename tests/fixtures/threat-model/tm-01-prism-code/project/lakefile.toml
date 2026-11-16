@@ -1,0 +1,6 @@
+name = "PrismCode"
+version = "0.1.0"
+defaultTargets = ["PrismCode"]
+
+[[lean_lib]]
+name = "PrismCode"

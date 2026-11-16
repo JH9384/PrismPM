@@ -24,7 +24,7 @@ export function sessionFixture(root, environment = process.env, options = {}) {
     if(args[0]==='scripts/sdk-image-inputs.mjs'){record('build');if(${!!options.buildFailureAfterLoad})fs.writeFileSync('loaded-tag',args.at(-1));process.exit(${options.buildFailureAfterLoad ? 43 : options.buildFailure ?? 0});}
     if(${!!options.release} && args[0]==='scripts/release-gate-evidence.mjs'){
       const n=fs.existsSync('count')?Number(fs.readFileSync('count'))+1:1;fs.writeFileSync('count',String(n));
-      const assert=require('node:assert/strict');assert.equal(args[1],'source-run');assert.equal(args[9],String(n));
+      const assert=require('node:assert/strict');assert.equal(args[1],'source-run');assert.equal(args[9],'source');
       record('source-run');process.stdout.write('call:'+n+'\\n');process.exit(n===1?${options.first ?? 0}:${options.second ?? 0});
     }
     const child=require('node:child_process').spawnSync(${JSON.stringify(process.execPath)},args,{stdio:'inherit'});

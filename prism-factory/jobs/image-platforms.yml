@@ -1,0 +1,85 @@
+
+  # Each platform is built on its own native runner: emulated arm64 builds
+  # exceed the hosted job limit. One job per platform builds every image in
+  # one Buildx builder, so the targets of sdk/Dockerfile share their stages.
+  # Image stages establish projection obligations only, so they start beside
+  # source V&V; only publication waits for the gate (Factory.Release).
+  image-platforms:
+    needs: [policy, factory]
+    if: ${{ needs.factory.outputs.build-route == 'establish' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: false
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the source-bound publication policy before registry credentials
+        env:
+          DISPATCH_VERSION: ${{ inputs.version }}
+          PUBLISH_CRATES: ${{ toJSON(inputs.publish-crates) }}
+          REHEARSAL: ${{ toJSON(inputs.rehearsal) }}
+        run: node scripts/release-phases.mjs policy
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          version: v0.28.0
+          driver-opts: image=moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: build
+        env:
+          ARCH: ${{ matrix.arch }}
+          VERSION: ${{ needs.policy.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/image-platforms"
+          while read -r name dockerfile target repository; do
+            if [ "$dockerfile" = sdk/Dockerfile ]; then
+              build=(node scripts/sdk-image-inputs.mjs build . "$GITHUB_SHA" "$target")
+              context=()
+            else
+              test "$dockerfile" = sdk/runtime/Dockerfile
+              test "$target" = -
+              build=(docker buildx build --file "$dockerfile")
+              context=(.)
+            fi
+            "${build[@]}" --platform "linux/$ARCH" \
+              --output "type=registry,name=$repository,push-by-digest=true,name-canonical=true,rewrite-timestamp=true,oci-mediatypes=true" \
+              --metadata-file "$RUNNER_TEMP/$name-build.json" \
+              --provenance=false --sbom=false --build-arg SOURCE_DATE_EPOCH=0 \
+              --label org.opencontainers.image.created=1970-01-01T00:00:00Z \
+              --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+              --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+              --label "org.opencontainers.image.version=$VERSION" "${context[@]}"
+            node scripts/sdk-image-inputs.mjs digest "$RUNNER_TEMP/$name-build.json" > "$RUNNER_TEMP/image-platforms/$name-$ARCH.digest"
+          done <<'IMAGES'
+          sdk sdk/Dockerfile runtime ghcr.io/uor-foundation/prismpm-sdk
+          runtime sdk/runtime/Dockerfile - ghcr.io/uor-foundation/prismpm-runtime
+          adapter-compose sdk/Dockerfile adapter-compose ghcr.io/uor-foundation/prismpm-adapter-compose
+          adapter-kubernetes sdk/Dockerfile adapter-kubernetes ghcr.io/uor-foundation/prismpm-adapter-kubernetes
+          adapter-github-pages sdk/Dockerfile adapter-github-pages ghcr.io/uor-foundation/prismpm-adapter-github-pages
+          oracles sdk/Dockerfile oracles ghcr.io/uor-foundation/prismpm-oracles
+          sdk-build sdk/Dockerfile sdk-build ghcr.io/uor-foundation/prismpm-sdk-build
+          IMAGES
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: image-platforms-${{ matrix.arch }}
+          path: ${{ runner.temp }}/image-platforms/
+          if-no-files-found: error
+          retention-days: 30

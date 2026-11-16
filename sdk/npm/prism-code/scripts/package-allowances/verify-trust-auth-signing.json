@@ -1,0 +1,4 @@
+{
+  "kib": 10,
+  "reason": "Trust in verify and signing in auth (#449, #447): verify-closure.mjs, signing.mjs and attest-write.mjs split out of push-pull.mjs and attest.mjs, with prism.verify.pullClosure and auth.identities.from (about 9.7 KiB)."
+}

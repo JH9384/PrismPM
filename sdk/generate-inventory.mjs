@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { access, readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { compilerRevision, encodeInventory, exporterArtifactBindings, validateAuthorityMetadata, validateImageInputMetadata } from './inventory-metadata.mjs';
+import { compilerRevision, encodeInventory, exporterArtifactBindings, omitBuildVariantArtifacts, validateAuthorityMetadata, validateImageInputMetadata } from './inventory-metadata.mjs';
 import { readSmall, snapshotFile } from './exporter-seed.mjs';
 
 const output = process.argv[2];
@@ -68,7 +68,7 @@ const definitions = [
   ['sdk-metadata-credentials', 'schema', '1', '/opt/prismpm/metadata-credentials.mjs'],
   ['sdk-metadata-helper', 'schema', '1', '/opt/prismpm/metadata-helper.mjs'],
   ['sdk-metadata-helper-supervisor', 'schema', '1', '/opt/prismpm/metadata-helper-supervisor.py'],
-  ['action', 'workflow', '0.4.0', 'action', 'tree'],
+  ['action', 'workflow', '0.5.0', 'action', 'tree'], // x-release-please-version
   ['adapter-compose', 'adapter', 'compose-spec@fee041b381ffd4aad263410980bdce0cdf4beb7d', 'adapters/compose.json'],
   ['adapter-github-pages', 'adapter', 'github-pages-artifact@v4', 'adapters/github-pages.json'],
   ['adapter-github-pages-browser', 'adapter', 'github-pages-artifact@v4', 'adapters/github-pages-browser.json'],
@@ -110,15 +110,16 @@ const definitions = [
   ['oci-runtime-validate', 'oracle', '1.3.0@92249139', '/usr/local/bin/oci-runtime-validate'],
   ['openid-conformance-suite-corpus', 'test-corpus', '3e09b13b896fce95d78c2c0f931feee9614e9452', 'standards/oracles/openid-conformance-suite-3e09b13b', 'tree'],
   ['openid-conformance', 'oracle', '3e09b13b896f', '/usr/local/bin/openid-conformance'],
+  ['oscal-validator', 'oracle', 'jsonschema-0.58.2+oscal-1.1.0', '/usr/local/bin/oscal-validator'],
   ['json-schema-2020-12-corpus', 'test-corpus', 'c9510e3bf8a896c3cba4e08509cf752b4f30dff8', 'standards/corpora/json-schema-2020-12', 'tree'],
   ['in-toto-attestation-1.0-source', 'test-corpus', 'ee16c68a11dfcfbdc891600cacd767896fe6e724', 'standards/oracles/in-toto-attestation-ee16c68a', 'tree'],
   ['intoto-statement-validator', 'oracle', '1.0@ee16c68a', '/usr/local/bin/intoto-statement-validator'],
   ['playwright-chromium', 'oracle', '1.62.1', null, 'sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e'],
   ['playwright-driver', 'oracle', '1.62.1', '/opt/prismpm/oracles/node_modules/playwright', 'tree'],
   ['playwright-core', 'oracle', '1.62.1', '/opt/prismpm/oracles/node_modules/playwright-core', 'tree'],
-  ['prismpm', 'binary', '0.4.0', '/usr/local/bin/prismpm'],
-  ['prismpm-conformance', 'binary', '0.4.0', '/usr/local/bin/prismpm-conformance'],
-  ['prismpm-platform-equivalence', 'binary', '0.4.0', '/usr/local/bin/prismpm-platform-equivalence'],
+  ['prismpm', 'binary', '0.5.0', '/usr/local/bin/prismpm'], // x-release-please-version
+  ['prismpm-conformance', 'binary', '0.5.0', '/usr/local/bin/prismpm-conformance'], // x-release-please-version
+  ['prismpm-platform-equivalence', 'binary', '0.5.0', '/usr/local/bin/prismpm-platform-equivalence'], // x-release-please-version
   ['prism-stdlib', 'crate', '0.2.0', 'stdlib/generated/prism-stdlib-0.2.0.crate'],
   ['runtime-base', 'base-image', 'playwright-v1.62.1-noble', null, 'sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e'],
   ['runtime-os-lock', 'dependency-lock', 'ubuntu-noble@20260901T000000Z', 'sdk/runtime-os.lock'],
@@ -132,7 +133,7 @@ const definitions = [
   ['timeout', 'binary', 'coreutils-9.4', '/usr/bin/timeout'],
   ['unicode-17.0.0-normalization-corpus', 'test-corpus', '17.0.0', 'standards/corpora/unicode-17.0.0', 'tree'],
   ['opentelemetry-0.136.0-signal-corpus', 'test-corpus', '0.136.0', 'standards/corpora/opentelemetry-0.136.0', 'tree'],
-  ['workflow-reusable-sdk', 'workflow', '0.4.0', '.github/workflows/sdk.yml'],
+  ['workflow-reusable-sdk', 'workflow', '0.5.0', '.github/workflows/sdk.yml'], // x-release-please-version
 ];
 const inputRoot = '/opt/prismpm/share/vv-inputs';
 const inputPolicyBytes = await readFile('/opt/prismpm/share/vv-input-policy.json');
@@ -148,6 +149,14 @@ definitions.push(
   ['sdk-image-input-verifier', 'test-corpus', '1', 'scripts/sdk-image-inputs.mjs'],
   ['sdk-image-input-authorities', 'test-corpus', '1', 'sdk/vv-inputs.lock.json'],
 );
+// The build-only SDK variant (`sdk-build` in sdk/Dockerfile) is derived from
+// the measured runtime inventory; see omitBuildVariantArtifacts.
+const variant = process.env.PRISMPM_SDK_VARIANT ?? 'runtime';
+if (!['runtime', 'build'].includes(variant)) throw new Error(`unknown SDK variant: ${variant}`);
+if (variant === 'build' && !process.env.PRISMPM_ARTIFACT_INVENTORY) {
+  throw new Error('the build SDK variant is derived from the measured runtime artifact inventory');
+}
+
 let artifacts;
 const dependencies = process.env.PRISMPM_ARTIFACT_INVENTORY
   ? '/opt/prismpm/share/conformance-root/model/dependencies.toml' : 'model/dependencies.toml';
@@ -168,6 +177,7 @@ if (process.env.PRISMPM_ARTIFACT_INVENTORY) {
   artifacts.push({id: 'playwright-headless-shell', kind: 'oracle', version: '157.0.8099.0',
     digest: await treeDigest('/ms-playwright/chromium_headless_shell-cft-157.0.8099.0')});
   artifacts.sort((left, right) => Buffer.from(left.id).compare(Buffer.from(right.id)));
+  if (variant === 'build') artifacts = omitBuildVariantArtifacts(artifacts, new Set(commands.map(row => row.command)));
 } else {
   artifacts = [];
   for (const [id, kind, version, source, mode] of definitions) {

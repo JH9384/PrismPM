@@ -396,3 +396,26 @@ test('without --hosted each agent is listed once, under the local server', () =>
   const hosted = formatSetup(planSetup({ hosted: true }, context('linux', home)));
   assert.equal(hosted.split('\n').filter((line) => line.startsWith('  codex ')).length, 2);
 });
+
+test('without --hosted no agent gets the hosted server, and each file changed is backed up first', () => {
+  // Found on a clean profile on 2026-11-16, in 0.9.2: the report said "not added", the hosted server was
+  // written to each agent that lacked it, and the file was changed with no backup.
+  const before = '{"mcpServers":{"other":{"command":"other"}}}\n';
+  const home = fixtureHome({ '.cursor/mcp.json': before, '.codex': null });
+  const plan = planSetup({ hosted: false }, context('linux', home));
+  assert.match(formatSetup(plan), /: not added; it stores models unlisted, not privately \(pass --hosted to add it\)/);
+  const dry = formatSetup(plan, { dryRun: true });
+  assert.match(dry, /set mcpServers\.prism = .* in .*mcp\.json \(backup .*mcp\.json\.prism-backup\)/);
+  assert.doesNotMatch(dry, /lexlean = /);
+  applySetup(plan, recorder());
+  const file = join(home, '.cursor', 'mcp.json');
+  const after = JSON.parse(readFileSync(file, 'utf8'));
+  assert.deepEqual(Object.keys(after.mcpServers), ['other', 'prism']);
+  assert.equal(readFileSync(`${file}.prism-backup`, 'utf8'), before);
+  assert.doesNotMatch(readFileSync(join(home, '.codex', 'config.toml'), 'utf8'), /lexlean/);
+  // With --hosted both are written, once, and the file is backed up once.
+  const other = fixtureHome({ '.cursor/mcp.json': before });
+  applySetup(planSetup({ hosted: true }, context('linux', other)), recorder());
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(other, '.cursor', 'mcp.json'), 'utf8')).mcpServers), ['other', 'lexlean', 'prism']);
+  assert.equal(readFileSync(join(other, '.cursor', 'mcp.json.prism-backup'), 'utf8'), before);
+});

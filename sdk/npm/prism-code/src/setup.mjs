@@ -343,7 +343,11 @@ export function planSetup({ agent, skills, hosted = false } = {}, context) {
   // The hosted lexlean server stores what it is sent unlisted, not privately, so no agent gets it unless setup is told --hosted.
   // The local prism server (the journey rows) proves on this machine either way. An entry already there is left as it is.
   const agents = hosted ? found : found.map((a) => (a.status === 'configure' || a.status === 'manual' ? { agent: a.agent, status: 'local-only', detail: `the hosted ${MCP_NAME} server is added only with --hosted; the local prism server proves on this machine` } : a));
-  const plan = { hosted, agents, journey: planJourney(found, context, paths), handler: planHandler(context), preferred: planPreferred(agent, found, context) };
+  // The local server is planned over the rows that will be carried out. Planned over the hosted rows
+  // as found, it folded their edit into its own: without --hosted the hosted server was still written
+  // to each agent that did not have it, while the report said "not added", and with no backup of the
+  // file, since the hosted row was taken to have made one. Found on a clean profile, 2026-11-16, in 0.9.2.
+  const plan = { hosted, agents, journey: planJourney(agents, context, paths), handler: planHandler(context), preferred: planPreferred(agent, found, context) };
   if (skills !== undefined) plan.skills = planSkills(skills, agents, context);
   return plan;
 }

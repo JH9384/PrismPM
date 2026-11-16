@@ -238,7 +238,7 @@ test('owning adapter assertions reject real argument and host-isolation defects'
   for (const [before, after] of [
     ['args+=(export-browser "$reference" --output "$export_output")',
       'args+=(export-browser "$reference" --output "$project/$export_output")'],
-    ['network_args=(--network none)', 'network_args=(--network host)'],
+    ['credential_args=()\nnetwork_args=(--network none)', 'credential_args=()\nnetwork_args=(--network host)'],
     ['--tmpfs /tmp:rw,exec,nosuid,size=2g', '--tmpfs /tmp:rw,exec,nosuid,size=1g'],
     ['--env BUILDX_CONFIG=/tmp/prismpm-buildx', ''],
     ['--env BUILDX_CONFIG=/tmp/prismpm-buildx', '--env BUILDX_CONFIG=/home/vscode/.docker/buildx'],

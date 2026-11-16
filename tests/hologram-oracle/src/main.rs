@@ -296,6 +296,209 @@ fn allocation_boundary(
     }
 }
 
+/// SHA-256 of `parts` end to end, through the pinned Hologram `sha256` axis,
+/// so the harness reads UORC with no hasher of its own.
+fn sha256(parts: &[&[u8]]) -> Result<[u8; 32], Box<dyn std::error::Error>> {
+    let label = hologram::space::address_bytes_axis("sha256", &parts.concat())
+        .map_err(|error| format!("Hologram sha256 axis: {error:?}"))?;
+    let hex = std::str::from_utf8(&label)?
+        .strip_prefix("sha256:")
+        .ok_or("Hologram sha256 axis returned another label")?;
+    let mut digest = [0u8; 32];
+    for (index, byte) in digest.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&hex[2 * index..2 * index + 2], 16)?;
+    }
+    Ok(digest)
+}
+
+fn kappa(bytes: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
+    Ok(format!("sha256:{}", hex(&sha256(&[bytes])?)))
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// UORC-SHA256-CHAIN-v1 over `preimage` (ADR-017 §1).
+fn uorc_chain(preimage: &[u8]) -> Result<[u8; 32], Box<dyn std::error::Error>> {
+    const TAG: &[u8] = b"UORC-SHA256-CHAIN-v1\0";
+    let mut chain = sha256(&[TAG, &[0]])?;
+    let mut blocks = preimage.chunks_exact(64);
+    for block in &mut blocks {
+        chain = sha256(&[TAG, &[1], &chain, block])?;
+    }
+    let tail = blocks.remainder();
+    sha256(&[TAG, &[2], &chain, &[tail.len() as u8], tail])
+}
+
+/// A shortest-form ULEB128 at `at`, and the offset after it.
+fn uleb(data: &[u8], mut at: usize) -> Option<(u64, usize)> {
+    let start = at;
+    let mut value = 0u64;
+    for shift in (0..64).step_by(7) {
+        let byte = *data.get(at)?;
+        at += 1;
+        let part = u64::from(byte & 0x7F);
+        if shift == 63 && part > 1 {
+            return None;
+        }
+        value |= part << shift;
+        if byte < 0x80 {
+            return (byte != 0 || at - start == 1).then_some((value, at));
+        }
+    }
+    None
+}
+
+/// The ordered objects of a sealed, self-contained raw UORC archive (format 2,
+/// profile 1) under the holo decode budget of 16 objects and 2^30 body bytes.
+/// This is the "any UORC reader" ADR-017 names; it shares no code with Prism.
+fn uorc_objects(archive: &[u8]) -> Result<Vec<&[u8]>, Box<dyn std::error::Error>> {
+    if !archive.starts_with(b"UORC\x02\x01") || archive.len() < 8 + 32 {
+        return Err("archive is not a UORC format 2 profile 1 archive".into());
+    }
+    let (preimage, seal) = archive.split_at(archive.len() - 32);
+    if uorc_chain(preimage)? != seal {
+        return Err("UORC-SHA256-CHAIN-v1 seal does not match the archive".into());
+    }
+    if preimage[6] != 0 || preimage[7] != 0 {
+        return Err("UORC archive is not self-contained and raw".into());
+    }
+    let (count, mut at) = uleb(preimage, 8).ok_or("UORC object count")?;
+    if count == 0 || count > 16 {
+        return Err("UORC archive exceeds the holo object budget".into());
+    }
+    let mut lengths = Vec::new();
+    let mut total = 0u64;
+    for _ in 0..count {
+        let (length, next) = uleb(preimage, at).ok_or("UORC object length")?;
+        total = total
+            .checked_add(length)
+            .filter(|total| *total <= 1 << 30)
+            .ok_or("UORC archive exceeds the holo byte budget")?;
+        lengths.push(usize::try_from(length)?);
+        at = next;
+    }
+    let (body, mut offset) = uleb(preimage, at).ok_or("UORC body length")?;
+    if body != total || (preimage.len() - offset) as u64 != total {
+        return Err("UORC body length disagrees with its objects".into());
+    }
+    Ok(lengths
+        .into_iter()
+        .map(|length| {
+            let object = &preimage[offset..offset + length];
+            offset += length;
+            object
+        })
+        .collect())
+}
+
+/// A holo v5 read by the UORC reader above, and the Hologram v4 archive that
+/// carries its capability set, guest, view and model byte for byte, written by
+/// the pinned upstream writer. Hologram Live admits only physical v4, so the
+/// harness hands it this projection; every check below runs against it, and
+/// the report names the v5 file.
+struct HoloV5 {
+    application_kappa: String,
+    archive_kappa: String,
+    seal: String,
+    projection: Vec<u8>,
+}
+
+fn read_holo_v5(archive: &[u8], name: &str) -> Result<HoloV5, Box<dyn std::error::Error>> {
+    const ROLES: [&str; 7] = [
+        "manifest",
+        "source-manifest",
+        "provenance",
+        "capabilities",
+        "guest",
+        "view",
+        "model",
+    ];
+    let objects = uorc_objects(archive)?;
+    if objects.len() != ROLES.len() && objects.len() != ROLES.len() + 1 {
+        return Err("holo v5 does not hold the application roles".into());
+    }
+    let manifest: Value = serde_json::from_slice(objects[0])?;
+    if manifest["schema"] != "prism/holo/5" || manifest["name"] != name {
+        return Err("holo v5 manifest does not name this application".into());
+    }
+    let listed = manifest["objects"]
+        .as_array()
+        .ok_or("holo v5 manifest lists no objects")?;
+    if listed.len() != 5 {
+        return Err("holo v5 manifest does not list objects 1 and 3 to 6".into());
+    }
+    for (row, index) in listed.iter().zip([1usize, 3, 4, 5, 6]) {
+        if row["role"] != ROLES[index]
+            || row["kappa"] != kappa(objects[index])?.as_str()
+            || row["length"] != objects[index].len()
+        {
+            return Err(format!(
+                "holo v5 manifest disagrees with its {} object",
+                ROLES[index]
+            )
+            .into());
+        }
+    }
+    let [capabilities, guest, view, model] = [objects[3], objects[4], objects[5], objects[6]];
+    let layers = &manifest["layers"];
+    if manifest["requires"] != kappa(capabilities)?.as_str()
+        || layers.as_array().map(Vec::len) != Some(2)
+        || layers[0]["kind"] != "wasm"
+        || layers[0]["kappa"] != kappa(guest)?.as_str()
+        || layers[0]["entry"] != "holo_run"
+        || layers[0]["contract"] != "hologram:guest/core-wasm@1"
+        || layers[1]["kind"] != "view"
+        || layers[1]["kappa"] != kappa(view)?.as_str()
+        || layers[1]["entry"] != "index.html"
+        || layers[1]["surface"] != "portable"
+    {
+        return Err("holo v5 layers disagree with the application profile".into());
+    }
+
+    let app = AppManifest {
+        primary: Some(0),
+        requires: address_bytes(capabilities),
+        layers: vec![
+            Layer::wasm_with_contract(
+                address_bytes(guest),
+                "holo_run",
+                "hologram:guest/core-wasm@1",
+            ),
+            Layer {
+                entry: "index.html".to_owned(),
+                ..Layer::view(address_bytes(view), "portable")
+            },
+        ],
+        children: Vec::new(),
+    };
+    let addressed =
+        [capabilities, guest, view, model].map(|content| (address_bytes(content), content));
+    let directory = hologram_live::holo_directory::derive(
+        &app,
+        addressed
+            .iter()
+            .map(|(label, content)| (label.as_bytes(), *content)),
+    )?;
+    let mut writer = HoloWriter::new();
+    writer.set_app_manifest(app.canonicalize());
+    writer.set_metadata(objects[1].to_vec());
+    writer.add_extension(
+        hologram_live::holo_directory::DIRECTORY_EXTENSION_KEY,
+        hologram_live::holo_directory::encode(&directory)?,
+    );
+    for (label, content) in &addressed {
+        writer.add_content_blob(label.as_bytes(), *content);
+    }
+    Ok(HoloV5 {
+        application_kappa: kappa(objects[0])?,
+        archive_kappa: kappa(archive)?,
+        seal: hex(&archive[archive.len() - 32..]),
+        projection: writer.finish()?,
+    })
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut arguments = std::env::args_os().skip(1);
@@ -352,6 +555,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let name = application["name"]
         .as_str()
         .ok_or("application name is required")?;
+    // A holo v5 (ADR-017) is read here as UORC; Hologram Live runs its
+    // upstream-written v4 projection, which carries the same content bytes.
+    let holo = read_holo_v5(&archive, name)?;
+    let archive = holo.projection.clone();
     let inspection = inspect_bytes("oracle", &format!("{name}.holo"), &archive)?;
     if inspection.format_version != 4 || !inspection.footer_verified {
         return Err("upstream inspection did not verify Hologram v4/footer".into());
@@ -585,9 +792,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "{}",
         serde_json::to_string(&json!({
-            "application_kappa": inspection.application_kappa,
-            "archive_fingerprint": inspection.archive_fingerprint,
-            "archive_kappa": session.archive_kappa(),
+            "application_kappa": holo.application_kappa,
+            "archive_fingerprint": holo.seal,
+            "archive_kappa": holo.archive_kappa,
             "direct_vectors": vectors.len(),
             "footer_verified": true,
             "guest_allocation_boundary": "verified",

@@ -164,6 +164,14 @@ fn code(rows: &[(&'static str, Value)]) -> String {
     check(&declared(rows)).unwrap_err().code.to_string()
 }
 
+/// The code of a model the projection itself refuses, before any check.
+fn projection_code(rows: &[(&'static str, Value)]) -> String {
+    project(rows.iter().map(|(name, value)| ("Security", *name, value)))
+        .unwrap_err()
+        .code
+        .to_string()
+}
+
 #[test]
 fn a_complete_model_is_accepted() {
     check(&declared(&rows())).unwrap();
@@ -489,7 +497,7 @@ fn an_appended_list_literal_is_the_list_of_its_parts() {
     ] {
         let mut row = control(vec![]);
         row["body"]["fields"][3]["value"] = wrong;
-        assert_eq!(code(&replaced("closure", row)), "PP2022");
+        assert_eq!(projection_code(&replaced("closure", row)), "PP2022");
     }
 }
 

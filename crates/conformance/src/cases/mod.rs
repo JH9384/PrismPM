@@ -440,7 +440,7 @@ pub fn run_at(root: &Path, id: &str) {
         "AL-07" => node_suite::verify_exact(
             root,
             id,
-            &[("sdk/npm/prism-code/test/verify-namespace.test.mjs", 15)],
+            &[("sdk/npm/prism-code/test/verify-namespace.test.mjs", 16)],
             "600000",
         ),
         // The JavaScript runtime reads the composed archive, the HOLOVIEW
@@ -642,7 +642,7 @@ pub fn run_at(root: &Path, id: &str) {
         "SE-09" => node_suite::verify_exact(
             root,
             id,
-            &[("sdk/npm/prism-code/test/auth.test.mjs", 20)],
+            &[("sdk/npm/prism-code/test/auth.test.mjs", 22)],
             "600000",
         ),
         "SE-01" | "SE-02" | "SE-03" | "SE-04" | "SE-05" | "SE-06" | "SE-07" | "SE-08" => {

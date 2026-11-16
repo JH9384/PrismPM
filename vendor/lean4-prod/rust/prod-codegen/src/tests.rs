@@ -808,10 +808,22 @@ fn test_let_bound_list_scalar_consumer_is_still_refused() {
 #[test]
 fn test_let_bound_list_in_every_builder_value_position_is_refused() {
     for (position, body) in [
-        ("condition", r#"(if (eq (call total _x_1) 0) (ctor "List.nil") _x_1)"#),
-        ("cons head", r#"(ctor "List.cons" (call total _x_1) (ctor "List.nil"))"#),
-        ("scalar let", r#"(let s (call total _x_1) (ctor "List.cons" s (ctor "List.nil")))"#),
-        ("scrutinee", r#"(cases _x_1 (alt "List.nil" () (ctor "List.nil")) (alt "List.cons" (h t) t))"#),
+        (
+            "condition",
+            r#"(if (eq (call total _x_1) 0) (ctor "List.nil") _x_1)"#,
+        ),
+        (
+            "cons head",
+            r#"(ctor "List.cons" (call total _x_1) (ctor "List.nil"))"#,
+        ),
+        (
+            "scalar let",
+            r#"(let s (call total _x_1) (ctor "List.cons" s (ctor "List.nil")))"#,
+        ),
+        (
+            "scrutinee",
+            r#"(cases _x_1 (alt "List.nil" () (ctor "List.nil")) (alt "List.cons" (h t) t))"#,
+        ),
     ] {
         let ir = probe_602(&alloc::format!(
             r#"(def f ((n Nat)) (List Nat) (let _x_1 (call build n) {body}))"#

@@ -24,3 +24,6 @@ COMPLIANCE.md text eol=lf
 docs/developer-glossary.md text eol=lf
 sdk/npm/conformance/corpus/*.holo binary
 crates/prismpm/src/generate/core-wasm.wit text eol=lf
+# The rule app model is locked and verified over its exact bytes (#692): a CRLF checkout must not change them.
+sdk/npm/prism-code/model/rule-app/lean-toolchain text eol=lf
+sdk/npm/prism-code/model/rule-judge/lean-toolchain text eol=lf

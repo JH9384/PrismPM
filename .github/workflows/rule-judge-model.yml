@@ -1,0 +1,119 @@
+name: rule judge model
+
+# The lemma a rule app's guarantee proof applies (PrismLive.Kernel.ruleJudge_sound)
+# is LexLean source (sdk/npm/prism-code/model/rule-judge), two native core modules
+# with no Lean file, and prism-code's proof writer is held to it by
+# test/rule-judge-model.test.mjs. This workflow is where Lean proves it: every
+# declaration, in the SDK image the verification record names, and then a planted
+# defect, which Lean must reject, so a pass is known to mean something.
+#
+# It pulls a multi-gigabyte image, so it runs only when the lemma changes.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - sdk/npm/prism-code/model/rule-judge/**
+      - .github/workflows/rule-judge-model.yml
+  push:
+    branches: [main]
+    paths:
+      - sdk/npm/prism-code/model/rule-judge/**
+      - .github/workflows/rule-judge-model.yml
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: rule-judge-model-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: sdk/npm/prism-code/model/rule-judge
+
+jobs:
+  verify:
+    name: Lean proves the rule judge lemma
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Read the image the verification record names
+        shell: bash
+        run: |
+          set -euo pipefail
+          image=$(python3 -c 'import json; print(json.load(open("verification.json"))["image"])')
+          [[ "$image" =~ ^ghcr\.io/uor-foundation/[a-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]]
+          echo "SDK_IMAGE=$image" >> "$GITHUB_ENV"
+      - name: Log in to GHCR (read only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - name: Make room for the image
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - name: Pull the SDK image
+        run: docker pull "$SDK_IMAGE"
+      - name: The lock is current and Lean proves every declaration
+        shell: bash
+        run: |
+          set -euo pipefail
+          run() {
+            docker run --rm --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,exec,nosuid,size=4g --volume "$PWD:$PWD" --workdir "$PWD" \
+              --env HOME=/tmp/prismpm-home --env PRISMPM_EPHEMERAL_HOME=1 "$SDK_IMAGE" sh -c "$1"
+          }
+          run 'lexlean lock && lexlean fmt --all && lexlean lock && lexlean verify --all' | tee verify.log
+          grep -q '^verified 2 modules' verify.log
+          # The record names the attestation of this run, so a record cannot outlive the source it verified.
+          attestation=$(sed -n 's/^verified 2 modules; attestation \([0-9a-f]\{64\}\)$/\1/p' verify.log)
+          recorded=$(python3 -c 'import json; print(json.load(open("verification.json"))["attestation"])')
+          echo "attestation $attestation, recorded $recorded"
+          [ "$attestation" = "$recorded" ]
+          rm verify.log
+          # Locking and formatting changed nothing: the committed files are the ones Lean verified.
+          git diff --exit-code -- .
+      - name: The record names these files and every root
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, hashlib, json, os, re
+          record = json.load(open('verification.json'))
+          for name, want in record['sources'].items():
+              got = 'sha256:' + hashlib.sha256(open(name, 'rb').read()).hexdigest()
+              assert got == want, f'{name}: {got} is not the recorded {want}'
+          assert sorted(os.listdir('src')) == ['Kernel.lex.tex', 'Regions.lex.tex'], os.listdir('src')
+          assert not glob.glob('**/*.lean', recursive=True), 'the lemma is LexLean source, never a Lean file'
+          text = open('src/Kernel.lex.tex', encoding='utf8').read() + open('src/Regions.lex.tex', encoding='utf8').read()
+          for root in record['roots']:
+              assert re.search(r'^\w+ ' + re.escape(root['name']) + r'(\.\{[^}]*\})? : ', text, re.M), root['name']
+          PY
+      - name: "Planted defect: the lemma with a weaker axiom policy is rejected by Lean"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          path = 'src/Regions.lex.tex'
+          text = open(path, encoding='utf8').read()
+          start = text.index('theorem PrismLive.Kernel.ruleJudge_sound ')
+          sound = 'policy: exact{axioms: [Quot.sound, propext]}'
+          at = text.index(sound, start)
+          assert at - start < 400, 'the policy the defect weakens is not the lemma\'s'
+          open(path, 'w', encoding='utf8', newline='\n').write(text[:at] + 'policy: exact{axioms: [propext]}' + text[at + len(sound):])
+          PY
+          ! git diff --quiet -- src/Regions.lex.tex
+          set +e
+          docker run --rm --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,exec,nosuid,size=4g --volume "$PWD:$PWD" --workdir "$PWD" \
+            --env HOME=/tmp/prismpm-home --env PRISMPM_EPHEMERAL_HOME=1 "$SDK_IMAGE" sh -c 'lexlean lock && lexlean verify --all' > defect.log 2>&1
+          code=$?
+          set -e
+          cat defect.log
+          [ "$code" -ne 0 ]
+          grep -q 'error\[LLV7005\]: `PrismLive.Kernel.ruleJudge_sound` violates its exact axiom policy' defect.log
+          ! grep -q '^verified' defect.log
+          rm defect.log
+          git checkout -- .

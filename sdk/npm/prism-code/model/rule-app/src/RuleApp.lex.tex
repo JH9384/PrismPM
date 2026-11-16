@@ -1,0 +1,108 @@
+\begin{lexlean}{RuleApp}
+\useglossary{lexlean.std.bool@1.2.0}
+\useglossary{lexlean.std.nat@1.2.0}
+\title{Boolean}
+\begin{semanticmodule}
+structure{
+  name: Record,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: schema, type: Nat},
+    {name: holoNamed, type: Nat},
+    {name: holoPinned, type: Nat},
+    {name: holoVerified, type: Nat},
+    {name: holoVectorsFailed, type: Nat},
+    {name: fields, type: Nat},
+    {name: fieldsStated, type: Nat},
+    {name: boundsAgree, type: Nat},
+    {name: words, type: Nat},
+    {name: hasProof, type: Nat},
+    {name: proofStatement, type: Nat},
+    {name: recordStatement, type: Nat}
+  ]
+}
+
+definition{name: schemaOne, parameters: [], result: Nat, body: 1}
+
+definition{name: wordsMaximum, parameters: [], result: Nat, body: 1024}
+
+definition{
+  name: holoAdmitted,
+  parameters: [r : Record],
+  result: Bool,
+  body: ((((project r holoNamed) =? (project r holoPinned)) && ((project r holoVerified) =? 1)) && ((project r holoVectorsFailed) =? 0))
+}
+
+definition{
+  name: numbersAdmitted,
+  parameters: [r : Record],
+  result: Bool,
+  body: ((((project r fieldsStated) =? (project r fields)) && ((project r boundsAgree) =? 1)) && (((project r words) + (project r fields)) <=? (wordsMaximum)))
+}
+
+definition{
+  name: proofAdmitted,
+  parameters: [r : Record],
+  result: Bool,
+  body: (((project r hasProof) =? 0) || (((project r hasProof) =? 1) && ((project r proofStatement) =? (project r recordStatement))))
+}
+
+definition{
+  name: admits,
+  parameters: [r : Record],
+  result: Bool,
+  body: ((((project r schema) =? (schemaOne)) && (holoAdmitted r)) && ((numbersAdmitted r) && (proofAdmitted r)))
+}
+
+definition{
+  name: kernelChecked,
+  parameters: [r : Record],
+  result: Bool,
+  body: ((admits r) && ((project r hasProof) =? 1))
+}
+
+definition{name: leastAt, parameters: [field : Nat], result: Nat, body: (2 + (field + field))}
+
+definition{name: greatestAt, parameters: [field : Nat], result: Nat, body: (3 + (field + field))}
+
+definition{name: rulesAt, parameters: [fields : Nat], result: Nat, body: (4 + (fields + fields))}
+
+definition{name: answerOutcome, parameters: [], result: Nat, body: 0}
+
+definition{name: answerInvalid, parameters: [], result: Nat, body: 1}
+
+definition{name: answerFault, parameters: [], result: Nat, body: 2}
+
+definition{
+  name: answerKind,
+  parameters: [wellFormed : Nat, inBounds : Nat, judgeAnswered : Nat],
+  result: Nat,
+  body: (if (not (wellFormed =? 1)) then (answerInvalid) else (if (not (inBounds =? 1)) then (answerInvalid) else (if (judgeAnswered =? 1) then (answerOutcome) else (answerFault))))
+}
+
+structure{
+  name: Stored,
+  type_parameters: [],
+  parameters: [],
+  fields: [
+    {name: present, type: Nat},
+    {name: storedKey, type: Nat},
+    {name: computedKey, type: Nat},
+    {name: storedKernel, type: Nat},
+    {name: kernelPinned, type: Nat},
+    {name: storedLibrary, type: Nat},
+    {name: libraryPinned, type: Nat},
+    {name: storedBytes, type: Nat},
+    {name: derivedBytes, type: Nat}
+  ]
+}
+
+definition{
+  name: reuseAdmits,
+  parameters: [s : Stored],
+  result: Bool,
+  body: (((((project s present) =? 1) && ((project s storedKey) =? (project s computedKey))) && (((project s storedKernel) =? (project s kernelPinned)) && ((project s storedLibrary) =? (project s libraryPinned)))) && ((project s storedBytes) =? (project s derivedBytes)))
+}
+\end{semanticmodule}
+\end{lexlean}

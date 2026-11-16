@@ -1,0 +1,4 @@
+{
+  "kib": 38,
+  "reason": "The rule app with no build (#692): the record and its loader, the codec that asks the verified guest for the verdict, and the writer of the app's page (about 35 KiB). The rule judge's holo is not in the package."
+}

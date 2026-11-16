@@ -19,11 +19,16 @@ export const SHIPPING_SEAL = 'blake3:f1479464e810a32665f748c15721b9506d819a3236b
 export const project = () => mkdtempSync(join(tmpdir(), 'prism-stress-'));
 
 /** The environment that puts the stand-in where Docker would be, with a plan for it (see fake-docker.mjs). */
+/** Lean's kernel as the pinned bytes kept beside the tests, so a server that takes the kernel route fetches nothing. */
+const KERNEL_FIXTURES = fileURLToPath(new URL('../fixtures/kernel/', import.meta.url));
+
 export function fakeDocker(cwd, plan = {}) {
   mkdirSync(join(cwd, 'prism'), { recursive: true });
   return {
     PRISM_DOCKER: `"${process.execPath}" "${FAKE_DOCKER}"`,
     PRISM_DOCKER_MOUNT: 'native',
+    // These plans are of the SDK image's route. A rule app would otherwise be checked by the kernel in this process (#692).
+    PRISM_CODE_TIER: 'local',
     FAKE_DOCKER_PLAN: JSON.stringify({ app: join(cwd, 'prism'), log: join(cwd, 'docker.log'), ...plan }),
   };
 }
@@ -35,7 +40,7 @@ export function fakeDocker(cwd, plan = {}) {
  */
 export function startServer(cwd, { env = {} } = {}) {
   const home = mkdtempSync(join(tmpdir(), 'prism-stress-home-'));
-  const child = spawn(process.execPath, [BIN, 'mcp'], { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PRISM_HOME: home, PRISM_TELEMETRY: '0', PRISM_CODE_TIER: '', ...env } });
+  const child = spawn(process.execPath, [BIN, 'mcp'], { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PRISM_HOME: home, PRISM_TELEMETRY: '0', PRISM_CODE_TIER: '', PRISM_KERNEL_DIR: KERNEL_FIXTURES, ...env } });
   let buffer = '';
   let stderr = '';
   let next = 1;

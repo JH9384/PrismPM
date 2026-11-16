@@ -196,12 +196,12 @@ export const TOOLS = [
   },
   {
     name: 'prism_prove',
-    description: 'Write the LexLean model and ask Lean to prove every property, in the SDK image on this machine. Nothing is sent anywhere: the hosted verifier at https://mcp.uor.foundation/ is used only when the user sets PRISM_CODE_TIER=hosted, and it stores the files under prism/src/ unlisted, not privately. Takes one to five minutes. Returns state running while it works; call again to keep waiting.',
+    description: 'Check every property. An app that decides one answer from one request, each condition a field against a value, is checked by the Lean kernel in this process in about two seconds: no SDK image, nothing sent, reported as kernel-checked. Any other app, or a guarantee the kernel cannot settle, is proved by Lean in the SDK image on this machine, which takes one to five minutes; PRISM_CODE_TIER=local asks for that always. The hosted verifier at https://mcp.uor.foundation/ is used only when the user sets PRISM_CODE_TIER=hosted, and it stores the files under prism/src/ unlisted, not privately. Returns state running while it works; call again to keep waiting.',
     inputSchema: { type: 'object', properties: { wait: { type: 'number', description: 'Seconds to wait before returning, default 45.' }, overwrite: { type: 'boolean', description: 'Replace a model that was edited by hand.' } }, additionalProperties: false },
   },
   {
     name: 'prism_build',
-    description: 'Prove, then build the app into a holo and replay its acceptance vectors through the built guest. It builds in the SDK image on this machine, downloading it first if it is missing (about 5.7 GB). It builds on GitHub Actions only when the user asks for it by naming a repository (remote github): ask the user before doing so, since the app then lives in a public repository. Prism creates it from UOR-Foundation/template, so the app gets the template\'s frame, page and gate; writes the app, its claims, tests and page into it; pushes; and once the gate and the page pass, returns the live GitHub Pages URL, after checking the live holo here. A GitHub build takes ten to fifteen minutes. Returns state running while it works; call again to keep waiting.',
+    description: 'Check, then build the app and replay its acceptance vectors through it. An app that decides one answer from one request, each condition a field against a value, needs no build: it becomes the verified rule judge and its own numbers, named together, in about two seconds with no SDK image, and prism_try then answers from it. That record is not a holo. Any other app, or PRISM_CODE_TIER=local, is proved and built into a holo in the SDK image on this machine, downloading it first if it is missing (about 5.7 GB). It builds on GitHub Actions only when the user asks for it by naming a repository (remote github): ask the user before doing so, since the app then lives in a public repository. Prism creates it from UOR-Foundation/template, so the app gets the template\'s frame, page and gate; writes the app, its claims, tests and page into it; pushes; and once the gate and the page pass, returns the live GitHub Pages URL, after checking the live holo here. A GitHub build takes ten to fifteen minutes. Returns state running while it works; call again to keep waiting.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -477,6 +477,8 @@ export function createServer({ cwd = process.cwd(), send, gaps = gapLedger() }) 
 
   const tools = {
     prism_start(args) {
+      // The kernel opens while the user is still describing the app, so the first check does not wait for it.
+      setImmediate(() => import('./kernel-prove.mjs').then((m) => m.warmKernel()).catch(() => {}));
       const session = args.restart ? restarted() : load();
       if (session.adopted) save(session);
       const t = turn(session);
@@ -549,6 +551,7 @@ export function createServer({ cwd = process.cwd(), send, gaps = gapLedger() }) 
         proved: session.status.proved ?? null,
         built: session.status.built ?? null,
         holo: session.status.holo ?? null,
+        ruleApp: session.status.ruleApp ?? null,
         jobs: [...jobs.values()].map((j) => ({ kind: j.kind, state: j.state, elapsed: Math.round((Date.now() - j.started) / 1000), latest: j.log.slice(-3) })),
       };
     },

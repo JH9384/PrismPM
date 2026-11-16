@@ -1,0 +1,6 @@
+name = "PrismRuleApp"
+version = "0.1.0"
+defaultTargets = ["PrismRuleApp"]
+
+[[lean_lib]]
+name = "PrismRuleApp"

@@ -442,7 +442,7 @@ export function statefulAcceptanceVectors(spec) {
 /** SPEC.md for a stateful app, in the OpenSpec format, each requirement marked proved or tested. */
 export function renderStatefulSpecDocument(spec, status = {}) {
   const n = statefulNames(spec);
-  const badge = (id) => ({ proved: 'proved by Lean for every reachable state', failing: 'not proved: see the counterexample', tested: 'tested only' })[status.properties?.[id]] ?? 'to be proved by Lean for every reachable state';
+  const badge = (id) => ({ proved: 'proved by Lean for every reachable state', failing: 'not proved: see the counterexample', tested: 'tested only', 'kernel-checked': 'checked by the Lean kernel for every request in the bounds' })[status.properties?.[id]] ?? 'to be proved by Lean for every reachable state';
   const because = (why) => (why ? `, because ${why.replace(/[.]$/, '')}` : '');
   const accepts = (f) => (f.kind === 'choice' ? f.values.map((v) => `\`${v}\``).join(', ') : `whole number${f.min !== undefined ? ` from ${f.min}` : ''}${f.max !== undefined ? ` up to ${f.max}` : ''}`);
   const start = initialState(spec);

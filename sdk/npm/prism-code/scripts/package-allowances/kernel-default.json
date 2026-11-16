@@ -1,0 +1,4 @@
+{
+  "kib": 6,
+  "reason": "Rule apps take the kernel route by default (#692): the choice of route, the fallback to the SDK image, prism_try answering from the record and the tool descriptions (about 5 KiB)."
+}

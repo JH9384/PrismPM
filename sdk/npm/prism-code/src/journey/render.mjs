@@ -492,7 +492,7 @@ function firstRequests(spec) {
 export function renderSpecDocument(spec, status = {}) {
   if (isStateful(spec)) return renderStatefulSpecDocument(spec, status);
   const n = names(spec);
-  const badge = (id) => ({ proved: 'proved by Lean for every request', failing: 'not proved: see the counterexample', tested: 'tested only' })[status.properties?.[id]] ?? 'to be proved by Lean for every request';
+  const badge = (id) => ({ proved: 'proved by Lean for every request', failing: 'not proved: see the counterexample', tested: 'tested only', 'kernel-checked': 'checked by the Lean kernel for every request in the bounds' })[status.properties?.[id]] ?? 'to be proved by Lean for every request';
   const because = (why) => (why ? `, because ${why.replace(/[.]$/, '')}` : '');
   const plural = (k, one) => `${k} ${one}${k === 1 ? '' : 's'}`;
   // Every rule asks for a request it decides, among the same candidates and with the same judge:

@@ -1,0 +1,787 @@
+\begin{lexlean}{Kernel}
+\useglossary{lexlean.std.nat@1.2.0}
+\useglossary{rulejudge.titles@1.0.0}
+\title{Rule judge kernel}
+\begin{coremodule}
+imports [Init]
+
+constructor PrismLive.Kernel.Cond.mk : @4 {
+  class: false,
+  generated: true,
+  policy: exact{axioms: []},
+  transparency: semireducible
+}
+inductive PrismLive.Kernel.Cond : @5 {
+  all: [PrismLive.Kernel.Cond],
+  class: false,
+  compiled: true,
+  generated: false,
+  inductive: {
+    constructors: [PrismLive.Kernel.Cond.mk],
+    num_indices: 0,
+    num_params: 0,
+    structure: {
+      fields: [
+        {name: field, binder: e, projection: PrismLive.Kernel.Cond.field},
+        {name: op, binder: e, projection: PrismLive.Kernel.Cond.op},
+        {name: value, binder: e, projection: PrismLive.Kernel.Cond.value}
+      ],
+      parents: []
+    }
+  },
+  policy: exact{axioms: []},
+  transparency: semireducible
+}
+abbrev PrismLive.Kernel.Cond.field : @6 := @9 {
+  all: [PrismLive.Kernel.Cond.field],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  projection: {constructor: PrismLive.Kernel.Cond.mk, from_class: false, index: 0, num_params: 0},
+  reducibility: abbrev{},
+  transparency: reducible
+}
+abbrev PrismLive.Kernel.Cond.op : @6 := @11 {
+  all: [PrismLive.Kernel.Cond.op],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  projection: {constructor: PrismLive.Kernel.Cond.mk, from_class: false, index: 1, num_params: 0},
+  reducibility: abbrev{},
+  transparency: reducible
+}
+abbrev PrismLive.Kernel.Cond.value : @6 := @13 {
+  all: [PrismLive.Kernel.Cond.value],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  projection: {constructor: PrismLive.Kernel.Cond.mk, from_class: false, index: 2, num_params: 0},
+  reducibility: abbrev{},
+  transparency: reducible
+}
+constructor PrismLive.Kernel.Property.mk : @20 {
+  class: false,
+  generated: true,
+  policy: exact{axioms: []},
+  transparency: semireducible
+}
+inductive PrismLive.Kernel.Property : @5 {
+  all: [PrismLive.Kernel.Property],
+  class: false,
+  compiled: true,
+  generated: false,
+  inductive: {
+    constructors: [PrismLive.Kernel.Property.mk],
+    num_indices: 0,
+    num_params: 0,
+    structure: {
+      fields: [
+        {name: always, binder: e, projection: PrismLive.Kernel.Property.always},
+        {name: when, binder: e, projection: PrismLive.Kernel.Property.when},
+        {name: outcome, binder: e, projection: PrismLive.Kernel.Property.outcome}
+      ],
+      parents: []
+    }
+  },
+  policy: exact{axioms: []},
+  transparency: semireducible
+}
+abbrev PrismLive.Kernel.Property.always : @21 := @23 {
+  all: [PrismLive.Kernel.Property.always],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  projection: {
+    constructor: PrismLive.Kernel.Property.mk,
+    from_class: false,
+    index: 0,
+    num_params: 0
+  },
+  reducibility: abbrev{},
+  transparency: reducible
+}
+abbrev PrismLive.Kernel.Property.outcome : @24 := @26 {
+  all: [PrismLive.Kernel.Property.outcome],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  projection: {
+    constructor: PrismLive.Kernel.Property.mk,
+    from_class: false,
+    index: 2,
+    num_params: 0
+  },
+  reducibility: abbrev{},
+  transparency: reducible
+}
+abbrev PrismLive.Kernel.Property.when : @27 := @29 {
+  all: [PrismLive.Kernel.Property.when],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  projection: {
+    constructor: PrismLive.Kernel.Property.mk,
+    from_class: false,
+    index: 1,
+    num_params: 0
+  },
+  reducibility: abbrev{},
+  transparency: reducible
+}
+constructor PrismLive.Kernel.Rule.mk : @32 {
+  class: false,
+  generated: true,
+  policy: exact{axioms: []},
+  transparency: semireducible
+}
+inductive PrismLive.Kernel.Rule : @5 {
+  all: [PrismLive.Kernel.Rule],
+  class: false,
+  compiled: true,
+  generated: false,
+  inductive: {
+    constructors: [PrismLive.Kernel.Rule.mk],
+    num_indices: 0,
+    num_params: 0,
+    structure: {
+      fields: [
+        {name: when, binder: e, projection: PrismLive.Kernel.Rule.when},
+        {name: outcome, binder: e, projection: PrismLive.Kernel.Rule.outcome}
+      ],
+      parents: []
+    }
+  },
+  policy: exact{axioms: []},
+  transparency: semireducible
+}
+abbrev PrismLive.Kernel.Rule.outcome : @33 := @35 {
+  all: [PrismLive.Kernel.Rule.outcome],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  projection: {constructor: PrismLive.Kernel.Rule.mk, from_class: false, index: 1, num_params: 0},
+  reducibility: abbrev{},
+  transparency: reducible
+}
+abbrev PrismLive.Kernel.Rule.when : @36 := @38 {
+  all: [PrismLive.Kernel.Rule.when],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  projection: {constructor: PrismLive.Kernel.Rule.mk, from_class: false, index: 0, num_params: 0},
+  reducibility: abbrev{},
+  transparency: reducible
+}
+abbrev PrismLive.Kernel.allHold.match_1.{u_1} : @68 := @89 {
+  all: [PrismLive.Kernel.allHold.match_1],
+  class: false,
+  generated: false,
+  inline: inline,
+  matcher: {
+    alts: [
+      {fields: 1, overlaps: 0, unit_thunk: false},
+      {fields: 3, overlaps: 0, unit_thunk: false}
+    ],
+    discrs: [[], []],
+    num_discrs: 2,
+    num_params: 0,
+    overlaps: [],
+    u_elim_pos: 0
+  },
+  policy: exact{axioms: []},
+  reducibility: abbrev{},
+  transparency: implicit-reducible
+}
+abbrev PrismLive.Kernel.get.match_1.{u_1} : @127 := @159 {
+  all: [PrismLive.Kernel.get.match_1],
+  class: false,
+  generated: false,
+  inline: inline,
+  matcher: {
+    alts: [
+      {fields: 1, overlaps: 0, unit_thunk: false},
+      {fields: 2, overlaps: 0, unit_thunk: false},
+      {fields: 3, overlaps: 0, unit_thunk: false}
+    ],
+    discrs: [[], []],
+    num_discrs: 2,
+    num_params: 0,
+    overlaps: [],
+    u_elim_pos: 0
+  },
+  policy: exact{axioms: []},
+  reducibility: abbrev{},
+  transparency: implicit-reducible
+}
+abbrev PrismLive.Kernel.get._f : @167 := @196 {
+  all: [PrismLive.Kernel.get._f],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: abbrev{},
+  transparency: reducible
+}
+definition PrismLive.Kernel.get : @198 := @207 {
+  all: [PrismLive.Kernel.get],
+  class: false,
+  eqn_info: {
+    type: 198,
+    declarations: [PrismLive.Kernel.get],
+    levels: [],
+    num_fixed: 0,
+    perms: [[[], []]],
+    rec_arg_pos: 0,
+    rev_deps: [[[], []]],
+    value: 226
+  },
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: regular{height: 2},
+  tags: [recursive],
+  transparency: semireducible
+}
+definition PrismLive.Kernel.opHolds : @229 := @339 {
+  all: [PrismLive.Kernel.opHolds],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: regular{height: 6},
+  transparency: semireducible
+}
+definition PrismLive.Kernel.condHolds : @341 := @355 {
+  all: [PrismLive.Kernel.condHolds],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: regular{height: 7},
+  transparency: semireducible
+}
+abbrev PrismLive.Kernel.allHold._f : @362 := @397 {
+  all: [PrismLive.Kernel.allHold._f],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: abbrev{},
+  transparency: reducible
+}
+definition PrismLive.Kernel.allHold : @399 := @407 {
+  all: [PrismLive.Kernel.allHold],
+  class: false,
+  eqn_info: {
+    type: 399,
+    declarations: [PrismLive.Kernel.allHold],
+    levels: [],
+    num_fixed: 0,
+    perms: [[[], []]],
+    rec_arg_pos: 0,
+    rev_deps: [[[], []]],
+    value: 433
+  },
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: regular{height: 8},
+  tags: [recursive],
+  transparency: semireducible
+}
+definition PrismLive.Kernel.allHold._sunfold : @399 := @444 {
+  all: [PrismLive.Kernel.allHold._sunfold],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: regular{height: 9},
+  transparency: semireducible
+}
+theorem PrismLive.Kernel.allHold.eq_2 : @465 := @471 {
+  all: [PrismLive.Kernel.allHold.eq_2],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  tags: [backward_defeq],
+  transparency: semireducible
+}
+definition PrismLive.Kernel.breaksWith : @474 := @509 {
+  all: [PrismLive.Kernel.breaksWith],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: regular{height: 9},
+  transparency: semireducible
+}
+abbrev PrismLive.Kernel.judge.match_1.{u_1} : @536 := @555 {
+  all: [PrismLive.Kernel.judge.match_1],
+  class: false,
+  generated: false,
+  inline: inline,
+  matcher: {
+    alts: [
+      {fields: 2, overlaps: 0, unit_thunk: false},
+      {fields: 4, overlaps: 0, unit_thunk: false}
+    ],
+    discrs: [[], [], []],
+    num_discrs: 3,
+    num_params: 0,
+    overlaps: [],
+    u_elim_pos: 0
+  },
+  policy: exact{axioms: []},
+  reducibility: abbrev{},
+  transparency: implicit-reducible
+}
+abbrev PrismLive.Kernel.judge._f : @563 := @607 {
+  all: [PrismLive.Kernel.judge._f],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: abbrev{},
+  transparency: reducible
+}
+definition PrismLive.Kernel.judge : @610 := @620 {
+  all: [PrismLive.Kernel.judge],
+  class: false,
+  eqn_info: {
+    type: 610,
+    declarations: [PrismLive.Kernel.judge],
+    levels: [],
+    num_fixed: 0,
+    perms: [[[], [], []]],
+    rec_arg_pos: 0,
+    rev_deps: [[[], [], []]],
+    value: 654
+  },
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: regular{height: 9},
+  tags: [recursive],
+  transparency: semireducible
+}
+definition PrismLive.Kernel.breaks : @657 := @668 {
+  all: [PrismLive.Kernel.breaks],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: regular{height: 10},
+  transparency: semireducible
+}
+definition PrismLive.Kernel.get._sunfold : @198 := @683 {
+  all: [PrismLive.Kernel.get._sunfold],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: regular{height: 3},
+  transparency: semireducible
+}
+definition PrismLive.Kernel.judge._sunfold : @610 := @696 {
+  all: [PrismLive.Kernel.judge._sunfold],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  reducibility: regular{height: 10},
+  transparency: semireducible
+}
+theorem PrismLive.Kernel.judge.eq_2 : @722 := @728 {
+  all: [PrismLive.Kernel.judge.eq_2],
+  class: false,
+  generated: false,
+  policy: exact{axioms: []},
+  tags: [backward_defeq],
+  transparency: semireducible
+}
+
+@0 := Nat
+@1 := PrismLive.Kernel.Cond
+@4 := (field : @0) -> (op : @0) -> (value : @0) -> @1
+@5 := Sort 1
+@6 := (self : @1) -> @0
+@7 := #0
+@9 := fun (self : @1) => proj PrismLive.Kernel.Cond PrismLive.Kernel.Cond.field 0 @7
+@11 := fun (self : @1) => proj PrismLive.Kernel.Cond PrismLive.Kernel.Cond.op 1 @7
+@13 := fun (self : @1) => proj PrismLive.Kernel.Cond PrismLive.Kernel.Cond.value 2 @7
+@14 := Bool
+@15 := List.{0}
+@16 := @15 @1
+@17 := PrismLive.Kernel.Property
+@20 := (always : @14) -> (when : @16) -> (outcome : @0) -> @17
+@21 := (self : @17) -> @14
+@23 := fun (self : @17) => proj PrismLive.Kernel.Property PrismLive.Kernel.Property.always 0 @7
+@24 := (self : @17) -> @0
+@26 := fun (self : @17) => proj PrismLive.Kernel.Property PrismLive.Kernel.Property.outcome 2 @7
+@27 := (self : @17) -> @16
+@29 := fun (self : @17) => proj PrismLive.Kernel.Property PrismLive.Kernel.Property.when 1 @7
+@30 := PrismLive.Kernel.Rule
+@32 := (when : @16) -> (outcome : @0) -> @30
+@33 := (self : @30) -> @0
+@35 := fun (self : @30) => proj PrismLive.Kernel.Rule PrismLive.Kernel.Rule.outcome 1 @7
+@36 := (self : @30) -> @16
+@38 := fun (self : @30) => proj PrismLive.Kernel.Rule PrismLive.Kernel.Rule.when 0 @7
+@39 := @15 @0
+@40 := Sort u_1
+@42 := (x._@.PrismLive.Kernel.#3382986018._hygCtx.#9.PrismLive.Kernel.#3382986018._hygCtx._hyg.#28 : @16) ->
+  (x._@.PrismLive.Kernel.#3382986018._hygCtx.#10.PrismLive.Kernel.#3382986018._hygCtx._hyg.#31 : @39) ->
+  @40
+@43 := #3
+@44 := List.nil.{0}
+@45 := @44 @1
+@48 := (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#40 : @39) -> @43 @45 @7
+@49 := #6
+@50 := List.cons.{0}
+@51 := @50 @1
+@52 := #2
+@53 := @51 @52
+@54 := #1
+@55 := @53 @54
+@60 := (c : @1) -> (cs : @16) -> (x : @39) -> @49 @55 @7
+@61 := #4
+@68 := (motive : @42) ->
+  (x._@.PrismLive.Kernel.#3382986018._hygCtx.#9.PrismLive.Kernel.#3382986018._hygCtx._hyg.#28 : @16) ->
+  (x._@.PrismLive.Kernel.#3382986018._hygCtx.#10.PrismLive.Kernel.#3382986018._hygCtx._hyg.#31 : @39) ->
+  (h_1 : @48) -> (h_2 : @60) -> @61 @43 @52
+@69 := List.casesOn.{u_1, 0}
+@70 := @69 @1
+@71 := #5
+@78 := @70 (fun (x : @16) => @71 @7 @43) @43 (@54 @52)
+@80 := @52 @54 @7
+@89 := fun (motive : @42) =>
+  fun (x._@.PrismLive.Kernel.#3382986018._hygCtx.#9.PrismLive.Kernel.#3382986018._hygCtx._hyg.#28 : @16) =>
+  fun (x._@.PrismLive.Kernel.#3382986018._hygCtx.#10.PrismLive.Kernel.#3382986018._hygCtx._hyg.#31 : @39) =>
+  fun (h_1 : @48) =>
+  fun (h_2 : @60) =>
+  @78
+    (fun (head._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#72 : @1) =>
+    fun (tail._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#73 : @16) => @80 @61)
+@91 := (x._@.PrismLive.Kernel.#1017806716._hygCtx.#8.PrismLive.Kernel.#1017806716._hygCtx._hyg.#27 : @39) ->
+  (x._@.PrismLive.Kernel.#1017806716._hygCtx.#9.PrismLive.Kernel.#1017806716._hygCtx._hyg.#30 : @0) ->
+  @40
+@92 := @44 @0
+@95 := (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#41 : @0) -> @43 @92 @7
+@96 := @50 @0
+@98 := @96 @54 @7
+@99 := @71 @98
+@101 := OfNat.ofNat.{0} @0
+@102 := 0
+@103 := @101 @102
+@104 := instOfNatNat
+@106 := @103 (@104 @102)
+@109 := (v : @0) -> (tail._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#55 : @39) -> @99 @106
+@110 := #7
+@112 := @96 @52 @54
+@119 := (head._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#73 : @0) ->
+  (vs : @39) -> (n : @0) -> @110 @112 (Nat.succ @7)
+@121 := @71 @61 @43
+@127 := (motive : @91) ->
+  (x._@.PrismLive.Kernel.#1017806716._hygCtx.#8.PrismLive.Kernel.#1017806716._hygCtx._hyg.#27 : @39) ->
+  (x._@.PrismLive.Kernel.#1017806716._hygCtx.#9.PrismLive.Kernel.#1017806716._hygCtx._hyg.#30 : @0) ->
+  (h_1 : @95) -> (h_2 : @109) -> (h_3 : @119) -> @121
+@128 := @69 @0
+@130 := @49 @7 @61
+@135 := @128 (fun (x : @39) => @130) @61 (@52 @43)
+@136 := Nat.casesOn.{u_1}
+@137 := #8
+@159 := fun (motive : @91) =>
+  fun (x._@.PrismLive.Kernel.#1017806716._hygCtx.#8.PrismLive.Kernel.#1017806716._hygCtx._hyg.#27 : @39) =>
+  fun (x._@.PrismLive.Kernel.#1017806716._hygCtx.#9.PrismLive.Kernel.#1017806716._hygCtx._hyg.#30 : @0) =>
+  fun (h_1 : @95) =>
+  fun (h_2 : @109) =>
+  fun (h_3 : @119) =>
+  @135
+    (fun (head._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#85 : @0) =>
+    fun (tail._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#86 : @39) =>
+    @136
+      (fun (x : @0) => @137 @112 @7)
+      @71
+      (@43 @54 @7)
+      (fun (n._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#87 : @0) => @43 @52 @54 @7))
+@160 := List.below.{1, 0}
+@161 := @160 @0
+@162 := (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#9 : @0) -> @0
+@163 := fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#8 : @39) => @162
+@164 := @161 @163
+@165 := @164 @7
+@167 := (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#8 : @39) -> (f : @165) -> @162
+@168 := PrismLive.Kernel.get.match_1.{1}
+@184 := @168
+    (fun (x._@.PrismLive.Kernel.#1017806716._hygCtx.#8.PrismLive.Kernel.#1017806716._hygCtx._hyg.#27 : @39) =>
+    fun (x._@.PrismLive.Kernel.#1017806716._hygCtx.#9.PrismLive.Kernel.#1017806716._hygCtx._hyg.#30 : @0) =>
+    (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#88 : @164 @54) -> @0)
+    @52
+    @7
+    (fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#41 : @0) =>
+    fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#88 : @164 @92) => @106)
+    (fun (v : @0) =>
+    fun (tail._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#55 : @39) =>
+    fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#88 : @164 @98) => @52)
+@185 := @164 @112
+@186 := proj PProd PProd.fst 0 @7
+@187 := @186 @54
+@196 := fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#8 : @39) =>
+  fun (f : @165) =>
+  fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#9 : @0) =>
+  @184
+    (fun (head._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#73 : @0) =>
+    fun (vs : @39) =>
+    fun (n : @0) => fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#88 : @185) => @187)
+    @54
+@198 := (a._@._internal._hyg.#0 : @39) -> (a._@._internal._hyg.#0 : @0) -> @0
+@199 := List.brecOn.{1, 0}
+@207 := fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#8 : @39) =>
+  fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#9 : @0) =>
+  @199 @0 @163 @54 PrismLive.Kernel.get._f @7
+@212 := @168
+    (fun (x._@.PrismLive.Kernel.#1017806716._hygCtx.#8.PrismLive.Kernel.#1017806716._hygCtx._hyg.#27 : @39) =>
+    fun (x._@.PrismLive.Kernel.#1017806716._hygCtx.#9.PrismLive.Kernel.#1017806716._hygCtx._hyg.#30 : @0) =>
+    @0)
+    @54
+    @7
+@217 := @212
+    (fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#41 : @0) => @106)
+    (fun (v : @0) => fun (tail._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#55 : @39) => @54)
+@218 := PrismLive.Kernel.get
+@220 := @218 @54 @7
+@226 := fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#8 : @39) =>
+  fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#9 : @0) =>
+  @217
+    (fun (head._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#73 : @0) =>
+    fun (vs : @39) => fun (n : @0) => @220)
+@229 := (op : @0) -> (c : @0) -> (x : @0) -> @14
+@230 := ite.{1}
+@231 := @230 @14
+@232 := Eq.{1}
+@233 := @232 @0
+@234 := @233 @52
+@236 := @231 (@234 @106)
+@237 := instDecidableEqNat
+@238 := @237 @52
+@240 := @236 (@238 @106)
+@244 := LT.lt.{0} @0 instLTNat
+@247 := @231 (@244 @7 @54)
+@248 := Nat.decLt
+@251 := @247 (@248 @7 @54)
+@252 := Bool.true
+@253 := @251 @252
+@254 := Bool.false
+@256 := @240 (@253 @254)
+@257 := 1
+@260 := @101 @257 (@104 @257)
+@264 := @231 (@234 @260) (@238 @260)
+@268 := LE.le.{0} @0 instLENat
+@271 := @231 (@268 @7 @54)
+@272 := Nat.decLe
+@278 := @264 (@271 (@272 @7 @54) @252 @254)
+@279 := 2
+@282 := @101 @279 (@104 @279)
+@295 := @231 (@234 @282) (@238 @282) (@231 (@244 @54 @7) (@248 @54 @7) @252 @254)
+@296 := 3
+@299 := @101 @296 (@104 @296)
+@312 := @231 (@234 @299) (@238 @299) (@231 (@268 @54 @7) (@272 @54 @7) @252 @254)
+@313 := 4
+@316 := @101 @313 (@104 @313)
+@320 := @231 (@234 @316) (@238 @316)
+@321 := @233 @7
+@323 := @231 (@321 @54)
+@324 := @237 @7
+@326 := @323 (@324 @54)
+@339 := fun (op : @0) =>
+  fun (c : @0) => fun (x : @0) => @256 (@278 (@295 (@312 (@320 (@326 @252 @254) (@326 @254 @252)))))
+@340 := (x : @39) -> @14
+@341 := (c : @1) -> @340
+@355 := fun (c : @1) =>
+  fun (x : @39) =>
+  PrismLive.Kernel.opHolds
+    (PrismLive.Kernel.Cond.op @54)
+    (PrismLive.Kernel.Cond.value @54)
+    (@218 @7 (PrismLive.Kernel.Cond.field @54))
+@356 := @160 @1
+@357 := (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#10 : @39) -> @14
+@358 := fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#9 : @16) => @357
+@359 := @356 @358
+@360 := @359 @7
+@362 := (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#9 : @16) -> (f : @360) -> @357
+@363 := PrismLive.Kernel.allHold.match_1.{1}
+@374 := @363
+    (fun (x._@.PrismLive.Kernel.#3382986018._hygCtx.#9.PrismLive.Kernel.#3382986018._hygCtx._hyg.#28 : @16) =>
+    fun (x._@.PrismLive.Kernel.#3382986018._hygCtx.#10.PrismLive.Kernel.#3382986018._hygCtx._hyg.#31 : @39) =>
+    (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#74 : @359 @54) -> @14)
+    @52
+    @7
+    (fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#40 : @39) =>
+    fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#74 : @359 @45) => @252)
+@375 := @359 @55
+@376 := @232 @14
+@377 := PrismLive.Kernel.condHolds
+@379 := @377 @43 @54
+@382 := @231 (@376 @379 @252)
+@383 := instDecidableEqBool
+@397 := fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#9 : @16) =>
+  fun (f : @360) =>
+  fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#10 : @39) =>
+  @374
+    (fun (c : @1) =>
+    fun (cs : @16) =>
+    fun (x : @39) =>
+    fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#74 : @375) =>
+    @382 (@383 @379 @252) @187 @254)
+    @54
+@399 := (a._@._internal._hyg.#0 : @16) -> (a._@._internal._hyg.#0 : @39) -> @14
+@407 := fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#9 : @16) =>
+  fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#10 : @39) =>
+  @199 @1 @358 @54 PrismLive.Kernel.allHold._f @7
+@412 := @363
+    (fun (x._@.PrismLive.Kernel.#3382986018._hygCtx.#9.PrismLive.Kernel.#3382986018._hygCtx._hyg.#28 : @16) =>
+    fun (x._@.PrismLive.Kernel.#3382986018._hygCtx.#10.PrismLive.Kernel.#3382986018._hygCtx._hyg.#31 : @39) =>
+    @14)
+    @54
+    @7
+@414 := @412 (fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#40 : @39) => @252)
+@416 := @377 @52 @7
+@422 := @231 (@376 @416 @252) (@383 @416 @252)
+@423 := PrismLive.Kernel.allHold
+@427 := @422 (@423 @54 @7) @254
+@433 := fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#9 : @16) =>
+  fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#10 : @39) =>
+  @414 (fun (c : @1) => fun (cs : @16) => fun (x : @39) => @427)
+@444 := fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#9 : @16) =>
+  fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#10 : @39) =>
+  annot [sunfoldMatch := bool true]
+  (@412
+    (fun (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#40 : @39) =>
+    annot [sunfoldMatchAlt := bool true] @252)
+    (fun (c : @1) => fun (cs : @16) => fun (x : @39) => annot [sunfoldMatchAlt := bool true] @427))
+@448 := @423 (@51 @54 @7) @52
+@449 := @376 @448
+@451 := @377 @54 @52
+@465 := (x._@.PrismLive.Kernel.#3382986018._hygCtx._hyg.#10 : @39) ->
+  (c : @1) -> (cs : @16) -> @449 (@231 (@376 @451 @252) (@383 @451 @252) (@423 @7 @52) @254)
+@466 := proof(Eq.refl.{1})
+@471 := proof(fun (x : @39) =>
+    proof(fun (c : @1) => proof(fun (cs : @16) => proof(proof(@466 @14) @448))))
+@474 := (p : @17) -> (x : @39) -> (o : @0) -> @14
+@478 := @423 (PrismLive.Kernel.Property.when @52) @54
+@484 := @231 (@376 @478 @252) (@383 @478 @252)
+@486 := PrismLive.Kernel.Property.always @52
+@492 := @231 (@376 @486 @252) (@383 @486 @252)
+@494 := PrismLive.Kernel.Property.outcome @52
+@498 := @231 (@321 @494) (@324 @494)
+@509 := fun (p : @17) =>
+  fun (x : @39) => fun (o : @0) => @484 (@492 (@498 @254 @252) (@498 @252 @254)) @254
+@510 := @15 @30
+@513 := (x._@.PrismLive.Kernel.#2886372218._hygCtx.#11.PrismLive.Kernel.#2886372218._hygCtx._hyg.#38 : @510) ->
+  (x._@.PrismLive.Kernel.#2886372218._hygCtx.#12.PrismLive.Kernel.#2886372218._hygCtx._hyg.#41 : @0) ->
+  (x._@.PrismLive.Kernel.#2886372218._hygCtx.#13.PrismLive.Kernel.#2886372218._hygCtx._hyg.#44 : @39) ->
+  @40
+@514 := @44 @30
+@519 := (d : @0) -> (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#55 : @39) -> @71 @514 @54 @7
+@520 := @50 @30
+@522 := @520 @43 @52
+@529 := (r : @30) -> (rs : @510) -> (d : @0) -> (x : @39) -> @137 @522 @54 @7
+@536 := (motive : @513) ->
+  (x._@.PrismLive.Kernel.#2886372218._hygCtx.#11.PrismLive.Kernel.#2886372218._hygCtx._hyg.#38 : @510) ->
+  (x._@.PrismLive.Kernel.#2886372218._hygCtx.#12.PrismLive.Kernel.#2886372218._hygCtx._hyg.#41 : @0) ->
+  (x._@.PrismLive.Kernel.#2886372218._hygCtx.#13.PrismLive.Kernel.#2886372218._hygCtx._hyg.#44 : @39) ->
+  (h_1 : @519) -> (h_2 : @529) -> @121 @52
+@555 := fun (motive : @513) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx.#11.PrismLive.Kernel.#2886372218._hygCtx._hyg.#38 : @510) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx.#12.PrismLive.Kernel.#2886372218._hygCtx._hyg.#41 : @0) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx.#13.PrismLive.Kernel.#2886372218._hygCtx._hyg.#44 : @39) =>
+  fun (h_1 : @519) =>
+  fun (h_2 : @529) =>
+  @69
+    @30
+    (fun (x : @510) => @130 @43)
+    @61
+    (@54 @43 @52)
+    (fun (head._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#94 : @30) =>
+    fun (tail._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#95 : @510) => @80 @71 @61)
+@556 := @160 @30
+@558 := (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#12 : @0) ->
+  (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#13 : @39) -> @0
+@559 := fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#11 : @510) => @558
+@560 := @556 @559
+@561 := @560 @7
+@563 := (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#11 : @510) -> (f : @561) -> @558
+@564 := PrismLive.Kernel.judge.match_1.{1}
+@578 := @564
+    (fun (x._@.PrismLive.Kernel.#2886372218._hygCtx.#11.PrismLive.Kernel.#2886372218._hygCtx._hyg.#38 : @510) =>
+    fun (x._@.PrismLive.Kernel.#2886372218._hygCtx.#12.PrismLive.Kernel.#2886372218._hygCtx._hyg.#41 : @0) =>
+    fun (x._@.PrismLive.Kernel.#2886372218._hygCtx.#13.PrismLive.Kernel.#2886372218._hygCtx._hyg.#44 : @39) =>
+    (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#96 : @560 @52) -> @0)
+    @43
+    @54
+    @7
+    (fun (d : @0) =>
+    fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#55 : @39) =>
+    fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#96 : @560 @514) => @52)
+@579 := @560 @522
+@580 := @230 @0
+@581 := PrismLive.Kernel.Rule.when
+@584 := @423 (@581 @61) @54
+@590 := @580 (@376 @584 @252) (@383 @584 @252)
+@591 := PrismLive.Kernel.Rule.outcome
+@607 := fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#11 : @510) =>
+  fun (f : @561) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#12 : @0) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#13 : @39) =>
+  @578
+    (fun (r : @30) =>
+    fun (rs : @510) =>
+    fun (d : @0) =>
+    fun (x : @39) =>
+    fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#96 : @579) =>
+    @590 (@591 @61) (@186 @52 @54))
+    @52
+@610 := (a._@._internal._hyg.#0 : @510) ->
+  (a._@._internal._hyg.#0 : @0) -> (a._@._internal._hyg.#0 : @39) -> @0
+@620 := fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#11 : @510) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#12 : @0) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#13 : @39) =>
+  @199 @30 @559 @52 PrismLive.Kernel.judge._f @54 @7
+@627 := @564
+    (fun (x._@.PrismLive.Kernel.#2886372218._hygCtx.#11.PrismLive.Kernel.#2886372218._hygCtx._hyg.#38 : @510) =>
+    fun (x._@.PrismLive.Kernel.#2886372218._hygCtx.#12.PrismLive.Kernel.#2886372218._hygCtx._hyg.#41 : @0) =>
+    fun (x._@.PrismLive.Kernel.#2886372218._hygCtx.#13.PrismLive.Kernel.#2886372218._hygCtx._hyg.#44 : @39) =>
+    @0)
+    @52
+    @54
+    @7
+@630 := @627 (fun (d : @0) => fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#55 : @39) => @54)
+@633 := @423 (@581 @43) @7
+@641 := @580 (@376 @633 @252) (@383 @633 @252) (@591 @43)
+@642 := PrismLive.Kernel.judge
+@646 := @641 (@642 @52 @54 @7)
+@654 := fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#11 : @510) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#12 : @0) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#13 : @39) =>
+  @630 (fun (r : @30) => fun (rs : @510) => fun (d : @0) => fun (x : @39) => @646)
+@657 := (rules : @510) -> (d : @0) -> (p : @17) -> @340
+@668 := fun (rules : @510) =>
+  fun (d : @0) =>
+  fun (p : @17) => fun (x : @39) => PrismLive.Kernel.breaksWith @54 @7 (@642 @43 @52 @7)
+@671 := @212
+    (fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#41 : @0) =>
+    annot [sunfoldMatchAlt := bool true] @106)
+@672 := annot [sunfoldMatchAlt := bool true] @54
+@683 := fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#8 : @39) =>
+  fun (x._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#9 : @0) =>
+  annot [sunfoldMatch := bool true]
+  (@671
+    (fun (v : @0) => fun (tail._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#55 : @39) => @672)
+    (fun (head._@.PrismLive.Kernel.#1017806716._hygCtx._hyg.#73 : @0) =>
+    fun (vs : @39) => fun (n : @0) => annot [sunfoldMatchAlt := bool true] @220))
+@696 := fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#11 : @510) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#12 : @0) =>
+  fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#13 : @39) =>
+  annot [sunfoldMatch := bool true]
+  (@627
+    (fun (d : @0) => fun (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#55 : @39) => @672)
+    (fun (r : @30) =>
+    fun (rs : @510) => fun (d : @0) => fun (x : @39) => annot [sunfoldMatchAlt := bool true] @646))
+@701 := @642 (@520 @54 @7) @43 @52
+@702 := @233 @701
+@705 := @423 (@581 @54) @52
+@722 := (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#12 : @0) ->
+  (x._@.PrismLive.Kernel.#2886372218._hygCtx._hyg.#13 : @39) ->
+  (r : @30) ->
+  (rs : @510) -> @702 (@580 (@376 @705 @252) (@383 @705 @252) (@591 @54) (@642 @7 @43 @52))
+@728 := proof(fun (x : @0) =>
+    proof(fun (x_1 : @39) =>
+      proof(fun (r : @30) => proof(fun (rs : @510) => proof(proof(@466 @0) @701)))))
+\end{coremodule}
+\end{lexlean}

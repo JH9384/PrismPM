@@ -384,3 +384,15 @@ test('without --hosted, setup adds no hosted server to any agent; the local pris
   assert.ok((plan.journey ?? []).some((row) => row.status === 'configure'), 'the local prism server is added');
   assert.match(formatSetup(plan), /not added; it stores models unlisted, not privately \(pass --hosted to add it\)/);
 });
+
+test('without --hosted each agent is listed once, under the local server', () => {
+  // Measured on 2026-11-15: every agent had a row under the hosted server that was not added, and a second under the local one.
+  const home = fixtureHome({ '.cursor/mcp.json': '{"mcpServers":{"lexlean":{"url":"https://mcp.uor.foundation/"}}}', '.codex': null });
+  const text = formatSetup(planSetup({ hosted: false }, context('linux', home)));
+  for (const agent of ['cursor', 'codex', 'claude-code']) assert.equal(text.split('\n').filter((line) => line.startsWith(`  ${agent} `)).length, 1, `${agent} in:\n${text}`);
+  assert.match(text, /: not added; it stores models unlisted, not privately \(pass --hosted to add it\)\n {4}already in cursor from an earlier setup; left as it is\n {2}the server prism, local/);
+  assert.match(text, /\n {2}claude-code {5}not found\n/);
+  // With --hosted the hosted server's rows are its own, as before.
+  const hosted = formatSetup(planSetup({ hosted: true }, context('linux', home)));
+  assert.equal(hosted.split('\n').filter((line) => line.startsWith('  codex ')).length, 2);
+});

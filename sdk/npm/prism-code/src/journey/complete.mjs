@@ -197,10 +197,22 @@ export function completeSpec(input) {
   const index = new Map(spec.rules.map((r, i) => [r.id, i]));
   let firstOtherwise = null;
   const answered = new Map();
+  // Past the limit nothing is proposed, so only the examples are read off the pass: the first request
+  // each rule decides. It then stops once every rule and `otherwise` has one, and keeps no other count.
+  let wanted = spec.rules.length + 1;
   for (const request of sampleRequests(spec, SAMPLE_LIMIT)) {
     const { outcome, rule } = judge(spec, request);
-    if (rule === null) firstOtherwise ??= encodeRequest(spec, request);
-    else reach[index.get(rule)].first ??= encodeRequest(spec, request);
+    if (rule === null) {
+      if (firstOtherwise === null) wanted--;
+      firstOtherwise ??= encodeRequest(spec, request);
+    } else {
+      if (reach[index.get(rule)].first === null) wanted--;
+      reach[index.get(rule)].first ??= encodeRequest(spec, request);
+    }
+    if (!exhaustive) {
+      if (wanted === 0) break;
+      continue;
+    }
     spec.rules.forEach((r, i) => {
       if (!r.when.every((c) => holds(c, request))) return;
       reach[i].met = true;

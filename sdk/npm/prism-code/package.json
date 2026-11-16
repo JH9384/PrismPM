@@ -60,7 +60,8 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test \"test/*.test.mjs\"",
+    "test:stress": "node --test \"test/stress-*.test.mjs\""
   },
   "keywords": [
     "prism",

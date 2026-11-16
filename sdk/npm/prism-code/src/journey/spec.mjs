@@ -420,8 +420,11 @@ function candidates(spec) {
 /** How many requests the candidate values make. A search that tried this many tried every one of them. */
 export const sampleSize = (spec) => candidates(spec).reduce((n, list) => n * list.length, 1);
 
+/** How many candidate requests a search tries before it stops and claims nothing. */
+const SAMPLE_REQUESTS = 200000;
+
 /** Every decoded request over the candidate values, up to `limit`. */
-export function* sampleRequests(spec, limit = 200000) {
+export function* sampleRequests(spec, limit = SAMPLE_REQUESTS) {
   const lists = candidates(spec);
   const index = lists.map(() => 0);
   let count = 0;
@@ -457,6 +460,9 @@ export function unreachableRules(spec) {
   // values is never reached though it decides plenty. A rule is called unreachable
   // only when every combination was tried; otherwise nothing is claimed.
   const total = candidates(spec).reduce((n, list) => n * list.length, 1);
+  // More combinations than the sample tries: nothing can be claimed, so nothing is tried.
+  // Measured on 2026-11-16: the pass took 250 ms for the largest draft and ran four times a call.
+  if (total > SAMPLE_REQUESTS) return [];
   const hit = new Set();
   let tried = 0;
   for (const request of sampleRequests(spec)) {

@@ -1,0 +1,1 @@
+{"title":"Shipping Method","fields":[{"name":"weight","kind":"number","min":0,"max":50},{"name":"destination","kind":"choice","values":["domestic","worldwide"]}],"rules":[{"when":[{"field":"destination","op":"is","value":"worldwide"}],"then":"express"},{"when":[{"field":"weight","op":">","value":20}],"then":"express"}],"otherwise":"standard"}

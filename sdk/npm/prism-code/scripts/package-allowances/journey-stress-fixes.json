@@ -1,0 +1,4 @@
+{
+  "kib": 14,
+  "reason": "What the journey stress tests found (#666), about 13 KiB: the server checks each tool call's arguments against its schema and says what to send (journey/mcp.mjs, about 3 KiB); a proof or build whose environment stopped is reported as that, a build that finished after its server stopped is taken from the toolchain's verified record, and one still writing is waited for (journey/engine.mjs and journey/mcp.mjs, about 7 KiB); an approval is refused at any step but the review, a purpose is checked where it is given, and an unused field is noted (journey/session.mjs, about 1 KiB); the spec document judges each candidate request once (journey/render.mjs, about 1 KiB); and setup lists each agent once (setup.mjs, about 1 KiB)."
+}

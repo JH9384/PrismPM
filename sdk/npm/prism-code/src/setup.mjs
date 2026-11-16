@@ -476,10 +476,17 @@ export function formatSetup(plan, { dryRun = false } = {}) {
     lines.push(`  ${name.padEnd(16)}${(words[status] ?? [status, status])[tense].padEnd(20)}${detail ?? ''}`.trimEnd());
     if (dryRun) for (const step of steps ?? []) lines.push(`      ${formatStep(step)}`);
   };
-  for (const a of plan.agents) row(a.agent, WORDS, a.status, a.detail, a.steps);
+  // Without --hosted nothing is done for that server, so its agents are not listed a second time
+  // under it: only where it already is, from an earlier setup, in one line. Every agent has its
+  // row under the local server below.
+  const kept = plan.agents.filter((a) => a.status === 'already').map((a) => a.agent);
+  if (plan.hosted !== false || !plan.journey?.length) for (const a of plan.agents) row(a.agent, WORDS, a.status, a.detail, a.steps);
+  else if (kept.length) lines.push(`    already in ${kept.join(', ')} from an earlier setup; left as it is`);
   if (plan.journey?.length) {
     lines.push(`  the server ${JOURNEY_NAME}, local (prism-code mcp): checks the spec the agent drafts, proves and builds the app`);
     for (const a of plan.journey) row(a.agent, WORDS, a.status, a.detail, a.steps);
+    // An agent that is not on this machine has no row above; say so once, here.
+    if (plan.hosted === false) for (const a of plan.agents) if (a.status === 'not-found' && !plan.journey.some((j) => j.agent === a.agent)) row(a.agent, WORDS, a.status, a.detail, []);
   }
   row('holo://', HANDLER_WORDS, plan.handler.status, plan.handler.detail, plan.handler.steps);
   if (plan.skills) row('skills', SKILL_WORDS, plan.skills.status, plan.skills.detail, plan.skills.steps);

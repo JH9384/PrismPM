@@ -24,6 +24,7 @@ import {
   titleFromName,
   unreachableRules,
   validateSpec,
+  checkText,
 } from './spec.mjs';
 import { STATEFUL_SCHEMA, statefulCounterexample } from './stateful.mjs';
 
@@ -234,6 +235,9 @@ export function compile(answers) {
           spec.name = answers.name ?? nameFromPurpose(text);
           spec.title = text.includes(':') && text.indexOf(':') < 40 ? text.slice(0, text.indexOf(':')).trim() : titleFromName(spec.name);
           spec.purpose = text.includes(':') && text.indexOf(':') < 40 ? text.slice(text.indexOf(':') + 1).trim() : text;
+          // Refused here, where it was said: left for the whole spec's check, a purpose too long or with a
+          // character text cannot carry was refused four questions later, at the rules.
+          checkText(spec.purpose, 'purpose', { ascii: true, max: 200 });
           break;
         }
         case 'fields':
@@ -253,6 +257,10 @@ export function compile(answers) {
         case 'properties': {
           spec.properties = NONE.test(String(raw)) ? [] : parseProperties(raw, spec.fields, spec.outcomes);
           if (spec.properties.length === 0) notes.push('No property is stated, so nothing about the rules will be proved; only the acceptance vectors will test them.');
+          // A field nothing compares decides nothing, though every request must still give it. Measured on 2026-11-15: an agent listed a parcel's weight and wrote no rule for it, and nothing said so.
+          const compared = new Set([...spec.rules, ...spec.properties].flatMap((x) => x.when.flatMap((c) => [c.field, ...(c.value && typeof c.value === 'object' ? [c.value.field] : [])])));
+          const idle = spec.fields.map((f) => f.name).filter((name) => !compared.has(name));
+          if (idle.length) notes.push(`No rule or guarantee compares ${idle.join(', ')}, so ${idle.length === 1 ? 'it decides' : 'they decide'} nothing, though every request must still give ${idle.length === 1 ? 'it' : 'them'}. Add the rule that uses ${idle.length === 1 ? 'it' : 'them'}, or leave ${idle.length === 1 ? 'it' : 'them'} out.`);
           const v = validateSpec({ ...spec, examples: [] });
           for (const p of v.properties) {
             const found = counterexample(v, p);

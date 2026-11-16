@@ -4,7 +4,8 @@
  * the proof run again without asking, because it is bookkeeping, not intent.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { PrismError } from '../errors.mjs';
 import { fromFile } from '../node.mjs';
@@ -78,6 +79,104 @@ export async function prepare(dir, session, log, { pull = false } = {}) {
 const tail = (text, n = 25) => String(text).split(/\r?\n/).filter((l) => !l.startsWith('@@')).slice(-n).join('\n');
 
 /**
+ * The step a script was in when its output stopped: it began and never said how
+ * it ended. A step that fails says so (`@@exit step code`), so a missing exit
+ * means the shell itself went away: the container was killed, Docker or WSL
+ * restarted, or the machine ran out of memory. Measured on 2026-11-16: three
+ * builds of four ended this way on a loaded machine and were reported as a
+ * failed build, or as a Prism bug.
+ */
+export function cutOff(output) {
+  const begun = [...String(output).matchAll(/^@@step (\S+)\s*$/gm)].map((m) => m[1]);
+  const last = begun.at(-1);
+  return last && !steps(output).some((s) => s.step === last) ? last : null;
+}
+
+/** The result of a job whose environment stopped under it: not the spec's fault, not Prism's, and safe to run again. */
+function interrupted(dir, kind, step, run, seconds) {
+  writeFileSync(join(dir, '.prism-last.log'), run.output);
+  return {
+    ok: false,
+    interrupted: true,
+    stage: kind,
+    step,
+    seconds,
+    message: `The ${kind} did not finish: its environment stopped during the ${step} step, before that step reported a result. Docker or WSL restarted, the machine ran out of memory, or the process was killed. Nothing is wrong with the spec, and nothing it had finished is lost.`,
+    next: `Call prism_${kind} again. If it stops again, free memory or close other builds first; what it printed is in prism/.prism-last.log.`,
+  };
+}
+
+/** A holo under `.prism/build` that the toolchain finished verifying: a record under `.prism/verified` names its build and its bytes. */
+export function verifiedHolo(dir) {
+  const root = join(dir, '.prism', 'verified');
+  if (!existsSync(root)) return null;
+  const find = (value) => {
+    if (Array.isArray(value)) return value.map(find).find(Boolean) ?? null;
+    if (!value || typeof value !== 'object') return null;
+    if (typeof value.path === 'string' && value.path.endsWith('.holo') && typeof value.sha256 === 'string') return value;
+    return Object.values(value).map(find).find(Boolean) ?? null;
+  };
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    let record;
+    try {
+      record = JSON.parse(readFileSync(join(root, entry.name, 'manifest.json'), 'utf8'));
+    } catch {
+      continue;
+    }
+    const artifact = typeof record.build_id === 'string' && /^[0-9a-f]{64}$/.test(record.build_id) ? find(record) : null;
+    if (!artifact || artifact.path.includes('/') || artifact.path.includes('\\')) continue;
+    const holo = join(dir, '.prism', 'build', record.build_id, artifact.path);
+    if (existsSync(holo) && createHash('sha256').update(readFileSync(holo)).digest('hex') === artifact.sha256) return holo;
+  }
+  return null;
+}
+
+/**
+ * Take a build that finished with no Prism server watching, when an agent
+ * restarted its server while the build ran. It counts only when the toolchain
+ * recorded it as verified, the holo names this spec, and Lean had proved this
+ * model; `built` then replays the acceptance vectors as it does for any build.
+ * Returns the build's result, or null when there is nothing to adopt.
+ */
+export async function adoptBuild(dir, session) {
+  const holo = verifiedHolo(dir);
+  if (!holo || !session.spec || !existsSync(modelPath(dir, session.spec))) return null;
+  if (!session.status.proved || session.status.proved.modelSha !== session.status.modelSha) return null;
+  if (modelMismatches(dir, { axioms: session.axioms ?? {} }).length) return null;
+  if (!checkSpecBinding(new Uint8Array(readFileSync(holo)), session.spec).ok) return null;
+  rememberModel(dir, session);
+  session.status.proved.modelSha = session.status.modelSha;
+  const result = await built(dir, session, holo, 0, { where: 'local' });
+  return result.ok ? result : null;
+}
+
+/** Seconds since anything under the app's build folders changed, or null when there is none: a build still running keeps writing there. */
+export function buildQuietFor(dir, { now = Date.now() } = {}) {
+  let newest = 0;
+  const visit = (d, depth) => {
+    let entries;
+    try {
+      entries = readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const p = join(d, entry.name);
+      try {
+        newest = Math.max(newest, statSync(p).mtimeMs);
+      } catch {
+        // A file the build removed between the listing and the look.
+      }
+      if (entry.isDirectory() && depth < 4) visit(p, depth + 1);
+    }
+  };
+  visit(join(dir, '.prism'), 0);
+  visit(join(dir, 'target'), 0);
+  return newest ? Math.max(0, Math.round((now - newest) / 1000)) : null;
+}
+
+/**
  * Lean proves every property. Returns `{ ok, properties, message, diagnostics }`,
  * with each property `proved`, `failing` or `unknown`. `gaps` is the ledger a
  * failure that is Prism's or Lean's, not the user's, is recorded in (gaps.mjs).
@@ -111,6 +210,7 @@ export async function prove(dir, session, { log = () => {}, overwrite = false, w
     }
     const seconds = Math.round((Date.now() - started) / 1000);
     if (run.code === 0) return provedResult(dir, session, seconds, { where: 'local' });
+    if (cutOff(run.output)) return interrupted(dir, 'prove', cutOff(run.output), run, seconds);
     return explainFailure(dir, session, { run, diagnostics, failed, seconds, gaps });
   }
   return { ok: false, message: 'The axiom sets did not settle after several rounds. This is a Prism bug; the last output is in prism/.prism-last.log.' };
@@ -307,12 +407,13 @@ export async function build(dir, session, { log = () => {}, overwrite = false, r
   if (wasProved) session.status.proved.modelSha = session.status.modelSha;
   const seconds = Math.round((Date.now() - started) / 1000);
   writeFileSync(join(dir, '.prism-last.log'), run.output);
+  if (run.code !== 0 && cutOff(run.output)) return interrupted(dir, 'build', cutOff(run.output), run, seconds);
   if (run.code !== 0) {
     const diagnostics = parseDiagnostics(run.output);
     return { ok: false, stage: 'build', seconds, message: 'The build failed. The last lines are below; the whole log is prism/.prism-last.log.', diagnostics: diagnostics.slice(0, 8), output: diagnostics.length ? undefined : tail(run.output, 30) };
   }
   const holo = newestHolo(dir);
-  if (!holo) return { ok: false, stage: 'build', seconds, message: 'The build passed but wrote no holo that Prism could find under prism/.prism/build.' };
+  if (!holo) return { ok: false, stage: 'build', seconds, message: 'The build passed but wrote no holo that Prism could find under prism/.prism/build. That is a fault in Prism or the toolchain, not in the spec.', next: 'Call prism_build again with overwrite: true. If no holo appears again, what the build printed is in prism/.prism-last.log.' };
   return built(dir, session, holo, seconds, { where: 'local' });
 }
 

@@ -439,19 +439,25 @@ export function acceptanceVectors(spec) {
  * same evaluator the vectors replay, so a scenario never claims what the rules
  * do not do.
  */
-function witness(spec, fits) {
+function witnessAmong(spec, fits, candidates) {
   for (const e of spec.examples) {
     const parts = e.request.split(' ');
     if (parts.length !== spec.fields.length) continue;
     const request = Object.fromEntries(spec.fields.map((f, i) => [f.name, f.kind === 'number' && /^\d+$/.test(parts[i]) ? BigInt(parts[i]) : parts[i]]));
     if (respond(spec, new TextEncoder().encode(e.request)) !== INVALID && fits(request)) return { request, example: true };
   }
-  let tried = 0;
-  for (const request of sampleRequests(spec)) {
-    if (fits(request)) return { request, example: false };
-    if (++tried > 20000) break;
-  }
+  for (const request of candidates()) if (fits(request)) return { request, example: false };
   return null;
+}
+
+/** The candidate requests a witness is looked for among: the first 20,001 of the sample, in its order. */
+function firstRequests(spec) {
+  const out = [];
+  for (const request of sampleRequests(spec)) {
+    out.push(request);
+    if (out.length > 20000) break;
+  }
+  return out;
 }
 
 /**
@@ -467,7 +473,16 @@ export function renderSpecDocument(spec, status = {}) {
   const badge = (id) => ({ proved: 'proved by Lean for every request', failing: 'not proved: see the counterexample', tested: 'tested only' })[status.properties?.[id]] ?? 'to be proved by Lean for every request';
   const because = (why) => (why ? `, because ${why.replace(/[.]$/, '')}` : '');
   const plural = (k, one) => `${k} ${one}${k === 1 ? '' : 's'}`;
-  const decide = (request) => judge(spec, request);
+  // Every rule asks for a request it decides, among the same candidates and with the same judge:
+  // the candidates are listed once and each is judged once. Measured on 2026-11-16, asking afresh
+  // for each of 24 rules took 0.8 s of a 1.1 s call. The requests and their order are unchanged.
+  const judged = new WeakMap();
+  const decide = (request) => {
+    if (!judged.has(request)) judged.set(request, judge(spec, request));
+    return judged.get(request);
+  };
+  let tried = null;
+  const witness = (_spec, fits) => witnessAmong(spec, fits, () => (tried ??= firstRequests(spec)));
   const scenario = (title, found, then) => {
     if (!found) return [`#### Scenario: ${title}`, '', `- **WHEN** a request meets the conditions above`, ...then(null)];
     const text = encodeRequest(spec, found.request);

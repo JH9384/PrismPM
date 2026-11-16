@@ -245,3 +245,39 @@ test('a step that began and never reported its exit is the one that was cut', ()
   assert.equal(cutOff('docker: no such image\n'), null);
   assert.equal(cutOff(''), null);
 });
+
+test('a session started over forgets the app before: its spec.json is not approved by the next yes', async () => {
+  const cwd = project();
+  const server = startServer(cwd);
+  const file = join(cwd, 'prism', 'spec.json');
+  try {
+    await server.call('prism_start', { restart: true });
+    await server.call('prism_spec', { spec: SHIPPING_DRAFT });
+    const old = readFileSync(file, 'utf8');
+    // Measured on 2026-11-16, in 0.9.2: after this restart the next call took the file for an edit,
+    // put the session at its review, and "yes" approved an app nobody had been shown.
+    const again = await server.call('prism_start', { restart: true });
+    assert.equal(again.data.step, 'purpose');
+    assert.equal(again.data.note, undefined);
+    assert.equal((await server.call('prism_status')).data.step, 'purpose');
+    assert.equal((await server.call('prism_spec')).data.spec, null);
+    const yes = await server.call('prism_answer', { answer: 'yes' });
+    assert.equal(yes.data.step, 'purpose');
+    assert.match(yes.data.issue, /there is no checked spec to review yet/);
+    assert.equal((await server.call('prism_build', { wait: 0 })).data.state, 'blocked');
+    // The file is left as it was, and an edit to it afterwards is still taken, and still reviewed first.
+    assert.equal(readFileSync(file, 'utf8'), old);
+    const stored = JSON.parse(old);
+    stored.title = 'Shipping Again';
+    writeFileSync(file, JSON.stringify(stored));
+    const edited = await server.call('prism_status');
+    assert.equal(edited.data.step, 'review');
+    // A new draft replaces it.
+    await server.call('prism_start', { restart: true });
+    const fresh = await server.call('prism_spec', { spec: { ...SHIPPING_DRAFT, title: 'Parcels' } });
+    assert.equal(fresh.data.step, 'review', fresh.text);
+    assert.match(readFileSync(file, 'utf8'), /"title": ?"Parcels"/);
+  } finally {
+    await server.close();
+  }
+});

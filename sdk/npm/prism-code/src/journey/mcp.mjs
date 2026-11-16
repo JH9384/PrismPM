@@ -326,6 +326,24 @@ export function createServer({ cwd = process.cwd(), send, gaps = gapLedger() }) 
     writeSession(dir, kept);
   };
 
+  /**
+   * A session started over. The spec.json of the app before is still on disk, and the next call
+   * would adopt it as an edit: the session was then at its review, unseen, and a "yes" approved it
+   * (measured on 2026-11-16, in 0.9.2). So the file as it stands is remembered as already seen:
+   * it is left alone until someone changes it, or a new spec replaces it.
+   */
+  const restarted = () => {
+    const { adopted, specFileIssue, ...before } = load();
+    let seen = {};
+    try {
+      const read = readOrComplete();
+      if (read) seen = { specHash: read.specHash };
+    } catch (error) {
+      if (!(error instanceof SpecError)) throw error;
+    }
+    return { ...before, step: 'purpose', answers: {}, spec: null, status: seen, axioms: {} };
+  };
+
   /** A spec that does not come back from its own answers is a Prism bug: record which part. */
   function checkRoundTrip(spec) {
     let found = null;
@@ -442,7 +460,7 @@ export function createServer({ cwd = process.cwd(), send, gaps = gapLedger() }) 
 
   const tools = {
     prism_start(args) {
-      const session = args.restart ? { ...load(), step: 'purpose', answers: {}, spec: null, status: {}, axioms: {} } : load();
+      const session = args.restart ? restarted() : load();
       if (session.adopted) save(session);
       const t = turn(session);
       const resumed = Object.keys(session.answers).length > 0;

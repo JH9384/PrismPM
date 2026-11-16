@@ -6,6 +6,16 @@ Version 0.1.0 was a canonicalization library with no entry here; its API lives o
 
 To move to 1.0, read the [migration guide](../../../docs/site/migration/to-1-0.md).
 
+## [0.9.3](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.2...prism-code-v0.9.3) (2026-11-16)
+
+### Breaking Changes
+
+None.
+
+### Bugs Fixed
+
+* **prism-code:** a session started over does not approve the app before it ([#698](https://github.com/UOR-Foundation/prismpm/issues/698)) ([025013b](https://github.com/UOR-Foundation/prismpm/commit/025013bbdb8b669966bf9eef8c3f2939875f271d))
+
 ## [0.9.2](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.1...prism-code-v0.9.2) (2026-11-16)
 
 ### Breaking Changes

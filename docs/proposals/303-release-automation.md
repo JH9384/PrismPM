@@ -67,7 +67,7 @@ The other three npm packages get tags from this flow but have no publish workflo
 This merges before `v0.4.0` and `prism-code-v0.3.0` exist. Four things make that safe.
 
 - **The merge creates no release.** Adding the manifest starts the `tag` job. release-please only tags a merged pull request labelled `autorelease: pending`, and none exists. Its own release step, run against the real `main`, returned zero releases.
-- **`open-pr` refuses until those two tags exist.** Otherwise a release would land on top of a version that never shipped, and its changelog entry would link to a compare page that does not exist. Mode `dry-run` still works.
+- **A package waits until its own version is tagged.** `open-pr` leaves out the root package while `v<version>` is missing, and prism-code while `prism-code-v<version>` is missing, so no release lands on top of a version that never shipped or links to a compare page that does not exist. The others still get their pull requests: the root tag is the factory's cut and can lag for days, and it must not hold prism-code back. The pinned action cannot leave one package out, so `scripts/release-please-dry-run/open-pr.mjs` runs its library with the config narrowed in memory. Mode `dry-run` still works.
 - **The manifest holds what the packages declare:** `0.4.0` and `0.3.0`. A test holds it to `Cargo.toml` and each `package.json`.
 - **`bootstrap-sha` is the 0.4.0 preparation commit `2e44eed0`.** A package with no tag reads history only back to there, instead of up to 500 commits. Once a tag exists, the tag is used instead.
 

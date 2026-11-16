@@ -6,9 +6,10 @@ name: release-please
 # else a patch bump (release-please-config.json). docs/proposals/303-release-automation.md
 # has the whole flow and which step is whose.
 #
-#   Run by hand, mode open-pr   opens or updates the release pull requests, and makes
-#                               their changelog entries pass `node sdk/docs/changelog.mjs`
-#                               so nobody edits a changelog.
+#   Run by hand, mode open-pr   opens or updates the release pull requests of every package
+#                               whose current version is tagged, and makes their changelog
+#                               entries pass `node sdk/docs/changelog.mjs` so nobody edits
+#                               a changelog.
 #   Run by hand, mode dry-run   prints each pull request, tag and release body it would
 #                               produce and writes nothing. It works in a fork.
 #   Push to main that changes   a release pull request merged, because only they change
@@ -88,33 +89,25 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-      # A release on top of a version that was never tagged would skip that version
-      # and link its changelog entry to a compare page that does not exist.
-      - name: Refuse until the manifest's versions are tagged
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          for tag in "v$(jq -r '."."' .release-please-manifest.json)" \
-                     "prism-code-v$(jq -r '."sdk/npm/prism-code"' .release-please-manifest.json)"; do
-            if ! gh api "repos/$REPOSITORY/git/ref/tags/$tag" --silent; then
-              echo "::error::tag $tag does not exist: cut it first, or use mode dry-run"
-              exit 1
-            fi
-          done
-      # GITHUB_TOKEN can open these only with "Allow GitHub Actions to create and approve
-      # pull requests" on, and what it opens starts no CI. RELEASE_PLEASE_TOKEN, scoped to
-      # this repository with contents and pull requests write, needs neither workaround.
-      - id: release
-        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-          target-branch: main
-          skip-github-release: true
+          node-version: '22'
+      - name: Install release-please at the version the action bundles
+        working-directory: scripts/release-please-dry-run
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      # A package whose current version has no tag waits, alone: the root tag is the
+      # factory's cut and can lag, and prism-code versions on its own tags. The pinned
+      # action cannot leave one package out, so this runs its library with the config
+      # narrowed in memory. GITHUB_TOKEN can open these only with "Allow GitHub Actions
+      # to create and approve pull requests" on, and what it opens starts no CI.
+      # RELEASE_PLEASE_TOKEN, scoped to this repository with contents and pull requests
+      # write, needs neither workaround.
+      - id: release
+        name: Open release pull requests for every package whose version is tagged
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: node scripts/release-please-dry-run/open-pr.mjs --branch "$BRANCH"
       - if: steps.release.outputs.prs_created == 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:

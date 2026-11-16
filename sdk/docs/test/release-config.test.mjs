@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { HEADERS } from '../lib/changelog.mjs';
 import { ROOT } from '../lib/spec.mjs';
 import { releasedPackages } from '../../../scripts/release-please-notes.mjs';
+import { GUARDED, narrow, tagOf } from '../../../scripts/release-please-dry-run/open-pr.mjs';
 
 const read = (path) => readFileSync(join(ROOT, path), 'utf8').split('\r\n').join('\n');
 const config = JSON.parse(read('release-please-config.json'));
@@ -86,14 +87,34 @@ test('the tag job uses GITHUB_TOKEN alone, so its tag cannot start the npm publi
 
 test('the open-pr job never tags, and leaves each pull request passing the changelog check', () => {
   const openPr = uncommented(job('open-pr'));
-  assert.match(openPr, /skip-github-release: true/);
+  assert.match(openPr, /npm ci --ignore-scripts/);
+  assert.match(openPr, /node scripts\/release-please-dry-run\/open-pr\.mjs/);
+  assert.doesNotMatch(read('scripts/release-please-dry-run/open-pr.mjs'), /createReleases|\.createRelease\(|\.tag\(/);
   assert.match(openPr, /changelog\.mjs --normalize/);
   assert.match(openPr, /--depth=2/);
-  assert.ok(openPr.indexOf('git/ref/tags/') < openPr.indexOf('release-please-action'), 'the tag check runs before release-please');
-  assert.match(openPr, /"v\$\(jq -r '\."\."' \.release-please-manifest\.json\)"/);
-  assert.match(openPr, /"prism-code-v\$\(jq -r/);
   assert.match(openPr, /cargo update --workspace/);
   assert.match(openPr, /node sdk\/docs\/changelog\.mjs\n/);
+});
+
+test('a package whose version is untagged waits alone, and the others still get release pull requests', () => {
+  assert.deepEqual(GUARDED, ['.', 'sdk/npm/prism-code']);
+  assert.equal(tagOf(config, '.', '0.5.0'), 'v0.5.0');
+  assert.equal(tagOf(config, 'sdk/npm/prism-code', '0.9.4'), 'prism-code-v0.9.4');
+  const all = Object.keys(config.packages);
+
+  const rootWaits = narrow(config, manifest, (tag) => tag !== `v${manifest['.']}`);
+  assert.deepEqual(rootWaits.waiting, [{ path: '.', tag: `v${manifest['.']}` }]);
+  assert.deepEqual(Object.keys(rootWaits.config.packages), all.filter((p) => p !== '.'));
+  assert.ok(rootWaits.config.packages['sdk/npm/prism-code']);
+  assert.equal(config.packages['.'] !== undefined, true, 'the config read from disk is never changed');
+
+  const bothTagged = narrow(config, manifest, () => true);
+  assert.deepEqual(bothTagged.waiting, []);
+  assert.deepEqual(Object.keys(bothTagged.config.packages), all);
+
+  const noneTagged = narrow(config, manifest, () => false);
+  assert.deepEqual(noneTagged.waiting.map((w) => w.path), GUARDED);
+  assert.throws(() => narrow({ ...config, packages: { '.': config.packages['.'] } }, manifest, () => false), /every one waits/);
 });
 
 test('the dry run can only read', () => {

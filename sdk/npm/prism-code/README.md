@@ -29,7 +29,7 @@ npx prism-code verify               # T2: the guest, the vectors and the holo, m
 npx prism-code build --remote github # no Docker: your GitHub repository builds it, this machine verifies it
 ```
 
-`setup` pulls nothing by default. Until the SDK image (about 5.5 GB) is here,
+`setup` pulls nothing by default. Until the SDK image (about 5.7 GB) is here,
 `build --check` and `verify --lean` run on the hosted verifier at
 `https://mcp.uor.foundation/`, which receives the files under `src/` and stores
 them unlisted: not searchable, but readable by anyone with the draft's ID.

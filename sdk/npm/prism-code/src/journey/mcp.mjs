@@ -19,7 +19,7 @@ import { createRequire } from 'node:module';
 import { SpecError, validateSpec } from './spec.mjs';
 import { answersFromSpec, nextTurn, roundTrip, STEPS } from './session.mjs';
 import { appDir, modelPath, readProjectSpec, readSession, writeSession, writeSpecDocument } from './project.mjs';
-import { adoptBuild, build, buildQuietFor, prove, tryRequest } from './engine.mjs';
+import { adoptBuild, askForRepository, build, buildQuietFor, prove, tryRequest } from './engine.mjs';
 import { gapLedger } from '../gaps.mjs';
 import { SPEC_FILE, parseStrictJson, readSpecFile } from './spec-file.mjs';
 import { checkSpec, completeSpec, repairMessage } from './complete.mjs';
@@ -30,12 +30,12 @@ const { version } = require('../../package.json');
 export const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 
 export const INSTRUCTIONS = `Prism builds formally verified apps. For Prism or /prism, call prism_start.
-Every app has one input: prism/spec.json: prism/spec/1, stateful apps prism/spec/2. Translate the user's sentence only: pass prism_spec compact JSON with title, fields, rules and otherwise, plus a property only if the user stated one. Prism derives the rest, proposing guarantees. The same JSON gives the same model. Ask only what you cannot infer; on an issue, fix the draft.
-Show the checked draft for approval, proposed guarantees first, marked proposed: Lean proves them, so the user must agree or strike. If you can draw HTML, draw one editable card, never a multiple-choice question.
+Every app has one input: prism/spec.json, prism/spec/1 or, stateful, prism/spec/2. Translate the user's sentence only: pass prism_spec compact JSON with title, fields, rules and otherwise, plus a property only if stated. Every then and otherwise is an answer, such as approved, never a label. Prism derives the rest and proposes guarantees. The same JSON gives the same model. Ask only what you cannot infer; on an issue, fix the draft.
+Show the checked draft, proposed guarantees first: Lean proves them, so the user must agree or strike. Prefer an editable card to multiple choice.
 On approval, answer the review yes, then call prism_build.
 Never write LexLean; spec.json is the one file you write.
 prism_prove and prism_build take minutes: while "running", say so and call again.
-Say "proved" only for what Lean proved, and "tested" for what acceptance vectors cover.`;
+Say "proved" only for what Lean proved, "tested" for what acceptance vectors cover.`;
 
 const GREETING = 'Prism turns one sentence into an app whose rules are proved by Lean, not just tested. I will draft the spec for your approval, then prove and build it.';
 
@@ -60,6 +60,9 @@ const WHY = { type: 'string', description: 'Why, in a few words, such as "it enf
  * The prism/spec/1 shape. A draft needs only what the user said: fields, rules and
  * otherwise, with a title. Prism derives the rest (complete.mjs).
  */
+/** What a rule's then and otherwise are. Measured on 2026-11-16: 5 of 6 refused drafts from instructions alone wrote a label such as "task" as every answer. */
+const ANSWER = 'The answer itself, a lower-case word such as approved or refer: never a label for it such as result, status or decision. The rules and otherwise give two or more different answers.';
+
 const SPEC_INPUT = {
   type: 'object',
   description: 'A prism/spec/1 spec, or a draft of one: write title, fields, rules and otherwise from what the user said, compactly, and leave out the rest. Prism derives outcomes, purpose and examples, and proposes guarantees from the rules. Omit to read.',
@@ -87,8 +90,8 @@ const SPEC_INPUT = {
     },
     outcomes: { type: 'array', minItems: 2, items: { type: 'string' }, description: 'Omit it: Prism lists the answers the rules and otherwise give. Lower-case words; invalid is reserved.' },
     meanings: { type: 'object', additionalProperties: { type: 'string' }, description: 'What each answer means, such as {"review": "a person must decide"}.' },
-    rules: { type: 'array', minItems: 1, maxItems: 24, description: 'In order; the first that matches decides.', items: { type: 'object', properties: { when: CONDITIONS, then: { type: 'string' }, why: WHY }, required: ['when', 'then'] } },
-    otherwise: { type: 'string', description: 'The answer when no rule matches.' },
+    rules: { type: 'array', minItems: 1, maxItems: 24, description: 'In order; the first that matches decides.', items: { type: 'object', properties: { when: CONDITIONS, then: { type: 'string', description: ANSWER }, why: WHY }, required: ['when', 'then'] } },
+    otherwise: { type: 'string', description: `The answer when no rule matches. ${ANSWER}` },
     otherwiseWhy: WHY,
     properties: { type: 'array', description: 'What must never or always happen; each becomes a theorem Lean proves. Write one only when the user stated it. A draft with fewer than three gets guarantees Prism proposes from the rules, each checked against every request and marked as proposed.', items: { type: 'object', properties: { kind: { type: 'string', enum: ['never', 'always'] }, when: CONDITIONS, then: { type: 'string' }, why: { type: 'string', description: 'The harm it prevents, such as "poor credit history predicts default". Ask the user when you cannot tell.' } }, required: ['kind', 'when', 'then'] } },
     limits: { type: 'array', items: { type: 'string' }, description: 'What the app does not decide, and choices the rules make silently, such as "fair credit is treated as good".' },
@@ -198,7 +201,7 @@ export const TOOLS = [
   },
   {
     name: 'prism_build',
-    description: 'Prove, then build the app into a holo and replay its acceptance vectors through the built guest. It builds in the SDK image on this machine, downloading it first if it is missing (about 5.5 GB). It builds on GitHub Actions only when the user asks for it by naming a repository (remote github): ask the user before doing so, since the app then lives in a public repository. Prism creates it from UOR-Foundation/template, so the app gets the template\'s frame, page and gate; writes the app, its claims, tests and page into it; pushes; and once the gate and the page pass, returns the live GitHub Pages URL, after checking the live holo here. A GitHub build takes ten to fifteen minutes. Returns state running while it works; call again to keep waiting.',
+    description: 'Prove, then build the app into a holo and replay its acceptance vectors through the built guest. It builds in the SDK image on this machine, downloading it first if it is missing (about 5.7 GB). It builds on GitHub Actions only when the user asks for it by naming a repository (remote github): ask the user before doing so, since the app then lives in a public repository. Prism creates it from UOR-Foundation/template, so the app gets the template\'s frame, page and gate; writes the app, its claims, tests and page into it; pushes; and once the gate and the page pass, returns the live GitHub Pages URL, after checking the live holo here. A GitHub build takes ten to fifteen minutes. Returns state running while it works; call again to keep waiting.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -368,8 +371,8 @@ export function createServer({ cwd = process.cwd(), send, gaps = gapLedger() }) 
     return rest;
   }
 
-  function startJob(kind, run) {
-    const job = { kind, state: 'running', log: [], started: Date.now(), result: null };
+  function startJob(kind, run, args = {}) {
+    const job = { kind, args, state: 'running', log: [], started: Date.now(), result: null };
     const log = (line) => {
       job.log.push(line);
       if (job.log.length > 200) job.log.shift();
@@ -438,6 +441,20 @@ export function createServer({ cwd = process.cwd(), send, gaps = gapLedger() }) 
     if (!jobs.get(kind) && kind === 'build' && session.status.lastBuild && session.status.lastBuild.modelSha === session.status.modelSha && session.status.lastSpec === JSON.stringify(session.spec) && existsSync(session.status.lastBuild.holo ?? '')) {
       return { state: 'done', elapsed: 0, ...session.status.lastBuild.result, note: 'Nothing changed since this build, so it was not built again.' };
     }
+    // A GitHub build with nowhere to build asks where, before any proof: the question used to come
+    // only after minutes of proving.
+    const remote = args.repository && !args.remote ? 'github' : args.remote ?? null;
+    if (kind === 'build' && remote === 'github' && !jobs.get(kind)) {
+      const question = askForRepository(dir, session, { repository: args.repository ?? null });
+      if (question) return { state: 'done', elapsed: 0, ...question };
+    }
+    // A call that names a repository joins a build only if that build was started for it: joined,
+    // the repository was silently ignored (measured on 2026-11-16).
+    const running = jobs.get(kind);
+    if (running && kind === 'build' && args.repository && args.repository !== running.args?.repository) {
+      const elapsed = Math.round((Date.now() - running.started) / 1000);
+      return { state: 'running', elapsed, latest: running.log.slice(-3), next: `A build started ${elapsed} s ago ${running.args?.repository ? `for ${running.args.repository}` : 'without a repository'} is still running, and ${args.repository} is not applied to it. Call prism_build again with repository ${args.repository} once it returns.` };
+    }
     const job =
       jobs.get(kind) ??
       startJob(kind, async (log) => {
@@ -453,7 +470,7 @@ export function createServer({ cwd = process.cwd(), send, gaps = gapLedger() }) 
         const latest = load();
         save({ ...latest, status: s.status, axioms: s.axioms, image: s.image ?? latest.image });
         return result;
-      });
+      }, { remote, repository: args.repository ?? null });
     const waited = await awaitJob(job, args.wait ?? 45, progress);
     return before ? { ...waited, note: before } : waited;
   }

@@ -35,8 +35,8 @@ import { BUILD_WORKFLOW, TEMPLATE_WORKFLOW_URL, originOf, tokenSource } from './
 import { hostConfigEntry, readHostConfig, resolveDocker } from './host.mjs';
 
 export const GITATTRIBUTES_LINE = '* text eol=lf';
-/** The compressed size of the SDK image the template pins, measured on ghcr.io on 2026-11-06 (`prismpm-sdk-candidate@sha256:cd3b47d7…`, amd64: 5.51 GB; 20.9 GB unpacked). */
-export const SDK_IMAGE_DOWNLOAD = '5.5 GB';
+/** The compressed size of the SDK image the template pins, measured on ghcr.io on 2026-11-16 (`prismpm-sdk@sha256:d6c263a7…`, amd64: 5.70 GB). */
+export const SDK_IMAGE_DOWNLOAD = '5.7 GB';
 /** The files a project is known by. */
 const PROJECT_MARKERS = ['prism.toml', 'prismpm.lock', 'lexlean.toml', 'prismpm.toml'];
 /** The sources LexLean reads; a CRLF in one of them is LLC0101. */

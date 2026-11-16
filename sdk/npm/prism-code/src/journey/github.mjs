@@ -22,13 +22,13 @@ import { isBound } from './project.mjs';
 import { DEFAULT_SDK_IMAGE } from './sdk.mjs';
 
 export const TEMPLATE_REPOSITORY = 'UOR-Foundation/template';
-/** The template commit the files below are read from. Its prismpm.lock pins DEFAULT_SDK_IMAGE. */
-export const TEMPLATE_COMMIT = 'df1973257ecd10dbdedd6f00061ac34ca6ac129b';
+/** The template commit the files below are read from. Its prismpm.lock pins DEFAULT_SDK_IMAGE; a test holds the two equal. */
+export const TEMPLATE_COMMIT = '5b712b9d7b123af6c4545534ffa7c8b1647e7110';
 /** Each file a GitHub build needs, by its path in the template, with the SHA-256 it must have. */
 export const PINNED_FILES = Object.freeze({
-  'prismpm.lock': '3773d32926962ef5d2556b74e0df9b34bdaf72353022f3256ebaa04a4ba8db7f',
-  'standards.lock': '54448d21cb1ed3a4af826aa44991e9839b51d97b8975a5b125927c78af922b46',
-  '.github/workflows/build.yml': '756521d5db16c8ea4457a8acdce81d8e656aa602b6f658350f6f303c90de7e00',
+  'prismpm.lock': 'fb18f8a88756f6f3b89efe375c6611ab317beec320f986f81af92e142ac54969',
+  'standards.lock': '5717dc99c3dbe05d9be26114be7e2df3f00df7128b12f3d9933b77543da8f866',
+  '.github/workflows/build.yml': 'a9d130a135bfaa7a6b7d44f3397445d94913bb5f8672d21a2750ea405c6555cb',
 });
 export const RAW_URL = 'https://raw.githubusercontent.com';
 

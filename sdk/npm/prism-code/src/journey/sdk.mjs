@@ -14,8 +14,13 @@ import { prismHome } from '../agents.mjs';
 import { SDK_IMAGE_PATTERN, cacheVolumeName, dockerArguments, mountPath, sdkImageFromLock } from '../docker.mjs';
 import { hostDocker } from '../host.mjs';
 
-/** The SDK image a new app is pinned to when none is named: the candidate that built and verified prism-chess. */
-export const DEFAULT_SDK_IMAGE = 'ghcr.io/uor-foundation/prismpm-sdk-candidate@sha256:cd3b47d7a370c4a26b8285f5e9c3bb15e639973c55505c3809ddbe55352fea58';
+/**
+ * The SDK image a new app is pinned to when none is named: the PrismPM 0.4.0 release, the image
+ * UOR-Foundation/template pins, so an app built here and the same app built on GitHub Actions
+ * are built by one toolchain. Measured on 2026-11-16: with the 0.3.0 candidate here and the
+ * release there, one spec gave two holos of different bytes and the same seal.
+ */
+export const DEFAULT_SDK_IMAGE = 'ghcr.io/uor-foundation/prismpm-sdk@sha256:d6c263a733a6bc36e0458c3f5b9a1f5ea9c14dfbe8c257d3f650a960b5fe633c';
 export const IMAGE_STANDARDS_LOCK = '/opt/prismpm/share/standards.lock';
 
 let cached = null;

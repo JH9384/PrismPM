@@ -281,3 +281,33 @@ test('a session started over forgets the app before: its spec.json is not approv
     await server.close();
   }
 });
+
+test('a guarantee no request breaks, which Lean does not prove, is said to hold and to be the prover\'s limit', async () => {
+  // Measured on 2026-11-16: a guarantee Prism proposed, true for every request, was refused by Lean's
+  // arithmetic step, and Prism said it "may hold only for requests the sampling missed".
+  const cwd = project();
+  const server = startServer(cwd, { env: fakeDocker(cwd, { prove: 'unproved' }) });
+  try {
+    await approved(server);
+    const { answer } = await until(server, 'prism_prove');
+    assert.equal(answer.data.ok, false);
+    assert.match(answer.data.message, /^INV-001 \("always when destination is worldwide then express"\) holds for every request: Prism tried every case the rules tell apart \(\d+\), and none breaks it\. Lean could not finish its proof; that is a limit of the prover on this spec, not a fault in it\. So strike it to build without it \(pass the spec to prism_spec again without INV-001\); what it says stays tested by the acceptance vectors\. Prism proposed it; the user did not state it\.$/);
+    assert.doesNotMatch(answer.data.message, /sampling missed|very large numbers/);
+    assert.deepEqual(answer.data.properties.map((p) => p.status), ['failing', 'unknown']);
+  } finally {
+    await server.close();
+  }
+  // Where two fields are compared, the candidates are not every request, and that is what is said.
+  const other = project();
+  const second = startServer(other, { env: fakeDocker(other, { prove: 'unproved' }) });
+  try {
+    await second.call('prism_start', { restart: true });
+    const draft = { title: 'Within Limit', fields: [{ name: 'amount', kind: 'number', min: 0, max: 99 }, { name: 'limit', kind: 'number', min: 0, max: 99 }], rules: [{ when: [{ field: 'amount', op: '<=', value: { field: 'limit' } }], then: 'approved' }], otherwise: 'refused' };
+    assert.equal((await second.call('prism_spec', { spec: draft })).data.step, 'review');
+    await second.call('prism_answer', { answer: 'yes' });
+    const { answer } = await until(second, 'prism_prove');
+    assert.match(answer.data.message, /^Lean could not prove INV-001 .*none of \d+ sampled requests breaks it\. A request the sampling did not try may break it: one where two fields are compared\. Restate it more narrowly, or strike it to build without it/);
+  } finally {
+    await second.close();
+  }
+});

@@ -65,7 +65,7 @@ test('a fresh machine: the image is deferred by default, with what runs without 
   const r = rows(planMachine({}, ctx));
   assert.equal(r.image.status, 'deferred', 'setup pulls nothing unless asked');
   assert.equal(r.image.steps, undefined);
-  assert.match(r.image.detail, /is not here; build --check and verify --lean run hosted without it, and build, verify and axioms pull it on first use \(about 5\.5 GB\); setup --pull gets it now/);
+  assert.match(r.image.detail, /is not here; build --check and verify --lean run hosted without it, and build, verify and axioms pull it on first use \(about 5.7 GB\); setup --pull gets it now/);
   assert.equal(r.cache.status, 'configure', 'the cache volume is cheap and ready for the first pull');
   assert.match(formatMachine(planMachine({}, ctx), { dryRun: true }), /image {11}deferred {12}ghcr\.io/);
 });

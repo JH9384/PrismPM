@@ -417,3 +417,27 @@ test('a build another live Prism server is running is not started twice, and an 
   assert.equal(again.structuredContent.state, 'done');
   assert.match(again.structuredContent.note, /not built again/);
 });
+
+test('an app named like a namespace LexLean reserves gets a module it accepts', async () => {
+  // Measured on 2026-11-16: an app titled "Result" was refused at the proof (LLT4001), as a Prism bug.
+  const { moduleName, RESERVED_MODULE_NAMES, names } = await import('../src/journey/render.mjs');
+  assert.equal(moduleName({ name: 'result' }), 'ResultApp');
+  assert.equal(moduleName({ name: 'list' }), 'ListApp');
+  assert.equal(moduleName({ name: 'lex-lean-core' }), 'LexLeanCoreApp');
+  assert.equal(moduleName({ name: 'shipping-method' }), 'ShippingMethod');
+  assert.equal(moduleName({ name: 'result-checker' }), 'ResultChecker');
+  assert.equal(names(compile({ ...ANSWERS, purpose: 'Result: decide whether a payment request is approved.', review: 'yes' }).spec).module, 'ResultApp');
+  // The set is LexLean's own, read from the vendored compiler where this repository has it.
+  const source = (path) => readFileSync(new URL(`../../../../${path}`, import.meta.url), 'utf8');
+  const strings = (text, name) => {
+    const start = text.indexOf(`${name}: [&str;`);
+    const list = text.slice(text.indexOf('= [', start) + 3, text.indexOf('];', start));
+    return [...list.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  };
+  if (existsSync(new URL('../../../../vendor/lexlean/src/ir/semantic.rs', import.meta.url))) {
+    const semantic = source('vendor/lexlean/src/ir/semantic.rs');
+    const config = source('vendor/lexlean/src/config.rs');
+    const reserved = [...strings(semantic, 'BACKEND_BARE_NAMES'), ...strings(semantic, 'QUALIFIED_NAMESPACES'), ...strings(config, 'SHIPPED_ROOTS'), ...strings(config, 'LIBRARY_ROOTS')];
+    for (const name of reserved.filter((x) => /^[A-Z][A-Za-z0-9]*$/.test(x))) assert.ok(RESERVED_MODULE_NAMES.has(name) || /^LexLean/.test(name), `${name} is reserved by LexLean`);
+  }
+});

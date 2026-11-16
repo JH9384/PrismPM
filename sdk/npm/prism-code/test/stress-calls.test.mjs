@@ -249,3 +249,27 @@ test('no failure of a proof or a build comes back without saying what happened a
   // A stopped environment is never called a Prism bug.
   for (const [label, answer] of outcomes.filter(([l]) => /cut/.test(l))) assert.doesNotMatch(answer.text, /Prism bug/, label);
 });
+
+test('a GitHub build with nowhere to build asks where at once, and a repository passed to a running build is not silently ignored', async () => {
+  // Measured on 2026-11-16: the question came after minutes of proving, and the repository then
+  // passed joined that build and was ignored.
+  const cwd = project();
+  const server = startServer(cwd, { env: fakeDocker(cwd, { prove: 'ok', build: 'ok', buildMs: 3000 }) });
+  try {
+    await server.call('prism_start', { restart: true });
+    await server.call('prism_spec', { spec: SHIPPING_DRAFT });
+    await server.call('prism_answer', { answer: 'yes' });
+    const asked = await server.call('prism_build', { remote: 'github', wait: 0 });
+    assert.equal(asked.data.needs, 'repository', asked.text);
+    assert.match(asked.data.message, /it needs a GitHub repository, and there is none yet/);
+    assert.ok(asked.ms < 30000, `${asked.ms} ms: no proof was started before asking`);
+    assert.equal(existsSync(join(cwd, 'docker.log')), false, 'nothing ran in the image');
+    // A local build is running; a call naming a repository is told it is not applied.
+    await server.call('prism_build', { wait: 0 });
+    const named = await server.call('prism_build', { repository: 'octo/prism-shipping-method', wait: 0 });
+    assert.equal(named.data.state, 'running');
+    assert.match(named.data.next, /is still running, and octo\/prism-shipping-method is not applied to it\. Call prism_build again with repository octo\/prism-shipping-method once it returns\./);
+  } finally {
+    await server.close();
+  }
+});

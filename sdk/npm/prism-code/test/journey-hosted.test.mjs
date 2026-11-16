@@ -1,7 +1,7 @@
 // The journey's proof on the hosted verifier: no Docker, no image. A stand-in server answers; nothing leaves the machine.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -235,8 +235,8 @@ function templateSkeleton(into) {
   w('app/src/Contract.lex.tex', 'the example\n');
   w('crates/conformance/tests/contract.rs', '// the example\n');
   w('features/suites/contract.feature', 'Feature: contract\n');
-  w('model/ids.toml', '# the register\n\nspec = "template/1"\n\n[[id]]\nid = "TC-01"\nlevel = "build"\nsuite = "contract"\nstatement = "the example"\n');
-  w('CONFORMANCE.md', '# CONFORMANCE\n\nThe levels.\n\n## contract\n\n| ID | Level | Statement |\n| --- | --- | --- |\n| `TC-01` | `build` | the example |\n\n## Cited authorities\n\nNever re-derived.\n');
+  w('model/ids.toml', '# the register\n\nspec = "template/1"\n\n[[id]]\nid = "TC-01"\nlevel = "build"\nsuite = "contract"\nstatement = "the example"\n\n[[id]]\nid = "FR-01"\nlevel = "build"\nsuite = "frame"\nstatement = "the frame"\n');
+  w('CONFORMANCE.md', '# CONFORMANCE\n\nThe levels.\n\n## contract\n\n| ID | Level | Statement |\n| --- | --- | --- |\n| `TC-01` | `build` | the example |\n\n## frame\n\n| ID | Level | Statement |\n| --- | --- | --- |\n| `FR-01` | `build` | the frame |\n\n## Cited authorities\n\nNever re-derived.\n');
   w('site/app.json', '{"name": "Template contract", "trusted": [{"name": "SDK image"}]}\n');
 }
 
@@ -279,9 +279,18 @@ test('a new app becomes a template instance: created from the template, written 
   assert.ok(existsSync(join(clone, 'app/src/PaymentApproval.lex.tex')) && existsSync(join(clone, 'app/src/PaymentApprovalProofs.lex.tex')));
   assert.match(readFileSync(join(clone, 'app/lexlean.toml'), 'utf8'), /^entrypoints = \["src\/PaymentApproval\.lex\.tex", "src\/PaymentApprovalProofs\.lex\.tex"\]$/m, 'the proofs are an entrypoint, so the gate checks the theorems');
   assert.doesNotMatch(readFileSync(join(clone, 'app/lexlean.lock'), 'utf8'), /0{64}/, 'every digest the lock binds is recomputed');
-  assert.match(readFileSync(join(clone, 'model/ids.toml'), 'utf8'), /^# the register\n\nspec = "template\/1"\n\n\[\[id\]\]\nid = "PA-01"/);
-  assert.ok(existsSync(join(clone, 'features/suites/payment_approval.feature')) && existsSync(join(clone, 'crates/conformance/tests/payment_approval.rs')));
-  assert.equal(existsSync(join(clone, 'crates/conformance/tests/contract.rs')), false);
+  // The template's frame keeps its IDs and its section: its scenarios still name them (measured on 2026-11-16).
+  const register = readFileSync(join(clone, 'model/ids.toml'), 'utf8');
+  assert.match(register, /^# the register\n\nspec = "template\/1"\n\n\[\[id\]\]\nid = "FR-01"\nlevel = "build"\nsuite = "frame"\nstatement = "the frame"\n\n\[\[id\]\]\nid = "PA-01"/);
+  assert.doesNotMatch(register, /TC-01/);
+  // Sections in the order the template's generator writes them, by suite name: the gate regenerates the page and compares.
+  assert.match(readFileSync(join(clone, 'CONFORMANCE.md'), 'utf8'), /\n## frame\n\n\| ID \| Level \| Statement \|\n\| --- \| --- \| --- \|\n\| `FR-01` \| `build` \| the frame \|\n\n## payment_approval\n[\s\S]*\n\n## Cited authorities\n/);
+  assert.ok(existsSync(join(clone, 'features/suites/payment_approval.feature')));
+  // The app's test replaces the example's file, so the template's ratchet sees no new non-Prism file (measured on 2026-11-16).
+  assert.match(readFileSync(join(clone, 'crates/conformance/tests/contract.rs'), 'utf8'), /^\/\/! The `payment_approval` suite/);
+  assert.equal(existsSync(join(clone, 'crates/conformance/tests/payment_approval.rs')), false);
+  // The spec the app is sealed to is published beside it, byte for byte.
+  assert.deepEqual(readFileSync(join(clone, 'app/spec.json')), readFileSync(join(dir, 'spec.json')));
   assert.match(readFileSync(join(clone, 'openspec/specs/payment-approval/spec.md'), 'utf8'), /^# payment-approval Specification\n[\s\S]*\n## Purpose\n[\s\S]*\n## Requirements\n/, 'the spec is where OpenSpec looks for it');
   const app = JSON.parse(readFileSync(join(clone, 'site/app.json'), 'utf8'));
   assert.equal(app.repository, 'https://github.com/octo/prism-payment-approval');
@@ -294,19 +303,57 @@ test('a new app becomes a template instance: created from the template, written 
   assert.equal(again.ok, true);
 });
 
-test('a template instance whose gate fails says which run failed, and nothing is live', async () => {
+test('a template instance whose page went live while its gate failed says both, and checks what is live', async () => {
   const { dir, session } = provedApp();
   const root = join(dir, '..');
   const steps = {
     createFromTemplate: async ({ repository, into }) => (templateSkeleton(into), { repository, clone: into }),
     pushClone: () => 'd'.repeat(40),
     waitForWorkflows: async () => ({ 'pages.yml': { conclusion: 'success', html_url: 'p' }, 'bootstrap.yml': { conclusion: 'failure', html_url: 'https://github.com/octo/x/actions/runs/9' } }),
-    fetchLive: async () => assert.fail('nothing is fetched from a failed commit'),
+    fetchLive: async ({ into }) => {
+      mkdirSync(dirname(into), { recursive: true });
+      writeFileSync(into, readFileSync(fileURLToPath(new URL('../fixtures/Calculator.holo', import.meta.url))));
+    },
     client: {},
   };
   const r = await buildRemote(dir, session, { root, repository: 'octo/prism-payment-approval', steps });
   assert.equal(r.ok, false);
-  assert.match(r.message, /bootstrap\.yml ended failure: https:\/\/github\.com\/octo\/x\/actions\/runs\/9/);
+  assert.equal(r.live, 'https://octo.github.io/prism-payment-approval/');
+  assert.match(r.message, /^The page is live at https:\/\/octo\.github\.io\/prism-payment-approval\/, built and verified by pages\.yml\. /);
+  assert.match(r.message, /But the gate, bootstrap\.yml, ended failure: https:\/\/github\.com\/octo\/x\/actions\/runs\/9\. The app does not meet the template's contract until it passes/);
+  assert.doesNotMatch(r.message, /nothing is live/);
+
+  // When the page failed too, nothing is live, and nothing is fetched.
+  const failed = await buildRemote(dir, session, {
+    root,
+    steps: { ...steps, waitForWorkflows: async () => ({ 'pages.yml': { conclusion: 'failure', html_url: 'p' }, 'bootstrap.yml': { conclusion: 'failure', html_url: 'b' } }), fetchLive: async () => assert.fail('nothing is fetched from a failed page') },
+  });
+  assert.match(failed.message, /pages\.yml ended failure: p; bootstrap\.yml ended failure: b\. The log there says why; nothing is live/);
+});
+
+test('an instance an earlier prism-code wrote keeps its test file where it is', async () => {
+  const { dir, session } = provedApp();
+  const root = join(dir, '..');
+  const steps = {
+    createFromTemplate: async ({ repository, into }) => {
+      templateSkeleton(into);
+      // As 0.9.2 wrote it: the example's test gone, the app's beside it.
+      rmSync(join(into, 'crates/conformance/tests/contract.rs'));
+      writeFileSync(join(into, 'crates/conformance/tests/payment_approval.rs'), '// as an earlier prism-code wrote it\n');
+      return { repository, clone: into };
+    },
+    pushClone: () => 'e'.repeat(40),
+    waitForWorkflows: async ({ workflows }) => Object.fromEntries(workflows.map((w) => [w, { conclusion: 'success', html_url: w }])),
+    fetchLive: async ({ into }) => {
+      mkdirSync(dirname(into), { recursive: true });
+      writeFileSync(into, readFileSync(fileURLToPath(new URL('../fixtures/Calculator.holo', import.meta.url))));
+    },
+    client: {},
+  };
+  await buildRemote(dir, session, { root, repository: 'octo/prism-payment-approval', steps });
+  const clone = join(root, 'prism-payment-approval');
+  assert.match(readFileSync(join(clone, 'crates/conformance/tests/payment_approval.rs'), 'utf8'), /^\/\/! The `payment_approval` suite/);
+  assert.equal(existsSync(join(clone, 'crates/conformance/tests/contract.rs')), false, 'no second test file is added');
 });
 
 test('a GitHub build refuses a repository that is not the origin, and a name that is not owner/name', async () => {
@@ -322,7 +369,7 @@ test('a GitHub build refuses a repository that is not the origin, and a name tha
 
 test('a pinned template file is refused when its bytes do not have the pinned digest', async () => {
   const fetch = async () => new Response('tampered');
-  await assert.rejects(fetchPinned('prismpm.lock', { fetch }), /has SHA-256 [0-9a-f]{64}, not the pinned 3773d329/);
+  await assert.rejects(fetchPinned('prismpm.lock', { fetch }), /has SHA-256 [0-9a-f]{64}, not the pinned fb18f8a8/);
   await assert.rejects(fetchPinned('README.md', { fetch }), /not a pinned template file/);
   const { dir, session } = provedApp();
   await assert.rejects(readyForGitHub({ root: join(dir, '..'), dir, session, fetch }), /not the pinned/);

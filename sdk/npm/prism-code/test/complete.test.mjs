@@ -478,7 +478,8 @@ function violation(schema, value, path = '$') {
 }
 
 test('the schemas use only what the test validator reads', () => {
-  const known = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const', 'anyOf', 'minItems', 'maxItems', 'minimum', 'pattern', 'minLength', 'maxLength']);
+  // `description` is an annotation: a validator reads past it, and a model reads it.
+  const known = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const', 'anyOf', 'minItems', 'maxItems', 'minimum', 'pattern', 'minLength', 'maxLength', 'description']);
   const walk = (schema) => {
     for (const [key, value] of Object.entries(schema)) {
       assert.ok(known.has(key), `keyword ${key}`);

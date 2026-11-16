@@ -11,7 +11,7 @@
 //   log      a file each proof and build appends one line to, so a test can count them
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -100,6 +100,18 @@ if (args[0] === '--build-work') {
     say('@@step verify');
     await wait(plan.proveMs ?? 0);
     if (plan.prove === 'cut') process.exit(137);
+    // Lean refuses the first property's theorem, as LexLean reports it (LLV7002, at the theorem).
+    if (plan.prove === 'unproved') {
+      const src = join(plan.app, 'src');
+      const file = readdirSync(src).find((f) => f.endsWith('Proofs.lex.tex'));
+      const lines = readFileSync(join(src, file), 'utf8').split('\n');
+      const named = lines.findIndex((l) => l.trim() === 'name: inv001Holds,');
+      const at = lines.slice(0, named).map((l, i) => [l, i]).filter(([l]) => l.trim() === 'theorem{').at(-1)[1] + 1;
+      say(`error[LLV7002]: Lean rejected \`Prism.${file.replace('.lex.tex', '')}\` (error): omega could not prove the goal:`);
+      say(`  --> src/${file}:${at}:1`);
+      say('@@exit verify 1');
+      process.exit(1);
+    }
     say('@@exit verify 0');
   } else {
     say(`fake docker: a script it does not know: ${script.slice(0, 80)}`);

@@ -423,6 +423,17 @@ export const sampleSize = (spec) => candidates(spec).reduce((n, list) => n * lis
 /** How many candidate requests a search tries before it stops and claims nothing. */
 const SAMPLE_REQUESTS = 200000;
 
+/**
+ * Whether trying every candidate request is trying every request there is. It is when no condition
+ * compares a field with another field: each candidate value stands for every value between two
+ * constants the conditions name, so every request meets exactly the conditions some candidate
+ * meets. Then a guarantee no candidate breaks holds for every request.
+ */
+export function triesEveryCase(spec) {
+  const conditions = [...spec.rules.flatMap((r) => r.when), ...spec.properties.flatMap((p) => p.when)];
+  return !conditions.some((c) => c.value !== null && typeof c.value === 'object') && sampleSize(spec) <= SAMPLE_REQUESTS;
+}
+
 /** Every decoded request over the candidate values, up to `limit`. */
 export function* sampleRequests(spec, limit = SAMPLE_REQUESTS) {
   const lists = candidates(spec);

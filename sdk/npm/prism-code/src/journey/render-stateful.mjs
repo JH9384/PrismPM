@@ -23,7 +23,7 @@
  * bytes.
  */
 import { INVALID, MAX_DIGITS } from './spec.mjs';
-import { LEAN_RESERVED, QP, camel, conjunction, describedBy, hex, moduleText, pascal, quote, stem, withAxioms } from './render.mjs';
+import { LEAN_RESERVED, QP, camel, conjunction, describedBy, hex, moduleName, moduleText, pascal, quote, stem, withAxioms } from './render.mjs';
 import {
   SESSION_BYTES,
   act,
@@ -51,7 +51,7 @@ export function statefulNames(spec) {
     used.add(name);
     return name;
   };
-  const module = pascal(spec.name) || 'App';
+  const module = moduleName(spec);
   const width = Math.max(0, ...spec.actions.map((a) => a.inputs.length));
   const args = Array.from({ length: width }, (_, i) => claim(`moveArg${i + 1}`));
   const state = {};

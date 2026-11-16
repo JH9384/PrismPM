@@ -15,6 +15,8 @@
  * checker (`checkSpec`) still decides those.
  */
 const WORD = { type: 'string', pattern: '^[a-z][a-z0-9-]{0,31}$' };
+/** A rule's answer and otherwise: the outcome word itself, never a label for it. */
+const ANSWER = { ...WORD, description: 'The answer itself, such as approved: never a label such as result or status. Two or more different answers in all.' };
 const WHOLE = { type: 'integer', minimum: 0 };
 const TEXT = { type: 'string' };
 
@@ -34,12 +36,12 @@ const closed = (properties, required) => ({ type: 'object', properties, required
 
 const field = (extra = {}) => closed({ name: WORD, kind: { enum: ['number', 'choice'] }, values: { type: 'array', minItems: 2, maxItems: 32, items: WORD }, min: WHOLE, max: WHOLE, ...extra }, ['name', 'kind']);
 const fields = (extra) => ({ type: 'array', minItems: 1, maxItems: 8, items: field(extra) });
-const rules = (extra = {}) => ({ type: 'array', minItems: 1, maxItems: 24, items: closed({ when: WHEN, then: WORD, ...extra }, ['when', 'then']) });
+const rules = (extra = {}) => ({ type: 'array', minItems: 1, maxItems: 24, items: closed({ when: WHEN, then: ANSWER, ...extra }, ['when', 'then']) });
 const properties = (extra = {}) => ({ type: 'array', items: closed({ kind: { enum: ['never', 'always'] }, when: WHEN, then: WORD, ...extra }, ['kind', 'when', 'then']) });
 
 /** The draft form: what a model writes. Number bounds are whole and not negative; no member beyond these is allowed. */
 export const DRAFT_JSON_SCHEMA = Object.freeze(
-  closed({ title: { type: 'string', maxLength: 64 }, fields: fields(), rules: rules(), otherwise: WORD, properties: properties() }, ['title', 'fields', 'rules', 'otherwise']),
+  closed({ title: { type: 'string', maxLength: 64 }, fields: fields(), rules: rules(), otherwise: ANSWER, properties: properties() }, ['title', 'fields', 'rules', 'otherwise']),
 );
 
 /** The whole spec: every member `prism/spec.json` may hold. */

@@ -21,6 +21,8 @@ import { names, proofDeclarations } from './render.mjs';
 
 /** The template's example app, which a new instance replaces. */
 export const TEMPLATE_EXAMPLE = Object.freeze(['app/src/Contract.lex.tex', 'crates/conformance/tests/contract.rs', 'features/suites/contract.feature']);
+/** Where the app's Rust test is written: the path of the example's, which it replaces. */
+export const TEMPLATE_TEST = 'crates/conformance/tests/contract.rs';
 
 /** The Gherkin suite, the feature file's name and every test name's start: the spec's name with underscores. */
 export const suiteOf = (spec) => spec.name.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'app';
@@ -61,10 +63,18 @@ const tomlString = (text) => JSON.stringify(text);
 
 /** `model/ids.toml`: the template's header comment kept, every row replaced by the app's claims. */
 export function idsToml(spec, current) {
-  const head = current.slice(0, current.indexOf('[[id]]') < 0 ? current.length : current.indexOf('[[id]]')).replace(/\n*$/, '\n\n');
+  const at = current.indexOf('[[id]]');
+  const head = current.slice(0, at < 0 ? current.length : at).replace(/\n*$/, '\n\n');
+  // The rows of other suites stay: the frame's (`FR-01`...) name scenarios the template keeps, and the
+  // gate refuses a scenario whose ID is not in the register. Measured on 2026-11-16: every app's
+  // gate failed when the register held only the app's rows.
+  const kept = at < 0 ? [] : current.slice(at).split(/^(?=\[\[id\]\]$)/m).filter((row) => !REPLACED_SUITES(spec).includes(/^suite = "([^"]*)"$/m.exec(row)?.[1]));
   const rows = claims(spec).map((c) => `[[id]]\nid = "${c.id}"\nlevel = "build"\nsuite = "${suiteOf(spec)}"\nstatement = ${tomlString(c.statement)}\n`);
-  return `${head}${rows.join('\n')}`;
+  return `${head}${[...kept.map((row) => row.replace(/\n*$/, '\n')), ...rows].join('\n')}`;
 }
+
+/** The suites an app replaces: the template's example and its own, from an earlier build. */
+const REPLACED_SUITES = (spec) => ['contract', suiteOf(spec)];
 
 /** `features/suites/<suite>.feature`: one scenario per claim, tagged with its ID and level. */
 export function featureText(spec) {
@@ -155,9 +165,15 @@ export function conformanceText(spec, current) {
   const start = current.indexOf('\n## ');
   const end = current.indexOf('\n## Cited authorities');
   if (start < 0 || end < 0) throw new Error('CONFORMANCE.md has no suite sections to replace');
+  // The sections of other suites stay, as their rows stay in the register (see idsToml).
+  const kept = current.slice(start, end).split(/(?=\n## )/).filter((section) => !REPLACED_SUITES(spec).includes(/^\n## (\S+)/.exec(section)?.[1]));
   const rows = claims(spec).map((c) => `| \`${c.id}\` | \`build\` | ${c.statement.replace(/\|/g, '\\|').trim()} |`);
   const section = rows.length ? `\n## ${suiteOf(spec)}\n\n| ID | Level | Statement |\n| --- | --- | --- |\n${rows.join('\n')}\n` : '';
-  return `${current.slice(0, start)}${section}${current.slice(end)}`;
+  // In the order the template's generator writes them, by suite name, byte for byte: the gate
+  // regenerates this page from the register and refuses any difference (measured on 2026-11-16).
+  const suite = (s) => /^\n## (\S+)/.exec(s)[1];
+  const sections = [...kept, ...(section ? [section] : [])].map((s) => s.replace(/\n*$/, '\n')).sort((a, b) => (suite(a) < suite(b) ? -1 : suite(a) > suite(b) ? 1 : 0));
+  return `${current.slice(0, start)}${sections.join('')}${current.slice(end)}`;
 }
 
 /** The text of the rules, for the page's proposition. */

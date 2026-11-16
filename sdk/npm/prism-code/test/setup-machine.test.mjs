@@ -312,7 +312,7 @@ test('the prove refusal for a missing image names a command that pulls that imag
   for (const session of [{}, { image: IMAGE }]) {
     const script = `const { prepare } = await import(${JSON.stringify(engine)}); process.stdout.write(JSON.stringify(await prepare(${JSON.stringify(app)}, ${JSON.stringify(session)}, () => {})));`;
     const proved = spawnSync(process.execPath, ['--input-type=module', '-e', script], { env, encoding: 'utf8' });
-    assert.equal(proved.status, 0, proved.stderr);
+    assert.equal(proved.status, 0, proved.stderr + proved.stdout);
     const refusal = JSON.parse(proved.stdout);
     assert.equal(refusal.ok, false);
     const image = session.image ?? DEFAULT_SDK_IMAGE;
@@ -321,7 +321,10 @@ test('the prove refusal for a missing image names a command that pulls that imag
     // Follow the advice from a folder that is no project, as a user in their home folder would.
     rmSync(pulled, { force: true });
     const followed = spawnSync(process.execPath, [bin, ...named[1].split(' ')], { cwd: scratch('prism-machine-elsewhere-'), env, encoding: 'utf8' });
-    assert.equal(followed.status, 0, followed.stderr);
+    // Found on macOS CI, 2026-11-16: the advice ran a whole setup, whose holo:// handler failed and made it exit 1
+    // although the image was pulled. Getting an image is the machine's half only: no agent, no handler, no skill.
+    assert.doesNotMatch(followed.stdout, /your agents|holo:\/\/|skills/, `${named[1]} does more than get the image`);
+    assert.equal(followed.status, 0, `${named[1]} exited ${followed.status}:\n${followed.stdout}${followed.stderr}`);
     assert.equal(readText(pulled), `${image}\n`, `${named[1]} pulls the image the refusal asked for`);
   }
 });

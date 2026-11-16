@@ -6,6 +6,17 @@ Version 0.1.0 was a canonicalization library with no entry here; its API lives o
 
 To move to 1.0, read the [migration guide](../../../docs/site/migration/to-1-0.md).
 
+## [0.9.4](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.3...prism-code-v0.9.4) (2026-11-16)
+
+### Breaking Changes
+
+None.
+
+### Bugs Fixed
+
+* **prism-code:** setup without --hosted adds no hosted server, and backs up what it changes ([#699](https://github.com/UOR-Foundation/prismpm/issues/699)) ([9808c28](https://github.com/UOR-Foundation/prismpm/commit/9808c28fb979a129746155483eb6ff0f36b0675e))
+* **prism-code:** the open defects of the journey qualification ([#702](https://github.com/UOR-Foundation/prismpm/issues/702)) ([9663358](https://github.com/UOR-Foundation/prismpm/commit/96633586c9c9834af7a356644b96108ac08a5537))
+
 ## [0.9.3](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.2...prism-code-v0.9.3) (2026-11-16)
 
 ### Breaking Changes

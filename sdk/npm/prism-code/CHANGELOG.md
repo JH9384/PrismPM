@@ -6,6 +6,17 @@ Version 0.1.0 was a canonicalization library with no entry here; its API lives o
 
 To move to 1.0, read the [migration guide](../../../docs/site/migration/to-1-0.md).
 
+## [0.9.2](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.1...prism-code-v0.9.2) (2026-11-16)
+
+### Breaking Changes
+
+None.
+
+### Bugs Fixed
+
+* **prism-code:** a draft's comparison word is read for the kind of field it compares ([#684](https://github.com/UOR-Foundation/prismpm/issues/684)) ([dd94bcf](https://github.com/UOR-Foundation/prismpm/commit/dd94bcf41beea21d84be2a3500e8e270f9217b32))
+* **prism-code:** a stress suite for the agent journey, and the ten defects it found ([#695](https://github.com/UOR-Foundation/prismpm/issues/695)) ([8ea4a3b](https://github.com/UOR-Foundation/prismpm/commit/8ea4a3bcd073b9ef3af64246555e53c909bfd8fb))
+
 ## [0.9.1](https://github.com/UOR-Foundation/prismpm/compare/prism-code-v0.9.0...prism-code-v0.9.1) (2026-11-14)
 
 ### Breaking Changes

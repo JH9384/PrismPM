@@ -22,6 +22,21 @@ fn git_with_input(arguments: &[&str], input: &[u8]) -> Result<Vec<u8>, String> {
     Ok(out.stdout)
 }
 
+/// A closure commit is a function of the closure alone: its dates are fixed, so
+/// an image labelled with the closure's revision is reproducible from κ.
+fn git_fixed(arguments: &[&str]) -> Result<Vec<u8>, String> {
+    let out = std::process::Command::new("git")
+        .env("GIT_AUTHOR_DATE", "1970-01-01T00:00:00Z")
+        .env("GIT_COMMITTER_DATE", "1970-01-01T00:00:00Z")
+        .args(arguments)
+        .output()
+        .map_err(|error| format!("git: {error}"))?;
+    if !out.status.success() {
+        return Err(format!("git {} failed: {}", arguments.join(" "), String::from_utf8_lossy(&out.stderr)));
+    }
+    Ok(out.stdout)
+}
+
 fn git_indexed(index: &Path, arguments: &[&str]) -> Result<Vec<u8>, String> {
     let out = std::process::Command::new("git").env("GIT_INDEX_FILE", index).args(arguments).output().map_err(|error| format!("git: {error}"))?;
     if !out.status.success() {
@@ -116,7 +131,7 @@ fn entries_with_base(revision: &str) -> Result<Vec<Entry>, String> {
 
 /// The request: the tree and its base, each context (`@key`), then the lines
 /// `factory.sh` wrote after verifying receipts (`signed`, `trust-repository`,
-/// `trust-maintainer`, `event`).
+/// `trust-maintainer`, `event`, and `output` for what a verified receipt names).
 pub(crate) fn request(options: &Options, verified: Option<&Path>) -> Result<String, String> {
     let entries = entries_with_base(&options.revision)?;
     let mut text = String::new();
@@ -130,7 +145,7 @@ pub(crate) fn request(options: &Options, verified: Option<&Path>) -> Result<Stri
         let lines = fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
         for line in lines.lines() {
             let tag = line.split(' ').next().unwrap_or("");
-            if !matches!(tag, "signed" | "trust-repository" | "trust-maintainer" | "event") {
+            if !matches!(tag, "signed" | "output" | "trust-repository" | "trust-maintainer" | "event") {
                 return Err(format!("{}: unexpected line {line:?}", path.display()));
             }
             text.push_str(line);
@@ -195,7 +210,7 @@ pub(crate) fn prepare(options: &Options) -> Result<bool, String> {
         arguments.extend(identity);
         let message = format!("base of closure {}", item.kappa);
         arguments.extend(["commit-tree", tree.trim(), "-m", &message]);
-        let commit = String::from_utf8(git(&arguments)?).map_err(|_| "git commit-tree")?;
+        let commit = String::from_utf8(git_fixed(&arguments)?).map_err(|_| "git commit-tree")?;
         git(&["-C", &at, "update-ref", "refs/remotes/origin/main", commit.trim()])?;
         git(&["-C", &at, "update-ref", "HEAD", commit.trim()])?;
     }
@@ -204,7 +219,7 @@ pub(crate) fn prepare(options: &Options) -> Result<bool, String> {
     arguments.extend(identity);
     let message = format!("closure {}", item.kappa);
     arguments.extend(["commit", "--quiet", "--allow-empty", "-m", &message]);
-    git(&arguments)?;
+    git_fixed(&arguments)?;
     let beside = |suffix: &str, value: &str| {
         let path = options.work.join(format!("{name}.{suffix}"));
         fs::write(&path, format!("{value}\n")).map_err(|error| format!("{}: {error}", path.display()))

@@ -45,6 +45,7 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -64,6 +65,8 @@ jobs:
           command: factory
           target: ${{ matrix.obligation }}
           context: ${{ steps.closure.outputs.context }}
+        env:
+          PRISMPM_ACTION_REGISTRY_TOKEN: ${{ github.token }}
       - name: Write the receipt
         id: receipt
         env:

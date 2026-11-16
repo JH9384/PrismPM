@@ -92,7 +92,7 @@ if test "$command" = factory; then
   case "$access" in
     sealed) network_args=(--network none) ;;
     pinned) network_args=() ;;
-    daemon)
+    daemon|publish)
       network_args=(--volume /var/run/docker.sock:/var/run/docker.sock --group-add "$(stat -c %g /var/run/docker.sock)")
       # The hosted runner's unused toolchains leave too little disk for images.
       sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup \
@@ -102,8 +102,24 @@ if test "$command" = factory; then
       mkdir -p "$scratch" && chmod 1777 "$scratch"
       scratch_args=(--volume "$scratch:/$sandbox_scratch")
       df -h / >&2
+      # publish: daemon, plus a registry login that may push this
+      # repository's packages by digest, in a Docker config of its own.
+      if test "$access" = publish; then
+        test -n "${PRISMPM_ACTION_REGISTRY_TOKEN:-}" || { printf '%s\n' 'factory: publish access needs a registry token' >&2; exit 2; }
+        docker_config=$RUNNER_TEMP/prism-docker-$target
+        rm -rf "$docker_config" && mkdir -p "$docker_config"
+        # The registry refuses a login now and then; a refusal is retried
+        # before it is taken as the token's.
+        for attempt in 1 2 3 4; do
+          printf '%s' "$PRISMPM_ACTION_REGISTRY_TOKEN" | DOCKER_CONFIG=$docker_config docker login ghcr.io -u "${GITHUB_ACTOR:?}" --password-stdin >/dev/null && break
+          test "$attempt" -lt 4 || { printf '%s\n' 'factory: the registry refused the login four times' >&2; exit 1; }
+          sleep $((attempt * 15))
+        done
+        chmod -R a+rwX "$docker_config"
+        network_args+=(--volume "$docker_config:/prism-docker" --env DOCKER_CONFIG=/prism-docker)
+      fi
       ;;
-    *) printf '%s\n' "factory: access $access is not sealed, pinned or daemon" >&2; exit 2 ;;
+    *) printf '%s\n' "factory: access $access is not sealed, pinned, daemon or publish" >&2; exit 2 ;;
   esac
   status=0
   docker run --rm \
@@ -111,6 +127,7 @@ if test "$command" = factory; then
     --env HOME="/$sandbox_home" \
     --env CARGO_HOME="/$sandbox_home/cargo" \
     --env FACTORY_OBLIGATION="$target" \
+    --env PRISM_OUTPUTS=/work/.prism-outputs \
     --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/work \
     "${scratch_args[@]}" \
     --cap-drop ALL \

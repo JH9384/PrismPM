@@ -278,3 +278,36 @@ fn only_the_model_audits_read_the_base_and_only_its_module_manifest() {
         assert!(!elsewhere.contains(&format!("file {name} @base:")), "{name}");
     }
 }
+
+#[test]
+fn an_output_is_named_only_for_the_identity_a_trusted_pass_proved() {
+    let kappa = kappa_of(&delegated(""), "factory-model");
+    let output = format!("output factory-model {kappa} image ghcr.io/x@sha256:1\n");
+    let proved = delegated(&format!("signed factory-model {kappa} pass workflow runner {FORGE}\n{output}"));
+    assert!(proved.contains("output factory-model image ghcr.io/x@sha256:1\n"));
+    for receipt in [
+        format!("signed factory-model {kappa} fail workflow runner {FORGE}\n"),
+        format!("signed factory-model {kappa} pass anyone runner {FORGE}\n"),
+        format!("signed factory-model {} pass workflow runner {FORGE}\n", "0".repeat(64)),
+        String::new(),
+    ] {
+        let plan = delegated(&format!("{receipt}{output}"));
+        assert!(!plan.contains("output factory-model"), "{receipt}");
+    }
+}
+
+#[test]
+fn a_push_also_establishes_the_two_image_builds_and_a_pull_request_never_does() {
+    let push = String::from_utf8(
+        delegate(format!("{TREE}trust-repository {FORGE}\nevent push\n").as_bytes()).expect("no overflow"),
+    )
+    .expect("UTF-8");
+    let established: Vec<&str> = push.lines().filter(|line| line.starts_with("establish ")).collect();
+    assert_eq!(
+        established,
+        ["establish factory-model", "establish vv-sdk", "establish lint", "establish model-audits", "establish fixtures-golden", "establish devcontainer"]
+    );
+    assert!(push.contains("access vv-sdk publish @sdk\n") && push.contains("access devcontainer publish @sdk\n"));
+    let pull = delegated("");
+    assert!(!pull.contains("establish vv-sdk") && !pull.contains("establish devcontainer"));
+}

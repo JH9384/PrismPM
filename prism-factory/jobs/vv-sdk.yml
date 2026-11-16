@@ -24,32 +24,22 @@
           PUBLISH_CRATES: ${{ toJSON(inputs.publish-crates) }}
           REHEARSAL: ${{ toJSON(inputs.rehearsal) }}
         run: node scripts/release-phases.mjs policy
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-        with:
-          version: v0.28.0
-          driver-opts: image=moby/buildkit@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      # The obligation's own command (prism-factory/obligations/vv-sdk.sh),
+      # which the Prism delegation also runs on a lent runner.
       - name: Build the V&V SDK image once, retrying its fetches
+        env:
+          FACTORY_OBLIGATION: vv-sdk
+          PRISM_SOURCE_REVISION: ${{ github.sha }}
         run: |
           set -euo pipefail
           mkdir "$RUNNER_TEMP/vv-sdk"
-          metadata="$RUNNER_TEMP/vv-sdk-build.json"
-          for attempt in 1 2 3; do
-            rm -f "$metadata"
-            if node scripts/sdk-image-inputs.mjs build . "$GITHUB_SHA" runtime --platform linux/amd64 \
-              --output "type=registry,name=ghcr.io/uor-foundation/prismpm-sdk,push-by-digest=true,name-canonical=true,rewrite-timestamp=true,oci-mediatypes=true" \
-              --metadata-file "$metadata" --provenance=false --sbom=false --build-arg SOURCE_DATE_EPOCH=0; then
-              break
-            fi
-            test "$attempt" -lt 3
-            sleep $((attempt * 120))
-          done
-          digest=$(node scripts/sdk-image-inputs.mjs digest "$metadata")
-          printf 'ghcr.io/uor-foundation/prismpm-sdk@%s\n' "$digest" > "$RUNNER_TEMP/vv-sdk/vv-sdk-image.txt"
+          PRISM_OUTPUTS="$RUNNER_TEMP/vv-sdk-outputs" bash prism-factory/obligations/vv-sdk.sh
+          sed -n 's/^image //p' "$RUNNER_TEMP/vv-sdk-outputs" > "$RUNNER_TEMP/vv-sdk/vv-sdk-image.txt"
           cat "$RUNNER_TEMP/vv-sdk/vv-sdk-image.txt"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

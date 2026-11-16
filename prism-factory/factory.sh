@@ -12,6 +12,7 @@
 #   factory.sh forge-prepare NAME     delegation `establish` job: materialize NAME's closure for the Action
 #   factory.sh forge-receipt NAME     write NAME's receipt from the Action's result
 #   factory.sh forge-bundle NAME      place the receipt's Sigstore bundle beside it
+#   factory.sh forge-output NAME KEY  print what NAME's counted pass built (KEY, e.g. image)
 #   factory.sh forge-report           delegation `report` job: verify every receipt, report the check
 #   factory.sh forge-keep             delegation `keep` job: keep verified receipts on the receipts branch
 #
@@ -126,6 +127,8 @@ forge_verified() {
       read -r _ kappa verdict < "$receipt"
       name=$(sed -n 's/^obligation //p' "$receipt")
       echo "signed $name $kappa $verdict workflow runner $subject" >> "$out"
+      # What the receipt says the obligation built is signed with it.
+      sed -n 's/^output \([a-z][a-z0-9-]*\) \([[:graph:]]*\)$/output '"$name $kappa"' \1 \2/p' "$receipt" >> "$out"
     done
   done
 }
@@ -271,8 +274,26 @@ case "$command" in
       echo "peer runner"
       echo "workflow ${GITHUB_WORKFLOW_REF:-local}"
       echo "run ${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
+      # An obligation names what it built (an image by digest) in its closure's
+      # .prism-outputs, one `KEY VALUE` per line; only a pass names any.
+      if [ "$verdict" = pass ] && [ -f "$work/$name/.prism-outputs" ]; then
+        while read -r key value rest; do
+          [[ "$key" =~ ^[a-z][a-z0-9-]*$ && "$value" =~ ^[[:graph:]]+$ && -z "$rest" ]] || { echo "factory: $name names a malformed output" >&2; exit 65; }
+          echo "output $key $value"
+        done < "$work/$name/.prism-outputs"
+      fi
     } > "$receipt"
     echo "receipt=$receipt" >> "${GITHUB_OUTPUT:-/dev/stdout}"
+    ;;
+  forge-output)
+    # What NAME's counted pass for its current identity built, as KEY names it.
+    name=${2:?usage: factory.sh forge-output NAME KEY}; key=${3:?usage: factory.sh forge-output NAME KEY}
+    build
+    fetch_base
+    fetch_kept
+    value=$(forge_plan | sed -n "s/^output $name $key //p")
+    [ -n "$value" ] || { echo "factory: no counted receipt of $name names $key" >&2; exit 66; }
+    echo "$value"
     ;;
   forge-bundle)
     name=${2:?usage: factory.sh forge-bundle NAME}

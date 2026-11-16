@@ -249,6 +249,22 @@ left out: `bootstrap-verify.sh --check-source` only checks that a full-history
 checkout contains the pinned bootstrap commit, and a closure has no history by
 design (`vv.yml` still runs it on every push to `main`).
 
+The two image builds are carried too: `vv-sdk` (the SDK runtime image the
+source V&V parts run their oracles in) and `devcontainer` (the pinned
+development container, from exactly the paths its Dockerfile copies). Each runs
+`prism-factory/obligations/image.sh`, which builds from the closure with a
+pinned BuildKit and pushes by digest. Their sandbox has `publish` access: the
+runner's daemon plus a registry login of its own. They establish on a push, a
+tag or a dispatch, never for a pull request, whose lane is the factory model
+and its fast checks.
+
+An obligation names what it built in `$PRISM_OUTPUTS`, one `KEY VALUE` per
+line (`image ghcr.io/…@sha256:…`). `forge-receipt` signs those lines into the
+receipt, and the root names an output only for the identity that a trusted pass
+of that obligation proved; `factory.sh forge-output NAME KEY` prints it for a
+consuming job. A closure commit has fixed dates, so its revision, and an image
+labelled with it, is a function of the closure.
+
 A closure is its own Git repository with one commit that tracks exactly the
 closure, so `git ls-files` there lists what the identity covers. A ratchet
 compares the tree with its *base*, the revision's first parent (for a pull

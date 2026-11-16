@@ -23,7 +23,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { gunzipSync } from 'node:zlib';
-import { PROOF_SCHEMA, derivationKey, findProof, kappaStore, keepProof, reuseAdmits } from './kappa-store.mjs';
+import { findProof, kappaStore, keepProof } from './kappa-store.mjs';
+import { PROOF_SCHEMA, derivationKey, guaranteeStatement, reuseAdmits } from './kappa-rules.mjs';
 import { ensureKernel, hasKernel, readKernelFile } from './kernel-store.mjs';
 import { HOLDS, KERNEL_AXIOMS, proofLines, readLibrary } from './kernel-terms.mjs';
 
@@ -176,8 +177,7 @@ export function pinnedAddresses() {
   return { manifest, kernel: `sha256:${manifest.wasm.sha256}`, library: `sha256:${manifest.library.sha256}` };
 }
 
-/** The statement one guarantee's proof is about: the spec's numbers and that guarantee, and nothing of where it sits. */
-export const guaranteeStatement = (words, guarantee) => `sha256:${sha256(JSON.stringify(['prism/kernel-guarantee/1', words, guarantee]))}`;
+export { guaranteeStatement };
 
 /**
  * Lean's kernel judges every guarantee of `spec`. Resolves
@@ -187,7 +187,7 @@ export const guaranteeStatement = (words, guarantee) => `sha256:${sha256(JSON.st
  *
  * A guarantee already proved under the same kernel, library and statement is
  * not proved again: its proof is found by its derivation key and reused when
- * `reuseAdmits` allows (kappa-store.mjs). When every guarantee is found, the
+ * `reuseAdmits` allows (kappa-rules.mjs). When every guarantee is found, the
  * kernel is not opened at all. Throws `KernelUnread` for a spec this route
  * does not read.
  */

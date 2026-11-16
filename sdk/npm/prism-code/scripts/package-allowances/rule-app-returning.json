@@ -1,0 +1,4 @@
+{
+  "kib": 8,
+  "reason": "a rule app's page reuses what this browser already fetched and proved: the OPFS store in journey/kappa-opfs.mjs, the store-agnostic reuse rules moved into journey/kappa-rules.mjs, and the page's reuse in journey/rule-app-site.mjs (about 7.6 KiB)."
+}

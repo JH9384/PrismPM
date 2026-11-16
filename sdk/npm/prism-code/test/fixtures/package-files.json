@@ -65,6 +65,8 @@
   "src/journey/complete.mjs",
   "src/journey/engine.mjs",
   "src/journey/github.mjs",
+  "src/journey/kappa-opfs.mjs",
+  "src/journey/kappa-rules.mjs",
   "src/journey/kappa-store.mjs",
   "src/journey/kernel-prove.mjs",
   "src/journey/kernel-store.mjs",

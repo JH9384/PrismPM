@@ -37,8 +37,10 @@ const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (c) => ({ '&': '&am
 /** The page's script. The admission functions are the ones this package runs, by their own source. */
 function startScript() {
   return `// Written by prism-code. The record decides nothing here: the functions below do, and they are the package's own.
-import { load } from './prism-code/src/browser.mjs';
+import { loadArchive } from './prism-code/src/index.mjs';
 import { HOLDS, KERNEL_AXIOMS, proofLines, readLibrary } from './prism-code/src/journey/kernel-terms.mjs';
+import { PROOF_SCHEMA, derivationKey, guaranteeStatement, reuseAdmits } from './prism-code/src/journey/kappa-rules.mjs';
+import { findProof, keepProof, opfsStore } from './prism-code/src/journey/kappa-opfs.mjs';
 
 const SCHEMA_ONE = 1;
 const WORDS_MAX = 1024;
@@ -59,15 +61,27 @@ const hexWord = (n) => [0, 8, 16, 24].map((k) => ((n >>> k) & 255).toString(16).
 const readWord = (hex) => parseInt(hex.match(/../g).reverse().join(''), 16);
 const sha256 = async (bytes) => 'sha256:' + [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 const $ = (id) => document.getElementById(id);
+// What this browser already fetched and proved, by κ-label. Every read re-derives the label.
+const store = await opfsStore();
+const unpack = async (response) => new Uint8Array(await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+/** Bytes named by a label: from the store when they re-derive to it, else fetched, and kept when they are what the label names. */
+async function named(label, fetchBytes) {
+  const kept = await store.get(label);
+  if (kept) return kept;
+  const bytes = await fetchBytes();
+  if ((await sha256(bytes)) === label) await store.put(bytes);
+  return bytes;
+}
 const say = (id, text, state) => { $(id).textContent = text; if (state) $(id).dataset.state = state; };
 
 async function open() {
   const recordBytes = new Uint8Array(await (await fetch('./app.rule-app.json', { cache: 'no-store' })).arrayBuffer());
   const record = JSON.parse(dec.decode(recordBytes));
-  const holoBytes = new Uint8Array(await (await fetch('./kernel.holo', { cache: 'no-store' })).arrayBuffer());
+  // The guest is loaded from the very bytes that are hashed below, so the bytes checked are the bytes run.
+  const holoBytes = await named(record.kernel.holo, async () => new Uint8Array(await (await fetch('./kernel.holo', { cache: 'no-store' })).arrayBuffer()));
   let kernel = null, verified = 0, failed = 1;
   try {
-    kernel = await load('./kernel.holo');
+    kernel = await loadArchive(holoBytes, { capabilities: null, capabilitySet: undefined, allowUnverified: false });
     verified = kernel.identities && kernel.identities.verified === true ? 1 : 0;
     failed = (await kernel.acceptance()).failed.length;
   } catch (error) { console.error(error); }
@@ -119,12 +133,23 @@ function values(record) {
 
 /**
  * Lean's kernel, here: every guarantee is written as kernel terms and judged in this page. The kernel, its loader and
- * its library are used only when their bytes have the addresses the manifest names. Resolves one answer a guarantee.
+ * its library are used only when their bytes have the addresses the manifest names. A guarantee this browser's kernel
+ * already accepted is not judged again when reuseAdmits allows it: the same key, kernel, library and proof bytes.
+ * When every guarantee is found, the kernel is not fetched or opened at all. Resolves { accepted, reused }.
  */
 async function prove(record) {
-  const unpack = async (file) => new Uint8Array(await new Response((await fetch('./kernel/' + file, { cache: 'no-store' })).body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
   const manifest = await (await fetch('./kernel/manifest.json', { cache: 'no-store' })).json();
-  const [glue, wasm, library] = await Promise.all([manifest.glue.file, manifest.wasm.file, manifest.library.file].map(unpack));
+  const pinned = { kernel: 'sha256:' + manifest.wasm.sha256, library: 'sha256:' + manifest.library.sha256 };
+  const keys = record.guarantees.map((guarantee) => {
+    const statement = guaranteeStatement(record.words, guarantee);
+    return { statement, key: derivationKey(PROOF_SCHEMA, [pinned.kernel, pinned.library, statement]) };
+  });
+  const found = await Promise.all(keys.map(({ key }) => findProof(store, { key, kernel: pinned.kernel, library: pinned.library })));
+  const reusable = found.map((f) => reuseAdmits(f.facts));
+  const holds = (axioms) => Array.isArray(axioms) && axioms.every((a) => KERNEL_AXIOMS.includes(a));
+  if (reusable.every(Boolean)) return { accepted: found.map((f) => holds(f.proof.axioms)), reused: found.length };
+  const file = (entry) => named('sha256:' + entry.sha256, async () => unpack(await fetch('./kernel/' + entry.file, { cache: 'no-store' })));
+  const [glue, wasm, library] = await Promise.all([manifest.glue, manifest.wasm, manifest.library].map(file));
   const [g, w, l] = (await Promise.all([glue, wasm, library].map(sha256))).map((label) => label.slice(7));
   if (g !== manifest.glue.sha256 || w !== manifest.wasm.sha256 || l !== manifest.library.sha256) throw new Error('the kernel, its loader or its library is not the pinned one');
   const b = manifest.binding;
@@ -148,11 +173,17 @@ async function prove(record) {
   if (module.ccall('checker_ready', 'number', [], []) !== 0) throw new Error('the kernel did not start');
   if (run('load_library', library).exit !== 0) throw new Error('the kernel refused its library');
   const lib = readLibrary(dec.decode(library));
-  return record.guarantees.map((guarantee) => {
-    const r = run('check_suffix', enc.encode(proofLines(lib, record.words, guarantee)));
+  const accepted = [];
+  for (const [i, guarantee] of record.guarantees.entries()) {
+    if (reusable[i]) { accepted.push(holds(found[i].proof.axioms)); continue; }
+    const text = proofLines(lib, record.words, guarantee);
+    const r = run('check_suffix', enc.encode(text));
     const axioms = r.axioms[HOLDS] || null;
-    return r.exit === 0 && axioms !== null && axioms.every((a) => KERNEL_AXIOMS.includes(a));
-  });
+    // Only an accepted proof is kept: a refusal carries no bytes that could be checked again.
+    if (r.exit === 0 && axioms !== null) await keepProof(store, { key: keys[i].key, kernel: 'sha256:' + w, library: 'sha256:' + l, statement: keys[i].statement, text, axioms });
+    accepted.push(r.exit === 0 && holds(axioms));
+  }
+  return { accepted, reused: reusable.filter(Boolean).length };
 }
 
 const app = await open();
@@ -198,10 +229,11 @@ if (!admits(app.facts)) {
     setTimeout(async () => {
       const started = performance.now();
       try {
-        const accepted = await prove(app.record);
+        const { accepted, reused } = await prove(app.record);
         const all = accepted.every(Boolean);
-        window.prismRuleApp.proved = { accepted, ms: Math.round(performance.now() - started) };
-        say('status', (all ? 'Proved here by Lean\\'s kernel, in this browser: ' + count + ' guarantee' + (count === 1 ? ' holds' : 's hold') + ' for every request in the bounds. ' : 'Lean\\'s kernel, in this browser, did not accept ' + accepted.filter((a) => !a).length + ' of ' + count + ' guarantees. ') + tail, all ? 'checked' : 'refused');
+        window.prismRuleApp.proved = { accepted, reused, ms: Math.round(performance.now() - started) };
+        const earlier = reused === 0 ? '' : (reused === count ? 'All' : reused + ' of them') + ' were proved on an earlier visit, under this same kernel and library, and are not proved again. ';
+        say('status', (all ? 'Proved here by Lean\\'s kernel, in this browser: ' + count + ' guarantee' + (count === 1 ? ' holds' : 's hold') + ' for every request in the bounds. ' + earlier : 'Lean\\'s kernel, in this browser, did not accept ' + accepted.filter((a) => !a).length + ' of ' + count + ' guarantees. ') + tail, all ? 'checked' : 'refused');
       } catch (error) {
         window.prismRuleApp.proved = { error: String(error && error.message ? error.message : error) };
         say('status', 'Lean\\'s kernel could not run in this browser, so the guarantees are not proved here. ' + tail, 'unchecked');
@@ -273,7 +305,7 @@ export function writeRuleAppSite(directory, recordBytes, { holo = null } = {}) {
   ]);
   for (const file of browserClosure()) files.set(`prism-code/src/${file}`, readFileSync(join(SRC, file)));
   // Lean's kernel, its library and the writer of the proof terms, so the page proves the guarantees itself.
-  files.set('prism-code/src/journey/kernel-terms.mjs', readFileSync(join(SRC, 'journey', 'kernel-terms.mjs')));
+  for (const name of ['kernel-terms.mjs', 'kappa-rules.mjs', 'kappa-opfs.mjs']) files.set(`prism-code/src/journey/${name}`, readFileSync(join(SRC, 'journey', name)));
   files.set('kernel/manifest.json', readFileSync(join(SRC, 'journey', 'kernel', 'manifest.json')));
   for (const name of ['lean-kernel.mjs.gz', 'lean-kernel.wasm.gz', 'library.ndjson.gz']) files.set(`kernel/${name}`, Buffer.from(readKernelFile(name)));
   for (const [path, bytes] of files) {

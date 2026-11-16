@@ -3124,20 +3124,39 @@ fn verify_rp_04(root: &Path) {
         ".devcontainer/Dockerfile",
         &["rustup-init", "sha256sum -c", "leanprover/lean4:v4.32.1"],
     );
-    let workflow = read(root, ".github/workflows/vv.yml");
-    assert!(workflow.contains("actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"));
-    assert!(workflow.contains("runCmd: |"));
-    assert_eq!(
-        workflow
-            .matches("-- just vv-part ${{ matrix.part }}")
-            .count(),
-        1,
-        "the main-push workflow must run each verification part exactly once"
-    );
+    // The main-push verification is the Prism factory's: one carried
+    // obligation per part, each running `just vv-part PART` once in the
+    // devcontainer image the factory built (prism-factory/obligations/vv-part.sh).
+    assert!(!root.join(".github/workflows/vv.yml").exists());
+    let model = read(root, "prism-factory/model/src/Factory/PrismPM.lex.tex");
+    let parts = read(root, "scripts/vv-assemble.mjs");
+    assert!(parts.contains(
+        "export const parts = Object.freeze(['conformance', 'dk-0-1', 'dk-2', 'dk-3', 'gates', 'ho-oc', 'source', 'st-sy']);"
+    ));
+    for part in [
+        "conformance",
+        "dk-0-1",
+        "dk-2",
+        "dk-3",
+        "gates",
+        "ho-oc",
+        "source",
+        "st-sy",
+    ] {
+        assert_eq!(
+            model
+                .matches(&format!(
+                    "\"bash prism-factory/obligations/vv-part.sh {part}\""
+                ))
+                .count(),
+            1,
+            "the factory must carry each verification part exactly once"
+        );
+    }
+    let run = read(root, "prism-factory/obligations/vv-part.sh");
     assert!(
-        workflow.contains("part: [source, gates, conformance, ho-oc, st-sy, dk-0-1, dk-2, dk-3]")
+        run.contains("bash scripts/vv.sh --with-sdk bash -euo pipefail -c \"just vv-part $part\"")
     );
-    assert!(workflow.contains("node scripts/vv-assemble.mjs"));
 }
 
 fn verify_rp_05(root: &Path) {

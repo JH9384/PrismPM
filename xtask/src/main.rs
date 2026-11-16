@@ -398,7 +398,6 @@ fn audit_all(root: &Path) -> Result<(), Fail> {
             "scripts/qualify-osv.test.mjs",
             "scripts/ci-observe.test.mjs",
             "scripts/ci-disk-components.test.mjs",
-            "scripts/ci-disk-checkpoint.test.mjs",
             "scripts/vv-assemble.test.mjs",
             "scripts/ci-capacity.test.mjs",
             "scripts/vv-sdk-session.test.mjs",

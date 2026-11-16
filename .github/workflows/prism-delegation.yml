@@ -17,7 +17,7 @@ permissions:
   contents: read
 concurrency:
   group: prism-delegation-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   plan:
     runs-on: ubuntu-24.04
@@ -36,6 +36,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash prism-factory/factory.sh forge-plan
+      - name: Hand the verified receipts to this wave's lent runners
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: verified-1
+          path: target/factory/verified
   establish:
     needs: [plan]
     if: ${{ needs.plan.outputs.establish != '[]' }}
@@ -54,10 +59,15 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           submodules: false
+      - name: Collect the receipts this wave was planned with
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: verified-1
+          path: target/factory
       - name: Materialize the obligation's closure
         id: closure
         run: bash prism-factory/factory.sh forge-prepare ${{ matrix.obligation }}
-      - name: Establish the obligation in the immutable SDK image
+      - name: Establish the obligation in its sandbox image
         id: establish
         uses: ./action
         with:
@@ -86,8 +96,93 @@ jobs:
         with:
           name: receipt-${{ matrix.obligation }}
           path: target/factory/fresh/${{ matrix.obligation }}
-  report:
+  plan-2:
     needs: [plan, establish]
+    if: ${{ always() && needs.plan.result == 'success' && needs.establish.result != 'skipped' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      establish: ${{ steps.plan.outputs.establish }}
+      sdk-image: ${{ steps.plan.outputs.sdk-image }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: false
+      - name: Collect the receipts the earlier waves established
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: receipt-*
+          path: target/factory/fresh
+          merge-multiple: true
+      - name: Identify every obligation and count its receipts
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash prism-factory/factory.sh forge-plan
+      - name: Hand the verified receipts to this wave's lent runners
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: verified-2
+          path: target/factory/verified
+  establish-2:
+    needs: [plan-2]
+    if: ${{ always() && needs.plan-2.result == 'success' && needs.plan-2.outputs.establish != '[]' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        obligation: ${{ fromJSON(needs.plan-2.outputs.establish) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: false
+      - name: Collect the receipts this wave was planned with
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: verified-2
+          path: target/factory
+      - name: Materialize the obligation's closure
+        id: closure
+        run: bash prism-factory/factory.sh forge-prepare ${{ matrix.obligation }}
+      - name: Establish the obligation in its sandbox image
+        id: establish
+        uses: ./action
+        with:
+          sdk-image: ${{ needs.plan-2.outputs.sdk-image }}
+          command: factory
+          target: ${{ matrix.obligation }}
+          context: ${{ steps.closure.outputs.context }}
+        env:
+          PRISMPM_ACTION_REGISTRY_TOKEN: ${{ github.token }}
+      - name: Write the receipt
+        id: receipt
+        env:
+          FACTORY_RESULT: ${{ steps.establish.outputs.result }}
+        run: bash prism-factory/factory.sh forge-receipt ${{ matrix.obligation }}
+      - name: Sign the receipt keylessly
+        id: sign
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a
+        with:
+          subject-path: ${{ steps.receipt.outputs.receipt }}
+      - name: Place the bundle beside the receipt
+        env:
+          FACTORY_BUNDLE: ${{ steps.sign.outputs.bundle-path }}
+        run: bash prism-factory/factory.sh forge-bundle ${{ matrix.obligation }}
+      - name: Hand the receipt and its bundle to the forge
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: receipt-${{ matrix.obligation }}
+          path: target/factory/fresh/${{ matrix.obligation }}
+  report:
+    needs: [plan, establish, plan-2, establish-2]
     if: ${{ always() && needs.plan.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10

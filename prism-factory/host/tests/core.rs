@@ -52,8 +52,11 @@ fn the_plumbing_is_outside_source_vv_and_the_build_reads_only_its_own() {
     assert_eq!(route(&before, "source-vv").1, route(&factory, "source-vv").1);
     assert_eq!(route(&before, "build").1, route(&factory, "build").1);
     // release-phases.mjs is plumbing the build executes: a longer include wins over the exclusion.
+    // The SDK image carries it too, because the SBOM tests that run inside the image import it,
+    // so vv-sdk reads it and source V&V, which runs in that image, follows.
     let phases = planned(&TREE.replace("cccc scripts", "cdef scripts"));
-    assert_eq!(route(&before, "source-vv").1, route(&phases, "source-vv").1);
+    assert_ne!(route(&before, "vv-sdk").1, route(&phases, "vv-sdk").1);
+    assert_ne!(route(&before, "source-vv").1, route(&phases, "source-vv").1);
     assert_ne!(route(&before, "build").1, route(&phases, "build").1);
 }
 
@@ -310,4 +313,38 @@ fn a_push_also_establishes_the_two_image_builds_and_a_pull_request_never_does() 
     assert!(push.contains("access vv-sdk publish @sdk\n") && push.contains("access devcontainer publish @sdk\n"));
     let pull = delegated("");
     assert!(!pull.contains("establish vv-sdk") && !pull.contains("establish devcontainer"));
+}
+
+#[test]
+fn a_verification_part_waits_for_its_images_then_runs_in_the_devcontainer_its_need_built() {
+    let push = |extra: &str| {
+        String::from_utf8(delegate(format!("{TREE}trust-repository {FORGE}\nevent push\n{extra}").as_bytes()).expect("no overflow")).expect("UTF-8")
+    };
+    let first = push("");
+    let kappa = |plan: &str, name: &str| {
+        plan.lines().find_map(|line| line.strip_prefix(&format!("obligation {name} ")).map(|rest| rest.split(' ').nth(1).unwrap_or("").to_string())).expect(name)
+    };
+    // Wave one: the parts wait for the two image builds.
+    assert!(first.contains("obligation vv-source blocked "), "{first}");
+    assert!(!first.contains("establish vv-source") && !first.contains("image vv-source") && !first.contains("upstream vv-source"));
+    // Wave two: both builds passed and named their images.
+    let (sdk, container) = (kappa(&first, "vv-sdk"), kappa(&first, "devcontainer"));
+    let receipts = format!(
+        "signed vv-sdk {sdk} pass workflow runner {FORGE}\noutput vv-sdk {sdk} image ghcr.io/uor-foundation/prismpm-sdk@sha256:{a}\n\
+         signed devcontainer {container} pass workflow runner {FORGE}\noutput devcontainer {container} image ghcr.io/uor-foundation/prismpm-devcontainer@sha256:{b}\n\
+         attempted vv-sdk\nattempted devcontainer\n",
+        a = "a".repeat(64),
+        b = "b".repeat(64)
+    );
+    let second = push(&receipts);
+    for part in ["conformance", "dk-0-1", "dk-2", "dk-3", "gates", "ho-oc", "source", "st-sy"] {
+        assert!(second.contains(&format!("establish vv-{part}\n")), "{part}");
+        assert!(second.contains(&format!("access vv-{part} daemon @devcontainer\n")), "{part}");
+        assert!(second.contains(&format!("image vv-{part} ghcr.io/uor-foundation/prismpm-devcontainer@sha256:{}\n", "b".repeat(64))), "{part}");
+        assert!(second.contains(&format!("upstream vv-{part} vv-sdk image ghcr.io/uor-foundation/prismpm-sdk@sha256:{}\n", "a".repeat(64))), "{part}");
+    }
+    // What an earlier wave of this run attempted is not established again.
+    assert!(!second.contains("establish vv-sdk\n") && !second.contains("establish devcontainer\n"));
+    let failed = push(&format!("signed vv-sdk {sdk} fail workflow runner {FORGE}\nattempted vv-sdk\n"));
+    assert!(!failed.contains("establish vv-sdk\n"));
 }

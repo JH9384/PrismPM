@@ -1459,12 +1459,16 @@ copy bytes and metadata allowance is required. Initialization failure or
 interruption prohibits generation. Both golden commands remain network-disabled,
 locked and offline; no caller cache, dependency refresh or host compiler is used.
 
-Hosted CI qualifies each head once, where it matters. Every pull request, whatever
-its base, runs one fast set of at most three jobs (format, lint and dependency
-policy; model and audits; fixtures and reviewed goldens), each with a timeout and
+Hosted CI qualifies each content identity once, where it matters, through the
+Prism factory's delegation (`prism-factory`): an obligation runs on a lent runner
+only when no counted receipt exists for its identity. Every pull request, whatever
+its base, establishes the factory model and one fast set of three checks (format,
+lint and dependency policy; model and audits; fixtures and reviewed goldens),
 superseded by the next push to the same pull request. The complete 15 gates, as
-separate parts, execute once per main push, and on request for any head; it is
-not repeated for an unchanged head, and no consecutive second pass is required.
+the eight separate parts, execute on main pushes, release branches, tags and on
+request, in the devcontainer image and against the SDK image the factory built;
+they are not repeated for an unchanged identity, and no consecutive second pass
+is required.
 Dual-architecture native source review runs on main pushes and release tags, and
 the standalone two-root reproducibility comparison runs nightly on main. Release
 evidence requirements are unchanged and are stated with the release gates.

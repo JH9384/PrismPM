@@ -75,7 +75,8 @@ structure{
     {name: umask, type: String},
     {name: home, type: String},
     {name: scratch, type: String},
-    {name: network, type: Access}
+    {name: network, type: Access},
+    {name: from, type: String}
   ]
 }
 
@@ -83,7 +84,15 @@ definition{
   name: sandbox,
   parameters: [image : String, network : Access],
   result: Sandbox,
-  body: (record Sandbox {image := image, user := "1000:1000", umask := "0022", home := "tmp/prismpm-home", scratch := "tmp", network := network}),
+  body: (record Sandbox {image := image, user := "1000:1000", umask := "0022", home := "tmp/prismpm-home", scratch := "tmp", network := network, from := ""}),
+  executable: true
+}
+
+definition{
+  name: built,
+  parameters: [image : String, from : String, network : Access],
+  result: Sandbox,
+  body: (record Sandbox {image := image, user := "1000:1000", umask := "0022", home := "tmp/prismpm-home", scratch := "tmp", network := network, from := from}),
   executable: true
 }
 
@@ -91,7 +100,7 @@ definition{
   name: sandboxes,
   parameters: [],
   result: (List (String * Sandbox)),
-  body: (cons ("policy", (sandbox "@sdk" (ctor Access.sealed))) (cons ("factory-model", (sandbox "@sdk" (ctor Access.pinned))) (cons ("plumbing", (sandbox "@sdk" (ctor Access.pinned))) (cons ("vv-sdk", (sandbox "@sdk" (ctor Access.publish))) (cons ("source-vv", (sandbox "@vv-sdk" (ctor Access.sealed))) (cons ("build", (sandbox "@sdk" (ctor Access.pinned))) (cons ("gate", (sandbox "@vv-sdk" (ctor Access.sealed))) (cons ("oci-native", (sandbox "@build" (ctor Access.pinned))) (cons ("crates", (sandbox "@build" (ctor Access.pinned))) (cons ("release", (sandbox "@build" (ctor Access.pinned))) (cons ("lint", (sandbox "@sdk" (ctor Access.pinned))) (cons ("model-audits", (sandbox "@sdk" (ctor Access.daemon))) (cons ("fixtures-golden", (sandbox "@sdk" (ctor Access.pinned))) (cons ("devcontainer", (sandbox "@sdk" (ctor Access.publish))) (nil (String * Sandbox)))))))))))))))),
+  body: (cons ("policy", (sandbox "@sdk" (ctor Access.sealed))) (cons ("factory-model", (sandbox "@sdk" (ctor Access.pinned))) (cons ("plumbing", (sandbox "@sdk" (ctor Access.pinned))) (cons ("vv-sdk", (sandbox "@sdk" (ctor Access.publish))) (cons ("source-vv", (sandbox "@vv-sdk" (ctor Access.sealed))) (cons ("build", (sandbox "@sdk" (ctor Access.pinned))) (cons ("gate", (sandbox "@vv-sdk" (ctor Access.sealed))) (cons ("oci-native", (sandbox "@build" (ctor Access.pinned))) (cons ("crates", (sandbox "@build" (ctor Access.pinned))) (cons ("release", (sandbox "@build" (ctor Access.pinned))) (cons ("lint", (sandbox "@sdk" (ctor Access.pinned))) (cons ("model-audits", (sandbox "@sdk" (ctor Access.daemon))) (cons ("fixtures-golden", (sandbox "@sdk" (ctor Access.pinned))) (cons ("devcontainer", (sandbox "@sdk" (ctor Access.publish))) (cons ("vv-conformance", (built "@devcontainer" "devcontainer" (ctor Access.daemon))) (cons ("vv-dk-0-1", (built "@devcontainer" "devcontainer" (ctor Access.daemon))) (cons ("vv-dk-2", (built "@devcontainer" "devcontainer" (ctor Access.daemon))) (cons ("vv-dk-3", (built "@devcontainer" "devcontainer" (ctor Access.daemon))) (cons ("vv-gates", (built "@devcontainer" "devcontainer" (ctor Access.daemon))) (cons ("vv-ho-oc", (built "@devcontainer" "devcontainer" (ctor Access.daemon))) (cons ("vv-source", (built "@devcontainer" "devcontainer" (ctor Access.daemon))) (cons ("vv-st-sy", (built "@devcontainer" "devcontainer" (ctor Access.daemon))) (nil (String * Sandbox)))))))))))))))))))))))),
   executable: true
 }
 
@@ -176,10 +185,18 @@ definition{
 }
 
 definition{
+  name: verificationGraph,
+  parameters: [],
+  result: (List Factory.Engine::Obligation),
+  body: (delegated (Factory.PrismPM::verification)),
+  executable: true
+}
+
+definition{
   name: whole,
   parameters: [],
   result: (List Factory.Engine::Obligation),
-  body: (prim append (prim append (graph) (checkGraph) : (List Factory.Engine::Obligation)) (imageGraph) : (List Factory.Engine::Obligation)),
+  body: (prim append (prim append (prim append (graph) (checkGraph) : (List Factory.Engine::Obligation)) (imageGraph) : (List Factory.Engine::Obligation)) (verificationGraph) : (List Factory.Engine::Obligation)),
   executable: true
 }
 
@@ -205,7 +222,7 @@ definition{
   name: carried,
   parameters: [],
   result: (List String),
-  body: (cons "factory-model" (cons "vv-sdk" (cons "lint" (cons "model-audits" (cons "fixtures-golden" (cons "devcontainer" (nil String))))))),
+  body: (cons "factory-model" (cons "vv-sdk" (cons "lint" (cons "model-audits" (cons "fixtures-golden" (cons "devcontainer" (cons "vv-conformance" (cons "vv-dk-0-1" (cons "vv-dk-2" (cons "vv-dk-3" (cons "vv-gates" (cons "vv-ho-oc" (cons "vv-source" (cons "vv-st-sy" (nil String))))))))))))))),
   executable: true
 }
 
@@ -214,6 +231,46 @@ definition{
   parameters: [wanted : String],
   result: Bool,
   body: (Factory.Engine::member wanted (carried)),
+  executable: true
+}
+
+definition{
+  name: depthIn,
+  parameters: [wanted : String, table : (List (String * Nat))],
+  result: Nat,
+  body: (prim list_fold (fun [wanted] (sofar : Nat) (entry : (String * Nat)) => (if (prim equal (first entry) wanted : Bool) then (second entry) else sofar)) 0 table : Nat),
+  executable: true
+}
+
+definition{
+  name: deeper,
+  parameters: [left : Nat, right : Nat],
+  result: Nat,
+  body: (if (left <=? right) then right else left),
+  executable: true
+}
+
+definition{
+  name: depths,
+  parameters: [],
+  result: (List (String * Nat)),
+  body: (prim list_fold (fun (table : (List (String * Nat))) (item : Factory.Engine::Obligation) => (if (isCarried (project item name)) then (prim append table (cons ((project item name), ((prim list_fold (fun [table] (sofar : Nat) (need : String) => (deeper sofar (depthIn need table))) 0 (project item needs) : Nat) + 1)) (nil (String * Nat))) : (List (String * Nat))) else table)) (nil (String * Nat)) (whole) : (List (String * Nat))),
+  executable: true
+}
+
+definition{
+  name: waves,
+  parameters: [],
+  result: Nat,
+  body: (prim list_fold (fun (sofar : Nat) (entry : (String * Nat)) => (deeper sofar (second entry))) 0 (depths) : Nat),
+  executable: true
+}
+
+definition{
+  name: carriedNeedsCarried,
+  parameters: [],
+  result: Bool,
+  body: (prim list_fold (fun (sofar : Bool) (item : Factory.Engine::Obligation) => (sofar && ((not (isCarried (project item name))) || (Factory.Engine::subset (project item needs) (carried))))) true (whole) : Bool),
   executable: true
 }
 
@@ -669,7 +726,7 @@ definition{
   name: forgeJobs,
   parameters: [],
   result: (List ForgeJob),
-  body: (cons (record ForgeJob {name := "plan", place := (ctor Place.forge), needs := (nil String), condition := "", timeout := 10, grants := (cons (record Grant {scope := "contents", access := "read"}) (nil Grant)), secrets := (nil String), duties := (cons (ctor Duty.trigger) (cons (ctor Duty.checkout) (cons (ctor Duty.identify) (cons (ctor Duty.verify) (nil Duty))))), matrix := "", outputs := (cons ("establish", "${{ steps.plan.outputs.establish }}") (cons ("sdk-image", "${{ steps.plan.outputs.sdk-image }}") (nil (String * String)))), steps := (cons (record Step {label := "Identify every obligation and count its receipts", key := "plan", action := "", command := "bash prism-factory/factory.sh forge-plan", inputs := (nil (String * String)), environment := (cons ("GH_TOKEN", "${{ github.token }}") (nil (String * String)))}) (nil Step))}) (cons (record ForgeJob {name := "establish", place := (ctor Place.peer), needs := (cons "plan" (nil String)), condition := "${{ needs.plan.outputs.establish != '[]' }}", timeout := 360, grants := (cons (record Grant {scope := "contents", access := "read"}) (cons (record Grant {scope := "id-token", access := "write"}) (cons (record Grant {scope := "attestations", access := "write"}) (cons (record Grant {scope := "packages", access := "write"}) (nil Grant))))), secrets := (nil String), duties := (cons (ctor Duty.execute) (cons (ctor Duty.fetch) (cons (ctor Duty.sign) (nil Duty)))), matrix := "${{ fromJSON(needs.plan.outputs.establish) }}", outputs := (nil (String * String)), steps := (cons (record Step {label := "Materialize the obligation's closure", key := "closure", action := "", command := "bash prism-factory/factory.sh forge-prepare ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (nil (String * String))}) (cons (record Step {label := "Establish the obligation in the immutable SDK image", key := "establish", action := "./action", command := "", inputs := (cons ("sdk-image", "${{ needs.plan.outputs.sdk-image }}") (cons ("command", "factory") (cons ("target", "${{ matrix.obligation }}") (cons ("context", "${{ steps.closure.outputs.context }}") (nil (String * String)))))), environment := (cons ("PRISMPM_ACTION_REGISTRY_TOKEN", "${{ github.token }}") (nil (String * String)))}) (cons (record Step {label := "Write the receipt", key := "receipt", action := "", command := "bash prism-factory/factory.sh forge-receipt ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (cons ("FACTORY_RESULT", "${{ steps.establish.outputs.result }}") (nil (String * String)))}) (cons (record Step {label := "Sign the receipt keylessly", key := "sign", action := "actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a", command := "", inputs := (cons ("subject-path", "${{ steps.receipt.outputs.receipt }}") (nil (String * String))), environment := (nil (String * String))}) (cons (record Step {label := "Place the bundle beside the receipt", key := "", action := "", command := "bash prism-factory/factory.sh forge-bundle ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (cons ("FACTORY_BUNDLE", "${{ steps.sign.outputs.bundle-path }}") (nil (String * String)))}) (cons (record Step {label := "Hand the receipt and its bundle to the forge", key := "", action := "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", command := "", inputs := (cons ("name", "receipt-${{ matrix.obligation }}") (cons ("path", "target/factory/fresh/${{ matrix.obligation }}") (nil (String * String)))), environment := (nil (String * String))}) (nil Step)))))))}) (cons (record ForgeJob {name := "report", place := (ctor Place.forge), needs := (cons "plan" (cons "establish" (nil String))), condition := "${{ always() && needs.plan.result == 'success' }}", timeout := 10, grants := (cons (record Grant {scope := "contents", access := "read"}) (cons (record Grant {scope := "statuses", access := "write"}) (nil Grant))), secrets := (nil String), duties := (cons (ctor Duty.checkout) (cons (ctor Duty.identify) (cons (ctor Duty.verify) (cons (ctor Duty.report) (nil Duty))))), matrix := "", outputs := (nil (String * String)), steps := (cons (record Step {label := "Collect the receipts the peers established", key := "", action := "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", command := "", inputs := (cons ("pattern", "receipt-*") (cons ("path", "target/factory/fresh") (cons ("merge-multiple", "true") (nil (String * String))))), environment := (nil (String * String))}) (cons (record Step {label := "Verify every receipt and report the check", key := "", action := "", command := "bash prism-factory/factory.sh forge-report", inputs := (nil (String * String)), environment := (cons ("GH_TOKEN", "${{ github.token }}") (nil (String * String)))}) (nil Step)))}) (cons (record ForgeJob {name := "keep", place := (ctor Place.store), needs := (cons "report" (nil String)), condition := "${{ always() && needs.report.result != 'skipped' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}", timeout := 10, grants := (cons (record Grant {scope := "contents", access := "write"}) (nil Grant)), secrets := (nil String), duties := (cons (ctor Duty.keep) (nil Duty)), matrix := "", outputs := (nil (String * String)), steps := (cons (record Step {label := "Collect the receipts the peers established", key := "", action := "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", command := "", inputs := (cons ("pattern", "receipt-*") (cons ("path", "target/factory/fresh") (cons ("merge-multiple", "true") (nil (String * String))))), environment := (nil (String * String))}) (cons (record Step {label := "Keep every verified receipt on the receipts branch", key := "", action := "", command := "bash prism-factory/factory.sh forge-keep", inputs := (nil (String * String)), environment := (cons ("GH_TOKEN", "${{ github.token }}") (nil (String * String)))}) (nil Step)))}) (nil ForgeJob))))),
+  body: (cons (record ForgeJob {name := "plan", place := (ctor Place.forge), needs := (nil String), condition := "", timeout := 10, grants := (cons (record Grant {scope := "contents", access := "read"}) (nil Grant)), secrets := (nil String), duties := (cons (ctor Duty.trigger) (cons (ctor Duty.checkout) (cons (ctor Duty.identify) (cons (ctor Duty.verify) (nil Duty))))), matrix := "", outputs := (cons ("establish", "${{ steps.plan.outputs.establish }}") (cons ("sdk-image", "${{ steps.plan.outputs.sdk-image }}") (nil (String * String)))), steps := (cons (record Step {label := "Identify every obligation and count its receipts", key := "plan", action := "", command := "bash prism-factory/factory.sh forge-plan", inputs := (nil (String * String)), environment := (cons ("GH_TOKEN", "${{ github.token }}") (nil (String * String)))}) (cons (record Step {label := "Hand the verified receipts to this wave's lent runners", key := "", action := "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", command := "", inputs := (cons ("name", "verified-1") (cons ("path", "target/factory/verified") (nil (String * String)))), environment := (nil (String * String))}) (nil Step)))}) (cons (record ForgeJob {name := "establish", place := (ctor Place.peer), needs := (cons "plan" (nil String)), condition := "${{ needs.plan.outputs.establish != '[]' }}", timeout := 360, grants := (cons (record Grant {scope := "contents", access := "read"}) (cons (record Grant {scope := "id-token", access := "write"}) (cons (record Grant {scope := "attestations", access := "write"}) (cons (record Grant {scope := "packages", access := "write"}) (nil Grant))))), secrets := (nil String), duties := (cons (ctor Duty.execute) (cons (ctor Duty.fetch) (cons (ctor Duty.sign) (nil Duty)))), matrix := "${{ fromJSON(needs.plan.outputs.establish) }}", outputs := (nil (String * String)), steps := (cons (record Step {label := "Collect the receipts this wave was planned with", key := "", action := "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", command := "", inputs := (cons ("name", "verified-1") (cons ("path", "target/factory") (nil (String * String)))), environment := (nil (String * String))}) (cons (record Step {label := "Materialize the obligation's closure", key := "closure", action := "", command := "bash prism-factory/factory.sh forge-prepare ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (nil (String * String))}) (cons (record Step {label := "Establish the obligation in its sandbox image", key := "establish", action := "./action", command := "", inputs := (cons ("sdk-image", "${{ needs.plan.outputs.sdk-image }}") (cons ("command", "factory") (cons ("target", "${{ matrix.obligation }}") (cons ("context", "${{ steps.closure.outputs.context }}") (nil (String * String)))))), environment := (cons ("PRISMPM_ACTION_REGISTRY_TOKEN", "${{ github.token }}") (nil (String * String)))}) (cons (record Step {label := "Write the receipt", key := "receipt", action := "", command := "bash prism-factory/factory.sh forge-receipt ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (cons ("FACTORY_RESULT", "${{ steps.establish.outputs.result }}") (nil (String * String)))}) (cons (record Step {label := "Sign the receipt keylessly", key := "sign", action := "actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a", command := "", inputs := (cons ("subject-path", "${{ steps.receipt.outputs.receipt }}") (nil (String * String))), environment := (nil (String * String))}) (cons (record Step {label := "Place the bundle beside the receipt", key := "", action := "", command := "bash prism-factory/factory.sh forge-bundle ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (cons ("FACTORY_BUNDLE", "${{ steps.sign.outputs.bundle-path }}") (nil (String * String)))}) (cons (record Step {label := "Hand the receipt and its bundle to the forge", key := "", action := "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", command := "", inputs := (cons ("name", "receipt-${{ matrix.obligation }}") (cons ("path", "target/factory/fresh/${{ matrix.obligation }}") (nil (String * String)))), environment := (nil (String * String))}) (nil Step))))))))}) (cons (record ForgeJob {name := "plan-2", place := (ctor Place.forge), needs := (cons "plan" (cons "establish" (nil String))), condition := "${{ always() && needs.plan.result == 'success' && needs.establish.result != 'skipped' }}", timeout := 10, grants := (cons (record Grant {scope := "contents", access := "read"}) (nil Grant)), secrets := (nil String), duties := (cons (ctor Duty.checkout) (cons (ctor Duty.identify) (cons (ctor Duty.verify) (nil Duty)))), matrix := "", outputs := (cons ("establish", "${{ steps.plan.outputs.establish }}") (cons ("sdk-image", "${{ steps.plan.outputs.sdk-image }}") (nil (String * String)))), steps := (cons (record Step {label := "Collect the receipts the earlier waves established", key := "", action := "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", command := "", inputs := (cons ("pattern", "receipt-*") (cons ("path", "target/factory/fresh") (cons ("merge-multiple", "true") (nil (String * String))))), environment := (nil (String * String))}) (cons (record Step {label := "Identify every obligation and count its receipts", key := "plan", action := "", command := "bash prism-factory/factory.sh forge-plan", inputs := (nil (String * String)), environment := (cons ("GH_TOKEN", "${{ github.token }}") (nil (String * String)))}) (cons (record Step {label := "Hand the verified receipts to this wave's lent runners", key := "", action := "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", command := "", inputs := (cons ("name", "verified-2") (cons ("path", "target/factory/verified") (nil (String * String)))), environment := (nil (String * String))}) (nil Step))))}) (cons (record ForgeJob {name := "establish-2", place := (ctor Place.peer), needs := (cons "plan-2" (nil String)), condition := "${{ always() && needs.plan-2.result == 'success' && needs.plan-2.outputs.establish != '[]' }}", timeout := 360, grants := (cons (record Grant {scope := "contents", access := "read"}) (cons (record Grant {scope := "id-token", access := "write"}) (cons (record Grant {scope := "attestations", access := "write"}) (cons (record Grant {scope := "packages", access := "write"}) (nil Grant))))), secrets := (nil String), duties := (cons (ctor Duty.execute) (cons (ctor Duty.fetch) (cons (ctor Duty.sign) (nil Duty)))), matrix := "${{ fromJSON(needs.plan-2.outputs.establish) }}", outputs := (nil (String * String)), steps := (cons (record Step {label := "Collect the receipts this wave was planned with", key := "", action := "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", command := "", inputs := (cons ("name", "verified-2") (cons ("path", "target/factory") (nil (String * String)))), environment := (nil (String * String))}) (cons (record Step {label := "Materialize the obligation's closure", key := "closure", action := "", command := "bash prism-factory/factory.sh forge-prepare ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (nil (String * String))}) (cons (record Step {label := "Establish the obligation in its sandbox image", key := "establish", action := "./action", command := "", inputs := (cons ("sdk-image", "${{ needs.plan-2.outputs.sdk-image }}") (cons ("command", "factory") (cons ("target", "${{ matrix.obligation }}") (cons ("context", "${{ steps.closure.outputs.context }}") (nil (String * String)))))), environment := (cons ("PRISMPM_ACTION_REGISTRY_TOKEN", "${{ github.token }}") (nil (String * String)))}) (cons (record Step {label := "Write the receipt", key := "receipt", action := "", command := "bash prism-factory/factory.sh forge-receipt ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (cons ("FACTORY_RESULT", "${{ steps.establish.outputs.result }}") (nil (String * String)))}) (cons (record Step {label := "Sign the receipt keylessly", key := "sign", action := "actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a", command := "", inputs := (cons ("subject-path", "${{ steps.receipt.outputs.receipt }}") (nil (String * String))), environment := (nil (String * String))}) (cons (record Step {label := "Place the bundle beside the receipt", key := "", action := "", command := "bash prism-factory/factory.sh forge-bundle ${{ matrix.obligation }}", inputs := (nil (String * String)), environment := (cons ("FACTORY_BUNDLE", "${{ steps.sign.outputs.bundle-path }}") (nil (String * String)))}) (cons (record Step {label := "Hand the receipt and its bundle to the forge", key := "", action := "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", command := "", inputs := (cons ("name", "receipt-${{ matrix.obligation }}") (cons ("path", "target/factory/fresh/${{ matrix.obligation }}") (nil (String * String)))), environment := (nil (String * String))}) (nil Step))))))))}) (cons (record ForgeJob {name := "report", place := (ctor Place.forge), needs := (cons "plan" (cons "establish" (cons "plan-2" (cons "establish-2" (nil String))))), condition := "${{ always() && needs.plan.result == 'success' }}", timeout := 10, grants := (cons (record Grant {scope := "contents", access := "read"}) (cons (record Grant {scope := "statuses", access := "write"}) (nil Grant))), secrets := (nil String), duties := (cons (ctor Duty.checkout) (cons (ctor Duty.identify) (cons (ctor Duty.verify) (cons (ctor Duty.report) (nil Duty))))), matrix := "", outputs := (nil (String * String)), steps := (cons (record Step {label := "Collect the receipts the peers established", key := "", action := "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", command := "", inputs := (cons ("pattern", "receipt-*") (cons ("path", "target/factory/fresh") (cons ("merge-multiple", "true") (nil (String * String))))), environment := (nil (String * String))}) (cons (record Step {label := "Verify every receipt and report the check", key := "", action := "", command := "bash prism-factory/factory.sh forge-report", inputs := (nil (String * String)), environment := (cons ("GH_TOKEN", "${{ github.token }}") (nil (String * String)))}) (nil Step)))}) (cons (record ForgeJob {name := "keep", place := (ctor Place.store), needs := (cons "report" (nil String)), condition := "${{ always() && needs.report.result != 'skipped' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}", timeout := 10, grants := (cons (record Grant {scope := "contents", access := "write"}) (nil Grant)), secrets := (nil String), duties := (cons (ctor Duty.keep) (nil Duty)), matrix := "", outputs := (nil (String * String)), steps := (cons (record Step {label := "Collect the receipts the peers established", key := "", action := "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", command := "", inputs := (cons ("pattern", "receipt-*") (cons ("path", "target/factory/fresh") (cons ("merge-multiple", "true") (nil (String * String))))), environment := (nil (String * String))}) (cons (record Step {label := "Keep every verified receipt on the receipts branch", key := "", action := "", command := "bash prism-factory/factory.sh forge-keep", inputs := (nil (String * String)), environment := (cons ("GH_TOKEN", "${{ github.token }}") (nil (String * String)))}) (nil Step)))}) (nil ForgeJob))))))),
   executable: true
 }
 
@@ -794,7 +851,7 @@ definition{
   name: headLines,
   parameters: [],
   result: (List String),
-  body: (cons "# Generated by the Prism factory from prism-factory/model/src/Factory/Delegation.lex.tex." (cons "# Do not edit: `prism-factory/factory.sh workflow --name delegate --write .github/workflows/prism-delegation.yml` rewrites it; `check` refuses drift." (cons "# GitHub is the forge: it triggers, identifies each obligation with the certified" (cons "# core and verifies receipts. Nothing here is a hosted server. A receipt counts" (cons "# when a workflow of this repository or a listed maintainer signed it keylessly" (cons "# for exactly this identity, wherever it was established (a lent runner or a" (cons "# workstation on the same SDK image). Only obligations with no counted receipt" (cons "# are established, each on its own lent runner through the PrismPM Action." (cons "name: Prism delegation" (cons "on:" (cons "  pull_request:" (cons "  push:" (cons "    branches: [main, 'release/v*']" (cons "    tags: ['v*']" (cons "  workflow_dispatch:" (cons "permissions:" (cons "  contents: read" (cons "concurrency:" (cons "  group: prism-delegation-${{ github.ref }}" (cons "  cancel-in-progress: true" (cons "jobs:" (nil String)))))))))))))))))))))),
+  body: (cons "# Generated by the Prism factory from prism-factory/model/src/Factory/Delegation.lex.tex." (cons "# Do not edit: `prism-factory/factory.sh workflow --name delegate --write .github/workflows/prism-delegation.yml` rewrites it; `check` refuses drift." (cons "# GitHub is the forge: it triggers, identifies each obligation with the certified" (cons "# core and verifies receipts. Nothing here is a hosted server. A receipt counts" (cons "# when a workflow of this repository or a listed maintainer signed it keylessly" (cons "# for exactly this identity, wherever it was established (a lent runner or a" (cons "# workstation on the same SDK image). Only obligations with no counted receipt" (cons "# are established, each on its own lent runner through the PrismPM Action." (cons "name: Prism delegation" (cons "on:" (cons "  pull_request:" (cons "  push:" (cons "    branches: [main, 'release/v*']" (cons "    tags: ['v*']" (cons "  workflow_dispatch:" (cons "permissions:" (cons "  contents: read" (cons "concurrency:" (cons "  group: prism-delegation-${{ github.ref }}" (cons "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}" (cons "jobs:" (nil String)))))))))))))))))))))),
   executable: true
 }
 
@@ -975,9 +1032,9 @@ theorem{
 }
 
 theorem{
-  name: the_forge_spends_at_most_twenty_runner_minutes_of_its_own_per_event,
+  name: the_forge_spends_at_most_thirty_runner_minutes_of_its_own_per_event_ten_for_each_wave_and_ten_to_report,
   parameters: [],
-  statement: (((forgeMinutes (forgeJobs)) <=? 20) = true),
+  statement: (((forgeMinutes (forgeJobs)) <=? 30) = true),
   proof: decide{},
   axioms: []
 }
@@ -1127,9 +1184,9 @@ theorem{
 }
 
 theorem{
-  name: only_the_model_audits_and_the_two_image_builds_drive_the_lent_runners_container_daemon,
+  name: only_the_model_audits_the_two_image_builds_and_the_verification_parts_drive_the_lent_runners_container_daemon,
   parameters: [],
-  statement: ((prim list_fold (fun (sofar : (List String)) (entry : (String * Sandbox)) => (if (drivesDaemon (project (second entry) network)) then (prim append sofar (cons (first entry) (nil String)) : (List String)) else sofar)) (nil String) (sandboxes) : (List String)) = (cons "vv-sdk" (cons "model-audits" (cons "devcontainer" (nil String))))),
+  statement: ((prim list_fold (fun (sofar : (List String)) (entry : (String * Sandbox)) => (if (drivesDaemon (project (second entry) network)) then (prim append sofar (cons (first entry) (nil String)) : (List String)) else sofar)) (nil String) (sandboxes) : (List String)) = (cons "vv-sdk" (cons "model-audits" (cons "devcontainer" (cons "vv-conformance" (cons "vv-dk-0-1" (cons "vv-dk-2" (cons "vv-dk-3" (cons "vv-gates" (cons "vv-ho-oc" (cons "vv-source" (cons "vv-st-sy" (nil String))))))))))))),
   proof: decide{},
   axioms: []
 }
@@ -1146,6 +1203,38 @@ theorem{
   name: the_image_builds_need_nothing_and_run_in_the_pinned_sdk_image,
   parameters: [],
   statement: ((((prim list_fold (fun (sofar : Bool) (item : Factory.Engine::Obligation) => (sofar && (Factory.Engine::sameStrings (project item needs) (nil String)))) true (imageGraph) : Bool) && (prim equal (project (sandboxFor "vv-sdk") image) "@sdk" : Bool)) && (prim equal (project (sandboxFor "devcontainer") image) "@sdk" : Bool)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_carried_obligation_needs_only_carried_obligations,
+  parameters: [],
+  statement: ((carriedNeedsCarried) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: the_carried_graph_is_two_waves_deep_and_each_wave_has_its_lent_runners,
+  parameters: [],
+  statement: (((prim equal (waves) 2 : Bool) && (prim equal (prim list_fold (fun (sofar : Nat) (job : ForgeJob) => (if (onPeer (project job place)) then (sofar + 1) else sofar)) 0 (forgeJobs) : Nat) (waves) : Bool)) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: a_built_image_is_one_a_need_of_the_obligation_built,
+  parameters: [],
+  statement: ((prim list_fold (fun (sofar : Bool) (item : Factory.Engine::Obligation) => (sofar && ((prim equal (project (sandboxFor (project item name)) from) "" : Bool) || (Factory.Engine::member (project (sandboxFor (project item name)) from) (project item needs))))) true (whole) : Bool) = true),
+  proof: decide{},
+  axioms: []
+}
+
+theorem{
+  name: the_verification_parts_run_in_the_built_devcontainer_against_the_built_sdk_and_never_for_a_pull_request,
+  parameters: [],
+  statement: (((prim list_fold (fun (sofar : Bool) (item : Factory.Engine::Obligation) => (sofar && ((prim equal (project (sandboxFor (project item name)) from) "devcontainer" : Bool) && ((Factory.Engine::member "vv-sdk" (project item needs)) && ((drivesDaemon (project (sandboxFor (project item name)) network)) && ((not (publishes (project (sandboxFor (project item name)) network))) && (not (Factory.Engine::member (project item name) (lane (ctor Event.pullRequest)))))))))) true (verificationGraph) : Bool) && (prim equal (prim length (verificationGraph) : Nat) 8 : Bool)) = true),
   proof: decide{},
   axioms: []
 }
@@ -1169,7 +1258,7 @@ theorem{
 theorem{
   name: the_whole_delegated_graph_needs_every_need_first_and_names_each_obligation_once,
   parameters: [],
-  statement: (((Factory.Engine::needsComeFirst (whole)) && (Factory.Engine::sameStrings (Factory.Engine::names (whole)) (prim append (Factory.Engine::names (graph)) (cons "lint" (cons "model-audits" (cons "fixtures-golden" (cons "devcontainer" (nil String))))) : (List String)))) = true),
+  statement: (((Factory.Engine::needsComeFirst (whole)) && (Factory.Engine::sameStrings (Factory.Engine::names (whole)) (prim append (Factory.Engine::names (graph)) (cons "lint" (cons "model-audits" (cons "fixtures-golden" (cons "devcontainer" (cons "vv-conformance" (cons "vv-dk-0-1" (cons "vv-dk-2" (cons "vv-dk-3" (cons "vv-gates" (cons "vv-ho-oc" (cons "vv-source" (cons "vv-st-sy" (nil String))))))))))))) : (List String)))) = true),
   proof: decide{},
   axioms: []
 }

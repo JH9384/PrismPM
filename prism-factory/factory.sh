@@ -150,11 +150,21 @@ fetch_base() {
   git cat-file -e "$parent^{tree}" 2>/dev/null || git fetch --quiet --depth=1 origin "$parent"
 }
 
+# Plans with the kept receipts and this run's (the directories given): a
+# receipt of this run also marks its obligation attempted, so a later wave
+# does not establish it again whatever its verdict.
 forge_plan() {
-  local verified=target/factory/verified plan
+  local verified=target/factory/verified dir receipt
   mkdir -p target/factory
   mapfile -t contexts < <(forge_contexts)
   forge_verified "$verified" "$kept" "$@"
+  for dir in "$@"; do
+    [ -d "$dir" ] || continue
+    for receipt in "$dir"/*.receipt; do
+      [ -e "$receipt" ] || continue
+      sed -n 's/^obligation \([a-z][a-z0-9-]*\)$/attempted \1/p' "$receipt"
+    done
+  done | sort -u >> "$verified"
   "$host" delegate "$verified" "${contexts[@]}"
 }
 
@@ -242,8 +252,8 @@ case "$command" in
     build
     fetch_base
     fetch_kept
-    plan=$(forge_plan)
-    grep -E '^(obligation|status|check|establish|sdk) ' <<<"$plan" || true
+    plan=$(forge_plan "$fresh")
+    grep -E '^(obligation|status|check|establish|sdk|image) ' <<<"$plan" || true
     establish=$(sed -n 's/^establish //p' <<<"$plan" | jq -R . | jq -cs .)
     sdk=$(sed -n 's/^sdk //p' <<<"$plan")
     { echo "establish=$establish"; echo "sdk-image=$sdk"; } >> "${GITHUB_OUTPUT:-/dev/stdout}"
@@ -253,8 +263,10 @@ case "$command" in
     build
     fetch_base
     mapfile -t contexts < <(forge_contexts)
-    # The closure and command do not depend on receipts: plan with none.
-    forge_verified target/factory/verified
+    # The closure, command and sandbox are a function of the tree; the image a
+    # need built and what the needs name come from the receipts this wave was
+    # planned with (its plan job's verified file), or none on a laptop.
+    [ -f target/factory/verified ] || forge_verified target/factory/verified
     "$host" delegate-prepare target/factory/verified "$name" --work "$work" "${contexts[@]}" >/dev/null
     echo "context=$work/$name" >> "${GITHUB_OUTPUT:-/dev/stdout}"
     ;;

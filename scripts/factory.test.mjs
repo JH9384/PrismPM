@@ -151,6 +151,31 @@ test('the certified factory\'s source V&V reads every path except exactly this p
   assert.deepEqual(inputs.slice(1).map(value => value.slice(1)).sort(), [...plumbing].sort());
 });
 
+test('the vv-sdk image carries every module its in-image tests import', () => {
+  // xtask runs these inside the image's conformance root, which is vv-sdk's closure.
+  const model = read('prism-factory/model/src/Factory/PrismPM.lex.tex');
+  const graph = definition(model, 'graph');
+  const vvSdk = graph.slice(graph.indexOf('(obligation "vv-sdk"'), graph.indexOf('(obligation "source-vv"'));
+  const inputs = strings(vvSdk).slice(3).filter(value => value === '' || value.includes('/') || value.startsWith('!'));
+  const reach = (input, path) => {
+    const prefix = input.startsWith('!') ? input.slice(1) : input;
+    return path.startsWith(prefix) ? prefix.length + 1 : 0;
+  };
+  const longest = (path, exclusion) => Math.max(0, ...inputs.filter(input => input.startsWith('!') === exclusion)
+    .map(input => reach(input, path)));
+  const pending = ['scripts/sdk-candidate.test.mjs', 'scripts/sdk-runtime-stack.test.mjs', 'sdk/platform-lock.test.mjs'];
+  const seen = new Set();
+  while (pending.length) {
+    const path = pending.pop();
+    if (seen.has(path)) continue;
+    seen.add(path);
+    assert(longest(path, true) < longest(path, false), `vv-sdk's closure leaves out ${path}`);
+    for (const match of read(path).matchAll(/(?:from|import)\s+'(\.{1,2}\/[^']+)'/g))
+      pending.push(join(dirname(path), match[1]));
+  }
+  assert(seen.has('scripts/sdk-candidate-sbom.test.mjs') && seen.has('scripts/release-phases.mjs'));
+});
+
 test('the factory catalog names only first-party products', () => {
   const files = execFileSync('git', ['ls-files', 'factory'], {cwd: root, encoding: 'utf8'}).split('\n').filter(Boolean);
   assert(files.includes('factory/src/Factory/Catalog.lex.tex'));

@@ -66,7 +66,58 @@ if test "$command" = factory; then
   run_command=$(cat "$project.run")
   access=$(cat "$project.access")
   image=$(cat "$project.image")
-  test "$image" = @sdk || { printf '%s\n' "factory: image $image is not the SDK image; not yet carried" >&2; exit 2; }
+  # The sandbox image is the SDK image, or an image an upstream obligation
+  # built and named by digest in its counted receipt (the plan resolved it).
+  digest_form='^ghcr\.io/uor-foundation/[a-z0-9][a-z0-9._-]*@sha256:[0-9a-f]{64}$'
+  if test "$image" = @sdk; then
+    sandbox_image=$PRISMPM_ACTION_SDK_IMAGE
+    entrypoint_args=()
+    shell_args=(bash)
+  else
+    [[ "$image" =~ $digest_form ]] || { printf '%s\n' "factory: image $image is neither the SDK image nor a built image by digest" >&2; exit 2; }
+    sandbox_image=$image
+    # A built image's own entrypoint is for its interactive use, not for an
+    # obligation: the command runs in bash as the sandbox user.
+    entrypoint_args=(--entrypoint bash)
+    shell_args=()
+  fi
+  # What each need built, as NEED KEY VALUE: an image is pulled onto this
+  # runner's daemon by digest, and every value reaches the command as
+  # PRISM_UPSTREAM_<NEED>_<KEY>.
+  pulls=()
+  upstream_args=()
+  if test -f "$project.upstream"; then
+    while read -r need key value rest; do
+      [[ "$need" =~ ^[a-z][a-z0-9-]*$ && "$key" =~ ^[a-z][a-z0-9-]*$ && "$value" =~ ^[[:graph:]]+$ && -z "$rest" ]] \
+        || { printf '%s\n' "factory: malformed upstream line for $target" >&2; exit 2; }
+      variable=PRISM_UPSTREAM_$(printf '%s_%s' "$need" "$key" | tr 'a-z-' 'A-Z_')
+      upstream_args+=(--env "$variable=$value")
+      if test "$key" = image; then
+        [[ "$value" =~ $digest_form ]] || { printf '%s\n' "factory: $need names image $value, not one by digest" >&2; exit 2; }
+        pulls+=("$value")
+      fi
+    done < "$project.upstream"
+  fi
+  if test "$sandbox_image" != "$PRISMPM_ACTION_SDK_IMAGE"; then pulls+=("$sandbox_image"); fi
+  if test "${#pulls[@]}" -gt 0; then
+    pull_config=$RUNNER_TEMP/prism-pull-$target
+    rm -rf "$pull_config" && mkdir -p "$pull_config"
+    if test -n "${PRISMPM_ACTION_REGISTRY_TOKEN:-}"; then
+      for attempt in 1 2 3 4; do
+        printf '%s' "$PRISMPM_ACTION_REGISTRY_TOKEN" | DOCKER_CONFIG=$pull_config docker login ghcr.io -u "${GITHUB_ACTOR:?}" --password-stdin >/dev/null && break
+        test "$attempt" -lt 4 || { printf '%s\n' 'factory: the registry refused the login four times' >&2; exit 1; }
+        sleep $((attempt * 15))
+      done
+    fi
+    for pull in "${pulls[@]}"; do
+      for attempt in 1 2 3 4; do
+        DOCKER_CONFIG=$pull_config docker pull --quiet "$pull" >/dev/null && break
+        test "$attempt" -lt 4 || { printf '%s\n' "factory: could not pull $pull" >&2; exit 1; }
+        sleep $((attempt * 30))
+      done
+    done
+    rm -rf "$pull_config"
+  fi
   # The sandbox record: prism/1 IMAGE USER UMASK HOME SCRATCH ACCESS, with HOME
   # and SCRATCH named from the root. It is part of the obligation's identity,
   # so the container is made from it and nothing else.
@@ -133,10 +184,12 @@ if test "$command" = factory; then
     --cap-drop ALL \
     --security-opt no-new-privileges \
     "${network_args[@]}" \
+    "${upstream_args[@]}" \
     --volume "$project:/work" \
     --workdir /work \
-    "$PRISMPM_ACTION_SDK_IMAGE" \
-    bash -euo pipefail -c "umask $sandbox_umask; $seed_cargo $run_command" || status=$?
+    "${entrypoint_args[@]}" \
+    "$sandbox_image" \
+    "${shell_args[@]}" -euo pipefail -c "umask $sandbox_umask; $seed_cargo $run_command" || status=$?
   if test "$status" = 0; then passed=true; else passed=false; fi
   printf 'result={"obligation":"%s","passed":%s,"status":%s}\n' "$target" "$passed" "$status" >>"$GITHUB_OUTPUT"
   exit 0

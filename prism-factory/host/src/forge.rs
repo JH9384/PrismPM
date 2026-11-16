@@ -53,6 +53,12 @@ pub(crate) struct Delegated {
     pub(crate) run: String,
     pub(crate) access: String,
     pub(crate) image: String,
+    /// The image a need built (`image OWNER VALUE`), for a sandbox whose image
+    /// is built by an upstream obligation; the root names it only from that
+    /// need's counted pass.
+    pub(crate) built: Option<String>,
+    /// What each need's counted pass built: `NEED KEY VALUE`.
+    pub(crate) upstream: Vec<String>,
     pub(crate) sandbox: String,
     pub(crate) establish: bool,
     pub(crate) status: Option<String>,
@@ -92,6 +98,8 @@ pub(crate) fn read(text: &str) -> DelegationPlan {
                 entry.image = image.into();
             }
             "sandbox" => entry.sandbox = rest.into(),
+            "image" => entry.built = Some(rest.into()),
+            "upstream" => entry.upstream.push(rest.into()),
             "establish" => entry.establish = true,
             "status" => entry.status = Some(rest.into()),
             "file" => entry.files.push(rest.into()),
@@ -131,7 +139,8 @@ fn entries_with_base(revision: &str) -> Result<Vec<Entry>, String> {
 
 /// The request: the tree and its base, each context (`@key`), then the lines
 /// `factory.sh` wrote after verifying receipts (`signed`, `trust-repository`,
-/// `trust-maintainer`, `event`, and `output` for what a verified receipt names).
+/// `trust-maintainer`, `event`, `output` for what a verified receipt names, and
+/// `attempted` for each obligation an earlier wave of this run established).
 pub(crate) fn request(options: &Options, verified: Option<&Path>) -> Result<String, String> {
     let entries = entries_with_base(&options.revision)?;
     let mut text = String::new();
@@ -145,7 +154,7 @@ pub(crate) fn request(options: &Options, verified: Option<&Path>) -> Result<Stri
         let lines = fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
         for line in lines.lines() {
             let tag = line.split(' ').next().unwrap_or("");
-            if !matches!(tag, "signed" | "output" | "trust-repository" | "trust-maintainer" | "event") {
+            if !matches!(tag, "signed" | "output" | "attempted" | "trust-repository" | "trust-maintainer" | "event") {
                 return Err(format!("{}: unexpected line {line:?}", path.display()));
             }
             text.push_str(line);
@@ -226,7 +235,17 @@ pub(crate) fn prepare(options: &Options) -> Result<bool, String> {
     };
     beside("run", &item.run)?;
     beside("access", &item.access)?;
-    beside("image", &item.image)?;
+    // A sandbox whose image an upstream obligation builds runs in the image
+    // that need's counted pass named; without one it cannot be established.
+    let image = if item.image.starts_with('@') && item.image != "@sdk" {
+        item.built.clone().ok_or(format!("{name} runs in {}, which no counted pass of a need has named", item.image))?
+    } else {
+        item.image.clone()
+    };
+    beside("image", &image)?;
+    let upstream: String = item.upstream.iter().map(|line| format!("{line}\n")).collect();
+    let path = options.work.join(format!("{name}.upstream"));
+    fs::write(&path, upstream).map_err(|error| format!("{}: {error}", path.display()))?;
     beside("kappa", &item.kappa)?;
     beside("sandbox", &item.sandbox)?;
     println!("{}", work.display());

@@ -12,7 +12,6 @@ const {load} = createRequire('/opt/prismpm/oracles/package.json')('js-yaml');
 const workflow = name => load(readFileSync(new URL(`../.github/workflows/${name}.yml`, import.meta.url), 'utf8'));
 function sourceEvents(name, value) {
   const expected = {
-    vv: {push: {branches: ['main']}, workflow_dispatch: null},
     bootstrap: {workflow_dispatch: null},
     reproducibility: {schedule: [{cron: '17 3 * * *'}], workflow_dispatch: null},
   }[name];
@@ -60,6 +59,26 @@ function workspaceUnitOwnership(source) {
   return statements;
 }
 
+// vv.yml is retired too: the eight parts of the normative acceptance are the
+// delegation's vv-<part> obligations (Factory.PrismPM::verification). Each runs
+// in the devcontainer image the devcontainer obligation built, against the SDK
+// image vv-sdk built, once per content identity; the model's theorems fix
+// their sandbox, needs and lanes.
+test('the normative acceptance parts are carried by the delegation, not a main-push workflow', () => {
+  assert(!existsSync(new URL('../.github/workflows/vv.yml', import.meta.url)));
+  assert.deepEqual(workflow('prism-delegation').on.push.branches, ['main', 'release/v*']);
+  // A newer pull request push supersedes its run, but a push to main or a release line runs its
+  // whole graph to the end: cancelling it there is what kept vv.yml from ever finishing.
+  assert.equal(workflow('prism-delegation').concurrency['cancel-in-progress'], "${{ github.event_name == 'pull_request' }}");
+  const model = readFileSync(new URL('../prism-factory/model/src/Factory/PrismPM.lex.tex', import.meta.url), 'utf8');
+  for (const part of vvParts) {
+    assert.equal(model.split(`"bash prism-factory/obligations/vv-part.sh ${part}"`).length, 2, part);
+  }
+  const run = readFileSync(new URL('../prism-factory/obligations/vv-part.sh', import.meta.url), 'utf8');
+  assert(run.includes('export PRISMPM_TEST_SDK_IMAGE=$PRISM_UPSTREAM_VV_SDK_IMAGE'));
+  assert(run.includes('bash scripts/vv.sh --with-sdk bash -euo pipefail -c "just vv-part $part"\n'));
+});
+
 test('workspace units own conformance library and binaries without duplicate integration execution', () => {
   workspaceUnitOwnership(readFileSync(new URL('../xtask/src/main.rs', import.meta.url), 'utf8'));
 });
@@ -83,7 +102,7 @@ test('unit ownership refuses missing regressions, repeated integration, hidden e
 });
 
 test('read-only source workflows supersede by workflow and ref, never unique run ID', () => {
-  for (const name of ['vv', 'bootstrap', 'reproducibility']) {
+  for (const name of ['bootstrap', 'reproducibility']) {
     const value = workflow(name);
     sourceEvents(name, value);
     assert.equal(value.concurrency['cancel-in-progress'], true);
@@ -95,7 +114,7 @@ test('read-only source workflows supersede by workflow and ref, never unique run
 });
 
 test('source trigger policy refuses missing filtered broadened or redundant execution', () => {
-  for (const name of ['reproducibility', 'vv', 'bootstrap']) {
+  for (const name of ['reproducibility', 'bootstrap']) {
     const original = workflow(name);
     const mutations = [
       value => delete value.on.workflow_dispatch,
@@ -105,11 +124,7 @@ test('source trigger policy refuses missing filtered broadened or redundant exec
     mutations.push(value => value.on.pull_request = null);
     mutations.push(value => value.on.merge_group = {branches: ['main']});
     if (name !== 'reproducibility') mutations.push(value => value.on.schedule = [{cron: '* * * * *'}]);
-    if (name !== 'vv') mutations.push(value => value.on.push = {branches: ['main']});
-    else mutations.push(value => delete value.on.push, value => value.on.push = null,
-      value => value.on.push = {branches: ['main', 'other']},
-      value => value.on.push = {branches: ['main'], tags: ['v*']},
-      value => value.on.push = {branches: ['main'], paths: ['src/**']});
+    mutations.push(value => value.on.push = {branches: ['main']});
     for (const mutate of mutations) {
       const value = structuredClone(original); mutate(value);
       assert.throws(() => sourceEvents(name, value), name);
@@ -117,22 +132,14 @@ test('source trigger policy refuses missing filtered broadened or redundant exec
   }
 });
 
-test('all affected jobs have explicit bounds; the one normative pass retains six hours', () => {
-  for (const name of ['vv', 'bootstrap', 'reproducibility', 'sdk', 'release', 'sdk-candidate', 'native-golden']) {
+test('all affected jobs have explicit bounds; the bootstrap pass retains six hours', () => {
+  for (const name of ['bootstrap', 'reproducibility', 'sdk', 'release', 'sdk-candidate', 'native-golden']) {
     for (const [id, job] of Object.entries(workflow(name).jobs)) {
       const bound = job['timeout-minutes'];
       assert(Number.isInteger(bound) && bound > 0 && bound <= 360, `${name}/${id}`);
     }
   }
-  assert.equal(workflow('vv').jobs.vv['timeout-minutes'], 360);
   assert.equal(workflow('bootstrap').jobs['native-gate']['timeout-minutes'], 360);
-  const run = workflow('vv').jobs.vv.steps.find(step => step.with?.runCmd).with.runCmd;
-  assert.equal(run, `set -euo pipefail
-bash scripts/vv.sh --with-sdk bash -euo pipefail -c "$(cat <<'PRISMPM_VV'
-node scripts/ci-observe.mjs run target/ci-diagnostics/vv -- just vv-part ${'$'}{{ matrix.part }}
-PRISMPM_VV
-)"
-`);
 });
 
 const readOnly = `contains(fromJSON('["check", "build", "verify", "test"]'), inputs.command)`;

@@ -1488,7 +1488,6 @@ pub fn audit_tools_ci(root: &Path) -> Result<(), Fail> {
         ".github/workflows/bootstrap.yml",
         ".github/workflows/native-golden.yml",
         ".github/workflows/reproducibility.yml",
-        ".github/workflows/vv.yml",
     ] {
         let source = std::fs::read_to_string(root.join(workflow))?;
         for line in source.lines().map(str::trim) {
